@@ -1,0 +1,162 @@
+package npm
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"time"
+)
+
+type Proxy struct {
+	ID                    int            `json:"id"`
+	DomainNames           []string       `json:"domain_names"`
+	ForwardScheme         string         `json:"forward_scheme"`
+	ForwardHost           string         `json:"forward_host"`
+	ForwardPort           int            `json:"forward_port"`
+	CachingEnabled        bool           `json:"caching_enabled"`
+	BlockExploits         bool           `json:"block_exploits"`
+	AllowWebsocketUpgrade bool           `json:"allow_websocket_upgrade"`
+	AccessListID          string         `json:"access_list_id"`
+	CertificateID         int            `json:"certificate_id"`
+	Meta                  map[string]any `json:"meta"`
+	AdvancedConfig        string         `json:"advanced_config"`
+	Locations             []any          `json:"locations"`
+	Http2Support          bool           `json:"http2_support"`
+	HstsEnabled           bool           `json:"hsts_enabled"`
+	HstsSubdomains        bool           `json:"hsts_subdomains"`
+	SslForced             bool           `json:"ssl_forced"`
+}
+
+/*
+	{
+	   "domain_names":[
+	      "ola.127.0.0.1"
+	   ],
+	   "forward_scheme":"http",
+	   "forward_host":"192.168.1.89",
+	   "forward_port":95,
+	   "caching_enabled":true,
+	   "block_exploits":true,
+	   "allow_websocket_upgrade":true,
+	   "access_list_id":"0",
+	   "certificate_id":0,
+	   "meta":{
+	      "letsencrypt_agree":false,
+	      "dns_challenge":false
+	   },
+	   "advanced_config":"",
+	   "locations":[
+
+	   ],
+	   "http2_support":false,
+	   "hsts_enabled":false,
+	   "hsts_subdomains":false,
+	   "ssl_forced":false
+	}
+*/
+func CreateProxy(baseURL, token string, p Proxy) (int, error) {
+	reqBody := map[string]any{
+		"domain_names":            p.DomainNames,
+		"forward_scheme":          p.ForwardScheme,
+		"forward_host":            p.ForwardHost,
+		"forward_port":            p.ForwardPort,
+		"caching_enabled":         p.CachingEnabled,
+		"block_exploits":          p.BlockExploits,
+		"allow_websocket_upgrade": p.AllowWebsocketUpgrade,
+		"access_list_id":          p.AccessListID,
+		"certificate_id":          p.CertificateID,
+		"meta":                    p.Meta,
+		"advanced_config":         p.AdvancedConfig,
+		"locations":               p.Locations,
+		"http2_support":           p.Http2Support,
+		"hsts_enabled":            p.HstsEnabled,
+		"hsts_subdomains":         p.HstsSubdomains,
+		"ssl_forced":              p.SslForced,
+	}
+
+	//marshal to json
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return 0, err
+	}
+
+	req, err := http.NewRequest("POST", baseURL+"/api/nginx/proxy-hosts", bytes.NewReader(jsonData))
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{Timeout: 20 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 && resp.StatusCode != 201 {
+		return 0, fmt.Errorf("create proxy failed (%d): %s", resp.StatusCode, respBody)
+	}
+
+	//print body
+	id := -1
+	var respData map[string]any
+	if err := json.Unmarshal(respBody, &respData); err == nil {
+		if d, ok := respData["id"].(float64); ok {
+			id = int(d)
+		}
+	}
+	return id, nil
+}
+
+
+func EditProxy(baseURL, token string, p Proxy) error {
+	reqBody := map[string]any{
+		"domain_names":            p.DomainNames,
+		"forward_scheme":          p.ForwardScheme,
+		"forward_host":            p.ForwardHost,
+		"forward_port":            p.ForwardPort,
+		"caching_enabled":         p.CachingEnabled,
+		"block_exploits":          p.BlockExploits,
+		"allow_websocket_upgrade": p.AllowWebsocketUpgrade,
+		"access_list_id":          p.AccessListID,
+		"certificate_id":          p.CertificateID,
+		"meta":                    p.Meta,
+		"advanced_config":         p.AdvancedConfig,
+		"locations":               p.Locations,
+		"http2_support":           p.Http2Support,
+		"hsts_enabled":            p.HstsEnabled,
+		"hsts_subdomains":         p.HstsSubdomains,
+		"ssl_forced":              p.SslForced,
+	}
+
+	//marshal to json
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("PUT", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d", baseURL, p.ID), bytes.NewReader(jsonData))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{Timeout: 20 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 && resp.StatusCode != 201 {
+		return fmt.Errorf("edit proxy failed (%d): %s", resp.StatusCode, respBody)
+	}
+
+	return nil
+}
