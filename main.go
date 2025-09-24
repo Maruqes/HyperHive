@@ -88,31 +88,31 @@ func main() {
 	// if err != nil {
 	// 	panic(err)
 	// }
-	proxyId := 4 // hardcoded for testing
-	fmt.Println("Created proxy with ID", proxyId)
+	// proxyId := 4 // hardcoded for testing
+	// fmt.Println("Created proxy with ID", proxyId)
 
-	err = npm.EditProxy(base, token, npm.Proxy{
-		ID:                    proxyId,
-		DomainNames:           []string{"meudeus.localhost", "test2.localhost"},
-		ForwardScheme:         "http",
-		ForwardHost:           "127.0.0.1",
-		ForwardPort:           8080,
-		CachingEnabled:        false,
-		BlockExploits:         true,
-		AllowWebsocketUpgrade: true,
-		AccessListID:          "0",
-		CertificateID:         0,
-		Meta:                  map[string]any{"letsencrypt_agree": false, "dns_challenge": false},
-		AdvancedConfig:        "",
-		Locations:             []any{},
-		Http2Support:          false,
-		HstsEnabled:           false,
-		HstsSubdomains:        false,
-		SslForced:             false,
-	})
-	if err != nil {
-		panic(err)
-	}
+	// err = npm.EditProxy(base, token, npm.Proxy{
+	// 	ID:                    proxyId,
+	// 	DomainNames:           []string{"meudeus.localhost", "test2.localhost"},
+	// 	ForwardScheme:         "http",
+	// 	ForwardHost:           "127.0.0.1",
+	// 	ForwardPort:           8080,
+	// 	CachingEnabled:        false,
+	// 	BlockExploits:         true,
+	// 	AllowWebsocketUpgrade: true,
+	// 	AccessListID:          "0",
+	// 	CertificateID:         0,
+	// 	Meta:                  map[string]any{"letsencrypt_agree": false, "dns_challenge": false},
+	// 	AdvancedConfig:        "",
+	// 	Locations:             []any{},
+	// 	Http2Support:          false,
+	// 	HstsEnabled:           false,
+	// 	HstsSubdomains:        false,
+	// 	SslForced:             false,
+	// })
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	virsh.SetupVMs()
 
