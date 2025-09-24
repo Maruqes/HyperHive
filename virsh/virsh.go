@@ -15,7 +15,6 @@ type VM struct {
 
 var vmVault *VaultStore
 
-
 func MigrateVMs(vmName string) error {
 	toMigrate := "sv2@sv2"
 
@@ -50,6 +49,11 @@ func SetupVMs() error {
 	vmVault = NewVaultStore("vms.yaml", func() (string, error) {
 		return p, nil
 	})
+
+	// Ensure the vault file exists and can be decrypted with the provided passphrase.
+	if err := vmVault.Setup(); err != nil {
+		return err
+	}
 
 	//default
 	vmVault.AddVM(VM{

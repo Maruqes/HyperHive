@@ -62,7 +62,6 @@ func main() {
 	hostAdmin := "127.0.0.1:8181"
 	base := "http://" + hostAdmin
 
-
 	token, err := npm.SetupNPM(base)
 
 	if err != nil {
@@ -118,7 +117,9 @@ func main() {
 	// 	panic(err)
 	// }
 
-	virsh.SetupVMs()
+	if err := virsh.SetupVMs(); err != nil {
+		log.Fatalf("failed to setup VMs: %v", err)
+	}
 
 	webServer()
 }
