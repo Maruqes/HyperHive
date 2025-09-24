@@ -13,9 +13,9 @@ import (
 const (
 	image        = "jc21/nginx-proxy-manager:latest"
 	container    = "npm-from-go"
-	hostHTTP     = "127.0.0.1:8080"    // -> container 80
-	hostAdmin    = "127.0.0.1:8181"    // -> container 81 (API/UI)
-	hostHTTPS    = "127.0.0.1:4443"    // -> container 443
+	hostHTTP     = "127.0.0.1:80"    // -> container 80
+	hostAdmin    = "127.0.0.1:81"    // -> container 81 (API/UI)
+	hostHTTPS    = "127.0.0.1:443"    // -> container 443
 	adminEmail   = "admin@example.com" // change if you set INITIAL_ADMIN_EMAIL
 	adminPass    = "changeme"          // change if you set INITIAL_ADMIN_PASSWORD
 	newUserName  = "Jane Doe"
