@@ -32,3 +32,4 @@ docker-compose.yml
 # .vscode/
 npm-data/
 npm-ssl/
+vms.yaml
