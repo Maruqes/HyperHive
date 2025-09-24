@@ -59,7 +59,7 @@ func askForSudo() {
 func main() {
 	askForSudo()
 	askForSudo()
-	hostAdmin := "127.0.0.1:8181"
+	hostAdmin := "127.0.0.1:81"
 	base := "http://" + hostAdmin
 
 	token, err := npm.SetupNPM(base)
