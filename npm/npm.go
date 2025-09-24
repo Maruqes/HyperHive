@@ -118,9 +118,9 @@ func PullImage() error {
 		"-d",
 		"--name", "npm-from-go",
 		"--restart", "unless-stopped",
-		"-p", "8080:80", // http
-		"-p", "8181:81", // admin/ui
-		"-p", "4443:443", // https
+		"-p", "80:80", // http
+		"-p", "81:81", // admin/ui
+		"-p", "443:443", // https
 		"-e", "TZ=UTC",
 		// (optional) set first-boot admin so you don't rely on defaults:
 		// "-e", "INITIAL_ADMIN_EMAIL=admin@example.com",
