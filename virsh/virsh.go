@@ -18,7 +18,7 @@ type VM struct {
 var vmVault *VaultStore
 
 func MigrateVMs(vmName string) error {
-	toMigrate := "sv2@sv2"
+	toMigrate := "swift512@swift512"
 
 	if vmVault == nil {
 		return errors.New("vmVault is not initialized")
