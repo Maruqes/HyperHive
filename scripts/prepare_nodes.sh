@@ -3,6 +3,9 @@
 # prepare_nodes.sh
 # Installs GlusterFS on nodes, adds /etc/hosts entries and prepares brick directories.
 
+#FALTA INSTALAR sshpass
+
+
 set -euo pipefail
 
 # Configuration arrays (edit as needed)
