@@ -42,8 +42,8 @@ func webServer() {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	log.Println("Iniciando webserver em :9090")
-	if err := http.ListenAndServe(":9090", nil); err != nil {
+	log.Println("Iniciando webserver em :9595")
+	if err := http.ListenAndServe(":9595", nil); err != nil {
 		log.Fatalf("webserver error: %v", err)
 	}
 }
