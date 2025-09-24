@@ -59,16 +59,16 @@ func askForSudo() {
 func main() {
 	askForSudo()
 	askForSudo()
-	hostAdmin := "127.0.0.1:81"
-	base := "http://" + hostAdmin
+	// hostAdmin := "127.0.0.1:81"
+	// base := "http://" + hostAdmin
 
-	token, err := npm.SetupNPM(base)
+	// token, err := npm.SetupNPM(base)
 
-	if err != nil {
-		panic(err)
-	}
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	println("NPM setup complete, token:", token)
+	// println("NPM setup complete, token:", token)
 
 	// proxyId, err := npm.CreateProxy(base, token, npm.Proxy{
 	// 	DomainNames:           []string{"test.localhost"},
