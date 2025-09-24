@@ -32,7 +32,7 @@ func webServer() {
 			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
 			return
 		}
-		err := virsh.MigrateVMs("sv1")
+		err := virsh.MigrateVMs("ubuntu25")
 		if err != nil {
 			http.Error(w, "Erro ao migrar VM: "+err.Error(), http.StatusInternalServerError)
 			return

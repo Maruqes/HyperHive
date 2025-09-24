@@ -61,7 +61,7 @@ func SetupVMs() error {
 
 	//default
 	vmVault.AddVM(VM{
-		Name:     "sv1",
+		Name:     "ubuntu25",
 		IP:       "192.168.122.69",
 		User:     "user",
 		Password: "live",
