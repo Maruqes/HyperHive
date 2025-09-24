@@ -4,6 +4,8 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+
+	"github.com/joho/godotenv"
 )
 
 type VM struct {
@@ -41,6 +43,8 @@ func MigrateVMs(vmName string) error {
 }
 
 func SetupVMs() error {
+	_ = godotenv.Load(".env") // loads variables from .env into os.Environ
+
 	p := os.Getenv("VAULT_PASS")
 	if p == "" {
 		return errors.New("VAULT_PASS is not set")

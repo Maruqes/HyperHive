@@ -23,7 +23,7 @@ profile.cov
 # Go workspace file
 go.work
 go.work.sum
-
+docker-compose.yml
 # env file
 .env
 512SvMan

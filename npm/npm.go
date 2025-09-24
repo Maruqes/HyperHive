@@ -13,9 +13,9 @@ import (
 const (
 	image        = "jc21/nginx-proxy-manager:latest"
 	container    = "npm-from-go"
-	hostHTTP     = "127.0.0.1:80"    // -> container 80
-	hostAdmin    = "127.0.0.1:81"    // -> container 81 (API/UI)
-	hostHTTPS    = "127.0.0.1:443"    // -> container 443
+	hostHTTP     = "127.0.0.1:80"      // -> container 80
+	hostAdmin    = "127.0.0.1:81"      // -> container 81 (API/UI)
+	hostHTTPS    = "127.0.0.1:443"     // -> container 443
 	adminEmail   = "admin@example.com" // change if you set INITIAL_ADMIN_EMAIL
 	adminPass    = "changeme"          // change if you set INITIAL_ADMIN_PASSWORD
 	newUserName  = "Jane Doe"
@@ -108,30 +108,37 @@ func PullImage() error {
 		return err
 	}
 
-	// kill any previous container (ok if it doesn't exist)
-	err = exec.Command("docker", "rm", "-f", "npm-from-go").Run()
-	if err != nil {
-		fmt.Println("No previous container to remove.")
-	}
-	// single, real run (no dummy nonsense)
-	err = exec.Command("docker", "run",
-		"-d",
-		"--name", "npm-from-go",
-		"--restart", "unless-stopped",
-		"-p", "80:80", // http
-		"-p", "81:81", // admin/ui
-		"-p", "443:443", // https
-		"-e", "TZ=UTC",
-		// (optional) set first-boot admin so you don't rely on defaults:
-		// "-e", "INITIAL_ADMIN_EMAIL=admin@example.com",
-		// "-e", "INITIAL_ADMIN_PASSWORD=changeme",
-		"-v", data+":/data",
-		"-v", ssl+":/etc/letsencrypt",
-		"jc21/nginx-proxy-manager:latest",
-	).Run()
-	if err != nil {
+	// 2) Write docker-compose.yml
+	composeFile := filepath.Join(work, "docker-compose.yml")
+	composeContent := fmt.Sprintf(`version: "3"
+services:
+  app:
+    image: jc21/nginx-proxy-manager:latest
+    restart: unless-stopped
+    network_mode: "host"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "81:81"
+    volumes:
+      - %s:/data
+      - %s:/etc/letsencrypt
+`, data, ssl)
+
+	if err := os.WriteFile(composeFile, []byte(composeContent), 0o644); err != nil {
 		return err
 	}
+
+	// 3) Run docker compose up -d
+	cmd := exec.Command("docker", "compose", "up", "-d")
+	cmd.Dir = work // run in project directory
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -141,7 +148,6 @@ func SetupNPM(base string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 
 	err = waitForNPM(base, 2*time.Minute)
 	if err != nil {
@@ -191,7 +197,7 @@ func SetupNPM(base string) (string, error) {
 	}
 	fmt.Println("Created user", newUserNick+" with ID "+fmt.Sprint(userID))
 
-	//login into new user 
+	//login into new user
 	token, err = retry[string](60*time.Second, 2*time.Second, func() (string, error) {
 		return Login(base, newUserEmail, newUserPass)
 	})
