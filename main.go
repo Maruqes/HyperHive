@@ -33,7 +33,11 @@ func webServer() {
 			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
 			return
 		}
-		virsh.MigrateVMs("debian-kde-nat")
+		err := virsh.MigrateVMs("debian-kde-nat")
+		if err != nil {
+			http.Error(w, "Erro ao migrar VM: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 		//return 200
 		w.WriteHeader(http.StatusOK)
 	})
