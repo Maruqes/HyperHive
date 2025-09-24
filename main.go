@@ -1,7 +1,6 @@
 package main
 
 import (
-	"512SvMan/npm"
 	"512SvMan/virsh"
 	"fmt"
 	"log"

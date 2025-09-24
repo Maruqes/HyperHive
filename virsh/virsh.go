@@ -61,7 +61,7 @@ func SetupVMs() error {
 
 	//default
 	vmVault.AddVM(VM{
-		Name:     "debian-kde-nat",
+		Name:     "sv1",
 		IP:       "192.168.122.69",
 		User:     "user",
 		Password: "live",
