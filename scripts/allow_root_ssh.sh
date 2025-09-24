@@ -3,6 +3,8 @@
 # Script to force allow root SSH login
 # This modifies /etc/ssh/sshd_config and restarts SSH service
 
+# É PRECISO FAZER "sudo -i" && "passwd"  
+
 # Backup the original config
 cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup
 
