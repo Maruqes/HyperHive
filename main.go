@@ -1,7 +1,6 @@
 package main
 
 import (
-	"512SvMan/npm"
 	"512SvMan/virsh"
 	"fmt"
 	"log"
@@ -33,11 +32,7 @@ func webServer() {
 			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
 			return
 		}
-		err := virsh.MigrateVMs("ubuntu25")
-		if err != nil {
-			http.Error(w, "Erro ao migrar VM: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
+
 		//return 200
 		w.WriteHeader(http.StatusOK)
 	})
@@ -59,16 +54,16 @@ func askForSudo() {
 func main() {
 	askForSudo()
 	askForSudo()
-	hostAdmin := "127.0.0.1:81"
-	base := "http://" + hostAdmin
+	// hostAdmin := "127.0.0.1:81"
+	// base := "http://" + hostAdmin
 
-	token, err := npm.SetupNPM(base)
+	// token, err := npm.SetupNPM(base)
 
-	if err != nil {
-		panic(err)
-	}
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	println("NPM setup complete, token:", token)
+	// println("NPM setup complete, token:", token)
 
 	// proxyId, err := npm.CreateProxy(base, token, npm.Proxy{
 	// 	DomainNames:           []string{"test.localhost"},
@@ -117,9 +112,20 @@ func main() {
 	// 	panic(err)
 	// }
 
-	if err := virsh.SetupVMs(); err != nil {
-		log.Fatalf("failed to setup VMs: %v", err)
-	}
+	// webServer()
 
-	webServer()
+	xml, err := virsh.CreateVMCustomCPU(
+		"qemu:///system",
+		"debian-kde",
+		8192, 6,
+		"debian-kde.qcow2", 40, // relativo -> /var/512SvMan/qcow2/debian-kde.qcow2
+		"debian-live-13.1.0-amd64-kde.iso", // relativo -> /var/512SvMan/iso/...
+		"",                                 // machine (user decide; "" = auto)
+		"default", "0.0.0.0",
+		"Westmere", nil, // baseline portable
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("XML gravado em:", xml)
 }
