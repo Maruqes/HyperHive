@@ -9,9 +9,6 @@ import (
 	libvirt "libvirt.org/go/libvirt"
 )
 
-// BuildCPUXMLCustom returns a <cpu>...</cpu> block for a custom baseline.
-// model examples: "Nehalem", "Westmere", "Haswell-noTSX", ...
-// disabledFeatures optional; if nil -> uses a portable default set.
 func BuildCPUXMLCustom(model string, disabledFeatures []string) string {
 	if strings.TrimSpace(model) == "" {
 		model = "Westmere"
@@ -19,12 +16,11 @@ func BuildCPUXMLCustom(model string, disabledFeatures []string) string {
 	defPortable := []string{
 		"vmx", "svm", "hle", "rtm", "invpcid", "umip",
 		"ibrs", "ssbd", "stibp", "amd-stibp", "amd-ssbd",
-		"md-clear", "spec-ctrl", "flush-l1d","pdcm", "pcid","ss","erms",
+		"md-clear", "spec-ctrl", "flush-l1d",
 	}
 	if len(disabledFeatures) == 0 {
 		disabledFeatures = defPortable
 	} else {
-		// union + sort
 		m := map[string]struct{}{}
 		for _, f := range append(disabledFeatures, defPortable...) {
 			f = strings.TrimSpace(f)
@@ -49,19 +45,12 @@ func BuildCPUXMLCustom(model string, disabledFeatures []string) string {
 	return b.String()
 }
 
-// CreateVMCustomCPU creates & starts a VM with a fixed baseline CPU model (migration-friendly).
-// Files live under ROOTFOLDER; XML saved under xml/<name>.xml.
 func CreateVMCustomCPU(
-	connURI string,
-	name string,
+	connURI, name string,
 	memMB, vcpus int,
 	diskPath string, diskSizeGB int,
-	isoPath string,
-	machine string,
-	network string,
-	graphicsListen string,
-	cpuModel string, // "Nehalem" | "Westmere" | "Haswell-noTSX" | custom
-	disabledFeatures []string, // nil -> default portable set
+	isoPath, machine, network, graphicsListen string,
+	cpuModel string, disabledFeatures []string,
 ) (string, error) {
 
 	if err := EnsureDirs(); err != nil {
@@ -70,11 +59,18 @@ func CreateVMCustomCPU(
 	disk := ResolveDiskPath(diskPath)
 	iso := ResolveISOPath(isoPath)
 
-	if err := EnsureQCOW2(disk, diskSizeGB); err != nil {
-		return "", fmt.Errorf("ensure qcow2: %w", err)
+	// detect/create disk & get its format
+	diskFmt, err := EnsureDiskAndDetectFormat(disk, diskSizeGB)
+	if err != nil {
+		return "", fmt.Errorf("disk: %w", err)
 	}
-	if _, err := os.Stat(iso); err != nil {
-		return "", fmt.Errorf("ISO not found: %s", iso)
+
+	// ISO optional
+	hasISO := false
+	if isoPath != "" {
+		if _, err := os.Stat(iso); err == nil {
+			hasISO = true
+		}
 	}
 
 	conn, err := libvirt.NewConnect(connURI)
@@ -89,6 +85,17 @@ func CreateVMCustomCPU(
 	}
 	cpuXML := BuildCPUXMLCustom(cpuModel, disabledFeatures)
 
+	cdromXML := ""
+	if hasISO {
+		cdromXML = fmt.Sprintf(`
+    <disk type='file' device='cdrom'>
+      <driver name='qemu' type='raw'/>
+      <source file='%s'/>
+      <target dev='sda' bus='sata'/>
+      <readonly/>
+    </disk>`, iso)
+	}
+
 	domainXML := fmt.Sprintf(`
 <domain type='kvm'>
   <name>%s</name>
@@ -96,23 +103,17 @@ func CreateVMCustomCPU(
   <vcpu>%d</vcpu>
   <os>
     <type arch='x86_64'%s>hvm</type>
-    <boot dev='cdrom'/>
+    <boot dev='%s'/>
     <boot dev='hd'/>
   </os>
   <features><acpi/><apic/></features>
   %s
   <devices>
     <disk type='file' device='disk'>
-      <driver name='qemu' type='qcow2' cache='none' discard='unmap'/>
+      <driver name='qemu' type='%s' cache='none' discard='unmap'/>
       <source file='%s'/>
       <target dev='vda' bus='virtio'/>
-    </disk>
-    <disk type='file' device='cdrom'>
-      <driver name='qemu' type='raw'/>
-      <source file='%s'/>
-      <target dev='sda' bus='sata'/>
-      <readonly/>
-    </disk>
+    </disk>%s
     <interface type='network'>
       <source network='%s'/>
       <model type='virtio'/>
@@ -120,7 +121,17 @@ func CreateVMCustomCPU(
     <graphics type='vnc' listen='%s'/>
     <video><model type='virtio'/></video>
   </devices>
-</domain>`, name, memMB, vcpus, machineAttr, cpuXML, disk, iso, network, graphicsListen)
+</domain>`,
+		name, memMB, vcpus, machineAttr,
+		func() string {
+			if hasISO {
+				return "cdrom"
+			} else {
+				return "hd"
+			}
+		}(),
+		cpuXML, diskFmt, disk, cdromXML, network, graphicsListen,
+	)
 
 	xmlPath, err := WriteDomainXMLToDisk(name, domainXML)
 	if err != nil {
