@@ -6,7 +6,7 @@ set -euo pipefail
 # ================= CONFIG =================
 VOLUME_NAME="shared_vol"
 BRICK_DIR="/gluster_bricks/images"         # Brick storage
-MOUNT_DIR="/var/lib/libvirt/images"        # Where images will be mounted
+MOUNT_DIR="~/img512"        # Where images will be mounted
 NODES=("marques" "swift512")                  # Cluster nodes
 SSH_USER="root"                            # SSH user
 SSH_PORT=(22512 22)                        # per-node SSH ports
