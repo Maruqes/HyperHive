@@ -1,0 +1,4 @@
+gluster_volume_name: data
+gluster_bricks:
+  - "/gluster/brick1"    # em cada nó
+replica_count: 2         # 2 nós -> replica 2

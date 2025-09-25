@@ -1,0 +1,43 @@
+---
+- name: Force remove offline Gluster peer
+  hosts: gluster_nodes
+  become: true
+  collections:
+    - ansible.builtin
+    - gluster.gluster
+  vars:
+    primary_node: "{{ groups['gluster_nodes'][0] }}"
+  pre_tasks:
+    - name: Require offline_peer variable
+      ansible.builtin.assert:
+        that:
+          - offline_peer is defined
+          - offline_peer in groups['gluster_nodes']
+          - groups['gluster_nodes'] | length > 1
+        fail_msg: "Set offline_peer to a member of the gluster_nodes group that is not the only node."
+
+  tasks:
+    - name: Define surviving brick layout
+      ansible.builtin.set_fact:
+        surviving_bricks: "{{ groups['gluster_nodes'] | difference([offline_peer]) | product(gluster_bricks) | map('join', ':') | list }}"
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+      delegate_facts: true
+
+    - name: Remove offline peer bricks forcibly (data loss)
+      gluster.gluster.gluster_volume:
+        state: present
+        name: "{{ gluster_volume_name }}"
+        bricks: "{{ hostvars[primary_node].surviving_bricks }}"
+        force: true
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+
+    - name: Force detach offline peer from cluster
+      gluster.gluster.gluster_peer:
+        state: absent
+        nodes:
+          - "{{ offline_peer }}"
+        force: true
+      run_once: true
+      delegate_to: "{{ primary_node }}"

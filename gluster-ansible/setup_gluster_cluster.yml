@@ -1,0 +1,48 @@
+---
+- name: Configure Gluster cluster
+  hosts: gluster_nodes
+  become: true
+  collections:
+    - ansible.builtin
+    - gluster.gluster
+  vars:
+    primary_node: "{{ groups['gluster_nodes'][0] }}"
+  tasks:
+    - name: Ensure brick directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop: "{{ gluster_bricks }}"
+
+    - name: Build cluster brick mapping
+      ansible.builtin.set_fact:
+        cluster_bricks: "{{ groups['gluster_nodes'] | product(gluster_bricks) | map('join', ':') | list }}"
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+      delegate_facts: true
+
+    - name: Probe peer nodes from primary
+      gluster.gluster.gluster_peer:
+        state: present
+        nodes: "{{ groups['gluster_nodes'][1:] }}"
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+      when: groups['gluster_nodes'] | length > 1
+
+    - name: Create or expand Gluster volume
+      gluster.gluster.gluster_volume:
+        state: present
+        name: "{{ gluster_volume_name }}"
+        bricks: "{{ hostvars[primary_node].cluster_bricks }}"
+        replica: "{{ replica_count }}"
+        rebalance: true
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+
+    - name: Ensure Gluster volume is started
+      gluster.gluster.gluster_volume:
+        state: started
+        name: "{{ gluster_volume_name }}"
+      run_once: true
+      delegate_to: "{{ primary_node }}"
