@@ -6,11 +6,11 @@
 set -euo pipefail
 
 # Configuration arrays (edit as needed)
-os=("fedora" "ubuntu")
+os=("fedora" "fedora")
 names=("marques" "swift512")
-ips=("192.168.1.200" "192.168.1.67")
+ips=("192.168.1.200" "192.168.1.169")
 brick_paths=("/gluster_bricks/images" "/gluster_bricks/images")
-ssh_ports=(22 22)   # per-node SSH ports
+ssh_ports=(22512 22)   # per-node SSH ports
 
 # --- sanity checks on array lengths ---
 len=${#ips[@]}
