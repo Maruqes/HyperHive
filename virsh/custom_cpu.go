@@ -19,7 +19,7 @@ func BuildCPUXMLCustom(model string, disabledFeatures []string) string {
 	defPortable := []string{
 		"vmx", "svm", "hle", "rtm", "invpcid", "umip",
 		"ibrs", "ssbd", "stibp", "amd-stibp", "amd-ssbd",
-		"md-clear", "spec-ctrl", "flush-l1d",
+		"md-clear", "spec-ctrl", "flush-l1d","pdcm", "pcid","ss","erms",
 	}
 	if len(disabledFeatures) == 0 {
 		disabledFeatures = defPortable
