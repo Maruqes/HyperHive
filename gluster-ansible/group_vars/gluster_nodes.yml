@@ -2,3 +2,4 @@ gluster_volume_name: data
 gluster_bricks:
   - /gluster/brick1     # path exists on each node, empty
 replica_count: 2
+gluster_mount_point: /var/512SvMan/

@@ -5,8 +5,12 @@
   collections:
     - ansible.builtin
     - gluster.gluster
+    - ansible.posix
   vars:
     primary_node: "{{ groups['gluster_nodes'][0] }}"
+    gluster_mount_source: "{{ (hostvars[primary_node].gluster_peer_address
+      | default(hostvars[primary_node].ansible_host)
+      | default(primary_node)) ~ ':' ~ gluster_volume_name }}"
   tasks:
     - name: Ensure brick directories exist
       ansible.builtin.file:
@@ -75,6 +79,7 @@
       delegate_to: "{{ primary_node }}"
       when: gluster_debug | default(false)
 
+
     - name: Create volume via CLI with force (idempotent-ish guard)
       command:
         argv: >-
@@ -105,3 +110,17 @@
         name: "{{ gluster_volume_name }}"
       run_once: true
       delegate_to: "{{ primary_node }}"
+
+    - name: Ensure Gluster mount directory exists
+      ansible.builtin.file:
+        path: "{{ gluster_mount_point }}"
+        state: directory
+        mode: '0755'
+
+    - name: Mount Gluster volume on nodes
+      ansible.posix.mount:
+        path: "{{ gluster_mount_point }}"
+        src: "{{ gluster_mount_source }}"
+        fstype: glusterfs
+        opts: defaults,_netdev
+        state: mounted
