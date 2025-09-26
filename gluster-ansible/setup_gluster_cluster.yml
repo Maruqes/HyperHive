@@ -73,11 +73,13 @@
       gluster.gluster.gluster_volume:
         state: present
         name: "{{ gluster_volume_name }}"
-        bricks: "{{ (hostvars[primary_node].cluster_bricks | default(cluster_bricks)) | to_yaml | from_yaml }}"
-        replicas: "{{ replica_count | int }}"
-        rebalance: true
+        bricks: "{{ cluster_bricks | from_yaml }}"
+        replicas: "{{ replica_count }}"
+        transport: tcp
+        start_on_create: true
       run_once: true
       delegate_to: "{{ primary_node }}"
+
 
     - name: Ensure Gluster volume is started
       gluster.gluster.gluster_volume:
