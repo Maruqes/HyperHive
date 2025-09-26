@@ -17,15 +17,23 @@
 
     - name: Build cluster brick mapping
       ansible.builtin.set_fact:
-        cluster_bricks: "{{ groups['gluster_nodes'] | product(gluster_bricks) | map('join', ':') | list }}"
+        cluster_bricks: "{{ (cluster_bricks | default([])) + [ (hostvars[item.0].ansible_host | default(item.0)) ~ ':' ~ item.1 ] }}"
+      loop: "{{ groups['gluster_nodes'] | product(gluster_bricks) | list }}"
       run_once: true
       delegate_to: "{{ primary_node }}"
       delegate_facts: true
 
+    - name: Capture peer addresses for hostnames without DNS
+      ansible.builtin.set_fact:
+        peer_addresses: "{{ (peer_addresses | default([])) + [ (hostvars[item].ansible_host | default(item)) ] }}"
+      loop: "{{ groups['gluster_nodes'][1:] }}"
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+
     - name: Probe peer nodes from primary
       gluster.gluster.gluster_peer:
         state: present
-        nodes: "{{ groups['gluster_nodes'][1:] }}"
+        nodes: "{{ hostvars[primary_node].peer_addresses }}"
       run_once: true
       delegate_to: "{{ primary_node }}"
       when: groups['gluster_nodes'] | length > 1
