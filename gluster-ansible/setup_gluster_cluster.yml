@@ -92,17 +92,14 @@
       gluster.gluster.gluster_volume:
         state: present
         name: "{{ gluster_volume_name }}"
-        bricks: >-
-          {{
-            (hostvars[primary_node].bricks_literal | default(bricks_literal))
-              if (hostvars[primary_node].bricks_literal | default(bricks_literal) is not string)
-              else ((hostvars[primary_node].bricks_literal | default(bricks_literal)) | from_yaml)
-          }}
+        # force a python list (even if something was stringified)
+        bricks: "{{ ['marques:/gluster/brick1', 'swift512:/gluster/brick1'] | to_json | from_json }}"
         replicas: "{{ replica_count | int }}"
         transport: tcp
         start_on_create: true
       run_once: true
       delegate_to: "{{ primary_node }}"
+
 
 
 
