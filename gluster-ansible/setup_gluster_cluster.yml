@@ -62,7 +62,7 @@
     - name: Probe peer nodes from primary
       gluster.gluster.gluster_peer:
         state: present
-        nodes: "{{ peer_addresses }}"
+        nodes: "{{ peer_addresses | to_json | from_json }}"
       run_once: true
       delegate_to: "{{ primary_node }}"
       when: groups['gluster_nodes'] | length > 1
@@ -80,7 +80,7 @@
       gluster.gluster.gluster_volume:
         state: present
         name: "{{ gluster_volume_name }}"
-        bricks: "{{ cluster_bricks | list }}"
+        bricks: "{{ cluster_bricks | to_json | from_json }}"
         replicas: "{{ replica_count | int }}"
         rebalance: true
       run_once: true
