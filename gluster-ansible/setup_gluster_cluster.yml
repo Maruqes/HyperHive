@@ -87,8 +87,9 @@
           - "{{ replica_count | int }}"
           - transport
           - tcp
-          - "marques:/gluster/brick1"
-          - "swift512:/gluster/brick1"
+          {% for b in (cluster_bricks | to_json | from_json) %}
+            - "{{ b }}"
+          {% endfor %}
           - force
       register: create_raw
       changed_when: "'successful' in create_raw.stdout|lower"
@@ -103,8 +104,6 @@
         name: "{{ gluster_volume_name }}"
       run_once: true
       delegate_to: "{{ primary_node }}"
-
-
 
     - name: Ensure Gluster volume is started
       gluster.gluster.gluster_volume:
