@@ -1,7 +1,4 @@
 gluster_volume_name: data
-replica_count: 2
-primary_node: gluster1
-
 gluster_bricks:
-  - gluster1:/gluster_bricks/images/brick1
-  - gluster2:/gluster_bricks/images/brick1
+  - "/gluster/brick1"    # em cada nó
+replica_count: 2         # 2 nós -> replica 2
