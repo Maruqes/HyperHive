@@ -7,6 +7,10 @@
     - gluster.gluster
   vars:
     primary_node: "{{ groups['gluster_nodes'][0] }}"
+    bricks_literal:
+      - "marques:/gluster/brick1"
+      - "swift512:/gluster/brick1"
+
   tasks:
     - name: Ensure brick directories exist
       ansible.builtin.file:
@@ -75,16 +79,31 @@
       delegate_to: "{{ primary_node }}"
       when: gluster_debug | default(false)
 
+    - name: Debug bricks_literal on PRIMARY
+      ansible.builtin.debug:
+        msg:
+          - "type={{ hostvars[primary_node].bricks_literal | default(bricks_literal) | type_debug }}"
+          - "value={{ hostvars[primary_node].bricks_literal | default(bricks_literal) }}"
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+
+
     - name: Create or expand Gluster volume
       gluster.gluster.gluster_volume:
         state: present
         name: "{{ gluster_volume_name }}"
-        bricks: ["marques:/gluster/brick1", "swift512:/gluster/brick1"]
+        bricks: >-
+          {{
+            (hostvars[primary_node].bricks_literal | default(bricks_literal))
+              if (hostvars[primary_node].bricks_literal | default(bricks_literal) is not string)
+              else ((hostvars[primary_node].bricks_literal | default(bricks_literal)) | from_yaml)
+          }}
         replicas: "{{ replica_count | int }}"
         transport: tcp
         start_on_create: true
       run_once: true
       delegate_to: "{{ primary_node }}"
+
 
 
     - name: Ensure Gluster volume is started
