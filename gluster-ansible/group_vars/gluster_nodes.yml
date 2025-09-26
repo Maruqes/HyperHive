@@ -2,6 +2,6 @@ gluster_volume_name: data
 replica_count: 2
 primary_node: gluster1
 
-cluster_bricks:
+gluster_bricks:
   - gluster1:/gluster_bricks/images/brick1
   - gluster2:/gluster_bricks/images/brick1
