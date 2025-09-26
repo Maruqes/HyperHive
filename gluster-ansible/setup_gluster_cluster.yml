@@ -15,9 +15,17 @@
         mode: '0755'
       loop: "{{ gluster_bricks }}"
 
+    - name: Initialize cluster coordination facts
+      ansible.builtin.set_fact:
+        cluster_bricks: []
+        peer_addresses: []
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+      delegate_facts: true
+
     - name: Build cluster brick mapping
       ansible.builtin.set_fact:
-        cluster_bricks: "{{ (cluster_bricks | default([])) + [ (hostvars[item.0].ansible_host | default(item.0)) ~ ':' ~ item.1 ] }}"
+        cluster_bricks: "{{ hostvars[primary_node].cluster_bricks + [ (hostvars[item.0].ansible_host | default(item.0)) ~ ':' ~ item.1 ] }}"
       loop: "{{ groups['gluster_nodes'] | product(gluster_bricks) | list }}"
       run_once: true
       delegate_to: "{{ primary_node }}"
@@ -25,10 +33,11 @@
 
     - name: Capture peer addresses for hostnames without DNS
       ansible.builtin.set_fact:
-        peer_addresses: "{{ (peer_addresses | default([])) + [ (hostvars[item].ansible_host | default(item)) ] }}"
+        peer_addresses: "{{ hostvars[primary_node].peer_addresses + [ hostvars[item].ansible_host | default(item) ] }}"
       loop: "{{ groups['gluster_nodes'][1:] }}"
       run_once: true
       delegate_to: "{{ primary_node }}"
+      delegate_facts: true
 
     - name: Probe peer nodes from primary
       gluster.gluster.gluster_peer:
