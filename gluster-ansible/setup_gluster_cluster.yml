@@ -80,8 +80,8 @@
       gluster.gluster.gluster_volume:
         state: present
         name: "{{ gluster_volume_name }}"
-        bricks: "{{ cluster_bricks }}"
-        replicas: "{{ replica_count }}"
+        bricks: "{{ cluster_bricks | list }}"
+        replicas: "{{ replica_count | int }}"
         rebalance: true
       run_once: true
       delegate_to: "{{ primary_node }}"
