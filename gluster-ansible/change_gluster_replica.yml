@@ -32,6 +32,8 @@
       ansible.builtin.set_fact:
         target_bricks: []
       run_once: true
+      delegate_to: "{{ primary_node }}"
+      delegate_facts: true
 
     - name: Build desired brick endpoints
       ansible.builtin.set_fact:
@@ -43,17 +45,21 @@
         ] }}"
       loop: "{{ groups['gluster_nodes'] | product(desired_brick_paths) | list }}"
       run_once: true
+      delegate_to: "{{ primary_node }}"
+      delegate_facts: true
 
     - name: Normalise brick list for module usage
       ansible.builtin.set_fact:
         target_bricks: "{{ target_bricks | to_json | from_json }}"
       run_once: true
+      delegate_to: "{{ primary_node }}"
+      delegate_facts: true
 
     - name: Apply replica change with rebalance
       gluster.gluster.gluster_volume:
         state: present
         name: "{{ gluster_volume_name }}"
-        bricks: "{{ target_bricks }}"
+        bricks: "{{ hostvars[primary_node].target_bricks }}"
         replicas: "{{ new_replica_count | int }}"
         rebalance: true
       run_once: true
@@ -107,9 +113,11 @@
       delegate_to: "{{ primary_node }}"
 
     - name: Verify replica count reflected in volume info
+      vars:
+        replica_pattern: "{{ '(?im)replica(?:\\s*count)?\\s*[:=]?\\s*' ~ (new_replica_count | int) }}"
       ansible.builtin.assert:
         that:
-          - "Replica {{ new_replica_count | int }}" in volume_info.stdout
+          - "(volume_info.stdout | regex_search(replica_pattern)) is not none"
         fail_msg: >-
           Replica count not updated. Inspect `gluster volume info {{ gluster_volume_name }}`.
       run_once: true
@@ -118,14 +126,14 @@
       ansible.builtin.assert:
         that: "{{ item in volume_info.stdout }}"
         fail_msg: "Expected brick {{ item }} missing from volume info."
-      loop: "{{ target_bricks }}"
+      loop: "{{ hostvars[primary_node].target_bricks }}"
       run_once: true
 
     - name: Show verification summary
       ansible.builtin.debug:
         msg:
           - "Replica count set to {{ new_replica_count | int }}"
-          - "Bricks applied: {{ target_bricks }}"
+          - "Bricks applied: {{ hostvars[primary_node].target_bricks }}"
           - "Rebalance status:\n{{ rebalance_status.stdout }}"
           - "Volume status:\n{{ volume_status.stdout }}"
       run_once: true
