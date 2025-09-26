@@ -79,9 +79,7 @@
       gluster.gluster.gluster_volume:
         state: present
         name: "{{ gluster_volume_name }}"
-        bricks: >-
-          {{ (cluster_bricks | type_debug == 'str')
-              | ternary(cluster_bricks | from_yaml, cluster_bricks) }}
+        bricks: ["marques:/gluster/brick1", "swift512:/gluster/brick1"]
         replicas: "{{ replica_count | int }}"
         transport: tcp
         start_on_create: true
