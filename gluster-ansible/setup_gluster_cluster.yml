@@ -8,19 +8,22 @@
   vars:
     primary_node: "{{ groups['gluster_nodes'][0] }}"
   tasks:
-    # 1) Init on PRIMARY and store there
+    - name: Ensure brick directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop: "{{ gluster_bricks }}"
+
     - name: Initialize cluster coordination facts
       ansible.builtin.set_fact:
         cluster_bricks: []
         peer_addresses: []
       run_once: true
-      delegate_to: "{{ primary_node }}"
-      delegate_facts: true
 
-    # 2) Build bricks ON PRIMARY and store there
     - name: Build cluster brick mapping
       ansible.builtin.set_fact:
-        cluster_bricks: "{{ (hostvars[primary_node].cluster_bricks | default([])) + [
+        cluster_bricks: "{{ cluster_bricks + [
           (hostvars[item.0].gluster_peer_address
             | default(hostvars[item.0].ansible_host)
             | default(item.0)
@@ -28,60 +31,67 @@
         ] }}"
       loop: "{{ groups['gluster_nodes'] | product(gluster_bricks) | list }}"
       run_once: true
-      delegate_to: "{{ primary_node }}"
-      delegate_facts: true
 
-    # 3) Capture peer addresses ON PRIMARY and store there
     - name: Capture peer addresses for hostnames without DNS
       ansible.builtin.set_fact:
-        peer_addresses: "{{ (hostvars[primary_node].peer_addresses | default([])) + [
+        peer_addresses: "{{ peer_addresses + [
           hostvars[item].gluster_peer_address
             | default(hostvars[item].ansible_host)
             | default(item)
         ] }}"
       loop: "{{ groups['gluster_nodes'][1:] }}"
       run_once: true
-      delegate_to: "{{ primary_node }}"
-      delegate_facts: true
 
-    # 4) Ensure native lists ON PRIMARY
     - name: Ensure cluster coordination facts are native lists
       ansible.builtin.set_fact:
-        cluster_bricks: "{{ (hostvars[primary_node].cluster_bricks | to_json | from_json) }}"
-        peer_addresses: "{{ (hostvars[primary_node].peer_addresses | to_json | from_json) }}"
+        cluster_bricks: "{{ cluster_bricks | to_json | from_json }}"
+        peer_addresses: "{{ peer_addresses | to_json | from_json }}"
       run_once: true
-      delegate_to: "{{ primary_node }}"
-      delegate_facts: true
 
-    # (Optional) debug
-    - name: Show computed cluster mapping (debug)
+    - name: Show computed cluster mapping (optional debug)
       ansible.builtin.debug:
         msg:
-          - "Bricks: {{ hostvars[primary_node].cluster_bricks }}"
-          - "Bricks type: {{ hostvars[primary_node].cluster_bricks | type_debug }}"
-          - "Peers: {{ hostvars[primary_node].peer_addresses }}"
-          - "Peers type: {{ hostvars[primary_node].peer_addresses | type_debug }}"
+          - "Bricks: {{ cluster_bricks }}"
+          - "Bricks type: {{ cluster_bricks | type_debug }}"
+          - "Peers: {{ peer_addresses }}"
+          - "Peers type: {{ peer_addresses | type_debug }}"
       run_once: true
-      delegate_to: "{{ primary_node }}"
       when: gluster_debug | default(false)
 
-    # 5) Use facts from PRIMARY for peer probe
     - name: Probe peer nodes from primary
       gluster.gluster.gluster_peer:
         state: present
-        nodes: "{{ hostvars[primary_node].peer_addresses }}"
+        nodes: "{{ (hostvars[primary_node].peer_addresses | default(peer_addresses)) | to_yaml | from_yaml }}"
       run_once: true
       delegate_to: "{{ primary_node }}"
       when: groups['gluster_nodes'] | length > 1
 
-    # 6) Create volume using facts stored on PRIMARY
+    - name: Inspect volume parameters
+      ansible.builtin.debug:
+        msg:
+          - "Pre-volume bricks: {{ cluster_bricks }}"
+          - "Pre-volume bricks type: {{ cluster_bricks | type_debug }}"
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+      when: gluster_debug | default(false)
+
     - name: Create or expand Gluster volume
       gluster.gluster.gluster_volume:
         state: present
         name: "{{ gluster_volume_name }}"
-        bricks: "{{ hostvars[primary_node].cluster_bricks }}"
+        bricks: >-
+          {{ (cluster_bricks | type_debug == 'str')
+              | ternary(cluster_bricks | from_yaml, cluster_bricks) }}
         replicas: "{{ replica_count | int }}"
         transport: tcp
         start_on_create: true
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+
+
+    - name: Ensure Gluster volume is started
+      gluster.gluster.gluster_volume:
+        state: started
+        name: "{{ gluster_volume_name }}"
       run_once: true
       delegate_to: "{{ primary_node }}"
