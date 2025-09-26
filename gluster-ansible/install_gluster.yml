@@ -6,6 +6,7 @@
   gather_facts: yes
   collections:
     - ansible.builtin
+    - ansible.posix
   tasks:
     - name: Ensure GlusterFS packages are installed
       ansible.builtin.package:

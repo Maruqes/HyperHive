@@ -1,0 +1,108 @@
+---
+- name: Add Gluster peers to existing cluster
+  hosts: gluster_nodes
+  become: true
+  collections:
+    - ansible.builtin
+    - gluster.gluster
+    - ansible.posix
+  vars:
+    primary_node: "{{ groups['gluster_nodes'][0] }}"
+    new_replica_count: "{{ replica_count }}"
+  pre_tasks:
+    - name: Require peers_to_add variable
+      ansible.builtin.assert:
+        that:
+          - peers_to_add is defined
+          - peers_to_add | length > 0
+        fail_msg: "Define peers_to_add with the inventory names of the new peers to be joined."
+
+    - name: Ensure new peers are part of gluster_nodes inventory group
+      ansible.builtin.assert:
+        that: "peers_to_add | difference(groups['gluster_nodes']) | length == 0"
+        fail_msg: "Each entry in peers_to_add must also appear in the gluster_nodes group."
+      run_once: true
+
+  tasks:
+    - name: Prepare brick directories on new peers
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop: "{{ gluster_bricks }}"
+      when: inventory_hostname in peers_to_add
+
+    - name: Initialize peer addition facts on primary
+      ansible.builtin.set_fact:
+        new_peer_addresses: []
+        expanded_bricks: []
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+      delegate_facts: true
+
+    - name: Collect peer addresses for new nodes
+      ansible.builtin.set_fact:
+        new_peer_addresses: "{{ new_peer_addresses + [
+          hostvars[item].gluster_peer_address
+            | default(hostvars[item].ansible_host)
+            | default(item)
+        ] }}"
+      loop: "{{ peers_to_add }}"
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+      delegate_facts: true
+
+    - name: Build expanded brick list with new peers
+      ansible.builtin.set_fact:
+        expanded_bricks: "{{ expanded_bricks + [
+          (hostvars[item.0].gluster_peer_address
+            | default(hostvars[item.0].ansible_host)
+            | default(item.0)
+          ) ~ ':' ~ item.1
+        ] }}"
+      loop: "{{ groups['gluster_nodes'] | product(gluster_bricks) | list }}"
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+      delegate_facts: true
+
+    - name: Probe new peers from primary
+      gluster.gluster.gluster_peer:
+        state: present
+        nodes: "{{ new_peer_addresses | to_json | from_json }}"
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+
+    - name: Expand volume to include new peers
+      gluster.gluster.gluster_volume:
+        state: present
+        name: "{{ gluster_volume_name }}"
+        bricks: "{{ expanded_bricks | to_json | from_json }}"
+        replicas: "{{ new_replica_count | int }}"
+        rebalance: true
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+
+    - name: Ensure volume is started
+      gluster.gluster.gluster_volume:
+        state: started
+        name: "{{ gluster_volume_name }}"
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+
+    - name: Ensure mount directory exists on new peers
+      ansible.builtin.file:
+        path: "{{ gluster_mount_point }}"
+        state: directory
+        mode: '0755'
+      when: inventory_hostname in peers_to_add
+
+    - name: Mount Gluster volume on new peers
+      ansible.posix.mount:
+        path: "{{ gluster_mount_point }}"
+        src: "{{ (hostvars[primary_node].gluster_peer_address
+          | default(hostvars[primary_node].ansible_host)
+          | default(primary_node)) ~ ':' ~ gluster_volume_name }}"
+        fstype: glusterfs
+        opts: defaults,_netdev
+        state: mounted
+      when: inventory_hostname in peers_to_add
