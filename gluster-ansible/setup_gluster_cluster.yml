@@ -52,7 +52,9 @@
       ansible.builtin.debug:
         msg:
           - "Bricks: {{ cluster_bricks }}"
+          - "Bricks type: {{ cluster_bricks | type_debug }}"
           - "Peers: {{ peer_addresses }}"
+          - "Peers type: {{ peer_addresses | type_debug }}"
       run_once: true
       delegate_to: "{{ primary_node }}"
       when: gluster_debug | default(false)
@@ -64,6 +66,15 @@
       run_once: true
       delegate_to: "{{ primary_node }}"
       when: groups['gluster_nodes'] | length > 1
+
+    - name: Inspect volume parameters
+      ansible.builtin.debug:
+        msg:
+          - "Pre-volume bricks: {{ cluster_bricks }}"
+          - "Pre-volume bricks type: {{ cluster_bricks | type_debug }}"
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+      when: gluster_debug | default(false)
 
     - name: Create or expand Gluster volume
       gluster.gluster.gluster_volume:
