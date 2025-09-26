@@ -77,26 +77,20 @@
 
     - name: Create volume via CLI with force (idempotent-ish guard)
       command:
-        argv:
-          - gluster
-          - --mode=script
-          - volume
-          - create
-          - "{{ gluster_volume_name }}"
-          - replica
-          - "{{ replica_count | int }}"
-          - transport
-          - tcp
-          {% for b in (cluster_bricks | to_json | from_json) %}
-            - "{{ b }}"
-          {% endfor %}
-          - force
+        argv: >-
+          {{
+            ['gluster','--mode=script','volume','create',
+            gluster_volume_name,'replica',(replica_count | string),'transport','tcp']
+            + (cluster_bricks | to_json | from_json)
+            + ['force']
+          }}
       register: create_raw
       changed_when: "'successful' in create_raw.stdout|lower"
       failed_when: create_raw.rc not in [0, 1] or
                   ('already exists' not in (create_raw.stderr|lower) and create_raw.rc != 0)
       run_once: true
       delegate_to: "{{ primary_node }}"
+
 
     - name: Start volume
       gluster.gluster.gluster_volume:
