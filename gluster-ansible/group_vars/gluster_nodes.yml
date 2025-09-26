@@ -1,5 +1,5 @@
 gluster_volume_name: data
-cluster_bricks:
+gluster_bricks:
   - marques:/gluster/brick1
   - swift512:/gluster/brick1
 replica_count: 2         # 2 nós -> replica 2
