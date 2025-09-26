@@ -25,7 +25,12 @@
 
     - name: Build cluster brick mapping
       ansible.builtin.set_fact:
-        cluster_bricks: "{{ hostvars[primary_node].cluster_bricks + [ (hostvars[item.0].ansible_host | default(item.0)) ~ ':' ~ item.1 ] }}"
+        cluster_bricks: "{{ hostvars[primary_node].cluster_bricks + [
+          (hostvars[item.0].gluster_peer_address
+            | default(hostvars[item.0].ansible_host)
+            | default(item.0)
+          ) ~ ':' ~ item.1
+        ] }}"
       loop: "{{ groups['gluster_nodes'] | product(gluster_bricks) | list }}"
       run_once: true
       delegate_to: "{{ primary_node }}"
@@ -33,11 +38,24 @@
 
     - name: Capture peer addresses for hostnames without DNS
       ansible.builtin.set_fact:
-        peer_addresses: "{{ hostvars[primary_node].peer_addresses + [ hostvars[item].ansible_host | default(item) ] }}"
+        peer_addresses: "{{ hostvars[primary_node].peer_addresses + [
+          hostvars[item].gluster_peer_address
+            | default(hostvars[item].ansible_host)
+            | default(item)
+        ] }}"
       loop: "{{ groups['gluster_nodes'][1:] }}"
       run_once: true
       delegate_to: "{{ primary_node }}"
       delegate_facts: true
+
+    - name: Show computed cluster mapping (optional debug)
+      ansible.builtin.debug:
+        msg:
+          - "Bricks: {{ hostvars[primary_node].cluster_bricks }}"
+          - "Peers: {{ hostvars[primary_node].peer_addresses }}"
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+      when: gluster_debug | default(false)
 
     - name: Probe peer nodes from primary
       gluster.gluster.gluster_peer:
