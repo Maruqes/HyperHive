@@ -42,6 +42,12 @@
       loop: "{{ groups['gluster_nodes'][1:] }}"
       run_once: true
 
+    - name: Ensure cluster coordination facts are native lists
+      ansible.builtin.set_fact:
+        cluster_bricks: "{{ cluster_bricks | to_json | from_json }}"
+        peer_addresses: "{{ peer_addresses | to_json | from_json }}"
+      run_once: true
+
     - name: Show computed cluster mapping (optional debug)
       ansible.builtin.debug:
         msg:
@@ -73,8 +79,8 @@
       gluster.gluster.gluster_volume:
         state: present
         name: "{{ gluster_volume_name }}"
-        bricks: "{{ cluster_bricks | from_yaml }}"
-        replicas: "{{ replica_count }}"
+        bricks: "{{ cluster_bricks }}"
+        replicas: "{{ replica_count | int }}"
         transport: tcp
         start_on_create: true
       run_once: true
