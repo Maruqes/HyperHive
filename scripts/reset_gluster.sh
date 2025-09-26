@@ -25,4 +25,5 @@ rm -rf /var/run/gluster/*
 echo "Cleaning brick directories..."
 find / -type d -path "*/gluster_bricks/*" -exec rm -rf {} + 2>/dev/null || true
 
+#MAY NEED REINSTALL sudo dnf -y reinstall glusterfs glusterfs-server
 echo "Reset complete on $(hostname)"
