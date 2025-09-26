@@ -1,7 +1,9 @@
 ---
 - name: Install GlusterFS packages
   hosts: gluster_nodes
-  become: true
+  become: yes
+  become_method: sudo
+  gather_facts: yes
   collections:
     - ansible.builtin
   tasks:
