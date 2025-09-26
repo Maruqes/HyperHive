@@ -35,7 +35,7 @@
         state: present
         name: "{{ gluster_volume_name }}"
         bricks: "{{ hostvars[primary_node].cluster_bricks }}"
-        replica: "{{ replica_count }}"
+        replicas: "{{ replica_count }}"
         rebalance: true
       run_once: true
       delegate_to: "{{ primary_node }}"
