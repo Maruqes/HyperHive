@@ -7,105 +7,110 @@
     - gluster.gluster
   vars:
     primary_node: "{{ groups['gluster_nodes'][0] }}"
-    bricks_literal:
-      - "marques:/gluster/brick1"
-      - "swift512:/gluster/brick1"
-
   tasks:
-    - name: Ensure brick directories exist
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: directory
-        mode: '0755'
-      loop: "{{ gluster_bricks }}"
-
-    - name: Initialize cluster coordination facts
-      ansible.builtin.set_fact:
-        cluster_bricks: []
-        peer_addresses: []
-      run_once: true
-
-    - name: Build cluster brick mapping
-      ansible.builtin.set_fact:
-        cluster_bricks: "{{ cluster_bricks + [
-          (hostvars[item.0].gluster_peer_address
-            | default(hostvars[item.0].ansible_host)
-            | default(item.0)
-          ) ~ ':' ~ item.1
-        ] }}"
-      loop: "{{ groups['gluster_nodes'] | product(gluster_bricks) | list }}"
-      run_once: true
-
-    - name: Capture peer addresses for hostnames without DNS
-      ansible.builtin.set_fact:
-        peer_addresses: "{{ peer_addresses + [
-          hostvars[item].gluster_peer_address
-            | default(hostvars[item].ansible_host)
-            | default(item)
-        ] }}"
-      loop: "{{ groups['gluster_nodes'][1:] }}"
-      run_once: true
-
-    - name: Ensure cluster coordination facts are native lists
-      ansible.builtin.set_fact:
-        cluster_bricks: "{{ cluster_bricks | to_json | from_json }}"
-        peer_addresses: "{{ peer_addresses | to_json | from_json }}"
-      run_once: true
-
-    - name: Show computed cluster mapping (optional debug)
-      ansible.builtin.debug:
-        msg:
-          - "Bricks: {{ cluster_bricks }}"
-          - "Bricks type: {{ cluster_bricks | type_debug }}"
-          - "Peers: {{ peer_addresses }}"
-          - "Peers type: {{ peer_addresses | type_debug }}"
-      run_once: true
-      when: gluster_debug | default(false)
-
-    - name: Probe peer nodes from primary
-      gluster.gluster.gluster_peer:
-        state: present
-        nodes: "{{ (hostvars[primary_node].peer_addresses | default(peer_addresses)) | to_yaml | from_yaml }}"
-      run_once: true
-      delegate_to: "{{ primary_node }}"
-      when: groups['gluster_nodes'] | length > 1
-
-    - name: Inspect volume parameters
-      ansible.builtin.debug:
-        msg:
-          - "Pre-volume bricks: {{ cluster_bricks }}"
-          - "Pre-volume bricks type: {{ cluster_bricks | type_debug }}"
-      run_once: true
-      delegate_to: "{{ primary_node }}"
-      when: gluster_debug | default(false)
-
-    - name: Debug bricks_literal on PRIMARY
-      ansible.builtin.debug:
-        msg:
-          - "type={{ hostvars[primary_node].bricks_literal | default(bricks_literal) | type_debug }}"
-          - "value={{ hostvars[primary_node].bricks_literal | default(bricks_literal) }}"
+    - name: (Diagnostic) Try raw CLI once
+      ansible.builtin.command:
+        argv:
+          - gluster
+          - --mode=script
+          - volume
+          - create
+          - "{{ gluster_volume_name }}"
+          - replica
+          - "{{ replica_count | int }}"
+          - transport
+          - tcp
+          - "marques:/gluster/brick1"
+          - "swift512:/gluster/brick1"
+      register: create_raw
+      changed_when: "'successful' in create_raw.stdout|lower"
+      failed_when: false
       run_once: true
       delegate_to: "{{ primary_node }}"
 
 
-    - name: Create or expand Gluster volume
-      gluster.gluster.gluster_volume:
-        state: present
-        name: "{{ gluster_volume_name }}"
-        # force a python list (even if something was stringified)
-        bricks: "{{ ['marques:/gluster/brick1', 'swift512:/gluster/brick1'] | to_json | from_json }}"
-        replicas: "{{ replica_count | int }}"
-        transport: tcp
-        start_on_create: true
-      run_once: true
-      delegate_to: "{{ primary_node }}"
+    # - name: Ensure brick directories exist
+    #   ansible.builtin.file:
+    #     path: "{{ item }}"
+    #     state: directory
+    #     mode: '0755'
+    #   loop: "{{ gluster_bricks }}"
+
+    # - name: Initialize cluster coordination facts
+    #   ansible.builtin.set_fact:
+    #     cluster_bricks: []
+    #     peer_addresses: []
+    #   run_once: true
+
+    # - name: Build cluster brick mapping
+    #   ansible.builtin.set_fact:
+    #     cluster_bricks: "{{ cluster_bricks + [
+    #       (hostvars[item.0].gluster_peer_address
+    #         | default(hostvars[item.0].ansible_host)
+    #         | default(item.0)
+    #       ) ~ ':' ~ item.1
+    #     ] }}"
+    #   loop: "{{ groups['gluster_nodes'] | product(gluster_bricks) | list }}"
+    #   run_once: true
+
+    # - name: Capture peer addresses for hostnames without DNS
+    #   ansible.builtin.set_fact:
+    #     peer_addresses: "{{ peer_addresses + [
+    #       hostvars[item].gluster_peer_address
+    #         | default(hostvars[item].ansible_host)
+    #         | default(item)
+    #     ] }}"
+    #   loop: "{{ groups['gluster_nodes'][1:] }}"
+    #   run_once: true
+
+    # - name: Ensure cluster coordination facts are native lists
+    #   ansible.builtin.set_fact:
+    #     cluster_bricks: "{{ cluster_bricks | to_json | from_json }}"
+    #     peer_addresses: "{{ peer_addresses | to_json | from_json }}"
+    #   run_once: true
+
+    # - name: Show computed cluster mapping (optional debug)
+    #   ansible.builtin.debug:
+    #     msg:
+    #       - "Bricks: {{ cluster_bricks }}"
+    #       - "Bricks type: {{ cluster_bricks | type_debug }}"
+    #       - "Peers: {{ peer_addresses }}"
+    #       - "Peers type: {{ peer_addresses | type_debug }}"
+    #   run_once: true
+    #   when: gluster_debug | default(false)
+
+    # - name: Probe peer nodes from primary
+    #   gluster.gluster.gluster_peer:
+    #     state: present
+    #     nodes: "{{ (hostvars[primary_node].peer_addresses | default(peer_addresses)) | to_yaml | from_yaml }}"
+    #   run_once: true
+    #   delegate_to: "{{ primary_node }}"
+    #   when: groups['gluster_nodes'] | length > 1
+
+    # - name: Inspect volume parameters
+    #   ansible.builtin.debug:
+    #     msg:
+    #       - "Pre-volume bricks: {{ cluster_bricks }}"
+    #       - "Pre-volume bricks type: {{ cluster_bricks | type_debug }}"
+    #   run_once: true
+    #   delegate_to: "{{ primary_node }}"
+    #   when: gluster_debug | default(false)
+
+    # - name: Create or expand Gluster volume
+    #   gluster.gluster.gluster_volume:
+    #     state: present
+    #     name: "{{ gluster_volume_name }}"
+    #     bricks: "{{ cluster_bricks }}"
+    #     replicas: "{{ replica_count | int }}"
+    #     transport: tcp
+    #     start_on_create: true
+    #   run_once: true
+    #   delegate_to: "{{ primary_node }}"
 
 
-
-
-    - name: Ensure Gluster volume is started
-      gluster.gluster.gluster_volume:
-        state: started
-        name: "{{ gluster_volume_name }}"
-      run_once: true
-      delegate_to: "{{ primary_node }}"
+    # - name: Ensure Gluster volume is started
+    #   gluster.gluster.gluster_volume:
+    #     state: started
+    #     name: "{{ gluster_volume_name }}"
+    #   run_once: true
+    #   delegate_to: "{{ primary_node }}"
