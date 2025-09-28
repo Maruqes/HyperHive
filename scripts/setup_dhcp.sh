@@ -28,6 +28,7 @@ DHCP_RANGE_END="${DHCP_RANGE_END:-192.168.76.200}"
 DNSMASQ_CONF_DIR="${DNSMASQ_CONF_DIR:-/etc/dnsmasq.d}"
 DNSMASQ_LEASE_DIR="${DNSMASQ_LEASE_DIR:-/var/lib/dnsmasq}"
 RESOLV_CONF="${RESOLV_CONF:-/etc/resolv.conf}"
+NM_CONNECTION_NAME="${NM_CONNECTION_NAME:-rede512-static}"
 SYSCTL_CONF="/etc/sysctl.d/99-${NETWORK_NAME}-ipforward.conf"
 
 if ! command -v ip &>/dev/null; then
@@ -87,9 +88,9 @@ if ! ip link show "${NETWORK_NAME}" &>/dev/null; then
     fatal "Network interface '${NETWORK_NAME}' not found. Ensure the interface exists before running this script."
 fi
 
-reset_networkmanager_state() {
+cleanup_networkmanager_profiles() {
     if ! command -v nmcli &>/dev/null; then
-        return
+        return 1
     fi
     local nm_conn_uuids
     nm_conn_uuids=$(nmcli -t -f UUID,DEVICE connection show | awk -F: -v dev="${NETWORK_NAME}" '$2 == dev {print $1}')
@@ -100,17 +101,38 @@ reset_networkmanager_state() {
             nmcli connection delete uuid "${uuid}" >/dev/null 2>&1 || warn "Failed to delete NetworkManager connection ${uuid}"
         done <<<"${nm_conn_uuids}"
     fi
+    nmcli connection delete "${NM_CONNECTION_NAME}" >/dev/null 2>&1 || true
     nmcli device disconnect "${NETWORK_NAME}" >/dev/null 2>&1 || true
-    nmcli device set "${NETWORK_NAME}" managed no >/dev/null 2>&1 || true
+    return 0
 }
 
-info "Detaching ${NETWORK_NAME} from NetworkManager control (if applicable)"
-reset_networkmanager_state
+info "Clearing existing NetworkManager state for ${NETWORK_NAME} (if any)"
+cleanup_networkmanager_profiles || true
 
 info "Resetting IP configuration for ${NETWORK_NAME}"
 ip addr flush dev "${NETWORK_NAME}" || warn "Unable to flush addresses on ${NETWORK_NAME}."
 ip route flush dev "${NETWORK_NAME}" table main || true
 ip link set "${NETWORK_NAME}" down || warn "Unable to bring ${NETWORK_NAME} down."
+
+configure_networkmanager_profile() {
+    if ! command -v nmcli &>/dev/null; then
+        return 1
+    fi
+    info "Provisioning NetworkManager profile ${NM_CONNECTION_NAME}"
+    if ! nmcli connection add type ethernet ifname "${NETWORK_NAME}" con-name "${NM_CONNECTION_NAME}" \
+        ipv4.addresses "${GATEWAY_IP}/${cidr_prefix}" ipv4.method manual ipv4.never-default yes \
+        ipv6.method ignore autoconnect yes >/dev/null 2>&1; then
+        warn "Failed to create NetworkManager profile ${NM_CONNECTION_NAME}"
+        return 1
+    fi
+    nmcli connection modify "${NM_CONNECTION_NAME}" ipv4.gateway "" ipv4.dns "" ipv4.may-fail no >/dev/null 2>&1 || true
+    if ! nmcli connection up "${NM_CONNECTION_NAME}" >/dev/null 2>&1; then
+        warn "Failed to activate NetworkManager profile ${NM_CONNECTION_NAME}"
+        nmcli connection delete "${NM_CONNECTION_NAME}" >/dev/null 2>&1 || true
+        return 1
+    fi
+    return 0
+}
 
 info 'Removing previous dnsmasq state'
 install -d -m 755 "${DNSMASQ_CONF_DIR}"
@@ -119,9 +141,16 @@ DNSMASQ_CONF="${DNSMASQ_CONF_DIR}/${NETWORK_NAME}.conf"
 rm -f "${DNSMASQ_CONF}"
 rm -f "${DNSMASQ_LEASE_DIR}/${NETWORK_NAME}.leases"
 
-info 'Preparing interface addressing'
-ip link set "${NETWORK_NAME}" up
-ip addr add "${GATEWAY_IP}/${cidr_prefix}" dev "${NETWORK_NAME}" valid_lft forever preferred_lft forever
+nm_profile_applied=0
+if configure_networkmanager_profile; then
+    nm_profile_applied=1
+    info "NetworkManager will maintain ${NETWORK_NAME} using profile ${NM_CONNECTION_NAME}"
+else
+    warn 'NetworkManager configuration unavailable; falling back to manual addressing.'
+    info 'Preparing interface addressing'
+    ip link set "${NETWORK_NAME}" up
+    ip addr add "${GATEWAY_IP}/${cidr_prefix}" dev "${NETWORK_NAME}" valid_lft forever preferred_lft forever
+fi
 
 info 'Writing dnsmasq configuration'
 cat >"${DNSMASQ_CONF}" <<CFG
