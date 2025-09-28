@@ -27,6 +27,7 @@ DHCP_RANGE_START="${DHCP_RANGE_START:-192.168.76.50}"
 DHCP_RANGE_END="${DHCP_RANGE_END:-192.168.76.200}"
 DNSMASQ_CONF_DIR="${DNSMASQ_CONF_DIR:-/etc/dnsmasq.d}"
 DNSMASQ_LEASE_DIR="${DNSMASQ_LEASE_DIR:-/var/lib/dnsmasq}"
+RESOLV_CONF="${RESOLV_CONF:-/etc/resolv.conf}"
 SYSCTL_CONF="/etc/sysctl.d/99-${NETWORK_NAME}-ipforward.conf"
 
 if ! command -v ip &>/dev/null; then
@@ -126,7 +127,6 @@ info 'Writing dnsmasq configuration'
 cat >"${DNSMASQ_CONF}" <<CFG
 interface=${NETWORK_NAME}
 bind-interfaces
-no-resolv
 domain-needed
 bogus-priv
 dhcp-authoritative
@@ -134,6 +134,7 @@ dhcp-range=${DHCP_RANGE_START},${DHCP_RANGE_END},${NETMASK},infinite
 dhcp-option=option:router,${GATEWAY_IP}
 dhcp-option=option:dns-server,${GATEWAY_IP}
 dhcp-leasefile=${DNSMASQ_LEASE_DIR}/${NETWORK_NAME}.leases
+resolv-file=${RESOLV_CONF}
 log-dhcp
 CFG
 
@@ -191,8 +192,20 @@ apply_iptables_rules() {
     return 0
 }
 
-if ! apply_firewall_cmd; then
-    apply_iptables_rules || warn 'Failed to configure NAT; manual intervention may be necessary.'
+firewall_configured=0
+if apply_firewall_cmd; then
+    firewall_configured=1
+else
+    warn 'firewalld configuration skipped; attempting iptables fallback.'
+fi
+
+iptables_configured=0
+if apply_iptables_rules; then
+    iptables_configured=1
+fi
+
+if (( firewall_configured == 0 && iptables_configured == 0 )); then
+    warn 'Failed to configure NAT; manual intervention may be necessary.'
 fi
 
 dnsmasq_restart() {
