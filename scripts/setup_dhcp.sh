@@ -12,11 +12,11 @@ set -euo pipefail
 IFACE_DEFAULT="512rede"
 CIDR_DEFAULT="10.42.0.0/24"
 GATEWAY_DEFAULT="10.42.0.1"
-RANGE_START_DEFAULT="10.42.0.50"
-RANGE_END_DEFAULT="10.42.0.200"
+RANGE_START_DEFAULT="10.42.0.20"
+RANGE_END_DEFAULT="10.42.0.250"
 DNS_DEFAULT="1.1.1.1, 8.8.8.8"
-LEASE_DEFAULT=600
-MAX_LEASE_DEFAULT=7200
+LEASE_DEFAULT=86400
+MAX_LEASE_DEFAULT=604800
 SET_STATIC_IP_DEFAULT="yes"      # yes/no -> define IP fixo no IFACE com o GATEWAY_DEFAULT/CIDR
 DISABLE_FIREWALL_DEFAULT="yes"   # yes/no -> desativa firewalld para evitar bloqueios DHCP
 ENABLE_NAT_DEFAULT="yes"         # yes/no -> ativa NAT para partilhar internet via interface WAN
@@ -30,10 +30,10 @@ Uso:
     --iface 512rede \
     --cidr 10.42.0.0/24 \
     --gateway 10.42.0.1 \
-    --range 10.42.0.50 10.42.0.200 \
+    --range 10.42.0.20 10.42.0.250 \
     --dns "1.1.1.1, 8.8.8.8" \
-    --lease 600 \
-    --max-lease 7200 \
+    --lease 86400 \
+    --max-lease 604800 \
     --set-static-ip yes \
     --disable-firewall yes \
     --enable-nat yes \
@@ -57,33 +57,189 @@ require_root() {
 }
 
 cidr_to_netmask() {
-  # Suporta prefixos comuns; expande se precisares
   local prefix="$1"
-  case "$prefix" in
-    8)  echo "255.0.0.0" ;;
-    16) echo "255.255.0.0" ;;
-    24) echo "255.255.255.0" ;;
-    25) echo "255.255.255.128" ;;
-    26) echo "255.255.255.192" ;;
-    27) echo "255.255.255.224" ;;
-    28) echo "255.255.255.240" ;;
-    29) echo "255.255.255.248" ;;
-    30) echo "255.255.255.252" ;;
-    32) echo "255.255.255.255" ;;
-    *)  echo "ERRO: prefixo CIDR não suportado: /$prefix" ; exit 1 ;;
-  esac
+
+  if ! [[ "$prefix" =~ ^[0-9]+$ ]] || [ "$prefix" -lt 0 ] || [ "$prefix" -gt 32 ]; then
+    echo "ERRO: prefixo CIDR inválido: /$prefix" >&2
+    exit 1
+  fi
+
+  if [ "$prefix" -eq 0 ]; then
+    echo "0.0.0.0"
+    return
+  fi
+
+  local mask=$(( (0xFFFFFFFF << (32 - prefix)) & 0xFFFFFFFF ))
+  printf "%d.%d.%d.%d\n" \
+    $(( (mask >> 24) & 0xFF )) \
+    $(( (mask >> 16) & 0xFF )) \
+    $(( (mask >> 8) & 0xFF )) \
+    $(( mask & 0xFF ))
+}
+
+ip_to_int() {
+  local ip="$1"
+  local IFS='.'
+  local -a octets
+
+  read -r -a octets <<<"$ip"
+  if [ "${#octets[@]}" -ne 4 ]; then
+    echo "ERRO: IP inválido: $ip" >&2
+    exit 1
+  fi
+
+  local value=0 octet
+  for octet in "${octets[@]}"; do
+    if ! [[ "$octet" =~ ^[0-9]+$ ]] || [ "$octet" -lt 0 ] || [ "$octet" -gt 255 ]; then
+      echo "ERRO: IP inválido: $ip" >&2
+      exit 1
+    fi
+    value=$(( (value << 8) + 10#$octet ))
+  done
+
+  echo "$value"
+}
+
+int_to_ip() {
+  local value="$1"
+  printf "%d.%d.%d.%d\n" \
+    $(( (value >> 24) & 0xFF )) \
+    $(( (value >> 16) & 0xFF )) \
+    $(( (value >> 8) & 0xFF )) \
+    $(( value & 0xFF ))
+}
+
+network_address() {
+  local ip="$1"
+  local netmask="$2"
+  local ip_int mask_int
+
+  ip_int="$(ip_to_int "$ip")"
+  mask_int="$(ip_to_int "$netmask")"
+
+  int_to_ip $(( ip_int & mask_int ))
+}
+
+broadcast_address() {
+  local ip="$1"
+  local netmask="$2"
+  local ip_int mask_int
+
+  ip_int="$(ip_to_int "$ip")"
+  mask_int="$(ip_to_int "$netmask")"
+
+  int_to_ip $(( ip_int | ((~mask_int) & 0xFFFFFFFF) ))
+}
+
+ip_in_network() {
+  local ip="$1"
+  local network="$2"
+  local prefix="$3"
+
+  local netmask
+  netmask="$(cidr_to_netmask "$prefix")"
+
+  local ip_int net_int mask_int
+  ip_int="$(ip_to_int "$ip")"
+  mask_int="$(ip_to_int "$netmask")"
+  net_int="$(ip_to_int "$network")"
+
+  [ $(( ip_int & mask_int )) -eq $(( net_int & mask_int )) ]
+}
+
+compare_ip_order() {
+  local left right
+  left="$(ip_to_int "$1")"
+  right="$(ip_to_int "$2")"
+
+  if [ "$left" -lt "$right" ]; then
+    echo "lt"
+  elif [ "$left" -gt "$right" ]; then
+    echo "gt"
+  else
+    echo "eq"
+  fi
 }
 
 split_cidr() {
-  # Entrada: 10.42.0.0/24 -> define NET=10.42.0.0 e PREFIX=24
   local cidr="$1"
-  NET="${cidr%/*}"
+  local raw_ip
+
+  raw_ip="${cidr%/*}"
   PREFIX="${cidr#*/}"
-  if [ -z "$NET" ] || [ -z "$PREFIX" ]; then
+  if [ -z "$raw_ip" ] || [ -z "$PREFIX" ]; then
     echo "CIDR inválido: $cidr"
     exit 1
   fi
   NETMASK="$(cidr_to_netmask "$PREFIX")"
+  NET="$(network_address "$raw_ip" "$NETMASK")"
+  BROADCAST="$(broadcast_address "$NET" "$NETMASK")"
+}
+
+validate_network_inputs() {
+  if ! ip_in_network "$GATEWAY" "$NET" "$PREFIX"; then
+    echo "ERRO: gateway $GATEWAY não pertence à rede $NET/$PREFIX" >&2
+    exit 1
+  fi
+
+  if ! ip_in_network "$RANGE_START" "$NET" "$PREFIX"; then
+    echo "ERRO: início do range $RANGE_START não pertence à rede $NET/$PREFIX" >&2
+    exit 1
+  fi
+
+  if ! ip_in_network "$RANGE_END" "$NET" "$PREFIX"; then
+    echo "ERRO: fim do range $RANGE_END não pertence à rede $NET/$PREFIX" >&2
+    exit 1
+  fi
+
+  if [ "$(compare_ip_order "$RANGE_START" "$RANGE_END")" = "gt" ]; then
+    echo "ERRO: início do range ($RANGE_START) é maior que o fim ($RANGE_END)." >&2
+    exit 1
+  fi
+
+  if [ "$(compare_ip_order "$RANGE_START" "$NET")" != "gt" ]; then
+    echo "ERRO: início do range ($RANGE_START) não pode ser o endereço de rede ($NET)." >&2
+    exit 1
+  fi
+
+  if [ "$(compare_ip_order "$RANGE_END" "$BROADCAST")" != "lt" ]; then
+    echo "ERRO: fim do range ($RANGE_END) não pode ser o broadcast ($BROADCAST)." >&2
+    exit 1
+  fi
+
+  local rel_gateway_range_start rel_gateway_range_end
+  rel_gateway_range_start="$(compare_ip_order "$GATEWAY" "$RANGE_START")"
+  rel_gateway_range_end="$(compare_ip_order "$GATEWAY" "$RANGE_END")"
+
+  if [ "$rel_gateway_range_start" != "lt" ] && [ "$rel_gateway_range_end" != "gt" ]; then
+    echo "Aviso: gateway $GATEWAY está dentro do range DHCP ($RANGE_START-$RANGE_END)." >&2
+  fi
+
+  if [ "$(compare_ip_order "$GATEWAY" "$NET")" != "gt" ] || [ "$(compare_ip_order "$GATEWAY" "$BROADCAST")" != "lt" ]; then
+    echo "ERRO: gateway $GATEWAY não pode usar o endereço de rede ($NET) nem broadcast ($BROADCAST)." >&2
+    exit 1
+  fi
+}
+
+validate_lease_config() {
+  if ! [[ "$LEASE" =~ ^[0-9]+$ ]] || [ "$LEASE" -le 0 ]; then
+    echo "ERRO: --lease deve ser um inteiro positivo (atual: $LEASE)." >&2
+    exit 1
+  fi
+
+  if ! [[ "$MAX_LEASE" =~ ^[0-9]+$ ]] || [ "$MAX_LEASE" -le 0 ]; then
+    echo "ERRO: --max-lease deve ser um inteiro positivo (atual: $MAX_LEASE)." >&2
+    exit 1
+  fi
+
+  if [ "$LEASE" -gt "$MAX_LEASE" ]; then
+    echo "ERRO: --lease ($LEASE) não pode ser maior que --max-lease ($MAX_LEASE)." >&2
+    exit 1
+  fi
+
+  if [ "$MAX_LEASE" -lt 3600 ]; then
+    echo "Aviso: max-lease está inferior a 1h; os clientes podem renovar com muita frequência." >&2
+  fi
 }
 
 ensure_iface_exists() {
@@ -285,6 +441,8 @@ fi
 # -------------- Execução ------------------------------------
 require_root
 split_cidr "$CIDR"
+validate_network_inputs
+validate_lease_config
 ensure_iface_exists "$IFACE"
 
 if [ "$ENABLE_NAT" = "yes" ]; then
@@ -307,7 +465,7 @@ fi
 
 echo "==> Parâmetros:"
 echo "    IFACE.........: $IFACE"
-echo "    CIDR..........: $CIDR  (NET=$NET NETMASK=$NETMASK)"
+echo "    CIDR..........: $CIDR  (NET=$NET BROADCAST=$BROADCAST NETMASK=$NETMASK)"
 echo "    GATEWAY.......: $GATEWAY"
 echo "    RANGE.........: $RANGE_START  ->  $RANGE_END"
 echo "    DNS...........: $DNS"
@@ -333,17 +491,22 @@ cat > /etc/dhcp/dhcpd.conf <<EOF
 authoritative;
 default-lease-time $LEASE;
 max-lease-time $MAX_LEASE;
+one-lease-per-client true;
+deny duplicates;
+ignore client-uids true;
+reuse-lease-on-expiry 1;
+log-facility local7;
 
 subnet $NET netmask $NETMASK {
   range $RANGE_START $RANGE_END;
   option routers $GATEWAY;
-  option broadcast-address $(echo "$NET" | awk -F. '{printf "%d.%d.%d.255", $1,$2,$3}');
+  option subnet-mask $NETMASK;
+  option broadcast-address $BROADCAST;
   option domain-name-servers $DNS;
 }
 EOF
 
-# NOTA: usamos awk só para formar o broadcast básico x.y.z.255. Se preferires sem awk,
-# substitui manualmente por, por ex., 10.42.0.255 no bloco acima.
+# O broadcast é calculado automaticamente para a rede fornecida.
 
 echo "==> 4/7 (Opcional) Definir IP fixo $GATEWAY/$PREFIX em $IFACE…"
 if [ "$SET_STATIC_IP" = "yes" ]; then
