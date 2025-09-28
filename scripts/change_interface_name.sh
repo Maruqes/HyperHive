@@ -82,6 +82,7 @@ ip link set dev "$NEW_IFACE" up
 printf "Interface renomeada com sucesso.\n"
 
 LINK_DIR="/etc/systemd/network"
+LINK_PRIORITY="01"
 mkdir -p "$LINK_DIR"
 
 sanitize() {
@@ -91,8 +92,13 @@ sanitize() {
 
 SAFE_OLD=$(sanitize "$OLD_IFACE")
 SAFE_NEW=$(sanitize "$NEW_IFACE")
-LINK_FILE="${LINK_DIR}/10-rename-${SAFE_OLD}-to-${SAFE_NEW}.link"
+LINK_FILE="${LINK_DIR}/${LINK_PRIORITY}-rename-${SAFE_OLD}-to-${SAFE_NEW}.link"
 BACKUP_SUFFIX=".bak.$(date +%Y%m%d%H%M%S)"
+
+LEGACY_LINK="${LINK_DIR}/10-rename-${SAFE_OLD}-to-${SAFE_NEW}.link"
+if [ -f "$LEGACY_LINK" ] && [ "$LEGACY_LINK" != "$LINK_FILE" ]; then
+    mv "$LEGACY_LINK" "${LEGACY_LINK}${BACKUP_SUFFIX}"
+fi
 
 if [ -f "$LINK_FILE" ]; then
     cp "$LINK_FILE" "${LINK_FILE}${BACKUP_SUFFIX}"
@@ -101,16 +107,29 @@ fi
 cat >"$LINK_FILE" <<EOF2
 [Match]
 MACAddress=${MAC_ADDRESS}
-OriginalName=${OLD_IFACE}
 
 [Link]
 Name=${NEW_IFACE}
 EOF2
 chmod 0644 "$LINK_FILE"
 
+UDEV_RULES_DIR="/etc/udev/rules.d"
+UDEV_RULE_FILE="${UDEV_RULES_DIR}/82-rename-net-${SAFE_NEW}.rules"
+mkdir -p "$UDEV_RULES_DIR"
+
+if [ -f "$UDEV_RULE_FILE" ]; then
+    cp "$UDEV_RULE_FILE" "${UDEV_RULE_FILE}${BACKUP_SUFFIX}"
+fi
+
+cat >"$UDEV_RULE_FILE" <<EOF3
+ACTION=="add", SUBSYSTEM=="net", ATTR{address}=="${MAC_ADDRESS}", NAME="${NEW_IFACE}"
+EOF3
+chmod 0644 "$UDEV_RULE_FILE"
+
 # Assegura que alterações sejam aplicadas em futuros boots
 if command -v udevadm >/dev/null 2>&1; then
     udevadm control --reload >/dev/null 2>&1 || true
+    udevadm control --reload-rules >/dev/null 2>&1 || true
     udevadm trigger --attr-match=subsystem=net --attr-match=address="$MAC_ADDRESS" >/dev/null 2>&1 || true
 fi
 
