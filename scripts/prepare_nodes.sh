@@ -7,10 +7,10 @@ set -euo pipefail
 
 # =================== CONFIG ===================
 os=("fedora" "fedora")
-names=("marques" "swift512")
-ips=("192.168.1.200" "192.168.1.169")
+names=("marques512sv" "marques")
+ips=("10.42.0.1" "10.42.0.43")
 brick_paths=("/gluster_bricks/images" "/gluster_bricks/images")
-ssh_ports=(22512 22)             # porta SSH por nó
+ssh_ports=(22 22)             # porta SSH por nó
 bricks_per_node=(1 1)            # quantos bricks por nó (1 porta por brick a partir de 49152)
 enable_gnfs=false                # true se fores exportar via Gluster NFS (gNFS)
 # ==============================================

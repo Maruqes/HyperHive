@@ -118,8 +118,8 @@ func main() {
 		"qemu:///system",
 		"debian-kde",
 		8192, 6,
-		"jammy-server-cloudimg-amd64.img", 0, // relativo -> /var/512SvMan/qcow2/debian-kde.qcow2
-		"", // relativo -> /var/512SvMan/iso/...
+		"/mnt/data/debian-live-13.1.0-amd64-kde.iso", 50, // relativo -> /var/512SvMan/qcow2/debian-kde.qcow2
+		"/mnt/data/debian.qcow2", // relativo -> /var/512SvMan/iso/...
 		"",                                 // machine (user decide; "" = auto)
 		"default", "0.0.0.0",
 		"Westmere", nil, // baseline portable
