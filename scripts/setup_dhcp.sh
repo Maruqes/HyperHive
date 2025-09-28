@@ -9,7 +9,7 @@ set -euo pipefail
 # ------------------------------------------------------------
 
 # -------- Defaults (podes alterar já aqui) ------------------
-IFACE_DEFAULT="enp5s0"
+IFACE_DEFAULT="512rede"
 CIDR_DEFAULT="10.42.0.0/24"
 GATEWAY_DEFAULT="10.42.0.1"
 RANGE_START_DEFAULT="10.42.0.50"
@@ -27,7 +27,7 @@ usage() {
   cat <<'USAGE'
 Uso:
   sudo ./setup-dhcp-master.sh \
-    --iface enp5s0 \
+    --iface 512rede \
     --cidr 10.42.0.0/24 \
     --gateway 10.42.0.1 \
     --range 10.42.0.50 10.42.0.200 \
