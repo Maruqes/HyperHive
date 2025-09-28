@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Configure a local DHCP server on Fedora for the 512rede network with NAT forwarding and infinite lease time.
+# Configure a local DHCP server on Fedora for the rede512 network with NAT forwarding and infinite lease time.
 set -euo pipefail
 
 info() { printf '[INFO] %s\n' "$*"; }
@@ -20,7 +20,7 @@ else
     fatal 'Unable to determine distribution (missing /etc/os-release).'
 fi
 
-NETWORK_NAME="${NETWORK_NAME:-512rede}"
+NETWORK_NAME="${NETWORK_NAME:-rede512}"
 SUBNET_CIDR="${SUBNET_CIDR:-192.168.76.0/24}"
 GATEWAY_IP="${GATEWAY_IP:-192.168.76.1}"
 DHCP_RANGE_START="${DHCP_RANGE_START:-192.168.76.50}"
@@ -221,6 +221,61 @@ apply_iptables_rules() {
     return 0
 }
 
+ensure_iptables_unit() {
+    local helper_script="/usr/local/sbin/${NETWORK_NAME}-nat.sh"
+    local unit_name="${NETWORK_NAME}-nat.service"
+    local unit_path="/etc/systemd/system/${unit_name}"
+    local iptables_bin
+
+    if ! iptables_bin=$(command -v iptables); then
+        warn 'Unable to persist iptables rules (iptables binary missing).'
+        return
+    fi
+
+    install -d -m 755 "$(dirname "${helper_script}")"
+
+    info "Persisting NAT configuration via ${helper_script} and ${unit_name}"
+    cat >"${helper_script}" <<SCRIPT
+#!/usr/bin/env bash
+set -euo pipefail
+WAN_IF="${WAN_IF}"
+NETWORK_NAME="${NETWORK_NAME}"
+SUBNET_NETWORK="${SUBNET_NETWORK}"
+
+"${iptables_bin}" -t nat -D POSTROUTING -s "${SUBNET_NETWORK}" -o "${WAN_IF}" -j MASQUERADE 2>/dev/null || true
+"${iptables_bin}" -D FORWARD -i "${WAN_IF}" -o "${NETWORK_NAME}" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
+"${iptables_bin}" -D FORWARD -i "${NETWORK_NAME}" -o "${WAN_IF}" -j ACCEPT 2>/dev/null || true
+
+"${iptables_bin}" -t nat -A POSTROUTING -s "${SUBNET_NETWORK}" -o "${WAN_IF}" -j MASQUERADE
+"${iptables_bin}" -A FORWARD -i "${WAN_IF}" -o "${NETWORK_NAME}" -m state --state RELATED,ESTABLISHED -j ACCEPT
+"${iptables_bin}" -A FORWARD -i "${NETWORK_NAME}" -o "${WAN_IF}" -j ACCEPT
+SCRIPT
+    chmod 755 "${helper_script}"
+
+    cat >"${unit_path}" <<UNIT
+[Unit]
+Description=Persist NAT rules for ${NETWORK_NAME}
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=${helper_script}
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+    if command -v systemctl &>/dev/null; then
+        systemctl daemon-reload
+        systemctl enable "${unit_name}" >/dev/null 2>&1 || warn "Unable to enable ${unit_name}"
+        systemctl start "${unit_name}" >/dev/null 2>&1 || warn "Unable to start ${unit_name}"
+    else
+        warn "systemctl unavailable; ensure ${unit_path} is invoked at boot manually."
+    fi
+}
+
 firewall_configured=0
 if apply_firewall_cmd; then
     firewall_configured=1
@@ -229,8 +284,11 @@ else
 fi
 
 iptables_configured=0
-if apply_iptables_rules; then
-    iptables_configured=1
+if (( firewall_configured == 0 )); then
+    if apply_iptables_rules; then
+        iptables_configured=1
+        ensure_iptables_unit
+    fi
 fi
 
 if (( firewall_configured == 0 && iptables_configured == 0 )); then
