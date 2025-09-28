@@ -86,8 +86,29 @@ if ! ip link show "${NETWORK_NAME}" &>/dev/null; then
     fatal "Network interface '${NETWORK_NAME}' not found. Ensure the interface exists before running this script."
 fi
 
+reset_networkmanager_state() {
+    if ! command -v nmcli &>/dev/null; then
+        return
+    fi
+    local nm_conn_uuids
+    nm_conn_uuids=$(nmcli -t -f UUID,DEVICE connection show | awk -F: -v dev="${NETWORK_NAME}" '$2 == dev {print $1}')
+    if [[ -n ${nm_conn_uuids} ]]; then
+        info "Removing NetworkManager profiles for ${NETWORK_NAME}"
+        while read -r uuid; do
+            [[ -z ${uuid} ]] && continue
+            nmcli connection delete uuid "${uuid}" >/dev/null 2>&1 || warn "Failed to delete NetworkManager connection ${uuid}"
+        done <<<"${nm_conn_uuids}"
+    fi
+    nmcli device disconnect "${NETWORK_NAME}" >/dev/null 2>&1 || true
+    nmcli device set "${NETWORK_NAME}" managed no >/dev/null 2>&1 || true
+}
+
+info "Detaching ${NETWORK_NAME} from NetworkManager control (if applicable)"
+reset_networkmanager_state
+
 info "Resetting IP configuration for ${NETWORK_NAME}"
 ip addr flush dev "${NETWORK_NAME}" || warn "Unable to flush addresses on ${NETWORK_NAME}."
+ip route flush dev "${NETWORK_NAME}" table main || true
 ip link set "${NETWORK_NAME}" down || warn "Unable to bring ${NETWORK_NAME} down."
 
 info 'Removing previous dnsmasq state'
