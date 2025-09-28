@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Configure a local DHCP server on Fedora for the rede512 network with NAT forwarding and infinite lease time.
+# Configure a local DHCP server on Fedora for the 512rede network with NAT forwarding and infinite lease time.
 set -euo pipefail
 
 info() { printf '[INFO] %s\n' "$*"; }
@@ -20,7 +20,7 @@ else
     fatal 'Unable to determine distribution (missing /etc/os-release).'
 fi
 
-NETWORK_NAME="${NETWORK_NAME:-rede512}"
+NETWORK_NAME="${NETWORK_NAME:-512rede}"
 SUBNET_CIDR="${SUBNET_CIDR:-192.168.76.0/24}"
 GATEWAY_IP="${GATEWAY_IP:-192.168.76.1}"
 DHCP_RANGE_START="${DHCP_RANGE_START:-192.168.76.50}"
@@ -28,7 +28,7 @@ DHCP_RANGE_END="${DHCP_RANGE_END:-192.168.76.200}"
 DNSMASQ_CONF_DIR="${DNSMASQ_CONF_DIR:-/etc/dnsmasq.d}"
 DNSMASQ_LEASE_DIR="${DNSMASQ_LEASE_DIR:-/var/lib/dnsmasq}"
 RESOLV_CONF="${RESOLV_CONF:-/etc/resolv.conf}"
-NM_CONNECTION_NAME="${NM_CONNECTION_NAME:-rede512-static}"
+NM_CONNECTION_NAME="${NM_CONNECTION_NAME:-512rede-static}"
 SYSCTL_CONF="/etc/sysctl.d/99-${NETWORK_NAME}-ipforward.conf"
 
 if ! command -v ip &>/dev/null; then
