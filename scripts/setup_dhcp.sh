@@ -12,10 +12,14 @@ DOMAIN_NAME="${DOMAIN_NAME:-512rede.local}"
 DNS_SERVERS="${DNS_SERVERS:-1.1.1.1, 8.8.8.8}"
 DHCP_HOSTS_FILE="${DHCP_HOSTS_FILE:-/etc/dhcp/512rede-hosts.conf}"
 DHCP_CONF_FILE=/etc/dhcp/dhcpd.conf
-DHCP_DEFAULTS_FILE=/etc/default/isc-dhcp-server
+DHCP_DEFAULTS_FILE=""
 SYSCTL_FORWARD_FILE=/etc/sysctl.d/90-512rede-ipforward.conf
-IPTABLES_RULES_FILE=/etc/iptables/rules.v4
-PACKAGES=(isc-dhcp-server iptables-persistent)
+IPTABLES_RULES_FILE=""
+PACKAGES=()
+OS_FAMILY=""
+DHCP_SERVICE=""
+PKG_MANAGER=""
+IPTABLES_SERVICE=""
 
 require_root() {
     if [ "$(id -u)" -ne 0 ]; then
@@ -41,6 +45,54 @@ ensure_command() {
     fi
 }
 
+detect_os() {
+    if [ -n "$OS_FAMILY" ]; then
+        return
+    fi
+
+    if [ -r /etc/os-release ]; then
+        # shellcheck disable=SC1091
+        . /etc/os-release
+    else
+        echo "Não foi possível detectar o sistema operacional (faltando /etc/os-release)." >&2
+        exit 1
+    fi
+
+    local id_raw="${ID:-}"
+    if [ -z "$id_raw" ]; then
+        echo "Variável ID ausente em /etc/os-release." >&2
+        exit 1
+    fi
+    local id="${id_raw,,}"
+    local id_like_raw="${ID_LIKE:-}"
+    local id_like="${id_like_raw,,}"
+
+    if [[ "$id" =~ ^(debian|ubuntu|linuxmint|pop|elementary|kali|raspbian)$ ]] || [[ "$id_like" == *"debian"* ]]; then
+        OS_FAMILY="debian"
+        PKG_MANAGER="apt-get"
+        PACKAGES=(isc-dhcp-server iptables iptables-persistent)
+        DHCP_SERVICE="isc-dhcp-server"
+        DHCP_DEFAULTS_FILE=/etc/default/isc-dhcp-server
+        IPTABLES_RULES_FILE=/etc/iptables/rules.v4
+        IPTABLES_SERVICE="netfilter-persistent"
+    elif [[ "$id" =~ ^(fedora|rhel|centos|rocky|almalinux|ol|oracle|redhatenterpriseserver)$ ]] || [[ "$id_like" == *"rhel"* ]] || [[ "$id_like" == *"fedora"* ]]; then
+        OS_FAMILY="rhel"
+        if command -v dnf >/dev/null 2>&1; then
+            PKG_MANAGER="dnf"
+        else
+            PKG_MANAGER="yum"
+        fi
+        PACKAGES=(dhcp-server iptables iptables-services)
+        DHCP_SERVICE="dhcpd"
+        DHCP_DEFAULTS_FILE=/etc/sysconfig/dhcpd
+        IPTABLES_RULES_FILE=/etc/sysconfig/iptables
+        IPTABLES_SERVICE="iptables"
+    else
+        echo "Distribuição não suportada. IDs detectados: ID='${ID}' ID_LIKE='${ID_LIKE:-}'" >&2
+        exit 1
+    fi
+}
+
 backup_file() {
     local file=$1
     if [ -f "$file" ]; then
@@ -51,18 +103,41 @@ backup_file() {
 }
 
 install_packages() {
-    local missing=()
-    for pkg in "${PACKAGES[@]}"; do
-        if ! dpkg -s "$pkg" >/dev/null 2>&1; then
-            missing+=("$pkg")
-        fi
-    done
-
-    if [ "${#missing[@]}" -gt 0 ]; then
-        export DEBIAN_FRONTEND=noninteractive
-        apt-get update
-        apt-get install -y "${missing[@]}"
+    detect_os
+    if [ -z "$DHCP_DEFAULTS_FILE" ] || [ -z "$IPTABLES_RULES_FILE" ]; then
+        echo "Falha ao deduzir caminhos de configuração para a distribuição atual." >&2
+        exit 1
     fi
+
+    local missing=()
+    case "$OS_FAMILY" in
+        debian)
+            for pkg in "${PACKAGES[@]}"; do
+                if ! dpkg -s "$pkg" >/dev/null 2>&1; then
+                    missing+=("$pkg")
+                fi
+            done
+            if [ "${#missing[@]}" -gt 0 ]; then
+                export DEBIAN_FRONTEND=noninteractive
+                apt-get update
+                apt-get install -y "${missing[@]}"
+            fi
+            ;;
+        rhel)
+            for pkg in "${PACKAGES[@]}"; do
+                if ! rpm -q "$pkg" >/dev/null 2>&1; then
+                    missing+=("$pkg")
+                fi
+            done
+            if [ "${#missing[@]}" -gt 0 ]; then
+                "$PKG_MANAGER" -y install "${missing[@]}"
+            fi
+            ;;
+        *)
+            echo "Familia de SO desconhecida para instalação de pacotes." >&2
+            exit 1
+            ;;
+    esac
 }
 
 netmask_to_prefix() {
@@ -150,18 +225,41 @@ assign_gateway_ip() {
 
 configure_dhcp_defaults() {
     local file=$1
+    detect_os
     backup_file "$file"
+    mkdir -p "$(dirname "$file")"
     touch "$file"
-    if grep -q '^INTERFACESv4=' "$file"; then
-        sed -i "s/^INTERFACESv4=.*/INTERFACESv4=\"${LAN_INTERFACE}\"/" "$file"
-    else
-        printf '\nINTERFACESv4=\"%s\"\n' "$LAN_INTERFACE" >>"$file"
-    fi
-    if grep -q '^INTERFACESv6=' "$file"; then
-        sed -i 's/^INTERFACESv6=.*/INTERFACESv6=""/' "$file"
-    else
-        printf 'INTERFACESv6=""\n' >>"$file"
-    fi
+
+    case "$OS_FAMILY" in
+        debian)
+            if grep -q '^INTERFACESv4=' "$file"; then
+                sed -i "s/^INTERFACESv4=.*/INTERFACESv4=\"${LAN_INTERFACE}\"/" "$file"
+            else
+                printf 'INTERFACESv4="%s"\n' "$LAN_INTERFACE" >>"$file"
+            fi
+            if grep -q '^INTERFACESv6=' "$file"; then
+                sed -i 's/^INTERFACESv6=.*/INTERFACESv6=""/' "$file"
+            else
+                printf 'INTERFACESv6=""\n' >>"$file"
+            fi
+            ;;
+        rhel)
+            if grep -q '^DHCPDARGS=' "$file"; then
+                sed -i "s/^DHCPDARGS=.*/DHCPDARGS=\"${LAN_INTERFACE}\"/" "$file"
+            else
+                printf 'DHCPDARGS="%s"\n' "$LAN_INTERFACE" >>"$file"
+            fi
+            if grep -q '^OPTIONS=' "$file"; then
+                sed -i 's/^OPTIONS=.*/OPTIONS="-4"/' "$file"
+            else
+                printf 'OPTIONS="-4"\n' >>"$file"
+            fi
+            ;;
+        *)
+            echo "Configuração de defaults DHCP não suportada para $OS_FAMILY." >&2
+            exit 1
+            ;;
+    esac
 }
 
 ensure_hosts_file() {
@@ -215,11 +313,21 @@ configure_nat() {
     fi
     mkdir -p "$(dirname "$IPTABLES_RULES_FILE")"
     iptables-save >"$IPTABLES_RULES_FILE"
+    if [ "$OS_FAMILY" = "debian" ] && command -v netfilter-persistent >/dev/null 2>&1; then
+        netfilter-persistent save >/dev/null 2>&1 || true
+    fi
+    if [ "$OS_FAMILY" = "rhel" ] && [ -n "$IPTABLES_SERVICE" ]; then
+        if systemctl list-unit-files | grep -q "^${IPTABLES_SERVICE}\.service"; then
+            systemctl enable "$IPTABLES_SERVICE" >/dev/null 2>&1 || true
+            systemctl restart "$IPTABLES_SERVICE" >/dev/null 2>&1 || true
+        fi
+    fi
 }
 
 restart_dhcp_service() {
-    systemctl enable isc-dhcp-server.service
-    systemctl restart isc-dhcp-server.service
+    detect_os
+    systemctl enable "$DHCP_SERVICE"
+    systemctl restart "$DHCP_SERVICE"
 }
 
 validate_dhcp_conf() {
@@ -231,6 +339,7 @@ validate_dhcp_conf() {
 
 main() {
     require_root
+    detect_os
     ensure_nonempty "$LAN_INTERFACE" "LAN_INTERFACE"
     ensure_nonempty "$LAN_GATEWAY_IP" "LAN_GATEWAY_IP"
     ensure_nonempty "$LAN_NETWORK" "LAN_NETWORK"
@@ -242,9 +351,9 @@ main() {
         LAN_BROADCAST=$(calculate_broadcast "$LAN_NETWORK" "$LAN_NETMASK")
     fi
 
+    install_packages
     ensure_command ip
     ensure_command iptables
-    install_packages
     ensure_command dhcpd
     ensure_command iptables-save
 
