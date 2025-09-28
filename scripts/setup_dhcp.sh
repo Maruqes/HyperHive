@@ -9,14 +9,14 @@ set -euo pipefail
 # ------------------------------------------------------------
 
 # -------- Defaults (podes alterar já aqui) ------------------
-IFACE_DEFAULT="enp5s0"
+IFACE_DEFAULT="512rede"
 CIDR_DEFAULT="10.42.0.0/24"
 GATEWAY_DEFAULT="10.42.0.1"
-RANGE_START_DEFAULT="10.42.0.50"
-RANGE_END_DEFAULT="10.42.0.200"
+RANGE_START_DEFAULT="10.42.0.20"
+RANGE_END_DEFAULT="10.42.0.250"
 DNS_DEFAULT="1.1.1.1, 8.8.8.8"
-LEASE_DEFAULT=600
-MAX_LEASE_DEFAULT=7200
+LEASE_DEFAULT=86400
+MAX_LEASE_DEFAULT=604800
 SET_STATIC_IP_DEFAULT="yes"      # yes/no -> define IP fixo no IFACE com o GATEWAY_DEFAULT/CIDR
 DISABLE_FIREWALL_DEFAULT="yes"   # yes/no -> desativa firewalld para evitar bloqueios DHCP
 ENABLE_NAT_DEFAULT="yes"         # yes/no -> ativa NAT para partilhar internet via interface WAN
@@ -32,13 +32,13 @@ usage() {
   cat <<'USAGE'
 Uso:
   sudo ./setup-dhcp-master.sh \
-    --iface enp5s0 \
+    --iface 512rede \
     --cidr 10.42.0.0/24 \
     --gateway 10.42.0.1 \
-    --range 10.42.0.50 10.42.0.200 \
+    --range 10.42.0.20 10.42.0.250 \
     --dns "1.1.1.1, 8.8.8.8" \
-    --lease 600 \
-    --max-lease 7200 \
+    --lease 86400 \
+    --max-lease 604800 \
     --set-static-ip yes \
     --disable-firewall yes \
     --enable-nat yes \
