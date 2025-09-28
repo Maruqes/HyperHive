@@ -1,374 +1,192 @@
 #!/usr/bin/env bash
-# Provisiona um servidor DHCP ISC para a rede 512rede com NAT e leases estáticas.
+# Configure a local DHCP server on Fedora for the rede512 network with NAT forwarding and infinite lease time.
 set -euo pipefail
 
-LAN_INTERFACE="${LAN_INTERFACE:-512rede}"
-WAN_INTERFACE="${WAN_INTERFACE:-$(ip route get 1.1.1.1 2>/dev/null | awk '/dev/ {print $5; exit}')}"
-LAN_GATEWAY_IP="${LAN_GATEWAY_IP:-10.51.2.1}"
-LAN_NETWORK="${LAN_NETWORK:-10.51.2.0}"
-LAN_NETMASK="${LAN_NETMASK:-255.255.255.0}"
-LAN_BROADCAST="${LAN_BROADCAST:-}"
-DOMAIN_NAME="${DOMAIN_NAME:-512rede.local}"
-DNS_SERVERS="${DNS_SERVERS:-1.1.1.1, 8.8.8.8}"
-DHCP_HOSTS_FILE="${DHCP_HOSTS_FILE:-/etc/dhcp/512rede-hosts.conf}"
-DHCP_CONF_FILE=/etc/dhcp/dhcpd.conf
-DHCP_DEFAULTS_FILE=""
-SYSCTL_FORWARD_FILE=/etc/sysctl.d/90-512rede-ipforward.conf
-IPTABLES_RULES_FILE=""
-PACKAGES=()
-OS_FAMILY=""
-DHCP_SERVICE=""
-PKG_MANAGER=""
-IPTABLES_SERVICE=""
+info() { printf '[INFO] %s\n' "$*"; }
+warn() { printf '[WARN] %s\n' "$*" >&2; }
+fatal() { printf '[ERROR] %s\n' "$*" >&2; exit 1; }
 
-require_root() {
-    if [ "$(id -u)" -ne 0 ]; then
-        echo "Este script precisa ser executado como root." >&2
-        exit 1
+if [[ ${EUID:-0} -ne 0 ]]; then
+    fatal 'This script must run as root.'
+fi
+
+if [[ -r /etc/os-release ]]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    if [[ "${ID,,}" != "fedora" && ! ${ID_LIKE:-} =~ fedora ]]; then
+        fatal 'This script currently targets Fedora-based hosts only.'
     fi
-}
+else
+    fatal 'Unable to determine distribution (missing /etc/os-release).'
+fi
 
-ensure_nonempty() {
-    local value=$1
-    local label=$2
-    if [ -z "$value" ]; then
-        echo "${label} não pode ser vazio." >&2
-        exit 1
-    fi
-}
+NETWORK_NAME="${NETWORK_NAME:-rede512}"
+SUBNET_CIDR="${SUBNET_CIDR:-192.168.76.0/24}"
+GATEWAY_IP="${GATEWAY_IP:-192.168.76.1}"
+DHCP_RANGE_START="${DHCP_RANGE_START:-192.168.76.50}"
+DHCP_RANGE_END="${DHCP_RANGE_END:-192.168.76.200}"
+DNSMASQ_CONF_DIR="${DNSMASQ_CONF_DIR:-/etc/dnsmasq.d}"
+DNSMASQ_LEASE_DIR="${DNSMASQ_LEASE_DIR:-/var/lib/dnsmasq}"
+SYSCTL_CONF="/etc/sysctl.d/99-${NETWORK_NAME}-ipforward.conf"
 
-ensure_command() {
-    local cmd=$1
-    if ! command -v "$cmd" >/dev/null 2>&1; then
-        echo "Comando obrigatório não encontrado: $cmd" >&2
-        exit 1
-    fi
-}
+if ! command -v ip &>/dev/null; then
+    fatal 'iproute2 tools are required (missing `ip`).'
+fi
+if ! command -v dnsmasq &>/dev/null; then
+    fatal 'dnsmasq must be installed before running this script.'
+fi
 
-detect_os() {
-    if [ -n "$OS_FAMILY" ]; then
+cidr_prefix=${SUBNET_CIDR#*/}
+network_base=${SUBNET_CIDR%/*}
+if [[ -z ${cidr_prefix} || ! ${cidr_prefix} =~ ^[0-9]+$ ]]; then
+    fatal "Invalid SUBNET_CIDR '${SUBNET_CIDR}'"
+fi
+cidr_prefix=$((10#${cidr_prefix}))
+if (( cidr_prefix < 0 || cidr_prefix > 32 )); then
+    fatal "Invalid SUBNET_CIDR '${SUBNET_CIDR}'"
+fi
+
+prefix_to_mask() {
+    local prefix=$1
+    if (( prefix == 0 )); then
+        printf '0.0.0.0'
         return
     fi
-
-    if [ -r /etc/os-release ]; then
-        # shellcheck disable=SC1091
-        . /etc/os-release
-    else
-        echo "Não foi possível detectar o sistema operacional (faltando /etc/os-release)." >&2
-        exit 1
-    fi
-
-    local id_raw="${ID:-}"
-    if [ -z "$id_raw" ]; then
-        echo "Variável ID ausente em /etc/os-release." >&2
-        exit 1
-    fi
-    local id="${id_raw,,}"
-    local id_like_raw="${ID_LIKE:-}"
-    local id_like="${id_like_raw,,}"
-
-    if [[ "$id" =~ ^(debian|ubuntu|linuxmint|pop|elementary|kali|raspbian)$ ]] || [[ "$id_like" == *"debian"* ]]; then
-        OS_FAMILY="debian"
-        PKG_MANAGER="apt-get"
-        PACKAGES=(isc-dhcp-server iptables iptables-persistent)
-        DHCP_SERVICE="isc-dhcp-server"
-        DHCP_DEFAULTS_FILE=/etc/default/isc-dhcp-server
-        IPTABLES_RULES_FILE=/etc/iptables/rules.v4
-        IPTABLES_SERVICE="netfilter-persistent"
-    elif [[ "$id" =~ ^(fedora|rhel|centos|rocky|almalinux|ol|oracle|redhatenterpriseserver)$ ]] || [[ "$id_like" == *"rhel"* ]] || [[ "$id_like" == *"fedora"* ]]; then
-        OS_FAMILY="rhel"
-        if command -v dnf >/dev/null 2>&1; then
-            PKG_MANAGER="dnf"
-        else
-            PKG_MANAGER="yum"
-        fi
-        PACKAGES=(dhcp-server iptables iptables-services)
-        DHCP_SERVICE="dhcpd"
-        DHCP_DEFAULTS_FILE=/etc/sysconfig/dhcpd
-        IPTABLES_RULES_FILE=/etc/sysconfig/iptables
-        IPTABLES_SERVICE="iptables"
-    else
-        echo "Distribuição não suportada. IDs detectados: ID='${ID}' ID_LIKE='${ID_LIKE:-}'" >&2
-        exit 1
-    fi
-}
-
-backup_file() {
-    local file=$1
-    if [ -f "$file" ]; then
-        local stamp
-        stamp=$(date +%Y%m%d%H%M%S)
-        cp "$file" "${file}.bak.${stamp}"
-    fi
-}
-
-install_packages() {
-    detect_os
-    if [ -z "$DHCP_DEFAULTS_FILE" ] || [ -z "$IPTABLES_RULES_FILE" ]; then
-        echo "Falha ao deduzir caminhos de configuração para a distribuição atual." >&2
-        exit 1
-    fi
-
-    local missing=()
-    case "$OS_FAMILY" in
-        debian)
-            for pkg in "${PACKAGES[@]}"; do
-                if ! dpkg -s "$pkg" >/dev/null 2>&1; then
-                    missing+=("$pkg")
-                fi
-            done
-            if [ "${#missing[@]}" -gt 0 ]; then
-                export DEBIAN_FRONTEND=noninteractive
-                apt-get update
-                apt-get install -y "${missing[@]}"
-            fi
-            ;;
-        rhel)
-            for pkg in "${PACKAGES[@]}"; do
-                if ! rpm -q "$pkg" >/dev/null 2>&1; then
-                    missing+=("$pkg")
-                fi
-            done
-            if [ "${#missing[@]}" -gt 0 ]; then
-                "$PKG_MANAGER" -y install "${missing[@]}"
-            fi
-            ;;
-        *)
-            echo "Familia de SO desconhecida para instalação de pacotes." >&2
-            exit 1
-            ;;
-    esac
-}
-
-netmask_to_prefix() {
-    local mask=$1
-    local IFS=.
-    read -r o1 o2 o3 o4 <<<"$mask"
-    local -a octets=($o1 $o2 $o3 $o4)
-    local prefix=0
-    for oct in "${octets[@]}"; do
-        case $oct in
-            255) prefix=$((prefix + 8));;
-            254) prefix=$((prefix + 7));;
-            252) prefix=$((prefix + 6));;
-            248) prefix=$((prefix + 5));;
-            240) prefix=$((prefix + 4));;
-            224) prefix=$((prefix + 3));;
-            192) prefix=$((prefix + 2));;
-            128) prefix=$((prefix + 1));;
-            0) ;;
-            *)
-                echo "Máscara de rede inválida: $mask" >&2
-                exit 1
-                ;;
-        esac
-    done
-    echo "$prefix"
+    local mask=$(( 0xffffffff ^ ((1 << (32 - prefix)) - 1) ))
+    printf '%d.%d.%d.%d' \
+        $(( (mask >> 24) & 255 )) \
+        $(( (mask >> 16) & 255 )) \
+        $(( (mask >> 8) & 255 )) \
+        $(( mask & 255 ))
 }
 
 ip_to_int() {
-    local ip=$1
     local IFS=.
-    local o1 o2 o3 o4
-    read -r o1 o2 o3 o4 <<<"$ip"
-    printf '%u\n' "$(((10#$o1 << 24) | (10#$o2 << 16) | (10#$o3 << 8) | 10#$o4))"
+    local a b c d
+    read -r a b c d <<<"$1"
+    printf '%u' $(( (a << 24) | (b << 16) | (c << 8) | d ))
 }
 
 int_to_ip() {
-    local value=$1
-    printf '%d.%d.%d.%d\n' \
-        $(((value >> 24) & 0xFF)) \
-        $(((value >> 16) & 0xFF)) \
-        $(((value >> 8) & 0xFF)) \
-        $((value & 0xFF))
-}
-
-network_address() {
     local ip=$1
-    local mask=$2
-    local ip_int mask_int
-    ip_int=$(ip_to_int "$ip")
-    mask_int=$(ip_to_int "$mask")
-    local network_int=$((ip_int & mask_int))
-    int_to_ip "$network_int"
+    printf '%d.%d.%d.%d' \
+        $(( (ip >> 24) & 255 )) \
+        $(( (ip >> 16) & 255 )) \
+        $(( (ip >> 8) & 255 )) \
+        $(( ip & 255 ))
 }
 
-calculate_broadcast() {
-    local network=$1
-    local mask=$2
-    local network_int mask_int
-    network_int=$(ip_to_int "$network")
-    mask_int=$(ip_to_int "$mask")
-    local broadcast=$((network_int | (0xFFFFFFFF ^ mask_int)))
-    int_to_ip "$broadcast"
-}
+mask_int=$(( cidr_prefix == 0 ? 0 : 0xffffffff ^ ((1 << (32 - cidr_prefix)) - 1) ))
+network_int=$(( $(ip_to_int "${network_base}") & mask_int ))
+network_address=$(int_to_ip "${network_int}")
+SUBNET_NETWORK="${network_address}/${cidr_prefix}"
+NETMASK=$(prefix_to_mask "${cidr_prefix}")
 
-ensure_interface_up() {
-    local iface=$1
-    if ! ip link show "$iface" >/dev/null 2>&1; then
-        echo "Interface '${iface}' não encontrada." >&2
-        exit 1
-    fi
-    ip link set dev "$iface" up
-}
+if ! ip link show "${NETWORK_NAME}" &>/dev/null; then
+    fatal "Network interface '${NETWORK_NAME}' not found. Ensure the interface exists before running this script."
+fi
 
-assign_gateway_ip() {
-    local iface=$1
-    local ip_addr=$2
-    local netmask=$3
-    local prefix
-    prefix=$(netmask_to_prefix "$netmask")
-    if ! ip addr show dev "$iface" | awk '/inet / {print $2}' | grep -Fxq "${ip_addr}/${prefix}"; then
-        ip addr add "${ip_addr}/${prefix}" dev "$iface"
-    fi
-}
+info "Resetting IP configuration for ${NETWORK_NAME}"
+ip addr flush dev "${NETWORK_NAME}" || warn "Unable to flush addresses on ${NETWORK_NAME}."
+ip link set "${NETWORK_NAME}" down || warn "Unable to bring ${NETWORK_NAME} down."
 
-configure_dhcp_defaults() {
-    local file=$1
-    detect_os
-    backup_file "$file"
-    mkdir -p "$(dirname "$file")"
-    touch "$file"
+info 'Removing previous dnsmasq state'
+install -d -m 755 "${DNSMASQ_CONF_DIR}"
+install -d -m 755 "${DNSMASQ_LEASE_DIR}"
+DNSMASQ_CONF="${DNSMASQ_CONF_DIR}/${NETWORK_NAME}.conf"
+rm -f "${DNSMASQ_CONF}"
+rm -f "${DNSMASQ_LEASE_DIR}/${NETWORK_NAME}.leases"
 
-    case "$OS_FAMILY" in
-        debian)
-            if grep -q '^INTERFACESv4=' "$file"; then
-                sed -i "s/^INTERFACESv4=.*/INTERFACESv4=\"${LAN_INTERFACE}\"/" "$file"
-            else
-                printf 'INTERFACESv4="%s"\n' "$LAN_INTERFACE" >>"$file"
-            fi
-            if grep -q '^INTERFACESv6=' "$file"; then
-                sed -i 's/^INTERFACESv6=.*/INTERFACESv6=""/' "$file"
-            else
-                printf 'INTERFACESv6=""\n' >>"$file"
-            fi
-            ;;
-        rhel)
-            if grep -q '^DHCPDARGS=' "$file"; then
-                sed -i "s/^DHCPDARGS=.*/DHCPDARGS=\"${LAN_INTERFACE}\"/" "$file"
-            else
-                printf 'DHCPDARGS="%s"\n' "$LAN_INTERFACE" >>"$file"
-            fi
-            if grep -q '^OPTIONS=' "$file"; then
-                sed -i 's/^OPTIONS=.*/OPTIONS="-4"/' "$file"
-            else
-                printf 'OPTIONS="-4"\n' >>"$file"
-            fi
-            ;;
-        *)
-            echo "Configuração de defaults DHCP não suportada para $OS_FAMILY." >&2
-            exit 1
-            ;;
-    esac
-}
+info 'Preparing interface addressing'
+ip link set "${NETWORK_NAME}" up
+ip addr add "${GATEWAY_IP}/${cidr_prefix}" dev "${NETWORK_NAME}" valid_lft forever preferred_lft forever
 
-ensure_hosts_file() {
-    local file=$1
-    if [ ! -f "$file" ]; then
-        mkdir -p "$(dirname "$file")"
-        cat >"$file" <<'EOS'
-# Inclua aqui as reservas estáticas no formato:
-# host nome_maquina {
-#     hardware ethernet 00:11:22:33:44:55;
-#     fixed-address 10.51.2.10;
-#     option host-name "nome_maquina";
-#     default-lease-time infinite;
-#     max-lease-time infinite;
-# }
-EOS
-    fi
-}
+info 'Writing dnsmasq configuration'
+cat >"${DNSMASQ_CONF}" <<CFG
+interface=${NETWORK_NAME}
+bind-interfaces
+no-resolv
+domain-needed
+bogus-priv
+dhcp-authoritative
+dhcp-range=${DHCP_RANGE_START},${DHCP_RANGE_END},${NETMASK},infinite
+dhcp-option=option:router,${GATEWAY_IP}
+dhcp-option=option:dns-server,${GATEWAY_IP}
+dhcp-leasefile=${DNSMASQ_LEASE_DIR}/${NETWORK_NAME}.leases
+log-dhcp
+CFG
 
-render_dhcp_conf() {
-    local file=$1
-    backup_file "$file"
-    cat >"$file" <<EOF
-option domain-name "${DOMAIN_NAME}";
-option domain-name-servers ${DNS_SERVERS};
-default-lease-time infinite;
-max-lease-time infinite;
-authoritative;
-one-lease-per-client true;
-ddns-update-style none;
-subnet ${LAN_NETWORK} netmask ${LAN_NETMASK} {
-    option routers ${LAN_GATEWAY_IP};
-    option broadcast-address ${LAN_BROADCAST};
-    option subnet-mask ${LAN_NETMASK};
-    include "${DHCP_HOSTS_FILE}";
-}
-EOF
-}
-
-configure_ip_forwarding() {
-    sysctl -w net.ipv4.ip_forward=1 >/dev/null
-    cat >"$SYSCTL_FORWARD_FILE" <<'EOF'
+info 'Enabling IPv4 forwarding'
+cat >"${SYSCTL_CONF}" <<SYSCTL
 net.ipv4.ip_forward = 1
-EOF
+SYSCTL
+sysctl -w net.ipv4.ip_forward=1 >/dev/null
+
+find_wan_iface() {
+    local iface
+    iface=$(ip route show default 0.0.0.0/0 | awk '/default/ {print $5; exit}')
+    if [[ -z ${iface} ]]; then
+        fatal 'Unable to determine upstream (WAN) interface. Set WAN_IF before running.'
+    fi
+    printf '%s' "${iface}"
 }
 
-configure_nat() {
-    local lan_cidr=${LAN_NETWORK}/$(netmask_to_prefix "$LAN_NETMASK")
-    if ! iptables -t nat -C POSTROUTING -s "$lan_cidr" -o "$WAN_INTERFACE" -j MASQUERADE >/dev/null 2>&1; then
-        iptables -t nat -A POSTROUTING -s "$lan_cidr" -o "$WAN_INTERFACE" -j MASQUERADE
+WAN_IF="${WAN_IF:-$(find_wan_iface)}"
+if [[ -z ${WAN_IF} ]]; then
+    fatal 'WAN interface detection failed.'
+fi
+if [[ "${WAN_IF}" == "${NETWORK_NAME}" ]]; then
+    fatal 'WAN interface must differ from the DHCP-serving interface.'
+fi
+
+# Prefer firewalld for NAT configuration, fall back to iptables when unavailable.
+apply_firewall_cmd() {
+    if ! command -v firewall-cmd &>/dev/null; then
+        return 1
     fi
-    mkdir -p "$(dirname "$IPTABLES_RULES_FILE")"
-    iptables-save >"$IPTABLES_RULES_FILE"
-    if [ "$OS_FAMILY" = "debian" ] && command -v netfilter-persistent >/dev/null 2>&1; then
-        netfilter-persistent save >/dev/null 2>&1 || true
-    fi
-    if [ "$OS_FAMILY" = "rhel" ] && [ -n "$IPTABLES_SERVICE" ]; then
-        if systemctl list-unit-files | grep -q "^${IPTABLES_SERVICE}\.service"; then
-            systemctl enable "$IPTABLES_SERVICE" >/dev/null 2>&1 || true
-            systemctl restart "$IPTABLES_SERVICE" >/dev/null 2>&1 || true
-        fi
-    fi
+    local default_zone
+    default_zone=$(firewall-cmd --get-default-zone)
+    info "Configuring firewalld (zone=${default_zone})"
+    firewall-cmd --permanent --zone="${default_zone}" --remove-interface="${NETWORK_NAME}" >/dev/null 2>&1 || true
+    firewall-cmd --permanent --zone=trusted --add-interface="${NETWORK_NAME}" >/dev/null
+    firewall-cmd --permanent --zone="${default_zone}" --add-masquerade >/dev/null
+    firewall-cmd --reload >/dev/null
+    return 0
 }
 
-restart_dhcp_service() {
-    detect_os
-    systemctl enable "$DHCP_SERVICE"
-    systemctl restart "$DHCP_SERVICE"
-}
-
-validate_dhcp_conf() {
-    if ! dhcpd -t -cf "$DHCP_CONF_FILE" >/dev/null 2>&1; then
-        echo "Falha na validação do arquivo ${DHCP_CONF_FILE}." >&2
-        exit 1
+apply_iptables_rules() {
+    if ! command -v iptables &>/dev/null; then
+        warn 'iptables not available; skipping explicit NAT rules (ensure forwarding is configured).'
+        return 1
     fi
+    info "Configuring NAT via iptables (WAN=${WAN_IF}, LAN=${SUBNET_NETWORK})"
+    iptables -t nat -D POSTROUTING -s "${SUBNET_NETWORK}" -o "${WAN_IF}" -j MASQUERADE 2>/dev/null || true
+    iptables -D FORWARD -i "${WAN_IF}" -o "${NETWORK_NAME}" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
+    iptables -D FORWARD -i "${NETWORK_NAME}" -o "${WAN_IF}" -j ACCEPT 2>/dev/null || true
+
+    iptables -t nat -A POSTROUTING -s "${SUBNET_NETWORK}" -o "${WAN_IF}" -j MASQUERADE
+    iptables -A FORWARD -i "${WAN_IF}" -o "${NETWORK_NAME}" -m state --state RELATED,ESTABLISHED -j ACCEPT
+    iptables -A FORWARD -i "${NETWORK_NAME}" -o "${WAN_IF}" -j ACCEPT
+    return 0
 }
 
-main() {
-    require_root
-    detect_os
-    ensure_nonempty "$LAN_INTERFACE" "LAN_INTERFACE"
-    ensure_nonempty "$LAN_GATEWAY_IP" "LAN_GATEWAY_IP"
-    ensure_nonempty "$LAN_NETWORK" "LAN_NETWORK"
-    ensure_nonempty "$LAN_NETMASK" "LAN_NETMASK"
-    ensure_nonempty "$WAN_INTERFACE" "WAN_INTERFACE"
+if ! apply_firewall_cmd; then
+    apply_iptables_rules || warn 'Failed to configure NAT; manual intervention may be necessary.'
+fi
 
-    LAN_NETWORK=$(network_address "$LAN_NETWORK" "$LAN_NETMASK")
-    if [ -z "$LAN_BROADCAST" ]; then
-        LAN_BROADCAST=$(calculate_broadcast "$LAN_NETWORK" "$LAN_NETMASK")
+dnsmasq_restart() {
+    if command -v systemctl &>/dev/null && systemctl list-unit-files | grep -q '^dnsmasq\.service'; then
+        info 'Restarting dnsmasq service'
+        systemctl restart dnsmasq.service
+        systemctl enable dnsmasq.service >/dev/null 2>&1 || true
+        return
     fi
-
-    install_packages
-    ensure_command ip
-    ensure_command iptables
-    ensure_command dhcpd
-    ensure_command iptables-save
-
-    ensure_interface_up "$LAN_INTERFACE"
-    assign_gateway_ip "$LAN_INTERFACE" "$LAN_GATEWAY_IP" "$LAN_NETMASK"
-
-    configure_dhcp_defaults "$DHCP_DEFAULTS_FILE"
-    ensure_hosts_file "$DHCP_HOSTS_FILE"
-    render_dhcp_conf "$DHCP_CONF_FILE"
-    validate_dhcp_conf
-    configure_ip_forwarding
-    configure_nat
-    restart_dhcp_service
-
-    echo "Servidor DHCP configurado para a rede '${LAN_INTERFACE}' com leases estáticas."
+    warn 'dnsmasq.service not managed by systemd; launching standalone instance.'
+    pkill -f "dnsmasq.*--conf-file=${DNSMASQ_CONF}" >/dev/null 2>&1 || true
+    dnsmasq --conf-file="${DNSMASQ_CONF}" --keep-in-foreground --log-facility=- &
+    disown || true
 }
 
-main "$@"
+dnsmasq_restart
+
+info "DHCP setup for ${NETWORK_NAME} complete."
