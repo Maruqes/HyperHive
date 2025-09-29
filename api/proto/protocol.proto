@@ -15,7 +15,7 @@ service ClientService {
   rpc Notify(NotifyRequest) returns (NotifyResponse);
 }
 
-message SetConnectionRequest { string addr = 1; }
+message SetConnectionRequest { string machineName = 1; string addr = 2; }
 message SetConnectionResponse { string ok = 1; }
 
 message NotifyRequest { string text = 1; }

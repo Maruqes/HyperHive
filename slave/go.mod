@@ -15,4 +15,4 @@ require (
 	google.golang.org/protobuf v1.36.6 // indirect
 )
 
-replace github.com/Maruqes/512SvMan/api/proto/hello => ../api/proto/hello
+replace github.com/Maruqes/512SvMan/api/proto/protocol => ../api/proto/protocol

@@ -23,7 +23,8 @@ const (
 
 type SetConnectionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Addr          string                 `protobuf:"bytes,1,opt,name=addr,proto3" json:"addr,omitempty"`
+	MachineName   string                 `protobuf:"bytes,1,opt,name=machineName,proto3" json:"machineName,omitempty"`
+	Addr          string                 `protobuf:"bytes,2,opt,name=addr,proto3" json:"addr,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -56,6 +57,13 @@ func (x *SetConnectionRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use SetConnectionRequest.ProtoReflect.Descriptor instead.
 func (*SetConnectionRequest) Descriptor() ([]byte, []int) {
 	return file_api_proto_protocol_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *SetConnectionRequest) GetMachineName() string {
+	if x != nil {
+		return x.MachineName
+	}
+	return ""
 }
 
 func (x *SetConnectionRequest) GetAddr() string {
@@ -201,9 +209,10 @@ var File_api_proto_protocol_proto protoreflect.FileDescriptor
 
 const file_api_proto_protocol_proto_rawDesc = "" +
 	"\n" +
-	"\x18api/proto/protocol.proto\x12\bprotocol\"*\n" +
-	"\x14SetConnectionRequest\x12\x12\n" +
-	"\x04addr\x18\x01 \x01(\tR\x04addr\"'\n" +
+	"\x18api/proto/protocol.proto\x12\bprotocol\"L\n" +
+	"\x14SetConnectionRequest\x12 \n" +
+	"\vmachineName\x18\x01 \x01(\tR\vmachineName\x12\x12\n" +
+	"\x04addr\x18\x02 \x01(\tR\x04addr\"'\n" +
 	"\x15SetConnectionResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\tR\x02ok\"#\n" +
 	"\rNotifyRequest\x12\x12\n" +

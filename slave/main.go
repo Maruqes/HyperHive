@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"net"
-	"time"
 
 	pb "github.com/Maruqes/512SvMan/api/proto/protocol"
 	"google.golang.org/grpc"
@@ -40,42 +39,19 @@ func connectGRPC() {
 		log.Fatalf("dial master: %v", err)
 	}
 	defer conn.Close()
-	h := pb.NewHelloServiceClient(conn)
+	h := pb.NewProtocolServiceClient(conn)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	out, err := h.SayHello(ctx, &pb.HelloRequest{Name: "Marques"})
-	if err != nil {
-		log.Fatalf("SayHello: %v", err)
-	}
-	log.Printf("Resposta do master: %s", out.GetMessage())
+	go listenGRPC()
 
-	outR, err := h.SetConnection(ctx, &pb.SetConnectionRequest{Addr: "192.168.1.69"})
+	outR, err := h.SetConnection(context.Background(), &pb.SetConnectionRequest{Addr: "127.0.0.1", MachineName: "slave1"})
 	if err != nil {
 		log.Fatalf("SetConnection: %v", err)
 	}
 	log.Printf("Resposta do master: %s", outR.GetOk())
 
-	listenGRPC()
 }
 
 func main() {
 	connectGRPC()
-	// // 1) Arranca gRPC server do CLIENTE
-	// lis, err := net.Listen("tcp", ":50052")
-	// if err != nil {
-	// 	log.Fatalf("listen: %v", err)
-	// }
-	// s := grpc.NewServer()
-	// pb.RegisterClientServiceServer(s, &clientServer{})
-	// go func() {
-	// 	log.Println("Cliente a ouvir em :50052")
-	// 	if err := s.Serve(lis); err != nil {
-	// 		log.Fatalf("serve: %v", err)
-	// 	}
-	// }()
-
-	// 2) (Exemplo) Cliente chama o MASTER (HelloService) em :50051
-	time.Sleep(300 * time.Millisecond) // só para dar tempo ao master
-
+	select {}
 }
