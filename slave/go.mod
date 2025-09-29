@@ -3,7 +3,7 @@ module slave
 go 1.25.0
 
 require (
-	github.com/Maruqes/512SvMan v0.0.0-20250929094857-6460aace20d4
+	github.com/Maruqes/512SvMan/api/proto/hello v0.0.0
 	google.golang.org/grpc v1.75.1
 )
 
@@ -14,3 +14,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )
+
+replace github.com/Maruqes/512SvMan/api/proto/hello => ../api/proto/hello
