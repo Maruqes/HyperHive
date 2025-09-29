@@ -120,7 +120,7 @@ const file_api_proto_hello_proto_rawDesc = "" +
 	"\rHelloResponse\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage2E\n" +
 	"\fHelloService\x125\n" +
-	"\bSayHello\x12\x13.hello.HelloRequest\x1a\x14.hello.HelloResponseB\x11Z\x0fapi/proto;protob\x06proto3"
+	"\bSayHello\x12\x13.hello.HelloRequest\x1a\x14.hello.HelloResponseB\x17Z\x15api/proto/hello;protob\x06proto3"
 
 var (
 	file_api_proto_hello_proto_rawDescOnce sync.Once
