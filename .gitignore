@@ -27,6 +27,8 @@ docker-compose.yml
 # env file
 .env
 512SvMan
+master/512SvMan
+slave/slave
 # Editor/IDE
 # .idea/
 # .vscode/

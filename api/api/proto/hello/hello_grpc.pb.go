@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v3.19.6
-// source: api/proto/hello.proto
+// source: proto/hello.proto
 
 package proto
 
@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	HelloService_SayHello_FullMethodName = "/hello.HelloService/SayHello"
+	HelloService_SayHello_FullMethodName      = "/hello.HelloService/SayHello"
+	HelloService_SetConnection_FullMethodName = "/hello.HelloService/SetConnection"
 )
 
 // HelloServiceClient is the client API for HelloService service.
@@ -29,6 +30,7 @@ const (
 // Servidor do MASTER
 type HelloServiceClient interface {
 	SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloResponse, error)
+	SetConnection(ctx context.Context, in *SetConnectionRequest, opts ...grpc.CallOption) (*SetConnectionResponse, error)
 }
 
 type helloServiceClient struct {
@@ -49,6 +51,16 @@ func (c *helloServiceClient) SayHello(ctx context.Context, in *HelloRequest, opt
 	return out, nil
 }
 
+func (c *helloServiceClient) SetConnection(ctx context.Context, in *SetConnectionRequest, opts ...grpc.CallOption) (*SetConnectionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetConnectionResponse)
+	err := c.cc.Invoke(ctx, HelloService_SetConnection_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // HelloServiceServer is the server API for HelloService service.
 // All implementations must embed UnimplementedHelloServiceServer
 // for forward compatibility.
@@ -56,6 +68,7 @@ func (c *helloServiceClient) SayHello(ctx context.Context, in *HelloRequest, opt
 // Servidor do MASTER
 type HelloServiceServer interface {
 	SayHello(context.Context, *HelloRequest) (*HelloResponse, error)
+	SetConnection(context.Context, *SetConnectionRequest) (*SetConnectionResponse, error)
 	mustEmbedUnimplementedHelloServiceServer()
 }
 
@@ -68,6 +81,9 @@ type UnimplementedHelloServiceServer struct{}
 
 func (UnimplementedHelloServiceServer) SayHello(context.Context, *HelloRequest) (*HelloResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SayHello not implemented")
+}
+func (UnimplementedHelloServiceServer) SetConnection(context.Context, *SetConnectionRequest) (*SetConnectionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetConnection not implemented")
 }
 func (UnimplementedHelloServiceServer) mustEmbedUnimplementedHelloServiceServer() {}
 func (UnimplementedHelloServiceServer) testEmbeddedByValue()                      {}
@@ -108,6 +124,24 @@ func _HelloService_SayHello_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _HelloService_SetConnection_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetConnectionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HelloServiceServer).SetConnection(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HelloService_SetConnection_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HelloServiceServer).SetConnection(ctx, req.(*SetConnectionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // HelloService_ServiceDesc is the grpc.ServiceDesc for HelloService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -119,9 +153,13 @@ var HelloService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "SayHello",
 			Handler:    _HelloService_SayHello_Handler,
 		},
+		{
+			MethodName: "SetConnection",
+			Handler:    _HelloService_SetConnection_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "api/proto/hello.proto",
+	Metadata: "proto/hello.proto",
 }
 
 const (
@@ -227,5 +265,5 @@ var ClientService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "api/proto/hello.proto",
+	Metadata: "proto/hello.proto",
 }

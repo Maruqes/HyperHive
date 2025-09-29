@@ -21,7 +21,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Mensagens
 type HelloRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -110,6 +109,94 @@ func (x *HelloResponse) GetMessage() string {
 	return ""
 }
 
+type NotifyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NotifyRequest) Reset() {
+	*x = NotifyRequest{}
+	mi := &file_api_proto_hello_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NotifyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NotifyRequest) ProtoMessage() {}
+
+func (x *NotifyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_hello_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NotifyRequest.ProtoReflect.Descriptor instead.
+func (*NotifyRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_hello_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *NotifyRequest) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+type NotifyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ok            string                 `protobuf:"bytes,1,opt,name=ok,proto3" json:"ok,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NotifyResponse) Reset() {
+	*x = NotifyResponse{}
+	mi := &file_api_proto_hello_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NotifyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NotifyResponse) ProtoMessage() {}
+
+func (x *NotifyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_hello_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NotifyResponse.ProtoReflect.Descriptor instead.
+func (*NotifyResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_hello_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *NotifyResponse) GetOk() string {
+	if x != nil {
+		return x.Ok
+	}
+	return ""
+}
+
 var File_api_proto_hello_proto protoreflect.FileDescriptor
 
 const file_api_proto_hello_proto_rawDesc = "" +
@@ -118,9 +205,15 @@ const file_api_proto_hello_proto_rawDesc = "" +
 	"\fHelloRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\")\n" +
 	"\rHelloResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage2E\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"#\n" +
+	"\rNotifyRequest\x12\x12\n" +
+	"\x04text\x18\x01 \x01(\tR\x04text\" \n" +
+	"\x0eNotifyResponse\x12\x0e\n" +
+	"\x02ok\x18\x01 \x01(\tR\x02ok2E\n" +
 	"\fHelloService\x125\n" +
-	"\bSayHello\x12\x13.hello.HelloRequest\x1a\x14.hello.HelloResponseB\x17Z\x15api/proto/hello;protob\x06proto3"
+	"\bSayHello\x12\x13.hello.HelloRequest\x1a\x14.hello.HelloResponse2F\n" +
+	"\rClientService\x125\n" +
+	"\x06Notify\x12\x14.hello.NotifyRequest\x1a\x15.hello.NotifyResponseB\x17Z\x15api/proto/hello;protob\x06proto3"
 
 var (
 	file_api_proto_hello_proto_rawDescOnce sync.Once
@@ -134,16 +227,20 @@ func file_api_proto_hello_proto_rawDescGZIP() []byte {
 	return file_api_proto_hello_proto_rawDescData
 }
 
-var file_api_proto_hello_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_api_proto_hello_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_api_proto_hello_proto_goTypes = []any{
-	(*HelloRequest)(nil),  // 0: hello.HelloRequest
-	(*HelloResponse)(nil), // 1: hello.HelloResponse
+	(*HelloRequest)(nil),   // 0: hello.HelloRequest
+	(*HelloResponse)(nil),  // 1: hello.HelloResponse
+	(*NotifyRequest)(nil),  // 2: hello.NotifyRequest
+	(*NotifyResponse)(nil), // 3: hello.NotifyResponse
 }
 var file_api_proto_hello_proto_depIdxs = []int32{
 	0, // 0: hello.HelloService.SayHello:input_type -> hello.HelloRequest
-	1, // 1: hello.HelloService.SayHello:output_type -> hello.HelloResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
+	2, // 1: hello.ClientService.Notify:input_type -> hello.NotifyRequest
+	1, // 2: hello.HelloService.SayHello:output_type -> hello.HelloResponse
+	3, // 3: hello.ClientService.Notify:output_type -> hello.NotifyResponse
+	2, // [2:4] is the sub-list for method output_type
+	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -160,9 +257,9 @@ func file_api_proto_hello_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_hello_proto_rawDesc), len(file_api_proto_hello_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   2,
 		},
 		GoTypes:           file_api_proto_hello_proto_goTypes,
 		DependencyIndexes: file_api_proto_hello_proto_depIdxs,

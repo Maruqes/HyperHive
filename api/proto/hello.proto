@@ -4,16 +4,23 @@ package hello;
 
 option go_package = "api/proto/hello;proto";
 
-// Serviço simples
+
+// Servidor do MASTER
 service HelloService {
-  rpc SayHello (HelloRequest) returns (HelloResponse);
+  rpc SayHello(HelloRequest) returns (HelloResponse);
+  rpc SetConnection(SetConnectionRequest) returns (SetConnectionResponse);
 }
 
-// Mensagens
-message HelloRequest {
-  string name = 1;
+// Servidor do CLIENTE
+service ClientService {
+  rpc Notify(NotifyRequest) returns (NotifyResponse);
 }
 
-message HelloResponse {
-  string message = 1;
-}
+message HelloRequest { string name = 1; }
+message HelloResponse { string message = 1; }
+
+message SetConnectionRequest { string addr = 1; }
+message SetConnectionResponse { string ok = 1; }
+
+message NotifyRequest { string text = 1; }
+message NotifyResponse { string ok = 1; }
