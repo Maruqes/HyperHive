@@ -2,7 +2,10 @@ module slave
 
 go 1.25.0
 
-require google.golang.org/grpc v1.75.1
+require (
+	github.com/Maruqes/512SvMan v0.0.0-20250929094857-6460aace20d4
+	google.golang.org/grpc v1.75.1
+)
 
 require (
 	golang.org/x/net v0.41.0 // indirect

@@ -1,3 +1,5 @@
+github.com/Maruqes/512SvMan v0.0.0-20250929094857-6460aace20d4 h1:EaWEY8HoCD882GSZC+qxBrKwBb/QVZ3THDHcbt5pK0g=
+github.com/Maruqes/512SvMan v0.0.0-20250929094857-6460aace20d4/go.mod h1:BpoMVuDWciGJF8qu1II32/2MuoN25sbB3PEO8ji6URI=
 github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=
 github.com/go-logr/logr v1.4.3/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
 github.com/go-logr/stdr v1.2.2 h1:hSWxHoqTgW2S2qGc0LTAI563KZ5YKYRhT3MFKZMbjag=
