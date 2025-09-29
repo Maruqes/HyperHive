@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package protocol;
 
-option go_package = "api/proto/protocol;proto";
+option go_package = "github.com/Maruqes/512SvMan/api/proto/protocol;proto";
 
 
 // Servidor do MASTER

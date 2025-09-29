@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.9
 // 	protoc        v3.19.6
-// source: api/proto/nfs.proto
+// source: nfs.proto
 
 package proto
 
@@ -33,7 +33,7 @@ type FolderMount struct {
 
 func (x *FolderMount) Reset() {
 	*x = FolderMount{}
-	mi := &file_api_proto_nfs_proto_msgTypes[0]
+	mi := &file_nfs_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45,7 +45,7 @@ func (x *FolderMount) String() string {
 func (*FolderMount) ProtoMessage() {}
 
 func (x *FolderMount) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_nfs_proto_msgTypes[0]
+	mi := &file_nfs_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -58,7 +58,7 @@ func (x *FolderMount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FolderMount.ProtoReflect.Descriptor instead.
 func (*FolderMount) Descriptor() ([]byte, []int) {
-	return file_api_proto_nfs_proto_rawDescGZIP(), []int{0}
+	return file_nfs_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *FolderMount) GetFolderPath() string {
@@ -91,7 +91,7 @@ type CreateResponse struct {
 
 func (x *CreateResponse) Reset() {
 	*x = CreateResponse{}
-	mi := &file_api_proto_nfs_proto_msgTypes[1]
+	mi := &file_nfs_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -103,7 +103,7 @@ func (x *CreateResponse) String() string {
 func (*CreateResponse) ProtoMessage() {}
 
 func (x *CreateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_nfs_proto_msgTypes[1]
+	mi := &file_nfs_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -116,7 +116,7 @@ func (x *CreateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateResponse.ProtoReflect.Descriptor instead.
 func (*CreateResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_nfs_proto_rawDescGZIP(), []int{1}
+	return file_nfs_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *CreateResponse) GetOk() bool {
@@ -135,7 +135,7 @@ type MountResponse struct {
 
 func (x *MountResponse) Reset() {
 	*x = MountResponse{}
-	mi := &file_api_proto_nfs_proto_msgTypes[2]
+	mi := &file_nfs_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -147,7 +147,7 @@ func (x *MountResponse) String() string {
 func (*MountResponse) ProtoMessage() {}
 
 func (x *MountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_nfs_proto_msgTypes[2]
+	mi := &file_nfs_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -160,7 +160,7 @@ func (x *MountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MountResponse.ProtoReflect.Descriptor instead.
 func (*MountResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_nfs_proto_rawDescGZIP(), []int{2}
+	return file_nfs_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *MountResponse) GetOk() bool {
@@ -179,7 +179,7 @@ type UnmountResponse struct {
 
 func (x *UnmountResponse) Reset() {
 	*x = UnmountResponse{}
-	mi := &file_api_proto_nfs_proto_msgTypes[3]
+	mi := &file_nfs_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -191,7 +191,7 @@ func (x *UnmountResponse) String() string {
 func (*UnmountResponse) ProtoMessage() {}
 
 func (x *UnmountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_nfs_proto_msgTypes[3]
+	mi := &file_nfs_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -204,7 +204,7 @@ func (x *UnmountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnmountResponse.ProtoReflect.Descriptor instead.
 func (*UnmountResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_nfs_proto_rawDescGZIP(), []int{3}
+	return file_nfs_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *UnmountResponse) GetOk() bool {
@@ -214,11 +214,11 @@ func (x *UnmountResponse) GetOk() bool {
 	return false
 }
 
-var File_api_proto_nfs_proto protoreflect.FileDescriptor
+var File_nfs_proto protoreflect.FileDescriptor
 
-const file_api_proto_nfs_proto_rawDesc = "" +
+const file_nfs_proto_rawDesc = "" +
 	"\n" +
-	"\x13api/proto/nfs.proto\x12\x03nfs\"]\n" +
+	"\tnfs.proto\x12\x03nfs\"]\n" +
 	"\vFolderMount\x12\x1e\n" +
 	"\n" +
 	"folderPath\x18\x01 \x01(\tR\n" +
@@ -235,28 +235,28 @@ const file_api_proto_nfs_proto_rawDesc = "" +
 	"NFSService\x12;\n" +
 	"\x12CreateSharedFolder\x12\x10.nfs.FolderMount\x1a\x13.nfs.CreateResponse\x123\n" +
 	"\vMountFolder\x12\x10.nfs.FolderMount\x1a\x12.nfs.MountResponse\x127\n" +
-	"\rUnmountFolder\x12\x10.nfs.FolderMount\x1a\x14.nfs.UnmountResponseB\x15Z\x13api/proto/nfs;protob\x06proto3"
+	"\rUnmountFolder\x12\x10.nfs.FolderMount\x1a\x14.nfs.UnmountResponseB1Z/github.com/Maruqes/512SvMan/api/proto/nfs;protob\x06proto3"
 
 var (
-	file_api_proto_nfs_proto_rawDescOnce sync.Once
-	file_api_proto_nfs_proto_rawDescData []byte
+	file_nfs_proto_rawDescOnce sync.Once
+	file_nfs_proto_rawDescData []byte
 )
 
-func file_api_proto_nfs_proto_rawDescGZIP() []byte {
-	file_api_proto_nfs_proto_rawDescOnce.Do(func() {
-		file_api_proto_nfs_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_api_proto_nfs_proto_rawDesc), len(file_api_proto_nfs_proto_rawDesc)))
+func file_nfs_proto_rawDescGZIP() []byte {
+	file_nfs_proto_rawDescOnce.Do(func() {
+		file_nfs_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_nfs_proto_rawDesc), len(file_nfs_proto_rawDesc)))
 	})
-	return file_api_proto_nfs_proto_rawDescData
+	return file_nfs_proto_rawDescData
 }
 
-var file_api_proto_nfs_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_api_proto_nfs_proto_goTypes = []any{
+var file_nfs_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_nfs_proto_goTypes = []any{
 	(*FolderMount)(nil),     // 0: nfs.FolderMount
 	(*CreateResponse)(nil),  // 1: nfs.CreateResponse
 	(*MountResponse)(nil),   // 2: nfs.MountResponse
 	(*UnmountResponse)(nil), // 3: nfs.UnmountResponse
 }
-var file_api_proto_nfs_proto_depIdxs = []int32{
+var file_nfs_proto_depIdxs = []int32{
 	0, // 0: nfs.NFSService.CreateSharedFolder:input_type -> nfs.FolderMount
 	0, // 1: nfs.NFSService.MountFolder:input_type -> nfs.FolderMount
 	0, // 2: nfs.NFSService.UnmountFolder:input_type -> nfs.FolderMount
@@ -270,26 +270,26 @@ var file_api_proto_nfs_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_api_proto_nfs_proto_init() }
-func file_api_proto_nfs_proto_init() {
-	if File_api_proto_nfs_proto != nil {
+func init() { file_nfs_proto_init() }
+func file_nfs_proto_init() {
+	if File_nfs_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_nfs_proto_rawDesc), len(file_api_proto_nfs_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nfs_proto_rawDesc), len(file_nfs_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_api_proto_nfs_proto_goTypes,
-		DependencyIndexes: file_api_proto_nfs_proto_depIdxs,
-		MessageInfos:      file_api_proto_nfs_proto_msgTypes,
+		GoTypes:           file_nfs_proto_goTypes,
+		DependencyIndexes: file_nfs_proto_depIdxs,
+		MessageInfos:      file_nfs_proto_msgTypes,
 	}.Build()
-	File_api_proto_nfs_proto = out.File
-	file_api_proto_nfs_proto_goTypes = nil
-	file_api_proto_nfs_proto_depIdxs = nil
+	File_nfs_proto = out.File
+	file_nfs_proto_goTypes = nil
+	file_nfs_proto_depIdxs = nil
 }

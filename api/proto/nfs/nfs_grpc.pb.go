@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v3.19.6
-// source: api/proto/nfs.proto
+// source: nfs.proto
 
 package proto
 
@@ -193,5 +193,5 @@ var NFSService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "api/proto/nfs.proto",
+	Metadata: "nfs.proto",
 }

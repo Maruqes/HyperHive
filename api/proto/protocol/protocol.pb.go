@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.9
 // 	protoc        v3.19.6
-// source: api/proto/protocol.proto
+// source: protocol.proto
 
 package proto
 
@@ -31,7 +31,7 @@ type SetConnectionRequest struct {
 
 func (x *SetConnectionRequest) Reset() {
 	*x = SetConnectionRequest{}
-	mi := &file_api_proto_protocol_proto_msgTypes[0]
+	mi := &file_protocol_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43,7 +43,7 @@ func (x *SetConnectionRequest) String() string {
 func (*SetConnectionRequest) ProtoMessage() {}
 
 func (x *SetConnectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_protocol_proto_msgTypes[0]
+	mi := &file_protocol_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -56,7 +56,7 @@ func (x *SetConnectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetConnectionRequest.ProtoReflect.Descriptor instead.
 func (*SetConnectionRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_protocol_proto_rawDescGZIP(), []int{0}
+	return file_protocol_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *SetConnectionRequest) GetMachineName() string {
@@ -82,7 +82,7 @@ type SetConnectionResponse struct {
 
 func (x *SetConnectionResponse) Reset() {
 	*x = SetConnectionResponse{}
-	mi := &file_api_proto_protocol_proto_msgTypes[1]
+	mi := &file_protocol_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -94,7 +94,7 @@ func (x *SetConnectionResponse) String() string {
 func (*SetConnectionResponse) ProtoMessage() {}
 
 func (x *SetConnectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_protocol_proto_msgTypes[1]
+	mi := &file_protocol_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -107,7 +107,7 @@ func (x *SetConnectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetConnectionResponse.ProtoReflect.Descriptor instead.
 func (*SetConnectionResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_protocol_proto_rawDescGZIP(), []int{1}
+	return file_protocol_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *SetConnectionResponse) GetOk() string {
@@ -126,7 +126,7 @@ type NotifyRequest struct {
 
 func (x *NotifyRequest) Reset() {
 	*x = NotifyRequest{}
-	mi := &file_api_proto_protocol_proto_msgTypes[2]
+	mi := &file_protocol_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -138,7 +138,7 @@ func (x *NotifyRequest) String() string {
 func (*NotifyRequest) ProtoMessage() {}
 
 func (x *NotifyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_protocol_proto_msgTypes[2]
+	mi := &file_protocol_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -151,7 +151,7 @@ func (x *NotifyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotifyRequest.ProtoReflect.Descriptor instead.
 func (*NotifyRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_protocol_proto_rawDescGZIP(), []int{2}
+	return file_protocol_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *NotifyRequest) GetText() string {
@@ -170,7 +170,7 @@ type NotifyResponse struct {
 
 func (x *NotifyResponse) Reset() {
 	*x = NotifyResponse{}
-	mi := &file_api_proto_protocol_proto_msgTypes[3]
+	mi := &file_protocol_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -182,7 +182,7 @@ func (x *NotifyResponse) String() string {
 func (*NotifyResponse) ProtoMessage() {}
 
 func (x *NotifyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_protocol_proto_msgTypes[3]
+	mi := &file_protocol_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -195,7 +195,7 @@ func (x *NotifyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotifyResponse.ProtoReflect.Descriptor instead.
 func (*NotifyResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_protocol_proto_rawDescGZIP(), []int{3}
+	return file_protocol_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *NotifyResponse) GetOk() string {
@@ -205,11 +205,11 @@ func (x *NotifyResponse) GetOk() string {
 	return ""
 }
 
-var File_api_proto_protocol_proto protoreflect.FileDescriptor
+var File_protocol_proto protoreflect.FileDescriptor
 
-const file_api_proto_protocol_proto_rawDesc = "" +
+const file_protocol_proto_rawDesc = "" +
 	"\n" +
-	"\x18api/proto/protocol.proto\x12\bprotocol\"L\n" +
+	"\x0eprotocol.proto\x12\bprotocol\"L\n" +
 	"\x14SetConnectionRequest\x12 \n" +
 	"\vmachineName\x18\x01 \x01(\tR\vmachineName\x12\x12\n" +
 	"\x04addr\x18\x02 \x01(\tR\x04addr\"'\n" +
@@ -222,28 +222,28 @@ const file_api_proto_protocol_proto_rawDesc = "" +
 	"\x0fProtocolService\x12P\n" +
 	"\rSetConnection\x12\x1e.protocol.SetConnectionRequest\x1a\x1f.protocol.SetConnectionResponse2L\n" +
 	"\rClientService\x12;\n" +
-	"\x06Notify\x12\x17.protocol.NotifyRequest\x1a\x18.protocol.NotifyResponseB\x1aZ\x18api/proto/protocol;protob\x06proto3"
+	"\x06Notify\x12\x17.protocol.NotifyRequest\x1a\x18.protocol.NotifyResponseB6Z4github.com/Maruqes/512SvMan/api/proto/protocol;protob\x06proto3"
 
 var (
-	file_api_proto_protocol_proto_rawDescOnce sync.Once
-	file_api_proto_protocol_proto_rawDescData []byte
+	file_protocol_proto_rawDescOnce sync.Once
+	file_protocol_proto_rawDescData []byte
 )
 
-func file_api_proto_protocol_proto_rawDescGZIP() []byte {
-	file_api_proto_protocol_proto_rawDescOnce.Do(func() {
-		file_api_proto_protocol_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_api_proto_protocol_proto_rawDesc), len(file_api_proto_protocol_proto_rawDesc)))
+func file_protocol_proto_rawDescGZIP() []byte {
+	file_protocol_proto_rawDescOnce.Do(func() {
+		file_protocol_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_protocol_proto_rawDesc), len(file_protocol_proto_rawDesc)))
 	})
-	return file_api_proto_protocol_proto_rawDescData
+	return file_protocol_proto_rawDescData
 }
 
-var file_api_proto_protocol_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_api_proto_protocol_proto_goTypes = []any{
+var file_protocol_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_protocol_proto_goTypes = []any{
 	(*SetConnectionRequest)(nil),  // 0: protocol.SetConnectionRequest
 	(*SetConnectionResponse)(nil), // 1: protocol.SetConnectionResponse
 	(*NotifyRequest)(nil),         // 2: protocol.NotifyRequest
 	(*NotifyResponse)(nil),        // 3: protocol.NotifyResponse
 }
-var file_api_proto_protocol_proto_depIdxs = []int32{
+var file_protocol_proto_depIdxs = []int32{
 	0, // 0: protocol.ProtocolService.SetConnection:input_type -> protocol.SetConnectionRequest
 	2, // 1: protocol.ClientService.Notify:input_type -> protocol.NotifyRequest
 	1, // 2: protocol.ProtocolService.SetConnection:output_type -> protocol.SetConnectionResponse
@@ -255,26 +255,26 @@ var file_api_proto_protocol_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_api_proto_protocol_proto_init() }
-func file_api_proto_protocol_proto_init() {
-	if File_api_proto_protocol_proto != nil {
+func init() { file_protocol_proto_init() }
+func file_protocol_proto_init() {
+	if File_protocol_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_protocol_proto_rawDesc), len(file_api_proto_protocol_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_protocol_proto_rawDesc), len(file_protocol_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   2,
 		},
-		GoTypes:           file_api_proto_protocol_proto_goTypes,
-		DependencyIndexes: file_api_proto_protocol_proto_depIdxs,
-		MessageInfos:      file_api_proto_protocol_proto_msgTypes,
+		GoTypes:           file_protocol_proto_goTypes,
+		DependencyIndexes: file_protocol_proto_depIdxs,
+		MessageInfos:      file_protocol_proto_msgTypes,
 	}.Build()
-	File_api_proto_protocol_proto = out.File
-	file_api_proto_protocol_proto_goTypes = nil
-	file_api_proto_protocol_proto_depIdxs = nil
+	File_protocol_proto = out.File
+	file_protocol_proto_goTypes = nil
+	file_protocol_proto_depIdxs = nil
 }

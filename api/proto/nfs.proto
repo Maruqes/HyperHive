@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package nfs;
 
-option go_package = "api/proto/nfs;proto";
+option go_package = "github.com/Maruqes/512SvMan/api/proto/nfs;proto";
 
 
 //define struct for NFS
