@@ -1,82 +1,62 @@
 #!/usr/bin/env bash
-# Configure a local DHCP server on Fedora for the 512rede network with NAT forwarding and infinite lease time.
+# Hardened, isolated DHCP + NAT for a single interface on Fedora.
+# - Wipes old per-network artifacts and conflicting settings for this network.
+# - Disables the global dnsmasq.service (to avoid any 10.42.* leftovers).
+# - Runs a dedicated dnsmasq-<network>.service that reads ONLY /etc/dnsmasq.d/<network>.conf
+# - firewalld NAT (iptables fallback) + persistent IPv4 forwarding.
+
 set -euo pipefail
 
-info() { printf '[INFO] %s\n' "$*"; }
-warn() { printf '[WARN] %s\n' "$*" >&2; }
+info()  { printf '[INFO] %s\n' "$*"; }
+warn()  { printf '[WARN] %s\n' "$*" >&2; }
 fatal() { printf '[ERROR] %s\n' "$*" >&2; exit 1; }
 
 # --- Root & distro guard ------------------------------------------------------
-if [[ ${EUID:-0} -ne 0 ]]; then
-    fatal 'This script must run as root.'
-fi
-
+[[ ${EUID:-0} -eq 0 ]] || fatal 'This script must run as root.'
 if [[ -r /etc/os-release ]]; then
-    # shellcheck disable=SC1091
-    . /etc/os-release
-    if [[ "${ID,,}" != "fedora" && ! ${ID_LIKE:-} =~ fedora ]]; then
-        fatal 'This script currently targets Fedora-based hosts only.'
-    fi
+  # shellcheck disable=SC1091
+  . /etc/os-release
+  if [[ "${ID,,}" != "fedora" && ! ${ID_LIKE:-} =~ fedora ]]; then
+    fatal 'This script currently targets Fedora-based hosts only.'
+  fi
 else
-    fatal 'Unable to determine distribution (missing /etc/os-release).'
+  fatal 'Unable to determine distribution (missing /etc/os-release).'
 fi
 
 # --- Tunables (override via env) ---------------------------------------------
-NETWORK_NAME="${NETWORK_NAME:-512rede}"
-SUBNET_CIDR="${SUBNET_CIDR:-192.168.76.0/24}"
-GATEWAY_IP="${GATEWAY_IP:-192.168.76.1}"
+NETWORK_NAME="${NETWORK_NAME:-512rede}"           # your LAN interface name
+SUBNET_CIDR="${SUBNET_CIDR:-192.168.76.0/24}"     # LAN subnet
+GATEWAY_IP="${GATEWAY_IP:-192.168.76.1}"          # LAN gateway (this host)
 DHCP_RANGE_START="${DHCP_RANGE_START:-192.168.76.50}"
 DHCP_RANGE_END="${DHCP_RANGE_END:-192.168.76.200}"
+RESOLV_CONF="${RESOLV_CONF:-/etc/resolv.conf}"    # upstream resolvers to forward to
 DNSMASQ_CONF_DIR="${DNSMASQ_CONF_DIR:-/etc/dnsmasq.d}"
 DNSMASQ_LEASE_DIR="${DNSMASQ_LEASE_DIR:-/var/lib/dnsmasq}"
-RESOLV_CONF="${RESOLV_CONF:-/etc/resolv.conf}"
-NM_CONNECTION_NAME="${NM_CONNECTION_NAME:-512rede-static}"
+NM_CONNECTION_NAME="${NM_CONNECTION_NAME:-${NETWORK_NAME}-static}"
 SYSCTL_CONF="/etc/sysctl.d/99-${NETWORK_NAME}-ipforward.conf"
+DEDICATED_UNIT="dnsmasq-${NETWORK_NAME}.service"
+NAT_UNIT="${NETWORK_NAME}-nat.service"
+NAT_HELPER="/usr/local/sbin/${NETWORK_NAME}-nat.sh"
 
 # --- Pre-reqs -----------------------------------------------------------------
-command -v ip >/dev/null 2>&1 || fatal 'iproute2 tools are required (missing `ip`).'
-command -v dnsmasq >/dev/null 2>&1 || fatal 'dnsmasq must be installed before running this script.'
+command -v ip        >/dev/null 2>&1 || fatal 'iproute2 tools are required (missing `ip`).'
+command -v dnsmasq   >/dev/null 2>&1 || fatal 'dnsmasq must be installed before running this script.'
+command -v nmcli     >/dev/null 2>&1 || warn 'nmcli not found: persistence for interface may be weaker.'
 
-# --- Helpers for CIDR math ----------------------------------------------------
+# --- CIDR helpers -------------------------------------------------------------
 cidr_prefix=${SUBNET_CIDR#*/}
 network_base=${SUBNET_CIDR%/*}
-if [[ -z ${cidr_prefix} || ! ${cidr_prefix} =~ ^[0-9]+$ ]]; then
-    fatal "Invalid SUBNET_CIDR '${SUBNET_CIDR}'"
-fi
+[[ -n ${cidr_prefix} && ${cidr_prefix} =~ ^[0-9]+$ ]] || fatal "Invalid SUBNET_CIDR '${SUBNET_CIDR}'"
 cidr_prefix=$((10#${cidr_prefix}))
-if (( cidr_prefix < 0 || cidr_prefix > 32 )); then
-    fatal "Invalid SUBNET_CIDR '${SUBNET_CIDR}'"
-fi
+(( cidr_prefix >= 0 && cidr_prefix <= 32 )) || fatal "Invalid SUBNET_CIDR '${SUBNET_CIDR}'"
 
 prefix_to_mask() {
-    local prefix=$1
-    if (( prefix == 0 )); then
-        printf '0.0.0.0'
-        return
-    fi
-    local mask=$(( 0xffffffff ^ ((1 << (32 - prefix)) - 1) ))
-    printf '%d.%d.%d.%d' \
-        $(( (mask >> 24) & 255 )) \
-        $(( (mask >> 16) & 255 )) \
-        $(( (mask >> 8) & 255 )) \
-        $(( mask & 255 ))
+  local p=$1; (( p==0 )) && { printf '0.0.0.0'; return; }
+  local m=$(( 0xffffffff ^ ((1 << (32 - p)) - 1) ))
+  printf '%d.%d.%d.%d' $(((m>>24)&255)) $(((m>>16)&255)) $(((m>>8)&255)) $((m&255))
 }
-
-ip_to_int() {
-    local IFS=.
-    local a b c d
-    read -r a b c d <<<"$1"
-    printf '%u' $(( (a << 24) | (b << 16) | (c << 8) | d ))
-}
-
-int_to_ip() {
-    local ip=$1
-    printf '%d.%d.%d.%d' \
-        $(( (ip >> 24) & 255 )) \
-        $(( (ip >> 16) & 255 )) \
-        $(( (ip >> 8) & 255 )) \
-        $(( ip & 255 ))
-}
+ip_to_int() { local IFS=.; read -r a b c d <<<"$1"; printf '%u' $(( (a<<24)|(b<<16)|(c<<8)|d )); }
+int_to_ip() { local v=$1; printf '%d.%d.%d.%d' $(((v>>24)&255)) $(((v>>16)&255)) $(((v>>8)&255)) $((v&255)); }
 
 mask_int=$(( cidr_prefix == 0 ? 0 : 0xffffffff ^ ((1 << (32 - cidr_prefix)) - 1) ))
 network_int=$(( $(ip_to_int "${network_base}") & mask_int ))
@@ -84,108 +64,85 @@ network_address=$(int_to_ip "${network_int}")
 SUBNET_NETWORK="${network_address}/${cidr_prefix}"
 NETMASK=$(prefix_to_mask "${cidr_prefix}")
 
-# --- Interface presence -------------------------------------------------------
-if ! ip link show "${NETWORK_NAME}" &>/dev/null; then
-    fatal "Network interface '${NETWORK_NAME}' not found. Create/attach it first (e.g., a bridge for your VMs) and rerun."
-fi
+# --- Verify interface exists --------------------------------------------------
+ip link show "${NETWORK_NAME}" >/dev/null 2>&1 || fatal "Interface '${NETWORK_NAME}' not found."
 
-# --- NetworkManager cleanup & profile ----------------------------------------
-cleanup_networkmanager_profiles() {
-    if ! command -v nmcli &>/dev/null; then
-        return 1
-    fi
-    local nm_conn_uuids
-    nm_conn_uuids=$(nmcli -t -f UUID,DEVICE connection show | awk -F: -v dev="${NETWORK_NAME}" '$2 == dev {print $1}')
-    if [[ -n ${nm_conn_uuids} ]]; then
-        info "Removing NetworkManager profiles bound to ${NETWORK_NAME}"
-        while read -r uuid; do
-            [[ -z ${uuid} ]] && continue
-            nmcli connection delete uuid "${uuid}" >/dev/null 2>&1 || warn "Failed to delete NetworkManager connection ${uuid}"
-        done <<<"${nm_conn_uuids}"
-    fi
+# --- Cleanup: remove anything for THIS network that could interfere ----------
+cleanup_for_network() {
+  info "Cleaning prior artifacts for ${NETWORK_NAME}"
+
+  # 1) Old per-network dnsmasq conf and leases (we'll recreate)
+  install -d -m 755 "${DNSMASQ_CONF_DIR}" "${DNSMASQ_LEASE_DIR}"
+  rm -f "${DNSMASQ_CONF_DIR}/${NETWORK_NAME}.conf"
+  rm -f "${DNSMASQ_LEASE_DIR}/${NETWORK_NAME}.leases"
+
+  # 2) Remove old drop-ins we might have created on the global dnsmasq.service
+  rm -f "/etc/systemd/system/dnsmasq.service.d/${NETWORK_NAME}-wait.conf"
+  rmdir --ignore-fail-on-non-empty "/etc/systemd/system/dnsmasq.service.d" 2>/dev/null || true
+
+  # 3) Stop & disable the global dnsmasq (we'll run a dedicated instance)
+  if systemctl list-unit-files | grep -q '^dnsmasq\.service'; then
+    systemctl disable --now dnsmasq.service >/dev/null 2>&1 || true
+  fi
+
+  # 4) Kill any stray dnsmasq bound to our iface/IP
+  pkill -f "dnsmasq.*${NETWORK_NAME}" >/dev/null 2>&1 || true
+
+  # 5) Remove legacy iptables NAT unit
+  systemctl disable --now "${NAT_UNIT}" >/dev/null 2>&1 || true
+  rm -f "/etc/systemd/system/${NAT_UNIT}" "${NAT_HELPER}"
+
+  # 6) Ensure NM connection for this iface is NOT in 'shared' mode and is clean
+  if command -v nmcli >/dev/null 2>&1; then
+    # Delete every NM profile bound to this DEVICE except our target name
+    while read -r uuid name; do
+      [[ -z ${uuid} ]] && continue
+      [[ ${name} == "${NM_CONNECTION_NAME}" ]] && continue
+      info "Deleting NM profile '${name}' on ${NETWORK_NAME}"
+      nmcli connection delete uuid "${uuid}" >/dev/null 2>&1 || true
+    done < <(nmcli -t -f UUID,NAME,DEVICE connection show | awk -F: -v dev="${NETWORK_NAME}" '$3==dev{print $1" "$2}')
+
+    # Recreate our clean static profile
     nmcli connection delete "${NM_CONNECTION_NAME}" >/dev/null 2>&1 || true
-    nmcli device disconnect "${NETWORK_NAME}" >/dev/null 2>&1 || true
-    return 0
-}
-
-info "Clearing existing NetworkManager state for ${NETWORK_NAME} (if any)"
-cleanup_networkmanager_profiles || true
-
-info "Resetting IP configuration for ${NETWORK_NAME}"
-ip addr flush dev "${NETWORK_NAME}" || warn "Unable to flush addresses on ${NETWORK_NAME}."
-ip route flush dev "${NETWORK_NAME}" table main || true
-ip link set "${NETWORK_NAME}" down || warn "Unable to bring ${NETWORK_NAME} down."
-
-configure_networkmanager_profile() {
-    if ! command -v nmcli &>/dev/null; then
-        return 1
-    fi
-    info "Provisioning NetworkManager profile ${NM_CONNECTION_NAME}"
-    # NOTE: We use 'ethernet' generically. If ${NETWORK_NAME} is a bridge device,
-    # NM will still enslave/manage its IPv4; if this fails, we fall back to manual IP below.
-    if ! nmcli connection add type ethernet ifname "${NETWORK_NAME}" con-name "${NM_CONNECTION_NAME}" \
-        ipv4.addresses "${GATEWAY_IP}/${cidr_prefix}" ipv4.method manual ipv4.never-default yes \
-        ipv6.method ignore autoconnect yes >/dev/null 2>&1; then
-        warn "Failed to create NetworkManager profile ${NM_CONNECTION_NAME}"
-        return 1
-    fi
-    nmcli connection modify "${NM_CONNECTION_NAME}" ipv4.gateway "" ipv4.dns "" ipv4.may-fail no >/dev/null 2>&1 || true
-    if ! nmcli connection up "${NM_CONNECTION_NAME}" >/dev/null 2>&1; then
-        warn "Failed to activate NetworkManager profile ${NM_CONNECTION_NAME}"
-        nmcli connection delete "${NM_CONNECTION_NAME}" >/dev/null 2>&1 || true
-        return 1
-    fi
-    return 0
-}
-
-# --- Ensure dnsmasq loads /etc/dnsmasq.d -------------------------------------
-ensure_dnsmasq_confdir() {
-    install -d -m 755 "${DNSMASQ_CONF_DIR}"
-    if [[ ! -f /etc/dnsmasq.conf ]] || ! grep -qE '^\s*conf-dir\s*=\s*/etc/dnsmasq\.d' /etc/dnsmasq.conf; then
-        info "Ensuring /etc/dnsmasq.d is included from /etc/dnsmasq.conf"
-        # Append safely; keep existing config intact
-        printf '\nconf-dir=/etc/dnsmasq.d,*.conf\n' >> /etc/dnsmasq.conf
-    fi
-}
-
-info 'Ensuring dnsmasq includes /etc/dnsmasq.d'
-ensure_dnsmasq_confdir
-
-# --- dnsmasq config (per-network file) ---------------------------------------
-info 'Removing previous dnsmasq state'
-install -d -m 755 "${DNSMASQ_LEASE_DIR}"
-DNSMASQ_CONF="${DNSMASQ_CONF_DIR}/${NETWORK_NAME}.conf"
-rm -f "${DNSMASQ_CONF}"
-rm -f "${DNSMASQ_LEASE_DIR}/${NETWORK_NAME}.leases"
-
-nm_profile_applied=0
-if configure_networkmanager_profile; then
-    nm_profile_applied=1
-    info "NetworkManager will maintain ${NETWORK_NAME} using profile ${NM_CONNECTION_NAME}"
-else
-    warn 'NetworkManager configuration unavailable; falling back to manual addressing.'
-    info 'Preparing interface addressing'
+    info "Creating NM static profile ${NM_CONNECTION_NAME} on ${NETWORK_NAME} (${GATEWAY_IP}/${cidr_prefix})"
+    nmcli connection add type ethernet ifname "${NETWORK_NAME}" con-name "${NM_CONNECTION_NAME}" \
+      ipv4.addresses "${GATEWAY_IP}/${cidr_prefix}" ipv4.method manual ipv4.never-default yes \
+      ipv6.method ignore autoconnect yes >/dev/null
+    nmcli connection modify "${NM_CONNECTION_NAME}" ipv4.gateway "" ipv4.dns "" ipv4.may-fail no >/dev/null
+    nmcli connection up "${NM_CONNECTION_NAME}" >/dev/null || warn "Failed to activate ${NM_CONNECTION_NAME}"
+  else
+    # Fallback if NM missing: set IP directly
+    ip addr flush dev "${NETWORK_NAME}" || true
     ip link set "${NETWORK_NAME}" up
     ip addr add "${GATEWAY_IP}/${cidr_prefix}" dev "${NETWORK_NAME}" valid_lft forever preferred_lft forever
-fi
+  fi
+}
+cleanup_for_network
 
-info 'Writing dnsmasq configuration'
+# --- Write a per-network dnsmasq config (isolated) ---------------------------
+DNSMASQ_CONF="${DNSMASQ_CONF_DIR}/${NETWORK_NAME}.conf"
+info "Writing ${DNSMASQ_CONF}"
 cat >"${DNSMASQ_CONF}" <<CFG
-# Auto-generated for ${NETWORK_NAME}
+# Auto-generated for ${NETWORK_NAME} -- DO NOT EDIT BY HAND
 interface=${NETWORK_NAME}
 bind-interfaces
 domain-needed
 bogus-priv
+# DHCP
 dhcp-authoritative
 dhcp-range=${DHCP_RANGE_START},${DHCP_RANGE_END},${NETMASK},infinite
 dhcp-option=option:router,${GATEWAY_IP}
 dhcp-option=option:dns-server,${GATEWAY_IP}
 dhcp-leasefile=${DNSMASQ_LEASE_DIR}/${NETWORK_NAME}.leases
+# DNS forwarders
 resolv-file=${RESOLV_CONF}
 log-dhcp
 CFG
 
-# --- Enable IPv4 forwarding (persist) ----------------------------------------
+# Sanity check config before starting a service with it
+dnsmasq --test -C "${DNSMASQ_CONF}" >/dev/null || fatal "dnsmasq config test failed for ${DNSMASQ_CONF}"
+
+# --- IPv4 forwarding (persist) -----------------------------------------------
 info 'Enabling IPv4 forwarding'
 cat >"${SYSCTL_CONF}" <<SYSCTL
 net.ipv4.ip_forward = 1
@@ -194,84 +151,48 @@ sysctl -w net.ipv4.ip_forward=1 >/dev/null
 
 # --- WAN detection ------------------------------------------------------------
 find_wan_iface() {
-    local iface
-    iface=$(ip route show default 0.0.0.0/0 | awk '/default/ {print $5; exit}')
-    if [[ -z ${iface} ]]; then
-        fatal 'Unable to determine upstream (WAN) interface. Set WAN_IF before running.'
-    fi
-    printf '%s' "${iface}"
+  local iface
+  iface=$(ip route show default 0.0.0.0/0 | awk '/default/ {print $5; exit}')
+  [[ -n ${iface} ]] || fatal 'Unable to determine upstream (WAN) interface. Set WAN_IF env before running.'
+  printf '%s' "${iface}"
 }
 WAN_IF="${WAN_IF:-$(find_wan_iface)}"
-if [[ -z ${WAN_IF} ]]; then
-    fatal 'WAN interface detection failed.'
-fi
-if [[ "${WAN_IF}" == "${NETWORK_NAME}" ]]; then
-    fatal 'WAN interface must differ from the DHCP-serving interface.'
-fi
+[[ -n ${WAN_IF} ]] || fatal 'WAN interface detection failed.'
+[[ "${WAN_IF}" != "${NETWORK_NAME}" ]] || fatal 'WAN interface must differ from the DHCP-serving interface.'
 
-# --- NAT via firewalld or iptables -------------------------------------------
+# --- NAT via firewalld (preferred) or iptables fallback ----------------------
 apply_firewall_cmd() {
-    if ! command -v firewall-cmd &>/dev/null; then
-        return 1
-    fi
-    local default_zone
-    default_zone=$(firewall-cmd --get-default-zone)
-    info "Configuring firewalld (zone=${default_zone})"
-    firewall-cmd --permanent --zone="${default_zone}" --remove-interface="${NETWORK_NAME}" >/dev/null 2>&1 || true
-    firewall-cmd --permanent --zone=trusted --add-interface="${NETWORK_NAME}" >/dev/null
-    firewall-cmd --permanent --zone="${default_zone}" --add-masquerade >/dev/null
-    firewall-cmd --reload >/dev/null
-    return 0
+  if ! command -v firewall-cmd >/dev/null 2>&1; then
+    return 1
+  fi
+  local default_zone
+  default_zone=$(firewall-cmd --get-default-zone)
+  info "Configuring firewalld (default zone=${default_zone}, LAN=${NETWORK_NAME})"
+  firewall-cmd --permanent --zone="${default_zone}" --remove-interface="${NETWORK_NAME}" >/dev/null 2>&1 || true
+  firewall-cmd --permanent --zone=trusted --add-interface="${NETWORK_NAME}" >/dev/null
+  firewall-cmd --permanent --zone="${default_zone}" --add-masquerade >/dev/null
+  # Allow DHCP/DNS explicitly in trusted (usually open, but be explicit)
+  firewall-cmd --permanent --zone=trusted --add-service=dhcp >/dev/null 2>&1 || true
+  firewall-cmd --permanent --zone=trusted --add-service=dns  >/dev/null 2>&1 || true
+  firewall-cmd --reload >/dev/null
+  return 0
 }
-
 apply_iptables_rules() {
-    if ! command -v iptables &>/dev/null; then
-        warn 'iptables not available; skipping explicit NAT rules (ensure forwarding is configured).'
-        return 1
-    fi
-    info "Configuring NAT via iptables (WAN=${WAN_IF}, LAN=${SUBNET_NETWORK})"
-    iptables -t nat -D POSTROUTING -s "${SUBNET_NETWORK}" -o "${WAN_IF}" -j MASQUERADE 2>/dev/null || true
-    iptables -D FORWARD -i "${WAN_IF}" -o "${NETWORK_NAME}" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
-    iptables -D FORWARD -i "${NETWORK_NAME}" -o "${WAN_IF}" -j ACCEPT 2>/dev/null || true
+  if ! command -v iptables >/dev/null 2>&1; then
+    warn 'iptables not available; skipping explicit NAT rules.'
+    return 1
+  fi
+  info "Configuring NAT via iptables (WAN=${WAN_IF}, LAN=${SUBNET_NETWORK})"
+  iptables -t nat -D POSTROUTING -s "${SUBNET_NETWORK}" -o "${WAN_IF}" -j MASQUERADE 2>/dev/null || true
+  iptables -D FORWARD -i "${WAN_IF}" -o "${NETWORK_NAME}" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
+  iptables -D FORWARD -i "${NETWORK_NAME}" -o "${WAN_IF}" -j ACCEPT 2>/dev/null || true
 
-    iptables -t nat -A POSTROUTING -s "${SUBNET_NETWORK}" -o "${WAN_IF}" -j MASQUERADE
-    iptables -A FORWARD -i "${WAN_IF}" -o "${NETWORK_NAME}" -m state --state RELATED,ESTABLISHED -j ACCEPT
-    iptables -A FORWARD -i "${NETWORK_NAME}" -o "${WAN_IF}" -j ACCEPT
-    return 0
-}
+  iptables -t nat -A POSTROUTING -s "${SUBNET_NETWORK}" -o "${WAN_IF}" -j MASQUERADE
+  iptables -A FORWARD -i "${WAN_IF}" -o "${NETWORK_NAME}" -m state --state RELATED,ESTABLISHED -j ACCEPT
+  iptables -A FORWARD -i "${NETWORK_NAME}" -o "${WAN_IF}" -j ACCEPT
 
-ensure_iptables_unit() {
-    local helper_script="/usr/local/sbin/${NETWORK_NAME}-nat.sh"
-    local unit_name="${NETWORK_NAME}-nat.service"
-    local unit_path="/etc/systemd/system/${unit_name}"
-    local iptables_bin
-
-    if ! iptables_bin=$(command -v iptables); then
-        warn 'Unable to persist iptables rules (iptables binary missing).'
-        return
-    fi
-
-    install -d -m 755 "$(dirname "${helper_script}")"
-
-    info "Persisting NAT configuration via ${helper_script} and ${unit_name}"
-    cat >"${helper_script}" <<SCRIPT
-#!/usr/bin/env bash
-set -euo pipefail
-WAN_IF="${WAN_IF}"
-NETWORK_NAME="${NETWORK_NAME}"
-SUBNET_NETWORK="${SUBNET_NETWORK}"
-
-"${iptables_bin}" -t nat -D POSTROUTING -s "\${SUBNET_NETWORK}" -o "\${WAN_IF}" -j MASQUERADE 2>/dev/null || true
-"${iptables_bin}" -D FORWARD -i "\${WAN_IF}" -o "\${NETWORK_NAME}" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
-"${iptables_bin}" -D FORWARD -i "\${NETWORK_NAME}" -o "\${WAN_IF}" -j ACCEPT 2>/dev/null || true
-
-"${iptables_bin}" -t nat -A POSTROUTING -s "\${SUBNET_NETWORK}" -o "\${WAN_IF}" -j MASQUERADE
-"${iptables_bin}" -A FORWARD -i "\${WAN_IF}" -o "\${NETWORK_NAME}" -m state --state RELATED,ESTABLISHED -j ACCEPT
-"${iptables_bin}" -A FORWARD -i "\${NETWORK_NAME}" -o "\${WAN_IF}" -j ACCEPT
-SCRIPT
-    chmod 755 "${helper_script}"
-
-    cat >"${unit_path}" <<UNIT
+  # Persist with a simple oneshot unit
+  cat >"/etc/systemd/system/${NAT_UNIT}" <<UNIT
 [Unit]
 Description=Persist NAT rules for ${NETWORK_NAME}
 After=network-online.target
@@ -279,81 +200,61 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=${helper_script}
+ExecStart=/usr/sbin/iptables -t nat -C POSTROUTING -s ${SUBNET_NETWORK} -o ${WAN_IF} -j MASQUERADE || /usr/sbin/iptables -t nat -A POSTROUTING -s ${SUBNET_NETWORK} -o ${WAN_IF} -j MASQUERADE
+ExecStart=/usr/sbin/iptables -C FORWARD -i ${WAN_IF} -o ${NETWORK_NAME} -m state --state RELATED,ESTABLISHED -j ACCEPT || /usr/sbin/iptables -A FORWARD -i ${WAN_IF} -o ${NETWORK_NAME} -m state --state RELATED,ESTABLISHED -j ACCEPT
+ExecStart=/usr/sbin/iptables -C FORWARD -i ${NETWORK_NAME} -o ${WAN_IF} -j ACCEPT || /usr/sbin/iptables -A FORWARD -i ${NETWORK_NAME} -o ${WAN_IF} -j ACCEPT
 RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
 UNIT
-
-    if command -v systemctl &>/dev/null; then
-        systemctl daemon-reload
-        systemctl enable "${unit_name}" >/dev/null 2>&1 || warn "Unable to enable ${unit_name}"
-        systemctl start "${unit_name}" >/dev/null 2>&1 || warn "Unable to start ${unit_name}"
-    else
-        warn "systemctl unavailable; ensure ${unit_path} is invoked at boot manually."
-    fi
+  systemctl daemon-reload
+  systemctl enable --now "${NAT_UNIT}" >/dev/null 2>&1 || true
+  return 0
 }
-
 firewall_configured=0
 if apply_firewall_cmd; then
-    firewall_configured=1
+  firewall_configured=1
 else
-    warn 'firewalld configuration skipped; attempting iptables fallback.'
+  warn 'firewalld not configured; attempting iptables fallback.'
+  apply_iptables_rules || warn 'iptables NAT not configured; you must add forwarding manually.'
 fi
 
-iptables_configured=0
-if (( firewall_configured == 0 )); then
-    if apply_iptables_rules; then
-        iptables_configured=1
-        ensure_iptables_unit
-    fi
-fi
-
-if (( firewall_configured == 0 && iptables_configured == 0 )); then
-    warn 'Failed to configure NAT; manual intervention may be necessary.'
-fi
-
-# --- Make dnsmasq wait for the interface at boot -----------------------------
-setup_dnsmasq_boot_wait_dropin() {
-    local net="${NETWORK_NAME}"
-    local ddir="/etc/systemd/system/dnsmasq.service.d"
-    local dropin="${ddir}/${net}-wait.conf"
-
-    install -d -m 755 "${ddir}"
-
-    info "Creating dnsmasq boot-wait drop-in: ${dropin}"
-    cat >"${dropin}" <<EOF
+# --- Dedicated dnsmasq service bound to this interface ONLY -------------------
+UNIT_PATH="/etc/systemd/system/${DEDICATED_UNIT}"
+info "Creating dedicated service ${DEDICATED_UNIT}"
+cat >"${UNIT_PATH}" <<EOF
 [Unit]
-Wants=network-online.target NetworkManager-wait-online.service
-After=network-online.target NetworkManager-wait-online.service
+Description=dnsmasq for ${NETWORK_NAME}
+Requires=sys-subsystem-net-devices-${NETWORK_NAME}.device
+BindsTo=sys-subsystem-net-devices-${NETWORK_NAME}.device
+After=sys-subsystem-net-devices-${NETWORK_NAME}.device network-online.target NetworkManager-wait-online.service
 
 [Service]
-# Wait until the specific interface exists AND has an IPv4 address
-ExecStartPre=/bin/bash -c 'for i in {1..40}; do ip link show ${net} >/dev/null 2>&1 && ip -4 addr show ${net} | grep -q "inet " && exit 0; sleep 1; done; echo "${net} not ready"; exit 1'
+Type=simple
+# Wait until ${NETWORK_NAME} has an IPv4 address
+ExecStartPre=/bin/bash -c 'for i in {1..60}; do ip -4 addr show ${NETWORK_NAME} | grep -q "inet " && exit 0; sleep 1; done; echo "${NETWORK_NAME} has no IPv4"; exit 1'
+# Run ONLY with the per-network config; ignore /etc/dnsmasq.conf to avoid 10.42.* or other leftovers
+ExecStart=/usr/sbin/dnsmasq -k --conf-file=${DNSMASQ_CONF} --bind-interfaces
 Restart=on-failure
 RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
 EOF
 
-    systemctl daemon-reload
-    # Ensure NM's wait-online is enabled for best results
-    systemctl enable NetworkManager-wait-online.service >/dev/null 2>&1 || true
-}
-setup_dnsmasq_boot_wait_dropin
+# --- Enable/Start services ----------------------------------------------------
+info "Enabling NetworkManager-wait-online for better ordering"
+systemctl enable NetworkManager-wait-online.service >/dev/null 2>&1 || true
 
-# --- (Re)start & enable dnsmasq ----------------------------------------------
-dnsmasq_restart() {
-    if command -v systemctl &>/dev/null && systemctl list-unit-files | grep -q '^dnsmasq\.service'; then
-        info 'Enabling and restarting dnsmasq service'
-        systemctl enable dnsmasq.service >/dev/null 2>&1 || true
-        systemctl restart dnsmasq.service
-        return
-    fi
-    warn 'dnsmasq.service not managed by systemd; launching standalone instance.'
-    pkill -f "dnsmasq.*--conf-file=${DNSMASQ_CONF}" >/dev/null 2>&1 || true
-    dnsmasq --conf-file="${DNSMASQ_CONF}" --keep-in-foreground --log-facility=- &
-    disown || true
-}
-dnsmasq_restart
+systemctl daemon-reload
+info "Starting ${DEDICATED_UNIT}"
+systemctl enable --now "${DEDICATED_UNIT}"
 
-info "DHCP setup for ${NETWORK_NAME} complete. Clients will acquire addresses after reboot without rerunning this script."
+# --- Verification -------------------------------------------------------------
+sleep 1
+systemctl --no-pager --lines=50 status "${DEDICATED_UNIT}" || true
+ss -lupn | egrep ':(53|67|68)\b' || true
+
+info "Done. ${NETWORK_NAME} is serving DHCP ${DHCP_RANGE_START}-${DHCP_RANGE_END} via ${GATEWAY_IP} and NATing out ${WAN_IF}."
+echo "Tip: test with 'tcpdump -ni ${NETWORK_NAME} port 67 or 68' while a client requests DHCP."
