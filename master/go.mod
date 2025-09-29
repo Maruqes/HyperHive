@@ -6,7 +6,6 @@ require (
 	github.com/Maruqes/512SvMan/api/proto/protocol v0.0.0
 	github.com/joho/godotenv v1.5.1
 	google.golang.org/grpc v1.75.1
-	libvirt.org/go/libvirt v1.11006.0
 )
 
 require (
