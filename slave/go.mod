@@ -15,5 +15,3 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )
-
-replace github.com/Maruqes/512SvMan/api/proto/protocol => ../api/proto/protocol

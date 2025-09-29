@@ -1,6 +1,6 @@
 module github.com/Maruqes/512SvMan/api/proto/protocol
 
-go 1.25
+go 1.25.0
 
 require (
 	google.golang.org/grpc v1.75.1
