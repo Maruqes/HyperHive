@@ -1,15 +1,11 @@
 package main
 
 import (
-	"context"
+	"512SvMan/protocol"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"os"
-
-	pb "github.com/Maruqes/512SvMan/api/proto/hello"
-	"google.golang.org/grpc"
 )
 
 func webServer() {
@@ -55,39 +51,12 @@ func askForSudo() {
 	}
 }
 
-// === Servidor do MASTER (HelloService) ===
-type helloServer struct {
-	pb.UnimplementedHelloServiceServer
-}
-
-func (s *helloServer) SayHello(ctx context.Context, req *pb.HelloRequest) (*pb.HelloResponse, error) {
-	log.Printf("Master recebeu: %s", req.GetName())
-	return &pb.HelloResponse{Message: "Olá, " + req.GetName()}, nil
-}
-
-func (s *helloServer) SetConnection(ctx context.Context, req *pb.SetConnectionRequest) (*pb.SetConnectionResponse, error) {
-	log.Printf("Master recebeu SetConnection: %s:%d", req.GetHost(), req.GetPort())
-	return &pb.SetConnectionResponse{Ok: "OK do Master"}, nil
-}
-
-func listenGRPC() {
-	lis, err := net.Listen("tcp", ":50051")
-	if err != nil {
-		log.Fatalf("listen: %v", err)
-	}
-	s := grpc.NewServer()
-	pb.RegisterHelloServiceServer(s, &helloServer{})
-	go func() {
-		log.Println("Master a ouvir em :50051")
-		if err := s.Serve(lis); err != nil {
-			log.Fatalf("serve: %v", err)
-		}
-	}()
-}
-
 func main() {
 	askForSudo()
 	askForSudo()
+
+	//listen and connects to gRPC
+	go protocol.ListenGRPC()
 
 	// // 2) (Exemplo) Master chama o CLIENTE (ClientService) em :50052
 	// time.Sleep(300 * time.Millisecond) // só para garantir que o cliente já subiu
@@ -180,4 +149,6 @@ func main() {
 	// 	log.Fatal(err)
 	// }
 	// fmt.Println("XML gravado em:", xml)
+
+	select {}
 }

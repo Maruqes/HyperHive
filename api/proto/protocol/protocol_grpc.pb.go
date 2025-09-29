@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v3.19.6
-// source: proto/hello.proto
+// source: api/proto/protocol.proto
 
 package proto
 
@@ -19,151 +19,113 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	HelloService_SayHello_FullMethodName      = "/hello.HelloService/SayHello"
-	HelloService_SetConnection_FullMethodName = "/hello.HelloService/SetConnection"
+	ProtocolService_SetConnection_FullMethodName = "/protocol.ProtocolService/SetConnection"
 )
 
-// HelloServiceClient is the client API for HelloService service.
+// ProtocolServiceClient is the client API for ProtocolService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
 // Servidor do MASTER
-type HelloServiceClient interface {
-	SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloResponse, error)
+type ProtocolServiceClient interface {
 	SetConnection(ctx context.Context, in *SetConnectionRequest, opts ...grpc.CallOption) (*SetConnectionResponse, error)
 }
 
-type helloServiceClient struct {
+type protocolServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewHelloServiceClient(cc grpc.ClientConnInterface) HelloServiceClient {
-	return &helloServiceClient{cc}
+func NewProtocolServiceClient(cc grpc.ClientConnInterface) ProtocolServiceClient {
+	return &protocolServiceClient{cc}
 }
 
-func (c *helloServiceClient) SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(HelloResponse)
-	err := c.cc.Invoke(ctx, HelloService_SayHello_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *helloServiceClient) SetConnection(ctx context.Context, in *SetConnectionRequest, opts ...grpc.CallOption) (*SetConnectionResponse, error) {
+func (c *protocolServiceClient) SetConnection(ctx context.Context, in *SetConnectionRequest, opts ...grpc.CallOption) (*SetConnectionResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SetConnectionResponse)
-	err := c.cc.Invoke(ctx, HelloService_SetConnection_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, ProtocolService_SetConnection_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// HelloServiceServer is the server API for HelloService service.
-// All implementations must embed UnimplementedHelloServiceServer
+// ProtocolServiceServer is the server API for ProtocolService service.
+// All implementations must embed UnimplementedProtocolServiceServer
 // for forward compatibility.
 //
 // Servidor do MASTER
-type HelloServiceServer interface {
-	SayHello(context.Context, *HelloRequest) (*HelloResponse, error)
+type ProtocolServiceServer interface {
 	SetConnection(context.Context, *SetConnectionRequest) (*SetConnectionResponse, error)
-	mustEmbedUnimplementedHelloServiceServer()
+	mustEmbedUnimplementedProtocolServiceServer()
 }
 
-// UnimplementedHelloServiceServer must be embedded to have
+// UnimplementedProtocolServiceServer must be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedHelloServiceServer struct{}
+type UnimplementedProtocolServiceServer struct{}
 
-func (UnimplementedHelloServiceServer) SayHello(context.Context, *HelloRequest) (*HelloResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SayHello not implemented")
-}
-func (UnimplementedHelloServiceServer) SetConnection(context.Context, *SetConnectionRequest) (*SetConnectionResponse, error) {
+func (UnimplementedProtocolServiceServer) SetConnection(context.Context, *SetConnectionRequest) (*SetConnectionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetConnection not implemented")
 }
-func (UnimplementedHelloServiceServer) mustEmbedUnimplementedHelloServiceServer() {}
-func (UnimplementedHelloServiceServer) testEmbeddedByValue()                      {}
+func (UnimplementedProtocolServiceServer) mustEmbedUnimplementedProtocolServiceServer() {}
+func (UnimplementedProtocolServiceServer) testEmbeddedByValue()                         {}
 
-// UnsafeHelloServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to HelloServiceServer will
+// UnsafeProtocolServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ProtocolServiceServer will
 // result in compilation errors.
-type UnsafeHelloServiceServer interface {
-	mustEmbedUnimplementedHelloServiceServer()
+type UnsafeProtocolServiceServer interface {
+	mustEmbedUnimplementedProtocolServiceServer()
 }
 
-func RegisterHelloServiceServer(s grpc.ServiceRegistrar, srv HelloServiceServer) {
-	// If the following call pancis, it indicates UnimplementedHelloServiceServer was
+func RegisterProtocolServiceServer(s grpc.ServiceRegistrar, srv ProtocolServiceServer) {
+	// If the following call pancis, it indicates UnimplementedProtocolServiceServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&HelloService_ServiceDesc, srv)
+	s.RegisterService(&ProtocolService_ServiceDesc, srv)
 }
 
-func _HelloService_SayHello_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HelloRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(HelloServiceServer).SayHello(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: HelloService_SayHello_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(HelloServiceServer).SayHello(ctx, req.(*HelloRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _HelloService_SetConnection_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ProtocolService_SetConnection_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SetConnectionRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(HelloServiceServer).SetConnection(ctx, in)
+		return srv.(ProtocolServiceServer).SetConnection(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: HelloService_SetConnection_FullMethodName,
+		FullMethod: ProtocolService_SetConnection_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(HelloServiceServer).SetConnection(ctx, req.(*SetConnectionRequest))
+		return srv.(ProtocolServiceServer).SetConnection(ctx, req.(*SetConnectionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// HelloService_ServiceDesc is the grpc.ServiceDesc for HelloService service.
+// ProtocolService_ServiceDesc is the grpc.ServiceDesc for ProtocolService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var HelloService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "hello.HelloService",
-	HandlerType: (*HelloServiceServer)(nil),
+var ProtocolService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "protocol.ProtocolService",
+	HandlerType: (*ProtocolServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "SayHello",
-			Handler:    _HelloService_SayHello_Handler,
-		},
-		{
 			MethodName: "SetConnection",
-			Handler:    _HelloService_SetConnection_Handler,
+			Handler:    _ProtocolService_SetConnection_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/hello.proto",
+	Metadata: "api/proto/protocol.proto",
 }
 
 const (
-	ClientService_Notify_FullMethodName = "/hello.ClientService/Notify"
+	ClientService_Notify_FullMethodName = "/protocol.ClientService/Notify"
 )
 
 // ClientServiceClient is the client API for ClientService service.
@@ -256,7 +218,7 @@ func _ClientService_Notify_Handler(srv interface{}, ctx context.Context, dec fun
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ClientService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "hello.ClientService",
+	ServiceName: "protocol.ClientService",
 	HandlerType: (*ClientServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -265,5 +227,5 @@ var ClientService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/hello.proto",
+	Metadata: "api/proto/protocol.proto",
 }

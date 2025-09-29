@@ -1,13 +1,12 @@
 syntax = "proto3";
 
-package hello;
+package protocol;
 
-option go_package = "api/proto/hello;proto";
+option go_package = "api/proto/protocol;proto";
 
 
 // Servidor do MASTER
-service HelloService {
-  rpc SayHello(HelloRequest) returns (HelloResponse);
+service ProtocolService {
   rpc SetConnection(SetConnectionRequest) returns (SetConnectionResponse);
 }
 
@@ -15,9 +14,6 @@ service HelloService {
 service ClientService {
   rpc Notify(NotifyRequest) returns (NotifyResponse);
 }
-
-message HelloRequest { string name = 1; }
-message HelloResponse { string message = 1; }
 
 message SetConnectionRequest { string addr = 1; }
 message SetConnectionResponse { string ok = 1; }

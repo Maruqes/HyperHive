@@ -3,7 +3,7 @@ module slave
 go 1.25.0
 
 require (
-	github.com/Maruqes/512SvMan/api/proto/hello v0.0.0
+	github.com/Maruqes/512SvMan/api/proto/protocol v0.0.0
 	google.golang.org/grpc v1.75.1
 )
 

@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	pb "github.com/Maruqes/512SvMan/api/proto/hello"
+	pb "github.com/Maruqes/512SvMan/api/proto/protocol"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -21,23 +21,20 @@ func (s *clientServer) Notify(ctx context.Context, req *pb.NotifyRequest) (*pb.N
 	return &pb.NotifyResponse{Ok: "OK do Cliente"}, nil
 }
 
-func main() {
-	// 1) Arranca gRPC server do CLIENTE
+func listenGRPC() {
 	lis, err := net.Listen("tcp", ":50052")
 	if err != nil {
 		log.Fatalf("listen: %v", err)
 	}
 	s := grpc.NewServer()
 	pb.RegisterClientServiceServer(s, &clientServer{})
-	go func() {
-		log.Println("Cliente a ouvir em :50052")
-		if err := s.Serve(lis); err != nil {
-			log.Fatalf("serve: %v", err)
-		}
-	}()
+	log.Println("Cliente a ouvir em :50052")
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("serve: %v", err)
+	}
+}
 
-	// 2) (Exemplo) Cliente chama o MASTER (HelloService) em :50051
-	time.Sleep(300 * time.Millisecond) // só para dar tempo ao master
+func connectGRPC() {
 	conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("dial master: %v", err)
@@ -52,4 +49,33 @@ func main() {
 		log.Fatalf("SayHello: %v", err)
 	}
 	log.Printf("Resposta do master: %s", out.GetMessage())
+
+	outR, err := h.SetConnection(ctx, &pb.SetConnectionRequest{Addr: "192.168.1.69"})
+	if err != nil {
+		log.Fatalf("SetConnection: %v", err)
+	}
+	log.Printf("Resposta do master: %s", outR.GetOk())
+
+	listenGRPC()
+}
+
+func main() {
+	connectGRPC()
+	// // 1) Arranca gRPC server do CLIENTE
+	// lis, err := net.Listen("tcp", ":50052")
+	// if err != nil {
+	// 	log.Fatalf("listen: %v", err)
+	// }
+	// s := grpc.NewServer()
+	// pb.RegisterClientServiceServer(s, &clientServer{})
+	// go func() {
+	// 	log.Println("Cliente a ouvir em :50052")
+	// 	if err := s.Serve(lis); err != nil {
+	// 		log.Fatalf("serve: %v", err)
+	// 	}
+	// }()
+
+	// 2) (Exemplo) Cliente chama o MASTER (HelloService) em :50051
+	time.Sleep(300 * time.Millisecond) // só para dar tempo ao master
+
 }
