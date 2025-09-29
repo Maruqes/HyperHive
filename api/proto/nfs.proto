@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package nfs;
+
+option go_package = "api/proto/nfs;proto";
+
+
+//define struct for NFS
+message FolderMount {
+  string folderPath = 1; // shared folder
+  string source = 2; // nfs source (ip:/path)
+  string target = 3; // local mount point
+}
+
+service NFSService {
+  rpc CreateSharedFolder(FolderMount) returns (CreateResponse);
+  rpc MountFolder(FolderMount) returns (MountResponse);
+  rpc UnmountFolder(FolderMount) returns (UnmountResponse);
+}	
+
+message CreateResponse { bool ok = 1; }
+message MountResponse { bool ok = 1; }
+message UnmountResponse { bool ok = 1; }

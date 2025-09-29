@@ -1,6 +1,7 @@
 package main
 
 import (
+	"512SvMan/npm"
 	"512SvMan/protocol"
 	"fmt"
 	"log"
@@ -53,85 +54,20 @@ func askForSudo() {
 
 func main() {
 	askForSudo()
-	askForSudo()
 
 	//listen and connects to gRPC
 	go protocol.ListenGRPC()
 
-	// // 2) (Exemplo) Master chama o CLIENTE (ClientService) em :50052
-	// time.Sleep(300 * time.Millisecond) // só para garantir que o cliente já subiu
-	// conn, err := grpc.Dial("localhost:50052", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	// if err != nil {
-	// 	log.Fatalf("dial cliente: %v", err)
-	// }
-	// defer conn.Close()
-	// c := pb.NewClientServiceClient(conn)
+	hostAdmin := "127.0.0.1:81"
+	base := "http://" + hostAdmin
 
-	// ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	// defer cancel()
-	// resp, err := c.Notify(ctx, &pb.NotifyRequest{Text: "Ping do Master"})
-	// if err != nil {
-	// 	log.Fatalf("Notify: %v", err)
-	// }
-	// log.Printf("Resposta do cliente: %s", resp.GetOk())
+	token, err := npm.SetupNPM(base)
 
-	// hostAdmin := "127.0.0.1:81"
-	// base := "http://" + hostAdmin
+	if err != nil {
+		panic(err)
+	}
 
-	// token, err := npm.SetupNPM(base)
-
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// println("NPM setup complete, token:", token)
-
-	// proxyId, err := npm.CreateProxy(base, token, npm.Proxy{
-	// 	DomainNames:           []string{"test.localhost"},
-	// 	ForwardScheme:         "http",
-	// 	ForwardHost:           "127.0.0.1",
-	// 	ForwardPort:           8080,
-	// 	CachingEnabled:        false,
-	// 	BlockExploits:         true,
-	// 	AllowWebsocketUpgrade: true,
-	// 	AccessListID:          "0",
-	// 	CertificateID:         0,
-	// 	Meta:                  map[string]any{"letsencrypt_agree": false, "dns_challenge": false},
-	// 	AdvancedConfig:        "",
-	// 	Locations:             []any{},
-	// 	Http2Support:          false,
-	// 	HstsEnabled:           false,
-	// 	HstsSubdomains:        false,
-	// 	SslForced:             false,
-	// })
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// proxyId := 4 // hardcoded for testing
-	// fmt.Println("Created proxy with ID", proxyId)
-
-	// err = npm.EditProxy(base, token, npm.Proxy{
-	// 	ID:                    proxyId,
-	// 	DomainNames:           []string{"meudeus.localhost", "test2.localhost"},
-	// 	ForwardScheme:         "http",
-	// 	ForwardHost:           "127.0.0.1",
-	// 	ForwardPort:           8080,
-	// 	CachingEnabled:        false,
-	// 	BlockExploits:         true,
-	// 	AllowWebsocketUpgrade: true,
-	// 	AccessListID:          "0",
-	// 	CertificateID:         0,
-	// 	Meta:                  map[string]any{"letsencrypt_agree": false, "dns_challenge": false},
-	// 	AdvancedConfig:        "",
-	// 	Locations:             []any{},
-	// 	Http2Support:          false,
-	// 	HstsEnabled:           false,
-	// 	HstsSubdomains:        false,
-	// 	SslForced:             false,
-	// })
-	// if err != nil {
-	// 	panic(err)
-	// }
+	println("NPM setup complete, token:", token)
 
 	// webServer()
 
@@ -149,6 +85,7 @@ func main() {
 	// 	log.Fatal(err)
 	// }
 	// fmt.Println("XML gravado em:", xml)
+
 
 	select {}
 }

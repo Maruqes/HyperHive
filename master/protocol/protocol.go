@@ -10,13 +10,13 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type Connections struct {
+type ConnectionsStruct struct {
 	Addr        string
 	MachineName string
 	Connection  *grpc.ClientConn
 }
 
-var connections []Connections
+var Connections []ConnectionsStruct
 
 //should listen on prt and recieve ips on SetConnection from slaves
 //and connect to the slaves on their ClientService
@@ -28,7 +28,7 @@ func NewSlaveConnection(addr, machineName string) error {
 		log.Printf("dial slave %s: %v", addr, err)
 	}
 
-	connections = append(connections, Connections{
+	Connections = append(Connections, ConnectionsStruct{
 		Addr:        addr,
 		MachineName: machineName,
 		Connection:  conn,
@@ -37,7 +37,6 @@ func NewSlaveConnection(addr, machineName string) error {
 	h := pb.NewClientServiceClient(conn)
 	h.Notify(context.Background(), &pb.NotifyRequest{Text: "Ping do Master"})
 
-	
 	log.Println("Nova conexao com slave:", addr, machineName)
 	return nil
 }

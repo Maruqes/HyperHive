@@ -25,13 +25,24 @@ go.work
 go.work.sum
 docker-compose.yml
 # env file
-.env
-512SvMan
-master/512SvMan
-slave/slave
+
 # Editor/IDE
 # .idea/
 # .vscode/
+
+vms.yaml
+
+#env files
+.env
+slave/.env
+master/.env
+
+#executables
+512SvMan
+master/512SvMan
+slave/slave
+
 npm-data/
 npm-ssl/
-vms.yaml
+master/npm-data/
+master/npm-ssl/
