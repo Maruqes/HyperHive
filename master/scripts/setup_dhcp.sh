@@ -7,6 +7,19 @@
 
 set -euo pipefail
 
+usage() {
+  cat <<'USAGE'
+Usage: setup_dhcp.sh [LAN_IFACE] [WAN_IFACE]
+
+  LAN_IFACE : Interface that should serve DHCP (defaults to NETWORK_NAME env or 512rede)
+  WAN_IFACE : Upstream interface used for NAT (auto-detected if omitted)
+
+Environment variables still override defaults (NETWORK_NAME, WAN_IF, SUBNET_CIDR, ...).
+Command-line arguments take precedence over the environment.
+USAGE
+  exit 1
+}
+
 info()  { printf '[INFO] %s\n' "$*"; }
 warn()  { printf '[WARN] %s\n' "$*" >&2; }
 fatal() { printf '[ERROR] %s\n' "$*" >&2; exit 1; }
@@ -23,8 +36,31 @@ else
   fatal 'Unable to determine distribution (missing /etc/os-release).'
 fi
 
+# --- CLI overrides -----------------------------------------------------------
+CLI_NETWORK_NAME=""
+CLI_WAN_IF=""
+
+case "${1:-}" in
+  -h|--help) usage ;;
+esac
+
+if [[ $# -gt 0 ]]; then
+  CLI_NETWORK_NAME=$1
+  shift
+fi
+
+if [[ $# -gt 0 ]]; then
+  CLI_WAN_IF=$1
+  shift
+fi
+
+if [[ $# -gt 0 ]]; then
+  usage
+fi
+
 # --- Tunables (override via env) ---------------------------------------------
-NETWORK_NAME="${NETWORK_NAME:-512rede}"           # your LAN interface name
+NETWORK_NAME_DEFAULT="${NETWORK_NAME:-512rede}"   # your LAN interface name
+NETWORK_NAME="${CLI_NETWORK_NAME:-${NETWORK_NAME_DEFAULT}}"
 SUBNET_CIDR="${SUBNET_CIDR:-192.168.76.0/24}"     # LAN subnet
 GATEWAY_IP="${GATEWAY_IP:-192.168.76.1}"          # LAN gateway (this host)
 DHCP_RANGE_START="${DHCP_RANGE_START:-192.168.76.50}"
@@ -156,9 +192,11 @@ find_wan_iface() {
   [[ -n ${iface} ]] || fatal 'Unable to determine upstream (WAN) interface. Set WAN_IF env before running.'
   printf '%s' "${iface}"
 }
-WAN_IF="${WAN_IF:-$(find_wan_iface)}"
+WAN_IF_INPUT="${CLI_WAN_IF:-${WAN_IF:-}}"
+WAN_IF="${WAN_IF_INPUT:-$(find_wan_iface)}"
 [[ -n ${WAN_IF} ]] || fatal 'WAN interface detection failed.'
 [[ "${WAN_IF}" != "${NETWORK_NAME}" ]] || fatal 'WAN interface must differ from the DHCP-serving interface.'
+ip link show "${WAN_IF}" >/dev/null 2>&1 || fatal "WAN interface '${WAN_IF}' not found."
 
 # --- NAT via firewalld (preferred) or iptables fallback ----------------------
 apply_firewall_cmd() {
