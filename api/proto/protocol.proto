@@ -8,6 +8,7 @@ option go_package = "github.com/Maruqes/512SvMan/api/proto/protocol;proto";
 // Servidor do MASTER
 service ProtocolService {
   rpc SetConnection(SetConnectionRequest) returns (SetConnectionResponse);
+  rpc Notify(NotifyRequest) returns (NotifyResponse);
 }
 
 // Servidor do CLIENTE

@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	ProtocolService_SetConnection_FullMethodName = "/protocol.ProtocolService/SetConnection"
+	ProtocolService_Notify_FullMethodName        = "/protocol.ProtocolService/Notify"
 )
 
 // ProtocolServiceClient is the client API for ProtocolService service.
@@ -29,6 +30,7 @@ const (
 // Servidor do MASTER
 type ProtocolServiceClient interface {
 	SetConnection(ctx context.Context, in *SetConnectionRequest, opts ...grpc.CallOption) (*SetConnectionResponse, error)
+	Notify(ctx context.Context, in *NotifyRequest, opts ...grpc.CallOption) (*NotifyResponse, error)
 }
 
 type protocolServiceClient struct {
@@ -49,6 +51,16 @@ func (c *protocolServiceClient) SetConnection(ctx context.Context, in *SetConnec
 	return out, nil
 }
 
+func (c *protocolServiceClient) Notify(ctx context.Context, in *NotifyRequest, opts ...grpc.CallOption) (*NotifyResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NotifyResponse)
+	err := c.cc.Invoke(ctx, ProtocolService_Notify_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ProtocolServiceServer is the server API for ProtocolService service.
 // All implementations must embed UnimplementedProtocolServiceServer
 // for forward compatibility.
@@ -56,6 +68,7 @@ func (c *protocolServiceClient) SetConnection(ctx context.Context, in *SetConnec
 // Servidor do MASTER
 type ProtocolServiceServer interface {
 	SetConnection(context.Context, *SetConnectionRequest) (*SetConnectionResponse, error)
+	Notify(context.Context, *NotifyRequest) (*NotifyResponse, error)
 	mustEmbedUnimplementedProtocolServiceServer()
 }
 
@@ -68,6 +81,9 @@ type UnimplementedProtocolServiceServer struct{}
 
 func (UnimplementedProtocolServiceServer) SetConnection(context.Context, *SetConnectionRequest) (*SetConnectionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetConnection not implemented")
+}
+func (UnimplementedProtocolServiceServer) Notify(context.Context, *NotifyRequest) (*NotifyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Notify not implemented")
 }
 func (UnimplementedProtocolServiceServer) mustEmbedUnimplementedProtocolServiceServer() {}
 func (UnimplementedProtocolServiceServer) testEmbeddedByValue()                         {}
@@ -108,6 +124,24 @@ func _ProtocolService_SetConnection_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ProtocolService_Notify_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NotifyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProtocolServiceServer).Notify(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProtocolService_Notify_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProtocolServiceServer).Notify(ctx, req.(*NotifyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ProtocolService_ServiceDesc is the grpc.ServiceDesc for ProtocolService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -118,6 +152,10 @@ var ProtocolService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetConnection",
 			Handler:    _ProtocolService_SetConnection_Handler,
+		},
+		{
+			MethodName: "Notify",
+			Handler:    _ProtocolService_Notify_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

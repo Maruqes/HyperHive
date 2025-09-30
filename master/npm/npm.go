@@ -1,6 +1,7 @@
 package npm
 
 import (
+	"512SvMan/env512"
 	"fmt"
 	"io"
 	"net/http"
@@ -8,8 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"time"
-
-	"github.com/joho/godotenv"
 )
 
 const (
@@ -21,13 +20,6 @@ const (
 	adminEmail = "admin@example.com" // change if you set INITIAL_ADMIN_EMAIL
 	adminPass  = "changeme"          // change if you set INITIAL_ADMIN_PASSWORD
 
-)
-
-var (
-	newUserName  = ""
-	newUserNick  = ""
-	newUserEmail = ""
-	newUserPass  = ""
 )
 
 func waitForNPM(baseURL string, timeout time.Duration) error {
@@ -148,26 +140,10 @@ services:
 	return nil
 }
 
-func setUserVars() error {
-	_ = godotenv.Load(".env") // loads variables from .env into os.Environ
-	newUserName = os.Getenv("NPM_USER_NAME")
-	newUserNick = os.Getenv("NPM_USER_NICK")
-	newUserEmail = os.Getenv("NPM_USER_EMAIL")
-	newUserPass = os.Getenv("NPM_USER_PASS")
-	if newUserName == "" || newUserNick == "" || newUserEmail == "" || newUserPass == "" {
-		return fmt.Errorf("NPM_USER_NAME, NPM_USER_NICK, NPM_USER_EMAIL, and NPM_USER_PASS must be set in .env or environment")
-	}
-	return nil
-}
-
 func SetupNPM(base string) (string, error) {
-	err := setUserVars()
-	if err != nil {
-		return "", err
-	}
-	
+
 	fmt.Println("Pulling and starting NPM container…")
-	err = PullImage()
+	err := PullImage()
 	if err != nil {
 		return "", err
 	}
@@ -187,10 +163,10 @@ func SetupNPM(base string) (string, error) {
 
 	//try new user first, in case we re-run against existing setup
 	token, err := retry[string](60*time.Second, 2*time.Second, func() (string, error) {
-		return Login(base, newUserEmail, newUserPass)
+		return Login(base, env512.NPM_USER_EMAIL, env512.NPM_USER_PASS)
 	})
 	if err == nil {
-		fmt.Println("New user already exists, logged in as", newUserNick)
+		fmt.Println("New user already exists, logged in as", env512.NPM_USER_NICK)
 		return token, nil
 	}
 
@@ -208,21 +184,21 @@ func SetupNPM(base string) (string, error) {
 	//create new user
 	userID, err := CreateUser(base, token, NewUser{
 		User: UserCreation{
-			Name:     newUserName,
-			Nickname: newUserNick,
-			Email:    newUserEmail,
+			Name:     env512.NPM_USER_NAME,
+			Nickname: env512.NPM_USER_NICK,
+			Email:    env512.NPM_USER_EMAIL,
 			Roles:    []string{"admin"},
 		},
-		Password: newUserPass,
+		Password: env512.NPM_USER_PASS,
 	})
 	if err != nil {
 		return "", err
 	}
-	fmt.Println("Created user", newUserNick+" with ID "+fmt.Sprint(userID))
+	fmt.Println("Created user", env512.NPM_USER_NICK+" with ID "+fmt.Sprint(userID))
 
 	//login into new user
 	token, err = retry[string](60*time.Second, 2*time.Second, func() (string, error) {
-		return Login(base, newUserEmail, newUserPass)
+		return Login(base, env512.NPM_USER_EMAIL, env512.NPM_USER_PASS)
 	})
 	if err != nil {
 		return "", err

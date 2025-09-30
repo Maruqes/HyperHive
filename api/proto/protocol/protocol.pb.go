@@ -218,9 +218,10 @@ const file_protocol_proto_rawDesc = "" +
 	"\rNotifyRequest\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\" \n" +
 	"\x0eNotifyResponse\x12\x0e\n" +
-	"\x02ok\x18\x01 \x01(\tR\x02ok2c\n" +
+	"\x02ok\x18\x01 \x01(\tR\x02ok2\xa0\x01\n" +
 	"\x0fProtocolService\x12P\n" +
-	"\rSetConnection\x12\x1e.protocol.SetConnectionRequest\x1a\x1f.protocol.SetConnectionResponse2L\n" +
+	"\rSetConnection\x12\x1e.protocol.SetConnectionRequest\x1a\x1f.protocol.SetConnectionResponse\x12;\n" +
+	"\x06Notify\x12\x17.protocol.NotifyRequest\x1a\x18.protocol.NotifyResponse2L\n" +
 	"\rClientService\x12;\n" +
 	"\x06Notify\x12\x17.protocol.NotifyRequest\x1a\x18.protocol.NotifyResponseB6Z4github.com/Maruqes/512SvMan/api/proto/protocol;protob\x06proto3"
 
@@ -245,11 +246,13 @@ var file_protocol_proto_goTypes = []any{
 }
 var file_protocol_proto_depIdxs = []int32{
 	0, // 0: protocol.ProtocolService.SetConnection:input_type -> protocol.SetConnectionRequest
-	2, // 1: protocol.ClientService.Notify:input_type -> protocol.NotifyRequest
-	1, // 2: protocol.ProtocolService.SetConnection:output_type -> protocol.SetConnectionResponse
-	3, // 3: protocol.ClientService.Notify:output_type -> protocol.NotifyResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	2, // 1: protocol.ProtocolService.Notify:input_type -> protocol.NotifyRequest
+	2, // 2: protocol.ClientService.Notify:input_type -> protocol.NotifyRequest
+	1, // 3: protocol.ProtocolService.SetConnection:output_type -> protocol.SetConnectionResponse
+	3, // 4: protocol.ProtocolService.Notify:output_type -> protocol.NotifyResponse
+	3, // 5: protocol.ClientService.Notify:output_type -> protocol.NotifyResponse
+	3, // [3:6] is the sub-list for method output_type
+	0, // [0:3] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name

@@ -24,3 +24,14 @@ func CreateSharedFolder(conn *grpc.ClientConn, folderMount *pbnfs.FolderMount) e
 	println("Response from CreateSharedFolder:", res.GetOk())
 	return nil
 }
+
+func MountSharedFolder(conn *grpc.ClientConn, folderMount *pbnfs.FolderMount) error {
+	client := pbnfs.NewNFSServiceClient(conn)
+
+	res, err := client.MountFolder(context.Background(), folderMount)
+	if err != nil {
+		return err
+	}
+	println("Response from MountSharedFolder:", res.GetOk())
+	return nil
+}
