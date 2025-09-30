@@ -41,6 +41,27 @@ ensure_command() {
     fi
 }
 
+# Move old persistent configs for this MAC aside so only the latest rule is active.
+backup_conflicting_files() {
+    local dir="$1"
+    local pattern="$2"
+    local match="$3"
+    local skip="$4"
+
+    if [ ! -d "$dir" ]; then
+        return
+    fi
+
+    while IFS= read -r -d '' file; do
+        if [ "$file" = "$skip" ]; then
+            continue
+        fi
+        if grep -Fq "$match" "$file"; then
+            mv "$file" "${file}${BACKUP_SUFFIX}"
+        fi
+    done < <(find "$dir" -maxdepth 1 -type f -name "$pattern" -print0)
+}
+
 if [ "$#" -ne 2 ]; then
     usage
 fi
@@ -100,6 +121,8 @@ if [ -f "$LEGACY_LINK" ] && [ "$LEGACY_LINK" != "$LINK_FILE" ]; then
     mv "$LEGACY_LINK" "${LEGACY_LINK}${BACKUP_SUFFIX}"
 fi
 
+backup_conflicting_files "$LINK_DIR" '*.link' "MACAddress=${MAC_ADDRESS}" "$LINK_FILE"
+
 if [ -f "$LINK_FILE" ]; then
     cp "$LINK_FILE" "${LINK_FILE}${BACKUP_SUFFIX}"
 fi
@@ -116,6 +139,8 @@ chmod 0644 "$LINK_FILE"
 UDEV_RULES_DIR="/etc/udev/rules.d"
 UDEV_RULE_FILE="${UDEV_RULES_DIR}/82-rename-net-${SAFE_NEW}.rules"
 mkdir -p "$UDEV_RULES_DIR"
+
+backup_conflicting_files "$UDEV_RULES_DIR" '*.rules' "ATTR{address}==\"${MAC_ADDRESS}\"" "$UDEV_RULE_FILE"
 
 if [ -f "$UDEV_RULE_FILE" ]; then
     cp "$UDEV_RULE_FILE" "${UDEV_RULE_FILE}${BACKUP_SUFFIX}"

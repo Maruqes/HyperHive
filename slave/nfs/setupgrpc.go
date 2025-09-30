@@ -45,3 +45,15 @@ func (s *NFSService) UnmountFolder(ctx context.Context, req *pb.FolderMount) (*p
 	}
 	return &pb.UnmountResponse{Ok: true}, nil
 }
+
+func (s *NFSService) RemoveSharedFolder(ctx context.Context, req *pb.FolderMount) (*pb.CreateResponse, error) {
+	err := RemoveSharedFolder(FolderMount{
+		FolderPath: req.FolderPath,
+		Source:     req.Source,
+		Target:     req.Target,
+	})
+	if err != nil {
+		return &pb.CreateResponse{Ok: false}, err
+	}
+	return &pb.CreateResponse{Ok: true}, nil
+}

@@ -9,13 +9,6 @@ import (
 
 func CreateSharedFolder(conn *grpc.ClientConn, folderMount *pbnfs.FolderMount) error {
 	client := pbnfs.NewNFSServiceClient(conn)
-	// // Call the CreateSharedFolder method on the client
-	// client.CreateSharedFolder(context.Background(), &pbnfs.FolderMount{
-	// 	FolderPath: "/var/512svman/shared",
-	// 	Source:     "nfs-server:/var/512svman/shared",
-	// 	Target:     "/mnt/512svman",
-	//
-	// })
 
 	res, err := client.CreateSharedFolder(context.Background(), folderMount)
 	if err != nil {
@@ -33,5 +26,27 @@ func MountSharedFolder(conn *grpc.ClientConn, folderMount *pbnfs.FolderMount) er
 		return err
 	}
 	println("Response from MountSharedFolder:", res.GetOk())
+	return nil
+}
+
+func UnmountSharedFolder(conn *grpc.ClientConn, folderMount *pbnfs.FolderMount) error {
+	client := pbnfs.NewNFSServiceClient(conn)
+
+	res, err := client.UnmountFolder(context.Background(), folderMount)
+	if err != nil {
+		return err
+	}
+	println("Response from UnmountSharedFolder:", res.GetOk())
+	return nil
+}
+
+func RemoveSharedFolder(conn *grpc.ClientConn, folderMount *pbnfs.FolderMount) error {
+	client := pbnfs.NewNFSServiceClient(conn)
+
+	res, err := client.RemoveSharedFolder(context.Background(), folderMount)
+	if err != nil {
+		return err
+	}
+	println("Response from RemoveSharedFolder:", res.GetOk())
 	return nil
 }

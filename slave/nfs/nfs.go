@@ -48,6 +48,29 @@ func CreateSharedFolder(folder FolderMount) error {
 	return nil
 }
 
+func RemoveSharedFolder(folder FolderMount) error {
+	path := strings.TrimSpace(folder.FolderPath)
+	if path == "" {
+		return fmt.Errorf("folder path is required")
+	}
+
+	entry := fmt.Sprintf("%s *(rw,sync,no_subtree_check,no_root_squash)", path)
+	cmdStr := fmt.Sprintf("sed -i.bak '/^%s$/d' /etc/exports && rm -f /etc/exports.bak", entry)
+	if err := runCommand("update /etc/exports", "sudo", "bash", "-lc", cmdStr); err != nil {
+		return err
+	}
+
+	if err := runCommand("refresh nfs exports", "sudo", "exportfs", "-ra"); err != nil {
+		return err
+	}
+
+	if err := runCommand("remove share directory", "sudo", "rm", "-rf", path); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // MountSharedFolder mounts an exported folder from the network.
 func MountSharedFolder(folder FolderMount) error {
 	source := strings.TrimSpace(folder.Source)
