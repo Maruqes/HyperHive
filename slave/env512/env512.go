@@ -11,12 +11,14 @@ var (
 	MasterIP     string
 	SlaveIP      string
 	PingInterval int
+	Mode         string
 )
 
 func Setup() error {
 	godotenv.Load(".env")
 	MasterIP = os.Getenv("MASTER_IP")
 	SlaveIP = os.Getenv("SLAVE_IP")
+	Mode = os.Getenv("MODE")
 	PingInterval, _ = strconv.Atoi(os.Getenv("PING_INTERVAL"))
 	if PingInterval == 0 {
 		PingInterval = 10 //default 10 seconds
@@ -24,6 +26,9 @@ func Setup() error {
 
 	if MasterIP == "" || SlaveIP == "" {
 		panic("Master and Slave IPs must be set")
+	}
+	if Mode == "" {
+		Mode = "prod"
 	}
 	return nil
 }
