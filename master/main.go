@@ -1,73 +1,25 @@
 package main
 
 import (
+	"512SvMan/db"
 	"512SvMan/env512"
 	"512SvMan/nfs"
 	"512SvMan/npm"
 	"512SvMan/protocol"
-	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 
-	proto "github.com/Maruqes/512SvMan/api/proto/nfs"
+	logger "github.com/Maruqes/512SvMan/logger"
+	"google.golang.org/grpc"
 )
 
-func webServer() {
-	http.HandleFunc("/connections", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		data, err := json.Marshal(protocol.Connections)
-		if err != nil {
-			http.Error(w, "failed to marshal connections", http.StatusInternalServerError)
-			return
-		}
-
-		_, _ = w.Write(data)
-	})
-
-	http.HandleFunc("/click", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
-			return
-		}
-
-		conn := protocol.GetConnectionByAddr("127.0.0.1")
-		if conn == nil || conn.Connection == nil {
-			http.Error(w, "slave 127.0.0.1 not connected", http.StatusServiceUnavailable)
-			return
-		}
-
-		mount := &proto.FolderMount{
-			FolderPath: "/var/512SvMan/shared",
-			Source:     "127.0.0.1:/var/512SvMan/shared",
-			Target:     "/mnt/data/512SvMan/shared",
-		}
-
-		if err := nfs.CreateSharedFolder(conn.Connection, mount); err != nil {
-			log.Printf("CreateSharedFolder failed: %v", err)
-			http.Error(w, "failed to create shared folder", http.StatusInternalServerError)
-			return
-		}
-
-		if err := nfs.MountSharedFolder(conn.Connection, mount); err != nil {
-			log.Printf("MountSharedFolder failed: %v", err)
-			http.Error(w, "failed to mount shared folder", http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-	})
-
-	log.Println("Iniciando webserver em :9595")
-	if err := http.ListenAndServe(":9595", nil); err != nil {
-		log.Fatalf("webserver error: %v", err)
+func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
+	err := nfs.MountAllSharedFolders(protocol.GetAllGRPCConnections())
+	if err != nil {
+		return err
 	}
+	return nil
 }
 
 func askForSudo() {
@@ -80,10 +32,21 @@ func askForSudo() {
 
 func main() {
 	askForSudo()
-	env512.Setup()
+
+	if err := env512.Setup(); err != nil {
+		log.Fatalf("env setup: %v", err)
+	}
+	logger.SetType(env512.Mode)
+
+	db.InitDB()
+	//create all tables if not exists
+	err := db.CreateNFSTable()
+	if err != nil {
+		log.Fatalf("create NFS table: %v", err)
+	}
 
 	//listen and connects to gRPC
-	protocol.ListenGRPC()
+	protocol.ListenGRPC(newSlave)
 
 	hostAdmin := "127.0.0.1:81"
 	base := "http://" + hostAdmin

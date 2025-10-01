@@ -30,8 +30,10 @@ func (s *NFSService) MountFolder(ctx context.Context, req *pb.FolderMount) (*pb.
 		Target:     req.Target,
 	})
 	if err != nil {
+		logger.Error("MountFolder failed", "error", err)
 		return &pb.MountResponse{Ok: false}, err
 	}
+	logger.Info("MountFolder succeeded", "folder", req.FolderPath, "source", req.Source, "target", req.Target)
 	return &pb.MountResponse{Ok: true}, nil
 }
 
@@ -42,8 +44,10 @@ func (s *NFSService) UnmountFolder(ctx context.Context, req *pb.FolderMount) (*p
 		Target:     req.Target,
 	})
 	if err != nil {
+		logger.Error("UnmountFolder failed", "error", err)
 		return &pb.UnmountResponse{Ok: false}, err
 	}
+	logger.Info("UnmountFolder succeeded", "folder", req.FolderPath, "source", req.Source, "target", req.Target)
 	return &pb.UnmountResponse{Ok: true}, nil
 }
 
@@ -54,7 +58,9 @@ func (s *NFSService) RemoveSharedFolder(ctx context.Context, req *pb.FolderMount
 		Target:     req.Target,
 	})
 	if err != nil {
+		logger.Error("RemoveSharedFolder failed", "error", err)
 		return &pb.CreateResponse{Ok: false}, err
 	}
+	logger.Info("RemoveSharedFolder succeeded", "folder", req.FolderPath, "source", req.Source, "target", req.Target)
 	return &pb.CreateResponse{Ok: true}, nil
 }

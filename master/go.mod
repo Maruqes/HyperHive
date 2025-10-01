@@ -4,12 +4,14 @@ go 1.25.0
 
 require (
 	github.com/Maruqes/512SvMan/api v0.0.0
+	github.com/Maruqes/512SvMan/logger v0.0.0-00010101000000-000000000000
 	github.com/joho/godotenv v1.5.1
+	github.com/mattn/go-sqlite3 v1.14.32
 	google.golang.org/grpc v1.75.1
 )
 
 require (
-	go.uber.org/multierr v1.11.0 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/net v0.41.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
@@ -19,3 +21,5 @@ require (
 )
 
 replace github.com/Maruqes/512SvMan/api => ../api
+
+replace github.com/Maruqes/512SvMan/logger => ../logger

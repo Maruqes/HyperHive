@@ -27,7 +27,7 @@ func Setup() error {
 	if MasterIP == "" || SlaveIP == "" {
 		panic("Master and Slave IPs must be set")
 	}
-	if Mode == "" {
+	if Mode != "dev" {
 		Mode = "prod"
 	}
 	return nil

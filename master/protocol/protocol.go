@@ -18,7 +18,17 @@ type ConnectionsStruct struct {
 	Connection  *grpc.ClientConn
 }
 
+var recievedNewSlaveFunc func(addr, machineName string, conn *grpc.ClientConn) error
+
 var Connections []ConnectionsStruct
+
+func GetAllGRPCConnections() []*grpc.ClientConn {
+	var conns []*grpc.ClientConn
+	for _, c := range Connections {
+		conns = append(conns, c.Connection)
+	}
+	return conns
+}
 
 //should listen on prt and recieve ips on SetConnection from slaves
 //and connect to the slaves on their ClientService
@@ -26,6 +36,15 @@ var Connections []ConnectionsStruct
 func GetConnectionByAddr(addr string) *ConnectionsStruct {
 	for _, c := range Connections {
 		if c.Addr == addr {
+			return &c
+		}
+	}
+	return nil
+}
+
+func GetConnectionByMachineName(machineName string) *ConnectionsStruct {
+	for _, c := range Connections {
+		if c.MachineName == machineName {
 			return &c
 		}
 	}
@@ -79,6 +98,14 @@ func PingAllSlaves(ctx context.Context) {
 }
 
 func NewSlaveConnection(addr, machineName string) error {
+
+	if GetConnectionByAddr(addr) != nil {
+		return fmt.Errorf("connection already exists with that addr")
+	}
+	if GetConnectionByMachineName(machineName) != nil {
+		return fmt.Errorf("connection already exists with that machine name")
+	}
+
 	//with grpc connect to the slave's ClientService
 	conn, err := grpc.Dial(addr+":50052", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -93,6 +120,13 @@ func NewSlaveConnection(addr, machineName string) error {
 
 	h := pb.NewClientServiceClient(conn)
 	h.Notify(context.Background(), &pb.NotifyRequest{Text: "Ping do Master"})
+
+	err = recievedNewSlaveFunc(addr, machineName, conn)
+	if err != nil {
+		removeConnection(addr)
+		conn.Close()
+		return err
+	}
 
 	log.Println("Nova conexao com slave:", addr, machineName)
 	return nil
@@ -114,11 +148,11 @@ func (s *protocolServer) SetConnection(ctx context.Context, req *pb.SetConnectio
 }
 
 func (s *protocolServer) Notify(ctx context.Context, req *pb.NotifyRequest) (*pb.NotifyResponse, error) {
-	log.Printf("Master recebeu Notify: %s", req.GetText())
 	return &pb.NotifyResponse{Ok: "OK do Master"}, nil
 }
 
-func ListenGRPC() {
+func ListenGRPC(recievedNewConnectionFunction func(addr, machineName string, conn *grpc.ClientConn) error) {
+	recievedNewSlaveFunc = recievedNewConnectionFunction
 	go func() {
 		for {
 			PingAllSlaves(context.Background())

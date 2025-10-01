@@ -7,11 +7,13 @@ option go_package = "github.com/Maruqes/512SvMan/api/proto/nfs;proto";
 
 //define struct for NFS
 message FolderMount {
-  string folderPath = 1; // shared folder
-  string source = 2; // nfs source (ip:/path)
-  string target = 3; // local mount point
+  string machineName = 1; 
+  string folderPath = 2; // shared folder
+  string source = 3; // nfs source (ip:/path)
+  string target = 4; // local mount point
 }
 
+//defines for slaves
 service NFSService {
   rpc CreateSharedFolder(FolderMount) returns (CreateResponse);
   rpc RemoveSharedFolder(FolderMount) returns (CreateResponse);

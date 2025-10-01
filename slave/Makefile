@@ -1,3 +1,3 @@
 run:
 	go build
-	./slave
+	sudo ./slave

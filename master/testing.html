@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>512SvMan Test Console</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+  <div class="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-10">
+    <header>
+      <h1 class="text-3xl font-semibold tracking-tight">512SvMan API Playground</h1>
+      <p class="mt-2 text-sm text-slate-400">Interact with the helper endpoints exposed by <code>testingApi.go</code> without leaving the browser.</p>
+    </header>
+
+    <section class="grid gap-6 md:grid-cols-2">
+      <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl shadow-slate-950/40">
+        <div class="mb-4 flex items-center justify-between gap-4">
+          <div>
+            <h2 class="text-lg font-medium text-slate-100">Active Connections</h2>
+            <p id="connections-status" class="text-sm text-slate-500">Loading…</p>
+          </div>
+          <button id="connections-refresh" class="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800/60">
+            Refresh
+          </button>
+        </div>
+        <div class="overflow-hidden rounded-xl border border-slate-800">
+          <table class="min-w-full divide-y divide-slate-800 text-sm">
+            <thead class="bg-slate-900/80 text-slate-400">
+              <tr>
+                <th scope="col" class="px-4 py-2 text-left font-medium">Machine</th>
+                <th scope="col" class="px-4 py-2 text-left font-medium">Address</th>
+              </tr>
+            </thead>
+            <tbody id="connections-table" class="divide-y divide-slate-800 bg-slate-950/40"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-emerald-900/50 bg-emerald-950/40 p-6 shadow-xl shadow-emerald-950/30">
+        <h2 class="text-lg font-medium text-emerald-200">Create Share</h2>
+        <p class="mb-4 text-sm text-emerald-300/70">Send a <code>POST /createSharePoint</code> with the machine name and folder path to share.</p>
+        <form id="create-form" class="flex flex-col gap-4">
+          <label class="text-sm">
+            <span class="mb-1 block text-emerald-300/80">Machine Name</span>
+            <input id="create-machine" type="text" required placeholder="e.g. node-01" class="w-full rounded-lg border border-emerald-900/80 bg-emerald-950/60 px-3 py-2 text-emerald-50 placeholder:text-emerald-200/50 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
+          </label>
+          <label class="text-sm">
+            <span class="mb-1 block text-emerald-300/80">Folder Path</span>
+            <input id="create-folder" type="text" required placeholder="e.g. /var/data" class="w-full rounded-lg border border-emerald-900/80 bg-emerald-950/60 px-3 py-2 text-emerald-50 placeholder:text-emerald-200/50 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
+          </label>
+          <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-300/80 focus:ring-offset-2 focus:ring-offset-emerald-950">Create Share</button>
+        </form>
+        <p id="create-feedback" class="mt-3 text-sm text-emerald-300/70">Awaiting action…</p>
+      </div>
+    </section>
+
+    <section class="grid gap-6 md:grid-cols-2">
+      <div class="rounded-2xl border border-rose-900/50 bg-rose-950/30 p-6 shadow-xl shadow-rose-950/30">
+        <h2 class="text-lg font-medium text-rose-200">Remove Share</h2>
+        <p class="mb-4 text-sm text-rose-200/70">Submit a <code>POST /removeSharePoint</code> using the same identifiers created previously.</p>
+        <form id="remove-form" class="flex flex-col gap-4">
+          <label class="text-sm">
+            <span class="mb-1 block text-rose-100/80">Machine Name</span>
+            <input id="remove-machine" type="text" required placeholder="e.g. node-01" class="w-full rounded-lg border border-rose-900/70 bg-rose-950/60 px-3 py-2 text-rose-50 placeholder:text-rose-200/60 focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-500/60" />
+          </label>
+          <label class="text-sm">
+            <span class="mb-1 block text-rose-100/80">Folder Path</span>
+            <input id="remove-folder" type="text" required placeholder="e.g. /var/data" class="w-full rounded-lg border border-rose-900/70 bg-rose-950/60 px-3 py-2 text-rose-50 placeholder:text-rose-200/60 focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-500/60" />
+          </label>
+          <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-500 px-4 py-2 text-sm font-semibold text-rose-950 transition hover:bg-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-300/80 focus:ring-offset-2 focus:ring-offset-rose-950">Remove Share</button>
+        </form>
+        <p id="remove-feedback" class="mt-3 text-sm text-rose-200/70">Awaiting action…</p>
+      </div>
+
+      <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl shadow-slate-950/40">
+        <div class="mb-4 flex items-center justify-between gap-4">
+          <div>
+            <h2 class="text-lg font-medium text-slate-100">Shared Folders</h2>
+            <p id="shares-status" class="text-sm text-slate-500">Loading…</p>
+          </div>
+          <button id="shares-refresh" class="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800/60">Refresh</button>
+        </div>
+        <ul id="shares-list" class="flex flex-col gap-3 text-sm text-slate-200"></ul>
+      </div>
+    </section>
+
+    <section class="rounded-2xl border border-indigo-900/60 bg-indigo-950/40 p-6 shadow-xl shadow-indigo-950/40">
+      <h2 class="text-lg font-medium text-indigo-200">Raw Responses</h2>
+      <p class="mb-4 text-sm text-indigo-200/70">The latest payloads returned by the API for quick inspection.</p>
+      <div class="grid gap-4 md:grid-cols-2">
+        <div>
+          <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-indigo-300/70">Connections JSON</h3>
+          <pre id="connections-json" class="overflow-auto rounded-xl border border-indigo-900/70 bg-indigo-950/70 p-3 text-xs text-indigo-100">Waiting…</pre>
+        </div>
+        <div>
+          <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-indigo-300/70">Shares JSON</h3>
+          <pre id="shares-json" class="overflow-auto rounded-xl border border-indigo-900/70 bg-indigo-950/70 p-3 text-xs text-indigo-100">Waiting…</pre>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const baseUrl = window.location.protocol === 'file:' ? 'http://127.0.0.1:9595' : '';
+
+    const connectionsTable = document.getElementById('connections-table');
+    const connectionsStatus = document.getElementById('connections-status');
+    const connectionsJson = document.getElementById('connections-json');
+    const sharesList = document.getElementById('shares-list');
+    const sharesStatus = document.getElementById('shares-status');
+    const sharesJson = document.getElementById('shares-json');
+    const createFeedback = document.getElementById('create-feedback');
+    const removeFeedback = document.getElementById('remove-feedback');
+
+    function setStatus(target, message, options = {}) {
+      const { isError = false, baseClass } = options;
+      if (baseClass) target.className = baseClass;
+      target.textContent = message;
+      target.classList.toggle('text-rose-300/80', isError);
+    }
+
+    function renderConnections(data) {
+      connectionsTable.innerHTML = '';
+      if (!Array.isArray(data) || data.length === 0) {
+        connectionsTable.innerHTML = '<tr><td colspan="2" class="px-4 py-4 text-center text-slate-500">No connections found.</td></tr>';
+        return;
+      }
+
+      data.forEach(({ MachineName, Addr }) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="px-4 py-3 font-medium text-slate-200">${MachineName || '—'}</td>
+          <td class="px-4 py-3 font-mono text-xs text-slate-400">${Addr || '—'}</td>
+        `;
+        connectionsTable.appendChild(row);
+      });
+    }
+
+    function renderShares(data) {
+      sharesList.innerHTML = '';
+      if (!Array.isArray(data) || data.length === 0) {
+        sharesList.innerHTML = '<li class="rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-4 text-slate-500">No shares registered.</li>';
+        return;
+      }
+
+      data.forEach((share) => {
+        const item = document.createElement('li');
+        item.className = 'rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3';
+        item.innerHTML = `
+          <div class="text-sm font-semibold text-slate-100">${share.machine_name || share.MachineName || 'Unknown'}</div>
+          <div class="mt-1 grid gap-1 text-xs text-slate-400">
+            <div><span class="font-medium text-slate-300">Folder:</span> ${share.folder_path || share.FolderPath || '—'}</div>
+            <div><span class="font-medium text-slate-300">Source:</span> ${share.source || share.Source || '—'}</div>
+            <div><span class="font-medium text-slate-300">Target:</span> ${share.target || share.Target || '—'}</div>
+          </div>
+        `;
+        sharesList.appendChild(item);
+      });
+    }
+
+    async function fetchJson(path, options = {}) {
+      const { headers: extraHeaders, ...rest } = options;
+      const response = await fetch(`${baseUrl}${path}`, {
+        ...rest,
+        headers: {
+          Accept: 'application/json',
+          ...extraHeaders,
+        },
+      });
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(`${response.status} ${response.statusText}: ${message || 'no body'}`);
+      }
+      const text = await response.text();
+      try {
+        return JSON.parse(text || '{}');
+      } catch (error) {
+        throw new Error('Failed to parse JSON response: ' + error.message);
+      }
+    }
+
+    async function loadConnections() {
+      try {
+        setStatus(connectionsStatus, 'Refreshing…', { baseClass: 'text-sm text-slate-500' });
+        const data = await fetchJson('/connections');
+        renderConnections(data);
+        connectionsJson.textContent = JSON.stringify(data, null, 2);
+        setStatus(connectionsStatus, `Last updated ${new Date().toLocaleTimeString()}`, { baseClass: 'text-sm text-slate-500' });
+      } catch (error) {
+        console.error('Connections error:', error);
+        setStatus(connectionsStatus, error.message, { baseClass: 'text-sm text-rose-300/80', isError: true });
+        connectionsJson.textContent = error.message;
+      }
+    }
+
+    async function loadShares() {
+      try {
+        setStatus(sharesStatus, 'Refreshing…', { baseClass: 'text-sm text-slate-500' });
+        const data = await fetchJson('/listShares');
+        renderShares(data);
+        sharesJson.textContent = JSON.stringify(data, null, 2);
+        setStatus(sharesStatus, `Last updated ${new Date().toLocaleTimeString()}`, { baseClass: 'text-sm text-slate-500' });
+      } catch (error) {
+        console.error('Shares error:', error);
+        setStatus(sharesStatus, error.message, { baseClass: 'text-sm text-rose-300/80', isError: true });
+        sharesJson.textContent = error.message;
+      }
+    }
+
+    document.getElementById('connections-refresh').addEventListener('click', loadConnections);
+    document.getElementById('shares-refresh').addEventListener('click', loadShares);
+
+    document.getElementById('create-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      setStatus(createFeedback, 'Sending request…', { baseClass: 'mt-3 text-sm text-emerald-300/70' });
+      const payload = {
+        machine_name: document.getElementById('create-machine').value.trim(),
+        folder_path: document.getElementById('create-folder').value.trim(),
+      };
+
+      if (!payload.machine_name || !payload.folder_path) {
+        setStatus(createFeedback, 'Both fields are required.', { baseClass: 'mt-3 text-sm text-rose-300/80', isError: true });
+        return;
+      }
+
+      try {
+        await fetchJson('/createSharePoint', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        setStatus(createFeedback, 'Share created successfully.', { baseClass: 'mt-3 text-sm text-emerald-300/70' });
+        event.target.reset();
+        loadShares();
+      } catch (error) {
+        console.error('Create share error:', error);
+        setStatus(createFeedback, error.message, { baseClass: 'mt-3 text-sm text-rose-300/80', isError: true });
+      }
+    });
+
+    document.getElementById('remove-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      setStatus(removeFeedback, 'Sending request…', { baseClass: 'mt-3 text-sm text-rose-200/70' });
+      const payload = {
+        machine_name: document.getElementById('remove-machine').value.trim(),
+        folder_path: document.getElementById('remove-folder').value.trim(),
+      };
+
+      if (!payload.machine_name || !payload.folder_path) {
+        setStatus(removeFeedback, 'Both fields are required.', { baseClass: 'mt-3 text-sm text-rose-300/80', isError: true });
+        return;
+      }
+
+      try {
+        await fetchJson('/removeSharePoint', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        setStatus(removeFeedback, 'Share removed successfully.', { baseClass: 'mt-3 text-sm text-rose-200/70' });
+        event.target.reset();
+        loadShares();
+      } catch (error) {
+        console.error('Remove share error:', error);
+        setStatus(removeFeedback, error.message, { baseClass: 'mt-3 text-sm text-rose-300/80', isError: true });
+      }
+    });
+
+    loadConnections();
+    loadShares();
+    setInterval(loadConnections, 10000);
+    setInterval(loadShares, 15000);
+  </script>
+</body>
+</html>

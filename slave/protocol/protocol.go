@@ -13,6 +13,7 @@ import (
 
 	nfsproto "github.com/Maruqes/512SvMan/api/proto/nfs"
 	pb "github.com/Maruqes/512SvMan/api/proto/protocol"
+	"github.com/Maruqes/512SvMan/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
@@ -38,7 +39,6 @@ type clientServer struct {
 
 // serve para ser pingado e ver se esta vivo
 func (s *clientServer) Notify(ctx context.Context, req *pb.NotifyRequest) (*pb.NotifyResponse, error) {
-	log.Printf("Cliente recebeu Notify: %s", req.GetText())
 	return &pb.NotifyResponse{Ok: "OK do Cliente"}, nil
 }
 
@@ -82,19 +82,21 @@ func PingMaster(conn *grpc.ClientConn) {
 		h := pb.NewProtocolServiceClient(conn)
 		_, err := h.Notify(context.Background(), &pb.NotifyRequest{Text: "Ping do Slave"})
 		if err != nil {
-			log.Printf("PingMaster: %v", err)
-		} else {
-			log.Println("PingMaster: master is alive")
+			logger.Error("PingMaster: %v", err)
 		}
 		//ping every 30 seconds
 		time.Sleep(time.Duration(env512.PingInterval) * time.Second)
 	}
 }
+func getMachineName() string {
+	name, err := os.Hostname()
+	if err != nil {
+		return "unknown"
+	}
+	return name
+}
 
 func ConnectGRPC() *grpc.ClientConn {
-	if err := env512.Setup(); err != nil {
-		log.Fatalf("env setup: %v", err)
-	}
 
 	target := fmt.Sprintf("%s:50051", env512.MasterIP)
 	go listenGRPC()
@@ -112,7 +114,7 @@ func ConnectGRPC() *grpc.ClientConn {
 
 		h := pb.NewProtocolServiceClient(conn)
 		reqCtx, reqCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		outR, err := h.SetConnection(reqCtx, &pb.SetConnectionRequest{Addr: env512.SlaveIP, MachineName: "slave1"})
+		outR, err := h.SetConnection(reqCtx, &pb.SetConnectionRequest{Addr: env512.SlaveIP, MachineName: getMachineName()})
 		reqCancel()
 		if err != nil {
 			log.Printf("SetConnection failed: %v", err)
