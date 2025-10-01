@@ -4,6 +4,7 @@ import (
 	"context"
 
 	pb "github.com/Maruqes/512SvMan/api/proto/nfs"
+	"github.com/Maruqes/512SvMan/logger"
 )
 
 type NFSService struct {

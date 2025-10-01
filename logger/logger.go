@@ -12,20 +12,50 @@ func SetType(mode string) {
 	}
 }
 
-func Info(msg string, fields ...zap.Field) {
-	log.Info(msg, fields...)
+func toFields(xs ...interface{}) []zap.Field {
+	out := make([]zap.Field, 0, len(xs))
+	i := 0
+	for i < len(xs) {
+		switch v := xs[i].(type) {
+		case zap.Field:
+			out = append(out, v)
+			i++
+		case map[string]interface{}:
+			for k, val := range v {
+				out = append(out, zap.Any(k, val))
+			}
+			i++
+		case string:
+			if i+1 < len(xs) {
+				out = append(out, zap.Any(v, xs[i+1]))
+				i += 2
+			} else {
+				out = append(out, zap.Any(v, nil))
+				i++
+			}
+		default:
+			// fallback: add with empty key
+			out = append(out, zap.Any("", v))
+			i++
+		}
+	}
+	return out
 }
 
-func Error(msg string, fields ...zap.Field) {
-	log.Error(msg, fields...)
+func Info(msg string, fields ...interface{}) {
+	log.Info(msg, toFields(fields...)...)
 }
 
-func Warn(msg string, fields ...zap.Field) {
-	log.Warn(msg, fields...)
+func Error(msg string, fields ...interface{}) {
+	log.Error(msg, toFields(fields...)...)
 }
 
-func Debug(msg string, fields ...zap.Field) {
-	log.Debug(msg, fields...)
+func Warn(msg string, fields ...interface{}) {
+	log.Warn(msg, toFields(fields...)...)
+}
+
+func Debug(msg string, fields ...interface{}) {
+	log.Debug(msg, toFields(fields...)...)
 }
 
 func Sync() {

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"slave/protocol"
+
+	logger "github.com/Maruqes/512SvMan/logger"
 )
 
 func askForSudo() {
@@ -15,6 +17,8 @@ func askForSudo() {
 }
 
 func main() {
+	logger.SetType("dev")
+
 	askForSudo()
 	conn := protocol.ConnectGRPC()
 	defer conn.Close()
