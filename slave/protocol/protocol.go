@@ -88,13 +88,6 @@ func PingMaster(conn *grpc.ClientConn) {
 		time.Sleep(time.Duration(env512.PingInterval) * time.Second)
 	}
 }
-func getMachineName() string {
-	name, err := os.Hostname()
-	if err != nil {
-		return "unknown"
-	}
-	return name
-}
 
 func ConnectGRPC() *grpc.ClientConn {
 
@@ -114,7 +107,7 @@ func ConnectGRPC() *grpc.ClientConn {
 
 		h := pb.NewProtocolServiceClient(conn)
 		reqCtx, reqCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		outR, err := h.SetConnection(reqCtx, &pb.SetConnectionRequest{Addr: env512.SlaveIP, MachineName: getMachineName()})
+		outR, err := h.SetConnection(reqCtx, &pb.SetConnectionRequest{Addr: env512.SlaveIP, MachineName: env512.MachineName})
 		reqCancel()
 		if err != nil {
 			log.Printf("SetConnection failed: %v", err)
