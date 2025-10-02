@@ -110,7 +110,7 @@ func ConnectGRPC() *grpc.ClientConn {
 
 	for {
 		log.Println("Connecting to master at", target)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		conn, err := grpc.DialContext(ctx, target, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 		cancel()
 		if err != nil {
@@ -120,7 +120,7 @@ func ConnectGRPC() *grpc.ClientConn {
 		}
 
 		h := pb.NewProtocolServiceClient(conn)
-		reqCtx, reqCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		reqCtx, reqCancel := context.WithTimeout(context.Background(), 60*time.Second)
 		outR, err := h.SetConnection(reqCtx, &pb.SetConnectionRequest{Addr: env512.SlaveIP, MachineName: env512.MachineName})
 		reqCancel()
 		if err != nil {
