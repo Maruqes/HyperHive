@@ -41,7 +41,7 @@ func listFilesInDir(dir string) ([]string, error) {
 }
 
 func isMounted(target string) bool {
-	_,err := listFilesInDir(target)
+	_, err := listFilesInDir(target)
 	if err != nil {
 		// If we can't read the directory, assume it's not mounted
 		logger.Error("cannot read mount target:", target, err)
@@ -107,6 +107,41 @@ func exportsEntry(path string) string {
 	return fmt.Sprintf("%s *(rw,sync,no_subtree_check,no_root_squash)", path)
 }
 
+func allowSELinuxForNFS(path string) error {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return fmt.Errorf("selinux path is required")
+	}
+
+	if !commandExists("getenforce") {
+		return nil
+	}
+
+	modeOut, err := exec.Command("getenforce").Output()
+	if err != nil {
+		logger.Warn("SELinux detection failed, skipping adjustments:", err)
+		return nil
+	}
+	mode := strings.TrimSpace(string(modeOut))
+	if strings.EqualFold(mode, "disabled") {
+		return nil
+	}
+
+	if err := ensureNFSSELinuxBoolean(); err != nil {
+		return err
+	}
+
+	if err := labelNFSMountSource(path); err != nil {
+		return err
+	}
+
+	if err := ensureNFSGeneratorPolicy(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // CreateSharedFolder creates a directory and ensures it is exported via /etc/exports.
 func CreateSharedFolder(folder FolderMount) error {
 	if !filepath.IsAbs(folder.FolderPath) {
@@ -119,6 +154,10 @@ func CreateSharedFolder(folder FolderMount) error {
 	}
 
 	if err := runCommand("create share directory", "sudo", "mkdir", "-p", path); err != nil {
+		return err
+	}
+
+	if err := allowSELinuxForNFS(path); err != nil {
 		return err
 	}
 
@@ -237,5 +276,86 @@ func runCommand(desc string, args ...string) error {
 		return fmt.Errorf("%s: %w", desc, err)
 	}
 	logger.Info(desc + " succeeded")
+	return nil
+}
+
+func commandExists(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
+}
+
+func ensureNFSSELinuxBoolean() error {
+	if !commandExists("setsebool") {
+		logger.Warn("setsebool binary not available, skipping SELinux boolean for NFS exports")
+		return nil
+	}
+	if err := runCommand("enable nfs_export_all_rw", "sudo", "setsebool", "-P", "nfs_export_all_rw", "on"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func labelNFSMountSource(path string) error {
+	if !commandExists("semanage") || !commandExists("restorecon") {
+		logger.Warn("semanage or restorecon missing, skipping SELinux labeling for", path)
+		return nil
+	}
+	pattern := fmt.Sprintf("%s(/.*)?", strings.TrimRight(path, "/"))
+	escapedPattern := escapeForSingleQuotes(pattern)
+	cmd := fmt.Sprintf("semanage fcontext -a -t public_content_rw_t '%s' || semanage fcontext -m -t public_content_rw_t '%s'", escapedPattern, escapedPattern)
+	if err := runCommand("label selinux context for share", "sudo", "bash", "-lc", cmd); err != nil {
+		return err
+	}
+	if err := runCommand("restore selinux context", "sudo", "restorecon", "-Rv", path); err != nil {
+		return err
+	}
+	return nil
+}
+
+func ensureNFSGeneratorPolicy() error {
+	const moduleName = "512svman_nfs_generator"
+	if !commandExists("semodule") || !commandExists("checkmodule") || !commandExists("semodule_package") {
+		logger.Warn("SELinux policy tools missing, skipping custom module installation")
+		return nil
+	}
+
+	listCmd := exec.Command("semodule", "-l")
+	out, err := listCmd.Output()
+	if err == nil && strings.Contains(string(out), moduleName) {
+		return nil
+	}
+
+	tmpDir, err := os.MkdirTemp("", "selinux-module-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpDir)
+
+	tePath := filepath.Join(tmpDir, moduleName+".te")
+	teContent := fmt.Sprintf(`module %s 1.0;
+
+require {
+    type systemd_nfs_generator_t;
+    class capability dac_read_search;
+}
+
+allow systemd_nfs_generator_t systemd_nfs_generator_t:capability dac_read_search;
+`, moduleName)
+	if err := os.WriteFile(tePath, []byte(teContent), 0644); err != nil {
+		return err
+	}
+
+	modPath := filepath.Join(tmpDir, moduleName+".mod")
+	ppPath := filepath.Join(tmpDir, moduleName+".pp")
+
+	if err := runCommand("compile selinux policy module", "sudo", "checkmodule", "-M", "-m", "-o", modPath, tePath); err != nil {
+		return err
+	}
+	if err := runCommand("package selinux policy module", "sudo", "semodule_package", "-o", ppPath, "-m", modPath); err != nil {
+		return err
+	}
+	if err := runCommand("install selinux policy module", "sudo", "semodule", "-X", "300", "-i", ppPath); err != nil {
+		return err
+	}
 	return nil
 }
