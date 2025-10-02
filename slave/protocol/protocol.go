@@ -64,14 +64,26 @@ func monitorConnection(conn *grpc.ClientConn) {
 	for {
 		state := conn.GetState()
 		switch state {
+		case connectivity.Ready:
+			// healthy, nothing to do
+		case connectivity.Idle:
+			log.Printf("connection to master idle, forcing reconnect")
+			conn.Connect()
+		case connectivity.Connecting:
+			log.Printf("connection to master reconnecting...")
 		case connectivity.Shutdown, connectivity.TransientFailure:
-			log.Printf("connection to master lost (state: %s), exiting", state)
-			//restart the program
-			restartSelf()
+			log.Printf("connection to master lost (state: %s), restarting", state)
+			_ = conn.Close()
+			if err := restartSelf(); err != nil {
+				log.Printf("failed to restart slave process: %v", err)
+			}
 			os.Exit(1)
 			return
+		default:
+			log.Printf("connection state changed: %s", state)
 		}
 		if !conn.WaitForStateChange(ctx, state) {
+			log.Println("monitorConnection: no further state changes, stopping monitor")
 			return
 		}
 	}
@@ -80,7 +92,9 @@ func monitorConnection(conn *grpc.ClientConn) {
 func PingMaster(conn *grpc.ClientConn) {
 	for {
 		h := pb.NewProtocolServiceClient(conn)
-		_, err := h.Notify(context.Background(), &pb.NotifyRequest{Text: "Ping do Slave"})
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_, err := h.Notify(ctx, &pb.NotifyRequest{Text: "Ping do Slave"})
+		cancel()
 		if err != nil {
 			logger.Error("PingMaster: %v", err)
 		}

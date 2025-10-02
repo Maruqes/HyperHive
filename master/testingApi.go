@@ -51,7 +51,7 @@ func webServer() {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		data, err := json.Marshal(protocol.Connections)
+		data, err := json.Marshal(protocol.GetConnectionsSnapshot())
 		if err != nil {
 			http.Error(w, "failed to marshal connections", http.StatusInternalServerError)
 			return
