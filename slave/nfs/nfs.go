@@ -61,7 +61,10 @@ func isMounted(target string) bool {
 func MonitorMounts() {
 	for {
 		CurrentMountsLock.RLock()
-		for _, mount := range CurrentMounts {
+		mounts := append([]FolderMount(nil), CurrentMounts...)
+		CurrentMountsLock.RUnlock()
+
+		for _, mount := range mounts {
 			//check if is mounted
 			if !isMounted(mount.Target) {
 				//if not try to mount 3 times with 5 seconds interval
@@ -87,7 +90,6 @@ func MonitorMounts() {
 				}
 			}
 		}
-		CurrentMountsLock.RUnlock()
 		time.Sleep(monitorInterval)
 	}
 }
@@ -243,10 +245,10 @@ func MountSharedFolder(folder FolderMount) error {
 		return err
 	}
 
-	logger.Info("NFS share mounted: " + source + " -> " + target)
 	CurrentMountsLock.Lock()
 	CurrentMounts = append(CurrentMounts, folder)
 	CurrentMountsLock.Unlock()
+	logger.Info("NFS share mounted: " + source + " -> " + target)
 	return nil
 }
 

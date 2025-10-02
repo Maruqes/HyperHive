@@ -68,6 +68,7 @@ func MountAllSharedFolders(conns []*grpc.ClientConn, machineNames []string) erro
 		return fmt.Errorf("length of connections and machine names must be the same")
 	}
 
+	logger.Info("Creating NFS shared folders on all slaves...")
 	// create shared folders on all provided connections
 	for _, svNSF := range serversNFS {
 		mount := &pbnfs.FolderMount{
@@ -85,6 +86,7 @@ func MountAllSharedFolders(conns []*grpc.ClientConn, machineNames []string) erro
 			if machineNames[i] != svNSF.MachineName {
 				continue
 			}
+			logger.Info("Creating NFS shared folder on machine:", machineNames[i], " with mount:", mount)
 			// create shared folder on the specific machine
 			if err := CreateSharedFolder(conn, mount); err != nil {
 				return err
@@ -92,6 +94,7 @@ func MountAllSharedFolders(conns []*grpc.ClientConn, machineNames []string) erro
 		}
 	}
 
+	logger.Info("Mounting NFS shared folders on all slaves...")
 	// mount on all provided connections
 	for _, conn := range conns {
 		if conn == nil {
@@ -104,6 +107,7 @@ func MountAllSharedFolders(conns []*grpc.ClientConn, machineNames []string) erro
 				Target:      svNSF.Target,
 				MachineName: svNSF.MachineName,
 			}
+			logger.Info("Mounting NFS shared folder on machine with mount:", mount)
 			if err := MountSharedFolder(conn, mount); err != nil {
 				return err
 			}
