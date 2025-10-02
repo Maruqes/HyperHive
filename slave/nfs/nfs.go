@@ -93,6 +93,11 @@ func MonitorMounts() {
 }
 
 func InstallNFS() error {
+	resetCmd := fmt.Sprintf("mkdir -p %s && : > %s", exportsDir, exportsFile)
+	if err := runCommand("reset NFS exports file", "sudo", "bash", "-lc", resetCmd); err != nil {
+		return err
+	}
+
 	if err := runCommand("install nfs-utils", "sudo", "dnf", "-y", "install", "nfs-utils"); err != nil {
 		return err
 	}
@@ -158,7 +163,7 @@ func CreateSharedFolder(folder FolderMount) error {
 	if err := runCommand("create share directory", "sudo", "mkdir", "-p", path); err != nil {
 		return err
 	}
-	
+
 	if err := allowSELinuxForNFS(path); err != nil {
 		return err
 	}
