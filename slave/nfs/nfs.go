@@ -21,6 +21,8 @@ type FolderMount struct {
 const (
 	monitorInterval         = 5 * time.Second
 	monitorFailureThreshold = 3
+	exportsDir              = "/etc/exports.d"
+	exportsFile             = "/etc/exports.d/512svman.exports"
 )
 
 var CurrentMounts = []FolderMount{}
@@ -142,7 +144,7 @@ func allowSELinuxForNFS(path string) error {
 	return nil
 }
 
-// CreateSharedFolder creates a directory and ensures it is exported via /etc/exports.
+// CreateSharedFolder creates a directory and ensures it is exported via exportsFile.
 func CreateSharedFolder(folder FolderMount) error {
 	if !filepath.IsAbs(folder.FolderPath) {
 		return fmt.Errorf("folder path must be a full path and exist")
@@ -156,14 +158,14 @@ func CreateSharedFolder(folder FolderMount) error {
 	if err := runCommand("create share directory", "sudo", "mkdir", "-p", path); err != nil {
 		return err
 	}
-
+	
 	if err := allowSELinuxForNFS(path); err != nil {
 		return err
 	}
 
 	entry := exportsEntry(path)
-	cmdStr := fmt.Sprintf("touch /etc/exports && (grep -Fxq %q /etc/exports || echo %q >> /etc/exports)", entry, entry)
-	if err := runCommand("update /etc/exports", "sudo", "bash", "-lc", cmdStr); err != nil {
+	cmdStr := fmt.Sprintf("mkdir -p %s && touch %s && (grep -Fxq %q %s || echo %q >> %s)", exportsDir, exportsFile, entry, exportsFile, entry, exportsFile)
+	if err := runCommand("update NFS exports", "sudo", "bash", "-lc", cmdStr); err != nil {
 		return err
 	}
 
@@ -185,14 +187,15 @@ func RemoveSharedFolder(folder FolderMount) error {
 	//    - Robust to different export options/spacing on the line
 	filterCmd := fmt.Sprintf(`
 set -euo pipefail
-if [ -f /etc/exports ]; then
+file='%s'
+if [ -f "$file" ]; then
   tmp=$(mktemp)
-  awk -v p='%s' 'BEGIN{OFS=FS=" "}{ if ($0 ~ /^[[:space:]]*#/ || NF==0) { print; next } if ($1!=p) { print } }' /etc/exports > "$tmp"
-  sudo install -m 0644 "$tmp" /etc/exports
+  awk -v p='%s' 'BEGIN{OFS=FS=" "}{ if ($0 ~ /^[[:space:]]*#/ || NF==0) { print; next } if ($1!=p) { print } }' "$file" > "$tmp"
+  install -m 0644 "$tmp" "$file"
   rm -f "$tmp"
 fi
-`, escapeForSingleQuotes(path))
-	if err := runCommand("filter /etc/exports", "sudo", "bash", "-lc", filterCmd); err != nil {
+`, escapeForSingleQuotes(exportsFile), escapeForSingleQuotes(path))
+	if err := runCommand("filter NFS exports", "sudo", "bash", "-lc", filterCmd); err != nil {
 		return err
 	}
 
@@ -313,7 +316,8 @@ func labelNFSMountSource(path string) error {
 }
 
 func ensureNFSGeneratorPolicy() error {
-	const moduleName = "512svman_nfs_generator"
+	// Module names must begin with a letter per SELinux policy syntax rules.
+	const moduleName = "svman_nfs_generator"
 	if !commandExists("semodule") || !commandExists("checkmodule") || !commandExists("semodule_package") {
 		logger.Warn("SELinux policy tools missing, skipping custom module installation")
 		return nil
