@@ -30,6 +30,14 @@ func GetAllGRPCConnections() []*grpc.ClientConn {
 	return conns
 }
 
+func GetAllMachineNames() []string {
+	var names []string
+	for _, c := range Connections {
+		names = append(names, c.MachineName)
+	}
+	return names
+}
+
 //should listen on prt and recieve ips on SetConnection from slaves
 //and connect to the slaves on their ClientService
 

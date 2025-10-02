@@ -105,7 +105,7 @@ func webServer() {
 			return
 		}
 
-		err = nfs.MountAllSharedFolders(protocol.GetAllGRPCConnections())
+		err = nfs.MountAllSharedFolders(protocol.GetAllGRPCConnections(), protocol.GetAllMachineNames())
 		if err != nil {
 			logger.Error("MountAllSharedFolders failed: %v", err)
 			http.Error(w, "failed to mount all shared folders", http.StatusInternalServerError)

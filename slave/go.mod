@@ -6,7 +6,6 @@ require (
 	github.com/Maruqes/512SvMan/api v0.0.0
 	github.com/Maruqes/512SvMan/logger v0.0.0-20251001141129-5e5e217740cf
 	github.com/joho/godotenv v1.5.1
-	github.com/mattn/go-sqlite3 v1.14.32
 	google.golang.org/grpc v1.75.1
 	libvirt.org/go/libvirt v1.11006.0
 )

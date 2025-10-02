@@ -15,7 +15,7 @@ import (
 )
 
 func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
-	err := nfs.MountAllSharedFolders(protocol.GetAllGRPCConnections())
+	err := nfs.MountAllSharedFolders(protocol.GetAllGRPCConnections(), protocol.GetAllMachineNames())
 	if err != nil {
 		return err
 	}
