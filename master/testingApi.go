@@ -3,6 +3,7 @@ package main
 import (
 	"512SvMan/db"
 	"512SvMan/nfs"
+	"512SvMan/npm"
 	"512SvMan/protocol"
 	"encoding/json"
 	"log"
@@ -33,15 +34,14 @@ func getFolderName(path string) string {
 	return name
 }
 
-func webServer() {
-
+func nfsEndpoints() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
 			return
 		}
-		//write testing.html file
-		http.ServeFile(w, r, "testing.html")
+		// serve the proxy playground by default
+		http.ServeFile(w, r, "web/testProxys.html")
 	})
 
 	http.HandleFunc("/connections", func(w http.ResponseWriter, r *http.Request) {
@@ -179,6 +179,152 @@ func webServer() {
 
 		_, _ = w.Write(data)
 	})
+}
+
+func proxyEndpoints() {
+	http.HandleFunc("/listProxies", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+			return
+		}
+
+		proxies, err := npm.GetAllProxys(baseURL, loginToken)
+		if err != nil {
+			http.Error(w, "failed to get proxies: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		data, err := json.Marshal(proxies)
+		if err != nil {
+			http.Error(w, "failed to marshal proxies", http.StatusInternalServerError)
+			return
+		}
+
+		_, _ = w.Write(data)
+	})
+
+	http.HandleFunc("/createProxy", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var p npm.Proxy
+		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		defer r.Body.Close()
+
+		_, err := npm.CreateProxy(baseURL, loginToken, p)
+		if err != nil {
+			http.Error(w, "failed to create proxy: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	})
+
+	http.HandleFunc("/editProxy", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var p npm.Proxy
+		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		defer r.Body.Close()
+
+		err := npm.EditProxy(baseURL, loginToken, p)
+		if err != nil {
+			http.Error(w, "failed to edit proxy: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	})
+
+	http.HandleFunc("/deleteProxy", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var p struct {
+			ID int `json:"id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		defer r.Body.Close()
+
+		err := npm.DeleteProxy(baseURL, loginToken, p.ID)
+		if err != nil {
+			http.Error(w, "failed to delete proxy: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	})
+
+	http.HandleFunc("/disableProxy", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var p struct {
+			ID int `json:"id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		defer r.Body.Close()
+
+		err := npm.DisableProxy(baseURL, loginToken, p.ID)
+		if err != nil {
+			http.Error(w, "failed to disable proxy: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	})
+
+	http.HandleFunc("/enableProxy", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var p struct {
+			ID int `json:"id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		defer r.Body.Close()
+
+		err := npm.EnableProxy(baseURL, loginToken, p.ID)
+		if err != nil {
+			http.Error(w, "failed to enable proxy: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	})
+}
+
+func webServer() {
+	nfsEndpoints()
+	proxyEndpoints()
+
+	http.Handle("/web/", http.StripPrefix("/web/", http.FileServer(http.Dir("./web"))))
 
 	log.Println("Iniciando webserver em :9595")
 	if err := http.ListenAndServe(":9595", nil); err != nil {

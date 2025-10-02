@@ -14,6 +14,9 @@ import (
 	"google.golang.org/grpc"
 )
 
+var loginToken string
+var baseURL string
+
 func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 	err := nfs.MountAllSharedFolders(protocol.GetAllGRPCConnections(), protocol.GetAllMachineNames())
 	if err != nil {
@@ -49,14 +52,14 @@ func main() {
 	protocol.ListenGRPC(newSlave)
 
 	hostAdmin := "127.0.0.1:81"
-	base := "http://" + hostAdmin
+	baseURL = "http://" + hostAdmin
 
-	token, err := npm.SetupNPM(base)
+	token, err := npm.SetupNPM(baseURL)
 
 	if err != nil {
 		panic(err)
 	}
-
+	loginToken = token
 	println("NPM setup complete, token:", token)
 
 	webServer()

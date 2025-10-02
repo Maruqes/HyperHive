@@ -9,6 +9,37 @@ import (
 	"time"
 )
 
+type StringOrInt string
+
+func (s *StringOrInt) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 || string(data) == "null" {
+		*s = ""
+		return nil
+	}
+	if data[0] == '"' {
+		var str string
+		if err := json.Unmarshal(data, &str); err != nil {
+			return err
+		}
+		*s = StringOrInt(str)
+		return nil
+	}
+	var num json.Number
+	if err := json.Unmarshal(data, &num); err != nil {
+		return err
+	}
+	*s = StringOrInt(num.String())
+	return nil
+}
+
+func (s StringOrInt) MarshalJSON() ([]byte, error) {
+	return json.Marshal(string(s))
+}
+
+func (s StringOrInt) String() string {
+	return string(s)
+}
+
 type Proxy struct {
 	ID                    int            `json:"id"`
 	DomainNames           []string       `json:"domain_names"`
@@ -18,7 +49,7 @@ type Proxy struct {
 	CachingEnabled        bool           `json:"caching_enabled"`
 	BlockExploits         bool           `json:"block_exploits"`
 	AllowWebsocketUpgrade bool           `json:"allow_websocket_upgrade"`
-	AccessListID          string         `json:"access_list_id"`
+	AccessListID          StringOrInt    `json:"access_list_id"`
 	CertificateID         int            `json:"certificate_id"`
 	Meta                  map[string]any `json:"meta"`
 	AdvancedConfig        string         `json:"advanced_config"`
@@ -27,6 +58,7 @@ type Proxy struct {
 	HstsEnabled           bool           `json:"hsts_enabled"`
 	HstsSubdomains        bool           `json:"hsts_subdomains"`
 	SslForced             bool           `json:"ssl_forced"`
+	Enabled               bool           `json:"enabled"`
 }
 
 /*
@@ -65,7 +97,7 @@ func CreateProxy(baseURL, token string, p Proxy) (int, error) {
 		"caching_enabled":         p.CachingEnabled,
 		"block_exploits":          p.BlockExploits,
 		"allow_websocket_upgrade": p.AllowWebsocketUpgrade,
-		"access_list_id":          p.AccessListID,
+		"access_list_id":          p.AccessListID.String(),
 		"certificate_id":          p.CertificateID,
 		"meta":                    p.Meta,
 		"advanced_config":         p.AdvancedConfig,
@@ -112,7 +144,6 @@ func CreateProxy(baseURL, token string, p Proxy) (int, error) {
 	return id, nil
 }
 
-
 func EditProxy(baseURL, token string, p Proxy) error {
 	reqBody := map[string]any{
 		"domain_names":            p.DomainNames,
@@ -122,7 +153,7 @@ func EditProxy(baseURL, token string, p Proxy) error {
 		"caching_enabled":         p.CachingEnabled,
 		"block_exploits":          p.BlockExploits,
 		"allow_websocket_upgrade": p.AllowWebsocketUpgrade,
-		"access_list_id":          p.AccessListID,
+		"access_list_id":          p.AccessListID.String(),
 		"certificate_id":          p.CertificateID,
 		"meta":                    p.Meta,
 		"advanced_config":         p.AdvancedConfig,
@@ -159,4 +190,98 @@ func EditProxy(baseURL, token string, p Proxy) error {
 	}
 
 	return nil
+}
+
+// POST TO /api/nginx/proxy-hosts/{id}/disable
+func DisableProxy(baseURL, token string, id int) error {
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d/disable", baseURL, id), nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{Timeout: 20 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 && resp.StatusCode != 201 {
+		return fmt.Errorf("disable proxy failed (%d): %s", resp.StatusCode, respBody)
+	}
+
+	return nil
+}
+
+func EnableProxy(baseURL, token string, id int) error {
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d/enable", baseURL, id), nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{Timeout: 20 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 && resp.StatusCode != 201 {
+		return fmt.Errorf("enable proxy failed (%d): %s", resp.StatusCode, respBody)
+	}
+
+	return nil
+}
+
+// DELETE /api/nginx/proxy-hosts/{id}
+func DeleteProxy(baseURL, token string, id int) error {
+	req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d", baseURL, id), nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{Timeout: 20 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 && resp.StatusCode != 204 {
+		return fmt.Errorf("delete proxy failed (%d): %s", resp.StatusCode, respBody)
+	}
+	return nil
+}
+
+func GetAllProxys(baseURL, token string) ([]Proxy, error) {
+	req, err := http.NewRequest("GET", baseURL+"/api/nginx/proxy-hosts", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{Timeout: 20 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 && resp.StatusCode != 201 {
+		return nil, fmt.Errorf("get proxys failed (%d): %s", resp.StatusCode, respBody)
+	}
+
+	var proxys []Proxy
+	if err := json.Unmarshal(respBody, &proxys); err != nil {
+		return nil, err
+	}
+
+	return proxys, nil
 }
