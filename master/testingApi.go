@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 
 	proto "github.com/Maruqes/512SvMan/api/proto/nfs"
 	logger "github.com/Maruqes/512SvMan/logger"
@@ -18,6 +19,8 @@ type sharePoint struct {
 }
 
 func getFolderName(path string) string {
+	path = strings.TrimSuffix(path, "/")
+
 	//split by /
 	parts := []rune(path)
 	name := ""
@@ -129,6 +132,8 @@ func webServer() {
 			http.Error(w, "slave not connected", http.StatusServiceUnavailable)
 			return
 		}
+
+		//remove last slash
 
 		mount := &proto.FolderMount{
 			MachineName: sP.MachineName,

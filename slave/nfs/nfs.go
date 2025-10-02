@@ -1,9 +1,7 @@
 package nfs
 
 import (
-	"context"
 	"fmt"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,19 +18,77 @@ type FolderMount struct {
 	Target     string // local mount point
 }
 
-type mountMonitorEntry struct {
-	cancel context.CancelFunc
-}
-
-var (
-	mountMonitorsMu sync.Mutex
-	mountMonitors   = make(map[string]*mountMonitorEntry)
-)
-
 const (
 	monitorInterval         = 5 * time.Second
 	monitorFailureThreshold = 3
 )
+
+var CurrentMounts = []FolderMount{}
+var CurrentMountsLock = &sync.RWMutex{}
+
+func listFilesInDir(dir string) ([]string, error) {
+	f, err := os.Open(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	files, err := f.Readdirnames(-1)
+	if err != nil {
+		return nil, err
+	}
+	return files, nil
+}
+
+func isMounted(target string) bool {
+	_,err := listFilesInDir(target)
+	if err != nil {
+		// If we can't read the directory, assume it's not mounted
+		logger.Error("cannot read mount target:", target, err)
+		return false
+	}
+	// Use the mountpoint command to check if the target is a mount point
+	out, err := exec.Command("mountpoint", "-q", target).CombinedOutput()
+	if err != nil {
+		logger.Error("mountpoint check failed:", err, string(out))
+		return false
+	}
+	return true
+}
+
+func MonitorMounts() {
+	for {
+		CurrentMountsLock.RLock()
+		for _, mount := range CurrentMounts {
+			//check if is mounted
+			if !isMounted(mount.Target) {
+				//if not try to mount 3 times with 5 seconds interval
+				logger.Warn("NFS mount lost, attempting to remount:", mount.Target)
+				success := false
+				for i := 0; i < monitorFailureThreshold; i++ {
+					err := MountSharedFolder(mount)
+					if err == nil {
+						success = true
+						break
+					}
+					time.Sleep(monitorInterval)
+				}
+				if !success {
+					logger.Error("Failed to remount NFS share after multiple attempts:", mount.Target)
+					err := UnmountSharedFolder(mount)
+					if err != nil {
+						logger.Error("Failed to unmount NFS share:", mount.Target, err)
+					}
+					logger.Error("NFS share unmounted to prevent further issues:", mount.Target)
+				} else {
+					logger.Info("Successfully remounted NFS share:", mount.Target)
+				}
+			}
+		}
+		CurrentMountsLock.RUnlock()
+		time.Sleep(monitorInterval)
+	}
+}
 
 func InstallNFS() error {
 	if err := runCommand("install nfs-utils", "sudo", "dnf", "-y", "install", "nfs-utils"); err != nil {
@@ -43,26 +99,12 @@ func InstallNFS() error {
 		return err
 	}
 	logger.Info("NFS installed and nfs-server enabled")
+	go MonitorMounts()
 	return nil
 }
 
 func exportsEntry(path string) string {
 	return fmt.Sprintf("%s *(rw,sync,no_subtree_check,no_root_squash)", path)
-}
-
-func escapeForSedLiteral(text string) string {
-	replacer := strings.NewReplacer(
-		`\\`, `\\\\`,
-		`#`, `\#`,
-		`[`, `\[`,
-		`]`, `\]`,
-		`^`, `\^`,
-		`$`, `\$`,
-		`.`, `\.`,
-		`*`, `\*`,
-		`"`, `\"`,
-	)
-	return replacer.Replace(text)
 }
 
 // CreateSharedFolder creates a directory and ensures it is exported via /etc/exports.
@@ -123,10 +165,6 @@ fi
 		return err
 	}
 
-	// 4) Remove the directory (best-effort)
-	if err := runCommand("remove share directory", "sudo", "rm", "-rf", path); err != nil {
-		return err
-	}
 	logger.Info("NFS share removed:", path)
 	return nil
 }
@@ -158,8 +196,10 @@ func MountSharedFolder(folder FolderMount) error {
 		return err
 	}
 
-	startMountMonitor(source, target)
 	logger.Info("NFS share mounted: " + source + " -> " + target)
+	CurrentMountsLock.Lock()
+	CurrentMounts = append(CurrentMounts, folder)
+	CurrentMountsLock.Unlock()
 	return nil
 }
 
@@ -169,115 +209,19 @@ func UnmountSharedFolder(folder FolderMount) error {
 		return fmt.Errorf("target is required")
 	}
 
-	monitorWasRunning := stopMountMonitor(target)
 	if err := runCommand("unmount nfs share", "sudo", "umount", target); err != nil {
-		if monitorWasRunning {
-			startMountMonitor(folder.Source, target)
-		}
 		return err
 	}
 	logger.Info("NFS share unmounted: " + target)
-	return nil
-}
-
-func startMountMonitor(source, target string) {
-	host, err := extractNFSServer(source)
-	if err != nil {
-		logger.Warn("unable to start NFS monitor", "source", source, "error", err)
-		return
-	}
-
-	mountMonitorsMu.Lock()
-	if existing := mountMonitors[target]; existing != nil {
-		existing.cancel()
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	entry := &mountMonitorEntry{cancel: cancel}
-	mountMonitors[target] = entry
-	mountMonitorsMu.Unlock()
-
-	go monitorNFSMount(ctx, entry, host, source, target)
-}
-
-func stopMountMonitor(target string) bool {
-	mountMonitorsMu.Lock()
-	entry := mountMonitors[target]
-	if entry != nil {
-		delete(mountMonitors, target)
-	}
-	mountMonitorsMu.Unlock()
-	if entry != nil {
-		entry.cancel()
-		return true
-	}
-	return false
-}
-
-func monitorNFSMount(ctx context.Context, entry *mountMonitorEntry, host, source, target string) {
-	defer clearMountMonitor(target, entry)
-
-	ticker := time.NewTicker(monitorInterval)
-	defer ticker.Stop()
-
-	failureCount := 0
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if isNFSServerReachable(host) {
-				failureCount = 0
-				continue
-			}
-			failureCount++
-			if failureCount < monitorFailureThreshold {
-				continue
-			}
-
-			logger.Warn("nfs server unreachable; attempting automatic unmount", "source", source, "target", target)
-			if err := runCommand("auto unmount nfs share", "sudo", "umount", "-f", target); err != nil {
-				logger.Error("automatic nfs unmount failed", "target", target, "error", err)
-				failureCount = monitorFailureThreshold - 1
-				continue
-			}
-			logger.Info("nfs share automatically unmounted", "source", source, "target", target)
-			return
+	CurrentMountsLock.Lock()
+	defer CurrentMountsLock.Unlock()
+	for i, m := range CurrentMounts {
+		if m.Target == target {
+			CurrentMounts = append(CurrentMounts[:i], CurrentMounts[i+1:]...)
+			break
 		}
 	}
-}
-
-func clearMountMonitor(target string, entry *mountMonitorEntry) {
-	mountMonitorsMu.Lock()
-	if mountMonitors[target] == entry {
-		delete(mountMonitors, target)
-	}
-	mountMonitorsMu.Unlock()
-}
-
-func extractNFSServer(source string) (string, error) {
-	trimmed := strings.TrimSpace(source)
-	if trimmed == "" {
-		return "", fmt.Errorf("empty nfs source")
-	}
-	idx := strings.Index(trimmed, ":/")
-	if idx == -1 {
-		return "", fmt.Errorf("invalid nfs source %q", source)
-	}
-	host := strings.Trim(trimmed[:idx], "[]")
-	if host == "" {
-		return "", fmt.Errorf("invalid nfs host in %q", source)
-	}
-	return host, nil
-}
-
-func isNFSServerReachable(host string) bool {
-	dialer := net.Dialer{Timeout: 3 * time.Second}
-	conn, err := dialer.Dial("tcp", net.JoinHostPort(host, "2049"))
-	if err != nil {
-		return false
-	}
-	_ = conn.Close()
-	return true
+	return nil
 }
 
 func runCommand(desc string, args ...string) error {
