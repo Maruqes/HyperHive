@@ -1,13 +1,13 @@
 package npm
 
 import (
-	"512SvMan/env512"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -140,84 +140,101 @@ services:
 	return nil
 }
 
-func SetupNPM(base string) (string, error) {
+func DeleteBaseUser(base, email, password string) error {
+	//login into new user
+	token, err := retry[string](60*time.Second, 2*time.Second, func() (string, error) {
+		return Login(base, email, password)
+	})
+	if err != nil {
+		return err
+	}
+
+	//delete default admin user
+	users, err := GetAllUsers(base, token)
+	if err != nil {
+		return err
+	}
+	for _, u := range users {
+		if u.Email == adminEmail {
+			err := DeleteUser(base, token, u.ID)
+			if err != nil {
+				return err
+			}
+			fmt.Println("Deleted default admin user", adminEmail)
+		}
+	}
+	return nil
+}
+func SetupNPM(base string) error {
 
 	fmt.Println("Pulling and starting NPM container…")
 	err := PullImage()
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	err = waitForNPM(base, 2*time.Minute)
 	if err != nil {
-		return "", err
+		return err
 	}
 	fmt.Println("NPM is ready at", base)
 
 	// ensure API is ready before we try to use it
 	err = waitForAPI(base, 1*time.Minute)
 	if err != nil {
-		return "", err
+		return err
 	}
 	fmt.Println("NPM API is ready…")
 
-	//try new user first, in case we re-run against existing setup
-	token, err := retry[string](60*time.Second, 2*time.Second, func() (string, error) {
-		return Login(base, env512.NPM_USER_EMAIL, env512.NPM_USER_PASS)
-	})
-	if err == nil {
-		fmt.Println("New user already exists, logged in as", env512.NPM_USER_NICK)
-		return token, nil
-	}
-
-	//we failed login as new user, try admin
-	token, err = retry[string](60*time.Second, 2*time.Second, func() (string, error) {
+	token, err := retry[string](30*time.Second, 2*time.Second, func() (string, error) {
 		return Login(base, adminEmail, adminPass)
 	})
 	if err != nil {
+		if strings.Contains(err.Error(), "Invalid email or password") {
+			fmt.Println("Admin user already changed password, skipping creation.")
+			return nil
+		}
+		return err
+	}
+
+	if token != "" {
+		//ask for a new user
+		fmt.Print("Enter new user email: ")
+		var email string
+		fmt.Scanln(&email)
+
+		fmt.Print("Enter new user name: ")
+		var name string
+		fmt.Scanln(&name)
+
+		fmt.Print("Enter new user nick (username): ")
+		var nick string
+		fmt.Scanln(&nick)
+
+		fmt.Print("Enter new user password: ")
+		var pass string
+		fmt.Scanln(&pass)
+
+		id, err := CreateUser(base, token, NewUser{
+			User: UserCreation{
+				Name:       name,
+				Nickname:   nick,
+				Email:      email,
+				Roles:      []string{"admin"},
+				IsDisabled: false,
+			},
+			Password: pass,
+		})
 		if err != nil {
-			return "", err
+			return err
 		}
-		return token, nil
-	}
-
-	//create new user
-	userID, err := CreateUser(base, token, NewUser{
-		User: UserCreation{
-			Name:     env512.NPM_USER_NAME,
-			Nickname: env512.NPM_USER_NICK,
-			Email:    env512.NPM_USER_EMAIL,
-			Roles:    []string{"admin"},
-		},
-		Password: env512.NPM_USER_PASS,
-	})
-	if err != nil {
-		return "", err
-	}
-	fmt.Println("Created user", env512.NPM_USER_NICK+" with ID "+fmt.Sprint(userID))
-
-	//login into new user
-	token, err = retry[string](60*time.Second, 2*time.Second, func() (string, error) {
-		return Login(base, env512.NPM_USER_EMAIL, env512.NPM_USER_PASS)
-	})
-	if err != nil {
-		return "", err
-	}
-
-	//delete default admin user
-	users, err := GetAllUsers(base, token)
-	if err != nil {
-		return "", err
-	}
-	for _, u := range users {
-		if u.Email == adminEmail {
-			err := DeleteUser(base, token, u.ID)
-			if err != nil {
-				return "", err
-			}
-			fmt.Println("Deleted default admin user", adminEmail)
+		fmt.Println("Created new user with id:", id)
+		//disable admin user
+		err = DeleteBaseUser(base, email, pass)
+		if err != nil {
+			return err
 		}
 	}
 
-	return token, nil
+	return nil
 }

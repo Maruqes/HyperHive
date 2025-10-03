@@ -1,10 +1,10 @@
 package main
 
 import (
+	"512SvMan/api"
 	"512SvMan/db"
 	"512SvMan/env512"
 	"512SvMan/nfs"
-	"512SvMan/npm"
 	"512SvMan/protocol"
 	"fmt"
 	"log"
@@ -14,7 +14,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-var loginToken string
 var baseURL string
 
 func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
@@ -51,18 +50,9 @@ func main() {
 	//listen and connects to gRPC
 	protocol.ListenGRPC(newSlave)
 
-	hostAdmin := "127.0.0.1:81"
-	baseURL = "http://" + hostAdmin
+	api.StartApi()
 
-	token, err := npm.SetupNPM(baseURL)
-
-	if err != nil {
-		panic(err)
-	}
-	loginToken = token
-	println("NPM setup complete, token:", token)
-
-	webServer()
+	// webServer()
 
 	// xml, err := virsh.CreateVMCustomCPU(
 	// 	"qemu:///system",
