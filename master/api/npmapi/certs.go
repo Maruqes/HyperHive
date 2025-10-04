@@ -85,51 +85,42 @@ func createCertLetsEncrypt(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	// Força campos obrigatórios
 	p.Provider = "letsencrypt"
 
-	// Validações úteis antes de chamar o NPM
+	// validações úteis
 	if len(p.DomainNames) == 0 {
 		http.Error(w, "domain_names is required", http.StatusBadRequest)
 		return
 	}
-	if p.Meta.LetsEncryptEmail == "" {
-		http.Error(w, "meta.letsencrypt_email is required", http.StatusBadRequest)
+	if p.Meta.LetsEncryptEmail == "" || !p.Meta.LetsEncryptAgree {
+		http.Error(w, "meta.letsencrypt_email and meta.letsencrypt_agree=true are required", http.StatusBadRequest)
 		return
 	}
-	if !p.Meta.LetsEncryptAgree {
-		http.Error(w, "meta.letsencrypt_agree must be true", http.StatusBadRequest)
+	if p.Meta.DNSChallenge && p.Meta.DNSProvider == "" {
+		http.Error(w, "meta.dns_provider is required when dns_challenge=true", http.StatusBadRequest)
 		return
 	}
 
-	// Se usares wildcard (*.dominio), tens de usar DNS challenge
-	for _, d := range p.DomainNames {
-		if strings.HasPrefix(d, "*.") && !p.Meta.DNSChallenge {
-			http.Error(w, "wildcard domains require meta.dns_challenge=true", http.StatusBadRequest)
-			return
-		}
-	}
-
-	// Se DNS challenge estiver ativo, valida provider e credenciais
+	// normaliza credenciais por provider
 	if p.Meta.DNSChallenge {
-		if p.Meta.DNSProvider == "" {
-			http.Error(w, "meta.dns_provider is required when dns_challenge=true", http.StatusBadRequest)
-			return
-		}
-		if len(p.Meta.DNSProviderCredentials) == 0 {
-			http.Error(w, "meta.dns_provider_credentials is required when dns_challenge=true", http.StatusBadRequest)
-			return
+		switch strings.ToLower(p.Meta.DNSProvider) {
+		case "dynu":
+			// Se vieres a receber só o token cru do cliente, transforma aqui:
+			// p.Meta.DNSProviderCredentials = fmt.Sprintf("dns_dynu_auth_token = %s", token)
+			if !strings.Contains(p.Meta.DNSProviderCredentials, "dns_dynu_auth_token") {
+				http.Error(w, "for dynu, meta.dns_provider_credentials must be: 'dns_dynu_auth_token = <TOKEN>'", http.StatusBadRequest)
+				return
+			}
+			// outros providers têm o seu formato específico (Cloudflare, deSEC, etc.)
 		}
 	}
 
 	loginToken := GetTokenFromContext(r)
-
 	id, err := npm.CreateLetsEncryptCert(baseURL, loginToken, p)
 	if err != nil {
 		http.Error(w, "failed to create cert: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{"id": id})
 }
