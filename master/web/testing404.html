@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>512SvMan Dead Hosts Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            light: '#fb923c',
+                            base: '#f97316',
+                            dark: '#ea580c'
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+</head>
+<body class="min-h-screen bg-slate-950 bg-[radial-gradient(circle_at_top,_rgba(249,115,22,0.18),_transparent_55%)] text-slate-100 flex justify-center p-6 sm:p-8">
+    <main class="w-full max-w-6xl space-y-6">
+        <header class="rounded-2xl border border-slate-800/70 bg-slate-900/70 backdrop-blur-sm p-6 sm:p-8 shadow-xl space-y-4">
+            <div class="space-y-2">
+                <h1 class="text-3xl font-semibold tracking-[0.25em] uppercase">512SvMan // Dead Hosts Lab</h1>
+                <p class="text-sm text-slate-400">A mesma vibe do painel de proxies, agora focado nos "dead hosts" 404 do NPM.</p>
+            </div>
+            <form id="tokenForm" class="grid gap-3 sm:grid-cols-[max-content_1fr] sm:items-center sm:gap-4">
+                <label for="tokenInput" class="text-xs uppercase tracking-[0.2em] text-slate-400">Login token</label>
+                <div class="flex flex-col gap-2 sm:flex-row">
+                    <input id="tokenInput" type="text" placeholder="cola aqui o token" autocomplete="off" spellcheck="false" class="w-full min-w-[220px] rounded-xl border border-transparent bg-slate-950/60 px-4 py-2 text-sm text-slate-100 shadow-inner outline-none transition focus:border-brand-base">
+                    <div class="flex gap-2 sm:flex-none">
+                        <button type="submit" class="flex-1 rounded-xl bg-gradient-to-r from-brand-dark to-brand-base px-4 py-2 text-sm font-semibold text-slate-950 shadow transition hover:shadow-lg hover:brightness-[1.05]">Guardar token</button>
+                        <button type="button" id="clearToken" class="flex-1 rounded-xl border border-slate-700/70 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800/80">Limpar</button>
+                    </div>
+                </div>
+            </form>
+            <div id="tokenStatus" class="text-sm text-slate-500">Token ainda nao definido.</div>
+        </header>
+
+        <section class="grid gap-6 lg:grid-cols-[2fr_1.1fr]">
+            <section class="space-y-4 rounded-2xl border border-slate-800/70 bg-slate-900/60 p-6 shadow-lg">
+                <div class="flex flex-wrap items-center gap-3">
+                    <h2 class="flex-1 text-xl font-semibold">Inventario de dead hosts</h2>
+                    <div class="flex gap-2">
+                        <button type="button" id="refreshList" class="rounded-xl bg-gradient-to-r from-brand-dark to-brand-base px-4 py-2 text-sm font-semibold text-slate-950 transition hover:shadow-lg">Atualizar lista</button>
+                        <button type="button" id="resetFormButton" class="rounded-xl border border-slate-700/70 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800/80">Limpar formulario</button>
+                    </div>
+                </div>
+                <div class="overflow-hidden rounded-2xl border border-slate-800/60">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-800 text-sm">
+                            <thead class="bg-slate-900/80 text-xs uppercase tracking-[0.2em] text-slate-400">
+                                <tr>
+                                    <th class="px-4 py-3 text-left">ID</th>
+                                    <th class="px-4 py-3 text-left">Dominios</th>
+                                    <th class="px-4 py-3 text-left">Cert / Config</th>
+                                    <th class="px-4 py-3 text-left">Sinalizadores</th>
+                                    <th class="px-4 py-3 text-left">Acoes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="hostsBody" class="divide-y divide-slate-800/70">
+                                <tr>
+                                    <td colspan="5" class="px-4 py-6 text-center text-xs text-slate-500">Ainda sem dados. Carrega em "Atualizar lista".</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section class="space-y-4 rounded-2xl border border-slate-800/70 bg-slate-900/60 p-6 shadow-lg">
+                <h2 id="formTitle" class="text-xl font-semibold">Criar novo dead host</h2>
+                <form id="hostForm" class="space-y-5 text-sm">
+                    <div class="space-y-2">
+                        <label for="domainsInput" class="text-xs uppercase tracking-[0.2em] text-slate-400">Dominios (um por linha ou separados por virgulas)</label>
+                        <textarea id="domainsInput" rows="4" placeholder="ex\n404.example.com" class="w-full rounded-xl border border-transparent bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-base"></textarea>
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div class="space-y-2">
+                            <label for="certificateInput" class="text-xs uppercase tracking-[0.2em] text-slate-400">Certificate ID</label>
+                            <input id="certificateInput" type="number" min="0" value="0" class="w-full rounded-xl border border-transparent bg-slate-950/60 px-4 py-2 text-sm text-slate-100 outline-none transition focus:border-brand-base">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-xs uppercase tracking-[0.2em] text-slate-400">Estado</label>
+                            <label class="flex items-center gap-3 rounded-xl border border-slate-800/70 bg-slate-950/60 px-4 py-2 text-sm text-slate-200">
+                                <input id="enabledToggle" type="checkbox" class="h-4 w-4 rounded border-slate-700 bg-slate-900" checked>
+                                Ativo
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div class="space-y-2">
+                            <span class="text-xs uppercase tracking-[0.2em] text-slate-400">TLS & HTTP</span>
+                            <div class="space-y-2">
+                                <label class="flex items-center gap-3 rounded-xl border border-slate-800/70 bg-slate-950/60 px-4 py-2 text-sm text-slate-200">
+                                    <input id="sslToggle" type="checkbox" class="h-4 w-4 rounded border-slate-700 bg-slate-900">
+                                    Forcar SSL
+                                </label>
+                                <label class="flex items-center gap-3 rounded-xl border border-slate-800/70 bg-slate-950/60 px-4 py-2 text-sm text-slate-200">
+                                    <input id="http2Toggle" type="checkbox" class="h-4 w-4 rounded border-slate-700 bg-slate-900">
+                                    HTTP/2
+                                </label>
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <span class="text-xs uppercase tracking-[0.2em] text-slate-400">HSTS</span>
+                            <div class="space-y-2">
+                                <label class="flex items-center gap-3 rounded-xl border border-slate-800/70 bg-slate-950/60 px-4 py-2 text-sm text-slate-200">
+                                    <input id="hstsToggle" type="checkbox" class="h-4 w-4 rounded border-slate-700 bg-slate-900">
+                                    HSTS
+                                </label>
+                                <label class="flex items-center gap-3 rounded-xl border border-slate-800/70 bg-slate-950/60 px-4 py-2 text-sm text-slate-200">
+                                    <input id="hstsSubToggle" type="checkbox" class="h-4 w-4 rounded border-slate-700 bg-slate-900">
+                                    HSTS subdominios
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div class="space-y-2">
+                            <span class="text-xs uppercase tracking-[0.2em] text-slate-400">Let's Encrypt</span>
+                            <div class="space-y-2">
+                                <label class="flex items-center gap-3 rounded-xl border border-slate-800/70 bg-slate-950/60 px-4 py-2 text-sm text-slate-200">
+                                    <input id="letsEncryptToggle" type="checkbox" class="h-4 w-4 rounded border-slate-700 bg-slate-900">
+                                    Aceitar termos (letsencrypt_agree)
+                                </label>
+                                <label class="flex items-center gap-3 rounded-xl border border-slate-800/70 bg-slate-950/60 px-4 py-2 text-sm text-slate-200">
+                                    <input id="dnsChallengeToggle" type="checkbox" class="h-4 w-4 rounded border-slate-700 bg-slate-900">
+                                    Usar DNS challenge
+                                </label>
+                            </div>
+                        </div>
+                        <div class="space-y-2 sm:col-span-1">
+                            <label for="advancedInput" class="text-xs uppercase tracking-[0.2em] text-slate-400">Advanced config</label>
+                            <textarea id="advancedInput" rows="5" placeholder="Blocos customizados em nginx" class="w-full rounded-xl border border-transparent bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-base"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-2 sm:flex-row">
+                        <button type="submit" id="submitButton" class="flex-1 rounded-xl bg-gradient-to-r from-brand-dark to-brand-base px-4 py-2 font-semibold text-slate-950 transition hover:shadow-lg">Criar dead host</button>
+                        <button type="button" id="cancelEdit" class="hidden flex-1 rounded-xl border border-slate-700/70 px-4 py-2 font-semibold text-slate-100 transition hover:bg-slate-800/80">Cancelar edicao</button>
+                    </div>
+                </form>
+            </section>
+        </section>
+
+        <section class="rounded-2xl border border-slate-800/70 bg-slate-900/60 p-6 shadow-lg">
+            <h2 class="text-xl font-semibold">Console</h2>
+            <div id="console" class="mt-4 h-64 overflow-y-auto rounded-2xl bg-slate-950/70 p-4 font-mono text-xs leading-relaxed text-slate-300"></div>
+        </section>
+    </main>
+
+    <script>
+        (function () {
+            const STORAGE_KEY = "proxy-panel-token";
+            const state = {
+                token: localStorage.getItem(STORAGE_KEY) || "",
+                editingId: null,
+                hosts: []
+            };
+
+            const refs = {
+                tokenForm: document.getElementById("tokenForm"),
+                tokenInput: document.getElementById("tokenInput"),
+                tokenStatus: document.getElementById("tokenStatus"),
+                clearToken: document.getElementById("clearToken"),
+                refreshList: document.getElementById("refreshList"),
+                resetFormButton: document.getElementById("resetFormButton"),
+                hostsBody: document.getElementById("hostsBody"),
+                console: document.getElementById("console"),
+                hostForm: document.getElementById("hostForm"),
+                formTitle: document.getElementById("formTitle"),
+                submitButton: document.getElementById("submitButton"),
+                cancelEdit: document.getElementById("cancelEdit"),
+                domains: document.getElementById("domainsInput"),
+                certificate: document.getElementById("certificateInput"),
+                enabledToggle: document.getElementById("enabledToggle"),
+                sslToggle: document.getElementById("sslToggle"),
+                http2Toggle: document.getElementById("http2Toggle"),
+                hstsToggle: document.getElementById("hstsToggle"),
+                hstsSubToggle: document.getElementById("hstsSubToggle"),
+                letsEncryptToggle: document.getElementById("letsEncryptToggle"),
+                dnsChallengeToggle: document.getElementById("dnsChallengeToggle"),
+                advanced: document.getElementById("advancedInput")
+            };
+
+            refs.tokenInput.value = state.token;
+            updateTokenStatus();
+            resetForm();
+            log("Interface carregada. Define o token e faz refresh para ver os dead hosts.\n");
+
+            refs.tokenForm.addEventListener("submit", function (event) {
+                event.preventDefault();
+                persistToken(refs.tokenInput.value);
+            });
+
+            refs.clearToken.addEventListener("click", function () {
+                persistToken("");
+            });
+
+            refs.refreshList.addEventListener("click", function () {
+                fetchHosts();
+            });
+
+            refs.resetFormButton.addEventListener("click", function () {
+                resetForm();
+                log("Formulario limpo. Pronto para criar um novo host.\n");
+            });
+
+            refs.cancelEdit.addEventListener("click", function () {
+                resetForm();
+                log("Modo de edicao cancelado.\n");
+            });
+
+            refs.hostForm.addEventListener("submit", function (event) {
+                event.preventDefault();
+                if (!ensureToken()) {
+                    return;
+                }
+
+                const payload = buildPayloadFromForm();
+                if (!payload) {
+                    return;
+                }
+
+                if (state.editingId !== null) {
+                    payload.id = state.editingId;
+                    apiRequest("/404/edit", { method: "PUT", body: payload })
+                        .then(function () {
+                            log(`[OK] Dead host ${state.editingId} editado com sucesso.\n`);
+                            resetForm();
+                            fetchHosts();
+                        })
+                        .catch(handleError);
+                } else {
+                    apiRequest("/404/create", { method: "POST", body: payload })
+                        .then(function (result) {
+                            const createdId = result && result.id ? result.id : "?";
+                            log(`[OK] Dead host criado (id ${createdId}).\n`);
+                            resetForm();
+                            fetchHosts();
+                        })
+                        .catch(handleError);
+                }
+            });
+
+            refs.hostsBody.addEventListener("click", function (event) {
+                const button = event.target.closest("button[data-action]");
+                if (!button) {
+                    return;
+                }
+
+                const row = button.closest("tr[data-id]");
+                if (!row) {
+                    return;
+                }
+
+                const id = Number(row.getAttribute("data-id"));
+                const host = state.hosts.find(function (item) { return item.id === id; });
+                if (!host) {
+                    log(`[ERRO] Dead host ${id} nao encontrado em memoria. Atualiza a lista.\n`);
+                    return;
+                }
+
+                const action = button.getAttribute("data-action");
+                if (action === "edit") {
+                    enterEditMode(host);
+                } else if (action === "delete") {
+                    if (confirm(`Apagar o dead host ${id}?`)) {
+                        apiRequest("/404/delete", { method: "DELETE", body: { id: id } })
+                            .then(function () {
+                                log(`[DEL] Dead host ${id} eliminado.\n`);
+                                fetchHosts();
+                            })
+                            .catch(handleError);
+                    }
+                } else if (action === "toggle") {
+                    const enabled = Boolean(host.enabled);
+                    const endpoint = enabled ? "/404/disable" : "/404/enable";
+                    apiRequest(endpoint, { method: "POST", body: { id: id } })
+                        .then(function () {
+                            log(`[OK] Dead host ${id} ${enabled ? "desativado" : "ativado"}.\n`);
+                            fetchHosts();
+                        })
+                        .catch(handleError);
+                }
+            });
+
+            function persistToken(raw) {
+                const value = raw.trim();
+                state.token = value;
+                if (value) {
+                    localStorage.setItem(STORAGE_KEY, value);
+                    log("[TOKEN] Guardado no storage local.\n");
+                } else {
+                    localStorage.removeItem(STORAGE_KEY);
+                    log("[TOKEN] Removido do storage local.\n");
+                }
+                updateTokenStatus();
+            }
+
+            function ensureToken() {
+                if (!state.token) {
+                    log("[ALERTA] Define primeiro o token de login.\n");
+                    return false;
+                }
+                return true;
+            }
+
+            function updateTokenStatus() {
+                if (state.token) {
+                    refs.tokenStatus.textContent = "Token carregado e pronto.";
+                    refs.tokenStatus.classList.remove("text-slate-500");
+                    refs.tokenStatus.classList.add("text-emerald-400");
+                } else {
+                    refs.tokenStatus.textContent = "Token ainda nao definido.";
+                    refs.tokenStatus.classList.remove("text-emerald-400");
+                    refs.tokenStatus.classList.add("text-slate-500");
+                }
+            }
+
+            function fetchHosts() {
+                if (!ensureToken()) {
+                    return;
+                }
+                log("[INFO] A pedir lista de dead hosts...\n");
+                apiRequest("/404/list", { method: "GET" })
+                    .then(function (hosts) {
+                        const clean = Array.isArray(hosts) ? hosts : [];
+                        state.hosts = clean;
+                        renderHosts(clean);
+                        log(`[INFO] Recebidos ${clean.length} hosts.\n`);
+                    })
+                    .catch(handleError);
+            }
+
+            function renderHosts(hosts) {
+                if (!hosts.length) {
+                    refs.hostsBody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-xs text-slate-500">Sem dead hosts para mostrar.</td></tr>';
+                    return;
+                }
+
+                refs.hostsBody.innerHTML = hosts.map(function (host) {
+                    const id = host.id;
+                    const domains = Array.isArray(host.domain_names) ? host.domain_names : [];
+                    const prettyDomains = domains.map(escapeHTML).join('<br>');
+                    const enabled = Boolean(host.enabled);
+                    const statusChip = enabled
+                        ? '<span class="inline-flex items-center rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-300">Online</span>'
+                        : '<span class="inline-flex items-center rounded-full border border-red-400/40 bg-red-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-red-300">Offline</span>';
+
+                    const meta = host.meta || {};
+                    const badges = [];
+                    if (meta.letsencrypt_agree) {
+                        badges.push(badge('LE', 'emerald'));
+                    }
+                    if (meta.dns_challenge) {
+                        badges.push(badge('DNS', 'cyan'));
+                    }
+                    if (host.ssl_forced) {
+                        badges.push(badge('SSL', 'amber'));
+                    }
+                    if (host.http2_support) {
+                        badges.push(badge('HTTP/2', 'sky'));
+                    }
+                    if (host.hsts_enabled) {
+                        badges.push(badge('HSTS', 'amber'));
+                    }
+                    if (host.hsts_subdomains) {
+                        badges.push(badge('HSTS SUB', 'amber'));
+                    }
+                    if (!badges.length) {
+                        badges.push(badge('Sem flags', 'slate'));
+                    }
+
+                    const certificateInfo = `<div class="text-sm text-slate-300">ID ${escapeHTML(host.certificate_id || 0)}</div>`;
+                    const advancedSnippet = host.advanced_config
+                        ? `<div class="mt-1 text-xs text-slate-500">${escapeHTML(truncate(host.advanced_config, 80))}</div>`
+                        : '<div class="mt-1 text-xs text-slate-500">(sem advanced config)</div>';
+
+                    const toggleLabel = enabled ? 'Desativar' : 'Ativar';
+
+                    return `
+                        <tr data-id="${id}" class="transition hover:bg-slate-800/70">
+                            <td class="px-4 py-3 text-sm text-slate-300">#${escapeHTML(id)}</td>
+                            <td class="px-4 py-3 text-sm text-slate-100">${prettyDomains || '<span class="text-slate-500">(sem dominios)</span>'}</td>
+                            <td class="px-4 py-3">${certificateInfo}${advancedSnippet}</td>
+                            <td class="px-4 py-3 space-y-2">
+                                ${statusChip}
+                                <div class="flex flex-wrap gap-2 pt-1">${badges.join('')}</div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-action="edit" class="rounded-xl bg-gradient-to-r from-brand-dark to-brand-base px-3 py-2 text-xs font-semibold text-slate-950 transition hover:shadow-lg">Editar</button>
+                                    <button type="button" data-action="toggle" class="rounded-xl border border-slate-700/70 px-3 py-2 text-xs font-semibold text-slate-100 transition hover:bg-slate-800/80">${toggleLabel}</button>
+                                    <button type="button" data-action="delete" class="rounded-xl bg-gradient-to-r from-red-600 to-red-500 px-3 py-2 text-xs font-semibold text-white transition hover:shadow-lg">Apagar</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            function enterEditMode(host) {
+                state.editingId = host.id;
+                refs.formTitle.textContent = `Editar dead host #${host.id}`;
+                refs.submitButton.textContent = "Guardar alteracoes";
+                refs.cancelEdit.classList.remove("hidden");
+
+                refs.domains.value = Array.isArray(host.domain_names) ? host.domain_names.join("\n") : "";
+                refs.certificate.value = host.certificate_id || 0;
+                refs.enabledToggle.checked = Boolean(host.enabled);
+                refs.sslToggle.checked = Boolean(host.ssl_forced);
+                refs.http2Toggle.checked = Boolean(host.http2_support);
+                refs.hstsToggle.checked = Boolean(host.hsts_enabled);
+                refs.hstsSubToggle.checked = Boolean(host.hsts_subdomains);
+                refs.letsEncryptToggle.checked = Boolean(host.meta && host.meta.letsencrypt_agree);
+                refs.dnsChallengeToggle.checked = Boolean(host.meta && host.meta.dns_challenge);
+                refs.advanced.value = host.advanced_config || "";
+
+                refs.hostForm.scrollIntoView({ behavior: "smooth", block: "start" });
+                log(`[INFO] A editar dead host ${host.id}.\n`);
+            }
+
+            function resetForm() {
+                state.editingId = null;
+                refs.formTitle.textContent = "Criar novo dead host";
+                refs.submitButton.textContent = "Criar dead host";
+                refs.cancelEdit.classList.add("hidden");
+                refs.hostForm.reset();
+                refs.certificate.value = "0";
+                refs.advanced.value = "";
+                refs.enabledToggle.checked = true;
+                refs.sslToggle.checked = false;
+                refs.http2Toggle.checked = false;
+                refs.hstsToggle.checked = false;
+                refs.hstsSubToggle.checked = false;
+                refs.letsEncryptToggle.checked = false;
+                refs.dnsChallengeToggle.checked = false;
+            }
+
+            function buildPayloadFromForm() {
+                const domainLines = refs.domains.value
+                    .split(/[\n,]/)
+                    .map(function (part) { return part.trim(); })
+                    .filter(Boolean);
+
+                if (!domainLines.length) {
+                    log("[ALERTA] Indica pelo menos um dominio.\n");
+                    return null;
+                }
+
+                const certificateId = Number(refs.certificate.value);
+                if (!Number.isFinite(certificateId) || certificateId < 0) {
+                    log("[ALERTA] Certificate ID invalido.\n");
+                    return null;
+                }
+
+                const payload = {
+                    domain_names: domainLines,
+                    certificate_id: certificateId,
+                    meta: {
+                        letsencrypt_agree: Boolean(refs.letsEncryptToggle.checked),
+                        dns_challenge: Boolean(refs.dnsChallengeToggle.checked)
+                    },
+                    advanced_config: refs.advanced.value,
+                    hsts_enabled: Boolean(refs.hstsToggle.checked),
+                    hsts_subdomains: Boolean(refs.hstsSubToggle.checked),
+                    http2_support: Boolean(refs.http2Toggle.checked),
+                    ssl_forced: Boolean(refs.sslToggle.checked),
+                    enabled: Boolean(refs.enabledToggle.checked)
+                };
+
+                return payload;
+            }
+
+            function apiRequest(path, options) {
+                const config = {
+                    method: options.method || "GET",
+                    headers: {
+                        Authorization: state.token
+                    }
+                };
+
+                if (options.body) {
+                    config.headers["Content-Type"] = "application/json";
+                    config.body = JSON.stringify(options.body);
+                }
+
+                return fetch(path, config).then(async function (response) {
+                    const text = await response.text();
+                    let parsed = null;
+                    if (text) {
+                        try {
+                            parsed = JSON.parse(text);
+                        } catch (error) {
+                            parsed = text;
+                        }
+                    }
+
+                    if (!response.ok) {
+                        const message = parsed && parsed.error ? parsed.error : parsed || response.statusText;
+                        throw new Error(message || "Erro inesperado");
+                    }
+
+                    return parsed;
+                });
+            }
+
+            function handleError(error) {
+                log(`[ERRO] ${error && error.message ? error.message : error}\n`);
+            }
+
+            function log(message) {
+                refs.console.textContent += message;
+                refs.console.scrollTop = refs.console.scrollHeight;
+            }
+
+            function escapeHTML(value) {
+                return String(value)
+                    .replace(/&/g, "&amp;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;");
+            }
+
+            function truncate(value, max) {
+                const str = String(value);
+                if (str.length <= max) {
+                    return str;
+                }
+                return str.slice(0, max - 1) + "…";
+            }
+
+            function badge(label, variant) {
+                const variants = {
+                    emerald: "border-emerald-400/40 bg-emerald-500/10 text-emerald-300",
+                    cyan: "border-cyan-400/40 bg-cyan-500/10 text-cyan-300",
+                    amber: "border-amber-400/40 bg-amber-500/10 text-amber-300",
+                    sky: "border-sky-400/40 bg-sky-500/10 text-sky-300",
+                    slate: "border-slate-700/70 bg-slate-800/60 text-slate-300"
+                };
+                const classes = variants[variant] || variants.slate;
+                return `<span class="inline-flex items-center rounded-full ${classes} px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">${escapeHTML(label)}</span>`;
+            }
+
+            if (state.token) {
+                fetchHosts();
+            }
+        })();
+    </script>
+</body>
+</html>

@@ -1,635 +1,567 @@
-<!doctype html>
-<html lang="en">
-
+<!DOCTYPE html>
+<html lang="pt">
 <head>
-	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>512SvMan Proxy Playground</title>
-	<script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>512SvMan Proxy Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            light: '#fb923c',
+                            base: '#f97316',
+                            dark: '#ea580c'
+                        }
+                    }
+                }
+            }
+        };
+    </script>
 </head>
+<body class="min-h-screen bg-slate-950 bg-[radial-gradient(circle_at_top,_rgba(249,115,22,0.18),_transparent_55%)] text-slate-100 flex justify-center p-6 sm:p-8">
+    <main class="w-full max-w-6xl space-y-6">
+        <header class="rounded-2xl border border-slate-800/70 bg-slate-900/70 backdrop-blur-sm p-6 sm:p-8 shadow-xl space-y-4">
+            <div class="space-y-2">
+                <h1 class="text-3xl font-semibold tracking-[0.25em] uppercase">512SvMan // Proxy Lab</h1>
+                <p class="text-sm text-slate-400">Define o token, inspeciona os hosts e ajusta tudo com controlo fino.</p>
+            </div>
+            <form id="tokenForm" class="grid gap-3 sm:grid-cols-[max-content_1fr] sm:items-center sm:gap-4">
+                <label for="tokenInput" class="text-xs uppercase tracking-[0.2em] text-slate-400">Login token</label>
+                <div class="flex flex-col gap-2 sm:flex-row">
+                    <input id="tokenInput" type="text" placeholder="cola aqui o token" autocomplete="off" spellcheck="false" class="w-full min-w-[220px] rounded-xl border border-transparent bg-slate-950/60 px-4 py-2 text-sm text-slate-100 shadow-inner outline-none transition focus:border-brand-base">
+                    <div class="flex gap-2 sm:flex-none">
+                        <button type="submit" class="flex-1 rounded-xl bg-gradient-to-r from-brand-dark to-brand-base px-4 py-2 text-sm font-semibold text-slate-950 shadow transition hover:shadow-lg hover:brightness-[1.05]">Guardar token</button>
+                        <button type="button" id="clearToken" class="flex-1 rounded-xl border border-slate-700/70 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800/80">Limpar</button>
+                    </div>
+                </div>
+            </form>
+            <div id="tokenStatus" class="text-sm text-slate-500">Token ainda nao definido.</div>
+        </header>
 
-<body class="min-h-screen bg-slate-950 text-slate-100">
-	<div class="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-10">
-		<header>
-			<h1 class="text-3xl font-semibold tracking-tight">NPM Proxy Test Console</h1>
-			<p class="mt-2 text-sm text-slate-400">Interact with the proxy helper endpoints exposed by
-				<code>testingApi.go</code>.</p>
-		</header>
+        <section class="grid gap-6 lg:grid-cols-[2fr_1.1fr]">
+            <section class="space-y-4 rounded-2xl border border-slate-800/70 bg-slate-900/60 p-6 shadow-lg">
+                <div class="flex flex-wrap items-center gap-3">
+                    <h2 class="flex-1 text-xl font-semibold">Inventario de proxies</h2>
+                    <div class="flex gap-2">
+                        <button type="button" id="refreshList" class="rounded-xl bg-gradient-to-r from-brand-dark to-brand-base px-4 py-2 text-sm font-semibold text-slate-950 transition hover:shadow-lg">Atualizar lista</button>
+                        <button type="button" id="resetFilters" class="rounded-xl border border-slate-700/70 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800/80">Limpar selecao</button>
+                    </div>
+                </div>
+                <div class="overflow-hidden rounded-2xl border border-slate-800/60">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-800 text-sm">
+                            <thead class="bg-slate-900/80 text-xs uppercase tracking-[0.2em] text-slate-400">
+                                <tr>
+                                    <th class="px-4 py-3 text-left">ID</th>
+                                    <th class="px-4 py-3 text-left">Dominios</th>
+                                    <th class="px-4 py-3 text-left">Destino</th>
+                                    <th class="px-4 py-3 text-left">Estado</th>
+                                    <th class="px-4 py-3 text-left">Acoes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="proxiesBody" class="divide-y divide-slate-800/70">
+                                <tr>
+                                    <td colspan="5" class="px-4 py-6 text-center text-xs text-slate-500">Ainda sem dados. Carrega em "Atualizar lista".</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
 
-		<section class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl shadow-slate-950/30">
-			<div class="mb-4 flex flex-wrap items-center justify-between gap-4">
-				<div>
-					<h2 class="text-lg font-medium text-slate-100">Current Proxies</h2>
-					<p id="proxies-status" class="text-sm text-slate-500">Loading…</p>
-				</div>
-				<button id="proxies-refresh"
-					class="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800/60">Refresh</button>
-			</div>
-			<div class="overflow-hidden rounded-xl border border-slate-800">
-				<table class="min-w-full divide-y divide-slate-800 text-sm">
-					<thead class="bg-slate-900/80 text-slate-400">
-						<tr>
-							<th scope="col" class="px-4 py-2 text-left font-medium">ID</th>
-							<th scope="col" class="px-4 py-2 text-left font-medium">Domains</th>
-							<th scope="col" class="px-4 py-2 text-left font-medium">Upstream</th>
-							<th scope="col" class="px-4 py-2 text-left font-medium">Status &amp; Flags</th>
-							<th scope="col" class="px-4 py-2 text-left font-medium">Actions</th>
-						</tr>
-					</thead>
-					<tbody id="proxies-table-body" class="divide-y divide-slate-800 bg-slate-950/60"></tbody>
-				</table>
-			</div>
-			<p id="actions-feedback" class="mt-4 text-sm text-slate-500">Awaiting interaction…</p>
-			<div class="mt-4 rounded-xl border border-indigo-900/60 bg-indigo-950/40 p-4">
-				<h3 class="text-xs font-semibold uppercase tracking-wide text-indigo-300/70">Raw /listProxies JSON</h3>
-				<pre id="proxies-json"
-					class="mt-3 h-52 overflow-auto rounded-lg border border-indigo-900/60 bg-indigo-950/60 p-3 text-xs text-indigo-100">Waiting…</pre>
-			</div>
-		</section>
+            <section class="space-y-4 rounded-2xl border border-slate-800/70 bg-slate-900/60 p-6 shadow-lg">
+                <h2 id="formTitle" class="text-xl font-semibold">Criar novo proxy</h2>
+                <form id="proxyForm" class="space-y-5 text-sm">
+                    <div class="space-y-2">
+                        <label for="domainsInput" class="text-xs uppercase tracking-[0.18em] text-slate-400">Dominios (virgulas ou linhas)</label>
+                        <textarea id="domainsInput" placeholder="ex: site.exemplo.com, api.exemplo.com" class="w-full min-h-[82px] rounded-xl border border-transparent bg-slate-950/60 px-4 py-3 text-sm outline-none transition focus:border-brand-base"></textarea>
+                    </div>
 
-		<section class="rounded-2xl border border-emerald-900/50 bg-emerald-950/40 p-6 shadow-xl shadow-emerald-950/30">
-			<h2 class="text-lg font-medium text-emerald-200">Create Proxy</h2>
-			<p class="mb-4 text-sm text-emerald-300/70">Send a <code>POST /createProxy</code> with the same payload you
-				would hand to Nginx Proxy Manager.</p>
-			<form id="create-proxy-form" class="flex flex-col gap-4">
-				<label class="text-sm">
-					<span class="mb-1 block text-emerald-300/80">Domain Names</span>
-					<textarea name="domain_names" rows="3" required placeholder="example.com\nwww.example.com"
-						class="w-full rounded-lg border border-emerald-900/80 bg-emerald-950/60 px-3 py-2 text-sm text-emerald-50 placeholder:text-emerald-200/50 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"></textarea>
-				</label>
-				<div class="grid gap-4 md:grid-cols-3">
-					<label class="text-sm">
-						<span class="mb-1 block text-emerald-300/80">Forward Scheme</span>
-						<select name="forward_scheme"
-							class="w-full rounded-lg border border-emerald-900/80 bg-emerald-950/60 px-3 py-2 text-sm text-emerald-50 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60">
-							<option value="http">http</option>
-							<option value="https">https</option>
-						</select>
-					</label>
-					<label class="text-sm">
-						<span class="mb-1 block text-emerald-300/80">Forward Host</span>
-						<input name="forward_host" type="text" required placeholder="127.0.0.1"
-							class="w-full rounded-lg border border-emerald-900/80 bg-emerald-950/60 px-3 py-2 text-sm text-emerald-50 placeholder:text-emerald-200/50 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
-					</label>
-					<label class="text-sm">
-						<span class="mb-1 block text-emerald-300/80">Forward Port</span>
-						<input name="forward_port" type="number" min="1" required placeholder="80"
-							class="w-full rounded-lg border border-emerald-900/80 bg-emerald-950/60 px-3 py-2 text-sm text-emerald-50 placeholder:text-emerald-200/50 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
-					</label>
-				</div>
-				<div class="grid gap-4 md:grid-cols-2">
-					<label class="text-sm">
-						<span class="mb-1 block text-emerald-300/80">Access List ID</span>
-						<input name="access_list_id" type="text" value="0"
-							class="w-full rounded-lg border border-emerald-900/80 bg-emerald-950/60 px-3 py-2 text-sm text-emerald-50 placeholder:text-emerald-200/50 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
-					</label>
-					<label class="text-sm">
-						<span class="mb-1 block text-emerald-300/80">Certificate ID</span>
-						<input name="certificate_id" type="number" min="0" value="0"
-							class="w-full rounded-lg border border-emerald-900/80 bg-emerald-950/60 px-3 py-2 text-sm text-emerald-50 placeholder:text-emerald-200/50 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
-					</label>
-				</div>
-				<div class="grid gap-4 md:grid-cols-2">
-					<label class="text-sm">
-						<span class="mb-1 block text-emerald-300/80">Advanced Config</span>
-						<textarea name="advanced_config" rows="3" placeholder="# Optional nginx directives"
-							class="w-full rounded-lg border border-emerald-900/80 bg-emerald-950/60 px-3 py-2 text-sm text-emerald-50 placeholder:text-emerald-200/50 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"></textarea>
-					</label>
-					<label class="text-sm">
-						<span class="mb-1 block text-emerald-300/80">Locations JSON</span>
-						<textarea name="locations" rows="3" placeholder="[]"
-							class="w-full rounded-lg border border-emerald-900/80 bg-emerald-950/60 px-3 py-2 text-sm text-emerald-50 placeholder:text-emerald-200/50 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60">[]</textarea>
-					</label>
-				</div>
-				<label class="text-sm">
-					<span class="mb-1 block text-emerald-300/80">Meta JSON</span>
-					<textarea name="meta" rows="4"
-						class="w-full rounded-lg border border-emerald-900/80 bg-emerald-950/60 px-3 py-2 text-sm text-emerald-50 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60">{
-  "letsencrypt_agree": false,
-  "dns_challenge": false
-}</textarea>
-				</label>
-				<fieldset class="grid gap-3 rounded-xl border border-emerald-900/70 bg-emerald-950/50 p-4 text-sm">
-					<legend class="px-2 text-xs font-semibold uppercase tracking-wider text-emerald-300/70">Toggles
-					</legend>
-					<label class="flex items-center gap-2 text-emerald-200/80"><input name="caching_enabled"
-							type="checkbox" class="h-4 w-4 rounded border-emerald-400/50 bg-emerald-950/60" />Caching
-						enabled</label>
-					<label class="flex items-center gap-2 text-emerald-200/80"><input name="block_exploits"
-							type="checkbox" class="h-4 w-4 rounded border-emerald-400/50 bg-emerald-950/60"
-							checked />Block exploits</label>
-					<label class="flex items-center gap-2 text-emerald-200/80"><input name="allow_websocket_upgrade"
-							type="checkbox" class="h-4 w-4 rounded border-emerald-400/50 bg-emerald-950/60"
-							checked />Allow websocket upgrade</label>
-					<label class="flex items-center gap-2 text-emerald-200/80"><input name="http2_support"
-							type="checkbox" class="h-4 w-4 rounded border-emerald-400/50 bg-emerald-950/60" />HTTP/2
-						support</label>
-					<label class="flex items-center gap-2 text-emerald-200/80"><input name="hsts_enabled"
-							type="checkbox" class="h-4 w-4 rounded border-emerald-400/50 bg-emerald-950/60" />HSTS
-						enabled</label>
-					<label class="flex items-center gap-2 text-emerald-200/80"><input name="hsts_subdomains"
-							type="checkbox" class="h-4 w-4 rounded border-emerald-400/50 bg-emerald-950/60" />HSTS
-						subdomains</label>
-					<label class="flex items-center gap-2 text-emerald-200/80"><input name="ssl_forced" type="checkbox"
-							class="h-4 w-4 rounded border-emerald-400/50 bg-emerald-950/60" />Force SSL</label>
-				</fieldset>
-				<button type="submit"
-					class="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-300/80 focus:ring-offset-2 focus:ring-offset-emerald-950">Create
-					Proxy</button>
-			</form>
-			<p id="create-feedback" class="mt-3 text-sm text-emerald-300/70">Awaiting action…</p>
-		</section>
+                    <div class="grid gap-3 sm:grid-cols-3">
+                        <div class="space-y-2">
+                            <label for="schemeInput" class="text-xs uppercase tracking-[0.18em] text-slate-400">Forward scheme</label>
+                            <select id="schemeInput" class="w-full rounded-xl border border-transparent bg-slate-950/60 px-4 py-2 text-sm outline-none transition focus:border-brand-base">
+                                <option value="http">http</option>
+                                <option value="https">https</option>
+                            </select>
+                        </div>
+                        <div class="space-y-2">
+                            <label for="hostInput" class="text-xs uppercase tracking-[0.18em] text-slate-400">Forward host</label>
+                            <input id="hostInput" type="text" placeholder="ex: 192.168.1.10" class="w-full rounded-xl border border-transparent bg-slate-950/60 px-4 py-2 text-sm outline-none transition focus:border-brand-base">
+                        </div>
+                        <div class="space-y-2">
+                            <label for="portInput" class="text-xs uppercase tracking-[0.18em] text-slate-400">Forward port</label>
+                            <input id="portInput" type="number" min="1" max="65535" value="80" class="w-full rounded-xl border border-transparent bg-slate-950/60 px-4 py-2 text-sm outline-none transition focus:border-brand-base">
+                        </div>
+                    </div>
 
-		<section class="rounded-2xl border border-amber-900/50 bg-amber-950/40 p-6 shadow-xl shadow-amber-950/30">
-			<h2 class="text-lg font-medium text-amber-200">Edit Existing Proxy</h2>
-			<p class="mb-4 text-sm text-amber-200/70">Load a proxy from the table above or fill manually, then send a
-				<code>PUT /editProxy</code>.</p>
-			<form id="edit-proxy-form" class="flex flex-col gap-4">
-				<div class="grid gap-4 md:grid-cols-4">
-					<label class="text-sm md:col-span-1">
-						<span class="mb-1 block text-amber-200/80">Proxy ID</span>
-						<input name="id" type="number" min="1" required placeholder="123"
-							class="w-full rounded-lg border border-amber-900/70 bg-amber-950/60 px-3 py-2 text-sm text-amber-50 placeholder:text-amber-200/60 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/60" />
-					</label>
-					<label class="text-sm md:col-span-3">
-						<span class="mb-1 block text-amber-200/80">Domain Names</span>
-						<textarea name="domain_names" rows="3" required
-							class="w-full rounded-lg border border-amber-900/70 bg-amber-950/60 px-3 py-2 text-sm text-amber-50 placeholder:text-amber-200/60 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/60"></textarea>
-					</label>
-				</div>
-				<div class="grid gap-4 md:grid-cols-3">
-					<label class="text-sm">
-						<span class="mb-1 block text-amber-200/80">Forward Scheme</span>
-						<select name="forward_scheme"
-							class="w-full rounded-lg border border-amber-900/70 bg-amber-950/60 px-3 py-2 text-sm text-amber-50 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/60">
-							<option value="http">http</option>
-							<option value="https">https</option>
-						</select>
-					</label>
-					<label class="text-sm">
-						<span class="mb-1 block text-amber-200/80">Forward Host</span>
-						<input name="forward_host" type="text" required
-							class="w-full rounded-lg border border-amber-900/70 bg-amber-950/60 px-3 py-2 text-sm text-amber-50 placeholder:text-amber-200/60 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/60" />
-					</label>
-					<label class="text-sm">
-						<span class="mb-1 block text-amber-200/80">Forward Port</span>
-						<input name="forward_port" type="number" min="1" required
-							class="w-full rounded-lg border border-amber-900/70 bg-amber-950/60 px-3 py-2 text-sm text-amber-50 placeholder:text-amber-200/60 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/60" />
-					</label>
-				</div>
-				<div class="grid gap-4 md:grid-cols-2">
-					<label class="text-sm">
-						<span class="mb-1 block text-amber-200/80">Access List ID</span>
-						<input name="access_list_id" type="text"
-							class="w-full rounded-lg border border-amber-900/70 bg-amber-950/60 px-3 py-2 text-sm text-amber-50 placeholder:text-amber-200/60 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/60" />
-					</label>
-					<label class="text-sm">
-						<span class="mb-1 block text-amber-200/80">Certificate ID</span>
-						<input name="certificate_id" type="number" min="0"
-							class="w-full rounded-lg border border-amber-900/70 bg-amber-950/60 px-3 py-2 text-sm text-amber-50 placeholder:text-amber-200/60 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/60" />
-					</label>
-				</div>
-				<div class="grid gap-4 md:grid-cols-2">
-					<label class="text-sm">
-						<span class="mb-1 block text-amber-200/80">Advanced Config</span>
-						<textarea name="advanced_config" rows="3"
-							class="w-full rounded-lg border border-amber-900/70 bg-amber-950/60 px-3 py-2 text-sm text-amber-50 placeholder:text-amber-200/60 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/60"></textarea>
-					</label>
-					<label class="text-sm">
-						<span class="mb-1 block text-amber-200/80">Locations JSON</span>
-						<textarea name="locations" rows="3"
-							class="w-full rounded-lg border border-amber-900/70 bg-amber-950/60 px-3 py-2 text-sm text-amber-50 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/60"></textarea>
-					</label>
-				</div>
-				<label class="text-sm">
-					<span class="mb-1 block text-amber-200/80">Meta JSON</span>
-					<textarea name="meta" rows="4"
-						class="w-full rounded-lg border border-amber-900/70 bg-amber-950/60 px-3 py-2 text-sm text-amber-50 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/60"></textarea>
-				</label>
-				<fieldset class="grid gap-3 rounded-xl border border-amber-900/70 bg-amber-950/50 p-4 text-sm">
-					<legend class="px-2 text-xs font-semibold uppercase tracking-wider text-amber-300/80">Toggles
-					</legend>
-					<label class="flex items-center gap-2 text-amber-200/80"><input name="caching_enabled"
-							type="checkbox" class="h-4 w-4 rounded border-amber-400/50 bg-amber-950/60" />Caching
-						enabled</label>
-					<label class="flex items-center gap-2 text-amber-200/80"><input name="block_exploits"
-							type="checkbox" class="h-4 w-4 rounded border-amber-400/50 bg-amber-950/60" />Block
-						exploits</label>
-					<label class="flex items-center gap-2 text-amber-200/80"><input name="allow_websocket_upgrade"
-							type="checkbox" class="h-4 w-4 rounded border-amber-400/50 bg-amber-950/60" />Allow
-						websocket upgrade</label>
-					<label class="flex items-center gap-2 text-amber-200/80"><input name="http2_support" type="checkbox"
-							class="h-4 w-4 rounded border-amber-400/50 bg-amber-950/60" />HTTP/2 support</label>
-					<label class="flex items-center gap-2 text-amber-200/80"><input name="hsts_enabled" type="checkbox"
-							class="h-4 w-4 rounded border-amber-400/50 bg-amber-950/60" />HSTS enabled</label>
-					<label class="flex items-center gap-2 text-amber-200/80"><input name="hsts_subdomains"
-							type="checkbox" class="h-4 w-4 rounded border-amber-400/50 bg-amber-950/60" />HSTS
-						subdomains</label>
-					<label class="flex items-center gap-2 text-amber-200/80"><input name="ssl_forced" type="checkbox"
-							class="h-4 w-4 rounded border-amber-400/50 bg-amber-950/60" />Force SSL</label>
-				</fieldset>
-				<button type="submit"
-					class="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-amber-950 transition hover:bg-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-200/80 focus:ring-offset-2 focus:ring-offset-amber-950">Save
-					Changes</button>
-			</form>
-			<p id="edit-feedback" class="mt-3 text-sm text-amber-200/70">Awaiting action…</p>
-		</section>
-	</div>
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <div class="space-y-2">
+                            <label for="accessListInput" class="text-xs uppercase tracking-[0.18em] text-slate-400">Access list ID</label>
+                            <input id="accessListInput" type="text" value="0" class="w-full rounded-xl border border-transparent bg-slate-950/60 px-4 py-2 text-sm outline-none transition focus:border-brand-base">
+                        </div>
+                        <div class="space-y-2">
+                            <label for="certificateInput" class="text-xs uppercase tracking-[0.18em] text-slate-400">Certificate ID</label>
+                            <input id="certificateInput" type="number" min="0" value="0" class="w-full rounded-xl border border-transparent bg-slate-950/60 px-4 py-2 text-sm outline-none transition focus:border-brand-base">
+                        </div>
+                    </div>
 
-	<script>
-		// When opened from disk use the helper server
-		const baseUrl = window.location.protocol === 'file:' ? 'http://127.0.0.1:9595' : '';
-		const state = { proxies: [] };
+                    <div class="space-y-2">
+                        <label for="advancedInput" class="text-xs uppercase tracking-[0.18em] text-slate-400">Advanced config</label>
+                        <textarea id="advancedInput" placeholder="# custom directives" class="w-full min-h-[82px] rounded-xl border border-transparent bg-slate-950/60 px-4 py-3 text-sm outline-none transition focus:border-brand-base"></textarea>
+                    </div>
 
-		const proxiesBody = document.getElementById('proxies-table-body');
-		const proxiesStatus = document.getElementById('proxies-status');
-		const proxiesJson = document.getElementById('proxies-json');
-		const actionsFeedback = document.getElementById('actions-feedback');
+                    <div class="space-y-2">
+                        <label for="metaInput" class="text-xs uppercase tracking-[0.18em] text-slate-400">Meta (JSON)</label>
+                        <textarea id="metaInput" placeholder='{"letsencrypt_agree":false,"dns_challenge":false}' class="w-full min-h-[82px] rounded-xl border border-transparent bg-slate-950/60 px-4 py-3 text-sm outline-none transition focus:border-brand-base"></textarea>
+                    </div>
 
-		const createForm = document.getElementById('create-proxy-form');
-		const createFeedback = document.getElementById('create-feedback');
+                    <div class="space-y-2">
+                        <label for="locationsInput" class="text-xs uppercase tracking-[0.18em] text-slate-400">Locations (JSON)</label>
+                        <textarea id="locationsInput" placeholder="[]" class="w-full min-h-[82px] rounded-xl border border-transparent bg-slate-950/60 px-4 py-3 text-sm outline-none transition focus:border-brand-base"></textarea>
+                    </div>
 
-		const editForm = document.getElementById('edit-proxy-form');
-		const editFeedback = document.getElementById('edit-feedback');
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <label class="flex items-center gap-3 rounded-xl border border-slate-800/70 bg-slate-950/60 px-4 py-2 text-sm text-slate-200">
+                            <input id="cacheToggle" type="checkbox" class="h-4 w-4 rounded border-slate-700 bg-slate-900" checked>
+                            Cache ativo
+                        </label>
+                        <label class="flex items-center gap-3 rounded-xl border border-slate-800/70 bg-slate-950/60 px-4 py-2 text-sm text-slate-200">
+                            <input id="exploitToggle" type="checkbox" class="h-4 w-4 rounded border-slate-700 bg-slate-900" checked>
+                            Bloquear exploits
+                        </label>
+                        <label class="flex items-center gap-3 rounded-xl border border-slate-800/70 bg-slate-950/60 px-4 py-2 text-sm text-slate-200">
+                            <input id="wsToggle" type="checkbox" class="h-4 w-4 rounded border-slate-700 bg-slate-900" checked>
+                            Websocket
+                        </label>
+                        <label class="flex items-center gap-3 rounded-xl border border-slate-800/70 bg-slate-950/60 px-4 py-2 text-sm text-slate-200">
+                            <input id="http2Toggle" type="checkbox" class="h-4 w-4 rounded border-slate-700 bg-slate-900">
+                            HTTP/2
+                        </label>
+                        <label class="flex items-center gap-3 rounded-xl border border-slate-800/70 bg-slate-950/60 px-4 py-2 text-sm text-slate-200">
+                            <input id="hstsToggle" type="checkbox" class="h-4 w-4 rounded border-slate-700 bg-slate-900">
+                            HSTS
+                        </label>
+                        <label class="flex items-center gap-3 rounded-xl border border-slate-800/70 bg-slate-950/60 px-4 py-2 text-sm text-slate-200">
+                            <input id="subdomainsToggle" type="checkbox" class="h-4 w-4 rounded border-slate-700 bg-slate-900">
+                            HSTS subdominios
+                        </label>
+                        <label class="flex items-center gap-3 rounded-xl border border-slate-800/70 bg-slate-950/60 px-4 py-2 text-sm text-slate-200">
+                            <input id="sslForcedToggle" type="checkbox" class="h-4 w-4 rounded border-slate-700 bg-slate-900">
+                            Forcar SSL
+                        </label>
+                    </div>
 
-		function setStatus(target, message, options = {}) {
-			if (!target) return;
-			const { isError = false, baseClass } = options;
-			if (baseClass) target.className = baseClass;
-			target.textContent = message;
-			if (isError) {
-				target.classList.add('text-rose-300/80');
-			} else {
-				target.classList.remove('text-rose-300/80');
-			}
-		}
+                    <div class="flex flex-col gap-2 sm:flex-row">
+                        <button type="submit" id="submitButton" class="flex-1 rounded-xl bg-gradient-to-r from-brand-dark to-brand-base px-4 py-2 font-semibold text-slate-950 transition hover:shadow-lg">Criar proxy</button>
+                        <button type="button" id="cancelEdit" class="hidden flex-1 rounded-xl border border-slate-700/70 px-4 py-2 font-semibold text-slate-100 transition hover:bg-slate-800/80">Cancelar edicao</button>
+                    </div>
+                </form>
+            </section>
+        </section>
 
-		async function fetchJson(path, options = {}) {
-			const { headers: extraHeaders, ...rest } = options;
-			const response = await fetch(`${baseUrl}${path}`, {
-				...rest,
-				headers: {
-					Accept: 'application/json',
-					...extraHeaders,
-				},
-			});
+        <section class="rounded-2xl border border-slate-800/70 bg-slate-900/60 p-6 shadow-lg">
+            <h2 class="text-xl font-semibold">Console</h2>
+            <div id="console" class="mt-4 h-64 overflow-y-auto rounded-2xl bg-slate-950/70 p-4 font-mono text-xs leading-relaxed text-slate-300"></div>
+        </section>
+    </main>
 
-			if (!response.ok) {
-				const body = await response.text();
-				throw new Error(`${response.status} ${response.statusText}: ${body || 'no body'}`);
-			}
+    <script>
+        (function () {
+            const STORAGE_KEY = "proxy-panel-token";
+            const state = {
+                token: localStorage.getItem(STORAGE_KEY) || "",
+                editingId: null,
+                proxys: []
+            };
 
-			const text = await response.text();
-			if (!text) return {};
-			try {
-				return JSON.parse(text);
-			} catch (error) {
-				throw new Error('Failed to parse JSON response: ' + error.message);
-			}
-		}
+            const refs = {
+                tokenForm: document.getElementById("tokenForm"),
+                tokenInput: document.getElementById("tokenInput"),
+                tokenStatus: document.getElementById("tokenStatus"),
+                clearToken: document.getElementById("clearToken"),
+                refreshList: document.getElementById("refreshList"),
+                resetFilters: document.getElementById("resetFilters"),
+                proxiesBody: document.getElementById("proxiesBody"),
+                console: document.getElementById("console"),
+                proxyForm: document.getElementById("proxyForm"),
+                formTitle: document.getElementById("formTitle"),
+                submitButton: document.getElementById("submitButton"),
+                cancelEdit: document.getElementById("cancelEdit"),
+                domains: document.getElementById("domainsInput"),
+                scheme: document.getElementById("schemeInput"),
+                host: document.getElementById("hostInput"),
+                port: document.getElementById("portInput"),
+                accessList: document.getElementById("accessListInput"),
+                certificate: document.getElementById("certificateInput"),
+                advanced: document.getElementById("advancedInput"),
+                meta: document.getElementById("metaInput"),
+                locations: document.getElementById("locationsInput"),
+                cacheToggle: document.getElementById("cacheToggle"),
+                exploitToggle: document.getElementById("exploitToggle"),
+                wsToggle: document.getElementById("wsToggle"),
+                http2Toggle: document.getElementById("http2Toggle"),
+                hstsToggle: document.getElementById("hstsToggle"),
+                subdomainsToggle: document.getElementById("subdomainsToggle"),
+                sslForcedToggle: document.getElementById("sslForcedToggle")
+            };
 
-		function cloneFallback(fallback) {
-			if (Array.isArray(fallback)) {
-				return [...fallback];
-			}
-			if (fallback && typeof fallback === 'object') {
-				return { ...fallback };
-			}
-			return fallback;
-		}
+            const defaults = {
+                meta: {
+                    letsencrypt_agree: false,
+                    dns_challenge: false
+                }
+            };
 
-		function parseJsonField(value, fallback, label) {
-			if (!value) return cloneFallback(fallback);
-			try {
-				return JSON.parse(value);
-			} catch (error) {
-				throw new Error(`Invalid ${label} JSON: ${error.message}`);
-			}
-		}
+            refs.tokenInput.value = state.token;
+            updateTokenStatus();
+            resetForm();
+            log("Interface carregada. Define o token para comecar.\n");
 
-		function parseDomainList(value) {
-			return value
-				.split(/[\n,]+/)
-				.map((part) => part.trim())
-				.filter(Boolean);
-		}
+            refs.tokenForm.addEventListener("submit", function (event) {
+                event.preventDefault();
+                persistToken(refs.tokenInput.value);
+            });
 
-		function gatherProxyPayload(form, { includeId = false } = {}) {
-			const domainField = form.elements['domain_names'];
-			const forwardHostField = form.elements['forward_host'];
-			const forwardPortField = form.elements['forward_port'];
-			const certificateField = form.elements['certificate_id'];
+            refs.clearToken.addEventListener("click", function () {
+                persistToken("");
+            });
 
-			const domains = parseDomainList(domainField.value);
-			if (domains.length === 0) {
-				throw new Error('At least one domain name is required.');
-			}
+            refs.refreshList.addEventListener("click", function () {
+                fetchProxies();
+            });
 
-			const forwardHost = forwardHostField.value.trim();
-			if (!forwardHost) {
-				throw new Error('Forward host is required.');
-			}
+            refs.resetFilters.addEventListener("click", function () {
+                resetForm();
+                log("Formulario limpo. Pronto para criar um novo proxy.\n");
+            });
 
-			const forwardPort = Number(forwardPortField.value);
-			if (!Number.isInteger(forwardPort) || forwardPort <= 0) {
-				throw new Error('Forward port must be a positive integer.');
-			}
+            refs.cancelEdit.addEventListener("click", function () {
+                resetForm();
+                log("Modo de edicao cancelado.\n");
+            });
 
-			const certificateId = certificateField.value === '' ? 0 : Number(certificateField.value);
-			if (!Number.isInteger(certificateId) || certificateId < 0) {
-				throw new Error('Certificate id must be 0 or a positive integer.');
-			}
+            refs.proxyForm.addEventListener("submit", function (event) {
+                event.preventDefault();
+                if (!ensureToken()) {
+                    return;
+                }
 
-			const payload = {
-				domain_names: domains,
-				forward_scheme: form.elements['forward_scheme'].value || 'http',
-				forward_host: forwardHost,
-				forward_port: forwardPort,
-				caching_enabled: form.elements['caching_enabled'].checked,
-				block_exploits: form.elements['block_exploits'].checked,
-				allow_websocket_upgrade: form.elements['allow_websocket_upgrade'].checked,
-				access_list_id: form.elements['access_list_id'].value.trim() || '0',
-				certificate_id: certificateId,
-				meta: parseJsonField(form.elements['meta'].value.trim(), { letsencrypt_agree: false, dns_challenge: false }, 'meta'),
-				advanced_config: form.elements['advanced_config'].value,
-				locations: parseJsonField(form.elements['locations'].value.trim(), [], 'locations'),
-				http2_support: form.elements['http2_support'].checked,
-				hsts_enabled: form.elements['hsts_enabled'].checked,
-				hsts_subdomains: form.elements['hsts_subdomains'].checked,
-				ssl_forced: form.elements['ssl_forced'].checked,
-			};
+                const payload = buildPayloadFromForm();
+                if (!payload) {
+                    return;
+                }
 
-			if (includeId) {
-				const id = Number(form.elements['id'].value);
-				if (!Number.isInteger(id) || id <= 0) {
-					throw new Error('A valid proxy id is required.');
-				}
-				payload.id = id;
-			}
+                if (state.editingId !== null) {
+                    payload.id = state.editingId;
+                    apiRequest("/proxy/edit", { method: "PUT", body: payload })
+                        .then(function () {
+                            log(`[OK] Proxy ${state.editingId} editado com sucesso.\n`);
+                            resetForm();
+                            fetchProxies();
+                        })
+                        .catch(handleError);
+                } else {
+                    apiRequest("/proxy/create", { method: "POST", body: payload })
+                        .then(function (result) {
+                            const createdId = result && result.id ? result.id : "?";
+                            log(`[OK] Proxy criado (id ${createdId}).\n`);
+                            resetForm();
+                            fetchProxies();
+                        })
+                        .catch(handleError);
+                }
+            });
 
-			return payload;
-		}
+            refs.proxiesBody.addEventListener("click", function (event) {
+                const button = event.target.closest("button[data-action]");
+                if (!button) {
+                    return;
+                }
 
-		function normalizeProxy(raw) {
-			const accessList = raw.access_list_id ?? raw.AccessListID ?? '';
-			const forwardPort = raw.forward_port ?? raw.ForwardPort;
-			const certificateId = raw.certificate_id ?? raw.CertificateID;
+                const row = button.closest("tr[data-id]");
+                if (!row) {
+                    return;
+                }
+                const id = Number(row.getAttribute("data-id"));
+                const proxy = state.proxys.find(function (item) { return item.id === id; });
+                if (!proxy) {
+                    log(`[ERRO] Proxy ${id} nao encontrado em memoria. Atualiza a lista.\n`);
+                    return;
+                }
 
-			return {
-				id: raw.id ?? raw.ID ?? null,
-				domain_names: raw.domain_names ?? raw.DomainNames ?? [],
-				forward_scheme: raw.forward_scheme ?? raw.ForwardScheme ?? 'http',
-				forward_host: raw.forward_host ?? raw.ForwardHost ?? '',
-				forward_port: typeof forwardPort === 'number' ? forwardPort : Number.parseInt(forwardPort, 10) || null,
-				caching_enabled: raw.caching_enabled ?? raw.CachingEnabled ?? false,
-				block_exploits: raw.block_exploits ?? raw.BlockExploits ?? false,
-				allow_websocket_upgrade: raw.allow_websocket_upgrade ?? raw.AllowWebsocketUpgrade ?? false,
-				access_list_id: accessList === null ? '' : String(accessList),
-				certificate_id: typeof certificateId === 'number' ? certificateId : Number.parseInt(certificateId, 10) || 0,
-				meta: raw.meta ?? raw.Meta ?? null,
-				advanced_config: raw.advanced_config ?? raw.AdvancedConfig ?? '',
-				locations: raw.locations ?? raw.Locations ?? [],
-				http2_support: raw.http2_support ?? raw.Http2Support ?? false,
-				hsts_enabled: raw.hsts_enabled ?? raw.HstsEnabled ?? false,
-				hsts_subdomains: raw.hsts_subdomains ?? raw.HstsSubdomains ?? false,
-				ssl_forced: raw.ssl_forced ?? raw.SslForced ?? false,
-				enabled: raw.enabled ?? raw.Enabled,
-			};
-		}
+                const action = button.getAttribute("data-action");
+                if (action === "edit") {
+                    enterEditMode(proxy);
+                } else if (action === "delete") {
+                    if (confirm(`Apagar o proxy ${id}?`)) {
+                        apiRequest("/proxy/delete", { method: "DELETE", body: { id: id } })
+                            .then(function () {
+                                log(`[DEL] Proxy ${id} eliminado.\n`);
+                                fetchProxies();
+                            })
+                            .catch(handleError);
+                    }
+                } else if (action === "toggle") {
+                    const enabled = Boolean(proxy.enabled);
+                    const endpoint = enabled ? "/proxy/disable" : "/proxy/enable";
+                    apiRequest(endpoint, { method: "POST", body: { id: id } })
+                        .then(function () {
+                            log(`[OK] Proxy ${id} ${enabled ? "desativado" : "ativado"}.\n`);
+                            fetchProxies();
+                        })
+                        .catch(handleError);
+                }
+            });
 
-		function renderProxies(data) {
-			state.proxies = Array.isArray(data) ? data.map(normalizeProxy) : [];
-			proxiesBody.innerHTML = '';
+            function persistToken(rawToken) {
+                state.token = rawToken.trim();
+                if (state.token) {
+                    localStorage.setItem(STORAGE_KEY, state.token);
+                    log("[TOKEN] Token guardado.\n");
+                } else {
+                    localStorage.removeItem(STORAGE_KEY);
+                    log("[ALERTA] Token limpo.\n");
+                }
+                refs.tokenInput.value = state.token;
+                updateTokenStatus();
+            }
 
-			if (state.proxies.length === 0) {
-				const row = document.createElement('tr');
-				row.innerHTML = `<td colspan="5" class="px-4 py-6 text-center text-sm text-slate-500">No proxies found.</td>`;
-				proxiesBody.appendChild(row);
-			} else {
-				state.proxies.forEach((proxy) => {
-					const row = document.createElement('tr');
-					const domainsMarkup = proxy.domain_names.length
-						? proxy.domain_names.map((domain) => `<span class="rounded-full border border-slate-800 bg-slate-900/60 px-2 py-0.5 text-xs font-medium text-slate-200">${domain}</span>`).join(' ')
-						: `<span class="text-slate-500">—</span>`;
+            function ensureToken() {
+                if (!state.token) {
+                    log("[ALERTA] Define primeiro o token antes de chamar a API.\n");
+                    return false;
+                }
+                return true;
+            }
 
-					const host = proxy.forward_host || '—';
-					const port = proxy.forward_port ?? '—';
-					const upstream = host === '—' ? '—' : `${proxy.forward_scheme || 'http'}://${host}:${port}`;
+            function updateTokenStatus() {
+                if (state.token) {
+                    refs.tokenStatus.textContent = "Token carregado e pronto a usar.";
+                    refs.tokenStatus.classList.remove("text-slate-500");
+                    refs.tokenStatus.classList.add("text-emerald-400");
+                } else {
+                    refs.tokenStatus.textContent = "Token ainda nao definido.";
+                    refs.tokenStatus.classList.remove("text-emerald-400");
+                    refs.tokenStatus.classList.add("text-slate-500");
+                }
+            }
 
-					const statusLabel = proxy.enabled === true ? 'Enabled' : proxy.enabled === false ? 'Disabled' : 'Unknown';
-					const statusClass = proxy.enabled === true
-						? 'bg-emerald-500/20 text-emerald-200 border border-emerald-500/40'
-						: proxy.enabled === false
-							? 'bg-rose-500/10 text-rose-300 border border-rose-500/40'
-							: 'bg-slate-800 text-slate-300 border border-slate-700/60';
+            function fetchProxies() {
+                if (!ensureToken()) {
+                    return;
+                }
+                log("[INFO] A pedir lista de proxies...\n");
+                apiRequest("/proxy/list", { method: "GET" })
+                    .then(function (proxys) {
+                        const clean = Array.isArray(proxys) ? proxys : [];
+                        state.proxys = clean;
+                        renderProxies(clean);
+                        log(`[INFO] Recebidos ${clean.length} proxies.\n`);
+                    })
+                    .catch(handleError);
+            }
 
-					const flags = [];
-					if (proxy.ssl_forced) flags.push('<span class="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-200">SSL</span>');
-					if (proxy.allow_websocket_upgrade) flags.push('<span class="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-200">WS</span>');
-					if (proxy.caching_enabled) flags.push('<span class="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-200">Cache</span>');
-					if (proxy.block_exploits) flags.push('<span class="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-200">Block</span>');
-					if (proxy.http2_support) flags.push('<span class="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-200">HTTP/2</span>');
-					if (proxy.hsts_enabled) flags.push('<span class="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-200">HSTS</span>');
+            function renderProxies(proxys) {
+                if (!proxys.length) {
+                    refs.proxiesBody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-xs text-slate-500">Sem proxies para mostrar.</td></tr>';
+                    return;
+                }
 
-					const flagsMarkup = flags.length
-						? `<div class="flex flex-wrap gap-2">${flags.join('')}</div>`
-						: '<span class="text-xs text-slate-500">No extra flags</span>';
+                refs.proxiesBody.innerHTML = proxys.map(function (proxy) {
+                    const id = proxy.id;
+                    const domains = Array.isArray(proxy.domain_names) ? proxy.domain_names : [];
+                    const prettyDomains = domains.map(escapeHTML).join('<br>');
+                    const target = `${escapeHTML(proxy.forward_scheme || 'http')}://${escapeHTML(proxy.forward_host || '-')}:${escapeHTML(proxy.forward_port || '-')}`;
+                    const enabled = Boolean(proxy.enabled);
+                    const statusChip = enabled
+                        ? '<span class="inline-flex items-center rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-300">Online</span>'
+                        : '<span class="inline-flex items-center rounded-full border border-red-400/40 bg-red-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-red-300">Offline</span>';
+                    const toggleLabel = enabled ? 'Desativar' : 'Ativar';
+                    return `
+                        <tr data-id="${id}" class="transition hover:bg-slate-800/70">
+                            <td class="px-4 py-3 text-sm text-slate-300">#${escapeHTML(id)}</td>
+                            <td class="px-4 py-3 text-sm text-slate-100">${prettyDomains || '<span class="text-slate-500">(sem dominios)</span>'}</td>
+                            <td class="px-4 py-3 text-sm text-slate-300">${target}</td>
+                            <td class="px-4 py-3">${statusChip}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-action="edit" class="rounded-xl bg-gradient-to-r from-brand-dark to-brand-base px-3 py-2 text-xs font-semibold text-slate-950 transition hover:shadow-lg">Editar</button>
+                                    <button type="button" data-action="toggle" class="rounded-xl border border-slate-700/70 px-3 py-2 text-xs font-semibold text-slate-100 transition hover:bg-slate-800/80">${toggleLabel}</button>
+                                    <button type="button" data-action="delete" class="rounded-xl bg-gradient-to-r from-red-600 to-red-500 px-3 py-2 text-xs font-semibold text-white transition hover:shadow-lg">Apagar</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
 
-					row.innerHTML = `
-            <td class="px-4 py-3 text-sm font-semibold text-slate-100">${proxy.id ?? '—'}</td>
-            <td class="px-4 py-3 text-sm text-slate-200"><div class="flex flex-wrap gap-2">${domainsMarkup}</div></td>
-            <td class="px-4 py-3 text-sm text-slate-300 font-mono">${upstream}</td>
-            <td class="px-4 py-3 text-sm text-slate-300">
-              <div class="flex flex-col gap-2">
-                <span class="inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${statusClass}">${statusLabel}</span>
-                ${flagsMarkup}
-              </div>
-            </td>
-            <td class="px-4 py-3 text-sm">
-              <div class="flex flex-wrap gap-2">
-                <button type="button" data-action="load" data-id="${proxy.id}" class="rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-100 transition hover:border-amber-400 hover:bg-amber-500/30">Load</button>
-                <button type="button" data-action="enable" data-id="${proxy.id}" class="rounded-lg border border-emerald-500/40 bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-100 transition hover:border-emerald-400 hover:bg-emerald-500/30">Enable</button>
-                <button type="button" data-action="disable" data-id="${proxy.id}" class="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-1 text-xs font-medium text-rose-200 transition hover:border-rose-400 hover:bg-rose-500/20">Disable</button>
-                <button type="button" data-action="delete" data-id="${proxy.id}" class="rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-1 text-xs font-medium text-red-200 transition hover:border-red-400 hover:bg-red-500/20">Delete</button>
-              </div>
-            </td>
-          `;
-					proxiesBody.appendChild(row);
-				});
-			}
+            function enterEditMode(proxy) {
+                state.editingId = proxy.id;
+                refs.formTitle.textContent = `Editar proxy #${proxy.id}`;
+                refs.submitButton.textContent = "Guardar alteracoes";
+                refs.cancelEdit.classList.remove("hidden");
 
-			proxiesJson.textContent = JSON.stringify(data ?? [], null, 2);
-		}
+                refs.domains.value = Array.isArray(proxy.domain_names) ? proxy.domain_names.join("\n") : "";
+                refs.scheme.value = proxy.forward_scheme || "http";
+                refs.host.value = proxy.forward_host || "";
+                refs.port.value = proxy.forward_port || 80;
+                refs.accessList.value = proxy.access_list_id ? String(proxy.access_list_id) : "0";
+                refs.certificate.value = proxy.certificate_id || 0;
+                refs.advanced.value = proxy.advanced_config || "";
+                refs.meta.value = JSON.stringify(proxy.meta || defaults.meta, null, 2);
+                refs.locations.value = JSON.stringify(proxy.locations || [], null, 2);
+                refs.cacheToggle.checked = Boolean(proxy.caching_enabled);
+                refs.exploitToggle.checked = Boolean(proxy.block_exploits);
+                refs.wsToggle.checked = Boolean(proxy.allow_websocket_upgrade);
+                refs.http2Toggle.checked = Boolean(proxy.http2_support);
+                refs.hstsToggle.checked = Boolean(proxy.hsts_enabled);
+                refs.subdomainsToggle.checked = Boolean(proxy.hsts_subdomains);
+                refs.sslForcedToggle.checked = Boolean(proxy.ssl_forced);
 
-		async function loadProxies(silent = false) {
-			try {
-				if (!silent) {
-					setStatus(proxiesStatus, 'Refreshing…', { baseClass: 'text-sm text-slate-500' });
-				}
-				const data = await fetchJson('/listProxies');
-				if (!Array.isArray(data)) {
-					throw new Error('Expected an array in response.');
-				}
-				renderProxies(data);
-				setStatus(proxiesStatus, `Last updated ${new Date().toLocaleTimeString()}`, { baseClass: 'text-sm text-slate-500' });
-			} catch (error) {
-				console.error('listProxies error:', error);
-				renderProxies([]);
-				setStatus(proxiesStatus, error.message, { baseClass: 'text-sm text-rose-300/80', isError: true });
-				proxiesJson.textContent = error.message;
-			}
-		}
+                refs.proxyForm.scrollIntoView({ behavior: "smooth", block: "start" });
+                log(`[INFO] A editar proxy ${proxy.id}.\n`);
+            }
 
-		async function toggleProxy(id, action) {
-			const config = {
-				enable: {
-					endpoint: '/enableProxy',
-					method: 'POST',
-					working: `Enabling proxy ${id}…`,
-					success: `Proxy ${id} enabled successfully.`,
-					workingClass: 'mt-4 text-sm text-slate-400',
-					successClass: 'mt-4 text-sm text-emerald-300/80',
-				},
-				disable: {
-					endpoint: '/disableProxy',
-					method: 'POST',
-					working: `Disabling proxy ${id}…`,
-					success: `Proxy ${id} disabled successfully.`,
-					workingClass: 'mt-4 text-sm text-slate-400',
-					successClass: 'mt-4 text-sm text-emerald-300/80',
-				},
-				delete: {
-					endpoint: '/deleteProxy',
-					method: 'DELETE',
-					working: `Deleting proxy ${id}…`,
-					success: `Proxy ${id} deleted successfully.`,
-					workingClass: 'mt-4 text-sm text-rose-200/80',
-					successClass: 'mt-4 text-sm text-rose-300/80',
-				},
-			}[action];
+            function resetForm() {
+                state.editingId = null;
+                refs.formTitle.textContent = "Criar novo proxy";
+                refs.submitButton.textContent = "Criar proxy";
+                refs.cancelEdit.classList.add("hidden");
+                refs.proxyForm.reset();
+                refs.port.value = 80;
+                refs.accessList.value = "0";
+                refs.certificate.value = "0";
+                refs.meta.value = JSON.stringify(defaults.meta, null, 2);
+                refs.locations.value = "[]";
+                refs.cacheToggle.checked = true;
+                refs.exploitToggle.checked = true;
+                refs.wsToggle.checked = true;
+                refs.http2Toggle.checked = false;
+                refs.hstsToggle.checked = false;
+                refs.subdomainsToggle.checked = false;
+                refs.sslForcedToggle.checked = false;
+            }
 
-			if (!config) {
-				setStatus(actionsFeedback, `Unsupported action: ${action}`, { baseClass: 'mt-4 text-sm text-rose-300/80', isError: true });
-				return;
-			}
+            function buildPayloadFromForm() {
+                const domainLines = refs.domains.value
+                    .split(/[\n,]/)
+                    .map(function (part) { return part.trim(); })
+                    .filter(Boolean);
 
-			if (action === 'delete') {
-				const confirmed = window.confirm(`Delete proxy ${id}? This removes it from NPM.`);
-				if (!confirmed) {
-					setStatus(actionsFeedback, 'Deletion cancelled.', { baseClass: 'mt-4 text-sm text-slate-500' });
-					return;
-				}
-			}
+                if (!domainLines.length) {
+                    log("[ALERTA] Indica pelo menos um dominio.\n");
+                    return null;
+                }
 
-			try {
-				setStatus(actionsFeedback, config.working, { baseClass: config.workingClass });
-				await fetchJson(config.endpoint, {
-					method: config.method || 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ id }),
-				});
-				setStatus(actionsFeedback, config.success, { baseClass: config.successClass });
-				if (action === 'delete' && editForm.elements['id'].value === String(id)) {
-					editForm.reset();
-					setStatus(editFeedback, 'Cleared form after deletion.', { baseClass: 'mt-3 text-sm text-slate-500' });
-				}
-				loadProxies(true);
-			} catch (error) {
-				console.error(`${action}Proxy error:`, error);
-				setStatus(actionsFeedback, error.message, { baseClass: 'mt-4 text-sm text-rose-300/80', isError: true });
-			}
-		}
+                const host = refs.host.value.trim();
+                if (!host) {
+                    log("[ALERTA] O host de destino e obrigatorio.\n");
+                    return null;
+                }
 
-		function fillEditForm(proxy) {
-			if (!proxy) {
-				setStatus(editFeedback, 'Proxy not found in current list.', { baseClass: 'mt-3 text-sm text-rose-300/80', isError: true });
-				return;
-			}
+                const port = Number(refs.port.value);
+                if (!Number.isInteger(port) || port < 1 || port > 65535) {
+                    log("[ALERTA] Porto invalido.\n");
+                    return null;
+                }
 
-			editForm.elements['id'].value = proxy.id ?? '';
-			editForm.elements['domain_names'].value = proxy.domain_names.join('\n');
-			editForm.elements['forward_scheme'].value = proxy.forward_scheme || 'http';
-			editForm.elements['forward_host'].value = proxy.forward_host || '';
-			editForm.elements['forward_port'].value = proxy.forward_port ?? '';
-			editForm.elements['access_list_id'].value = proxy.access_list_id ?? '';
-			editForm.elements['certificate_id'].value = proxy.certificate_id ?? 0;
-			editForm.elements['advanced_config'].value = proxy.advanced_config || '';
-			editForm.elements['locations'].value = proxy.locations && proxy.locations.length ? JSON.stringify(proxy.locations, null, 2) : '';
-			editForm.elements['meta'].value = proxy.meta ? JSON.stringify(proxy.meta, null, 2) : '';
+                let meta;
+                let locations;
+                try {
+                    meta = refs.meta.value.trim() ? JSON.parse(refs.meta.value) : defaults.meta;
+                } catch (error) {
+                    log("[ERRO] Meta deve ser JSON valido.\n");
+                    return null;
+                }
 
-			editForm.elements['caching_enabled'].checked = Boolean(proxy.caching_enabled);
-			editForm.elements['block_exploits'].checked = Boolean(proxy.block_exploits);
-			editForm.elements['allow_websocket_upgrade'].checked = Boolean(proxy.allow_websocket_upgrade);
-			editForm.elements['http2_support'].checked = Boolean(proxy.http2_support);
-			editForm.elements['hsts_enabled'].checked = Boolean(proxy.hsts_enabled);
-			editForm.elements['hsts_subdomains'].checked = Boolean(proxy.hsts_subdomains);
-			editForm.elements['ssl_forced'].checked = Boolean(proxy.ssl_forced);
+                try {
+                    locations = refs.locations.value.trim() ? JSON.parse(refs.locations.value) : [];
+                } catch (error) {
+                    log("[ERRO] Locations deve ser JSON valido (normalmente uma lista).\n");
+                    return null;
+                }
 
-			setStatus(editFeedback, `Loaded proxy ${proxy.id} into the form.`, { baseClass: 'mt-3 text-sm text-slate-400' });
-		}
+                const payload = {
+                    domain_names: domainLines,
+                    forward_scheme: refs.scheme.value,
+                    forward_host: host,
+                    forward_port: port,
+                    caching_enabled: Boolean(refs.cacheToggle.checked),
+                    block_exploits: Boolean(refs.exploitToggle.checked),
+                    allow_websocket_upgrade: Boolean(refs.wsToggle.checked),
+                    access_list_id: String(refs.accessList.value || "0"),
+                    certificate_id: Number(refs.certificate.value || 0),
+                    meta: meta,
+                    advanced_config: refs.advanced.value,
+                    locations: locations,
+                    http2_support: Boolean(refs.http2Toggle.checked),
+                    hsts_enabled: Boolean(refs.hstsToggle.checked),
+                    hsts_subdomains: Boolean(refs.subdomainsToggle.checked),
+                    ssl_forced: Boolean(refs.sslForcedToggle.checked)
+                };
 
-		document.getElementById('proxies-refresh').addEventListener('click', () => loadProxies());
+                return payload;
+            }
 
-		proxiesBody.addEventListener('click', (event) => {
-			const button = event.target.closest('button[data-action]');
-			if (!button) return;
+            function apiRequest(path, options) {
+                const config = {
+                    method: options.method || "GET",
+                    headers: {
+                        Authorization: state.token
+                    }
+                };
 
-			const id = Number(button.dataset.id);
-			if (!Number.isInteger(id) || id <= 0) {
-				setStatus(actionsFeedback, 'Unable to determine proxy id for this action.', { baseClass: 'mt-4 text-sm text-rose-300/80', isError: true });
-				return;
-			}
+                if (options.body) {
+                    config.headers["Content-Type"] = "application/json";
+                    config.body = JSON.stringify(options.body);
+                }
 
-			const proxy = state.proxies.find((item) => item.id === id);
-			const action = button.dataset.action;
-			if (action === 'load') {
-				fillEditForm(proxy);
-				window.scrollTo({ top: editForm.offsetTop - 40, behavior: 'smooth' });
-			} else if (action === 'enable' || action === 'disable' || action === 'delete') {
-				toggleProxy(id, action);
-			}
-		});
+                return fetch(path, config).then(async function (response) {
+                    const text = await response.text();
+                    let parsed = null;
+                    if (text) {
+                        try {
+                            parsed = JSON.parse(text);
+                        } catch (error) {
+                            parsed = text;
+                        }
+                    }
 
-		createForm.addEventListener('submit', async (event) => {
-			event.preventDefault();
-			try {
-				const payload = gatherProxyPayload(createForm);
-				setStatus(createFeedback, 'Creating proxy…', { baseClass: 'mt-3 text-sm text-emerald-300/70' });
-				await fetchJson('/createProxy', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify(payload),
-				});
-				setStatus(createFeedback, 'Proxy created successfully.', { baseClass: 'mt-3 text-sm text-emerald-300/70' });
-				createForm.reset();
-				loadProxies(true);
-			} catch (error) {
-				console.error('createProxy error:', error);
-				setStatus(createFeedback, error.message, { baseClass: 'mt-3 text-sm text-rose-300/80', isError: true });
-			}
-		});
+                    if (!response.ok) {
+                        const message = parsed && parsed.error ? parsed.error : parsed || response.statusText;
+                        throw new Error(message || "Erro inesperado");
+                    }
 
-		editForm.addEventListener('submit', async (event) => {
-			event.preventDefault();
-			try {
-				const payload = gatherProxyPayload(editForm, { includeId: true });
-				setStatus(editFeedback, `Saving proxy ${payload.id}…`, { baseClass: 'mt-3 text-sm text-amber-200/70' });
-				await fetchJson('/editProxy', {
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify(payload),
-				});
-				setStatus(editFeedback, `Proxy ${payload.id} updated successfully.`, { baseClass: 'mt-3 text-sm text-emerald-300/80' });
-				loadProxies(true);
-			} catch (error) {
-				console.error('editProxy error:', error);
-				setStatus(editFeedback, error.message, { baseClass: 'mt-3 text-sm text-rose-300/80', isError: true });
-			}
-		});
+                    return parsed;
+                });
+            }
 
-		loadProxies();
-		setInterval(() => loadProxies(true), 25000);
-	</script>
+            function handleError(error) {
+                log(`[ERRO] ${error && error.message ? error.message : error}\n`);
+            }
+
+            function log(message) {
+                refs.console.textContent += message;
+                refs.console.scrollTop = refs.console.scrollHeight;
+            }
+
+            function escapeHTML(value) {
+                return String(value)
+                    .replace(/&/g, "&amp;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;");
+            }
+
+            if (state.token) {
+                fetchProxies();
+            }
+        })();
+    </script>
 </body>
-
 </html>

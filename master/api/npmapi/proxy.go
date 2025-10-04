@@ -1,4 +1,4 @@
-package api
+package npmapi
 
 import (
 	"512SvMan/npm"
@@ -115,7 +115,7 @@ func enableProxy(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func setupProxyAPI(r chi.Router) chi.Router {
+func SetupProxyAPI(r chi.Router) chi.Router {
 	return r.Route("/proxy", func(r chi.Router) {
 		r.Get("/list", listProxies)
 		r.Post("/create", createProxy)

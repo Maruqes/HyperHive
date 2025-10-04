@@ -1,6 +1,7 @@
 package api
 
 import (
+	"512SvMan/api/npmapi"
 	"512SvMan/npm"
 	"net/http"
 
@@ -22,6 +23,8 @@ func StartApi() {
 		panic(err)
 	}
 
+	npmapi.SetBaseURL(baseURL)
+
 	r := chi.NewRouter()
 
 	r.Post("/login", loginHandler)
@@ -31,10 +34,14 @@ func StartApi() {
 		r.Use(authMiddleware)
 
 		r.Get("/protected", protectedRoutes)
-		setupProxyAPI(r)
+		npmapi.SetupProxyAPI(r)
+		npmapi.Setup404API(r)
 		setupNFSAPI(r)
 		setupProtocolAPI(r)
 	})
+
+	//put web folder on /
+	r.Handle("/*", http.FileServer(http.Dir("./web")))
 
 	http.ListenAndServe(":9595", r)
 }

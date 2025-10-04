@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
-	"time"
 )
 
 type StringOrInt string
@@ -114,15 +112,7 @@ func CreateProxy(baseURL, token string, p Proxy) (int, error) {
 		return 0, err
 	}
 
-	req, err := http.NewRequest("POST", baseURL+"/api/nginx/proxy-hosts", bytes.NewReader(jsonData))
-	if err != nil {
-		return 0, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	client := &http.Client{Timeout: 20 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := MakeRequest("POST", baseURL+"/api/nginx/proxy-hosts", token, bytes.NewReader(jsonData))
 	if err != nil {
 		return 0, err
 	}
@@ -170,15 +160,7 @@ func EditProxy(baseURL, token string, p Proxy) error {
 		return err
 	}
 
-	req, err := http.NewRequest("PUT", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d", baseURL, p.ID), bytes.NewReader(jsonData))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	client := &http.Client{Timeout: 20 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := MakeRequest("PUT", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d", baseURL, p.ID), token, bytes.NewReader(jsonData))
 	if err != nil {
 		return err
 	}
@@ -194,14 +176,7 @@ func EditProxy(baseURL, token string, p Proxy) error {
 
 // POST TO /api/nginx/proxy-hosts/{id}/disable
 func DisableProxy(baseURL, token string, id int) error {
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d/disable", baseURL, id), nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	client := &http.Client{Timeout: 20 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d/disable", baseURL, id), token, nil)
 	if err != nil {
 		return err
 	}
@@ -216,14 +191,7 @@ func DisableProxy(baseURL, token string, id int) error {
 }
 
 func EnableProxy(baseURL, token string, id int) error {
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d/enable", baseURL, id), nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	client := &http.Client{Timeout: 20 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d/enable", baseURL, id), token, nil)
 	if err != nil {
 		return err
 	}
@@ -239,14 +207,7 @@ func EnableProxy(baseURL, token string, id int) error {
 
 // DELETE /api/nginx/proxy-hosts/{id}
 func DeleteProxy(baseURL, token string, id int) error {
-	req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d", baseURL, id), nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	client := &http.Client{Timeout: 20 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := MakeRequest("DELETE", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d", baseURL, id), token, nil)
 	if err != nil {
 		return err
 	}
@@ -260,14 +221,7 @@ func DeleteProxy(baseURL, token string, id int) error {
 }
 
 func GetAllProxys(baseURL, token string) ([]Proxy, error) {
-	req, err := http.NewRequest("GET", baseURL+"/api/nginx/proxy-hosts", nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	client := &http.Client{Timeout: 20 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := MakeRequest("GET", baseURL+"/api/nginx/proxy-hosts", token, nil)
 	if err != nil {
 		return nil, err
 	}
