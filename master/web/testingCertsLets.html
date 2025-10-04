@@ -100,6 +100,91 @@
             </form>
         </section>
 
+        <section class="space-y-6 rounded-2xl border border-slate-800/70 bg-slate-900/60 p-6 shadow-lg">
+            <div class="space-y-2">
+                <h2 class="text-xl font-semibold">Testar outros endpoints</h2>
+                <p class="text-sm text-slate-400">Executa as rotas de certificados (listar, upload manual, download, renovacao e remocao) com o mesmo token.</p>
+            </div>
+
+            <div class="grid gap-6 lg:grid-cols-2">
+                <section class="space-y-4 rounded-xl border border-slate-800/60 bg-slate-950/40 p-4">
+                    <div class="flex items-center justify-between gap-4">
+                        <h3 class="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Listar certificados</h3>
+                        <button type="button" id="listCerts" class="rounded-lg bg-brand-base/90 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-950 transition hover:brightness-[1.05]">GET /list</button>
+                    </div>
+                    <p class="text-xs text-slate-500">Mostra o JSON devolvido por <code>/certs/list</code>.</p>
+                </section>
+
+                <section class="space-y-4 rounded-xl border border-slate-800/60 bg-slate-950/40 p-4 lg:row-span-2">
+                    <div class="flex items-center justify-between gap-4">
+                        <h3 class="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Upload manual</h3>
+                        <span class="rounded-lg border border-brand-base/50 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-brand-base/90">POST /create</span>
+                    </div>
+                    <form id="manualCertForm" class="space-y-4">
+                        <div class="space-y-2">
+                            <label for="manualName" class="text-xs uppercase tracking-[0.2em] text-slate-400">Nome</label>
+                            <input id="manualName" name="name" type="text" placeholder="Ex: wildcard-exemplo" class="w-full rounded-xl border border-transparent bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-brand-base">
+                        </div>
+                        <div class="space-y-2">
+                            <label for="manualCert" class="text-xs uppercase tracking-[0.2em] text-slate-400">Certificado (PEM)</label>
+                            <textarea id="manualCert" rows="4" placeholder="-----BEGIN CERTIFICATE-----" class="w-full rounded-xl border border-transparent bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-brand-base"></textarea>
+                        </div>
+                        <div class="space-y-2">
+                            <label for="manualKey" class="text-xs uppercase tracking-[0.2em] text-slate-400">Chave privada (PEM)</label>
+                            <textarea id="manualKey" rows="4" placeholder="-----BEGIN PRIVATE KEY-----" class="w-full rounded-xl border border-transparent bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-brand-base"></textarea>
+                        </div>
+                        <div class="space-y-2">
+                            <label for="manualIntermediate" class="text-xs uppercase tracking-[0.2em] text-slate-400">Intermediario (PEM, opcional)</label>
+                            <textarea id="manualIntermediate" rows="4" placeholder="Cole aqui o intermediario, se existir" class="w-full rounded-xl border border-transparent bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-brand-base"></textarea>
+                        </div>
+                        <button type="submit" class="w-full rounded-xl bg-gradient-to-r from-brand-dark to-brand-base px-4 py-2 text-sm font-semibold text-slate-950 transition hover:shadow-lg">Enviar certificado</button>
+                    </form>
+                </section>
+
+                <section class="space-y-4 rounded-xl border border-slate-800/60 bg-slate-950/40 p-4">
+                    <div class="flex items-center justify-between gap-4">
+                        <h3 class="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Download</h3>
+                        <span class="rounded-lg border border-brand-base/50 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-brand-base/90">POST /download</span>
+                    </div>
+                    <form id="downloadForm" class="space-y-4">
+                        <div class="space-y-2">
+                            <label for="downloadId" class="text-xs uppercase tracking-[0.2em] text-slate-400">ID</label>
+                            <input id="downloadId" type="number" min="1" placeholder="123" class="w-full rounded-xl border border-transparent bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-brand-base">
+                        </div>
+                        <button type="submit" class="w-full rounded-xl border border-brand-base/50 px-4 py-2 text-sm font-semibold text-brand-base transition hover:bg-brand-base/10">Descarregar</button>
+                    </form>
+                </section>
+
+                <section class="space-y-4 rounded-xl border border-slate-800/60 bg-slate-950/40 p-4">
+                    <div class="flex items-center justify-between gap-4">
+                        <h3 class="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Renovar</h3>
+                        <span class="rounded-lg border border-brand-base/50 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-brand-base/90">POST /renew</span>
+                    </div>
+                    <form id="renewForm" class="space-y-4">
+                        <div class="space-y-2">
+                            <label for="renewId" class="text-xs uppercase tracking-[0.2em] text-slate-400">ID</label>
+                            <input id="renewId" type="number" min="1" placeholder="123" class="w-full rounded-xl border border-transparent bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-brand-base">
+                        </div>
+                        <button type="submit" class="w-full rounded-xl border border-emerald-500/60 px-4 py-2 text-sm font-semibold text-emerald-400 transition hover:bg-emerald-500/10">Renovar certificado</button>
+                    </form>
+                </section>
+
+                <section class="space-y-4 rounded-xl border border-slate-800/60 bg-slate-950/40 p-4">
+                    <div class="flex items-center justify-between gap-4">
+                        <h3 class="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Eliminar</h3>
+                        <span class="rounded-lg border border-brand-base/50 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-brand-base/90">DELETE /delete</span>
+                    </div>
+                    <form id="deleteForm" class="space-y-4">
+                        <div class="space-y-2">
+                            <label for="deleteId" class="text-xs uppercase tracking-[0.2em] text-slate-400">ID</label>
+                            <input id="deleteId" type="number" min="1" placeholder="123" class="w-full rounded-xl border border-transparent bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-brand-base">
+                        </div>
+                        <button type="submit" class="w-full rounded-xl border border-rose-500/60 px-4 py-2 text-sm font-semibold text-rose-400 transition hover:bg-rose-500/10">Eliminar certificado</button>
+                    </form>
+                </section>
+            </div>
+        </section>
+
         <section class="rounded-2xl border border-slate-800/70 bg-slate-900/60 p-6 shadow-lg">
             <h2 class="text-xl font-semibold">Console</h2>
             <div id="console" class="mt-4 h-56 overflow-y-auto rounded-2xl bg-slate-950/70 p-4 font-mono text-xs leading-relaxed text-slate-300"></div>
@@ -129,6 +214,18 @@
                 dnsSection: document.getElementById("dnsSection"),
                 dynuToken: document.getElementById("dynuTokenInput"),
                 resetForm: document.getElementById("resetForm"),
+                listCerts: document.getElementById("listCerts"),
+                manualForm: document.getElementById("manualCertForm"),
+                manualName: document.getElementById("manualName"),
+                manualCert: document.getElementById("manualCert"),
+                manualKey: document.getElementById("manualKey"),
+                manualIntermediate: document.getElementById("manualIntermediate"),
+                downloadForm: document.getElementById("downloadForm"),
+                downloadId: document.getElementById("downloadId"),
+                renewForm: document.getElementById("renewForm"),
+                renewId: document.getElementById("renewId"),
+                deleteForm: document.getElementById("deleteForm"),
+                deleteId: document.getElementById("deleteId"),
                 console: document.getElementById("console")
             };
 
@@ -179,6 +276,30 @@
                     event.preventDefault();
                     submitForm();
                 });
+
+                refs.listCerts.addEventListener("click", function () {
+                    handleListCerts();
+                });
+
+                refs.manualForm.addEventListener("submit", function (event) {
+                    event.preventDefault();
+                    handleManualCreate();
+                });
+
+                refs.downloadForm.addEventListener("submit", function (event) {
+                    event.preventDefault();
+                    handleDownload();
+                });
+
+                refs.renewForm.addEventListener("submit", function (event) {
+                    event.preventDefault();
+                    handleRenew();
+                });
+
+                refs.deleteForm.addEventListener("submit", function (event) {
+                    event.preventDefault();
+                    handleDelete();
+                });
             }
 
             function updateTokenStatus() {
@@ -220,8 +341,7 @@
             }
 
             function submitForm() {
-                if (!state.token) {
-                    log("[ALERTA] Define o token antes de criar o certificado.\n");
+                if (!ensureToken()) {
                     return;
                 }
 
@@ -277,28 +397,251 @@
                         Authorization: state.token
                     },
                     body: JSON.stringify(payload)
-                }).then(async function (response) {
-                    const text = await response.text();
-                    let data = null;
-                    if (text) {
-                        try {
-                            data = JSON.parse(text);
-                        } catch (_) {
-                            data = text;
-                        }
-                    }
-
-                    if (!response.ok) {
-                        const message = data && data.error ? data.error : data || response.statusText;
-                        throw new Error(message || "Erro inesperado ao criar certificado Let's Encrypt");
-                    }
-
-                    return data;
-                }).then(function (data) {
+                }).then(parseJSONResponse).then(function (data) {
                     const certId = data && typeof data.id === "number" ? data.id : data;
                     log(`[SUCESSO] Certificado Let's Encrypt criado com ID: ${certId}.\n`);
                 }).catch(function (error) {
                     log(`[ERRO] ${error && error.message ? error.message : error}.\n`);
+                });
+            }
+
+            function handleListCerts() {
+                if (!ensureToken()) {
+                    return;
+                }
+
+                log("[INFO] A listar certificados...\n");
+
+                fetch("/certs/list", {
+                    method: "GET",
+                    headers: {
+                        Authorization: state.token
+                    }
+                }).then(parseJSONResponse).then(function (data) {
+                    log(`${JSON.stringify(data, null, 2)}\n`);
+                }).catch(function (error) {
+                    log(`[ERRO] ${error && error.message ? error.message : error}.\n`);
+                });
+            }
+
+            function handleManualCreate() {
+                if (!ensureToken()) {
+                    return;
+                }
+
+                const name = refs.manualName.value.trim();
+                const certPem = normalizePEM(refs.manualCert.value);
+                const keyPem = normalizePEM(refs.manualKey.value);
+                const intermediate = normalizePEM(refs.manualIntermediate.value, true);
+
+                if (!name) {
+                    log("[ALERTA] Nome do certificado em falta.\n");
+                    return;
+                }
+                if (!certPem) {
+                    log("[ALERTA] Certificado PEM em falta.\n");
+                    return;
+                }
+                if (!keyPem) {
+                    log("[ALERTA] Chave privada PEM em falta.\n");
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append("name", name);
+                formData.append("certPem", new Blob([certPem], { type: "application/x-pem-file" }), "certificate.pem");
+                formData.append("keyPem", new Blob([keyPem], { type: "application/x-pem-file" }), "key.pem");
+                if (intermediate) {
+                    formData.append("intermediateCSR", new Blob([intermediate], { type: "application/x-pem-file" }), "intermediate.pem");
+                }
+
+                log(`[INFO] A enviar certificado manual '${name}'...\n`);
+
+                fetch("/certs/create", {
+                    method: "POST",
+                    headers: {
+                        Authorization: state.token
+                    },
+                    body: formData
+                }).then(parseJSONResponse).then(function (data) {
+                    const certId = data && typeof data.id === "number" ? data.id : data;
+                    log(`[SUCESSO] Certificado manual criado com ID: ${certId}.\n`);
+                    refs.manualForm.reset();
+                }).catch(function (error) {
+                    log(`[ERRO] ${error && error.message ? error.message : error}.\n`);
+                });
+            }
+
+            function handleDownload() {
+                if (!ensureToken()) {
+                    return;
+                }
+
+                const id = parseId(refs.downloadId, "download");
+                if (!id) {
+                    return;
+                }
+
+                log(`[INFO] A descarregar certificado ${id}...\n`);
+
+                fetch("/certs/download", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: state.token
+                    },
+                    body: JSON.stringify({ id: id })
+                }).then(function (response) {
+                    if (!response.ok) {
+                        return response.text().then(function (text) {
+                            let data = text;
+                            try {
+                                data = JSON.parse(text);
+                            } catch (_) {}
+                            const message = data && data.error ? data.error : data || response.statusText || "Erro inesperado ao descarregar";
+                            throw new Error(message);
+                        });
+                    }
+                    return response.blob().then(function (blob) {
+                        const disposition = response.headers.get("Content-Disposition");
+                        const filename = parseFilename(disposition, `certificate-${id}`);
+                        downloadBlob(blob, filename);
+                        log(`[SUCESSO] Certificado ${id} descarregado (${blob.size} bytes).\n`);
+                        return null;
+                    });
+                }).catch(function (error) {
+                    log(`[ERRO] ${error && error.message ? error.message : error}.\n`);
+                });
+            }
+
+            function handleRenew() {
+                if (!ensureToken()) {
+                    return;
+                }
+
+                const id = parseId(refs.renewId, "renovacao");
+                if (!id) {
+                    return;
+                }
+
+                log(`[INFO] A renovar certificado ${id}...\n`);
+
+                fetch("/certs/renew", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: state.token
+                    },
+                    body: JSON.stringify({ id: id })
+                }).then(parseJSONResponse).then(function () {
+                    log(`[SUCESSO] Pedido de renovacao enviado para o certificado ${id}.\n`);
+                }).catch(function (error) {
+                    log(`[ERRO] ${error && error.message ? error.message : error}.\n`);
+                });
+            }
+
+            function handleDelete() {
+                if (!ensureToken()) {
+                    return;
+                }
+
+                const id = parseId(refs.deleteId, "eliminacao");
+                if (!id) {
+                    return;
+                }
+
+                log(`[INFO] A eliminar certificado ${id}...\n`);
+
+                fetch("/certs/delete", {
+                    method: "DELETE",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: state.token
+                    },
+                    body: JSON.stringify({ id: id })
+                }).then(parseJSONResponse).then(function () {
+                    log(`[SUCESSO] Certificado ${id} eliminado.\n`);
+                }).catch(function (error) {
+                    log(`[ERRO] ${error && error.message ? error.message : error}.\n`);
+                });
+            }
+
+            function ensureToken() {
+                if (!state.token) {
+                    log("[ALERTA] Define o token antes de usar este endpoint.\n");
+                    return false;
+                }
+                return true;
+            }
+
+            function parseId(input, actionLabel) {
+                const value = parseInt(input.value, 10);
+                if (!Number.isFinite(value) || value <= 0) {
+                    const action = actionLabel ? ` para ${actionLabel}` : "";
+                    log(`[ALERTA] Indica um ID valido (> 0)${action}.\n`);
+                    return null;
+                }
+                return value;
+            }
+
+            function normalizePEM(value, allowEmpty) {
+                const trimmed = (value || "").replace(/\r\n/g, "\n").trim();
+                if (!trimmed) {
+                    return allowEmpty ? "" : null;
+                }
+                return trimmed.endsWith("\n") ? trimmed : `${trimmed}\n`;
+            }
+
+            async function parseJSONResponse(response) {
+                const text = await response.text();
+                let data = null;
+                if (text) {
+                    try {
+                        data = JSON.parse(text);
+                    } catch (_) {
+                        data = text;
+                    }
+                }
+
+                if (!response.ok) {
+                    const message = data && data.error ? data.error : data || response.statusText || "Erro inesperado";
+                    throw new Error(message);
+                }
+
+                return data;
+            }
+
+            function parseFilename(disposition, fallback) {
+                if (!disposition) {
+                    return fallback;
+                }
+
+                const match = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+                if (match) {
+                    const filename = match[1] || match[2];
+                    if (filename) {
+                        try {
+                            return decodeURIComponent(filename);
+                        } catch (_) {
+                            return filename;
+                        }
+                    }
+                }
+
+                return fallback;
+            }
+
+            function downloadBlob(blob, filename) {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = filename;
+                link.style.display = "none";
+                document.body.appendChild(link);
+                link.click();
+                requestAnimationFrame(function () {
+                    URL.revokeObjectURL(url);
+                    link.remove();
                 });
             }
 

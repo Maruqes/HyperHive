@@ -24,6 +24,22 @@ type Cert struct {
 	IntermediateCSR []byte
 }
 
+type Certificate struct {
+	ID            int             `json:"id"`
+	OwnerUserID   int             `json:"owner_user_id"`
+	OwnerTeamID   int             `json:"owner_team_id"`
+	NiceName      string          `json:"nice_name"`
+	Provider      string          `json:"provider"`
+	Status        string          `json:"status"`
+	DomainNames   []string        `json:"domain_names"`
+	ExpiresOn     string          `json:"expires_on"`
+	CreatedOn     string          `json:"created_on"`
+	UpdatedOn     string          `json:"updated_on"`
+	Meta          map[string]any  `json:"meta"`
+	RequestConfig json.RawMessage `json:"request_config"`
+	RawCertData   json.RawMessage `json:"certificate"`
+}
+
 func addPart(fieldName, filename, contentType string, data []byte, w *multipart.Writer) error {
 	h := make(textproto.MIMEHeader)
 	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fieldName, filename))
@@ -147,7 +163,7 @@ func CreateCert(baseURL, token string, cert Cert) (int, error) {
 		return 0, err
 	}
 
-	resp, err := MakeRequest("POST", baseURL+"/api/nginx/certificates", token, bytes.NewReader(payload))
+	resp, err := MakeRequest("POST", baseURL+"/api/nginx/certificates", token, bytes.NewReader(payload), 30)
 	if err != nil {
 		return 0, err
 	}
@@ -196,7 +212,7 @@ func CreateLetsEncryptCert(baseURL, token string, cert LetsEncryptCert) (int, er
 		return 0, err
 	}
 
-	resp, err := MakeRequest("POST", baseURL+"/api/nginx/certificates", token, bytes.NewReader(payload))
+	resp, err := MakeRequest("POST", baseURL+"/api/nginx/certificates", token, bytes.NewReader(payload), 600) //10 mins
 	if err != nil {
 		return 0, err
 	}
@@ -236,3 +252,92 @@ func CreateLetsEncryptCert(baseURL, token string, cert LetsEncryptCert) (int, er
 	}
 	return 0, fmt.Errorf("cert created but id not found in response: %s", string(respBody))
 }
+
+func ListCerts(baseURL, token string) ([]Certificate, error) {
+	resp, err := MakeRequest(http.MethodGet, baseURL+"/api/nginx/certificates", token, nil, 60)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return nil, fmt.Errorf("list certs failed (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var certs []Certificate
+	if err := json.Unmarshal(body, &certs); err != nil {
+		return nil, err
+	}
+
+	return certs, nil
+}
+
+func DownloadCert(baseURL, token string, certID int) ([]byte, string, error) {
+	url := fmt.Sprintf("%s/api/nginx/certificates/%d/download", baseURL, certID)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	client := &http.Client{Timeout: 120 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", fmt.Errorf("download cert failed (%d): %s", resp.StatusCode, body)
+	}
+
+	return body, resp.Header.Get("Content-Type"), nil
+}
+
+func RenewCert(baseURL, token string, certID int) error {
+	resp, err := MakeRequest(http.MethodPost, fmt.Sprintf("%s/api/nginx/certificates/%d/renew", baseURL, certID), token, nil, 600)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("renew cert failed (%d): %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+func DeleteCert(baseURL, token string, certID int) error {
+	resp, err := MakeRequest(http.MethodDelete, fmt.Sprintf("%s/api/nginx/certificates/%d", baseURL, certID), token, nil, 60)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("delete cert failed (%d): %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+
+
+// GET /api/nginx/certificates/1/download
+// POST /api/nginx/certificates/1/renew
+// DELETE /api/nginx/certificates/1 

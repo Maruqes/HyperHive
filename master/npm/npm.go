@@ -240,7 +240,7 @@ func SetupNPM(base string) error {
 }
 
 
-func MakeRequest(method, url, token string, body io.Reader) (*http.Response, error) {
+func MakeRequest(method, url, token string, body io.Reader, timeoutSeconds int) (*http.Response, error) {
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, err
@@ -249,7 +249,7 @@ func MakeRequest(method, url, token string, body io.Reader) (*http.Response, err
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	client := &http.Client{Timeout: 20 * time.Second}
+	client := &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err

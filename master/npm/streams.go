@@ -58,7 +58,7 @@ func CreateStream(baseURL, token string, p Stream) (int, error) {
 		return 0, err
 	}
 
-	resp, err := MakeRequest("POST", baseURL+"/api/nginx/streams", token, bytes.NewReader(jsonData))
+	resp, err := MakeRequest("POST", baseURL+"/api/nginx/streams", token, bytes.NewReader(jsonData), 30)
 	if err != nil {
 		return 0, err
 	}
@@ -96,7 +96,7 @@ func EditStream(baseURL, token string, p Stream) error {
 		return err
 	}
 
-	resp, err := MakeRequest("PUT", fmt.Sprintf("%s/api/nginx/streams/%d", baseURL, p.ID), token, bytes.NewReader(jsonData))
+	resp, err := MakeRequest("PUT", fmt.Sprintf("%s/api/nginx/streams/%d", baseURL, p.ID), token, bytes.NewReader(jsonData), 30)
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func EditStream(baseURL, token string, p Stream) error {
 }
 
 func DeleteStream(baseURL, token string, id int) error {
-	resp, err := MakeRequest("DELETE", fmt.Sprintf("%s/api/nginx/streams/%d", baseURL, id), token, nil)
+	resp, err := MakeRequest("DELETE", fmt.Sprintf("%s/api/nginx/streams/%d", baseURL, id), token, nil, 30)
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func DeleteStream(baseURL, token string, id int) error {
 }
 
 func EnableStream(baseURL, token string, id int) error {
-	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/streams/%d/enable", baseURL, id), token, nil)
+	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/streams/%d/enable", baseURL, id), token, nil, 30)
 	if err != nil {
 		return err
 	}
@@ -141,7 +141,7 @@ func EnableStream(baseURL, token string, id int) error {
 }
 
 func DisableStream(baseURL, token string, id int) error {
-	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/streams/%d/disable", baseURL, id), token, nil)
+	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/streams/%d/disable", baseURL, id), token, nil, 30)
 	if err != nil {
 		return err
 	}
@@ -156,7 +156,7 @@ func DisableStream(baseURL, token string, id int) error {
 }
 
 func ListStreams(baseURL, token string) ([]Stream, error) {
-	resp, err := MakeRequest("GET", baseURL+"/api/nginx/streams", token, nil)
+	resp, err := MakeRequest("GET", baseURL+"/api/nginx/streams", token, nil, 30)
 	if err != nil {
 		return nil, err
 	}

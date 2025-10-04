@@ -4,6 +4,7 @@ import (
 	"512SvMan/npm"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -125,9 +126,107 @@ func createCertLetsEncrypt(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]any{"id": id})
 }
 
+func listCerts(w http.ResponseWriter, r *http.Request) {
+	loginToken := GetTokenFromContext(r)
+
+	certs, err := npm.ListCerts(baseURL, loginToken)
+	if err != nil {
+		http.Error(w, "failed to list certs: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(certs); err != nil {
+		http.Error(w, "failed to marshal certs", http.StatusInternalServerError)
+		return
+	}
+}
+
+type certIDPayload struct {
+	ID int `json:"id"`
+}
+
+func downloadCert(w http.ResponseWriter, r *http.Request) {
+	var payload certIDPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if payload.ID <= 0 {
+		http.Error(w, "invalid certificate id", http.StatusBadRequest)
+		return
+	}
+
+	loginToken := GetTokenFromContext(r)
+	data, contentType, err := npm.DownloadCert(baseURL, loginToken, payload.ID)
+	if err != nil {
+		http.Error(w, "failed to download cert: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"certificate-%d\"", payload.ID))
+	w.WriteHeader(http.StatusOK)
+	w.Write(data)
+}
+
+func renewCert(w http.ResponseWriter, r *http.Request) {
+	var payload certIDPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if payload.ID <= 0 {
+		http.Error(w, "invalid certificate id", http.StatusBadRequest)
+		return
+	}
+
+	loginToken := GetTokenFromContext(r)
+	if err := npm.RenewCert(baseURL, loginToken, payload.ID); err != nil {
+		http.Error(w, "failed to renew cert: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func deleteCert(w http.ResponseWriter, r *http.Request) {
+	var payload certIDPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if payload.ID <= 0 {
+		http.Error(w, "invalid certificate id", http.StatusBadRequest)
+		return
+	}
+
+	loginToken := GetTokenFromContext(r)
+	if err := npm.DeleteCert(baseURL, loginToken, payload.ID); err != nil {
+		http.Error(w, "failed to delete cert: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func SetupCertAPI(r chi.Router) chi.Router {
 	return r.Route("/certs", func(r chi.Router) {
+		r.Get("/list", listCerts)
 		r.Post("/create", createCert)
 		r.Post("/create-lets-encrypt", createCertLetsEncrypt)
+		r.Post("/download", downloadCert)
+		r.Post("/renew", renewCert)
+		r.Delete("/delete", deleteCert)
 	})
 }

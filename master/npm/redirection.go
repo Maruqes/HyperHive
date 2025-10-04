@@ -78,7 +78,7 @@ func CreateRedirection(baseURL, token string, p Redirection) (int, error) {
 		return 0, err
 	}
 
-	resp, err := MakeRequest("POST", baseURL+"/api/nginx/redirection-hosts", token, bytes.NewReader(jsonData))
+	resp, err := MakeRequest("POST", baseURL+"/api/nginx/redirection-hosts", token, bytes.NewReader(jsonData), 30)
 	if err != nil {
 		return 0, err
 	}
@@ -122,7 +122,7 @@ func EditRedirection(baseURL, token string, p Redirection) error {
 		return err
 	}
 
-	resp, err := MakeRequest("PUT", fmt.Sprintf("%s/api/nginx/redirection-hosts/%d", baseURL, p.ID), token, bytes.NewReader(jsonData))
+	resp, err := MakeRequest("PUT", fmt.Sprintf("%s/api/nginx/redirection-hosts/%d", baseURL, p.ID), token, bytes.NewReader(jsonData), 30)
 	if err != nil {
 		return err
 	}
@@ -137,7 +137,7 @@ func EditRedirection(baseURL, token string, p Redirection) error {
 }
 
 func DeleteRedirection(baseURL, token string, id int) error {
-	resp, err := MakeRequest("DELETE", fmt.Sprintf("%s/api/nginx/redirection-hosts/%d", baseURL, id), token, nil)
+	resp, err := MakeRequest("DELETE", fmt.Sprintf("%s/api/nginx/redirection-hosts/%d", baseURL, id), token, nil, 30)
 	if err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func DeleteRedirection(baseURL, token string, id int) error {
 }
 
 func DisableRedirection(baseURL, token string, id int) error {
-	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/redirection-hosts/%d/disable", baseURL, id), token, nil)
+	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/redirection-hosts/%d/disable", baseURL, id), token, nil, 30)
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func DisableRedirection(baseURL, token string, id int) error {
 }
 
 func EnableRedirection(baseURL, token string, id int) error {
-	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/redirection-hosts/%d/enable", baseURL, id), token, nil)
+	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/redirection-hosts/%d/enable", baseURL, id), token, nil, 30)
 	if err != nil {
 		return err
 	}
@@ -181,7 +181,7 @@ func EnableRedirection(baseURL, token string, id int) error {
 	return nil
 }
 func ListRedirections(baseURL, token string) ([]Redirection, error) {
-	resp, err := MakeRequest("GET", fmt.Sprintf("%s/api/nginx/redirection-hosts", baseURL), token, nil)
+	resp, err := MakeRequest("GET", fmt.Sprintf("%s/api/nginx/redirection-hosts", baseURL), token, nil, 30)
 	if err != nil {
 		return nil, err
 	}

@@ -112,7 +112,7 @@ func CreateProxy(baseURL, token string, p Proxy) (int, error) {
 		return 0, err
 	}
 
-	resp, err := MakeRequest("POST", baseURL+"/api/nginx/proxy-hosts", token, bytes.NewReader(jsonData))
+	resp, err := MakeRequest("POST", baseURL+"/api/nginx/proxy-hosts", token, bytes.NewReader(jsonData), 30)
 	if err != nil {
 		return 0, err
 	}
@@ -160,7 +160,7 @@ func EditProxy(baseURL, token string, p Proxy) error {
 		return err
 	}
 
-	resp, err := MakeRequest("PUT", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d", baseURL, p.ID), token, bytes.NewReader(jsonData))
+	resp, err := MakeRequest("PUT", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d", baseURL, p.ID), token, bytes.NewReader(jsonData), 30)
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func EditProxy(baseURL, token string, p Proxy) error {
 
 // POST TO /api/nginx/proxy-hosts/{id}/disable
 func DisableProxy(baseURL, token string, id int) error {
-	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d/disable", baseURL, id), token, nil)
+	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d/disable", baseURL, id), token, nil, 30)
 	if err != nil {
 		return err
 	}
@@ -191,7 +191,7 @@ func DisableProxy(baseURL, token string, id int) error {
 }
 
 func EnableProxy(baseURL, token string, id int) error {
-	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d/enable", baseURL, id), token, nil)
+	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d/enable", baseURL, id), token, nil, 30)
 	if err != nil {
 		return err
 	}
@@ -207,7 +207,7 @@ func EnableProxy(baseURL, token string, id int) error {
 
 // DELETE /api/nginx/proxy-hosts/{id}
 func DeleteProxy(baseURL, token string, id int) error {
-	resp, err := MakeRequest("DELETE", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d", baseURL, id), token, nil)
+	resp, err := MakeRequest("DELETE", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d", baseURL, id), token, nil, 30)
 	if err != nil {
 		return err
 	}
@@ -221,7 +221,7 @@ func DeleteProxy(baseURL, token string, id int) error {
 }
 
 func GetAllProxys(baseURL, token string) ([]Proxy, error) {
-	resp, err := MakeRequest("GET", baseURL+"/api/nginx/proxy-hosts", token, nil)
+	resp, err := MakeRequest("GET", baseURL+"/api/nginx/proxy-hosts", token, nil, 30)
 	if err != nil {
 		return nil, err
 	}

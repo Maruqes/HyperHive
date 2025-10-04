@@ -60,7 +60,7 @@ func Create404(baseURL, token string, p Host404) (int, error) {
 		return 0, err
 	}
 
-	resp, err := MakeRequest("POST", baseURL+"/api/nginx/dead-hosts", token, bytes.NewReader(jsonData))
+	resp, err := MakeRequest("POST", baseURL+"/api/nginx/dead-hosts", token, bytes.NewReader(jsonData), 30)
 	if err != nil {
 		return 0, err
 	}
@@ -99,7 +99,7 @@ func Edit404(baseURL, token string, p Host404) error {
 		return err
 	}
 
-	resp, err := MakeRequest("PUT", fmt.Sprintf("%s/api/nginx/dead-hosts/%d", baseURL, p.ID), token, bytes.NewReader(jsonData))
+	resp, err := MakeRequest("PUT", fmt.Sprintf("%s/api/nginx/dead-hosts/%d", baseURL, p.ID), token, bytes.NewReader(jsonData), 30)
 	if err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ func Edit404(baseURL, token string, p Host404) error {
 }
 
 func Delete404(baseURL, token string, id int) error {
-	resp, err := MakeRequest("DELETE", fmt.Sprintf("%s/api/nginx/dead-hosts/%d", baseURL, id), token, nil)
+	resp, err := MakeRequest("DELETE", fmt.Sprintf("%s/api/nginx/dead-hosts/%d", baseURL, id), token, nil, 30)
 	if err != nil {
 		return err
 	}
@@ -129,7 +129,7 @@ func Delete404(baseURL, token string, id int) error {
 }
 
 func Disable404(baseURL, token string, id int) error {
-	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/dead-hosts/%d/disable", baseURL, id), token, nil)
+	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/dead-hosts/%d/disable", baseURL, id), token, nil, 30)
 	if err != nil {
 		return err
 	}
@@ -144,7 +144,7 @@ func Disable404(baseURL, token string, id int) error {
 }
 
 func Enable404(baseURL, token string, id int) error {
-	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/dead-hosts/%d/enable", baseURL, id), token, nil)
+	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/dead-hosts/%d/enable", baseURL, id), token, nil, 30)
 	if err != nil {
 		return err
 	}
@@ -159,7 +159,7 @@ func Enable404(baseURL, token string, id int) error {
 }
 
 func List404(baseURL, token string) ([]Host404, error) {
-	resp, err := MakeRequest("GET", baseURL+"/api/nginx/dead-hosts", token, nil)
+	resp, err := MakeRequest("GET", baseURL+"/api/nginx/dead-hosts", token, nil, 30)
 	if err != nil {
 		return nil, err
 	}
