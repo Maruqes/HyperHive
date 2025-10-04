@@ -36,6 +36,8 @@ func StartApi() {
 		r.Get("/protected", protectedRoutes)
 		npmapi.SetupProxyAPI(r)
 		npmapi.Setup404API(r)
+		npmapi.SetupStreamAPI(r)
+		npmapi.SetupRedirectionAPI(r)
 		setupNFSAPI(r)
 		setupProtocolAPI(r)
 	})

@@ -68,7 +68,7 @@ func Create404(baseURL, token string, p Host404) (int, error) {
 
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		return 0, fmt.Errorf("create proxy failed (%d): %s", resp.StatusCode, respBody)
+		return 0, fmt.Errorf("create 404 failed (%d): %s", resp.StatusCode, respBody)
 	}
 
 	//print body
@@ -107,7 +107,7 @@ func Edit404(baseURL, token string, p Host404) error {
 
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		return fmt.Errorf("edit proxy failed (%d): %s", resp.StatusCode, respBody)
+		return fmt.Errorf("edit 404 failed (%d): %s", resp.StatusCode, respBody)
 	}
 
 	return nil
@@ -122,7 +122,7 @@ func Delete404(baseURL, token string, id int) error {
 
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		return fmt.Errorf("delete proxy failed (%d): %s", resp.StatusCode, respBody)
+		return fmt.Errorf("delete 404 failed (%d): %s", resp.StatusCode, respBody)
 	}
 
 	return nil
@@ -137,7 +137,7 @@ func Disable404(baseURL, token string, id int) error {
 
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		return fmt.Errorf("disable proxy failed (%d): %s", resp.StatusCode, respBody)
+		return fmt.Errorf("disable 404 failed (%d): %s", resp.StatusCode, respBody)
 	}
 
 	return nil
@@ -152,7 +152,7 @@ func Enable404(baseURL, token string, id int) error {
 
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		return fmt.Errorf("enable proxy failed (%d): %s", resp.StatusCode, respBody)
+		return fmt.Errorf("enable 404 failed (%d): %s", resp.StatusCode, respBody)
 	}
 
 	return nil
@@ -167,13 +167,13 @@ func List404(baseURL, token string) ([]Host404, error) {
 
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		return nil, fmt.Errorf("list proxies failed (%d): %s", resp.StatusCode, respBody)
+		return nil, fmt.Errorf("list 404 failed (%d): %s", resp.StatusCode, respBody)
 	}
 
-	var proxies []Host404
-	if err := json.Unmarshal(respBody, &proxies); err != nil {
+	var hosts []Host404
+	if err := json.Unmarshal(respBody, &hosts); err != nil {
 		return nil, err
 	}
 
-	return proxies, nil
+	return hosts, nil
 }
