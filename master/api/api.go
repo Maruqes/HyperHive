@@ -38,6 +38,7 @@ func StartApi() {
 		npmapi.Setup404API(r)
 		npmapi.SetupStreamAPI(r)
 		npmapi.SetupRedirectionAPI(r)
+		npmapi.SetupCertAPI(r)
 		setupNFSAPI(r)
 		setupProtocolAPI(r)
 	})

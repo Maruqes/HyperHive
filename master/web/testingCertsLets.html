@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>512SvMan Let's Encrypt Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            light: '#fb923c',
+                            base: '#f97316',
+                            dark: '#ea580c'
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+</head>
+<body class="min-h-screen bg-slate-950 bg-[radial-gradient(circle_at_top,_rgba(249,115,22,0.18),_transparent_55%)] text-slate-100 flex justify-center p-6 sm:p-8">
+    <main class="w-full max-w-5xl space-y-6">
+        <header class="rounded-2xl border border-slate-800/70 bg-slate-900/70 backdrop-blur-sm p-6 sm:p-8 shadow-xl space-y-4">
+            <div class="space-y-2">
+                <h1 class="text-3xl font-semibold tracking-[0.25em] uppercase">512SvMan // Let's Encrypt Lab</h1>
+                <p class="text-sm text-slate-400">Cria certificados Let's Encrypt pelo endpoint <code>/certs/create-lets-encrypt</code>, com foco no provider Dynu via desafio DNS.</p>
+            </div>
+            <form id="tokenForm" class="grid gap-3 sm:grid-cols-[max-content_1fr] sm:items-center sm:gap-4">
+                <label for="tokenInput" class="text-xs uppercase tracking-[0.2em] text-slate-400">Login token</label>
+                <div class="flex flex-col gap-2 sm:flex-row">
+                    <input id="tokenInput" type="text" placeholder="cola aqui o token" autocomplete="off" spellcheck="false" class="w-full min-w-[220px] rounded-xl border border-transparent bg-slate-950/60 px-4 py-2 text-sm text-slate-100 shadow-inner outline-none transition focus:border-brand-base">
+                    <div class="flex gap-2 sm:flex-none">
+                        <button type="submit" class="flex-1 rounded-xl bg-gradient-to-r from-brand-dark to-brand-base px-4 py-2 text-sm font-semibold text-slate-950 shadow transition hover:shadow-lg hover:brightness-[1.05]">Guardar token</button>
+                        <button type="button" id="clearToken" class="flex-1 rounded-xl border border-slate-700/70 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800/80">Limpar</button>
+                    </div>
+                </div>
+            </form>
+            <div id="tokenStatus" class="text-sm text-slate-500">Token ainda nao definido.</div>
+        </header>
+
+        <section class="space-y-6 rounded-2xl border border-slate-800/70 bg-slate-900/60 p-6 shadow-lg">
+            <div class="space-y-2">
+                <h2 class="text-xl font-semibold">Configura o pedido Let's Encrypt</h2>
+                <p class="text-sm text-slate-400">Os dados aqui refletem as opcoes reais do NPM: dominios, email de contacto e desafio DNS com Dynu.</p>
+            </div>
+            <form id="letsForm" class="grid gap-6 lg:grid-cols-[1.25fr_1fr] lg:gap-8">
+                <section class="space-y-5">
+                    <div class="space-y-2">
+                        <label for="domainsInput" class="text-xs uppercase tracking-[0.2em] text-slate-400">Dominios</label>
+                        <textarea id="domainsInput" rows="4" placeholder="ex: exemplo.com\nwww.exemplo.com" class="w-full rounded-xl border border-transparent bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-base"></textarea>
+                        <p class="text-xs text-slate-500">Separa dominios por linha ou virgula.</p>
+                    </div>
+
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <div class="space-y-2">
+                            <label for="emailInput" class="text-xs uppercase tracking-[0.2em] text-slate-400">Email Let's Encrypt</label>
+                            <input id="emailInput" type="email" placeholder="admin@exemplo.com" class="w-full rounded-xl border border-transparent bg-slate-950/60 px-4 py-2 text-sm text-slate-100 outline-none transition focus:border-brand-base">
+                        </div>
+                        <div class="flex items-center gap-3 rounded-xl border border-slate-800/70 bg-slate-950/60 px-4 py-3 text-sm text-slate-200">
+                            <input id="agreeToggle" type="checkbox" class="h-4 w-4 rounded border-slate-700 bg-slate-900">
+                            <label for="agreeToggle" class="text-xs uppercase tracking-[0.2em]">Aceito os termos da Let's Encrypt</label>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <span class="text-xs uppercase tracking-[0.2em] text-slate-400">Tipo de desafio</span>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <label class="flex items-center gap-3 rounded-xl border border-slate-800/70 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 cursor-pointer">
+                                <input type="radio" name="challenge" value="http" class="h-4 w-4 border-slate-700 text-brand-base focus:ring-brand-base">
+                                HTTP Challenge (automatico)
+                            </label>
+                            <label class="flex items-center gap-3 rounded-xl border border-slate-800/70 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 cursor-pointer">
+                                <input type="radio" name="challenge" value="dns" checked class="h-4 w-4 border-slate-700 text-brand-base focus:ring-brand-base">
+                                DNS Challenge (via provider)
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="dnsSection" class="space-y-5 hidden">
+                    <div class="space-y-2">
+                        <span class="text-xs uppercase tracking-[0.2em] text-slate-400">Dynu DNS</span>
+                        <p class="text-xs text-slate-500">O NPM espera o provider <code>dynu</code> com a credencial <code>dns_dynu_auth_token</code> (ex: <code>dns_dynu_auth_token = YOUR_DYNU_AUTH_TOKEN</code>).</p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label for="dynuTokenInput" class="text-xs uppercase tracking-[0.2em] text-slate-400">dns_dynu_auth_token</label>
+                        <input id="dynuTokenInput" type="text" placeholder="YOUR_DYNU_AUTH_TOKEN" class="w-full rounded-xl border border-slate-800/70 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 outline-none transition focus:border-brand-base">
+                    </div>
+                </section>
+
+                <div class="lg:col-span-2 flex flex-col gap-3 sm:flex-row">
+                    <button type="submit" class="flex-1 rounded-xl bg-gradient-to-r from-brand-dark to-brand-base px-4 py-2 text-sm font-semibold text-slate-950 transition hover:shadow-lg">Criar certificado</button>
+                    <button type="button" id="resetForm" class="flex-1 rounded-xl border border-slate-700/70 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800/80">Limpar formulario</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="rounded-2xl border border-slate-800/70 bg-slate-900/60 p-6 shadow-lg">
+            <h2 class="text-xl font-semibold">Console</h2>
+            <div id="console" class="mt-4 h-56 overflow-y-auto rounded-2xl bg-slate-950/70 p-4 font-mono text-xs leading-relaxed text-slate-300"></div>
+        </section>
+    </main>
+
+    <script>
+        (function () {
+            const STORAGE_KEY = "cert-lets-token";
+
+            const state = {
+                token: localStorage.getItem(STORAGE_KEY) || "",
+                challenge: "dns",
+                dynuToken: ""
+            };
+
+            const refs = {
+                tokenForm: document.getElementById("tokenForm"),
+                tokenInput: document.getElementById("tokenInput"),
+                tokenStatus: document.getElementById("tokenStatus"),
+                clearToken: document.getElementById("clearToken"),
+                letsForm: document.getElementById("letsForm"),
+                domains: document.getElementById("domainsInput"),
+                email: document.getElementById("emailInput"),
+                agree: document.getElementById("agreeToggle"),
+                challengeRadios: Array.from(document.querySelectorAll('input[name="challenge"]')),
+                dnsSection: document.getElementById("dnsSection"),
+                dynuToken: document.getElementById("dynuTokenInput"),
+                resetForm: document.getElementById("resetForm"),
+                console: document.getElementById("console")
+            };
+
+            init();
+
+            function init() {
+                refs.tokenInput.value = state.token;
+                updateTokenStatus();
+                resetForm();
+                log("Interface Let's Encrypt (Dynu) carregada. Define token, dominios e o auth token Dynu para o desafio DNS.\n");
+
+                refs.tokenForm.addEventListener("submit", function (event) {
+                    event.preventDefault();
+                    state.token = refs.tokenInput.value.trim();
+                    localStorage.setItem(STORAGE_KEY, state.token);
+                    updateTokenStatus();
+                    log("[INFO] Token guardado em localStorage.\n");
+                });
+
+                refs.clearToken.addEventListener("click", function () {
+                    state.token = "";
+                    refs.tokenInput.value = "";
+                    localStorage.removeItem(STORAGE_KEY);
+                    updateTokenStatus();
+                    log("[INFO] Token apagado.\n");
+                });
+
+                refs.challengeRadios.forEach(function (radio) {
+                    radio.addEventListener("change", function () {
+                        if (!this.checked) {
+                            return;
+                        }
+                        state.challenge = this.value;
+                        updateChallengeSection();
+                    });
+                });
+
+                refs.dynuToken.addEventListener("input", function () {
+                    state.dynuToken = refs.dynuToken.value;
+                });
+
+                refs.resetForm.addEventListener("click", function () {
+                    resetForm();
+                    log("[INFO] Formulario limpo.\n");
+                });
+
+                refs.letsForm.addEventListener("submit", function (event) {
+                    event.preventDefault();
+                    submitForm();
+                });
+            }
+
+            function updateTokenStatus() {
+                if (state.token) {
+                    refs.tokenStatus.textContent = "Token configurado.";
+                    refs.tokenStatus.classList.remove("text-slate-500");
+                    refs.tokenStatus.classList.add("text-emerald-400");
+                } else {
+                    refs.tokenStatus.textContent = "Token ainda nao definido.";
+                    refs.tokenStatus.classList.remove("text-emerald-400");
+                    refs.tokenStatus.classList.add("text-slate-500");
+                }
+            }
+
+            function updateChallengeSection() {
+                const isDNS = state.challenge === "dns";
+                if (!isDNS) {
+                    state.dynuToken = refs.dynuToken.value.trim();
+                }
+                refs.dnsSection.classList.toggle("hidden", !isDNS);
+                if (isDNS) {
+                    refs.dynuToken.value = state.dynuToken;
+                    refs.dynuToken.focus();
+                }
+            }
+
+            function resetForm() {
+                refs.domains.value = "";
+                refs.email.value = "";
+                refs.agree.checked = false;
+                state.challenge = "dns";
+                refs.challengeRadios.forEach(function (radio) {
+                    radio.checked = radio.value === state.challenge;
+                });
+                state.dynuToken = "";
+                refs.dynuToken.value = "";
+                updateChallengeSection();
+                refs.domains.focus();
+            }
+
+            function submitForm() {
+                if (!state.token) {
+                    log("[ALERTA] Define o token antes de criar o certificado.\n");
+                    return;
+                }
+
+                const domains = refs.domains.value
+                    .split(/[\n,]/)
+                    .map(function (part) { return part.trim(); })
+                    .filter(Boolean);
+                if (!domains.length) {
+                    log("[ALERTA] Indica pelo menos um dominio.\n");
+                    return;
+                }
+
+                const email = refs.email.value.trim();
+                if (!email) {
+                    log("[ALERTA] Email da Let's Encrypt em falta.\n");
+                    return;
+                }
+
+                if (!refs.agree.checked) {
+                    log("[ALERTA] Tens de aceitar os termos da Let's Encrypt.\n");
+                    return;
+                }
+
+                const payload = {
+                    provider: "letsencrypt",
+                    domain_names: domains,
+                    meta: {
+                        letsencrypt_email: email,
+                        letsencrypt_agree: true,
+                        dns_challenge: state.challenge === "dns",
+                        dns_provider: "",
+                        dns_provider_credentials: {}
+                    }
+                };
+
+                if (state.challenge === "dns") {
+                    const dynuToken = refs.dynuToken.value.trim();
+                    if (!dynuToken) {
+                        log("[ALERTA] Indica o valor de dns_dynu_auth_token.\n");
+                        return;
+                    }
+                    state.dynuToken = dynuToken;
+                    payload.meta.dns_provider = "dynu";
+                    payload.meta.dns_provider_credentials = {
+                        dns_dynu_auth_token: dynuToken
+                    };
+                }
+
+                log(`[INFO] A criar certificado Let's Encrypt para ${domains.join(", ")}...\n`);
+
+                fetch("/certs/create-lets-encrypt", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: state.token
+                    },
+                    body: JSON.stringify(payload)
+                }).then(async function (response) {
+                    const text = await response.text();
+                    let data = null;
+                    if (text) {
+                        try {
+                            data = JSON.parse(text);
+                        } catch (_) {
+                            data = text;
+                        }
+                    }
+
+                    if (!response.ok) {
+                        const message = data && data.error ? data.error : data || response.statusText;
+                        throw new Error(message || "Erro inesperado ao criar certificado Let's Encrypt");
+                    }
+
+                    return data;
+                }).then(function (data) {
+                    const certId = data && typeof data.id === "number" ? data.id : data;
+                    log(`[SUCESSO] Certificado Let's Encrypt criado com ID: ${certId}.\n`);
+                }).catch(function (error) {
+                    log(`[ERRO] ${error && error.message ? error.message : error}.\n`);
+                });
+            }
+
+            function log(message) {
+                refs.console.textContent += message;
+                refs.console.scrollTop = refs.console.scrollHeight;
+            }
+        })();
+    </script>
+</body>
+</html>
