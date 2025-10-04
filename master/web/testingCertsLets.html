@@ -265,9 +265,7 @@
                     }
                     state.dynuToken = dynuToken;
                     payload.meta.dns_provider = "dynu";
-                    payload.meta.dns_provider_credentials = {
-                        dns_dynu_auth_token: dynuToken
-                    };
+                    payload.meta.dns_provider_credentials = `dns_dynu_auth_token = ${dynuToken}`;
                 }
 
                 log(`[INFO] A criar certificado Let's Encrypt para ${domains.join(", ")}...\n`);
