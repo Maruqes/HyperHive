@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"strings"
 	"time"
 )
 
@@ -181,6 +182,14 @@ type LetsEncryptCert struct {
 	Provider string `json:"provider"` // should be "letsencrypt"
 }
 
+type npmResp struct {
+	ID       int            `json:"id"`
+	Error    string         `json:"error"`
+	Errors   []string       `json:"errors"`
+	Messages []string       `json:"messages"`
+	Meta     map[string]any `json:"meta"`
+}
+
 func CreateLetsEncryptCert(baseURL, token string, cert LetsEncryptCert) (int, error) {
 	payload, err := json.Marshal(cert)
 	if err != nil {
@@ -194,18 +203,36 @@ func CreateLetsEncryptCert(baseURL, token string, cert LetsEncryptCert) (int, er
 	defer resp.Body.Close()
 
 	respBody, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		return 0, fmt.Errorf("create letsencrypt cert failed (%d): %s", resp.StatusCode, respBody)
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		// tenta extrair mensagem de erro útil do NPM
+		var e npmResp
+		if json.Unmarshal(respBody, &e) == nil {
+			msg := e.Error
+			if msg == "" && len(e.Errors) > 0 {
+				msg = strings.Join(e.Errors, "; ")
+			}
+			if msg == "" && len(e.Messages) > 0 {
+				msg = strings.Join(e.Messages, "; ")
+			}
+			if msg != "" {
+				return 0, fmt.Errorf("create letsencrypt cert failed (%d): %s", resp.StatusCode, msg)
+			}
+		}
+		return 0, fmt.Errorf("create letsencrypt cert failed (%d): %s", resp.StatusCode, string(respBody))
 	}
 
-	//print body
-	id := -1
+	var ok npmResp
+	if err := json.Unmarshal(respBody, &ok); err == nil && ok.ID != 0 {
+		return ok.ID, nil
+	}
+
+	// fallback para map[string]any se mudar o schema
 	var respData map[string]any
 	if err := json.Unmarshal(respBody, &respData); err == nil {
 		if d, ok := respData["id"].(float64); ok {
-			id = int(d)
+			return int(d), nil
 		}
 	}
-
-	return id, nil
+	return 0, fmt.Errorf("cert created but id not found in response: %s", string(respBody))
 }

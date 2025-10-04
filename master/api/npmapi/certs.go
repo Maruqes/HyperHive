@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -84,6 +85,43 @@ func createCertLetsEncrypt(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
+	// Força campos obrigatórios
+	p.Provider = "letsencrypt"
+
+	// Validações úteis antes de chamar o NPM
+	if len(p.DomainNames) == 0 {
+		http.Error(w, "domain_names is required", http.StatusBadRequest)
+		return
+	}
+	if p.Meta.LetsEncryptEmail == "" {
+		http.Error(w, "meta.letsencrypt_email is required", http.StatusBadRequest)
+		return
+	}
+	if !p.Meta.LetsEncryptAgree {
+		http.Error(w, "meta.letsencrypt_agree must be true", http.StatusBadRequest)
+		return
+	}
+
+	// Se usares wildcard (*.dominio), tens de usar DNS challenge
+	for _, d := range p.DomainNames {
+		if strings.HasPrefix(d, "*.") && !p.Meta.DNSChallenge {
+			http.Error(w, "wildcard domains require meta.dns_challenge=true", http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Se DNS challenge estiver ativo, valida provider e credenciais
+	if p.Meta.DNSChallenge {
+		if p.Meta.DNSProvider == "" {
+			http.Error(w, "meta.dns_provider is required when dns_challenge=true", http.StatusBadRequest)
+			return
+		}
+		if len(p.Meta.DNSProviderCredentials) == 0 {
+			http.Error(w, "meta.dns_provider_credentials is required when dns_challenge=true", http.StatusBadRequest)
+			return
+		}
+	}
+
 	loginToken := GetTokenFromContext(r)
 
 	id, err := npm.CreateLetsEncryptCert(baseURL, loginToken, p)
@@ -93,7 +131,7 @@ func createCertLetsEncrypt(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"id": id})
+	_ = json.NewEncoder(w).Encode(map[string]any{"id": id})
 }
 
 func SetupCertAPI(r chi.Router) chi.Router {
