@@ -30,8 +30,6 @@ docker-compose.yml
 # .idea/
 # .vscode/
 
-vms.yaml
-
 #env files
 .env
 slave/.env
