@@ -43,8 +43,8 @@ func (s *NFSService) CreateSharePoint() error {
 	}
 
 	mount := &proto.FolderMount{
-		MachineName: s.SharePoint.MachineName,					// machine that shares
-		FolderPath:  s.SharePoint.FolderPath,   				// folder to share
+		MachineName: s.SharePoint.MachineName,                  // machine that shares
+		FolderPath:  s.SharePoint.FolderPath,                   // folder to share
 		Source:      conn.Addr + ":" + s.SharePoint.FolderPath, // creates ip:folderpath
 		Target:      "/mnt/512SvMan/shared/" + s.SharePoint.MachineName + "_" + getFolderName(s.SharePoint.FolderPath),
 	}
@@ -74,8 +74,14 @@ func (s *NFSService) DeleteSharePoint() error {
 		return fmt.Errorf("slave not connected")
 	}
 
-	//remove last slash
+	//check if exists in db
+	if exists, err := db.DoesExistNFSShare(s.SharePoint.MachineName, s.SharePoint.FolderPath); err != nil {
+		return fmt.Errorf("failed to check if NFS share exists: %v", err)
+	} else if !exists {
+		return fmt.Errorf("NFS share does not exist")
+	}
 
+	//remove last slash
 	mount := &proto.FolderMount{
 		MachineName: s.SharePoint.MachineName,
 		FolderPath:  s.SharePoint.FolderPath,

@@ -161,6 +161,18 @@ func IsSafePath(path string) error {
 		return errors.New("path must be absolute")
 	}
 
+	// Reject any non-ASCII or control/shell-unsafe ASCII characters.
+	for _, r := range clean {
+		switch {
+		case r < 32 || r == 127: // control chars + DEL
+			return fmt.Errorf("control or non-printable char detected: U+%04X", r)
+		case r > 127:
+			return fmt.Errorf("non-ASCII character detected: %q", r)
+		case strings.ContainsRune("<>|;&$`'\"\\!()[]{}?*^~#", r):
+			return fmt.Errorf("disallowed shell character: %q", r)
+		}
+	}
+
 	// Split into directory components (NOT SplitList)
 	parts := strings.Split(clean, string(os.PathSeparator))
 	for _, part := range parts {

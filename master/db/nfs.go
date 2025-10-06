@@ -66,3 +66,17 @@ func GetAllNFShares() ([]NFSShare, error) {
 	}
 	return shares, nil
 }
+
+func DoesExistNFSShare(machineName, folderPath string) (bool, error) {
+	const query = `
+	SELECT COUNT(*)
+	FROM nfs_shares
+	WHERE machine_name = ? AND folder_path = ?;
+	`
+	var count int
+	err := DB.QueryRow(query, machineName, folderPath).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
