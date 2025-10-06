@@ -43,9 +43,9 @@ func (s *NFSService) CreateSharePoint() error {
 	}
 
 	mount := &proto.FolderMount{
-		MachineName: s.SharePoint.MachineName,
-		FolderPath:  s.SharePoint.FolderPath,
-		Source:      conn.Addr + ":" + s.SharePoint.FolderPath,
+		MachineName: s.SharePoint.MachineName,					// machine that shares
+		FolderPath:  s.SharePoint.FolderPath,   				// folder to share
+		Source:      conn.Addr + ":" + s.SharePoint.FolderPath, // creates ip:folderpath
 		Target:      "/mnt/512SvMan/shared/" + s.SharePoint.MachineName + "_" + getFolderName(s.SharePoint.FolderPath),
 	}
 

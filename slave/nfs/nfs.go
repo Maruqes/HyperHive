@@ -1,10 +1,12 @@
 package nfs
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -151,10 +153,31 @@ func allowSELinuxForNFS(path string) error {
 	return nil
 }
 
+var safeName = regexp.MustCompile(`^[\p{L}\p{N}._-]+$`)
+
+func IsSafePath(path string) error {
+	clean := filepath.Clean(path)
+	if !filepath.IsAbs(clean) {
+		return errors.New("path must be absolute")
+	}
+
+	// Split into directory components (NOT SplitList)
+	parts := strings.Split(clean, string(os.PathSeparator))
+	for _, part := range parts {
+		if part == "" || part == "." || part == ".." {
+			continue
+		}
+		if !safeName.MatchString(part) {
+			return fmt.Errorf("unsafe characters in component %q", part)
+		}
+	}
+	return nil
+}
+
 // CreateSharedFolder creates a directory and ensures it is exported via exportsFile.
 func CreateSharedFolder(folder FolderMount) error {
-	if !filepath.IsAbs(folder.FolderPath) {
-		return fmt.Errorf("folder path must be a full path and exist")
+	if err := IsSafePath(folder.FolderPath); err != nil {
+		return fmt.Errorf("invalid folder path: %w", err)
 	}
 
 	path := strings.TrimSpace(folder.FolderPath)
