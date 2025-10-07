@@ -8,11 +8,14 @@ import (
 	"os"
 	"slave/env512"
 	nfsservice "slave/nfs"
+	"slave/virsh"
 	"syscall"
 	"time"
 
 	nfsproto "github.com/Maruqes/512SvMan/api/proto/nfs"
 	pb "github.com/Maruqes/512SvMan/api/proto/protocol"
+	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
+
 	"github.com/Maruqes/512SvMan/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
@@ -52,7 +55,7 @@ func listenGRPC() {
 	//registar services
 	pb.RegisterClientServiceServer(s, &clientServer{})
 	nfsproto.RegisterNFSServiceServer(s, &nfsservice.NFSService{})
-
+	grpcVirsh.RegisterSlaveVirshServiceServer(s, &virsh.SlaveVirshService{})
 	log.Println("Cliente a ouvir em :50052")
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("serve: %v", err)

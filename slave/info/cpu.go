@@ -51,7 +51,7 @@ func (c *CPUInfoStruct) GetCPUInfo() (cpuid.CPUInfo, error) {
 	cpuid.Flags()
 	flag.Parse()
 	cpuid.Detect()
-
+	fmt.Println("CPU:", cpuid.CPU.FeatureSet())
 	//get all features
 	return cpuid.CPU, nil
 }

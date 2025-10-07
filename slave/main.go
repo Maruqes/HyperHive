@@ -2,8 +2,13 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
-	"slave/info"
+	"slave/env512"
+	"slave/nfs"
+	"slave/protocol"
+
+	"github.com/Maruqes/512SvMan/logger"
 )
 
 func askForSudo() {
@@ -16,31 +21,30 @@ func askForSudo() {
 
 func main() {
 
-	services, err := info.ServicesInfo.GetServices()
-	if err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
-
-	for _, service := range services {
-		fmt.Printf("Name: %s, Description: %s, LoadState: %s, ActiveState: %s, SubState: %s\n",
-			service.Name, service.Description, service.LoadState, service.ActiveState, service.SubState)
-	}
-
-
-	return
-	// if err := env512.Setup(); err != nil {
-	// 	log.Fatalf("env setup: %v", err)
-	// }
-
-	// logger.SetType(env512.Mode)
-
-	// askForSudo()
-	// err := nfs.InstallNFS()
+	// services, err := info.ServicesInfo.GetServices()
 	// if err != nil {
-	// 	log.Fatalf("failed to install NFS: %v", err)
+	// 	fmt.Println("Error:", err)
+	// 	return
 	// }
-	// conn := protocol.ConnectGRPC()
-	// defer conn.Close()
-	// select {}
+
+	// for _, service := range services {
+	// 	fmt.Printf("Name: %s, Description: %s, LoadState: %s, ActiveState: %s, SubState: %s\n",
+	// 		service.Name, service.Description, service.LoadState, service.ActiveState, service.SubState)
+	// }
+
+	// return
+	if err := env512.Setup(); err != nil {
+		log.Fatalf("env setup: %v", err)
+	}
+
+	logger.SetType(env512.Mode)
+
+	askForSudo()
+	err := nfs.InstallNFS()
+	if err != nil {
+		log.Fatalf("failed to install NFS: %v", err)
+	}
+	conn := protocol.ConnectGRPC()
+	defer conn.Close()
+	select {}
 }

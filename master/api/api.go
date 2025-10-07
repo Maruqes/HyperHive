@@ -39,6 +39,7 @@ func StartApi() {
 		npmapi.SetupStreamAPI(r)
 		npmapi.SetupRedirectionAPI(r)
 		npmapi.SetupCertAPI(r)
+		setupVirshAPI(r)
 		setupNFSAPI(r)
 		setupProtocolAPI(r)
 	})
