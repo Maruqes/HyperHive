@@ -14,7 +14,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-var baseURL string
 
 func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 	err := nfs.MountAllSharedFolders(protocol.GetAllGRPCConnections(), protocol.GetAllMachineNames())

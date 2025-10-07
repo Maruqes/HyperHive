@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package virsh;
+
+option go_package = "github.com/Maruqes/512SvMan/api/proto/virsh;proto";
+
+//get cpu features
+message Empty {
+}
+
+message GetCpuFeaturesResponse {
+  repeated string features = 1;
+}
+
+//creates vm with X disable features
+message CreateVmRequest {
+  string name = 1;
+  repeated string disableFeatures = 5;
+}
+
+//defines on slave
+service SlaveVirshService {
+  rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
+}
