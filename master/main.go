@@ -4,8 +4,8 @@ import (
 	"512SvMan/api"
 	"512SvMan/db"
 	"512SvMan/env512"
-	"512SvMan/nfs"
 	"512SvMan/protocol"
+	"512SvMan/services"
 	"fmt"
 	"log"
 	"os"
@@ -14,12 +14,15 @@ import (
 	"google.golang.org/grpc"
 )
 
-
 func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
-	err := nfs.MountAllSharedFolders(protocol.GetAllGRPCConnections(), protocol.GetAllMachineNames())
+
+	nfsService := services.NFSService{}
+	err := nfsService.UpdateNFSShit()
 	if err != nil {
+		logger.Error("SyncSharedFolder failed: %v", err)
 		return err
 	}
+
 	return nil
 }
 

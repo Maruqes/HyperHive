@@ -3,7 +3,6 @@ package nfs
 import (
 	"512SvMan/db"
 	"context"
-	"fmt"
 
 	pbnfs "github.com/Maruqes/512SvMan/api/proto/nfs"
 	"github.com/Maruqes/512SvMan/logger"
@@ -18,6 +17,17 @@ func CreateSharedFolder(conn *grpc.ClientConn, folderMount *pbnfs.FolderMount) e
 		return err
 	}
 	logger.Info("Response from CreateSharedFolder: ", res.GetOk(), ", Created folderMount:", folderMount)
+	return nil
+}
+
+func SyncSharedFolder(conn *grpc.ClientConn, folderMount *pbnfs.FolderMountList) error {
+	client := pbnfs.NewNFSServiceClient(conn)
+
+	res, err := client.SyncSharedFolder(context.Background(), folderMount)
+	if err != nil {
+		return err
+	}
+	logger.Info("Response from SyncSharedFolder: ", res.GetOk(), ", Synced folderMount:", folderMount)
 	return nil
 }
 
@@ -56,62 +66,4 @@ func RemoveSharedFolder(conn *grpc.ClientConn, folderMount *pbnfs.FolderMount) e
 
 func GetAllSharedFolders() ([]db.NFSShare, error) {
 	return db.GetAllNFShares()
-}
-
-func MountAllSharedFolders(conns []*grpc.ClientConn, machineNames []string) error {
-	serversNFS, err := GetAllSharedFolders()
-	if err != nil {
-		return err
-	}
-
-	if len(conns) != len(machineNames) {
-		return fmt.Errorf("length of connections and machine names must be the same")
-	}
-
-	logger.Info("Creating NFS shared folders on all slaves...")
-	// create shared folders on all provided connections
-	for _, svNSF := range serversNFS {
-		mount := &pbnfs.FolderMount{
-			FolderPath:  svNSF.FolderPath,
-			Source:      svNSF.Source,
-			Target:      svNSF.Target,
-			MachineName: svNSF.MachineName,
-		}
-		for i, conn := range conns {
-			if conn == nil {
-				continue
-			}
-
-			// skip if machine name does not match
-			if machineNames[i] != svNSF.MachineName {
-				continue
-			}
-			logger.Info("Creating NFS shared folder on machine:", machineNames[i], " with mount:", mount)
-			// create shared folder on the specific machine
-			if err := CreateSharedFolder(conn, mount); err != nil {
-				return err
-			}
-		}
-	}
-
-	logger.Info("Mounting NFS shared folders on all slaves...")
-	// mount on all provided connections
-	for _, conn := range conns {
-		if conn == nil {
-			continue
-		}
-		for _, svNSF := range serversNFS {
-			mount := &pbnfs.FolderMount{
-				FolderPath:  svNSF.FolderPath,
-				Source:      svNSF.Source,
-				Target:      svNSF.Target,
-				MachineName: svNSF.MachineName,
-			}
-			logger.Info("Mounting NFS shared folder on machine with mount:", mount)
-			if err := MountSharedFolder(conn, mount); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }

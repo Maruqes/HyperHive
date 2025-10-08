@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/Maruqes/512SvMan/logger"
 )
 
 const (
@@ -86,7 +88,7 @@ func retry[T any](timeout, step time.Duration, fn func() (T, error)) (T, error) 
 			return zero, err
 		}
 		time.Sleep(step)
-		fmt.Println("Retrying after error:", err)
+		logger.Warn("Retrying after error:", err)
 	}
 }
 
@@ -160,14 +162,14 @@ func DeleteBaseUser(base, email, password string) error {
 			if err != nil {
 				return err
 			}
-			fmt.Println("Deleted default admin user", adminEmail)
+			logger.Info("Deleted default admin user", adminEmail)
 		}
 	}
 	return nil
 }
 func SetupNPM(base string) error {
 
-	fmt.Println("Pulling and starting NPM container…")
+	logger.Info("Pulling and starting NPM container…")
 	err := PullImage()
 	if err != nil {
 		return err
@@ -177,21 +179,21 @@ func SetupNPM(base string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("NPM is ready at", base)
+	logger.Info("NPM is ready at", base)
 
 	// ensure API is ready before we try to use it
 	err = waitForAPI(base, 1*time.Minute)
 	if err != nil {
 		return err
 	}
-	fmt.Println("NPM API is ready…")
+	logger.Info("NPM API is ready…")
 
 	token, err := retry[string](30*time.Second, 2*time.Second, func() (string, error) {
 		return Login(base, adminEmail, adminPass)
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "Invalid email or password") {
-			fmt.Println("Admin user already changed password, skipping creation.")
+			logger.Info("Admin user already changed password, skipping creation.")
 			return nil
 		}
 		return err
@@ -228,7 +230,7 @@ func SetupNPM(base string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("Created new user with id:", id)
+		logger.Info("Created new user with id:", id)
 		//disable admin user
 		err = DeleteBaseUser(base, email, pass)
 		if err != nil {
@@ -238,7 +240,6 @@ func SetupNPM(base string) error {
 
 	return nil
 }
-
 
 func MakeRequest(method, url, token string, body io.Reader, timeoutSeconds int) (*http.Response, error) {
 	req, err := http.NewRequest(method, url, body)

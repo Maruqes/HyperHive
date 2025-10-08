@@ -13,12 +13,19 @@ message FolderMount {
   string target = 4; // local mount point
 }
 
+// --- Wrapper for multiple FolderMount entries ---
+message FolderMountList {
+  repeated FolderMount mounts = 1;
+}
+
+
 //defines for slaves
 service NFSService {
   rpc CreateSharedFolder(FolderMount) returns (CreateResponse);
   rpc RemoveSharedFolder(FolderMount) returns (CreateResponse);
   rpc MountFolder(FolderMount) returns (MountResponse);
   rpc UnmountFolder(FolderMount) returns (UnmountResponse);
+  rpc SyncSharedFolder(FolderMountList) returns (CreateResponse);
 }	
 
 message CreateResponse { bool ok = 1; }

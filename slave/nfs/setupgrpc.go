@@ -64,3 +64,23 @@ func (s *NFSService) RemoveSharedFolder(ctx context.Context, req *pb.FolderMount
 	logger.Info("RemoveSharedFolder succeeded", "folder", req.FolderPath, "source", req.Source, "target", req.Target)
 	return &pb.CreateResponse{Ok: true}, nil
 }
+
+func (s *NFSService) SyncSharedFolder(ctx context.Context, req *pb.FolderMountList) (*pb.CreateResponse, error) {
+	err := SyncSharedFolder(func() []FolderMount {
+		var folders []FolderMount
+		for _, f := range req.Mounts {
+			folders = append(folders, FolderMount{
+				FolderPath: f.FolderPath,
+				Source:     f.Source,
+				Target:     f.Target,
+			})
+		}
+		return folders
+	}())
+	if err != nil {
+		logger.Error("SyncSharedFolder failed", "error", err)
+		return &pb.CreateResponse{Ok: false}, err
+	}
+	logger.Info("SyncSharedFolder succeeded", "count", len(req.Mounts))
+	return &pb.CreateResponse{Ok: true}, nil
+}

@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/Maruqes/512SvMan/logger"
 )
 
 type loginReq struct {
@@ -144,7 +146,7 @@ func ChangePassword(baseURL, token string, userID int, newPassword string) error
 		return fmt.Errorf("change password failed (%d): %s", resp.StatusCode, respBody)
 	}
 
-	fmt.Println("Change password response:", string(respBody))
+	logger.Info("Change password response:", string(respBody))
 	return nil
 }
 

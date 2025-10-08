@@ -9,6 +9,7 @@ import (
 	"time"
 
 	pb "github.com/Maruqes/512SvMan/api/proto/protocol"
+	"github.com/Maruqes/512SvMan/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -236,7 +237,7 @@ func NewSlaveConnection(addr, machineName string) error {
 		return err
 	}
 
-	log.Println("Nova conexao com slave:", addr, machineName)
+	logger.Info("Nova conexao com slave:", addr, machineName)
 	return nil
 }
 
@@ -274,7 +275,7 @@ func ListenGRPC(recievedNewConnectionFunction func(addr, machineName string, con
 	}
 	s := grpc.NewServer()
 	pb.RegisterProtocolServiceServer(s, &protocolServer{})
-	log.Println("Master a ouvir em :50051")
+	logger.Info("Master a ouvir em :50051")
 	go func() {
 		if err := s.Serve(lis); err != nil {
 			log.Fatalf("serve: %v", err)

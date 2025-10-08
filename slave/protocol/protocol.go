@@ -31,7 +31,7 @@ func restartSelf() error {
 	args := os.Args
 	env := os.Environ()
 
-	log.Println("Restarting process...")
+	logger.Info("Restarting process...")
 	return syscall.Exec(exe, args, env)
 }
 
@@ -56,9 +56,9 @@ func listenGRPC() {
 	pb.RegisterClientServiceServer(s, &clientServer{})
 	nfsproto.RegisterNFSServiceServer(s, &nfsservice.NFSService{})
 	grpcVirsh.RegisterSlaveVirshServiceServer(s, &virsh.SlaveVirshService{})
-	log.Println("Cliente a ouvir em :50052")
+	logger.Info("Cliente a ouvir em :50052")
 	if err := s.Serve(lis); err != nil {
-		log.Fatalf("serve: %v", err)
+		logger.Error("serve: %v", err)
 	}
 }
 
@@ -70,23 +70,23 @@ func monitorConnection(conn *grpc.ClientConn) {
 		case connectivity.Ready:
 			// healthy, nothing to do
 		case connectivity.Idle:
-			log.Printf("connection to master idle, forcing reconnect")
+			logger.Info("connection to master idle, forcing reconnect")
 			conn.Connect()
 		case connectivity.Connecting:
-			log.Printf("connection to master reconnecting...")
+			logger.Info("connection to master reconnecting...")
 		case connectivity.Shutdown, connectivity.TransientFailure:
-			log.Printf("connection to master lost (state: %s), restarting", state)
+			logger.Info("connection to master lost (state: %s), restarting", state)
 			_ = conn.Close()
 			if err := restartSelf(); err != nil {
-				log.Printf("failed to restart slave process: %v", err)
+				logger.Error("failed to restart slave process: %v", err)
 			}
 			os.Exit(1)
 			return
 		default:
-			log.Printf("connection state changed: %s", state)
+			logger.Info("connection state changed: %s", state)
 		}
 		if !conn.WaitForStateChange(ctx, state) {
-			log.Println("monitorConnection: no further state changes, stopping monitor")
+			logger.Info("monitorConnection: no further state changes, stopping monitor")
 			return
 		}
 	}
@@ -112,12 +112,12 @@ func ConnectGRPC() *grpc.ClientConn {
 	go listenGRPC()
 
 	for {
-		log.Println("Connecting to master at", target)
+		logger.Info("Connecting to master at", target)
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		conn, err := grpc.DialContext(ctx, target, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 		cancel()
 		if err != nil {
-			log.Printf("dial master failed: %v", err)
+			logger.Error("dial master failed: %v", err)
 			time.Sleep(3 * time.Second)
 			continue
 		}
@@ -127,13 +127,13 @@ func ConnectGRPC() *grpc.ClientConn {
 		outR, err := h.SetConnection(reqCtx, &pb.SetConnectionRequest{Addr: env512.SlaveIP, MachineName: env512.MachineName})
 		reqCancel()
 		if err != nil {
-			log.Printf("SetConnection failed: %v", err)
+			logger.Error("SetConnection failed: %v", err)
 			conn.Close()
 			time.Sleep(3 * time.Second)
 			continue
 		}
 
-		log.Printf("Resposta do master: %s", outR.GetOk())
+		logger.Info("Resposta do master: %s", outR.GetOk())
 		go monitorConnection(conn)
 		go PingMaster(conn)
 		return conn

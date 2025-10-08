@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -215,6 +216,78 @@ func CreateSharedFolder(folder FolderMount) error {
 		return err
 	}
 	logger.Info("NFS share created: " + path)
+	return nil
+}
+
+func SyncSharedFolder(folder []FolderMount) error {
+	unique := make(map[string]struct{})
+	var paths []string
+
+	for _, mount := range folder {
+		path := strings.TrimSpace(mount.FolderPath)
+		if path == "" {
+			return fmt.Errorf("folder path is required")
+		}
+		if err := IsSafePath(path); err != nil {
+			return fmt.Errorf("invalid folder path %q: %w", path, err)
+		}
+		if _, exists := unique[path]; exists {
+			continue
+		}
+
+		if err := runCommand(fmt.Sprintf("ensure share directory %s", path), "sudo", "mkdir", "-p", path); err != nil {
+			return err
+		}
+
+		if err := allowSELinuxForNFS(path); err != nil {
+			return err
+		}
+
+		unique[path] = struct{}{}
+		paths = append(paths, path)
+	}
+
+	sort.Strings(paths)
+
+	entries := make([]string, len(paths))
+	for i, path := range paths {
+		entries[i] = exportsEntry(path)
+	}
+
+	content := strings.Join(entries, "\n")
+	if len(content) > 0 {
+		content += "\n"
+	}
+
+	tmpFile, err := os.CreateTemp("", "svman-exports-*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath)
+
+	if _, err := tmpFile.WriteString(content); err != nil {
+		tmpFile.Close()
+		return err
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		return err
+	}
+
+	if err := runCommand("ensure exports directory", "sudo", "mkdir", "-p", exportsDir); err != nil {
+		return err
+	}
+
+	if err := runCommand("sync exports file", "sudo", "install", "-m", "0644", tmpPath, exportsFile); err != nil {
+		return err
+	}
+
+	if err := runCommand("refresh nfs exports", "sudo", "exportfs", "-ra"); err != nil {
+		return err
+	}
+
+	logger.Info("NFS exports synchronized", "count", len(paths))
 	return nil
 }
 

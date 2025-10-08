@@ -80,3 +80,54 @@ func DoesExistNFSShare(machineName, folderPath string) (bool, error) {
 	}
 	return count > 0, nil
 }
+
+//retorna todas as maquinas que tem pastas compartilhadas
+func GetAllMachineNamesWithShares() ([]string, error) {
+	const query = `
+	SELECT DISTINCT machine_name
+	FROM nfs_shares;
+	`
+	rows, err := DB.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var machineNames []string
+	for rows.Next() {
+		var machineName string
+		if err := rows.Scan(&machineName); err != nil {
+			return nil, err
+		}
+		machineNames = append(machineNames, machineName)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return machineNames, nil
+}
+func GetNFSharesByMachineName(machineName string) ([]NFSShare, error) {
+	const query = `
+	SELECT machine_name, folder_path, source, target
+	FROM nfs_shares
+	WHERE machine_name = ?;
+	`
+	rows, err := DB.Query(query, machineName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var shares []NFSShare
+	for rows.Next() {
+		var share NFSShare
+		if err := rows.Scan(&share.MachineName, &share.FolderPath, &share.Source, &share.Target); err != nil {
+			return nil, err
+		}
+		shares = append(shares, share)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return shares, nil
+}
