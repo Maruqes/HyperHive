@@ -24,6 +24,7 @@ const (
 	NFSService_MountFolder_FullMethodName        = "/nfs.NFSService/MountFolder"
 	NFSService_UnmountFolder_FullMethodName      = "/nfs.NFSService/UnmountFolder"
 	NFSService_SyncSharedFolder_FullMethodName   = "/nfs.NFSService/SyncSharedFolder"
+	NFSService_DownloadIso_FullMethodName        = "/nfs.NFSService/DownloadIso"
 )
 
 // NFSServiceClient is the client API for NFSService service.
@@ -35,6 +36,8 @@ type NFSServiceClient interface {
 	MountFolder(ctx context.Context, in *FolderMount, opts ...grpc.CallOption) (*MountResponse, error)
 	UnmountFolder(ctx context.Context, in *FolderMount, opts ...grpc.CallOption) (*UnmountResponse, error)
 	SyncSharedFolder(ctx context.Context, in *FolderMountList, opts ...grpc.CallOption) (*CreateResponse, error)
+	// nao devia estar aqui mas como download iso vai fazer download num folderMount facilita
+	DownloadIso(ctx context.Context, in *DownloadIsoRequest, opts ...grpc.CallOption) (*CreateResponse, error)
 }
 
 type nFSServiceClient struct {
@@ -95,6 +98,16 @@ func (c *nFSServiceClient) SyncSharedFolder(ctx context.Context, in *FolderMount
 	return out, nil
 }
 
+func (c *nFSServiceClient) DownloadIso(ctx context.Context, in *DownloadIsoRequest, opts ...grpc.CallOption) (*CreateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateResponse)
+	err := c.cc.Invoke(ctx, NFSService_DownloadIso_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NFSServiceServer is the server API for NFSService service.
 // All implementations must embed UnimplementedNFSServiceServer
 // for forward compatibility
@@ -104,6 +117,8 @@ type NFSServiceServer interface {
 	MountFolder(context.Context, *FolderMount) (*MountResponse, error)
 	UnmountFolder(context.Context, *FolderMount) (*UnmountResponse, error)
 	SyncSharedFolder(context.Context, *FolderMountList) (*CreateResponse, error)
+	// nao devia estar aqui mas como download iso vai fazer download num folderMount facilita
+	DownloadIso(context.Context, *DownloadIsoRequest) (*CreateResponse, error)
 	mustEmbedUnimplementedNFSServiceServer()
 }
 
@@ -125,6 +140,9 @@ func (UnimplementedNFSServiceServer) UnmountFolder(context.Context, *FolderMount
 }
 func (UnimplementedNFSServiceServer) SyncSharedFolder(context.Context, *FolderMountList) (*CreateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SyncSharedFolder not implemented")
+}
+func (UnimplementedNFSServiceServer) DownloadIso(context.Context, *DownloadIsoRequest) (*CreateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DownloadIso not implemented")
 }
 func (UnimplementedNFSServiceServer) mustEmbedUnimplementedNFSServiceServer() {}
 
@@ -229,6 +247,24 @@ func _NFSService_SyncSharedFolder_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NFSService_DownloadIso_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DownloadIsoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NFSServiceServer).DownloadIso(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NFSService_DownloadIso_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NFSServiceServer).DownloadIso(ctx, req.(*DownloadIsoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // NFSService_ServiceDesc is the grpc.ServiceDesc for NFSService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -255,6 +291,10 @@ var NFSService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SyncSharedFolder",
 			Handler:    _NFSService_SyncSharedFolder_Handler,
+		},
+		{
+			MethodName: "DownloadIso",
+			Handler:    _NFSService_DownloadIso_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

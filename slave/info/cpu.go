@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Maruqes/512SvMan/logger"
 	"github.com/klauspost/cpuid/v2"
 	"github.com/shirou/gopsutil/v4/cpu"
 )
@@ -52,7 +51,6 @@ func (c *CPUInfoStruct) GetCPUInfo() (cpuid.CPUInfo, error) {
 	cpuid.Flags()
 	flag.Parse()
 	cpuid.Detect()
-	logger.Info("CPU:", cpuid.CPU.FeatureSet())
 	//get all features
 	return cpuid.CPU, nil
 }

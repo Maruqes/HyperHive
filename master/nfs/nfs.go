@@ -64,6 +64,17 @@ func RemoveSharedFolder(conn *grpc.ClientConn, folderMount *pbnfs.FolderMount) e
 	return nil
 }
 
+func DownloadISO(conn *grpc.ClientConn, isoRequest *pbnfs.DownloadIsoRequest) error {
+	client := pbnfs.NewNFSServiceClient(conn)
+
+	res, err := client.DownloadIso(context.Background(), isoRequest)
+	if err != nil {
+		return err
+	}
+	logger.Info("Response from DownloadISO: ", res.GetOk())
+	return nil
+}
+
 func GetAllSharedFolders() ([]db.NFSShare, error) {
 	return db.GetAllNFShares()
 }

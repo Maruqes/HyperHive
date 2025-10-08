@@ -20,6 +20,12 @@ const _ = grpc.SupportPackageIsVersion8
 
 const (
 	SlaveVirshService_GetCpuFeatures_FullMethodName = "/virsh.SlaveVirshService/GetCpuFeatures"
+	SlaveVirshService_CreateVm_FullMethodName       = "/virsh.SlaveVirshService/CreateVm"
+	SlaveVirshService_CreateLiveVM_FullMethodName   = "/virsh.SlaveVirshService/CreateLiveVM"
+	SlaveVirshService_MigrateVM_FullMethodName      = "/virsh.SlaveVirshService/MigrateVM"
+	SlaveVirshService_ShutdownVM_FullMethodName     = "/virsh.SlaveVirshService/ShutdownVM"
+	SlaveVirshService_StartVM_FullMethodName        = "/virsh.SlaveVirshService/StartVM"
+	SlaveVirshService_RemoveVM_FullMethodName       = "/virsh.SlaveVirshService/RemoveVM"
 )
 
 // SlaveVirshServiceClient is the client API for SlaveVirshService service.
@@ -27,6 +33,12 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type SlaveVirshServiceClient interface {
 	GetCpuFeatures(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GetCpuFeaturesResponse, error)
+	CreateVm(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	CreateLiveVM(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	MigrateVM(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	ShutdownVM(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	StartVM(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	RemoveVM(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type slaveVirshServiceClient struct {
@@ -47,11 +59,77 @@ func (c *slaveVirshServiceClient) GetCpuFeatures(ctx context.Context, in *Empty,
 	return out, nil
 }
 
+func (c *slaveVirshServiceClient) CreateVm(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, SlaveVirshService_CreateVm_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) CreateLiveVM(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, SlaveVirshService_CreateLiveVM_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) MigrateVM(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, SlaveVirshService_MigrateVM_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) ShutdownVM(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, SlaveVirshService_ShutdownVM_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) StartVM(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, SlaveVirshService_StartVM_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) RemoveVM(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, SlaveVirshService_RemoveVM_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SlaveVirshServiceServer is the server API for SlaveVirshService service.
 // All implementations must embed UnimplementedSlaveVirshServiceServer
 // for forward compatibility
 type SlaveVirshServiceServer interface {
 	GetCpuFeatures(context.Context, *Empty) (*GetCpuFeaturesResponse, error)
+	CreateVm(context.Context, *Empty) (*Empty, error)
+	CreateLiveVM(context.Context, *Empty) (*Empty, error)
+	MigrateVM(context.Context, *Empty) (*Empty, error)
+	ShutdownVM(context.Context, *Empty) (*Empty, error)
+	StartVM(context.Context, *Empty) (*Empty, error)
+	RemoveVM(context.Context, *Empty) (*Empty, error)
 	mustEmbedUnimplementedSlaveVirshServiceServer()
 }
 
@@ -61,6 +139,24 @@ type UnimplementedSlaveVirshServiceServer struct {
 
 func (UnimplementedSlaveVirshServiceServer) GetCpuFeatures(context.Context, *Empty) (*GetCpuFeaturesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCpuFeatures not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) CreateVm(context.Context, *Empty) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateVm not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) CreateLiveVM(context.Context, *Empty) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateLiveVM not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) MigrateVM(context.Context, *Empty) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MigrateVM not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) ShutdownVM(context.Context, *Empty) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ShutdownVM not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) StartVM(context.Context, *Empty) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StartVM not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) RemoveVM(context.Context, *Empty) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveVM not implemented")
 }
 func (UnimplementedSlaveVirshServiceServer) mustEmbedUnimplementedSlaveVirshServiceServer() {}
 
@@ -93,6 +189,114 @@ func _SlaveVirshService_GetCpuFeatures_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SlaveVirshService_CreateVm_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).CreateVm(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_CreateVm_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).CreateVm(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_CreateLiveVM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).CreateLiveVM(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_CreateLiveVM_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).CreateLiveVM(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_MigrateVM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).MigrateVM(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_MigrateVM_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).MigrateVM(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_ShutdownVM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).ShutdownVM(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_ShutdownVM_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).ShutdownVM(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_StartVM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).StartVM(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_StartVM_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).StartVM(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_RemoveVM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).RemoveVM(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_RemoveVM_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).RemoveVM(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SlaveVirshService_ServiceDesc is the grpc.ServiceDesc for SlaveVirshService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -103,6 +307,30 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetCpuFeatures",
 			Handler:    _SlaveVirshService_GetCpuFeatures_Handler,
+		},
+		{
+			MethodName: "CreateVm",
+			Handler:    _SlaveVirshService_CreateVm_Handler,
+		},
+		{
+			MethodName: "CreateLiveVM",
+			Handler:    _SlaveVirshService_CreateLiveVM_Handler,
+		},
+		{
+			MethodName: "MigrateVM",
+			Handler:    _SlaveVirshService_MigrateVM_Handler,
+		},
+		{
+			MethodName: "ShutdownVM",
+			Handler:    _SlaveVirshService_ShutdownVM_Handler,
+		},
+		{
+			MethodName: "StartVM",
+			Handler:    _SlaveVirshService_StartVM_Handler,
+		},
+		{
+			MethodName: "RemoveVM",
+			Handler:    _SlaveVirshService_RemoveVM_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

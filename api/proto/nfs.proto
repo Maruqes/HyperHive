@@ -18,6 +18,11 @@ message FolderMountList {
   repeated FolderMount mounts = 1;
 }
 
+message DownloadIsoRequest {
+  FolderMount folderMount = 1;
+  string isoUrl = 2;
+  string isoName = 3;
+}
 
 //defines for slaves
 service NFSService {
@@ -26,6 +31,9 @@ service NFSService {
   rpc MountFolder(FolderMount) returns (MountResponse);
   rpc UnmountFolder(FolderMount) returns (UnmountResponse);
   rpc SyncSharedFolder(FolderMountList) returns (CreateResponse);
+
+  //nao devia estar aqui mas como download iso vai fazer download num folderMount facilita
+  rpc DownloadIso(DownloadIsoRequest) returns (CreateResponse);
 }	
 
 message CreateResponse { bool ok = 1; }

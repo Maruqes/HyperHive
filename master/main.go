@@ -55,6 +55,11 @@ func main() {
 		log.Fatalf("create logs table: %v", err)
 	}
 
+	err = db.CreateISOTable()
+	if err != nil {
+		log.Fatalf("create ISO table: %v", err)
+	}
+
 	//listen and connects to gRPC
 	logger.SetCallBack(logs512.LoggerCallBack)
 	protocol.ListenGRPC(newSlave)

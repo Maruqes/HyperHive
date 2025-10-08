@@ -21,4 +21,12 @@ message CreateVmRequest {
 //defines on slave
 service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
+
+  rpc CreateVm(Empty) returns (Empty);
+  rpc CreateLiveVM(Empty) returns (Empty);
+
+  rpc MigrateVM(Empty) returns (Empty);
+  rpc ShutdownVM(Empty) returns (Empty);
+  rpc StartVM(Empty) returns (Empty);
+  rpc RemoveVM(Empty) returns (Empty);
 }

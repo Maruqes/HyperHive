@@ -232,3 +232,31 @@ func (s *NFSService) UpdateNFSShit() error {
 	}
 	return nil
 }
+
+func (s *NFSService) DownloadISO(url, isoName string, nfsShare db.NFSShare) (string, error) {
+	conn := protocol.GetConnectionByMachineName(nfsShare.MachineName)
+	if conn == nil || conn.Connection == nil {
+		return "", fmt.Errorf("slave not connected")
+	}
+	if nfsShare.Target[len(nfsShare.Target)-1] == '/' {
+		nfsShare.Target = nfsShare.Target[:len(nfsShare.Target)-1]
+	}
+	isoPath := nfsShare.Target + "/" + isoName
+
+	isoRequest := &proto.DownloadIsoRequest{
+		IsoUrl:  url,
+		IsoName: isoName,
+		FolderMount: &proto.FolderMount{
+			MachineName: nfsShare.MachineName,
+			FolderPath:  nfsShare.FolderPath,
+			Source:      nfsShare.Source,
+			Target:      nfsShare.Target,
+		},
+	}
+
+	if err := nfs.DownloadISO(conn.Connection, isoRequest); err != nil {
+		logger.Error("DownloadISO failed: %v", err)
+		return "", err
+	}
+	return isoPath, nil
+}

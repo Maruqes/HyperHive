@@ -1,5 +1,7 @@
 package db
 
+import "database/sql"
+
 //this file will inclide all NFS related database functions
 
 type NFSShare struct {
@@ -44,7 +46,7 @@ func RemoveNFSShare(machineName, folderPath string) error {
 
 func GetAllNFShares() ([]NFSShare, error) {
 	const query = `
-	SELECT machine_name, folder_path, source, target
+	SELECT id, machine_name, folder_path, source, target
 	FROM nfs_shares;
 	`
 	rows, err := DB.Query(query)
@@ -56,7 +58,7 @@ func GetAllNFShares() ([]NFSShare, error) {
 	var shares []NFSShare
 	for rows.Next() {
 		var share NFSShare
-		if err := rows.Scan(&share.MachineName, &share.FolderPath, &share.Source, &share.Target); err != nil {
+		if err := rows.Scan(&share.Id, &share.MachineName, &share.FolderPath, &share.Source, &share.Target); err != nil {
 			return nil, err
 		}
 		shares = append(shares, share)
@@ -81,7 +83,7 @@ func DoesExistNFSShare(machineName, folderPath string) (bool, error) {
 	return count > 0, nil
 }
 
-//retorna todas as maquinas que tem pastas compartilhadas
+// retorna todas as maquinas que tem pastas compartilhadas
 func GetAllMachineNamesWithShares() ([]string, error) {
 	const query = `
 	SELECT DISTINCT machine_name
@@ -130,4 +132,21 @@ func GetNFSharesByMachineName(machineName string) ([]NFSShare, error) {
 		return nil, err
 	}
 	return shares, nil
+}
+
+func GetNFSShareByID(id int) (*NFSShare, error) {
+	const query = `
+	SELECT id, machine_name, folder_path, source, target
+	FROM nfs_shares
+	WHERE id = ?;
+	`
+	var share NFSShare
+	err := DB.QueryRow(query, id).Scan(&share.Id, &share.MachineName, &share.FolderPath, &share.Source, &share.Target)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &share, nil
 }

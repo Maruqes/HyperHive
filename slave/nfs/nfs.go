@@ -478,3 +478,46 @@ allow systemd_nfs_generator_t systemd_nfs_generator_t:capability dac_read_search
 	}
 	return nil
 }
+
+// check if folder exists, if not return error
+func DownloadISO(url, isoName, downloadFolder string) (string, error) {
+	if url == "" {
+		return "", fmt.Errorf("url is required")
+	}
+	if isoName == "" {
+		return "", fmt.Errorf("isoName is required")
+	}
+	if downloadFolder == "" {
+		return "", fmt.Errorf("downloadFolder is required")
+	}
+
+	if err := IsSafePath(downloadFolder); err != nil {
+		return "", fmt.Errorf("invalid download folder path: %w", err)
+	}
+
+	if downloadFolder[len(downloadFolder)-1] == '/' {
+		downloadFolder = downloadFolder[:len(downloadFolder)-1]
+	}
+
+	if _, err := os.Stat(downloadFolder); os.IsNotExist(err) {
+		return "", fmt.Errorf("download folder does not exist: %s", downloadFolder)
+	}
+
+	isoPath := filepath.Join(downloadFolder, isoName)
+	if _, err := os.Stat(isoPath); err == nil {
+		logger.Info("ISO already exists, skipping download:", isoPath)
+		return isoPath, nil
+	}
+
+	if !commandExists("curl") {
+		return "", fmt.Errorf("curl is not installed")
+	}
+
+	cmd := exec.Command("curl", "-L", "-o", isoPath, url)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("failed to download ISO: %w", err)
+	}
+	return isoPath, nil
+}

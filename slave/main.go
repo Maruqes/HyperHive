@@ -21,19 +21,29 @@ func askForSudo() {
 }
 
 func main() {
+	// params := virsh.VMCreationParams{
+	// 	ConnURI:        "qemu:///system",
+	// 	Name:           "testvm",
+	// 	MemoryMB:       2048,
+	// 	VCPUs:          2,
+	// 	DiskPath:       "testvm.qcow2",
+	// 	DiskSizeGB:     10,
+	// 	ISOPath:        "test.iso",
+	// 	Machine:        "",
+	// 	Network:        "default",
+	// 	GraphicsListen: "127.0.0.1",
+	// }
+	// virsh.CreateVMHostPassthrough(params)
 
-	// services, err := info.ServicesInfo.GetServices()
+	// info, err := info.CPUInfo.GetCPUInfo()
 	// if err != nil {
 	// 	fmt.Println("Error:", err)
 	// 	return
 	// }
-
-	// for _, service := range services {
-	// 	fmt.Printf("Name: %s, Description: %s, LoadState: %s, ActiveState: %s, SubState: %s\n",
-	// 		service.Name, service.Description, service.LoadState, service.ActiveState, service.SubState)
-	// }
+	// fmt.Printf("CPU Info: %+v\n", info.FeatureSet())
 
 	// return
+
 	if err := env512.Setup(); err != nil {
 		log.Fatalf("env setup: %v", err)
 	}
