@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"512SvMan/logs512"
 	"context"
 	"fmt"
 	"log"
@@ -8,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	logsGrpc "github.com/Maruqes/512SvMan/api/proto/logsserve"
 	pb "github.com/Maruqes/512SvMan/api/proto/protocol"
 	"github.com/Maruqes/512SvMan/logger"
 	"google.golang.org/grpc"
@@ -275,6 +277,7 @@ func ListenGRPC(recievedNewConnectionFunction func(addr, machineName string, con
 	}
 	s := grpc.NewServer()
 	pb.RegisterProtocolServiceServer(s, &protocolServer{})
+	logsGrpc.RegisterLogsServeServer(s, &logs512.LogsServer{})
 	logger.Info("Master a ouvir em :50051")
 	go func() {
 		if err := s.Serve(lis); err != nil {

@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package logsserve;
+
+option go_package = "github.com/Maruqes/512SvMan/api/proto/logsserve;proto";
+
+
+message Log{
+  string machineName = 1;
+  int32 logType = 2; // e.g., 0-info, 1-error, 2-warn, 3-debug
+  string content = 3; // log content
+}
+
+message LogAck {
+  bool received = 1; // acknowledgment of log receipt
+}
+
+//master service
+service LogsServe {
+  rpc RecordLog(stream Log) returns (LogAck);
+}

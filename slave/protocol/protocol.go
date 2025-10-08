@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"slave/env512"
+	"slave/logs512"
 	nfsservice "slave/nfs"
 	"slave/virsh"
 	"syscall"
@@ -121,7 +122,7 @@ func ConnectGRPC() *grpc.ClientConn {
 			time.Sleep(3 * time.Second)
 			continue
 		}
-
+		logs512.StartLogs(conn)
 		h := pb.NewProtocolServiceClient(conn)
 		reqCtx, reqCancel := context.WithTimeout(context.Background(), 60*time.Second)
 		outR, err := h.SetConnection(reqCtx, &pb.SetConnectionRequest{Addr: env512.SlaveIP, MachineName: env512.MachineName})

@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"slave/env512"
+	"slave/logs512"
 	"slave/nfs"
 	"slave/protocol"
 
@@ -38,6 +39,7 @@ func main() {
 	}
 
 	logger.SetType(env512.Mode)
+	logger.SetCallBack(logs512.LogMessage)
 
 	askForSudo()
 	err := nfs.InstallNFS()

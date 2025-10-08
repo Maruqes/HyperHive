@@ -4,6 +4,7 @@ import (
 	"512SvMan/api"
 	"512SvMan/db"
 	"512SvMan/env512"
+	"512SvMan/logs512"
 	"512SvMan/protocol"
 	"512SvMan/services"
 	"fmt"
@@ -49,7 +50,13 @@ func main() {
 		log.Fatalf("create NFS table: %v", err)
 	}
 
+	err = db.CreateLogsTable()
+	if err != nil {
+		log.Fatalf("create logs table: %v", err)
+	}
+
 	//listen and connects to gRPC
+	logger.SetCallBack(logs512.LoggerCallBack)
 	protocol.ListenGRPC(newSlave)
 
 	api.StartApi()

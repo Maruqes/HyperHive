@@ -42,6 +42,7 @@ func StartApi() {
 		setupVirshAPI(r)
 		setupNFSAPI(r)
 		setupProtocolAPI(r)
+		setupLogsAPI(r)
 	})
 
 	//put web folder on /

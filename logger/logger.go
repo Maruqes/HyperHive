@@ -42,19 +42,37 @@ func toFields(xs ...interface{}) []zap.Field {
 	return out
 }
 
+var callback func(urgency int, msg string, fields ...interface{})
+
+func SetCallBack(f func(urgency int, msg string, fields ...interface{})) {
+	callback = f
+}
+
 func Info(msg string, fields ...interface{}) {
+	if callback != nil {
+		callback(0, msg, fields...)
+	}
 	log.Info(msg, toFields(fields...)...)
 }
 
 func Error(msg string, fields ...interface{}) {
+	if callback != nil {
+		callback(1, msg, fields...)
+	}
 	log.Error(msg, toFields(fields...)...)
 }
 
 func Warn(msg string, fields ...interface{}) {
+	if callback != nil {
+		callback(2, msg, fields...)
+	}
 	log.Warn(msg, toFields(fields...)...)
 }
 
 func Debug(msg string, fields ...interface{}) {
+	if callback != nil {
+		callback(3, msg, fields...)
+	}
 	log.Debug(msg, toFields(fields...)...)
 }
 
