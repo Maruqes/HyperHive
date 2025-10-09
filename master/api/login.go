@@ -48,7 +48,17 @@ func GetTokenFromContext(r *http.Request) string {
 
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		//gets token from header
 		token := r.Header.Get("Authorization")
+
+		//check cookies for token if header is empty
+		if token == "" {
+			cookie, err := r.Cookie("Authorization")
+			if err == nil {
+				token = cookie.Value
+			}
+		}
+
 		loginService := services.LoginService{}
 		if !loginService.IsLoginValid(baseURL, token) {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)

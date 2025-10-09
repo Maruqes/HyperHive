@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 
 	logger "github.com/Maruqes/512SvMan/logger"
 	"google.golang.org/grpc"
@@ -35,6 +36,35 @@ func askForSudo() {
 	}
 }
 
+func execCommand(name string, arg ...string) error {
+	cmd := exec.Command(name, arg...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+func downloadNoVNC() error {
+	//check if folder novnc exists
+	if _, err := os.Stat("./novnc"); os.IsNotExist(err) {
+		//download novnc from github
+		fmt.Println("Downloading noVNC...")
+		//use "git clone https://github.com/novnc/noVNC.git novnc"
+		err := execCommand("git", "clone", "https://github.com/novnc/noVNC.git", "novnc")
+		if err != nil {
+			return err
+		}
+	} else {
+		fmt.Println("noVNC folder already exists, trying to update...")
+		//update novnc to latest version
+		err := execCommand("git", "-C", "novnc", "pull")
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func main() {
 	askForSudo()
 
@@ -43,9 +73,15 @@ func main() {
 	}
 	logger.SetType(env512.Mode)
 
+	//check if novnc folder exists, if not download it
+	err := downloadNoVNC()
+	if err != nil {
+		log.Fatalf("download noVNC: %v", err)
+	}
+
 	db.InitDB()
 	//create all tables if not exists
-	err := db.CreateNFSTable()
+	err = db.CreateNFSTable()
 	if err != nil {
 		log.Fatalf("create NFS table: %v", err)
 	}

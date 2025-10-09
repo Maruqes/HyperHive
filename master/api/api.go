@@ -31,13 +31,12 @@ func StartApi() {
 
 	//testing
 	r.Group(func(r chi.Router) {
-		setupNoVNCAPI(r)
 	})
 
 	//create a group protected by auth middleware
 	r.Group(func(r chi.Router) {
 		r.Use(authMiddleware)
-
+		setupNoVNCAPI(r)
 		r.Get("/protected", protectedRoutes)
 		npmapi.SetupProxyAPI(r)
 		npmapi.Setup404API(r)
