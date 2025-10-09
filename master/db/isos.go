@@ -1,5 +1,10 @@
 package db
 
+import (
+	"database/sql"
+	"errors"
+)
+
 // create table for isos, file where they are stores and machine name that downloaded them
 type ISO struct {
 	Id          int
@@ -50,6 +55,23 @@ func GetAllISOs() ([]ISO, error) {
 		isos = append(isos, iso)
 	}
 	return isos, nil
+}
+func GetIsoByID(id int) (*ISO, error) {
+	const query = `
+	SELECT id, machine_name, file_path, name
+	FROM isos
+	WHERE id = ?;
+	`
+
+	var iso ISO
+	err := DB.QueryRow(query, id).Scan(&iso.Id, &iso.MachineName, &iso.FilePath, &iso.Name)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, sql.ErrNoRows
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &iso, nil
 }
 
 func RemoveISOByID(id int) error {

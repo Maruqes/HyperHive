@@ -188,7 +188,7 @@ func SetupNPM(base string) error {
 	}
 	logger.Info("NPM API is ready…")
 
-	token, err := retry[string](30*time.Second, 2*time.Second, func() (string, error) {
+	token, err := retry[string](10*time.Second, 2*time.Second, func() (string, error) {
 		return Login(base, adminEmail, adminPass)
 	})
 	if err != nil {

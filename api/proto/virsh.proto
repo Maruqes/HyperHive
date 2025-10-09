@@ -12,21 +12,32 @@ message GetCpuFeaturesResponse {
   repeated string features = 1;
 }
 
-//creates vm with X disable features
-message CreateVmRequest {
+
+message CreateVmRequest{
   string name = 1;
-  repeated string disableFeatures = 5;
+  int32 memory = 2;
+  int32 vcpu = 3;
+  string disk_path = 4;
+  int32 disk_sizeGB = 5;
+  string iso_path = 6;
+  string network = 7;
+  string VNC_password = 8;
+}
+
+message OkResponse {
+  bool ok = 1;
+  string message = 2;
 }
 
 //defines on slave
 service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
 
-  rpc CreateVm(Empty) returns (Empty);
-  rpc CreateLiveVM(Empty) returns (Empty);
+  rpc CreateVm(CreateVmRequest) returns (OkResponse);
+  rpc CreateLiveVM(Empty) returns (OkResponse);
 
-  rpc MigrateVM(Empty) returns (Empty);
-  rpc ShutdownVM(Empty) returns (Empty);
-  rpc StartVM(Empty) returns (Empty);
-  rpc RemoveVM(Empty) returns (Empty);
+  rpc MigrateVM(Empty) returns (OkResponse);
+  rpc ShutdownVM(Empty) returns (OkResponse);
+  rpc StartVM(Empty) returns (OkResponse);
+  rpc RemoveVM(Empty) returns (OkResponse);
 }

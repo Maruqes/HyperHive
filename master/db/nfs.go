@@ -7,9 +7,9 @@ import "database/sql"
 type NFSShare struct {
 	Id          int
 	MachineName string
-	FolderPath  string
-	Source      string
-	Target      string
+	FolderPath  string // local folder path 
+	Source      string // nfs server path example-> ip:/mnt/nfs_share
+	Target      string // mount path on the VM example-> /mnt/nfs_share
 }
 
 func CreateNFSTable() error {

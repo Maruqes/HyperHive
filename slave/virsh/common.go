@@ -2,6 +2,7 @@ package virsh
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -48,9 +49,14 @@ type qiInfo struct {
 // If the file doesn't exist, it infers from the extension.
 func DetectDiskFormat(path string) (string, error) {
 	if _, err := os.Stat(path); err == nil {
-		out, err := exec.Command("qemu-img", "info", "--output=json", path).Output()
+		cmd := exec.Command("qemu-img", "info", "--output=json", path)
+		out, err := cmd.Output()
 		if err != nil {
-			return "", fmt.Errorf("qemu-img info: %w", err)
+			var exitErr *exec.ExitError
+			if errors.As(err, &exitErr) {
+				return "", fmt.Errorf("qemu-img info %s: %s", path, strings.TrimSpace(string(exitErr.Stderr)))
+			}
+			return "", fmt.Errorf("qemu-img info %s: %w", path, err)
 		}
 		var info qiInfo
 		if err := json.Unmarshal(out, &info); err != nil {
@@ -94,10 +100,13 @@ func EnsureDiskAndDetectFormat(path string, sizeGB int) (string, error) {
 	// Create with chosen format
 	args := []string{"create", "-f", fmtStr, path, fmt.Sprintf("%dG", sizeGB)}
 	cmd := exec.Command("qemu-img", args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("qemu-img create: %w", err)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		msg := strings.TrimSpace(string(out))
+		if msg != "" {
+			return "", fmt.Errorf("qemu-img create %s: %s", path, msg)
+		}
+		return "", fmt.Errorf("qemu-img create %s: %w", path, err)
 	}
 	return fmtStr, nil
 }

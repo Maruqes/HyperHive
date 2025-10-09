@@ -16,7 +16,7 @@ func protectedRoutes(w http.ResponseWriter, r *http.Request) {
 func StartApi() {
 	hostAdmin := "127.0.0.1:81"
 	baseURL = "http://" + hostAdmin
-
+	initNoVNC()
 	err := npm.SetupNPM(baseURL)
 
 	if err != nil {
@@ -28,6 +28,11 @@ func StartApi() {
 	r := chi.NewRouter()
 
 	r.Post("/login", loginHandler)
+
+	//testing
+	r.Group(func(r chi.Router) {
+		setupNoVNCAPI(r)
+	})
 
 	//create a group protected by auth middleware
 	r.Group(func(r chi.Router) {

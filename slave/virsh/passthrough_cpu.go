@@ -24,7 +24,7 @@ type VMCreationParams struct {
 // sem migracao
 func CreateVMHostPassthrough(params VMCreationParams) (string, error) {
 	if err := EnsureDirs(); err != nil {
-		return "", err
+		return "", fmt.Errorf("ensure dirs: %w", err)
 	}
 	disk := ResolveDiskPath(params.DiskPath)
 	iso := ResolveISOPath(params.ISOPath)
@@ -40,6 +40,8 @@ func CreateVMHostPassthrough(params VMCreationParams) (string, error) {
 	if params.ISOPath != "" {
 		if _, err := os.Stat(iso); err == nil {
 			hasISO = true
+		} else {
+			return "", fmt.Errorf("iso %s: %w", iso, err)
 		}
 	}
 
@@ -118,7 +120,7 @@ func CreateVMHostPassthrough(params VMCreationParams) (string, error) {
 
 	xmlPath, err := WriteDomainXMLToDisk(params.Name, domainXML)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("write domain xml: %w", err)
 	}
 
 	dom, err := conn.DomainDefineXML(domainXML)
@@ -132,4 +134,3 @@ func CreateVMHostPassthrough(params VMCreationParams) (string, error) {
 	}
 	return xmlPath, nil
 }
-

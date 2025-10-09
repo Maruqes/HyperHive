@@ -15,3 +15,21 @@ func GetCpuFeatures(conn *grpc.ClientConn) []string {
 	}
 	return resp.Features
 }
+
+func CreateVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskPath string, diskSizeGB int32, isoPath, network, VNCPassword string) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.CreateVm(context.Background(), &grpcVirsh.CreateVmRequest{
+		Name:        name,
+		Memory:      memory,
+		Vcpu:        vcpu,
+		DiskPath:    diskPath,
+		DiskSizeGB:  diskSizeGB,
+		IsoPath:     isoPath,
+		Network:     network,
+		VNCPassword: VNCPassword,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
