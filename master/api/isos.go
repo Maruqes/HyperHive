@@ -3,6 +3,7 @@ package api
 import (
 	"512SvMan/db"
 	"512SvMan/services"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -22,6 +23,17 @@ func downloadIso(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	suposedIso, err := db.GetIsoByName(req.ISOName)
+	if err != nil && err != sql.ErrNoRows {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if suposedIso != nil {
+		http.Error(w, "ISO already exists", http.StatusConflict)
+		return
+	}
+
 	//find nfs share by id
 	nfsShare, err := db.GetNFSShareByID(req.NfsShareID)
 	if err != nil {

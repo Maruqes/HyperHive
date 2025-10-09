@@ -74,6 +74,24 @@ func GetIsoByID(id int) (*ISO, error) {
 	return &iso, nil
 }
 
+func GetIsoByName(name string) (*ISO, error) {
+	const query = `
+	SELECT id, machine_name, file_path, name
+	FROM isos
+	WHERE name = ?;
+	`
+
+	var iso ISO
+	err := DB.QueryRow(query, name).Scan(&iso.Id, &iso.MachineName, &iso.FilePath, &iso.Name)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, sql.ErrNoRows
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &iso, nil
+}
+
 func RemoveISOByID(id int) error {
 	query := `
 	DELETE FROM isos

@@ -29,10 +29,26 @@ message OkResponse {
   string message = 2;
 }
 
+enum VmState {
+  UNKNOWN = 0;
+  RUNNING = 1;
+  BLOCKED = 2;
+  PAUSED = 3;
+  SHUTDOWN = 4;
+  SHUTOFF = 5;
+  CRASHED = 6;
+  PMSUSPENDED = 7;
+  NOSTATE = 8;
+}
+
 message Vm{
   string name = 1;
-  string state = 2;
+  VmState state = 2;
   string novncPort = 3;
+  int32 cpuCount = 4;
+  int32 memoryMB = 5;
+  int32 currentCpuUsage = 6;
+  int32 currentMemoryUsageMB = 7;
 }
 
 message GetVmByNameRequest {

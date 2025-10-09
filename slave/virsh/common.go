@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 	libvirt "libvirt.org/go/libvirt"
@@ -225,27 +226,108 @@ func SetVNCPorts(minPort, maxPort int) error {
 
 	return nil
 }
-func domainStateToString(state libvirt.DomainState) string {
+func domainStateToString(state libvirt.DomainState) grpcVirsh.VmState {
 	switch state {
 	case libvirt.DOMAIN_NOSTATE:
-		return "no state"
+		return grpcVirsh.VmState_NOSTATE
 	case libvirt.DOMAIN_RUNNING:
-		return "running"
+		return grpcVirsh.VmState_RUNNING
 	case libvirt.DOMAIN_BLOCKED:
-		return "blocked"
+		return grpcVirsh.VmState_BLOCKED
 	case libvirt.DOMAIN_PAUSED:
-		return "paused"
+		return grpcVirsh.VmState_PAUSED
 	case libvirt.DOMAIN_SHUTDOWN:
-		return "shutdown"
+		return grpcVirsh.VmState_SHUTDOWN
 	case libvirt.DOMAIN_SHUTOFF:
-		return "shut off"
+		return grpcVirsh.VmState_SHUTOFF
 	case libvirt.DOMAIN_CRASHED:
-		return "crashed"
+		return grpcVirsh.VmState_CRASHED
 	case libvirt.DOMAIN_PMSUSPENDED:
-		return "suspended"
+		return grpcVirsh.VmState_PMSUSPENDED
 	default:
-		return "unknown"
+		return grpcVirsh.VmState_UNKNOWN
 	}
+}
+
+func getMemStats(dom *libvirt.Domain) (totalKiB, usedKiB uint64, err error) {
+	const maxStats = 16
+	stats, err := dom.MemoryStats(maxStats, 0)
+	if err != nil {
+		return 0, 0, fmt.Errorf("MemoryStats: %w", err)
+	}
+
+	var actualBalloon, rss, unused uint64
+	for _, s := range stats {
+		switch s.Tag {
+		case int32(libvirt.DOMAIN_MEMORY_STAT_ACTUAL_BALLOON):
+			actualBalloon = s.Val
+		case int32(libvirt.DOMAIN_MEMORY_STAT_RSS):
+			rss = s.Val
+		case int32(libvirt.DOMAIN_MEMORY_STAT_UNUSED):
+			unused = s.Val
+		}
+	}
+
+	if actualBalloon == 0 {
+		if info, err2 := dom.GetInfo(); err2 == nil {
+			actualBalloon = uint64(info.Memory)
+		}
+	}
+
+	var used uint64
+	switch {
+	case unused > 0 && unused <= actualBalloon:
+		used = actualBalloon - unused
+	case rss > 0:
+		used = rss
+	default:
+		used = actualBalloon
+	}
+
+	return actualBalloon, used, nil
+}
+
+func sampleCPUTime(dom *libvirt.Domain) (ns uint64, vcpus int, err error) {
+	info, err := dom.GetInfo()
+	if err != nil {
+		return 0, 0, fmt.Errorf("GetInfo: %w", err)
+	}
+	return info.CpuTime, int(info.NrVirtCpu), nil
+}
+
+func cpuPercentOver(dom *libvirt.Domain, interval time.Duration) (percent float64, vcpus int, err error) {
+	start := time.Now()
+
+	t0, nVCPU, err := sampleCPUTime(dom)
+	if err != nil {
+		return 0, 0, err
+	}
+	time.Sleep(interval)
+	t1, _, err := sampleCPUTime(dom)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	if t1 < t0 || nVCPU <= 0 {
+		return 0, nVCPU, nil
+	}
+
+	elapsed := time.Since(start).Seconds()
+	if elapsed <= 0 {
+		return 0, nVCPU, nil
+	}
+
+	deltaCPUSeconds := float64(t1-t0) / float64(time.Second)
+	percent = (deltaCPUSeconds / (elapsed * float64(nVCPU))) * 100.0
+
+	if percent < 0 {
+		percent = 0
+	}
+	max := 100.0
+	if percent > max {
+		percent = max
+	}
+	return percent, nVCPU, nil
 }
 
 func GetVMByName(name string) (*grpcVirsh.Vm, error) {
@@ -282,10 +364,29 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		}
 	}
 
+	// Get CPU and memory stats of the vm
+	totalMemKiB, usedMemKiB, err := getMemStats(dom)
+	if err != nil {
+		return nil, fmt.Errorf("mem stats: %w", err)
+	}
+
+	cpuUsagePercent, vcpus, err := cpuPercentOver(dom, 500*time.Millisecond)
+	if err != nil {
+		return nil, fmt.Errorf("cpu usage: %w", err)
+	}
+
+	// Convert memory stats to MB and ensure types match the proto (int32)
+	totalMemMB := int32(totalMemKiB / 1024)
+	usedMemMB := int32(usedMemKiB / 1024)
+
 	info := &grpcVirsh.Vm{
-		Name:      name,
-		State:     domainStateToString(state),
-		NovncPort: strconv.Itoa(port),
+		Name:                 name,
+		State:                domainStateToString(state),
+		NovncPort:            strconv.Itoa(port),
+		CpuCount:             int32(vcpus),
+		MemoryMB:             totalMemMB,
+		CurrentCpuUsage:      int32(cpuUsagePercent + 0.5),
+		CurrentMemoryUsageMB: usedMemMB,
 	}
 	return info, nil
 }
@@ -331,10 +432,31 @@ func GetAllVMs() ([]*grpcVirsh.Vm, error) {
 			}
 		}
 
+		// Get CPU and memory stats of the vm
+		totalMemKiB, usedMemKiB, err := getMemStats(&dom)
+		if err != nil {
+			dom.Free()
+			return nil, fmt.Errorf("mem stats: %w", err)
+		}
+
+		cpuUsagePercent, vcpus, err := cpuPercentOver(&dom, 500*time.Millisecond)
+		if err != nil {
+			dom.Free()
+			return nil, fmt.Errorf("cpu usage: %w", err)
+		}
+
+		// Convert memory stats to MB and ensure types match the proto (int32)
+		totalMemMB := int32(totalMemKiB / 1024)
+		usedMemMB := int32(usedMemKiB / 1024)
+
 		info := &grpcVirsh.Vm{
-			Name:      name,
-			State:     domainStateToString(state),
-			NovncPort: strconv.Itoa(port),
+			Name:                 name,
+			State:                domainStateToString(state),
+			NovncPort:            strconv.Itoa(port),
+			CpuCount:             int32(vcpus),
+			MemoryMB:             totalMemMB,
+			CurrentCpuUsage:      int32(cpuUsagePercent + 0.5),
+			CurrentMemoryUsageMB: usedMemMB,
 		}
 		vms = append(vms, info)
 		dom.Free()
