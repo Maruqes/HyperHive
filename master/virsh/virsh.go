@@ -33,3 +33,22 @@ func CreateVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskPath s
 	}
 	return nil
 }
+
+func GetAllVms(conn *grpc.ClientConn, empty *grpcVirsh.Empty) (*grpcVirsh.GetAllVmsResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetAllVms(context.Background(), empty)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func GetVmByName(conn *grpc.ClientConn, empty *grpcVirsh.GetVmByNameRequest) (*grpcVirsh.Vm, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetVmByName(context.Background(), empty)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+

@@ -29,6 +29,20 @@ message OkResponse {
   string message = 2;
 }
 
+message Vm{
+  string name = 1;
+  string state = 2;
+  string novncPort = 3;
+}
+
+message GetVmByNameRequest {
+  string name = 1;
+}
+
+message GetAllVmsResponse {
+  repeated Vm vms = 1;
+}
+
 //defines on slave
 service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
@@ -40,4 +54,7 @@ service SlaveVirshService {
   rpc ShutdownVM(Empty) returns (OkResponse);
   rpc StartVM(Empty) returns (OkResponse);
   rpc RemoveVM(Empty) returns (OkResponse);
+
+  rpc GetAllVms(Empty) returns (GetAllVmsResponse);
+  rpc GetVmByName(GetVmByNameRequest) returns (Vm);
 }

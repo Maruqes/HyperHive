@@ -120,7 +120,7 @@ func CreateVMCustomCPU(
       <source network='%s'/>
       <model type='virtio'/>
     </interface>
-    <graphics type='vnc' listen='%s'/>
+    <graphics type='vnc' autoport='yes' port='-1' listen='%s'/>
     <video><model type='virtio'/></video>
   </devices>
 </domain>`,

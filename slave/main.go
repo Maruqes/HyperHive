@@ -8,6 +8,7 @@ import (
 	"slave/logs512"
 	"slave/nfs"
 	"slave/protocol"
+	"slave/virsh"
 
 	"github.com/Maruqes/512SvMan/logger"
 )
@@ -44,14 +45,19 @@ func main() {
 
 	// return
 
+	askForSudo()
+
 	if err := env512.Setup(); err != nil {
 		log.Fatalf("env setup: %v", err)
+	}
+
+	if err := virsh.SetVNCPorts(env512.VNC_MIN_PORT, env512.VNC_MAX_PORT); err != nil {
+		log.Fatalf("set vnc ports: %v", err)
 	}
 
 	logger.SetType(env512.Mode)
 	logger.SetCallBack(logs512.LogMessage)
 
-	askForSudo()
 	err := nfs.InstallNFS()
 	if err != nil {
 		log.Fatalf("failed to install NFS: %v", err)

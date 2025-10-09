@@ -7,7 +7,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
+
+	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
+	libvirt "libvirt.org/go/libvirt"
 )
 
 const ROOTFOLDER = "/var/512SvMan"
@@ -121,4 +126,218 @@ func WriteDomainXMLToDisk(vmName, xml string) (string, error) {
 		return "", fmt.Errorf("write xml %s: %w", out, err)
 	}
 	return out, nil
+}
+
+func RestartLibvirt() error {
+	cmd := exec.Command("systemctl", "restart", "libvirtd")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		msg := strings.TrimSpace(string(out))
+		if msg != "" {
+			return fmt.Errorf("restart libvirtd: %s", msg)
+		}
+		return fmt.Errorf("restart libvirtd: %w", err)
+	}
+	return nil
+}
+
+// # qemu:///system  => system libvirtd (/etc/libvirt/qemu.conf)
+// set-> remote_display_port_min = 12000
+//
+//	remote_display_port_max = 12999
+func SetVNCPorts(minPort, maxPort int) error {
+	if minPort < 5900 || maxPort > 65535 || minPort > maxPort {
+		return fmt.Errorf("invalid remote display port range %d-%d", minPort, maxPort)
+	}
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("SetVNCPorts requires root privileges")
+	}
+
+	const configPath = "/etc/libvirt/qemu.conf"
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", configPath, err)
+	}
+
+	content := string(data)
+	minLine := fmt.Sprintf("remote_display_port_min = %d", minPort)
+	maxLine := fmt.Sprintf("remote_display_port_max = %d", maxPort)
+
+	minPattern := regexp.MustCompile(`(?i)^\s*#?\s*remote_display_port_min\s*=`)
+	maxPattern := regexp.MustCompile(`(?i)^\s*#?\s*remote_display_port_max\s*=`)
+
+	trimmed := strings.TrimRight(content, "\n")
+	var lines []string
+	if trimmed != "" {
+		lines = strings.Split(trimmed, "\n")
+	}
+
+	var out []string
+	minApplied := false
+	maxApplied := false
+	for _, line := range lines {
+		switch {
+		case minPattern.MatchString(line):
+			if !minApplied {
+				out = append(out, minLine)
+				minApplied = true
+			}
+		case maxPattern.MatchString(line):
+			if !maxApplied {
+				out = append(out, maxLine)
+				maxApplied = true
+			}
+		default:
+			out = append(out, line)
+		}
+	}
+
+	if !minApplied {
+		out = append(out, minLine)
+		minApplied = true
+	}
+	if !maxApplied {
+		out = append(out, maxLine)
+		maxApplied = true
+	}
+
+	newContent := strings.Join(out, "\n")
+	if newContent != "" {
+		newContent += "\n"
+	}
+
+	if newContent == content {
+		return nil
+	}
+
+	info, err := os.Stat(configPath)
+	if err != nil {
+		return fmt.Errorf("stat %s: %w", configPath, err)
+	}
+	if err := os.WriteFile(configPath, []byte(newContent), info.Mode().Perm()); err != nil {
+		return fmt.Errorf("write %s: %w", configPath, err)
+	}
+
+	if err := RestartLibvirt(); err != nil {
+		return fmt.Errorf("restart libvirt after updating %s: %w", configPath, err)
+	}
+
+	return nil
+}
+func domainStateToString(state libvirt.DomainState) string {
+	switch state {
+	case libvirt.DOMAIN_NOSTATE:
+		return "no state"
+	case libvirt.DOMAIN_RUNNING:
+		return "running"
+	case libvirt.DOMAIN_BLOCKED:
+		return "blocked"
+	case libvirt.DOMAIN_PAUSED:
+		return "paused"
+	case libvirt.DOMAIN_SHUTDOWN:
+		return "shutdown"
+	case libvirt.DOMAIN_SHUTOFF:
+		return "shut off"
+	case libvirt.DOMAIN_CRASHED:
+		return "crashed"
+	case libvirt.DOMAIN_PMSUSPENDED:
+		return "suspended"
+	default:
+		return "unknown"
+	}
+}
+
+func GetVMByName(name string) (*grpcVirsh.Vm, error) {
+	connURI := "qemu:///system"
+	conn, err := libvirt.NewConnect(connURI)
+	if err != nil {
+		return nil, fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	dom, err := conn.LookupDomainByName(name)
+	if err != nil {
+		return nil, fmt.Errorf("lookup: %w", err)
+	}
+	defer dom.Free()
+
+	// Get state
+	state, _, err := dom.GetState()
+	if err != nil {
+		return nil, fmt.Errorf("state: %w", err)
+	}
+
+	// Parse XML for VNC port
+	xmlDesc, err := dom.GetXMLDesc(0)
+	if err != nil {
+		return nil, fmt.Errorf("xml: %w", err)
+	}
+
+	port := 0
+	if strings.Contains(xmlDesc, "graphics type='vnc'") {
+		start := strings.Index(xmlDesc, "port='")
+		if start != -1 {
+			fmt.Sscanf(xmlDesc[start:], "port='%d'", &port)
+		}
+	}
+
+	info := &grpcVirsh.Vm{
+		Name:      name,
+		State:     domainStateToString(state),
+		NovncPort: strconv.Itoa(port),
+	}
+	return info, nil
+}
+
+func GetAllVMs() ([]*grpcVirsh.Vm, error) {
+	connURI := "qemu:///system"
+	conn, err := libvirt.NewConnect(connURI)
+	if err != nil {
+		return nil, fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	doms, err := conn.ListAllDomains(0)
+	if err != nil {
+		return nil, fmt.Errorf("list domains: %w", err)
+	}
+
+	var vms []*grpcVirsh.Vm
+	for _, dom := range doms {
+		name, err := dom.GetName()
+		if err != nil {
+			dom.Free()
+			return nil, fmt.Errorf("get name: %w", err)
+		}
+
+		state, _, err := dom.GetState()
+		if err != nil {
+			dom.Free()
+			return nil, fmt.Errorf("state: %w", err)
+		}
+
+		xmlDesc, err := dom.GetXMLDesc(0)
+		if err != nil {
+			dom.Free()
+			return nil, fmt.Errorf("xml: %w", err)
+		}
+
+		port := 0
+		if strings.Contains(xmlDesc, "graphics type='vnc'") {
+			start := strings.Index(xmlDesc, "port='")
+			if start != -1 {
+				fmt.Sscanf(xmlDesc[start:], "port='%d'", &port)
+			}
+		}
+
+		info := &grpcVirsh.Vm{
+			Name:      name,
+			State:     domainStateToString(state),
+			NovncPort: strconv.Itoa(port),
+		}
+		vms = append(vms, info)
+		dom.Free()
+	}
+	return vms, nil
 }

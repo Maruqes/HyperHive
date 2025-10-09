@@ -30,7 +30,7 @@ func (s *SlaveVirshService) CreateVm(ctx context.Context, req *grpcVirsh.CreateV
 		DiskSizeGB:     int(req.DiskSizeGB),
 		ISOPath:        req.IsoPath,
 		Network:        req.Network,
-		GraphicsListen: "127.0.0.1",
+		GraphicsListen: "0.0.0.0",
 		VNCPassword:    req.VNCPassword,
 	}
 	_, err := CreateVMHostPassthrough(params)
@@ -38,4 +38,20 @@ func (s *SlaveVirshService) CreateVm(ctx context.Context, req *grpcVirsh.CreateV
 		return nil, err
 	}
 	return &grpcVirsh.OkResponse{Ok: true}, nil
+}
+
+func (s *SlaveVirshService) GetAllVms(ctx context.Context, e *grpcVirsh.Empty) (*grpcVirsh.GetAllVmsResponse, error) {
+	vms, err := GetAllVMs()
+	if err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.GetAllVmsResponse{Vms: vms}, nil
+}
+
+func (s *SlaveVirshService) GetVmByName(ctx context.Context, req *grpcVirsh.GetVmByNameRequest) (*grpcVirsh.Vm, error) {
+	vm, err := GetVMByName(req.Name)
+	if err != nil {
+		return nil, err
+	}
+	return vm, nil
 }
