@@ -752,8 +752,16 @@ func RemoveVM(name string) error {
 		return fmt.Errorf("detect disk path: %w", err)
 	}
 
-	if err := dom.Destroy(); err != nil {
-		return fmt.Errorf("force shutdown: %w", err)
+	// Get state
+	state, _, err := dom.GetState()
+	if err != nil {
+		return fmt.Errorf("state: %w", err)
+	}
+
+	if state == libvirt.DOMAIN_RUNNING || state == libvirt.DOMAIN_PAUSED || state == libvirt.DOMAIN_BLOCKED {
+		if err := dom.Destroy(); err != nil {
+			return fmt.Errorf("force shutdown: %w", err)
+		}
 	}
 
 	//force remove
