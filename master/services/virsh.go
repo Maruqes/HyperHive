@@ -100,12 +100,23 @@ func (v *VirshService) CreateVM(machine_name string, name string, memory int32, 
 
 	var qcowFile string
 	if nfsShare.Target[len(nfsShare.Target)-1] != '/' {
-		qcowFile = nfsShare.Target + "/" + name + ".qcow2"
+		// mnt/ nfs / vmname / vmname.qcow2
+		qcowFile = nfsShare.Target + "/" + name + "/" + name + ".qcow2"
 	} else {
-		qcowFile = nfsShare.Target + name + ".qcow2"
+		// mnt/ nfs / vmname / vmname.qcow2
+		qcowFile = nfsShare.Target + name + "/" + name + ".qcow2"
 	}
 
-	return virsh.CreateVM(slaveMachine.Connection, name, memory, vcpu, qcowFile, diskSizeGB, isoPath, network, VNCPassword)
+	var diskFolder string
+	if nfsShare.Target[len(nfsShare.Target)-1] != '/' {
+		// mnt/ nfs / vmname / vmname.qcow2
+		diskFolder = nfsShare.Target + "/" + name
+	} else {
+		// mnt/ nfs / vmname / vmname.qcow2
+		diskFolder = nfsShare.Target + name
+	}
+
+	return virsh.CreateVM(slaveMachine.Connection, name, memory, vcpu, diskFolder, qcowFile, diskSizeGB, isoPath, network, VNCPassword)
 }
 
 func (v *VirshService) DeleteVM(name string) error {

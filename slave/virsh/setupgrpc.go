@@ -26,12 +26,13 @@ func (s *SlaveVirshService) CreateVm(ctx context.Context, req *grpcVirsh.CreateV
 		Name:           req.Name,
 		MemoryMB:       int(req.Memory),
 		VCPUs:          int(req.Vcpu),
+		DiskFolder:     req.DiskFolder,
 		DiskPath:       req.DiskPath,
 		DiskSizeGB:     int(req.DiskSizeGB),
 		ISOPath:        req.IsoPath,
 		Network:        req.Network,
 		GraphicsListen: "0.0.0.0",
-		VNCPassword:    req.VNCPassword,
+		VNCPassword:    req.VncPassword,
 	}
 	_, err := CreateVMHostPassthrough(params)
 	if err != nil {

@@ -16,7 +16,8 @@ type VMCreationParams struct {
 	Name           string
 	MemoryMB       int
 	VCPUs          int
-	DiskPath       string // caminho do disco virtual
+	DiskFolder     string // pasta onde o disco virtual sera criado
+	DiskPath       string // caminho do disco virtual  ends with .qcow2
 	DiskSizeGB     int    // tamanho do disco virtual em GB
 	ISOPath        string // caminho do arquivo ISO (opcional)
 	Machine        string // tipo de máquina (opcional)
@@ -27,6 +28,16 @@ type VMCreationParams struct {
 
 // sem migracao
 func CreateVMHostPassthrough(params VMCreationParams) (string, error) {
+
+	//make sure DiskFolder exists
+	if params.DiskFolder != "" {
+		if err := os.MkdirAll(params.DiskFolder, 0755); err != nil {
+			return "", fmt.Errorf("creating disk folder: %w", err)
+		}
+	}
+
+	// create folder inside nsf for the vm with xlm and qcow2
+	//check if params.DiskPath exists
 	disk := strings.TrimSpace(params.DiskPath)
 	if disk == "" {
 		return "", fmt.Errorf("disk path is required")

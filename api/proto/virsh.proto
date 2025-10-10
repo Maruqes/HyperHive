@@ -17,11 +17,12 @@ message CreateVmRequest{
   string name = 1;
   int32 memory = 2;
   int32 vcpu = 3;
-  string disk_path = 4;
-  int32 disk_sizeGB = 5;
-  string iso_path = 6;
-  string network = 7;
-  string VNC_password = 8;
+  string disk_folder = 4;
+  string disk_path = 5;
+  int32 disk_sizeGB = 6;
+  string iso_path = 7;
+  string network = 8;
+  string vnc_password = 9;
 }
 
 message OkResponse {

@@ -174,11 +174,12 @@ type CreateVmRequest struct {
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Memory        int32                  `protobuf:"varint,2,opt,name=memory,proto3" json:"memory,omitempty"`
 	Vcpu          int32                  `protobuf:"varint,3,opt,name=vcpu,proto3" json:"vcpu,omitempty"`
-	DiskPath      string                 `protobuf:"bytes,4,opt,name=disk_path,json=diskPath,proto3" json:"disk_path,omitempty"`
-	DiskSizeGB    int32                  `protobuf:"varint,5,opt,name=disk_sizeGB,json=diskSizeGB,proto3" json:"disk_sizeGB,omitempty"`
-	IsoPath       string                 `protobuf:"bytes,6,opt,name=iso_path,json=isoPath,proto3" json:"iso_path,omitempty"`
-	Network       string                 `protobuf:"bytes,7,opt,name=network,proto3" json:"network,omitempty"`
-	VNCPassword   string                 `protobuf:"bytes,8,opt,name=VNC_password,json=VNCPassword,proto3" json:"VNC_password,omitempty"`
+	DiskFolder    string                 `protobuf:"bytes,4,opt,name=disk_folder,json=diskFolder,proto3" json:"disk_folder,omitempty"`
+	DiskPath      string                 `protobuf:"bytes,5,opt,name=disk_path,json=diskPath,proto3" json:"disk_path,omitempty"`
+	DiskSizeGB    int32                  `protobuf:"varint,6,opt,name=disk_sizeGB,json=diskSizeGB,proto3" json:"disk_sizeGB,omitempty"`
+	IsoPath       string                 `protobuf:"bytes,7,opt,name=iso_path,json=isoPath,proto3" json:"iso_path,omitempty"`
+	Network       string                 `protobuf:"bytes,8,opt,name=network,proto3" json:"network,omitempty"`
+	VncPassword   string                 `protobuf:"bytes,9,opt,name=vnc_password,json=vncPassword,proto3" json:"vnc_password,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -234,6 +235,13 @@ func (x *CreateVmRequest) GetVcpu() int32 {
 	return 0
 }
 
+func (x *CreateVmRequest) GetDiskFolder() string {
+	if x != nil {
+		return x.DiskFolder
+	}
+	return ""
+}
+
 func (x *CreateVmRequest) GetDiskPath() string {
 	if x != nil {
 		return x.DiskPath
@@ -262,9 +270,9 @@ func (x *CreateVmRequest) GetNetwork() string {
 	return ""
 }
 
-func (x *CreateVmRequest) GetVNCPassword() string {
+func (x *CreateVmRequest) GetVncPassword() string {
 	if x != nil {
-		return x.VNCPassword
+		return x.VncPassword
 	}
 	return ""
 }
@@ -532,17 +540,19 @@ const file_virsh_proto_rawDesc = "" +
 	"\vvirsh.proto\x12\x05virsh\"\a\n" +
 	"\x05Empty\"4\n" +
 	"\x16GetCpuFeaturesResponse\x12\x1a\n" +
-	"\bfeatures\x18\x01 \x03(\tR\bfeatures\"\xe7\x01\n" +
+	"\bfeatures\x18\x01 \x03(\tR\bfeatures\"\x88\x02\n" +
 	"\x0fCreateVmRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06memory\x18\x02 \x01(\x05R\x06memory\x12\x12\n" +
-	"\x04vcpu\x18\x03 \x01(\x05R\x04vcpu\x12\x1b\n" +
-	"\tdisk_path\x18\x04 \x01(\tR\bdiskPath\x12\x1f\n" +
-	"\vdisk_sizeGB\x18\x05 \x01(\x05R\n" +
+	"\x04vcpu\x18\x03 \x01(\x05R\x04vcpu\x12\x1f\n" +
+	"\vdisk_folder\x18\x04 \x01(\tR\n" +
+	"diskFolder\x12\x1b\n" +
+	"\tdisk_path\x18\x05 \x01(\tR\bdiskPath\x12\x1f\n" +
+	"\vdisk_sizeGB\x18\x06 \x01(\x05R\n" +
 	"diskSizeGB\x12\x19\n" +
-	"\biso_path\x18\x06 \x01(\tR\aisoPath\x12\x18\n" +
-	"\anetwork\x18\a \x01(\tR\anetwork\x12!\n" +
-	"\fVNC_password\x18\b \x01(\tR\vVNCPassword\"6\n" +
+	"\biso_path\x18\a \x01(\tR\aisoPath\x12\x18\n" +
+	"\anetwork\x18\b \x01(\tR\anetwork\x12!\n" +
+	"\fvnc_password\x18\t \x01(\tR\vvncPassword\"6\n" +
 	"\n" +
 	"OkResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x18\n" +
