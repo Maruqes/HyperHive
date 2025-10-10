@@ -25,15 +25,15 @@ type VMCreationParams struct {
 	VNCPassword    string // senha para o VNC (opcional)
 }
 
-
-
 // sem migracao
 func CreateVMHostPassthrough(params VMCreationParams) (string, error) {
-	if err := EnsureDirs(); err != nil {
-		return "", fmt.Errorf("ensure dirs: %w", err)
+	disk := strings.TrimSpace(params.DiskPath)
+	if disk == "" {
+		return "", fmt.Errorf("disk path is required")
 	}
-	disk := ResolveDiskPath(params.DiskPath)
-	iso := ResolveISOPath(params.ISOPath)
+	if err := ensureParentDirExists(disk); err != nil {
+		return "", fmt.Errorf("disk directory: %w", err)
+	}
 
 	// Create/inspect disk and get its format (qcow2/raw/…)
 	diskFmt, err := EnsureDiskAndDetectFormat(disk, params.DiskSizeGB)
@@ -43,12 +43,12 @@ func CreateVMHostPassthrough(params VMCreationParams) (string, error) {
 
 	// ISO is optional: only include CDROM if the file exists
 	hasISO := false
-	if params.ISOPath != "" {
-		if _, err := os.Stat(iso); err == nil {
-			hasISO = true
-		} else {
-			return "", fmt.Errorf("iso %s: %w", iso, err)
+	isoPath := strings.TrimSpace(params.ISOPath)
+	if isoPath != "" {
+		if err := ensureFileExists(isoPath); err != nil {
+			return "", fmt.Errorf("iso path: %w", err)
 		}
+		hasISO = true
 	}
 
 	connURI := params.ConnURI
@@ -74,7 +74,7 @@ func CreateVMHostPassthrough(params VMCreationParams) (string, error) {
       <source file='%s'/>
       <target dev='sda' bus='sata'/>
       <readonly/>
-    </disk>`, iso)
+    </disk>`, isoPath)
 	}
 
 	graphicsAttrs := ""
@@ -97,7 +97,7 @@ func CreateVMHostPassthrough(params VMCreationParams) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("cputune: %w", err)
 	}
-	
+
 	domainXML := fmt.Sprintf(`
 <domain type='kvm'>
   <name>%s</name>
@@ -137,7 +137,7 @@ func CreateVMHostPassthrough(params VMCreationParams) (string, error) {
 		diskFmt, disk, cdromXML, params.Network, graphicsAttrs,
 	)
 
-	xmlPath, err := WriteDomainXMLToDisk(params.Name, domainXML)
+	xmlPath, err := WriteDomainXMLToDisk(params.Name, domainXML, disk)
 	if err != nil {
 		return "", fmt.Errorf("write domain xml: %w", err)
 	}

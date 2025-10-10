@@ -55,3 +55,37 @@ func (s *SlaveVirshService) GetVmByName(ctx context.Context, req *grpcVirsh.GetV
 	}
 	return vm, nil
 }
+
+func (s *SlaveVirshService) ShutdownVM(ctx context.Context, req *grpcVirsh.Vm) (*grpcVirsh.OkResponse, error) {
+	if err := ShutdownVM(req.Name); err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{Ok: true}, nil
+}
+func (s *SlaveVirshService) StartVM(ctx context.Context, req *grpcVirsh.Vm) (*grpcVirsh.OkResponse, error) {
+	if err := StartVM(req.Name); err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{Ok: true}, nil
+}
+
+func (s *SlaveVirshService) RemoveVM(ctx context.Context, req *grpcVirsh.Vm) (*grpcVirsh.OkResponse, error) {
+	if err := RemoveVM(req.Name); err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{Ok: true}, nil
+}
+
+func (s *SlaveVirshService) ForceShutdownVM(ctx context.Context, req *grpcVirsh.Vm) (*grpcVirsh.OkResponse, error) {
+	if err := ForceShutdownVM(req.Name); err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{Ok: true}, nil
+}
+
+func (s *SlaveVirshService) RestartVM(ctx context.Context, req *grpcVirsh.Vm) (*grpcVirsh.OkResponse, error) {
+	if err := RestartVM(req.Name); err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{Ok: true}, nil
+}

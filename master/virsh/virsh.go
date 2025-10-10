@@ -1,6 +1,7 @@
 package virsh
 
 import (
+	"512SvMan/protocol"
 	"context"
 
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
@@ -52,3 +53,58 @@ func GetVmByName(conn *grpc.ClientConn, empty *grpcVirsh.GetVmByNameRequest) (*g
 	return resp, nil
 }
 
+func DoesVMExist(name string) (bool, error) {
+	con := protocol.GetAllGRPCConnections()
+	for _, conn := range con {
+		_, err := GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: name})
+		if err == nil {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func StartVm(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.StartVM(context.Background(), req)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func ShutdownVM(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.ShutdownVM(context.Background(), req)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func ForceShutdownVM(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.ForceShutdownVM(context.Background(), req)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func RemoveVM(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.RemoveVM(context.Background(), req)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func RestartVM(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.RestartVM(context.Background(), req)
+	if err != nil {
+		return err
+	}
+	return nil
+}

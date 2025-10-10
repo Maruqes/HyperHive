@@ -2,7 +2,6 @@ package virsh
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -16,9 +15,8 @@ func BuildCPUXMLCustom(model string, disabledFeatures []string) string {
 	defPortable := []string{
 		"vmx", "svm", "hle", "rtm", "invpcid", "umip",
 		"ibrs", "ssbd", "stibp", "amd-stibp", "amd-ssbd",
-		"md-clear", "spec-ctrl", "flush-l1d","pdcm", "pcid","ss","erms",
+		"md-clear", "spec-ctrl", "flush-l1d", "pdcm", "pcid", "ss", "erms",
 	}
-	
 
 	if len(disabledFeatures) == 0 {
 		disabledFeatures = defPortable
@@ -55,11 +53,13 @@ func CreateVMCustomCPU(
 	cpuModel string, disabledFeatures []string,
 ) (string, error) {
 
-	if err := EnsureDirs(); err != nil {
-		return "", err
+	disk := strings.TrimSpace(diskPath)
+	if disk == "" {
+		return "", fmt.Errorf("disk path is required")
 	}
-	disk := ResolveDiskPath(diskPath)
-	iso := ResolveISOPath(isoPath)
+	if err := ensureParentDirExists(disk); err != nil {
+		return "", fmt.Errorf("disk directory: %w", err)
+	}
 
 	// detect/create disk & get its format
 	diskFmt, err := EnsureDiskAndDetectFormat(disk, diskSizeGB)
@@ -69,10 +69,12 @@ func CreateVMCustomCPU(
 
 	// ISO optional
 	hasISO := false
-	if isoPath != "" {
-		if _, err := os.Stat(iso); err == nil {
-			hasISO = true
+	isoTrim := strings.TrimSpace(isoPath)
+	if isoTrim != "" {
+		if err := ensureFileExists(isoTrim); err != nil {
+			return "", fmt.Errorf("iso path: %w", err)
 		}
+		hasISO = true
 	}
 
 	conn, err := libvirt.NewConnect(connURI)
@@ -95,7 +97,7 @@ func CreateVMCustomCPU(
       <source file='%s'/>
       <target dev='sda' bus='sata'/>
       <readonly/>
-    </disk>`, iso)
+    </disk>`, isoTrim)
 	}
 
 	domainXML := fmt.Sprintf(`
@@ -135,7 +137,7 @@ func CreateVMCustomCPU(
 		cpuXML, diskFmt, disk, cdromXML, network, graphicsListen,
 	)
 
-	xmlPath, err := WriteDomainXMLToDisk(name, domainXML)
+	xmlPath, err := WriteDomainXMLToDisk(name, domainXML, disk)
 	if err != nil {
 		return "", err
 	}

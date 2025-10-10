@@ -6,6 +6,8 @@ import (
 	"512SvMan/virsh"
 	"fmt"
 	"sort"
+
+	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 )
 
 type VirshService struct {
@@ -61,6 +63,17 @@ func (v *VirshService) GetCpuDisableFeatures() ([]string, error) {
 
 // vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword
 func (v *VirshService) CreateVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string) error {
+
+	//get all vms cant have same name
+	//cant have two vms with the same name
+	exists, err := virsh.DoesVMExist(name)
+	if err != nil {
+		return fmt.Errorf("error checking if VM exists: %v", err)
+	}
+	if exists {
+		return fmt.Errorf("a VM with the name %s already exists", name)
+	}
+
 	slaveMachine := protocol.GetConnectionByMachineName(machine_name)
 	if slaveMachine == nil {
 		return fmt.Errorf("machine %s not found", machine_name)
@@ -93,4 +106,163 @@ func (v *VirshService) CreateVM(machine_name string, name string, memory int32, 
 	}
 
 	return virsh.CreateVM(slaveMachine.Connection, name, memory, vcpu, qcowFile, diskSizeGB, isoPath, network, VNCPassword)
+}
+
+func (v *VirshService) DeleteVM(name string) error {
+	//find vm by name
+	exists, err := virsh.DoesVMExist(name)
+	if err != nil {
+		return fmt.Errorf("error checking if VM exists: %v", err)
+	}
+	if !exists {
+		return fmt.Errorf("a VM with the name %s does not exist", name)
+	}
+
+	con := protocol.GetAllGRPCConnections()
+	for _, conn := range con {
+		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: name})
+		if err == nil && vm != nil {
+			//found the vm
+			err = virsh.RemoveVM(conn, vm)
+			if err != nil {
+				return fmt.Errorf("failed to delete VM %s: %v", name, err)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("failed to find VM %s on any machine", name)
+}
+
+func (v *VirshService) StartVM(name string) error {
+	//find vm by name
+	exists, err := virsh.DoesVMExist(name)
+	if err != nil {
+		return fmt.Errorf("error checking if VM exists: %v", err)
+	}
+	if !exists {
+		return fmt.Errorf("a VM with the name %s does not exist", name)
+	}
+
+	con := protocol.GetAllGRPCConnections()
+	for _, conn := range con {
+		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: name})
+		if err == nil && vm != nil {
+			//found the vm
+			err = virsh.StartVm(conn, vm)
+			if err != nil {
+				return fmt.Errorf("failed to start VM %s: %v", name, err)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("failed to find VM %s on any machine", name)
+}
+
+func (v *VirshService) ShutdownVM(name string) error {
+	//find vm by name
+	exists, err := virsh.DoesVMExist(name)
+	if err != nil {
+		return fmt.Errorf("error checking if VM exists: %v", err)
+	}
+	if !exists {
+		return fmt.Errorf("a VM with the name %s does not exist", name)
+	}
+
+	con := protocol.GetAllGRPCConnections()
+	for _, conn := range con {
+		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: name})
+		if err == nil && vm != nil {
+			//found the vm
+			err = virsh.ShutdownVM(conn, vm)
+			if err != nil {
+				return fmt.Errorf("failed to stop VM %s: %v", name, err)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("failed to find VM %s on any machine", name)
+}
+
+func (v *VirshService) ForceShutdownVM(name string) error {
+	//find vm by name
+	exists, err := virsh.DoesVMExist(name)
+	if err != nil {
+		return fmt.Errorf("error checking if VM exists: %v", err)
+	}
+	if !exists {
+		return fmt.Errorf("a VM with the name %s does not exist", name)
+	}
+
+	con := protocol.GetAllGRPCConnections()
+	for _, conn := range con {
+		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: name})
+		if err == nil && vm != nil {
+			//found the vm
+			err = virsh.ForceShutdownVM(conn, vm)
+			if err != nil {
+				return fmt.Errorf("failed to force stop VM %s: %v", name, err)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("failed to find VM %s on any machine", name)
+}
+
+func (v *VirshService) RestartVM(name string) error {
+	//find vm by name
+	exists, err := virsh.DoesVMExist(name)
+	if err != nil {
+		return fmt.Errorf("error checking if VM exists: %v", err)
+	}
+	if !exists {
+		return fmt.Errorf("a VM with the name %s does not exist", name)
+	}
+
+	con := protocol.GetAllGRPCConnections()
+	for _, conn := range con {
+		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: name})
+		if err == nil && vm != nil {
+			//found the vm
+			err = virsh.RestartVM(conn, vm)
+			if err != nil {
+				return fmt.Errorf("failed to restart VM %s: %v", name, err)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("failed to find VM %s on any machine", name)
+}
+
+func (v *VirshService) GetVmByName(name string) (*grpcVirsh.Vm, error) {
+	//find vm by name
+	exists, err := virsh.DoesVMExist(name)
+	if err != nil {
+		return nil, fmt.Errorf("error checking if VM exists: %v", err)
+	}
+	if !exists {
+		return nil, nil
+	}
+
+	con := protocol.GetAllGRPCConnections()
+	for _, conn := range con {
+		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: name})
+		if err == nil && vm != nil {
+			//found the vm
+			return vm, nil
+		}
+	}
+	return nil, fmt.Errorf("failed to find VM %s on any machine", name)
+}
+
+func (v *VirshService) GetAllVms() ([]*grpcVirsh.Vm, error) {
+	var allVms []*grpcVirsh.Vm
+	con := protocol.GetAllGRPCConnections()
+	for _, conn := range con {
+		vms, err := virsh.GetAllVms(conn, &grpcVirsh.Empty{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get VMs from a machine: %v", err)
+		}
+		allVms = append(allVms, vms.Vms...)
+	}
+	return allVms, nil
 }

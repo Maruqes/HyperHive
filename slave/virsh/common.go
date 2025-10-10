@@ -2,12 +2,14 @@ package virsh
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slave/env512"
 	"strconv"
 	"strings"
 	"time"
@@ -16,35 +18,47 @@ import (
 	libvirt "libvirt.org/go/libvirt"
 )
 
-const ROOTFOLDER = "/var/512SvMan"
-
-func dirQCOW2() string { return filepath.Join(ROOTFOLDER, "qcow2") }
-func dirISO() string   { return filepath.Join(ROOTFOLDER, "iso") }
-func dirXML() string   { return filepath.Join(ROOTFOLDER, "xml") }
-
-func EnsureDirs() error {
-	for _, d := range []string{ROOTFOLDER, dirQCOW2(), dirISO(), dirXML()} {
-		if err := os.MkdirAll(d, 0o755); err != nil {
-			return fmt.Errorf("mkdir %s: %w", d, err)
+func ensureDirExists(path string) error {
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("directory path is empty")
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("directory %s does not exist", path)
 		}
+		return fmt.Errorf("stat %s: %w", path, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("%s is not a directory", path)
 	}
 	return nil
 }
 
-// toAbsUnderRoot: keep absolute as-is; relative -> join to defaultDir.
-func toAbsUnderRoot(defaultDir, nameOrPath string) string {
-	if nameOrPath == "" {
-		return defaultDir
+func ensureParentDirExists(path string) error {
+	dir := filepath.Dir(path)
+	if dir == "" {
+		dir = "."
 	}
-	if filepath.IsAbs(nameOrPath) {
-		return nameOrPath
-	}
-	return filepath.Join(defaultDir, nameOrPath)
+	return ensureDirExists(dir)
 }
 
-// Resolve disk & ISO paths under ROOTFOLDER if relative
-func ResolveDiskPath(p string) string { return toAbsUnderRoot(dirQCOW2(), p) }
-func ResolveISOPath(p string) string  { return toAbsUnderRoot(dirISO(), p) }
+func ensureFileExists(path string) error {
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("file path is empty")
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("file %s does not exist", path)
+		}
+		return fmt.Errorf("stat %s: %w", path, err)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("%s is a directory", path)
+	}
+	return nil
+}
 
 // qemu-img --output=json minimal struct
 type qiInfo struct {
@@ -54,6 +68,13 @@ type qiInfo struct {
 // DetectDiskFormat returns "qcow2" or "raw" (or other qemu formats if present).
 // If the file doesn't exist, it infers from the extension.
 func DetectDiskFormat(path string) (string, error) {
+	if strings.TrimSpace(path) == "" {
+		return "", fmt.Errorf("disk path is empty")
+	}
+	if err := ensureParentDirExists(path); err != nil {
+		return "", err
+	}
+
 	if _, err := os.Stat(path); err == nil {
 		cmd := exec.Command("qemu-img", "info", "--output=json", path)
 		out, err := cmd.Output()
@@ -117,16 +138,60 @@ func EnsureDiskAndDetectFormat(path string, sizeGB int) (string, error) {
 	return fmtStr, nil
 }
 
-// WriteDomainXMLToDisk: save vm XML under xml/<vm>.xml
-func WriteDomainXMLToDisk(vmName, xml string) (string, error) {
-	if err := EnsureDirs(); err != nil {
+// WriteDomainXMLToDisk saves the domain XML alongside the disk image.
+func WriteDomainXMLToDisk(vmName, xml, diskPath string) (string, error) {
+	if strings.TrimSpace(vmName) == "" {
+		return "", fmt.Errorf("vm name is empty")
+	}
+	if strings.TrimSpace(diskPath) == "" {
+		return "", fmt.Errorf("disk path is empty")
+	}
+
+	if err := ensureParentDirExists(diskPath); err != nil {
 		return "", err
 	}
-	out := filepath.Join(dirXML(), fmt.Sprintf("%s.xml", vmName))
+
+	dir := filepath.Dir(diskPath)
+	if dir == "" {
+		dir = "."
+	}
+
+	out := filepath.Join(dir, fmt.Sprintf("%s.xml", vmName))
 	if err := os.WriteFile(out, []byte(strings.TrimSpace(xml)+"\n"), 0o644); err != nil {
 		return "", fmt.Errorf("write xml %s: %w", out, err)
 	}
 	return out, nil
+}
+
+func diskPathFromDomainXML(xmlData string) (string, error) {
+	type diskSource struct {
+		File string `xml:"file,attr"`
+	}
+	type disk struct {
+		Device string     `xml:"device,attr"`
+		Source diskSource `xml:"source"`
+	}
+	type devices struct {
+		Disks []disk `xml:"disk"`
+	}
+	type domain struct {
+		Devices devices `xml:"devices"`
+	}
+
+	var d domain
+	if err := xml.Unmarshal([]byte(xmlData), &d); err != nil {
+		return "", fmt.Errorf("parse domain xml: %w", err)
+	}
+	for _, disk := range d.Devices.Disks {
+		device := strings.TrimSpace(disk.Device)
+		if device == "" {
+			device = "disk"
+		}
+		if device == "disk" && strings.TrimSpace(disk.Source.File) != "" {
+			return strings.TrimSpace(disk.Source.File), nil
+		}
+	}
+	return "", nil
 }
 
 func RestartLibvirt() error {
@@ -364,28 +429,30 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		}
 	}
 
-	// Get CPU and memory stats of the vm
-	totalMemKiB, usedMemKiB, err := getMemStats(dom)
-	if err != nil {
-		return nil, fmt.Errorf("mem stats: %w", err)
+	var usedMemMB int32
+	var cpuPct int32
+	var vcpuCount int32
+	var totalMemMB int32
+	// Only do live sampling when actually running
+	if state == libvirt.DOMAIN_RUNNING {
+		if totalKiB, usedKiB, err := getMemStats(dom); err == nil {
+			totalMemMB = int32(totalKiB / 1024)
+			usedMemMB = int32(usedKiB / 1024)
+		}
+		if pct, vcpus, err := cpuPercentOver(dom, 500*time.Millisecond); err == nil {
+			cpuPct = int32(pct + 0.5)
+			vcpuCount = int32(vcpus)
+		}
 	}
-
-	cpuUsagePercent, vcpus, err := cpuPercentOver(dom, 500*time.Millisecond)
-	if err != nil {
-		return nil, fmt.Errorf("cpu usage: %w", err)
-	}
-
-	// Convert memory stats to MB and ensure types match the proto (int32)
-	totalMemMB := int32(totalMemKiB / 1024)
-	usedMemMB := int32(usedMemKiB / 1024)
 
 	info := &grpcVirsh.Vm{
+		MachineName:          env512.MachineName,
 		Name:                 name,
 		State:                domainStateToString(state),
 		NovncPort:            strconv.Itoa(port),
-		CpuCount:             int32(vcpus),
+		CpuCount:             int32(vcpuCount),
 		MemoryMB:             totalMemMB,
-		CurrentCpuUsage:      int32(cpuUsagePercent + 0.5),
+		CurrentCpuUsage:      int32(cpuPct),
 		CurrentMemoryUsageMB: usedMemMB,
 	}
 	return info, nil
@@ -432,34 +499,205 @@ func GetAllVMs() ([]*grpcVirsh.Vm, error) {
 			}
 		}
 
-		// Get CPU and memory stats of the vm
-		totalMemKiB, usedMemKiB, err := getMemStats(&dom)
-		if err != nil {
-			dom.Free()
-			return nil, fmt.Errorf("mem stats: %w", err)
+		var usedMemMB int32
+		var cpuPct int32
+		var vcpuCount int32
+		var totalMemMB int32
+		// Only do live sampling when actually running
+		if state == libvirt.DOMAIN_RUNNING {
+			if totalKiB, usedKiB, err := getMemStats(&dom); err == nil {
+				totalMemMB = int32(totalKiB / 1024)
+				usedMemMB = int32(usedKiB / 1024)
+			}
+			if pct, vcpus, err := cpuPercentOver(&dom, 500*time.Millisecond); err == nil {
+				cpuPct = int32(pct + 0.5)
+				vcpuCount = int32(vcpus)
+			}
 		}
-
-		cpuUsagePercent, vcpus, err := cpuPercentOver(&dom, 500*time.Millisecond)
-		if err != nil {
-			dom.Free()
-			return nil, fmt.Errorf("cpu usage: %w", err)
-		}
-
-		// Convert memory stats to MB and ensure types match the proto (int32)
-		totalMemMB := int32(totalMemKiB / 1024)
-		usedMemMB := int32(usedMemKiB / 1024)
 
 		info := &grpcVirsh.Vm{
+			MachineName:          env512.MachineName,
 			Name:                 name,
 			State:                domainStateToString(state),
 			NovncPort:            strconv.Itoa(port),
-			CpuCount:             int32(vcpus),
+			CpuCount:             int32(vcpuCount),
 			MemoryMB:             totalMemMB,
-			CurrentCpuUsage:      int32(cpuUsagePercent + 0.5),
+			CurrentCpuUsage:      int32(cpuPct),
 			CurrentMemoryUsageMB: usedMemMB,
 		}
 		vms = append(vms, info)
 		dom.Free()
 	}
 	return vms, nil
+}
+func ShutdownVM(name string) error {
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	dom, err := conn.LookupDomainByName(name)
+	if err != nil {
+		return fmt.Errorf("lookup: %w", err)
+	}
+	defer dom.Free()
+
+	// If paused, resume so the guest can actually react to shutdown.
+	if st, _, _ := dom.GetState(); st == libvirt.DOMAIN_PAUSED {
+		_ = dom.Resume()
+	}
+
+	// 1) Try guest agent (best; clean)
+	// Requires qemu-guest-agent running inside the VM and a <channel> in XML.
+	if err := dom.ShutdownFlags(libvirt.DOMAIN_SHUTDOWN_GUEST_AGENT); err != nil {
+		// 2) Fallback to ACPI power button (what virsh shutdown does by default)
+		_ = dom.ShutdownFlags(libvirt.DOMAIN_SHUTDOWN_ACPI_POWER_BTN)
+	}
+
+	// 3) Wait/poll until the VM actually turns off
+	deadline := time.Now().Add(120 * time.Second)
+	for time.Now().Before(deadline) {
+		st, _, err := dom.GetState()
+		if err != nil {
+			return fmt.Errorf("get state: %w", err)
+		}
+		if st == libvirt.DOMAIN_SHUTOFF {
+			return nil
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+
+	// 4) Still up? Return a clear error (your caller may choose to Destroy() then).
+	return fmt.Errorf("graceful shutdown timed out (agent/ACPI ignored)")
+}
+
+func ForceShutdownVM(name string) error {
+	connURI := "qemu:///system"
+	conn, err := libvirt.NewConnect(connURI)
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	dom, err := conn.LookupDomainByName(name)
+	if err != nil {
+		return fmt.Errorf("lookup: %w", err)
+	}
+	defer dom.Free()
+
+	if err := dom.Destroy(); err != nil {
+		return fmt.Errorf("force shutdown: %w", err)
+	}
+	return nil
+}
+
+func StartVM(name string) error {
+	connURI := "qemu:///system"
+	conn, err := libvirt.NewConnect(connURI)
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	dom, err := conn.LookupDomainByName(name)
+	if err != nil {
+		return fmt.Errorf("lookup: %w", err)
+	}
+	defer dom.Free()
+
+	if err := dom.Create(); err != nil {
+		return fmt.Errorf("start: %w", err)
+	}
+	return nil
+}
+
+func RemoveVM(name string) error {
+	connURI := "qemu:///system"
+	conn, err := libvirt.NewConnect(connURI)
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	dom, err := conn.LookupDomainByName(name)
+	if err != nil {
+		return fmt.Errorf("lookup: %w", err)
+	}
+	defer dom.Free()
+
+	xmlDesc, err := dom.GetXMLDesc(0)
+	if err != nil {
+		return fmt.Errorf("xml: %w", err)
+	}
+
+	diskPath, err := diskPathFromDomainXML(xmlDesc)
+	if err != nil {
+		return fmt.Errorf("detect disk path: %w", err)
+	}
+
+	if err := dom.Destroy(); err != nil {
+		return fmt.Errorf("force shutdown: %w", err)
+	}
+
+	//force remove
+	if err := dom.UndefineFlags(libvirt.DOMAIN_UNDEFINE_MANAGED_SAVE | libvirt.DOMAIN_UNDEFINE_SNAPSHOTS_METADATA | libvirt.DOMAIN_UNDEFINE_NVRAM); err != nil {
+		return fmt.Errorf("undefine: %w", err)
+	}
+
+	if diskPath != "" {
+		if err := os.Remove(diskPath); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove disk %s: %w", diskPath, err)
+		}
+
+		xmlDir := filepath.Dir(diskPath)
+		if xmlDir == "" {
+			xmlDir = "."
+		}
+		xmlPath := filepath.Join(xmlDir, name+".xml")
+		if err := os.Remove(xmlPath); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove xml %s: %w", xmlPath, err)
+		}
+	}
+
+	return nil
+}
+
+func RestartVM(name string) error {
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	dom, err := conn.LookupDomainByName(name)
+	if err != nil {
+		return fmt.Errorf("lookup: %w", err)
+	}
+	defer dom.Free()
+
+	// Force stop
+	if err := dom.Destroy(); err != nil {
+		return fmt.Errorf("destroy: %w", err)
+	}
+
+	// Wait until the VM is fully shut off
+	for {
+		state, _, err := dom.GetState()
+		if err != nil {
+			return fmt.Errorf("get state: %w", err)
+		}
+		if state == libvirt.DOMAIN_SHUTOFF {
+			break
+		}
+		// short non-blocking poll (100ms is fine)
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	// Restart
+	if err := dom.Create(); err != nil {
+		return fmt.Errorf("start: %w", err)
+	}
+
+	return nil
 }

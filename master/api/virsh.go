@@ -1,14 +1,10 @@
 package api
 
 import (
-	"512SvMan/protocol"
 	"512SvMan/services"
-	"512SvMan/virsh"
 	"encoding/json"
 	"net/http"
 
-	proto "github.com/Maruqes/512SvMan/api/proto/virsh"
-	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -61,15 +57,12 @@ func createVM(w http.ResponseWriter, r *http.Request) {
 
 func getAllVms(w http.ResponseWriter, r *http.Request) {
 
-	var res []*proto.GetAllVmsResponse
-	cons := protocol.GetAllGRPCConnections()
-	for _, conn := range cons {
-		vms, err := virsh.GetAllVms(conn, &grpcVirsh.Empty{})
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		res = append(res, vms)
+	virshServices := services.VirshService{}
+
+	res, err := virshServices.GetAllVms()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	data, err := json.Marshal(res)
@@ -80,10 +73,133 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func deleteVM(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err := virshServices.DeleteVM(vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("VM deleted successfully"))
+}
+
+func startVM(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err := virshServices.StartVM(vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("VM started successfully"))
+}
+
+func shutdownVM(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err := virshServices.ShutdownVM(vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("VM shutdown successfully"))
+}
+
+func forceShutdownVM(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err := virshServices.ForceShutdownVM(vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("VM force shutdown successfully"))
+}
+
+func restartVM(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err := virshServices.RestartVM(vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("VM rebooted successfully"))
+}
+
+func getVmByName(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	vm, err := virshServices.GetVmByName(vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if vm == nil {
+		http.Error(w, "VM not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(vm)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
+}
+
 func setupVirshAPI(r chi.Router) chi.Router {
 	return r.Route("/virsh", func(r chi.Router) {
 		r.Get("/getcpudisablefeatures", getCpuFeatures)
-		r.Post("/createvm", createVM)
 		r.Get("/getallvms", getAllVms)
+		r.Post("/createvm", createVM)
+		r.Delete("/deletevm/{vm_name}", deleteVM)
+		r.Post("/startvm/{vm_name}", startVM)
+		r.Post("/shutdownvm/{vm_name}", shutdownVM)
+		r.Post("/forceshutdownvm/{vm_name}", forceShutdownVM)
+		r.Post("/restartvm/{vm_name}", restartVM)
+		r.Get("/getvmbyname/{vm_name}", getVmByName)
 	})
 }

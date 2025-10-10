@@ -42,13 +42,14 @@ enum VmState {
 }
 
 message Vm{
-  string name = 1;
-  VmState state = 2;
-  string novncPort = 3;
-  int32 cpuCount = 4;
-  int32 memoryMB = 5;
-  int32 currentCpuUsage = 6;
-  int32 currentMemoryUsageMB = 7;
+  string machineName = 1;
+  string name = 2;
+  VmState state = 3;
+  string novncPort = 4;
+  int32 cpuCount = 5;
+  int32 memoryMB = 6;
+  int32 currentCpuUsage = 7;
+  int32 currentMemoryUsageMB = 8;
 }
 
 message GetVmByNameRequest {
@@ -67,9 +68,12 @@ service SlaveVirshService {
   rpc CreateLiveVM(Empty) returns (OkResponse);
 
   rpc MigrateVM(Empty) returns (OkResponse);
-  rpc ShutdownVM(Empty) returns (OkResponse);
-  rpc StartVM(Empty) returns (OkResponse);
-  rpc RemoveVM(Empty) returns (OkResponse);
+
+  rpc ShutdownVM(Vm) returns (OkResponse);
+  rpc ForceShutdownVM(Vm) returns (OkResponse);
+  rpc StartVM(Vm) returns (OkResponse);
+  rpc RemoveVM(Vm) returns (OkResponse);
+  rpc RestartVM(Vm) returns (OkResponse);
 
   rpc GetAllVms(Empty) returns (GetAllVmsResponse);
   rpc GetVmByName(GetVmByNameRequest) returns (Vm);
