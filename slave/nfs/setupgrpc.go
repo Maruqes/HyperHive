@@ -94,3 +94,21 @@ func (s *NFSService) DownloadIso(ctx context.Context, req *pb.DownloadIsoRequest
 	logger.Info("DownloadISO succeeded", "iso", path)
 	return &pb.CreateResponse{Ok: true}, nil
 }
+
+func (s *NFSService) GetSharedFolderStatus(ctx context.Context, req *pb.FolderMount) (*pb.SharedFolderStatusResponse, error) {
+	status, err := GetSharedFolderStatus(FolderMount{
+		FolderPath: req.FolderPath,
+		Source:     req.Source,
+		Target:     req.Target,
+	})
+	if err != nil {
+		logger.Error("GetSharedFolderStatus failed", "error", err)
+		return &pb.SharedFolderStatusResponse{Working: false}, err
+	}
+	return &pb.SharedFolderStatusResponse{
+		Working:         status.Working,
+		SpaceOccupiedGB: status.SpaceOccupiedGB,
+		SpaceFreeGB:     status.SpaceFreeGB,
+		SpaceTotalGB:    status.SpaceTotalGB,
+	}, nil
+}

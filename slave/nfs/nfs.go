@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/Maruqes/512SvMan/logger"
@@ -520,4 +521,38 @@ func DownloadISO(url, isoName, downloadFolder string) (string, error) {
 		return "", fmt.Errorf("failed to download ISO: %w", err)
 	}
 	return isoPath, nil
+}
+
+type SharedFolderStatus struct {
+	Working         bool
+	SpaceOccupiedGB int64
+	SpaceFreeGB     int64
+	SpaceTotalGB    int64
+}
+
+func GetSharedFolderStatus(folder FolderMount) (*SharedFolderStatus, error) {
+	path := strings.TrimSpace(folder.FolderPath)
+	if path == "" {
+		return nil, fmt.Errorf("folder path is required")
+	}
+
+	var status SharedFolderStatus
+
+	if !isMounted(folder.Target) {
+		status.Working = false
+		return &status, nil
+	}
+	status.Working = true
+
+	var statfs syscall.Statfs_t
+	if err := syscall.Statfs(path, &statfs); err != nil {
+		return nil, fmt.Errorf("failed to get filesystem stats: %w", err)
+	}
+
+	const bytesInGB = 1024 * 1024 * 1024
+	status.SpaceTotalGB = int64(statfs.Blocks * uint64(statfs.Bsize) / bytesInGB)
+	status.SpaceFreeGB = int64(statfs.Bfree * uint64(statfs.Bsize) / bytesInGB)
+	status.SpaceOccupiedGB = status.SpaceTotalGB - status.SpaceFreeGB
+
+	return &status, nil
 }

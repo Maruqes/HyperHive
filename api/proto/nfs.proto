@@ -24,6 +24,14 @@ message DownloadIsoRequest {
   string isoName = 3;
 }
 
+
+message SharedFolderStatusResponse {
+  bool working = 1;
+  int64 spaceOccupiedGB = 2;
+  int64 spaceFreeGB = 3;
+  int64 spaceTotalGB = 4;
+}
+
 //defines for slaves
 service NFSService {
   rpc CreateSharedFolder(FolderMount) returns (CreateResponse);
@@ -31,6 +39,7 @@ service NFSService {
   rpc MountFolder(FolderMount) returns (MountResponse);
   rpc UnmountFolder(FolderMount) returns (UnmountResponse);
   rpc SyncSharedFolder(FolderMountList) returns (CreateResponse);
+  rpc GetSharedFolderStatus(FolderMount) returns (SharedFolderStatusResponse);
 
   //nao devia estar aqui mas como download iso vai fazer download num folderMount facilita
   rpc DownloadIso(DownloadIsoRequest) returns (CreateResponse);

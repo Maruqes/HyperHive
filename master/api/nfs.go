@@ -1,10 +1,12 @@
 package api
 
 import (
+	"512SvMan/db"
 	"512SvMan/services"
 	"encoding/json"
 	"net/http"
 
+	proto "github.com/Maruqes/512SvMan/api/proto/nfs"
 	"github.com/Maruqes/512SvMan/logger"
 	"github.com/go-chi/chi/v5"
 )
@@ -18,8 +20,32 @@ func listShares(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	type resStruct struct {
+		NfsShare db.NFSShare
+		Status   *proto.SharedFolderStatusResponse
+	}
+
+	res := make([]resStruct, 0, len(shares))
+	//for each share get GetSharedFolderStatus and add to share
+	for i := range shares {
+		status, err := nfsService.GetSharedFolderStatus(&proto.FolderMount{
+			MachineName: shares[i].MachineName,
+			FolderPath:  shares[i].FolderPath,
+			Source:      shares[i].Source,
+			Target:      shares[i].Target,
+		})
+		if err != nil {
+			logger.Error("GetSharedFolderStatus failed: %v", err)
+			continue
+		}
+		res = append(res, resStruct{
+			NfsShare: shares[i],
+			Status:   status,
+		})
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	data, err := json.Marshal(shares)
+	data, err := json.Marshal(res)
 	if err != nil {
 		http.Error(w, "failed to marshal shares", http.StatusInternalServerError)
 		return

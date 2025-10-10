@@ -195,6 +195,74 @@ func (x *DownloadIsoRequest) GetIsoName() string {
 	return ""
 }
 
+type SharedFolderStatusResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Working         bool                   `protobuf:"varint,1,opt,name=working,proto3" json:"working,omitempty"`
+	SpaceOccupiedGB int64                  `protobuf:"varint,2,opt,name=spaceOccupiedGB,proto3" json:"spaceOccupiedGB,omitempty"`
+	SpaceFreeGB     int64                  `protobuf:"varint,3,opt,name=spaceFreeGB,proto3" json:"spaceFreeGB,omitempty"`
+	SpaceTotalGB    int64                  `protobuf:"varint,4,opt,name=spaceTotalGB,proto3" json:"spaceTotalGB,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *SharedFolderStatusResponse) Reset() {
+	*x = SharedFolderStatusResponse{}
+	mi := &file_nfs_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SharedFolderStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SharedFolderStatusResponse) ProtoMessage() {}
+
+func (x *SharedFolderStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_nfs_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SharedFolderStatusResponse.ProtoReflect.Descriptor instead.
+func (*SharedFolderStatusResponse) Descriptor() ([]byte, []int) {
+	return file_nfs_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SharedFolderStatusResponse) GetWorking() bool {
+	if x != nil {
+		return x.Working
+	}
+	return false
+}
+
+func (x *SharedFolderStatusResponse) GetSpaceOccupiedGB() int64 {
+	if x != nil {
+		return x.SpaceOccupiedGB
+	}
+	return 0
+}
+
+func (x *SharedFolderStatusResponse) GetSpaceFreeGB() int64 {
+	if x != nil {
+		return x.SpaceFreeGB
+	}
+	return 0
+}
+
+func (x *SharedFolderStatusResponse) GetSpaceTotalGB() int64 {
+	if x != nil {
+		return x.SpaceTotalGB
+	}
+	return 0
+}
+
 type CreateResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
@@ -204,7 +272,7 @@ type CreateResponse struct {
 
 func (x *CreateResponse) Reset() {
 	*x = CreateResponse{}
-	mi := &file_nfs_proto_msgTypes[3]
+	mi := &file_nfs_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -216,7 +284,7 @@ func (x *CreateResponse) String() string {
 func (*CreateResponse) ProtoMessage() {}
 
 func (x *CreateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nfs_proto_msgTypes[3]
+	mi := &file_nfs_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -229,7 +297,7 @@ func (x *CreateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateResponse.ProtoReflect.Descriptor instead.
 func (*CreateResponse) Descriptor() ([]byte, []int) {
-	return file_nfs_proto_rawDescGZIP(), []int{3}
+	return file_nfs_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *CreateResponse) GetOk() bool {
@@ -248,7 +316,7 @@ type MountResponse struct {
 
 func (x *MountResponse) Reset() {
 	*x = MountResponse{}
-	mi := &file_nfs_proto_msgTypes[4]
+	mi := &file_nfs_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -260,7 +328,7 @@ func (x *MountResponse) String() string {
 func (*MountResponse) ProtoMessage() {}
 
 func (x *MountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nfs_proto_msgTypes[4]
+	mi := &file_nfs_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -273,7 +341,7 @@ func (x *MountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MountResponse.ProtoReflect.Descriptor instead.
 func (*MountResponse) Descriptor() ([]byte, []int) {
-	return file_nfs_proto_rawDescGZIP(), []int{4}
+	return file_nfs_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *MountResponse) GetOk() bool {
@@ -292,7 +360,7 @@ type UnmountResponse struct {
 
 func (x *UnmountResponse) Reset() {
 	*x = UnmountResponse{}
-	mi := &file_nfs_proto_msgTypes[5]
+	mi := &file_nfs_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -304,7 +372,7 @@ func (x *UnmountResponse) String() string {
 func (*UnmountResponse) ProtoMessage() {}
 
 func (x *UnmountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nfs_proto_msgTypes[5]
+	mi := &file_nfs_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -317,7 +385,7 @@ func (x *UnmountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnmountResponse.ProtoReflect.Descriptor instead.
 func (*UnmountResponse) Descriptor() ([]byte, []int) {
-	return file_nfs_proto_rawDescGZIP(), []int{5}
+	return file_nfs_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *UnmountResponse) GetOk() bool {
@@ -344,20 +412,26 @@ const file_nfs_proto_rawDesc = "" +
 	"\x12DownloadIsoRequest\x122\n" +
 	"\vfolderMount\x18\x01 \x01(\v2\x10.nfs.FolderMountR\vfolderMount\x12\x16\n" +
 	"\x06isoUrl\x18\x02 \x01(\tR\x06isoUrl\x12\x18\n" +
-	"\aisoName\x18\x03 \x01(\tR\aisoName\" \n" +
+	"\aisoName\x18\x03 \x01(\tR\aisoName\"\xa6\x01\n" +
+	"\x1aSharedFolderStatusResponse\x12\x18\n" +
+	"\aworking\x18\x01 \x01(\bR\aworking\x12(\n" +
+	"\x0fspaceOccupiedGB\x18\x02 \x01(\x03R\x0fspaceOccupiedGB\x12 \n" +
+	"\vspaceFreeGB\x18\x03 \x01(\x03R\vspaceFreeGB\x12\"\n" +
+	"\fspaceTotalGB\x18\x04 \x01(\x03R\fspaceTotalGB\" \n" +
 	"\x0eCreateResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\"\x1f\n" +
 	"\rMountResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\"!\n" +
 	"\x0fUnmountResponse\x12\x0e\n" +
-	"\x02ok\x18\x01 \x01(\bR\x02ok2\xf0\x02\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok2\xbc\x03\n" +
 	"\n" +
 	"NFSService\x12;\n" +
 	"\x12CreateSharedFolder\x12\x10.nfs.FolderMount\x1a\x13.nfs.CreateResponse\x12;\n" +
 	"\x12RemoveSharedFolder\x12\x10.nfs.FolderMount\x1a\x13.nfs.CreateResponse\x123\n" +
 	"\vMountFolder\x12\x10.nfs.FolderMount\x1a\x12.nfs.MountResponse\x127\n" +
 	"\rUnmountFolder\x12\x10.nfs.FolderMount\x1a\x14.nfs.UnmountResponse\x12=\n" +
-	"\x10SyncSharedFolder\x12\x14.nfs.FolderMountList\x1a\x13.nfs.CreateResponse\x12;\n" +
+	"\x10SyncSharedFolder\x12\x14.nfs.FolderMountList\x1a\x13.nfs.CreateResponse\x12J\n" +
+	"\x15GetSharedFolderStatus\x12\x10.nfs.FolderMount\x1a\x1f.nfs.SharedFolderStatusResponse\x12;\n" +
 	"\vDownloadIso\x12\x17.nfs.DownloadIsoRequest\x1a\x13.nfs.CreateResponseB1Z/github.com/Maruqes/512SvMan/api/proto/nfs;protob\x06proto3"
 
 var (
@@ -372,14 +446,15 @@ func file_nfs_proto_rawDescGZIP() []byte {
 	return file_nfs_proto_rawDescData
 }
 
-var file_nfs_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_nfs_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_nfs_proto_goTypes = []any{
-	(*FolderMount)(nil),        // 0: nfs.FolderMount
-	(*FolderMountList)(nil),    // 1: nfs.FolderMountList
-	(*DownloadIsoRequest)(nil), // 2: nfs.DownloadIsoRequest
-	(*CreateResponse)(nil),     // 3: nfs.CreateResponse
-	(*MountResponse)(nil),      // 4: nfs.MountResponse
-	(*UnmountResponse)(nil),    // 5: nfs.UnmountResponse
+	(*FolderMount)(nil),                // 0: nfs.FolderMount
+	(*FolderMountList)(nil),            // 1: nfs.FolderMountList
+	(*DownloadIsoRequest)(nil),         // 2: nfs.DownloadIsoRequest
+	(*SharedFolderStatusResponse)(nil), // 3: nfs.SharedFolderStatusResponse
+	(*CreateResponse)(nil),             // 4: nfs.CreateResponse
+	(*MountResponse)(nil),              // 5: nfs.MountResponse
+	(*UnmountResponse)(nil),            // 6: nfs.UnmountResponse
 }
 var file_nfs_proto_depIdxs = []int32{
 	0, // 0: nfs.FolderMountList.mounts:type_name -> nfs.FolderMount
@@ -389,15 +464,17 @@ var file_nfs_proto_depIdxs = []int32{
 	0, // 4: nfs.NFSService.MountFolder:input_type -> nfs.FolderMount
 	0, // 5: nfs.NFSService.UnmountFolder:input_type -> nfs.FolderMount
 	1, // 6: nfs.NFSService.SyncSharedFolder:input_type -> nfs.FolderMountList
-	2, // 7: nfs.NFSService.DownloadIso:input_type -> nfs.DownloadIsoRequest
-	3, // 8: nfs.NFSService.CreateSharedFolder:output_type -> nfs.CreateResponse
-	3, // 9: nfs.NFSService.RemoveSharedFolder:output_type -> nfs.CreateResponse
-	4, // 10: nfs.NFSService.MountFolder:output_type -> nfs.MountResponse
-	5, // 11: nfs.NFSService.UnmountFolder:output_type -> nfs.UnmountResponse
-	3, // 12: nfs.NFSService.SyncSharedFolder:output_type -> nfs.CreateResponse
-	3, // 13: nfs.NFSService.DownloadIso:output_type -> nfs.CreateResponse
-	8, // [8:14] is the sub-list for method output_type
-	2, // [2:8] is the sub-list for method input_type
+	0, // 7: nfs.NFSService.GetSharedFolderStatus:input_type -> nfs.FolderMount
+	2, // 8: nfs.NFSService.DownloadIso:input_type -> nfs.DownloadIsoRequest
+	4, // 9: nfs.NFSService.CreateSharedFolder:output_type -> nfs.CreateResponse
+	4, // 10: nfs.NFSService.RemoveSharedFolder:output_type -> nfs.CreateResponse
+	5, // 11: nfs.NFSService.MountFolder:output_type -> nfs.MountResponse
+	6, // 12: nfs.NFSService.UnmountFolder:output_type -> nfs.UnmountResponse
+	4, // 13: nfs.NFSService.SyncSharedFolder:output_type -> nfs.CreateResponse
+	3, // 14: nfs.NFSService.GetSharedFolderStatus:output_type -> nfs.SharedFolderStatusResponse
+	4, // 15: nfs.NFSService.DownloadIso:output_type -> nfs.CreateResponse
+	9, // [9:16] is the sub-list for method output_type
+	2, // [2:9] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
@@ -414,7 +491,7 @@ func file_nfs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nfs_proto_rawDesc), len(file_nfs_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

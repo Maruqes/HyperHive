@@ -78,3 +78,8 @@ func DownloadISO(conn *grpc.ClientConn, isoRequest *pbnfs.DownloadIsoRequest) er
 func GetAllSharedFolders() ([]db.NFSShare, error) {
 	return db.GetAllNFShares()
 }
+
+func GetSharedFolderStatus(conn *grpc.ClientConn, folderMount *pbnfs.FolderMount) (*pbnfs.SharedFolderStatusResponse, error) {
+	client := pbnfs.NewNFSServiceClient(conn)
+	return client.GetSharedFolderStatus(context.Background(), folderMount)	
+}

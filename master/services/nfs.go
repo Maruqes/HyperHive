@@ -122,6 +122,19 @@ func (s *NFSService) DeleteSharePoint() error {
 	return nil
 }
 
+func (s *NFSService) GetSharedFolderStatus(folderMount *proto.FolderMount) (*proto.SharedFolderStatusResponse, error) {
+	conn := protocol.GetConnectionByMachineName(folderMount.MachineName)
+	if conn == nil || conn.Connection == nil {
+		return nil, fmt.Errorf("slave not connected")
+	}
+
+	status, err := nfs.GetSharedFolderStatus(conn.Connection, folderMount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get shared folder status: %v", err)
+	}
+	return status, nil
+}
+
 func (s *NFSService) GetAllSharedFolders() ([]db.NFSShare, error) {
 	return nfs.GetAllSharedFolders()
 }
@@ -232,7 +245,6 @@ func (s *NFSService) UpdateNFSShit() error {
 	}
 	return nil
 }
-
 
 func (s *NFSService) DownloadISO(url, isoName string, nfsShare db.NFSShare) (string, error) {
 	conn := protocol.GetConnectionByMachineName(nfsShare.MachineName)
