@@ -331,6 +331,8 @@ type Vm struct {
 	MemoryMB             int32                  `protobuf:"varint,6,opt,name=memoryMB,proto3" json:"memoryMB,omitempty"`
 	CurrentCpuUsage      int32                  `protobuf:"varint,7,opt,name=currentCpuUsage,proto3" json:"currentCpuUsage,omitempty"`
 	CurrentMemoryUsageMB int32                  `protobuf:"varint,8,opt,name=currentMemoryUsageMB,proto3" json:"currentMemoryUsageMB,omitempty"`
+	DiskSizeGB           int32                  `protobuf:"varint,9,opt,name=diskSizeGB,proto3" json:"diskSizeGB,omitempty"`
+	DiskPath             string                 `protobuf:"bytes,10,opt,name=diskPath,proto3" json:"diskPath,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -419,6 +421,20 @@ func (x *Vm) GetCurrentMemoryUsageMB() int32 {
 		return x.CurrentMemoryUsageMB
 	}
 	return 0
+}
+
+func (x *Vm) GetDiskSizeGB() int32 {
+	if x != nil {
+		return x.DiskSizeGB
+	}
+	return 0
+}
+
+func (x *Vm) GetDiskPath() string {
+	if x != nil {
+		return x.DiskPath
+	}
+	return ""
 }
 
 type GetVmByNameRequest struct {
@@ -530,7 +546,7 @@ const file_virsh_proto_rawDesc = "" +
 	"\n" +
 	"OkResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\x94\x02\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xd0\x02\n" +
 	"\x02Vm\x12 \n" +
 	"\vmachineName\x18\x01 \x01(\tR\vmachineName\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12$\n" +
@@ -539,7 +555,12 @@ const file_virsh_proto_rawDesc = "" +
 	"\bcpuCount\x18\x05 \x01(\x05R\bcpuCount\x12\x1a\n" +
 	"\bmemoryMB\x18\x06 \x01(\x05R\bmemoryMB\x12(\n" +
 	"\x0fcurrentCpuUsage\x18\a \x01(\x05R\x0fcurrentCpuUsage\x122\n" +
-	"\x14currentMemoryUsageMB\x18\b \x01(\x05R\x14currentMemoryUsageMB\"(\n" +
+	"\x14currentMemoryUsageMB\x18\b \x01(\x05R\x14currentMemoryUsageMB\x12\x1e\n" +
+	"\n" +
+	"diskSizeGB\x18\t \x01(\x05R\n" +
+	"diskSizeGB\x12\x1a\n" +
+	"\bdiskPath\x18\n" +
+	" \x01(\tR\bdiskPath\"(\n" +
 	"\x12GetVmByNameRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"0\n" +
 	"\x11GetAllVmsResponse\x12\x1b\n" +
@@ -554,7 +575,7 @@ const file_virsh_proto_rawDesc = "" +
 	"\aSHUTOFF\x10\x05\x12\v\n" +
 	"\aCRASHED\x10\x06\x12\x0f\n" +
 	"\vPMSUSPENDED\x10\a\x12\v\n" +
-	"\aNOSTATE\x10\b2\xad\x04\n" +
+	"\aNOSTATE\x10\b2\xde\x04\n" +
 	"\x11SlaveVirshService\x12=\n" +
 	"\x0eGetCpuFeatures\x12\f.virsh.Empty\x1a\x1d.virsh.GetCpuFeaturesResponse\x125\n" +
 	"\bCreateVm\x12\x16.virsh.CreateVmRequest\x1a\x11.virsh.OkResponse\x12/\n" +
@@ -567,7 +588,8 @@ const file_virsh_proto_rawDesc = "" +
 	"\bRemoveVM\x12\t.virsh.Vm\x1a\x11.virsh.OkResponse\x12)\n" +
 	"\tRestartVM\x12\t.virsh.Vm\x1a\x11.virsh.OkResponse\x123\n" +
 	"\tGetAllVms\x12\f.virsh.Empty\x1a\x18.virsh.GetAllVmsResponse\x123\n" +
-	"\vGetVmByName\x12\x19.virsh.GetVmByNameRequest\x1a\t.virsh.VmB3Z1github.com/Maruqes/512SvMan/api/proto/virsh;protob\x06proto3"
+	"\vGetVmByName\x12\x19.virsh.GetVmByNameRequest\x1a\t.virsh.Vm\x12/\n" +
+	"\x0fEditVmResources\x12\t.virsh.Vm\x1a\x11.virsh.OkResponseB3Z1github.com/Maruqes/512SvMan/api/proto/virsh;protob\x06proto3"
 
 var (
 	file_virsh_proto_rawDescOnce sync.Once
@@ -607,19 +629,21 @@ var file_virsh_proto_depIdxs = []int32{
 	5,  // 10: virsh.SlaveVirshService.RestartVM:input_type -> virsh.Vm
 	1,  // 11: virsh.SlaveVirshService.GetAllVms:input_type -> virsh.Empty
 	6,  // 12: virsh.SlaveVirshService.GetVmByName:input_type -> virsh.GetVmByNameRequest
-	2,  // 13: virsh.SlaveVirshService.GetCpuFeatures:output_type -> virsh.GetCpuFeaturesResponse
-	4,  // 14: virsh.SlaveVirshService.CreateVm:output_type -> virsh.OkResponse
-	4,  // 15: virsh.SlaveVirshService.CreateLiveVM:output_type -> virsh.OkResponse
-	4,  // 16: virsh.SlaveVirshService.MigrateVM:output_type -> virsh.OkResponse
-	4,  // 17: virsh.SlaveVirshService.ShutdownVM:output_type -> virsh.OkResponse
-	4,  // 18: virsh.SlaveVirshService.ForceShutdownVM:output_type -> virsh.OkResponse
-	4,  // 19: virsh.SlaveVirshService.StartVM:output_type -> virsh.OkResponse
-	4,  // 20: virsh.SlaveVirshService.RemoveVM:output_type -> virsh.OkResponse
-	4,  // 21: virsh.SlaveVirshService.RestartVM:output_type -> virsh.OkResponse
-	7,  // 22: virsh.SlaveVirshService.GetAllVms:output_type -> virsh.GetAllVmsResponse
-	5,  // 23: virsh.SlaveVirshService.GetVmByName:output_type -> virsh.Vm
-	13, // [13:24] is the sub-list for method output_type
-	2,  // [2:13] is the sub-list for method input_type
+	5,  // 13: virsh.SlaveVirshService.EditVmResources:input_type -> virsh.Vm
+	2,  // 14: virsh.SlaveVirshService.GetCpuFeatures:output_type -> virsh.GetCpuFeaturesResponse
+	4,  // 15: virsh.SlaveVirshService.CreateVm:output_type -> virsh.OkResponse
+	4,  // 16: virsh.SlaveVirshService.CreateLiveVM:output_type -> virsh.OkResponse
+	4,  // 17: virsh.SlaveVirshService.MigrateVM:output_type -> virsh.OkResponse
+	4,  // 18: virsh.SlaveVirshService.ShutdownVM:output_type -> virsh.OkResponse
+	4,  // 19: virsh.SlaveVirshService.ForceShutdownVM:output_type -> virsh.OkResponse
+	4,  // 20: virsh.SlaveVirshService.StartVM:output_type -> virsh.OkResponse
+	4,  // 21: virsh.SlaveVirshService.RemoveVM:output_type -> virsh.OkResponse
+	4,  // 22: virsh.SlaveVirshService.RestartVM:output_type -> virsh.OkResponse
+	7,  // 23: virsh.SlaveVirshService.GetAllVms:output_type -> virsh.GetAllVmsResponse
+	5,  // 24: virsh.SlaveVirshService.GetVmByName:output_type -> virsh.Vm
+	4,  // 25: virsh.SlaveVirshService.EditVmResources:output_type -> virsh.OkResponse
+	14, // [14:26] is the sub-list for method output_type
+	2,  // [2:14] is the sub-list for method input_type
 	2,  // [2:2] is the sub-list for extension type_name
 	2,  // [2:2] is the sub-list for extension extendee
 	0,  // [0:2] is the sub-list for field type_name

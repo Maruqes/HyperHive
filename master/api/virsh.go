@@ -190,6 +190,37 @@ func getVmByName(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func editVM(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type EditVMRequest struct {
+		Memory     int32 `json:"memory,omitempty"`
+		Vcpu       int32 `json:"vcpu,omitempty"`
+		DiskSizeGB int32 `json:"disk_sizeGB,omitempty"` // Not implemented yet
+	}
+
+	var editReq EditVMRequest
+	err := json.NewDecoder(r.Body).Decode(&editReq)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err = virshServices.EditVM(vmName, int(editReq.Vcpu), int(editReq.Memory), int(editReq.DiskSizeGB))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("VM edited successfully"))
+}
+
 func setupVirshAPI(r chi.Router) chi.Router {
 	return r.Route("/virsh", func(r chi.Router) {
 		r.Get("/getcpudisablefeatures", getCpuFeatures)
@@ -200,6 +231,7 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Post("/shutdownvm/{vm_name}", shutdownVM)
 		r.Post("/forceshutdownvm/{vm_name}", forceShutdownVM)
 		r.Post("/restartvm/{vm_name}", restartVM)
+		r.Post("/editvm/{vm_name}", editVM)
 		r.Get("/getvmbyname/{vm_name}", getVmByName)
 	})
 }

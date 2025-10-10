@@ -266,3 +266,36 @@ func (v *VirshService) GetAllVms() ([]*grpcVirsh.Vm, error) {
 	}
 	return allVms, nil
 }
+func (v *VirshService) EditVM(name string, cpuCount, memory int, diskSizeGB int) error {
+	//find vm by name
+	exists, err := virsh.DoesVMExist(name)
+	if err != nil {
+		return fmt.Errorf("error checking if VM exists: %v", err)
+	}
+	if !exists {
+		return fmt.Errorf("a VM with the name %s does not exist", name)
+	}
+
+	con := protocol.GetAllGRPCConnections()
+	for _, conn := range con {
+		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: name})
+		if cpuCount > 0 {
+			vm.CpuCount = int32(cpuCount)
+		}
+		if memory > 0 {
+			vm.MemoryMB = int32(memory)
+		}
+		if diskSizeGB > 0 {
+			vm.DiskSizeGB = int32(diskSizeGB)
+		}
+		if err == nil && vm != nil {
+			//found the vm
+			err = virsh.EditVm(conn, vm)
+			if err != nil {
+				return fmt.Errorf("failed to edit VM %s: %v", name, err)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("failed to find VM %s on any machine", name)
+}

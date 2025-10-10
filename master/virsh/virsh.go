@@ -108,3 +108,12 @@ func RestartVM(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
 	}
 	return nil
 }
+
+func EditVm(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.EditVmResources(context.Background(), req)
+	if err != nil {
+		return err
+	}
+	return nil
+}

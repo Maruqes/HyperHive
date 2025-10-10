@@ -50,6 +50,8 @@ message Vm{
   int32 memoryMB = 6;
   int32 currentCpuUsage = 7;
   int32 currentMemoryUsageMB = 8;
+  int32 diskSizeGB = 9;
+  string diskPath = 10;
 }
 
 message GetVmByNameRequest {
@@ -77,4 +79,8 @@ service SlaveVirshService {
 
   rpc GetAllVms(Empty) returns (GetAllVmsResponse);
   rpc GetVmByName(GetVmByNameRequest) returns (Vm);
+
+  //only sees machine name, cpuCount and memoryMB
+  //cpuCount and memoryMB are the new values to set
+  rpc EditVmResources(Vm) returns (OkResponse);
 }

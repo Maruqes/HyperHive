@@ -62,7 +62,8 @@ func ensureFileExists(path string) error {
 
 // qemu-img --output=json minimal struct
 type qiInfo struct {
-	Format string `json:"format"`
+	Format      string `json:"format"`
+	VirtualSize uint64 `json:"virtual-size"`
 }
 
 // DetectDiskFormat returns "qcow2" or "raw" (or other qemu formats if present).
@@ -76,18 +77,9 @@ func DetectDiskFormat(path string) (string, error) {
 	}
 
 	if _, err := os.Stat(path); err == nil {
-		cmd := exec.Command("qemu-img", "info", "--output=json", path)
-		out, err := cmd.Output()
+		info, err := readQemuImgInfo(path)
 		if err != nil {
-			var exitErr *exec.ExitError
-			if errors.As(err, &exitErr) {
-				return "", fmt.Errorf("qemu-img info %s: %s", path, strings.TrimSpace(string(exitErr.Stderr)))
-			}
-			return "", fmt.Errorf("qemu-img info %s: %w", path, err)
-		}
-		var info qiInfo
-		if err := json.Unmarshal(out, &info); err != nil {
-			return "", fmt.Errorf("parse qemu-img info json: %w", err)
+			return "", err
 		}
 		if info.Format == "" {
 			return "", fmt.Errorf("could not detect disk format for %s", path)
@@ -136,6 +128,24 @@ func EnsureDiskAndDetectFormat(path string, sizeGB int) (string, error) {
 		return "", fmt.Errorf("qemu-img create %s: %w", path, err)
 	}
 	return fmtStr, nil
+}
+
+func readQemuImgInfo(path string) (*qiInfo, error) {
+	cmd := exec.Command("qemu-img", "info", "--output=json", path)
+	out, err := cmd.Output()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return nil, fmt.Errorf("qemu-img info %s: %s", path, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, fmt.Errorf("qemu-img info %s: %w", path, err)
+	}
+
+	var info qiInfo
+	if err := json.Unmarshal(out, &info); err != nil {
+		return nil, fmt.Errorf("parse qemu-img info json: %w", err)
+	}
+	return &info, nil
 }
 
 // WriteDomainXMLToDisk saves the domain XML alongside the disk image.
@@ -395,6 +405,94 @@ func cpuPercentOver(dom *libvirt.Domain, interval time.Duration) (percent float6
 	return percent, nVCPU, nil
 }
 
+type DiskInfo struct {
+	Path   string
+	SizeGB int64 // virtual capacity in GB (fallback: allocated GB)
+}
+
+func GetPrimaryDiskInfo(dom *libvirt.Domain) (*DiskInfo, error) {
+	xmlStr, err := dom.GetXMLDesc(0)
+	if err != nil {
+		return nil, fmt.Errorf("xml: %w", err)
+	}
+
+	type domainXML struct {
+		Devices struct {
+			Disks []struct {
+				Device string `xml:"device,attr"` // "disk", "cdrom"
+				Source struct {
+					File string `xml:"file,attr"` // e.g., /var/lib/libvirt/images/foo.qcow2
+					Dev  string `xml:"dev,attr"`  // e.g., /dev/vg/vol
+					Name string `xml:"name,attr"` // network/ceph cases
+				} `xml:"source"`
+				Target struct {
+					Dev string `xml:"dev,attr"` // e.g., vda, sda
+				} `xml:"target"`
+				Driver struct {
+					Type string `xml:"type,attr"`
+					Name string `xml:"name,attr"`
+				} `xml:"driver"`
+			} `xml:"disk"`
+		} `xml:"devices"`
+	}
+
+	var d domainXML
+	if err := xml.Unmarshal([]byte(xmlStr), &d); err != nil {
+		return nil, fmt.Errorf("unmarshal: %w", err)
+	}
+
+	var srcPath string
+	for _, disk := range d.Devices.Disks {
+		if disk.Device != "disk" {
+			continue
+		}
+		if disk.Source.File != "" {
+			srcPath = disk.Source.File
+		} else if disk.Source.Dev != "" {
+			srcPath = disk.Source.Dev
+		} else {
+			continue
+		}
+		if srcPath != "" {
+			break
+		}
+	}
+	if srcPath == "" {
+		return nil, fmt.Errorf("no disk source path found")
+	}
+
+	type blockInfo struct {
+		Capacity   uint64
+		Allocation uint64
+		Physical   uint64
+	}
+	var bi *blockInfo
+
+	if info, err := dom.GetBlockInfo(srcPath, 0); err == nil {
+		// info has fields: Capacity, Allocation, Physical (bytes)
+		bi = &blockInfo{
+			Capacity:   info.Capacity,
+			Allocation: info.Allocation,
+			Physical:   info.Physical,
+		}
+	}
+
+	if bi != nil && bi.Capacity > 0 {
+		sizeGB := int64((bi.Capacity + (1 << 30) - 1) / (1 << 30))
+		return &DiskInfo{Path: srcPath, SizeGB: sizeGB}, nil
+	}
+
+	if strings.HasPrefix(srcPath, "/dev/") {
+		return &DiskInfo{Path: srcPath, SizeGB: 0}, nil
+	}
+	st, err := os.Stat(srcPath)
+	if err != nil {
+		return nil, fmt.Errorf("stat %s: %w", srcPath, err)
+	}
+	allocGB := int64((st.Size() + (1 << 30) - 1) / (1 << 30))
+	return &DiskInfo{Path: srcPath, SizeGB: allocGB}, nil
+}
+
 func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 	connURI := "qemu:///system"
 	conn, err := libvirt.NewConnect(connURI)
@@ -445,6 +543,13 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		}
 	}
 
+	//get diskSize and DiskPath
+	diskInfo, err := GetPrimaryDiskInfo(dom)
+	if err != nil {
+		dom.Free()
+		return nil, fmt.Errorf("get disk info: %w", err)
+	}
+
 	info := &grpcVirsh.Vm{
 		MachineName:          env512.MachineName,
 		Name:                 name,
@@ -454,6 +559,8 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		MemoryMB:             totalMemMB,
 		CurrentCpuUsage:      int32(cpuPct),
 		CurrentMemoryUsageMB: usedMemMB,
+		DiskSizeGB:           int32(diskInfo.SizeGB),
+		DiskPath:             diskInfo.Path,
 	}
 	return info, nil
 }
@@ -515,6 +622,13 @@ func GetAllVMs() ([]*grpcVirsh.Vm, error) {
 			}
 		}
 
+		//get diskSize and DiskPath
+		diskInfo, err := GetPrimaryDiskInfo(&dom)
+		if err != nil {
+			dom.Free()
+			return nil, fmt.Errorf("get disk info: %w", err)
+		}
+
 		info := &grpcVirsh.Vm{
 			MachineName:          env512.MachineName,
 			Name:                 name,
@@ -524,6 +638,8 @@ func GetAllVMs() ([]*grpcVirsh.Vm, error) {
 			MemoryMB:             totalMemMB,
 			CurrentCpuUsage:      int32(cpuPct),
 			CurrentMemoryUsageMB: usedMemMB,
+			DiskSizeGB:           int32(diskInfo.SizeGB),
+			DiskPath:             diskInfo.Path,
 		}
 		vms = append(vms, info)
 		dom.Free()
@@ -699,5 +815,402 @@ func RestartVM(name string) error {
 		return fmt.Errorf("start: %w", err)
 	}
 
+	return nil
+}
+
+func EditVm(name string, newCPU, newMemMiB int, newDiskSizeGB ...int) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("vm name is empty")
+	}
+	if newCPU <= 0 {
+		return fmt.Errorf("newCPU must be greater than zero")
+	}
+	if newMemMiB <= 0 {
+		return fmt.Errorf("newMemMiB must be greater than zero")
+	}
+
+	var targetDiskGB int
+	if len(newDiskSizeGB) > 0 {
+		targetDiskGB = newDiskSizeGB[0]
+		if targetDiskGB < 0 {
+			return fmt.Errorf("newDiskSizeGB must be non-negative")
+		}
+	}
+
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	nodeInfo, err := conn.GetNodeInfo()
+	if err != nil {
+		return fmt.Errorf("node info: %w", err)
+	}
+	hostMemMiB := nodeInfo.Memory / 1024
+	if hostMemMiB == 0 {
+		return fmt.Errorf("host reported zero memory")
+	}
+	if uint64(newMemMiB) > hostMemMiB {
+		return fmt.Errorf("requested memory %d MiB exceeds host capacity %d MiB", newMemMiB, hostMemMiB)
+	}
+
+	dom, err := conn.LookupDomainByName(name)
+	if err != nil {
+		return fmt.Errorf("lookup: %w", err)
+	}
+	defer dom.Free()
+
+	state, _, err := dom.GetState()
+	if err != nil {
+		return fmt.Errorf("get state: %w", err)
+	}
+	if state != libvirt.DOMAIN_SHUTOFF {
+		stateLabel := domainStateToString(state).String()
+		return fmt.Errorf("vm %s must be shut off before editing (state %s)", name, stateLabel)
+	}
+
+	xmlDesc, err := dom.GetXMLDesc(libvirt.DOMAIN_XML_INACTIVE)
+	if err != nil {
+		return fmt.Errorf("get xml: %w", err)
+	}
+
+	updatedXML, err := mutateDomainXMLResources(xmlDesc, newCPU, newMemMiB)
+	if err != nil {
+		return err
+	}
+
+	if targetDiskGB > 0 {
+		diskPath, err := diskPathFromDomainXML(xmlDesc)
+		if err != nil {
+			return fmt.Errorf("detect disk path: %w", err)
+		}
+		if strings.TrimSpace(diskPath) == "" {
+			return fmt.Errorf("domain xml does not specify a disk image path")
+		}
+		if err := ensureDiskSizeAtLeast(diskPath, targetDiskGB); err != nil {
+			return err
+		}
+	}
+
+	if updatedXML == xmlDesc {
+		return nil
+	}
+
+	newDom, err := conn.DomainDefineXML(updatedXML)
+	if err != nil {
+		return fmt.Errorf("define: %w", err)
+	}
+	defer newDom.Free()
+
+	return nil
+}
+
+func GetMaxMemory(name string) (int, error) {
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return 0, fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	if strings.TrimSpace(name) != "" {
+		dom, err := conn.LookupDomainByName(name)
+		if err != nil {
+			return 0, fmt.Errorf("lookup: %w", err)
+		}
+		dom.Free()
+	}
+
+	nodeInfo, err := conn.GetNodeInfo()
+	if err != nil {
+		return 0, fmt.Errorf("node info: %w", err)
+	}
+
+	totalMiB := nodeInfo.Memory / 1024
+	if totalMiB == 0 {
+		return 0, fmt.Errorf("host reported zero memory")
+	}
+
+	maxInt := uint64(^uint(0) >> 1)
+	if totalMiB > maxInt {
+		totalMiB = maxInt
+	}
+
+	return int(totalMiB), nil
+}
+
+func mutateDomainXMLResources(xmlDesc string, newCPU, newMemMiB int) (string, error) {
+	memKiB := uint64(newMemMiB) * 1024
+
+	var changed bool
+	var ok bool
+
+	before := xmlDesc
+	xmlDesc, ok = replaceTagWithLine(xmlDesc, "memory", fmt.Sprintf("<memory unit='KiB'>%d</memory>", memKiB))
+	if !ok {
+		return "", fmt.Errorf("memory element not found in domain xml")
+	}
+	if xmlDesc == "" {
+		return "", fmt.Errorf("memory replacement produced empty xml")
+	}
+	if xmlDesc != before {
+		changed = true
+	}
+
+	before = xmlDesc
+	xmlDesc, ok = replaceTagWithLine(xmlDesc, "currentMemory", fmt.Sprintf("<currentMemory unit='KiB'>%d</currentMemory>", memKiB))
+	if !ok {
+		var inserted bool
+		xmlDesc, inserted = insertAfterTag(xmlDesc, "memory", fmt.Sprintf("<currentMemory unit='KiB'>%d</currentMemory>", memKiB))
+		if !inserted {
+			return "", fmt.Errorf("failed to add currentMemory element to domain xml")
+		}
+		changed = true
+	} else if xmlDesc != before {
+		changed = true
+	}
+
+	updatedVcpuXML, err := updateVcpuTag(xmlDesc, newCPU)
+	if err != nil {
+		return "", err
+	}
+	if updatedVcpuXML != xmlDesc {
+		changed = true
+		xmlDesc = updatedVcpuXML
+	}
+
+	cputuneXML, err := updateCputuneBlock(xmlDesc, newCPU)
+	if err != nil {
+		return "", err
+	}
+	if cputuneXML != xmlDesc {
+		changed = true
+		xmlDesc = cputuneXML
+	}
+
+	if !changed {
+		return xmlDesc, nil
+	}
+
+	return xmlDesc, nil
+}
+
+func replaceTagWithLine(xmlStr, tag, replacement string) (string, bool) {
+	pattern := regexp.MustCompile(`(?m)([ \t]*)<` + tag + `\b[^>]*>[^<]*</` + tag + `>`)
+	replaced := false
+	result := pattern.ReplaceAllStringFunc(xmlStr, func(match string) string {
+		replaced = true
+		indent := extractLeadingWhitespace(match)
+		return indent + replacement
+	})
+	return result, replaced
+}
+
+func insertAfterTag(xmlStr, anchorTag, newLine string) (string, bool) {
+	pattern := regexp.MustCompile(`(?m)([ \t]*)<` + anchorTag + `\b[^>]*>[^<]*</` + anchorTag + `>`)
+	matchIndexes := pattern.FindStringSubmatchIndex(xmlStr)
+	if matchIndexes == nil {
+		return xmlStr, false
+	}
+
+	indent := ""
+	if len(matchIndexes) >= 4 {
+		indent = xmlStr[matchIndexes[2]:matchIndexes[3]]
+	}
+
+	insertPos := matchIndexes[1]
+	var builder strings.Builder
+	builder.Grow(len(xmlStr) + len(newLine) + len(indent) + 1)
+	builder.WriteString(xmlStr[:insertPos])
+	builder.WriteString("\n")
+	builder.WriteString(indent)
+	builder.WriteString(newLine)
+	builder.WriteString(xmlStr[insertPos:])
+	return builder.String(), true
+}
+
+func updateVcpuTag(xmlStr string, newCPU int) (string, error) {
+	pattern := regexp.MustCompile(`(?m)([ \t]*)<vcpu([^>]*)>[^<]*</vcpu>`)
+	updated := false
+	result := pattern.ReplaceAllStringFunc(xmlStr, func(match string) string {
+		submatches := pattern.FindStringSubmatch(match)
+		if len(submatches) != 3 {
+			return match
+		}
+		updated = true
+		indent := submatches[1]
+		attrs := setAttributeString(submatches[2], "current", strconv.Itoa(newCPU))
+		return fmt.Sprintf("%s<vcpu%s>%d</vcpu>", indent, attrs, newCPU)
+	})
+	if !updated {
+		return "", fmt.Errorf("vcpu element not found in domain xml")
+	}
+	return result, nil
+}
+
+func updateCputuneBlock(xmlStr string, newCPU int) (string, error) {
+	newTune, err := buildCPUTuneXML(newCPU)
+	if err != nil {
+		return "", fmt.Errorf("rebuild cputune: %w", err)
+	}
+	if strings.TrimSpace(newTune) == "" {
+		return xmlStr, nil
+	}
+
+	pattern := regexp.MustCompile(`(?ms)([ \t]*)<cputune>.*?</cputune>`)
+	replaced := false
+	result := pattern.ReplaceAllStringFunc(xmlStr, func(match string) string {
+		replaced = true
+		indent := extractLeadingWhitespace(match)
+		return indentBlock(newTune, indent)
+	})
+	if replaced {
+		return result, nil
+	}
+
+	indent := findIndentForTag(xmlStr, "vcpu")
+	if indent == "" {
+		indent = "  "
+	}
+	insertion := indentBlock(newTune, indent)
+
+	if idx := strings.Index(xmlStr, "</vcpu>"); idx != -1 {
+		var builder strings.Builder
+		builder.Grow(len(xmlStr) + len(insertion) + 1)
+		builder.WriteString(xmlStr[:idx+len("</vcpu>")])
+		builder.WriteString("\n")
+		builder.WriteString(insertion)
+		builder.WriteString(xmlStr[idx+len("</vcpu>"):])
+		return builder.String(), nil
+	}
+
+	if idx := strings.LastIndex(xmlStr, "</domain>"); idx != -1 {
+		var builder strings.Builder
+		builder.Grow(len(xmlStr) + len(insertion) + 2)
+		builder.WriteString(xmlStr[:idx])
+		builder.WriteString("\n")
+		builder.WriteString(insertion)
+		builder.WriteString("\n")
+		builder.WriteString(xmlStr[idx:])
+		return builder.String(), nil
+	}
+
+	return "", fmt.Errorf("unable to insert cputune block into domain xml")
+}
+
+func extractLeadingWhitespace(s string) string {
+	i := 0
+	for i < len(s) {
+		if s[i] != ' ' && s[i] != '\t' {
+			break
+		}
+		i++
+	}
+	return s[:i]
+}
+
+func setAttributeString(attrs, key, value string) string {
+	if strings.TrimSpace(attrs) == "" {
+		return fmt.Sprintf(" %s='%s'", key, value)
+	}
+
+	attrPattern := regexp.MustCompile(key + `=['"][^'"]*['"]`)
+	if attrPattern.MatchString(attrs) {
+		return attrPattern.ReplaceAllString(attrs, fmt.Sprintf("%s='%s'", key, value))
+	}
+
+	if last := attrs[len(attrs)-1]; last != ' ' && last != '\t' {
+		return attrs + " " + fmt.Sprintf("%s='%s'", key, value)
+	}
+	return attrs + fmt.Sprintf("%s='%s'", key, value)
+}
+
+func indentBlock(block, indent string) string {
+	lines := strings.Split(block, "\n")
+	if len(lines) == 0 {
+		return indent + block
+	}
+
+	minIndent := -1
+	for _, line := range lines {
+		trimmed := strings.TrimLeft(line, " \t")
+		if trimmed == "" {
+			continue
+		}
+		leading := len(line) - len(trimmed)
+		if minIndent == -1 || leading < minIndent {
+			minIndent = leading
+		}
+	}
+	if minIndent < 0 {
+		minIndent = 0
+	}
+
+	for i, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			lines[i] = ""
+			continue
+		}
+		if len(line) >= minIndent {
+			lines[i] = indent + line[minIndent:]
+		} else {
+			lines[i] = indent + line
+		}
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+func findIndentForTag(xmlStr, tag string) string {
+	pattern := regexp.MustCompile(`(?m)([ \t]*)<` + tag + `\b`)
+	if match := pattern.FindStringSubmatch(xmlStr); len(match) == 2 {
+		return match[1]
+	}
+	return ""
+}
+
+func ensureDiskSizeAtLeast(path string, targetGB int) error {
+	if targetGB <= 0 {
+		return nil
+	}
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return fmt.Errorf("disk path is empty")
+	}
+
+	info, err := readQemuImgInfo(path)
+	if err != nil {
+		return err
+	}
+	if info.VirtualSize == 0 {
+		return fmt.Errorf("qemu-img info %s returned zero virtual size", path)
+	}
+
+	const gib = uint64(1024 * 1024 * 1024)
+	if uint64(targetGB) > ^uint64(0)/gib {
+		return fmt.Errorf("requested disk size is too large")
+	}
+	requestedBytes := uint64(targetGB) * gib
+	if requestedBytes <= info.VirtualSize {
+		return nil
+	}
+
+	format := strings.ToLower(strings.TrimSpace(info.Format))
+	args := []string{"resize"}
+	if format != "" {
+		args = append(args, "-f", format)
+	}
+	args = append(args, path, fmt.Sprintf("%dG", targetGB))
+
+	cmd := exec.Command("qemu-img", args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		msg := strings.TrimSpace(string(out))
+		if msg != "" {
+			return fmt.Errorf("qemu-img resize %s: %s", path, msg)
+		}
+		return fmt.Errorf("qemu-img resize %s: %w", path, err)
+	}
 	return nil
 }

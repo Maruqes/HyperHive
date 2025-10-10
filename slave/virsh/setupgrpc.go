@@ -89,3 +89,10 @@ func (s *SlaveVirshService) RestartVM(ctx context.Context, req *grpcVirsh.Vm) (*
 	}
 	return &grpcVirsh.OkResponse{Ok: true}, nil
 }
+
+func (s *SlaveVirshService) EditVmResources(ctx context.Context, req *grpcVirsh.Vm) (*grpcVirsh.OkResponse, error) {
+	if err := EditVm(req.Name, int(req.CpuCount), int(req.MemoryMB), int(req.DiskSizeGB)); err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{Ok: true}, nil
+}

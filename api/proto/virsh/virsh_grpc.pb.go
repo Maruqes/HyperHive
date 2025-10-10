@@ -30,6 +30,7 @@ const (
 	SlaveVirshService_RestartVM_FullMethodName       = "/virsh.SlaveVirshService/RestartVM"
 	SlaveVirshService_GetAllVms_FullMethodName       = "/virsh.SlaveVirshService/GetAllVms"
 	SlaveVirshService_GetVmByName_FullMethodName     = "/virsh.SlaveVirshService/GetVmByName"
+	SlaveVirshService_EditVmResources_FullMethodName = "/virsh.SlaveVirshService/EditVmResources"
 )
 
 // SlaveVirshServiceClient is the client API for SlaveVirshService service.
@@ -49,6 +50,9 @@ type SlaveVirshServiceClient interface {
 	RestartVM(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
 	GetAllVms(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GetAllVmsResponse, error)
 	GetVmByName(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*Vm, error)
+	// only sees machine name, cpuCount and memoryMB
+	// cpuCount and memoryMB are the new values to set
+	EditVmResources(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
 }
 
 type slaveVirshServiceClient struct {
@@ -169,6 +173,16 @@ func (c *slaveVirshServiceClient) GetVmByName(ctx context.Context, in *GetVmByNa
 	return out, nil
 }
 
+func (c *slaveVirshServiceClient) EditVmResources(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OkResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_EditVmResources_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SlaveVirshServiceServer is the server API for SlaveVirshService service.
 // All implementations must embed UnimplementedSlaveVirshServiceServer
 // for forward compatibility.
@@ -186,6 +200,9 @@ type SlaveVirshServiceServer interface {
 	RestartVM(context.Context, *Vm) (*OkResponse, error)
 	GetAllVms(context.Context, *Empty) (*GetAllVmsResponse, error)
 	GetVmByName(context.Context, *GetVmByNameRequest) (*Vm, error)
+	// only sees machine name, cpuCount and memoryMB
+	// cpuCount and memoryMB are the new values to set
+	EditVmResources(context.Context, *Vm) (*OkResponse, error)
 	mustEmbedUnimplementedSlaveVirshServiceServer()
 }
 
@@ -228,6 +245,9 @@ func (UnimplementedSlaveVirshServiceServer) GetAllVms(context.Context, *Empty) (
 }
 func (UnimplementedSlaveVirshServiceServer) GetVmByName(context.Context, *GetVmByNameRequest) (*Vm, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetVmByName not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) EditVmResources(context.Context, *Vm) (*OkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EditVmResources not implemented")
 }
 func (UnimplementedSlaveVirshServiceServer) mustEmbedUnimplementedSlaveVirshServiceServer() {}
 func (UnimplementedSlaveVirshServiceServer) testEmbeddedByValue()                           {}
@@ -448,6 +468,24 @@ func _SlaveVirshService_GetVmByName_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SlaveVirshService_EditVmResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Vm)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).EditVmResources(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_EditVmResources_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).EditVmResources(ctx, req.(*Vm))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SlaveVirshService_ServiceDesc is the grpc.ServiceDesc for SlaveVirshService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -498,6 +536,10 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetVmByName",
 			Handler:    _SlaveVirshService_GetVmByName_Handler,
+		},
+		{
+			MethodName: "EditVmResources",
+			Handler:    _SlaveVirshService_EditVmResources_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
