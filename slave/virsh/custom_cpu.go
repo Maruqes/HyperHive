@@ -1,7 +1,10 @@
 package virsh
 
 import (
+	"errors"
 	"fmt"
+	"os"
+	"os/exec"
 	"sort"
 	"strings"
 
@@ -154,27 +157,112 @@ func CreateVMCustomCPU(
 	return xmlPath, nil
 }
 
-// virsh -c qemu:///system migrate   --live --persistent --verbose   --migrateuri tcp://192.168.76.1:49152 {{vm_name} qemu+ssh://root@192.168.76.1:22/system
-func MigrateVM(connURI, name, destURI string, live bool) error {
-	conn, err := libvirt.NewConnect(connURI)
+type SSHOptions struct {
+	Password             string
+	IdentityFile         string
+	SkipHostKeyCheck     bool
+	UserKnownHostsFile   string
+	AdditionalSSHOptions []string
+}
+
+type MigrateOptions struct {
+	ConnURI string
+	Name    string
+	DestURI string
+
+	Live bool
+
+	Password string
+
+	SSH SSHOptions
+}
+
+// MigrateVM shells out to virsh, allowing ssh configuration via sshpass or LIBVIRT_SSH_OPTS.
+func MigrateVM(opts MigrateOptions) error {
+	connURI := strings.TrimSpace(opts.ConnURI)
+	if connURI == "" {
+		return fmt.Errorf("conn uri is required")
+	}
+	name := strings.TrimSpace(opts.Name)
+	if name == "" {
+		return fmt.Errorf("domain name is required")
+	}
+	destURI := strings.TrimSpace(opts.DestURI)
+	if destURI == "" {
+		return fmt.Errorf("destination URI is required")
+	}
+
+	baseArgs := []string{
+		"-c", connURI,
+		"migrate",
+		"--persistent",
+		"--verbose",
+		"--undefinesource",
+		"--p2p",
+		"--tunnelled",
+	}
+
+	if opts.Live {
+		baseArgs = append(baseArgs, "--live")
+	}
+
+	baseArgs = append(baseArgs, name, destURI)
+
+	var sshOpts []string
+	if opts.SSH.SkipHostKeyCheck {
+		sshOpts = append(sshOpts, "-o", "StrictHostKeyChecking=no")
+		if opts.SSH.UserKnownHostsFile == "" {
+			sshOpts = append(sshOpts, "-o", "UserKnownHostsFile=/dev/null")
+		}
+	}
+	if file := strings.TrimSpace(opts.SSH.UserKnownHostsFile); file != "" {
+		sshOpts = append(sshOpts, "-o", "UserKnownHostsFile="+file)
+	}
+	if key := strings.TrimSpace(opts.SSH.IdentityFile); key != "" {
+		sshOpts = append(sshOpts, "-i", key)
+	}
+	if len(opts.SSH.AdditionalSSHOptions) > 0 {
+		sshOpts = append(sshOpts, opts.SSH.AdditionalSSHOptions...)
+	}
+
+	env := os.Environ()
+	if len(sshOpts) > 0 {
+		env = append(env, fmt.Sprintf("LIBVIRT_SSH_OPTS=%s", strings.Join(sshOpts, " ")))
+	}
+
+	password := strings.TrimSpace(opts.Password)
+	if password == "" {
+		password = strings.TrimSpace(opts.SSH.Password)
+	}
+
+	var cmd *exec.Cmd
+	if password != "" {
+		args := append([]string{"-p", password, "virsh"}, baseArgs...)
+		cmd = exec.Command("sshpass", args...)
+	} else {
+		cmd = exec.Command("virsh", baseArgs...)
+	}
+	cmd.Env = env
+
+	out, err := cmd.CombinedOutput()
+	output := strings.TrimSpace(string(out))
 	if err != nil {
-		return fmt.Errorf("connect: %w", err)
+		fullCmd := strings.Join(cmd.Args, " ")
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			if output == "" {
+				output = "no output captured"
+			}
+			return fmt.Errorf("virsh migrate failed (%s): exit code %d: %s", fullCmd, exitErr.ExitCode(), output)
+		}
+		if output != "" {
+			return fmt.Errorf("virsh migrate failed (%s): %s: %w", fullCmd, output, err)
+		}
+		return fmt.Errorf("virsh migrate failed (%s): %w", fullCmd, err)
 	}
-	defer conn.Close()
 
-	dom, err := conn.LookupDomainByName(name)
-	if err != nil {
-		return fmt.Errorf("lookup: %w", err)
-	}
-	defer dom.Free()
-
-	flags := libvirt.MIGRATE_UNDEFINE_SOURCE | libvirt.MIGRATE_PEER2PEER | libvirt.MIGRATE_TUNNELLED
-	if live {
-		flags |= libvirt.MIGRATE_LIVE
-	}
-
-	if err := dom.MigrateToURI(destURI, flags, "", 0); err != nil {
-		return fmt.Errorf("migrate: %w", err)
+	if output != "" {
+		fmt.Println(output)
 	}
 	return nil
 }
