@@ -48,6 +48,7 @@ func StartApi() {
 		setupProtocolAPI(r)
 		setupLogsAPI(r)
 		setupISOAPI(r)
+		setupExtraAPI(r)
 	})
 
 	//put web folder on /

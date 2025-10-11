@@ -92,10 +92,42 @@ func deleteShare(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func listPathContents(w http.ResponseWriter, r *http.Request) {
+	machine := chi.URLParam(r, "machine")
+
+	type listPathContentsRequest struct {
+		Path string `json:"path"`
+	}
+	var req listPathContentsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	nfsService := services.NFSService{}
+	contents, err := nfsService.ListFolderContents(machine, req.Path)
+	if err != nil {
+		logger.Error("ListFolderContents failed: %v", err)
+		http.Error(w, "failed to list folder contents: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(contents)
+	if err != nil {
+		http.Error(w, "failed to marshal folder contents", http.StatusInternalServerError)
+		return
+	}
+
+	_, _ = w.Write(data)
+}
+
 func setupNFSAPI(r chi.Router) chi.Router {
 	return r.Route("/nfs", func(r chi.Router) {
 		r.Get("/list", listShares)
 		r.Post("/create", createShare)
 		r.Delete("/delete", deleteShare)
+		r.Get("/contents/{machine}", listPathContents)
 	})
 }

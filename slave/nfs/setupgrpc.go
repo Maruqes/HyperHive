@@ -112,3 +112,15 @@ func (s *NFSService) GetSharedFolderStatus(ctx context.Context, req *pb.FolderMo
 		SpaceTotalGB:    status.SpaceTotalGB,
 	}, nil
 }
+
+func (s *NFSService) ListFolderContents(ctx context.Context, req *pb.FolderPath) (*pb.FolderContents, error) {
+	contents, err := GetFolderContentList(req.Path)
+	if err != nil {
+		logger.Error("ListFolderContents failed", "error", err)
+		return &pb.FolderContents{}, err
+	}
+	items := &pb.FolderContents{}
+	items.Files = append(items.Files, contents.Files...)
+	items.Directories = append(items.Directories, contents.Dirs...)
+	return items, nil
+}

@@ -556,3 +556,40 @@ func GetSharedFolderStatus(folder FolderMount) (*SharedFolderStatus, error) {
 
 	return &status, nil
 }
+
+type FolderContent struct {
+	Files []string
+	Dirs  []string
+}
+
+func GetFolderContentList(folderPath string) (*FolderContent, error) {
+	path := strings.TrimSpace(folderPath)
+	if path == "" {
+		return nil, fmt.Errorf("folder path is required")
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat path: %w", err)
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("path is not a directory: %s", path)
+	}
+
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read directory: %w", err)
+	}
+
+	var content FolderContent
+	for _, e := range entries {
+		full := filepath.Join(path, e.Name())
+		if e.IsDir() {
+			content.Dirs = append(content.Dirs, full)
+		} else {
+			content.Files = append(content.Files, full)
+		}
+	}
+
+	return &content, nil
+}

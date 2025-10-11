@@ -153,3 +153,28 @@ func CreateVMCustomCPU(
 	}
 	return xmlPath, nil
 }
+
+// virsh -c qemu:///system migrate   --live --persistent --verbose   --migrateuri tcp://192.168.76.1:49152 {{vm_name} qemu+ssh://root@192.168.76.1:22/system
+func MigrateVM(connURI, name, destURI string, live bool) error {
+	conn, err := libvirt.NewConnect(connURI)
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	dom, err := conn.LookupDomainByName(name)
+	if err != nil {
+		return fmt.Errorf("lookup: %w", err)
+	}
+	defer dom.Free()
+
+	flags := libvirt.MIGRATE_UNDEFINE_SOURCE | libvirt.MIGRATE_PEER2PEER | libvirt.MIGRATE_TUNNELLED
+	if live {
+		flags |= libvirt.MIGRATE_LIVE
+	}
+
+	if err := dom.MigrateToURI(destURI, flags, "", 0); err != nil {
+		return fmt.Errorf("migrate: %w", err)
+	}
+	return nil
+}

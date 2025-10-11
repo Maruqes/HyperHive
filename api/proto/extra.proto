@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package extra;
+
+option go_package = "github.com/Maruqes/512SvMan/api/proto/extra;proto";
+
+message Empty{
+
+}
+
+message UpdateInfo {
+	string name = 1;
+	string version = 2;
+}
+
+message AllUpdates {
+	repeated UpdateInfo updates = 1;
+}
+
+message UpdateRequest {
+	string name = 1; //if empty means all
+	bool restartAfter = 2;
+}
+
+//master service
+service ExtraService {
+  rpc CheckForUpdates(Empty) returns (AllUpdates);
+  rpc PerformUpdate(UpdateRequest) returns (Empty);
+}

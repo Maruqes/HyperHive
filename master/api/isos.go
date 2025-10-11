@@ -24,6 +24,16 @@ func downloadIso(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//chck if iso_name and url finish with .iso
+	if len(req.ISOName) < 4 || req.ISOName[len(req.ISOName)-4:] != ".iso" {
+		http.Error(w, "iso_name must end with .iso", http.StatusBadRequest)
+		return
+	}
+	if len(req.URL) < 4 || req.URL[len(req.URL)-4:] != ".iso" {
+		http.Error(w, "url must end with .iso", http.StatusBadRequest)
+		return
+	}
+
 	suposedIso, err := db.GetIsoByName(req.ISOName)
 	if err != nil && err != sql.ErrNoRows {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

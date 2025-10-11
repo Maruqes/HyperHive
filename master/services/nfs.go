@@ -273,3 +273,16 @@ func (s *NFSService) DownloadISO(url, isoName string, nfsShare db.NFSShare) (str
 	}
 	return isoPath, nil
 }
+
+func (s *NFSService) ListFolderContents(machineName string, path string) (*proto.FolderContents, error) {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil || conn.Connection == nil {
+		return nil, fmt.Errorf("slave not connected")
+	}
+
+	contents, err := nfs.ListFolderContents(conn.Connection, path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list folder contents: %v", err)
+	}
+	return contents, nil
+}

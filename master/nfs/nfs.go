@@ -81,5 +81,12 @@ func GetAllSharedFolders() ([]db.NFSShare, error) {
 
 func GetSharedFolderStatus(conn *grpc.ClientConn, folderMount *pbnfs.FolderMount) (*pbnfs.SharedFolderStatusResponse, error) {
 	client := pbnfs.NewNFSServiceClient(conn)
-	return client.GetSharedFolderStatus(context.Background(), folderMount)	
+	return client.GetSharedFolderStatus(context.Background(), folderMount)
+}
+
+func ListFolderContents(conn *grpc.ClientConn, path string) (*pbnfs.FolderContents, error) {
+	client := pbnfs.NewNFSServiceClient(conn)
+	return client.ListFolderContents(context.Background(), &pbnfs.FolderPath{
+		Path: path,
+	})
 }

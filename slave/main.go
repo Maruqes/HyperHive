@@ -46,7 +46,6 @@ func main() {
 	// return
 
 	askForSudo()
-
 	if err := env512.Setup(); err != nil {
 		log.Fatalf("env setup: %v", err)
 	}
