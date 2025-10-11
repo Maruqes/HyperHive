@@ -4,10 +4,14 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"slave/env512"
+	"slave/logs512"
 	"slave/nfs"
 	"slave/protocol"
 	"slave/virsh"
+
+	"github.com/Maruqes/512SvMan/logger"
 )
 
 func askForSudo() {
@@ -18,47 +22,37 @@ func askForSudo() {
 	}
 }
 
-func main() {
-	// params := virsh.VMCreationParams{
-	// 	ConnURI:        "qemu:///system",
-	// 	Name:           "testvm",
-	// 	MemoryMB:       2048,
-	// 	VCPUs:          2,
-	// 	DiskPath:       "testvm.qcow2",
-	// 	DiskSizeGB:     10,
-	// 	ISOPath:        "test.iso",
-	// 	Machine:        "",
-	// 	Network:        "default",
-	// 	GraphicsListen: "127.0.0.1",
-	// }
-	// virsh.CreateVMHostPassthrough(params)
-
-	// info, err := info.CPUInfo.GetCPUInfo()
-	// if err != nil {
-	// 	fmt.Println("Error:", err)
-	// 	return
-	// }
-	// fmt.Printf("CPU Info: %+v\n", info.FeatureSet())
-
-	// return
-
-	askForSudo()
-	err := virsh.MigrateVM(virsh.MigrateOptions{
-		ConnURI: "qemu:///system",
-		Name:    "testvm",
-		DestURI: "qemu+ssh://root@192.168.1.125:22/system",
-		Live:    false,
-		SSH: virsh.SSHOptions{
-			IdentityFile:       "/root/.ssh/id_rsa_512svman",
-			SkipHostKeyCheck:   true,
-			UserKnownHostsFile: "/dev/null",
-		},
-	})
-
-	if err != nil {
-		log.Fatalf("failed to migrate VM: %v", err)
+/*
+INSTALL THINGS THAT ARE NEEDED TO THE FULL APP FUNCTIONALITY
+sudo dnf install -y xmlstarlet
+*/
+func setupAll() error {
+	// Install xmlstarlet
+	if err := exec.Command("dnf", "install", "-y", "xmlstarlet").Run(); err != nil {
+		return fmt.Errorf("failed to install xmlstarlet: %w", err)
 	}
-	return
+
+	return nil
+}
+
+func main() {
+	askForSudo()
+	// err := virsh.MigrateVM(virsh.MigrateOptions{
+	// 	ConnURI: "qemu:///system",
+	// 	Name:    "testvm",
+	// 	DestURI: "qemu+ssh://root@192.168.1.125:22/system",
+	// 	Live:    false,
+	// 	SSH: virsh.SSHOptions{
+	// 		IdentityFile:       "/root/.ssh/id_rsa_512svman",
+	// 		SkipHostKeyCheck:   true,
+	// 		UserKnownHostsFile: "/dev/null",
+	// 	},
+	// })
+
+	// if err != nil {
+	// 	log.Fatalf("failed to migrate VM: %v", err)
+	// }
+	// return
 
 	//build vm CreateVMCustomCPU
 
@@ -73,6 +67,9 @@ func main() {
 	// }
 	// return
 
+	if err := setupAll(); err != nil {
+		log.Fatalf("setup all: %v", err)
+	}
 
 	if err := env512.Setup(); err != nil {
 		log.Fatalf("env setup: %v", err)
@@ -82,12 +79,12 @@ func main() {
 		log.Fatalf("set vnc ports: %v", err)
 	}
 
-	if err = nfs.InstallNFS(); err != nil {
+	logger.SetType(env512.Mode)
+	logger.SetCallBack(logs512.LogMessage)
+	if err := nfs.InstallNFS(); err != nil {
 		log.Fatalf("failed to install NFS: %v", err)
 	}
-	if err != nil {
-		log.Fatalf("failed to install NFS: %v", err)
-	}
+
 	conn := protocol.ConnectGRPC()
 	defer conn.Close()
 	select {}

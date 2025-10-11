@@ -13,17 +13,57 @@ import (
 type VirshService struct {
 }
 
-func getDisableFeatures(allFeatures [][]string) []string {
-	featureCount := make(map[string]int)
-	machines := 0
+// func getDisableFeatures(allFeatures [][]string) []string {
+// 	featureCount := make(map[string]int)
+// 	machines := 0
 
-	// Count each feature at most once per machine
-	for _, feats := range allFeatures {
+// 	// Count each feature at most once per machine
+// 	for _, feats := range allFeatures {
+// 		if len(feats) == 0 {
+// 			continue
+// 		}
+// 		machines++
+// 		seen := make(map[string]struct{}, len(feats))
+// 		for _, f := range feats {
+// 			if _, ok := seen[f]; ok {
+// 				continue
+// 			}
+// 			seen[f] = struct{}{}
+// 		}
+// 		for f := range seen {
+// 			featureCount[f]++
+// 		}
+// 	}
+
+// 	// With 0 or 1 machine, there's nothing to "disable"
+// 	if machines <= 1 {
+// 		return []string{}
+// 	}
+
+// 	// A feature is "disabled" if it doesn't appear on every machine
+// 	disable := make([]string, 0)
+// 	for f, c := range featureCount {
+// 		if c < machines {
+// 			disable = append(disable, f)
+// 		}
+// 	}
+
+// 	sort.Strings(disable)
+// 	return disable
+// }
+
+func getCommonFeatures(all [][]string) []string {
+	if len(all) == 0 {
+		return nil
+	}
+	count := map[string]int{}
+	m := 0
+	for _, feats := range all {
 		if len(feats) == 0 {
 			continue
 		}
-		machines++
-		seen := make(map[string]struct{}, len(feats))
+		m++
+		seen := map[string]struct{}{}
 		for _, f := range feats {
 			if _, ok := seen[f]; ok {
 				continue
@@ -31,25 +71,40 @@ func getDisableFeatures(allFeatures [][]string) []string {
 			seen[f] = struct{}{}
 		}
 		for f := range seen {
-			featureCount[f]++
+			count[f]++
 		}
 	}
-
-	// With 0 or 1 machine, there's nothing to "disable"
-	if machines <= 1 {
-		return []string{}
+	if m == 0 {
+		return nil
 	}
-
-	// A feature is "disabled" if it doesn't appear on every machine
-	disable := make([]string, 0)
-	for f, c := range featureCount {
-		if c < machines {
-			disable = append(disable, f)
+	var common []string
+	for f, c := range count {
+		if c == m {
+			common = append(common, f)
 		}
 	}
+	sort.Strings(common)
+	return common
+}
 
-	sort.Strings(disable)
-	return disable
+func diff(from, to []string) []string { // from \ to
+	toSet := make(map[string]struct{}, len(to))
+	for _, f := range to {
+		toSet[f] = struct{}{}
+	}
+	seen := map[string]struct{}{}
+	var out []string
+	for _, f := range from {
+		if _, dup := seen[f]; dup {
+			continue
+		}
+		seen[f] = struct{}{}
+		if _, ok := toSet[f]; !ok {
+			out = append(out, f)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 func (v *VirshService) GetCpuDisableFeatures() ([]string, error) {
@@ -58,7 +113,7 @@ func (v *VirshService) GetCpuDisableFeatures() ([]string, error) {
 		features_conn := virsh.GetCpuFeatures(conn)
 		features = append(features, features_conn)
 	}
-	return getDisableFeatures(features), nil
+	return getCommonFeatures(features), nil
 }
 
 // vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword

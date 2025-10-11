@@ -1,6 +1,7 @@
 package virsh
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -265,4 +266,15 @@ func MigrateVM(opts MigrateOptions) error {
 		fmt.Println(output)
 	}
 	return nil
+}
+
+func GetCpuFeatures() ([]string, error) {
+	//call "sudo virsh -c qemu:///system capabilities | xmlstarlet sel -t -m '/capabilities/host/cpu/feature' -v '@name' -n | sort -u"
+	cmd := exec.Command("bash", "-c", "sudo virsh -c qemu:///system capabilities | xmlstarlet sel -t -m '/capabilities/host/cpu/feature' -v '@name' -n | sort -u")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("failed to get CPU features: %w", err)
+	}
+	return strings.Split(strings.TrimSpace(out.String()), "\n"), nil
 }
