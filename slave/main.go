@@ -56,18 +56,53 @@ func main() {
 
 	//build vm CreateVMCustomCPU
 
-	// _, err := virsh.CreateVMCustomCPU("qemu:///system", "testvm", 2048, 2, "/mnt/512SvMan/shared/slave1_ola/testvm.qcow2", 20, "/mnt/512SvMan/shared/slave1_ola/tiny.iso", "", "default", "", "", []string{
-	// 	"mpx",
-	// 	"rfds-no",
-	// 	"rsba",
-	// 	"sgx",
-	// })
-	// if err != nil {
-	// 	log.Fatalf("failed to create VM: %v", err)
-	// }
-	// return
+	_, err := virsh.CreateVMCustomCPU("qemu:///system", "vmmigrate", 4096, 4, "/mnt/512SvMan/shared/slave1_ola/vmmigrate/vmmigrate.qcow2", 40, "/mnt/512SvMan/shared/slave1_ola/fedora.iso", "", "default", "", "Westmere", []string{
+		"arch-lbr",
+		"avx-vnni",
+		"bhi-ctrl",
+		"clwb",
+		"core-capability",
+		"fbsdp-no",
+		"fdp-excptn-only",
+		"fsrm",
+		"fsrs",
+		"gds-no",
+		"gfni",
+		"ibrs-all",
+		"intel-psfd",
+		"ipred-ctrl",
+		"mds-no",
+		"movdir64b",
+		"movdiri",
+		"mpx",
+		"ospke",
+		"pks",
+		"pku",
+		"pschange-mc-no",
+		"psdp-no",
+		"rdctl-no",
+		"rdpid",
+		"rfds-clear",
+		"rfds-no",
+		"rrsba-ctrl",
+		"rsba",
+		"sbdr-ssdp-no",
+		"serialize",
+		"sgx",
+		"sha-ni",
+		"skip-l1dfl-vmentry",
+		"taa-no",
+		"umip",
+		"vaes",
+		"vpclmulqdq",
+		"waitpkg",
+	})
+	if err != nil {
+		log.Fatalf("failed to create VM: %v", err)
+	}
+	return
 
-	if err := setupAll(); err != nil {
+	if err = setupAll(); err != nil {
 		log.Fatalf("setup all: %v", err)
 	}
 

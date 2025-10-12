@@ -6,6 +6,7 @@ import (
 	"512SvMan/virsh"
 	"fmt"
 	"sort"
+	"strings"
 
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 )
@@ -13,98 +14,99 @@ import (
 type VirshService struct {
 }
 
-// func getDisableFeatures(allFeatures [][]string) []string {
-// 	featureCount := make(map[string]int)
-// 	machines := 0
-
-// 	// Count each feature at most once per machine
-// 	for _, feats := range allFeatures {
-// 		if len(feats) == 0 {
-// 			continue
-// 		}
-// 		machines++
-// 		seen := make(map[string]struct{}, len(feats))
-// 		for _, f := range feats {
-// 			if _, ok := seen[f]; ok {
-// 				continue
-// 			}
-// 			seen[f] = struct{}{}
-// 		}
-// 		for f := range seen {
-// 			featureCount[f]++
-// 		}
-// 	}
-
-// 	// With 0 or 1 machine, there's nothing to "disable"
-// 	if machines <= 1 {
-// 		return []string{}
-// 	}
-
-// 	// A feature is "disabled" if it doesn't appear on every machine
-// 	disable := make([]string, 0)
-// 	for f, c := range featureCount {
-// 		if c < machines {
-// 			disable = append(disable, f)
-// 		}
-// 	}
-
-// 	sort.Strings(disable)
-// 	return disable
-// }
-
-func getCommonFeatures(all [][]string) []string {
+func ClusterSafeFeatures(all [][]string) []string {
 	if len(all) == 0 {
 		return nil
 	}
-	count := map[string]int{}
-	m := 0
-	for _, feats := range all {
-		if len(feats) == 0 {
-			continue
-		}
-		m++
-		seen := map[string]struct{}{}
-		for _, f := range feats {
-			if _, ok := seen[f]; ok {
-				continue
-			}
-			seen[f] = struct{}{}
-		}
-		for f := range seen {
-			count[f]++
+	// Start with unique+sorted features from the first host.
+	base := uniqueSorted(all[0])
+
+	// Fold the remaining hosts using a comm-like merge to keep only the common items.
+	for i := 1; i < len(all); i++ {
+		cur := uniqueSorted(all[i])
+		_, _, common := commLike(base, cur) // keep the intersection
+		base = common
+		if len(base) == 0 {
+			break // early exit if nothing is common anymore
 		}
 	}
-	if m == 0 {
-		return nil
-	}
-	var common []string
-	for f, c := range count {
-		if c == m {
-			common = append(common, f)
-		}
-	}
-	sort.Strings(common)
-	return common
+	return base
 }
 
-func diff(from, to []string) []string { // from \ to
-	toSet := make(map[string]struct{}, len(to))
-	for _, f := range to {
-		toSet[f] = struct{}{}
-	}
-	seen := map[string]struct{}{}
-	var out []string
-	for _, f := range from {
-		if _, dup := seen[f]; dup {
+// ----- helpers -----
+
+// uniqueSorted trims, dedups, and returns a sorted copy of the input slice.
+func uniqueSorted(in []string) []string {
+	set := make(map[string]struct{}, len(in))
+	for _, s := range in {
+		s = strings.TrimSpace(s)
+		if s == "" {
 			continue
 		}
-		seen[f] = struct{}{}
-		if _, ok := toSet[f]; !ok {
-			out = append(out, f)
-		}
+		set[s] = struct{}{}
+	}
+	out := make([]string, 0, len(set))
+	for s := range set {
+		out = append(out, s)
 	}
 	sort.Strings(out)
 	return out
+}
+
+// commLike emulates the core of `comm` for two sorted, deduped slices.
+// It returns (onlyA, onlyB, common).
+func commLike(a, b []string) ([]string, []string, []string) {
+	i, j := 0, 0
+	var onlyA, onlyB, common []string
+	for i < len(a) && j < len(b) {
+		if a[i] == b[j] {
+			common = append(common, a[i])
+			i++
+			j++
+			continue
+		}
+		if a[i] < b[j] {
+			onlyA = append(onlyA, a[i])
+			i++
+		} else {
+			onlyB = append(onlyB, b[j])
+			j++
+		}
+	}
+	for ; i < len(a); i++ {
+		onlyA = append(onlyA, a[i])
+	}
+	for ; j < len(b); j++ {
+		onlyB = append(onlyB, b[j])
+	}
+	return onlyA, onlyB, common
+}
+
+// ClusterDisableList returns all features that are NOT common to every host.
+// Disabling these on the VM makes it migratable across the whole cluster.
+func ClusterDisableList(all [][]string) []string {
+	base := ClusterSafeFeatures(all)
+	baseSet := make(map[string]struct{}, len(base))
+	for _, f := range base {
+		baseSet[f] = struct{}{}
+	}
+	union := make(map[string]struct{})
+	for _, feats := range all {
+		for _, f := range feats {
+			f = strings.TrimSpace(f)
+			if f != "" {
+				union[f] = struct{}{}
+			}
+		}
+	}
+	var disable []string
+	for f := range union {
+		if _, ok := baseSet[f]; !ok {
+			disable = append(disable, f)
+		}
+	}
+	sort.Strings(disable)
+	return disable
 }
 
 func (v *VirshService) GetCpuDisableFeatures() ([]string, error) {
@@ -112,8 +114,9 @@ func (v *VirshService) GetCpuDisableFeatures() ([]string, error) {
 	for _, conn := range protocol.GetAllGRPCConnections() {
 		features_conn := virsh.GetCpuFeatures(conn)
 		features = append(features, features_conn)
+		fmt.Println(features)
 	}
-	return getCommonFeatures(features), nil
+	return ClusterDisableList(features), nil
 }
 
 // vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword

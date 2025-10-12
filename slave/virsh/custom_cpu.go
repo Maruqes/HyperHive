@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -61,6 +63,13 @@ func CreateVMCustomCPU(
 	if disk == "" {
 		return "", fmt.Errorf("disk path is required")
 	}
+	parentDir := strings.TrimSpace(filepath.Dir(disk))
+	if parentDir == "" || parentDir == "." {
+		return "", fmt.Errorf("disk path must include a directory")
+	}
+	if err := os.MkdirAll(parentDir, 0o755); err != nil {
+		return "", fmt.Errorf("create disk directory: %w", err)
+	}
 	if err := ensureParentDirExists(disk); err != nil {
 		return "", fmt.Errorf("disk directory: %w", err)
 	}
@@ -91,7 +100,13 @@ func CreateVMCustomCPU(
 	if machine != "" {
 		machineAttr = fmt.Sprintf(" machine='%s'", machine)
 	}
-	cpuXML := BuildCPUXMLCustom(cpuModel, disabledFeatures)
+	cpuModelTrim := strings.TrimSpace(cpuModel)
+	var cpuXML string
+	if cpuModelTrim == "" {
+		cpuXML = "<cpu mode='host-passthrough' check='none'/>"
+	} else {
+		cpuXML = BuildCPUXMLCustom(cpuModelTrim, disabledFeatures)
+	}
 
 	cdromXML := ""
 	if hasISO {
@@ -245,8 +260,12 @@ func MigrateVM(opts MigrateOptions) error {
 	}
 	cmd.Env = env
 
-	out, err := cmd.CombinedOutput()
-	output := strings.TrimSpace(string(out))
+	var stdoutBuf, stderrBuf bytes.Buffer
+	cmd.Stdout = io.MultiWriter(os.Stdout, &stdoutBuf)
+	cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
+
+	err := cmd.Run()
+	output := strings.TrimSpace(stdoutBuf.String() + "\n" + stderrBuf.String())
 	if err != nil {
 		fullCmd := strings.Join(cmd.Args, " ")
 		var exitErr *exec.ExitError
@@ -262,9 +281,6 @@ func MigrateVM(opts MigrateOptions) error {
 		return fmt.Errorf("virsh migrate failed (%s): %w", fullCmd, err)
 	}
 
-	if output != "" {
-		fmt.Println(output)
-	}
 	return nil
 }
 
