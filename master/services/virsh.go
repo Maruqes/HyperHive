@@ -18,10 +18,8 @@ func ClusterSafeFeatures(all [][]string) []string {
 	if len(all) == 0 {
 		return nil
 	}
-	// Start with unique+sorted features from the first host.
 	base := uniqueSorted(all[0])
 
-	// Fold the remaining hosts using a comm-like merge to keep only the common items.
 	for i := 1; i < len(all); i++ {
 		cur := uniqueSorted(all[i])
 		_, _, common := commLike(base, cur) // keep the intersection
@@ -33,9 +31,6 @@ func ClusterSafeFeatures(all [][]string) []string {
 	return base
 }
 
-// ----- helpers -----
-
-// uniqueSorted trims, dedups, and returns a sorted copy of the input slice.
 func uniqueSorted(in []string) []string {
 	set := make(map[string]struct{}, len(in))
 	for _, s := range in {
@@ -177,6 +172,123 @@ func (v *VirshService) CreateVM(machine_name string, name string, memory int32, 
 	return virsh.CreateVM(slaveMachine.Connection, name, memory, vcpu, diskFolder, qcowFile, diskSizeGB, isoPath, network, VNCPassword)
 }
 
+func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuModel string, disableFeatures []string) error {
+	exists, err := db.DoesVmLiveExist(name)
+	if err != nil {
+		return fmt.Errorf("failed to check if live VM exists in database: %v", err)
+	}
+	if exists {
+		return fmt.Errorf("a live VM with the name %s already exists in the database", name)
+	}
+
+	//get all vms cant have same name
+	//cant have two vms with the same name
+	exists, err = virsh.DoesVMExist(name)
+	if err != nil {
+		return fmt.Errorf("error checking if VM exists: %v", err)
+	}
+	if exists {
+		return fmt.Errorf("a VM with the name %s already exists", name)
+	}
+
+	slaveMachine := protocol.GetConnectionByMachineName(machine_name)
+	if slaveMachine == nil {
+		return fmt.Errorf("machine %s not found", machine_name)
+	}
+
+	//get disk path from nfsShareId
+	nfsShare, err := db.GetNFSShareByID(nfsShareId)
+	if err != nil {
+		return fmt.Errorf("failed to get NFS share by ID: %v", err)
+	}
+	if nfsShare == nil {
+		return fmt.Errorf("NFS share with ID %d not found", nfsShareId)
+	}
+
+	//get iso path from isoID
+	iso, err := db.GetIsoByID(isoID)
+	if err != nil {
+		return fmt.Errorf("failed to get ISO by ID: %v", err)
+	}
+	if iso == nil {
+		return fmt.Errorf("ISO with ID %d not found", isoID)
+	}
+	isoPath := iso.FilePath
+
+	var qcowFile string
+	if nfsShare.Target[len(nfsShare.Target)-1] != '/' {
+		// mnt/ nfs / vmname / vmname.qcow2
+		qcowFile = nfsShare.Target + "/" + name + "/" + name + ".qcow2"
+	} else {
+		// mnt/ nfs / vmname / vmname.qcow2
+		qcowFile = nfsShare.Target + name + "/" + name + ".qcow2"
+	}
+
+	var diskFolder string
+	if nfsShare.Target[len(nfsShare.Target)-1] != '/' {
+		// mnt/ nfs / vmname / vmname.qcow2
+		diskFolder = nfsShare.Target + "/" + name
+	} else {
+		// mnt/ nfs / vmname / vmname.qcow2
+		diskFolder = nfsShare.Target + name
+	}
+
+	err = virsh.CreateLiveVM(slaveMachine.Connection, name, memory, vcpu, diskFolder, qcowFile, diskSizeGB, isoPath, network, VNCPassword, cpuModel, disableFeatures)
+	if err != nil {
+		return err
+	}
+
+	//add to db
+	err = db.AddVmLive(name)
+	if err != nil {
+		return fmt.Errorf("failed to add live VM to database: %v", err)
+	}
+	return nil
+}
+
+func (v *VirshService) MigrateVm(originMachine string, destMachine string, vmName string, live bool) error {
+	exists, err := db.DoesVmLiveExist(vmName)
+	if err != nil {
+		return fmt.Errorf("failed to check if live VM exists in database: %v", err)
+	}
+	if !exists {
+		return fmt.Errorf("a live VM with the name %s does not exist in the database", vmName)
+	}
+
+	//Get Connections
+	originConn := protocol.GetConnectionByMachineName(originMachine)
+	if originConn == nil {
+		return fmt.Errorf("origin machine %s not found", originMachine)
+	}
+
+	destConn := protocol.GetConnectionByMachineName(destMachine)
+	if destConn == nil {
+		return fmt.Errorf("destination machine %s not found", destMachine)
+	}
+
+	//Check Vms existance and Get vm
+	exists, err = virsh.DoesVMExist(vmName)
+	if err != nil {
+		return fmt.Errorf("error checking if VM exists: %v", err)
+	}
+	if !exists {
+		return fmt.Errorf("a VM with the name %s does not exist", vmName)
+	}
+
+	//check if vm is running on origin machine
+	vm, err := virsh.GetVmByName(originConn.Connection, &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil || vm == nil {
+		return fmt.Errorf("VM %s not found on origin machine %s", vmName, originMachine)
+	}
+
+	//check if vm is running on origin machine
+	if vm.MachineName != originMachine {
+		return fmt.Errorf("VM %s is not running on origin machine %s", vmName, originMachine)
+	}
+
+	return virsh.MigrateVm(originConn.Connection, vmName, destConn.Addr, live)
+}
+
 func (v *VirshService) DeleteVM(name string) error {
 	//find vm by name
 	exists, err := virsh.DoesVMExist(name)
@@ -196,6 +308,19 @@ func (v *VirshService) DeleteVM(name string) error {
 			if err != nil {
 				return fmt.Errorf("failed to delete VM %s: %v", name, err)
 			}
+
+			//remove from db if live vm
+			exists, err := db.DoesVmLiveExist(name)
+			if err != nil {
+				return fmt.Errorf("failed to check if live VM exists in database: %v", err)
+			}
+			if exists {
+				err = db.RemoveVmLive(name)
+				if err != nil {
+					return fmt.Errorf("failed to remove live VM from database: %v", err)
+				}
+			}
+
 			return nil
 		}
 	}
@@ -323,15 +448,38 @@ func (v *VirshService) GetVmByName(name string) (*grpcVirsh.Vm, error) {
 	return nil, fmt.Errorf("failed to find VM %s on any machine", name)
 }
 
-func (v *VirshService) GetAllVms() ([]*grpcVirsh.Vm, error) {
-	var allVms []*grpcVirsh.Vm
+type VmType struct {
+	*grpcVirsh.Vm
+	IsLive bool
+}
+
+func (v *VirshService) GetAllVms() ([]VmType, error) {
+	var allVms []VmType
 	con := protocol.GetAllGRPCConnections()
 	for _, conn := range con {
 		vms, err := virsh.GetAllVms(conn, &grpcVirsh.Empty{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to get VMs from a machine: %v", err)
 		}
-		allVms = append(allVms, vms.Vms...)
+		for _, vm := range vms.Vms {
+			isLive, err := db.DoesVmLiveExist(vm.Name)
+			if err != nil {
+				return nil, fmt.Errorf("failed to check if live VM exists in database: %v", err)
+			}
+			//if name already in allVms skip
+			found := false
+			for _, v := range allVms {
+				if v.Name == vm.Name {
+					found = true
+					break
+				}
+			}
+			if found {
+				continue
+			}
+			allVms = append(allVms, VmType{Vm: vm, IsLive: isLive})
+		}
+
 	}
 	return allVms, nil
 }

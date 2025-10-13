@@ -593,3 +593,19 @@ func GetFolderContentList(folderPath string) (*FolderContent, error) {
 
 	return &content, nil
 }
+
+func CanFindFileOrDir(folderPath string) (bool, error) {
+	path := strings.TrimSpace(folderPath)
+	if path == "" {
+		return false, fmt.Errorf("folder path is required")
+	}
+
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("failed to stat path: %w", err)
+	}
+	return true, nil
+}

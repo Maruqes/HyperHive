@@ -90,3 +90,14 @@ func ListFolderContents(conn *grpc.ClientConn, path string) (*pbnfs.FolderConten
 		Path: path,
 	})
 }
+
+func CanFindFileOrDir(conn *grpc.ClientConn, path string) (bool, error) {
+	client := pbnfs.NewNFSServiceClient(conn)
+	res, err := client.CanFindFileOrDir(context.Background(), &pbnfs.FolderPath{
+		Path: path,
+	})
+	if err != nil {
+		return false, err
+	}
+	return res.GetOk(), nil
+}

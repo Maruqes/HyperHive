@@ -63,14 +63,26 @@ message GetAllVmsResponse {
   repeated Vm vms = 1;
 }
 
+message CreateVmLiveRequest{
+  CreateVmRequest vm = 1;
+  string cpuModel = 2;
+  repeated string disabledCpuFeatures = 3;
+}
+
+message MigrateVmRequest {
+  string name = 2;
+  string slaveIp = 3;
+  bool live = 4;
+}
+
 //defines on slave
 service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
 
   rpc CreateVm(CreateVmRequest) returns (OkResponse);
-  rpc CreateLiveVM(Empty) returns (OkResponse);
+  rpc CreateLiveVM(CreateVmLiveRequest) returns (OkResponse);
 
-  rpc MigrateVM(Empty) returns (OkResponse);
+  rpc MigrateVM(MigrateVmRequest) returns (OkResponse);
 
   rpc ShutdownVM(Vm) returns (OkResponse);
   rpc ForceShutdownVM(Vm) returns (OkResponse);

@@ -39,6 +39,48 @@ func (s *SlaveVirshService) CreateVm(ctx context.Context, req *grpcVirsh.CreateV
 	return &grpcVirsh.OkResponse{Ok: true}, nil
 }
 
+func (s *SlaveVirshService) CreateLiveVM(ctx context.Context, req *grpcVirsh.CreateVmLiveRequest) (*grpcVirsh.OkResponse, error) {
+	params := CreateVMCustomCPUOptions{
+		ConnURI:          "qemu:///system",
+		Name:             req.Vm.Name,
+		MemoryMB:         int(req.Vm.Memory),
+		VCPUs:            int(req.Vm.Vcpu),
+		DiskFolder:       req.Vm.DiskFolder,
+		DiskPath:         req.Vm.DiskPath,
+		DiskSizeGB:       int(req.Vm.DiskSizeGB),
+		ISOPath:          req.Vm.IsoPath,
+		Network:          req.Vm.Network,
+		GraphicsListen:   "0.0.0.0",
+		VNCPassword:      req.Vm.VncPassword,
+		CPUModel:         req.CpuModel,
+		DisabledFeatures: req.DisabledCpuFeatures,
+	}
+	_, err := CreateVMCustomCPU(params)
+	if err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{Ok: true}, nil
+}
+
+func (s *SlaveVirshService) MigrateVM(ctx context.Context, e *grpcVirsh.MigrateVmRequest) (*grpcVirsh.OkResponse, error) {
+	opts := MigrateOptions{
+		ConnURI: "qemu:///system",
+		Name:    e.Name,
+		DestURI: "qemu+ssh://root@" + e.SlaveIp + ":22/system",
+		Live:    false,
+		SSH: SSHOptions{
+			IdentityFile:       "/root/.ssh/id_rsa_512svman",
+			SkipHostKeyCheck:   true,
+			UserKnownHostsFile: "/dev/null",
+		},
+	}
+	err := MigrateVM(opts)
+	if err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{}, nil
+}
+
 func (s *SlaveVirshService) GetAllVms(ctx context.Context, e *grpcVirsh.Empty) (*grpcVirsh.GetAllVmsResponse, error) {
 	vms, err := GetAllVMs()
 	if err != nil {

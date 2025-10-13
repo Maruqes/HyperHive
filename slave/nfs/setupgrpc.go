@@ -124,3 +124,13 @@ func (s *NFSService) ListFolderContents(ctx context.Context, req *pb.FolderPath)
 	items.Directories = append(items.Directories, contents.Dirs...)
 	return items, nil
 }
+
+func (s *NFSService) CanFindFileOrDir(ctx context.Context, req *pb.FolderPath) (*pb.CreateResponse, error) {
+	_, err := CanFindFileOrDir(req.Path)
+	if err != nil {
+		logger.Error("CanFindFileOrDir failed", "error", err)
+		return &pb.CreateResponse{Ok: false}, err
+	}
+	logger.Info("CanFindFileOrDir succeeded", "path", req.Path)
+	return &pb.CreateResponse{Ok: true}, nil
+}

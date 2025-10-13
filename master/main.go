@@ -86,6 +86,11 @@ func main() {
 		log.Fatalf("create NFS table: %v", err)
 	}
 
+	err = db.CreateVmLiveTable()
+	if err != nil {
+		log.Fatalf("create vm_live table: %v", err)
+	}
+
 	err = db.CreateLogsTable()
 	if err != nil {
 		log.Fatalf("create logs table: %v", err)

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/Maruqes/512SvMan/logger"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -84,8 +85,31 @@ func getAllISOs(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	type resStruct struct {
+		db.ISO
+		AvailableOnSlaves map[string]bool `json:"available_on_slaves"`
+	}
+	isosRes := make([]resStruct, len(isos))
+	for i := range isos {
+		isosRes[i] = resStruct{
+			ISO:               isos[i],
+			AvailableOnSlaves: make(map[string]bool),
+		}
+	}
+
+	//nsf service
+	nfsService := services.NFSService{}
+	for i := range isos {
+		workingFile, err := nfsService.CanFindFileOrDirOnAllSlaves(isos[i].FilePath)
+		if err != nil {
+			logger.Error("CanFindFileOrDirOnAllSlaves failed: %v", err)
+			continue
+		}
+		isosRes[i].AvailableOnSlaves = workingFile
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(isos)
+	json.NewEncoder(w).Encode(isosRes)
 }
 
 func removeISOByID(w http.ResponseWriter, r *http.Request) {

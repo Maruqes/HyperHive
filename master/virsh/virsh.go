@@ -3,6 +3,7 @@ package virsh
 import (
 	"512SvMan/protocol"
 	"context"
+	"fmt"
 
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 	"google.golang.org/grpc"
@@ -29,6 +30,44 @@ func CreateVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder
 		IsoPath:     isoPath,
 		Network:     network,
 		VncPassword: VNCPassword,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func CreateLiveVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder, diskPath string, diskSizeGB int32, isoPath, network, VNCPassword string, cpuModel string, disabledCpuFeatures []string) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	fmt.Println("Creating live VM with CPU model:", cpuModel, "and disabled features:", disabledCpuFeatures)
+	_, err := client.CreateLiveVM(context.Background(), &grpcVirsh.CreateVmLiveRequest{
+		Vm: &grpcVirsh.CreateVmRequest{
+			Name:        name,
+			Memory:      memory,
+			Vcpu:        vcpu,
+			DiskFolder:  diskFolder,
+			DiskPath:    diskPath,
+			DiskSizeGB:  diskSizeGB,
+			IsoPath:     isoPath,
+			Network:     network,
+			VncPassword: VNCPassword,
+		},
+		CpuModel:            cpuModel,
+		DisabledCpuFeatures: disabledCpuFeatures,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// conn machine will migrate do slaveIp machine
+func MigrateVm(conn *grpc.ClientConn, name, slaveIp string, live bool) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.MigrateVM(context.Background(), &grpcVirsh.MigrateVmRequest{
+		Name:    name,
+		SlaveIp: slaveIp,
+		Live:    live,
 	})
 	if err != nil {
 		return err

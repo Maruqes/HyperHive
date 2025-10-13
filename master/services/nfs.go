@@ -132,6 +132,20 @@ func (s *NFSService) GetSharedFolderStatus(folderMount *proto.FolderMount) (*pro
 	if err != nil {
 		return nil, fmt.Errorf("failed to get shared folder status: %v", err)
 	}
+	//ask every connection if folder is mounted
+	cons := protocol.GetAllGRPCConnections()
+	for _, c := range cons {
+		if c == nil {
+			continue
+		}
+		statusLoop, err := nfs.GetSharedFolderStatus(c, folderMount)
+		if err != nil {
+			logger.Error("IsFolderMounted failed: %v", err)
+			continue
+		}
+		status.Working = status.Working && statusLoop.Working
+	}
+
 	return status, nil
 }
 
@@ -285,4 +299,45 @@ func (s *NFSService) ListFolderContents(machineName string, path string) (*proto
 		return nil, fmt.Errorf("failed to list folder contents: %v", err)
 	}
 	return contents, nil
+}
+
+func (s *NFSService) CanFindFileOrDir(machineName, path string) (bool, error) {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil || conn.Connection == nil {
+		return false, fmt.Errorf("slave not connected")
+	}
+
+	found, err := nfs.CanFindFileOrDir(conn.Connection, path)
+	if err != nil {
+		return false, fmt.Errorf("failed to find file or dir: %v", err)
+	}
+	return found, nil
+}
+
+func (s *NFSService) CanFindFileOrDirOnAllSlaves(path string) (map[string]bool, error) {
+	results := make(map[string]bool)
+	conns := protocol.GetAllGRPCConnections()
+	machineNames := protocol.GetAllMachineNames()
+
+	if len(conns) != len(machineNames) {
+		return nil, fmt.Errorf("length of connections and machine names must be the same")
+	}
+
+	for i, conn := range conns {
+		machineName := machineNames[i]
+		if conn == nil {
+			results[machineName] = false
+			continue
+		}
+
+		found, err := nfs.CanFindFileOrDir(conn, path)
+		if err != nil {
+			logger.Error("CanFindFileOrDir failed for machine %s: %v", machineName, err)
+			results[machineName] = false
+			continue
+		}
+		results[machineName] = found
+	}
+
+	return results, nil
 }

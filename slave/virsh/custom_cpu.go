@@ -51,15 +51,33 @@ func BuildCPUXMLCustom(model string, disabledFeatures []string) string {
 	return b.String()
 }
 
-func CreateVMCustomCPU(
-	connURI, name string,
-	memMB, vcpus int,
-	diskPath string, diskSizeGB int,
-	isoPath, machine, network, graphicsListen string,
-	cpuModel string, disabledFeatures []string,
-) (string, error) {
+type CreateVMCustomCPUOptions struct {
+	ConnURI          string
+	Name             string
+	MemoryMB         int
+	VCPUs            int
+	DiskFolder       string //fazer
+	DiskPath         string
+	DiskSizeGB       int
+	ISOPath          string
+	Machine          string
+	Network          string
+	GraphicsListen   string
+	VNCPassword      string // fazer
+	CPUModel         string
+	DisabledFeatures []string
+}
 
-	disk := strings.TrimSpace(diskPath)
+func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
+
+	//make sure DiskFolder exists
+	if opts.DiskFolder != "" {
+		if err := os.MkdirAll(opts.DiskFolder, 0755); err != nil {
+			return "", fmt.Errorf("creating disk folder: %w", err)
+		}
+	}
+
+	disk := strings.TrimSpace(opts.DiskPath)
 	if disk == "" {
 		return "", fmt.Errorf("disk path is required")
 	}
@@ -75,14 +93,14 @@ func CreateVMCustomCPU(
 	}
 
 	// detect/create disk & get its format
-	diskFmt, err := EnsureDiskAndDetectFormat(disk, diskSizeGB)
+	diskFmt, err := EnsureDiskAndDetectFormat(disk, opts.DiskSizeGB)
 	if err != nil {
 		return "", fmt.Errorf("disk: %w", err)
 	}
 
 	// ISO optional
 	hasISO := false
-	isoTrim := strings.TrimSpace(isoPath)
+	isoTrim := strings.TrimSpace(opts.ISOPath)
 	if isoTrim != "" {
 		if err := ensureFileExists(isoTrim); err != nil {
 			return "", fmt.Errorf("iso path: %w", err)
@@ -90,33 +108,44 @@ func CreateVMCustomCPU(
 		hasISO = true
 	}
 
-	conn, err := libvirt.NewConnect(connURI)
+	conn, err := libvirt.NewConnect(opts.ConnURI)
 	if err != nil {
 		return "", fmt.Errorf("connect: %w", err)
 	}
 	defer conn.Close()
 
 	machineAttr := ""
-	if machine != "" {
-		machineAttr = fmt.Sprintf(" machine='%s'", machine)
+	if opts.Machine != "" {
+		machineAttr = fmt.Sprintf(" machine='%s'", opts.Machine)
 	}
-	cpuModelTrim := strings.TrimSpace(cpuModel)
+	cpuModelTrim := strings.TrimSpace(opts.CPUModel)
 	var cpuXML string
 	if cpuModelTrim == "" {
 		cpuXML = "<cpu mode='host-passthrough' check='none'/>"
 	} else {
-		cpuXML = BuildCPUXMLCustom(cpuModelTrim, disabledFeatures)
+		cpuXML = BuildCPUXMLCustom(cpuModelTrim, opts.DisabledFeatures)
 	}
 
 	cdromXML := ""
 	if hasISO {
 		cdromXML = fmt.Sprintf(`
-    <disk type='file' device='cdrom'>
-      <driver name='qemu' type='raw'/>
-      <source file='%s'/>
-      <target dev='sda' bus='sata'/>
-      <readonly/>
-    </disk>`, isoTrim)
+	<disk type='file' device='cdrom'>
+	  <driver name='qemu' type='raw'/>
+	  <source file='%s'/>
+	  <target dev='sda' bus='sata'/>
+	  <readonly/>
+	</disk>`, isoTrim)
+	}
+
+	graphicsAttrs := ""
+	if opts.GraphicsListen != "" {
+		graphicsAttrs += fmt.Sprintf(" listen='%s'", opts.GraphicsListen)
+	}
+	if opts.VNCPassword != "" {
+		graphicsAttrs += fmt.Sprintf(" passwd='%s'", opts.VNCPassword)
+	}
+	if graphicsAttrs == "" {
+		graphicsAttrs = " listen='127.0.0.1'"
 	}
 
 	domainXML := fmt.Sprintf(`
@@ -125,27 +154,27 @@ func CreateVMCustomCPU(
   <memory unit='MiB'>%d</memory>
   <vcpu>%d</vcpu>
   <os>
-    <type arch='x86_64'%s>hvm</type>
-    <boot dev='%s'/>
-    <boot dev='hd'/>
+	<type arch='x86_64'%s>hvm</type>
+	<boot dev='%s'/>
+	<boot dev='hd'/>
   </os>
   <features><acpi/><apic/></features>
   %s
   <devices>
-    <disk type='file' device='disk'>
-      <driver name='qemu' type='%s' cache='none' discard='unmap'/>
-      <source file='%s'/>
-      <target dev='vda' bus='virtio'/>
-    </disk>%s
-    <interface type='network'>
-      <source network='%s'/>
-      <model type='virtio'/>
-    </interface>
-    <graphics type='vnc' autoport='yes' port='-1' listen='%s'/>
-    <video><model type='virtio'/></video>
+	<disk type='file' device='disk'>
+	  <driver name='qemu' type='%s' cache='none' discard='unmap'/>
+	  <source file='%s'/>
+	  <target dev='vda' bus='virtio'/>
+	</disk>%s
+	<interface type='network'>
+	  <source network='%s'/>
+	  <model type='virtio'/>
+	</interface>
+	<graphics type='vnc' autoport='yes' port='-1'%s/>
+	<video><model type='virtio'/></video>
   </devices>
 </domain>`,
-		name, memMB, vcpus, machineAttr,
+		opts.Name, opts.MemoryMB, opts.VCPUs, machineAttr,
 		func() string {
 			if hasISO {
 				return "cdrom"
@@ -153,10 +182,10 @@ func CreateVMCustomCPU(
 				return "hd"
 			}
 		}(),
-		cpuXML, diskFmt, disk, cdromXML, network, graphicsListen,
+		cpuXML, diskFmt, disk, cdromXML, opts.Network, graphicsAttrs,
 	)
 
-	xmlPath, err := WriteDomainXMLToDisk(name, domainXML, disk)
+	xmlPath, err := WriteDomainXMLToDisk(opts.Name, domainXML, disk)
 	if err != nil {
 		return "", err
 	}
