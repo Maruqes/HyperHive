@@ -351,27 +351,27 @@ func givePermissionsToEveryone(folder FolderMount) error {
 func MountSharedFolder(folder FolderMount) error {
 	source := strings.TrimSpace(folder.Source)
 	target := strings.TrimSpace(folder.Target)
-	if source == "" {
-		return fmt.Errorf("source is required")
+	if source == "" || target == "" {
+		return fmt.Errorf("source and target are required")
 	}
-	if target == "" {
-		return fmt.Errorf("target is required")
-	}
-
 	if err := runCommand("ensure mount directory", "sudo", "mkdir", "-p", target); err != nil {
 		return err
 	}
 
-	mountOptions := []string{"_netdev", "soft", "timeo=10", "retrans=2", "nofail", "vers=4"}
-	// Use aggressive timeouts so that we notice server failures quickly.
-	if err := runCommand("mount nfs share", "sudo", "mount", "-t", "nfs", "-o", strings.Join(mountOptions, ","), source, target); err != nil {
+	optsFast := []string{
+		"rw", "hard", "proto=tcp", "vers=4.2",
+		"rsize=1048576", "wsize=1048576",
+		"nconnect=4",
+		"noatime", "nodiratime", "_netdev",
+	}
+	if err := runCommand("mount nfs share",
+		"sudo", "mount", "-t", "nfs4", "-o", strings.Join(optsFast, ","), source, target); err != nil {
 		return err
 	}
-	
+
 	if err := givePermissionsToEveryone(folder); err != nil {
 		return err
 	}
-	
 	CurrentMountsLock.Lock()
 	CurrentMounts = append(CurrentMounts, folder)
 	CurrentMountsLock.Unlock()
