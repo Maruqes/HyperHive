@@ -1222,3 +1222,80 @@ func ensureDiskSizeAtLeast(path string, targetGB int) error {
 	}
 	return nil
 }
+
+func RemoveIsoFromVM(name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("vm name is empty")
+	}
+
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	dom, err := conn.LookupDomainByName(name)
+	if err != nil {
+		return fmt.Errorf("lookup: %w", err)
+	}
+	defer dom.Free()
+
+	state, _, err := dom.GetState()
+	if err != nil {
+		return fmt.Errorf("state: %w", err)
+	}
+
+	xmlDesc, err := dom.GetXMLDesc(libvirt.DOMAIN_XML_INACTIVE)
+	if err != nil {
+		xmlDesc, err = dom.GetXMLDesc(0)
+		if err != nil {
+			return fmt.Errorf("xml: %w", err)
+		}
+	}
+
+	diskPattern := regexp.MustCompile(`(?is)\n?[ \t]*<disk\b[^>]*device\s*=\s*['"]cdrom['"][^>]*>.*?</disk>\n?`)
+	locs := diskPattern.FindAllStringIndex(xmlDesc, -1)
+	if len(locs) == 0 {
+		return nil
+	}
+
+	deviceXMLs := make([]string, 0, len(locs))
+	for _, idx := range locs {
+		deviceXMLs = append(deviceXMLs, strings.TrimSpace(xmlDesc[idx[0]:idx[1]]))
+	}
+
+	var builder strings.Builder
+	builder.Grow(len(xmlDesc))
+	prev := 0
+	for _, idx := range locs {
+		start, end := idx[0], idx[1]
+		builder.WriteString(xmlDesc[prev:start])
+		prev = end
+	}
+	builder.WriteString(xmlDesc[prev:])
+	newXML := builder.String()
+
+	bootPattern := regexp.MustCompile(`(?mi)^[ \t]*<boot\b[^>]*dev\s*=\s*['"]cdrom['"][^>]*/>\s*\n?`)
+	newXML = bootPattern.ReplaceAllString(newXML, "")
+
+	if strings.TrimSpace(newXML) == "" {
+		return fmt.Errorf("removing ISO produced empty domain XML")
+	}
+
+	if state == libvirt.DOMAIN_RUNNING || state == libvirt.DOMAIN_BLOCKED || state == libvirt.DOMAIN_PAUSED {
+		for _, deviceXML := range deviceXMLs {
+			if err := dom.DetachDeviceFlags(deviceXML, libvirt.DOMAIN_DEVICE_MODIFY_LIVE); err != nil {
+				return fmt.Errorf("detach cdrom: %w", err)
+			}
+		}
+	}
+
+	newDom, err := conn.DomainDefineXML(newXML)
+	if err != nil {
+		return fmt.Errorf("define: %w", err)
+	}
+	defer newDom.Free()
+
+	return nil
+}

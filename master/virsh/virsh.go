@@ -157,3 +157,12 @@ func EditVm(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
 	}
 	return nil
 }
+
+func RemoveIso(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.RemoveIsoFromVm(context.Background(), req)
+	if err != nil {
+		return err
+	}
+	return nil
+}

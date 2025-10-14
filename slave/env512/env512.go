@@ -15,6 +15,7 @@ var (
 	MachineName  string
 	VNC_MIN_PORT int
 	VNC_MAX_PORT int
+	OTHER_SLAVES []string
 )
 
 func Setup() error {
@@ -43,6 +44,16 @@ func Setup() error {
 
 	if VNC_MIN_PORT == 0 || VNC_MAX_PORT == 0 || VNC_MIN_PORT < 5900 || VNC_MAX_PORT > 65535 || VNC_MIN_PORT > VNC_MAX_PORT {
 		panic("VNC_MIN_PORT and VNC_MAX_PORT must be set and valid (5900-65535)")
+	}
+
+	// OTHER_SLAVE1_IP, OTHER_SLAVE2_IP, ...
+	for i := 1; ; i++ {
+		envVar := "OTHER_SLAVE" + strconv.Itoa(i) + "_IP"
+		ip := os.Getenv(envVar)
+		if ip == "" {
+			break
+		}
+		OTHER_SLAVES = append(OTHER_SLAVES, ip)
 	}
 
 	return nil

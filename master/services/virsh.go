@@ -516,3 +516,28 @@ func (v *VirshService) EditVM(name string, cpuCount, memory int, diskSizeGB int)
 	}
 	return fmt.Errorf("failed to find VM %s on any machine", name)
 }
+
+func (v *VirshService) RemoveIso(vmName string) error {
+	//find vm by name
+	exists, err := virsh.DoesVMExist(vmName)
+	if err != nil {
+		return fmt.Errorf("error checking if VM exists: %v", err)
+	}
+	if !exists {
+		return fmt.Errorf("a VM with the name %s does not exist", vmName)
+	}
+
+	con := protocol.GetAllGRPCConnections()
+	for _, conn := range con {
+		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: vmName})
+		if err == nil && vm != nil {
+			//found the vm
+			err = virsh.RemoveIso(conn, vm)
+			if err != nil {
+				return fmt.Errorf("failed to remove ISO from VM %s: %v", vmName, err)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("failed to find VM %s on any machine", vmName)
+}

@@ -137,3 +137,10 @@ func (s *SlaveVirshService) EditVmResources(ctx context.Context, req *grpcVirsh.
 	}
 	return &grpcVirsh.OkResponse{Ok: true}, nil
 }
+
+func (s *SlaveVirshService) RemoveIsoFromVm(ctx context.Context, req *grpcVirsh.Vm) (*grpcVirsh.OkResponse, error) {
+	if err := RemoveIsoFromVM(req.Name); err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{Ok: true}, nil
+}

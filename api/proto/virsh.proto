@@ -92,6 +92,7 @@ service SlaveVirshService {
 
   rpc GetAllVms(Empty) returns (GetAllVmsResponse);
   rpc GetVmByName(GetVmByNameRequest) returns (Vm);
+  rpc RemoveIsoFromVm(Vm) returns (OkResponse);
 
   //only sees machine name, cpuCount and memoryMB
   //cpuCount and memoryMB are the new values to set

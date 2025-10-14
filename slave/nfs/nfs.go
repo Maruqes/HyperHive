@@ -188,7 +188,7 @@ func IsSafePath(path string) error {
 	return nil
 }
 
-// CreateSharedFolder creates a directory and ensures it is exported via exportsFile.
+// CreateSharedFolder creates a directory (0777) and ensures it is exported via exportsFile.
 func CreateSharedFolder(folder FolderMount) error {
 	if err := IsSafePath(folder.FolderPath); err != nil {
 		return fmt.Errorf("invalid folder path: %w", err)
@@ -200,6 +200,11 @@ func CreateSharedFolder(folder FolderMount) error {
 	}
 
 	if err := runCommand("create share directory", "sudo", "mkdir", "-p", path); err != nil {
+		return err
+	}
+
+	// Give full read/write/execute permissions to everyone (owner/group/others)
+	if err := runCommand("set share directory permissions", "sudo", "chmod", "777", path); err != nil {
 		return err
 	}
 
