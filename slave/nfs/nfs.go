@@ -116,8 +116,34 @@ func InstallNFS() error {
 	return nil
 }
 
+func detectQemuIDs() (uid, gid string) {
+	candidates := [][2]string{
+		{"qemu", "qemu"},
+		{"libvirt-qemu", "kvm"},
+		{"libvirt-qemu", "libvirt-qemu"},
+	}
+	for _, c := range candidates {
+		uOut, uErr := exec.Command("id", "-u", c[0]).Output()
+		gOut, gErr := exec.Command("getent", "group", c[1]).Output()
+		if uErr == nil && gErr == nil && len(uOut) > 0 && len(gOut) > 0 {
+			uid := strings.TrimSpace(string(uOut))
+			// getent group line: name:x:GID:members
+			parts := strings.Split(strings.TrimSpace(string(gOut)), ":")
+			if len(parts) >= 3 {
+				gid := parts[2]
+				return uid, gid
+			}
+		}
+	}
+	// fallback: nfsnobody
+	return "65534", "65534"
+}
+
 func exportsEntry(path string) string {
-	return fmt.Sprintf("%s *(rw,sync,no_subtree_check,no_root_squash)", path)
+	uid, gid := detectQemuIDs()
+	// all_squash -> mapeia TODOS os clientes para anonuid/anongid
+	// anonuid/anongid -> usa UID/GID do qemu do servidor
+	return fmt.Sprintf("%s *(rw,sync,all_squash,anonuid=%s,anongid=%s,no_subtree_check)", path, uid, gid)
 }
 
 func allowSELinuxForNFS(path string) error {
@@ -141,6 +167,10 @@ func allowSELinuxForNFS(path string) error {
 	}
 
 	if err := ensureNFSSELinuxBoolean(); err != nil {
+		return err
+	}
+
+	if err := ensureVirtUseNFSBoolean(); err != nil {
 		return err
 	}
 
@@ -204,7 +234,12 @@ func CreateSharedFolder(folder FolderMount) error {
 	}
 
 	// Give full read/write/execute permissions to everyone (owner/group/others)
-	if err := runCommand("set share directory permissions", "sudo", "chmod", "777", path); err != nil {
+	// antes tinhas chmod 777; é melhor apertar
+	uid, gid := detectQemuIDs()
+	if err := runCommand("set share owner to qemu", "sudo", "chown", "-R", fmt.Sprintf("%s:%s", uid, gid), path); err != nil {
+		return err
+	}
+	if err := runCommand("set share perms", "sudo", "chmod", "-R", "770", path); err != nil {
 		return err
 	}
 
@@ -338,17 +373,91 @@ func escapeForSingleQuotes(s string) string {
 	return strings.ReplaceAll(s, `'`, `'"'"'`)
 }
 
+func isRemoteFS(path string) bool {
+	b, _ := os.ReadFile("/proc/self/mountinfo")
+	for _, ln := range strings.Split(string(b), "\n") {
+		if ln == "" {
+			continue
+		}
+		parts := strings.Split(ln, " - ")
+		if len(parts) != 2 {
+			continue
+		}
+		left := strings.Fields(parts[0])
+		right := strings.Fields(parts[1])
+		if len(left) < 5 || len(right) < 1 {
+			continue
+		}
+		mountpoint := left[4]
+		fstype := right[0]
+		if strings.HasPrefix(path, mountpoint) {
+			switch fstype {
+			case "nfs", "nfs4", "cifs", "fuse.sshfs":
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func givePermissionsToEveryone(folder FolderMount) error {
 	path := strings.TrimSpace(folder.Target)
 	if path == "" {
 		return fmt.Errorf("target is required")
 	}
 
+	// Em NFS, não tentar chown/chmod recursivo
+	if isRemoteFS(path) {
+		if err := ensureVirtUseNFSBoolean(); err != nil {
+			return err
+		}
+		// teste de escrita (como qemu se existir, senão como current)
+		// nota: pode falhar se o export ainda não foi ajustado
+		testCmd := fmt.Sprintf("echo ok | tee %s >/dev/null", filepath.Join(path, ".svman_write_test"))
+		// tenta com qemu
+		if exec.Command("bash", "-lc", "id -u qemu >/dev/null 2>&1").Run() == nil {
+			_ = runCommand("write test (qemu)", "sudo", "-u", "qemu", "bash", "-lc", testCmd)
+		} else {
+			_ = runCommand("write test", "bash", "-lc", testCmd)
+		}
+		return nil
+	}
+
+	// FS local: aqui sim, podes abrir permissões conforme já tinhas
 	if err := runCommand("give permissions to everyone", "sudo", "chmod", "777", path); err != nil {
 		return err
 	}
-
-	logger.Info("Permissions given to everyone for NFS share:", path)
+	if err := ensureVirtUseNFSBoolean(); err != nil {
+		return err
+	}
+	owners := []string{"qemu:kvm", "qemu:qemu", "libvirt-qemu:kvm", "libvirt-qemu:libvirt-qemu"}
+	var applied string
+	for _, o := range owners {
+		parts := strings.SplitN(o, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		user, group := parts[0], parts[1]
+		check := fmt.Sprintf("id -u '%s' >/dev/null 2>&1 && getent group '%s' >/dev/null 2>&1", escapeForSingleQuotes(user), escapeForSingleQuotes(group))
+		if err := exec.Command("bash", "-lc", check).Run(); err != nil {
+			continue
+		}
+		if err := runCommand("set ownership for libvirt/qemu", "sudo", "chown", "-R", o, path); err == nil {
+			applied = o
+			break
+		} else {
+			logger.Warn("failed to set ownership:", o, err)
+		}
+	}
+	if applied != "" {
+		if err := runCommand("restrict share permissions", "sudo", "chmod", "-R", "770", path); err != nil {
+			return err
+		}
+	}
+	if commandExists("getsebool") {
+		_ = runCommand("check virt_use_nfs", "getsebool", "virt_use_nfs")
+	}
+	logger.Info("Permissions set for local FS:", path)
 	return nil
 }
 
@@ -427,11 +536,20 @@ func commandExists(name string) bool {
 }
 
 func ensureNFSSELinuxBoolean() error {
+	return enableSELinuxBoolean("nfs_export_all_rw")
+}
+
+func ensureVirtUseNFSBoolean() error {
+	return enableSELinuxBoolean("virt_use_nfs")
+}
+
+func enableSELinuxBoolean(name string) error {
 	if !commandExists("setsebool") {
-		logger.Warn("setsebool binary not available, skipping SELinux boolean for NFS exports")
+		logger.Warn("setsebool binary not available, skipping SELinux boolean:", name)
 		return nil
 	}
-	if err := runCommand("enable nfs_export_all_rw", "sudo", "setsebool", "-P", "nfs_export_all_rw", "on"); err != nil {
+	desc := fmt.Sprintf("enable %s", name)
+	if err := runCommand(desc, "sudo", "setsebool", "-P", name, "on"); err != nil {
 		return err
 	}
 	return nil
@@ -444,7 +562,7 @@ func labelNFSMountSource(path string) error {
 	}
 	pattern := fmt.Sprintf("%s(/.*)?", strings.TrimRight(path, "/"))
 	escapedPattern := escapeForSingleQuotes(pattern)
-	cmd := fmt.Sprintf("semanage fcontext -a -t public_content_rw_t '%s' || semanage fcontext -m -t public_content_rw_t '%s'", escapedPattern, escapedPattern)
+	cmd := fmt.Sprintf("semanage fcontext -a -t virt_image_t '%s' || semanage fcontext -m -t virt_image_t '%s'", escapedPattern, escapedPattern)
 	if err := runCommand("label selinux context for share", "sudo", "bash", "-lc", cmd); err != nil {
 		return err
 	}

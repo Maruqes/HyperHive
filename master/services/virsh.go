@@ -255,6 +255,10 @@ func (v *VirshService) MigrateVm(originMachine string, destMachine string, vmNam
 		return fmt.Errorf("a live VM with the name %s does not exist in the database", vmName)
 	}
 
+	if originMachine == destMachine {
+		return fmt.Errorf("origin and destination machines cannot be the same")
+	}
+
 	//Get Connections
 	originConn := protocol.GetConnectionByMachineName(originMachine)
 	if originConn == nil {

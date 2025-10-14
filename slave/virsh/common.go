@@ -109,6 +109,9 @@ func EnsureDiskAndDetectFormat(path string, sizeGB int) (string, error) {
 	}
 
 	if _, err := os.Stat(path); err == nil {
+		if err := ensureDiskPermissions(path); err != nil {
+			return "", err
+		}
 		return fmtStr, nil
 	}
 
@@ -126,6 +129,9 @@ func EnsureDiskAndDetectFormat(path string, sizeGB int) (string, error) {
 			return "", fmt.Errorf("qemu-img create %s: %s", path, msg)
 		}
 		return "", fmt.Errorf("qemu-img create %s: %w", path, err)
+	}
+	if err := ensureDiskPermissions(path); err != nil {
+		return "", err
 	}
 	return fmtStr, nil
 }
@@ -146,6 +152,22 @@ func readQemuImgInfo(path string) (*qiInfo, error) {
 		return nil, fmt.Errorf("parse qemu-img info json: %w", err)
 	}
 	return &info, nil
+}
+
+func ensureDiskPermissions(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("stat disk %s: %w", path, err)
+	}
+
+	current := info.Mode().Perm()
+	desired := current | 0o066
+	if desired != current {
+		if err := os.Chmod(path, desired); err != nil {
+			return fmt.Errorf("chmod disk %s: %w", path, err)
+		}
+	}
+	return nil
 }
 
 // WriteDomainXMLToDisk saves the domain XML alongside the disk image.

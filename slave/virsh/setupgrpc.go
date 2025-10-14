@@ -67,7 +67,7 @@ func (s *SlaveVirshService) MigrateVM(ctx context.Context, e *grpcVirsh.MigrateV
 		ConnURI: "qemu:///system",
 		Name:    e.Name,
 		DestURI: "qemu+ssh://root@" + e.SlaveIp + ":22/system",
-		Live:    false,
+		Live:    e.Live,
 		SSH: SSHOptions{
 			IdentityFile:       "/root/.ssh/id_rsa_512svman",
 			SkipHostKeyCheck:   true,
