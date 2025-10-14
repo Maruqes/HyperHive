@@ -47,25 +47,23 @@ func setupSSHKeys() error {
 		configPath = "/root/.ssh/config"
 	)
 
+	if err := ensureSSHKey(keyFile); err != nil {
+		return fmt.Errorf("ensure ssh key: %w", err)
+	}
+
 	for _, ip := range env512.OTHER_SLAVES {
-		configured, err := isHostConfigured(configPath, ip)
+		needsConfig, err := hostNeedsConfig(configPath, ip, keyFile)
 		if err != nil {
 			return fmt.Errorf("check ssh config for %s: %w", ip, err)
 		}
-		if configured {
-			continue
+		if needsConfig {
+			if err := appendHostConfig(configPath, ip, keyFile); err != nil {
+				return fmt.Errorf("failed to update ssh config for %s: %w", ip, err)
+			}
 		}
 
-		if err := ensureSSHKey(keyFile); err != nil {
-			return fmt.Errorf("ensure ssh key: %w", err)
-		}
-
-		if err := exec.Command("ssh", "-i", keyFile, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+ip, "echo 'SSH funcionando'").Run(); err != nil {
+		if err := verifySSHConnection(ip, keyFile); err != nil {
 			return fmt.Errorf("failed to test ssh connection to %s: %w", ip, err)
-		}
-
-		if err := appendHostConfig(configPath, ip, keyFile); err != nil {
-			return fmt.Errorf("failed to update ssh config for %s: %w", ip, err)
 		}
 	}
 	return nil
@@ -85,23 +83,29 @@ func ensureSSHKey(keyFile string) error {
 	return nil
 }
 
-func isHostConfigured(configPath, ip string) (bool, error) {
+func hostNeedsConfig(configPath, ip, keyFile string) (bool, error) {
 	file, err := os.Open(configPath)
 	if errors.Is(err, os.ErrNotExist) {
-		return false, nil
+		return true, nil
 	}
 	if err != nil {
 		return false, fmt.Errorf("open ssh config: %w", err)
 	}
 	defer file.Close()
 
+	var inHostBlock bool
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if strings.HasPrefix(line, "Host ") {
 			host := strings.TrimSpace(strings.TrimPrefix(line, "Host "))
-			if host == ip {
-				return true, nil
+			inHostBlock = host == ip
+			continue
+		}
+		if inHostBlock && strings.HasPrefix(line, "IdentityFile") {
+			identity := strings.TrimSpace(strings.TrimPrefix(line, "IdentityFile"))
+			if identity == keyFile {
+				return false, nil
 			}
 		}
 	}
@@ -109,7 +113,7 @@ func isHostConfigured(configPath, ip string) (bool, error) {
 		return false, fmt.Errorf("read ssh config: %w", err)
 	}
 
-	return false, nil
+	return true, nil
 }
 
 func appendHostConfig(configPath, ip, keyFile string) error {
@@ -138,6 +142,21 @@ func appendHostConfig(configPath, ip, keyFile string) error {
 
 	if err := os.Chmod(configPath, 0600); err != nil {
 		return fmt.Errorf("chmod ssh config: %w", err)
+	}
+
+	return nil
+}
+
+func verifySSHConnection(ip, keyFile string) error {
+	cmd := exec.Command("ssh",
+		"-i", keyFile,
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "UserKnownHostsFile=/dev/null",
+		"root@"+ip,
+		"echo 'SSH funcionando'",
+	)
+	if err := cmd.Run(); err != nil {
+		return err
 	}
 
 	return nil
