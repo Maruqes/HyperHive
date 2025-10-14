@@ -333,6 +333,20 @@ func escapeForSingleQuotes(s string) string {
 	return strings.ReplaceAll(s, `'`, `'"'"'`)
 }
 
+func givePermissionsToEveryone(folder FolderMount) error {
+	path := strings.TrimSpace(folder.Target)
+	if path == "" {
+		return fmt.Errorf("target is required")
+	}
+
+	if err := runCommand("give permissions to everyone", "sudo", "chmod", "777", path); err != nil {
+		return err
+	}
+
+	logger.Info("Permissions given to everyone for NFS share:", path)
+	return nil
+}
+
 // MountSharedFolder mounts an exported folder from the network.
 func MountSharedFolder(folder FolderMount) error {
 	source := strings.TrimSpace(folder.Source)
@@ -353,7 +367,11 @@ func MountSharedFolder(folder FolderMount) error {
 	if err := runCommand("mount nfs share", "sudo", "mount", "-t", "nfs", "-o", strings.Join(mountOptions, ","), source, target); err != nil {
 		return err
 	}
-
+	
+	if err := givePermissionsToEveryone(folder); err != nil {
+		return err
+	}
+	
 	CurrentMountsLock.Lock()
 	CurrentMounts = append(CurrentMounts, folder)
 	CurrentMountsLock.Unlock()
