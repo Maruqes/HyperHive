@@ -47,41 +47,82 @@ func setupSSHKeys() error {
 		configPath = "/root/.ssh/config"
 	)
 
+	if err := ensureSSHKey(keyFile); err != nil {
+		return fmt.Errorf("ensure ssh key: %w", err)
+	}
+
+	pubKeyFile := keyFile + ".pub"
+
 	for _, ip := range env512.OTHER_SLAVES {
-		configured, err := isHostConfigured(configPath, ip)
-		if err != nil {
-			return fmt.Errorf("check ssh config for %s: %w", ip, err)
-		}
-		if configured {
-			continue
+		if err := ensureAuthorizedKey(ip, keyFile, pubKeyFile); err != nil {
+			return fmt.Errorf("ensure authorized key for %s: %w", ip, err)
 		}
 
-		if err := ensureSSHKey(keyFile); err != nil {
-			return fmt.Errorf("ensure ssh key: %w", err)
-		}
-
-		if err := exec.Command("ssh", "-i", keyFile, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+ip, "echo 'SSH funcionando'").Run(); err != nil {
-			return fmt.Errorf("failed to test ssh connection to %s: %w", ip, err)
-		}
-
-		if err := appendHostConfig(configPath, ip, keyFile); err != nil {
-			return fmt.Errorf("failed to update ssh config for %s: %w", ip, err)
+		if err := ensureHostConfig(configPath, ip, keyFile); err != nil {
+			return fmt.Errorf("ensure ssh config for %s: %w", ip, err)
 		}
 	}
 	return nil
 }
 
 func ensureSSHKey(keyFile string) error {
-	if _, err := os.Stat(keyFile); err == nil {
-		return nil
-	} else if !errors.Is(err, os.ErrNotExist) {
+	pubKeyPath := keyFile + ".pub"
+
+	info, err := os.Stat(keyFile)
+	switch {
+	case err == nil:
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("ssh key path is not a regular file: %s", keyFile)
+		}
+
+		valid, err := isValidPrivateKey(keyFile)
+		if err != nil {
+			return err
+		}
+		if !valid {
+			if err := os.Remove(keyFile); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("remove invalid ssh key: %w", err)
+			}
+			if err := os.Remove(pubKeyPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("remove invalid public ssh key: %w", err)
+			}
+			info = nil
+		}
+	case errors.Is(err, os.ErrNotExist):
+		info = nil
+	default:
 		return fmt.Errorf("stat ssh key: %w", err)
 	}
 
-	if err := exec.Command("ssh-keygen", "-t", "rsa", "-b", "4096", "-f", keyFile, "-N", "").Run(); err != nil {
-		return fmt.Errorf("generate ssh key: %w", err)
+	if info == nil {
+		if err := exec.Command("ssh-keygen", "-t", "rsa", "-b", "4096", "-f", keyFile, "-N", "").Run(); err != nil {
+			return fmt.Errorf("generate ssh key: %w", err)
+		}
 	}
 
+	if ok, err := isValidPublicKey(pubKeyPath); err != nil {
+		return err
+	} else if !ok {
+		if err := regeneratePublicKey(keyFile); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func ensureHostConfig(configPath, ip, keyFile string) error {
+	configured, err := isHostConfigured(configPath, ip)
+	if err != nil {
+		return fmt.Errorf("check ssh config: %w", err)
+	}
+	if configured {
+		return nil
+	}
+
+	if err := appendHostConfig(configPath, ip, keyFile); err != nil {
+		return fmt.Errorf("update ssh config: %w", err)
+	}
 	return nil
 }
 
@@ -112,6 +153,110 @@ func isHostConfigured(configPath, ip string) (bool, error) {
 	return false, nil
 }
 
+func isValidPrivateKey(path string) (bool, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false, fmt.Errorf("read private ssh key: %w", err)
+	}
+
+	trimmed := strings.TrimSpace(string(data))
+	if trimmed == "" {
+		return false, nil
+	}
+
+	if !strings.Contains(trimmed, "BEGIN OPENSSH PRIVATE KEY") && !strings.Contains(trimmed, "BEGIN RSA PRIVATE KEY") {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func isValidPublicKey(path string) (bool, error) {
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("read public ssh key: %w", err)
+	}
+
+	trimmed := strings.TrimSpace(string(data))
+	if trimmed == "" {
+		return false, nil
+	}
+
+	if !strings.HasPrefix(trimmed, "ssh-") {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func ensureAuthorizedKey(ip, keyFile, pubKeyFile string) error {
+	if err := testSSHConnection(ip, keyFile); err == nil {
+		return nil
+	}
+
+	if err := copyPublicKeyToHost(ip, pubKeyFile); err != nil {
+		return err
+	}
+
+	if err := testSSHConnection(ip, keyFile); err != nil {
+		return fmt.Errorf("ssh test after installing key: %w", err)
+	}
+
+	return nil
+}
+
+func testSSHConnection(ip, keyFile string) error {
+	cmd := exec.Command(
+		"ssh",
+		"-i", keyFile,
+		"-o", "BatchMode=yes",
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "UserKnownHostsFile=/dev/null",
+		"root@"+ip,
+		"echo ok",
+	)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		out := strings.TrimSpace(string(output))
+		if out != "" {
+			return fmt.Errorf("ssh root@%s: %w (output: %s)", ip, err, out)
+		}
+		return fmt.Errorf("ssh root@%s: %w", ip, err)
+	}
+	return nil
+}
+
+func copyPublicKeyToHost(ip, pubKeyFile string) error {
+	if _, err := os.Stat(pubKeyFile); err != nil {
+		return fmt.Errorf("stat public ssh key: %w", err)
+	}
+
+	if _, err := exec.LookPath("ssh-copy-id"); err != nil {
+		return fmt.Errorf("ssh-copy-id not found in PATH: %w", err)
+	}
+
+	fmt.Printf("Installing SSH key on %s (root). You may be prompted for the password.\n", ip)
+	cmd := exec.Command(
+		"ssh-copy-id",
+		"-i", pubKeyFile,
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "UserKnownHostsFile=/dev/null",
+		"root@"+ip,
+	)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("ssh-copy-id root@%s: %w", ip, err)
+	}
+
+	return nil
+}
+
 func appendHostConfig(configPath, ip, keyFile string) error {
 	hostBlock := fmt.Sprintf("Host %s\n    IdentityFile %s\n    StrictHostKeyChecking no\n    UserKnownHostsFile /dev/null\n", ip, keyFile)
 
@@ -140,6 +285,26 @@ func appendHostConfig(configPath, ip, keyFile string) error {
 		return fmt.Errorf("chmod ssh config: %w", err)
 	}
 
+	return nil
+}
+
+func regeneratePublicKey(keyFile string) error {
+	cmd := exec.Command("ssh-keygen", "-y", "-f", keyFile)
+	output, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("regenerate public ssh key: %w", err)
+	}
+
+	pubKeyPath := keyFile + ".pub"
+	if len(output) == 0 || output[len(output)-1] != '\n' {
+		output = append(output, '\n')
+	}
+	if err := os.Chmod(keyFile, 0600); err != nil {
+		return fmt.Errorf("chmod private ssh key: %w", err)
+	}
+	if err := os.WriteFile(pubKeyPath, output, 0644); err != nil {
+		return fmt.Errorf("write public ssh key: %w", err)
+	}
 	return nil
 }
 
