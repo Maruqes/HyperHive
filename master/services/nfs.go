@@ -114,6 +114,18 @@ func (s *NFSService) DeleteSharePoint() error {
 		return fmt.Errorf("failed to remove shared folder: %v", err)
 	}
 
+	conns := protocol.GetAllGRPCConnections()
+	// unmount on all provided connections
+	for _, c := range conns {
+		if c == nil {
+			continue
+		}
+		if err := nfs.UnmountSharedFolder(c, mount); err != nil {
+			logger.Error("UnmountSharedFolder failed: %v", err)
+			continue
+		}
+	}
+
 	err := db.RemoveNFSShare(mount.MachineName, mount.FolderPath)
 	if err != nil {
 		return fmt.Errorf("failed to remove NFS share from database: %v", err)

@@ -31,6 +31,7 @@ const (
 
 var CurrentMounts = []FolderMount{}
 var CurrentMountsLock = &sync.RWMutex{}
+var setfaclWarnOnce sync.Once
 
 func isMounted(target string) bool {
 	if strings.TrimSpace(target) == "" {
@@ -373,6 +374,49 @@ func ensureOpenPermissions(path string, recursive bool) error {
 	if err := runCommand("set mode 0777 "+clean, chmodArgs...); err != nil {
 		return err
 	}
+	if err := applyWorldWritableACL(clean, recursive); err != nil {
+		return err
+	}
+	return nil
+}
+
+func applyWorldWritableACL(path string, recursive bool) error {
+	if !commandExists("setfacl") {
+		setfaclWarnOnce.Do(func() {
+			logger.Warn("setfacl not available, skipping ACL adjustments for shared folder permissions")
+		})
+		return nil
+	}
+
+	args := []string{"sudo", "setfacl"}
+	if recursive {
+		args = append(args, "-R")
+	}
+	args = append(args, "-m", "u::rwx,g::rwx,o::rwx,mask::rwx", path)
+	if err := runCommand("set ACL "+path, args...); err != nil {
+		return err
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("stat path for ACL %s: %w", path, err)
+	}
+	if !info.IsDir() {
+		return nil
+	}
+
+	if recursive {
+		escaped := escapeForSingleQuotes(path)
+		script := fmt.Sprintf("find '%s' -type d -exec setfacl -m d:u::rwx,d:g::rwx,d:o::rwx,d:mask::rwx {} +", escaped)
+		if err := runCommand("set default ACL "+path, "sudo", "bash", "-lc", script); err != nil {
+			return err
+		}
+	} else {
+		if err := runCommand("set default ACL "+path, "sudo", "setfacl", "-d", "-m", "u::rwx,g::rwx,o::rwx,mask::rwx", path); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -430,18 +474,47 @@ func UnmountSharedFolder(folder FolderMount) error {
 		return fmt.Errorf("target is required")
 	}
 
-	if err := runCommand("unmount nfs share", "sudo", "umount", target); err != nil {
-		return err
+	// If already not mounted, just cleanup state.
+	if !isMounted(target) {
+		CurrentMountsLock.Lock()
+		for i, m := range CurrentMounts {
+			if m.Target == target {
+				CurrentMounts = append(CurrentMounts[:i], CurrentMounts[i+1:]...)
+				break
+			}
+		}
+		CurrentMountsLock.Unlock()
+		logger.Info("NFS share already unmounted: " + target)
+		return nil
 	}
+
+	// Try normal unmount first
+	if err := runCommand("unmount nfs share", "sudo", "umount", target); err != nil {
+		// Force unmount (useful for NFS)
+		_ = runCommand("force unmount nfs share (-f)", "sudo", "umount", "-f", target)
+
+		// If still mounted, lazy unmount as last resort
+		if isMounted(target) {
+			_ = runCommand("lazy unmount nfs share (-l)", "sudo", "umount", "-l", target)
+		}
+	}
+
+	// Verify it is really unmounted
+	if isMounted(target) {
+		return fmt.Errorf("failed to unmount %s (still mounted)", target)
+	}
+
 	logger.Info("NFS share unmounted: " + target)
+
 	CurrentMountsLock.Lock()
-	defer CurrentMountsLock.Unlock()
 	for i, m := range CurrentMounts {
 		if m.Target == target {
 			CurrentMounts = append(CurrentMounts[:i], CurrentMounts[i+1:]...)
 			break
 		}
 	}
+	CurrentMountsLock.Unlock()
+
 	return nil
 }
 
