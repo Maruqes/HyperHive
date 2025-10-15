@@ -427,7 +427,6 @@ func applyWorldWritableACL(path string, recursive bool) error {
 	return nil
 }
 
-// MountSharedFolder mounts an exported folder from the network.
 func MountSharedFolder(folder FolderMount) error {
 	source := strings.TrimSpace(folder.Source)
 	target := strings.TrimSpace(folder.Target)
@@ -435,28 +434,87 @@ func MountSharedFolder(folder FolderMount) error {
 		return fmt.Errorf("source and target are required")
 	}
 
-	if isMounted(target) {
-		logger.Info("mount nfs share skipped (already mounted):", source, "->", target)
+	// Desired mount options (multi-client safe)
+	opts := []string{
+		"rw",
+		"hard",
+		"proto=tcp",
+		"vers=4.2",
+		"rsize=1048576",
+		"wsize=1048576",
+		"noatime",
+		"nodiratime",
+		"_netdev",
+		"actimeo=0",        // strongest coherency; relax later if needed
+		"local_lock=posix", // CRITICAL: propagate fcntl() locks across hosts
+		// NOTE: intentionally NO "nconnect" here (can break lock semantics)
+	}
+
+	ensureMountedWithOpts := func(remount bool) error {
+		if remount {
+			// Try remount in place first
+			if err := runCommand("remount nfs share with correct opts",
+				"sudo", "mount", "-t", "nfs4", "-o", "remount,"+strings.Join(opts, ","), source, target); err == nil {
+				return nil
+			}
+			// Fall back to full unmount + mount if remount failed
+			_ = runCommand("unmount nfs share", "sudo", "umount", "-f", target)
+		}
+		// Fresh mount
+		if err := runCommand("mount nfs share",
+			"sudo", "mount", "-t", "nfs4", "-o", strings.Join(opts, ","), source, target); err != nil {
+			return err
+		}
 		return nil
 	}
 
+	if isMounted(target) {
+		// Validate current mount options; remount if needed
+		mtab, _ := os.ReadFile("/proc/mounts")
+		targetEsc := strings.ReplaceAll(target, " ", "\\040") // how /proc/mounts escapes spaces
+		lines := strings.Split(string(mtab), "\n")
+		needsRemount := false
+		for _, ln := range lines {
+			if ln == "" {
+				continue
+			}
+			fields := strings.Fields(ln)
+			if len(fields) < 4 {
+				continue
+			}
+			mp := fields[1]
+			fsType := fields[2]
+			if mp == targetEsc && strings.HasPrefix(fsType, "nfs") {
+				cur := "," + fields[3] + ","
+				// must have local_lock=posix
+				if !strings.Contains(cur, ",local_lock=posix,") {
+					needsRemount = true
+					break
+				}
+				// must NOT have nconnect
+				if strings.Contains(cur, ",nconnect=") {
+					needsRemount = true
+					break
+				}
+				// good enough
+				break
+			}
+		}
+		if !needsRemount {
+			logger.Info("mount nfs share kept (already mounted with correct opts):", source, "->", target)
+			return nil
+		}
+		logger.Warn("remounting NFS with multi-client-safe opts:", target)
+		return ensureMountedWithOpts(true)
+	}
+
+	// Ensure mount point exists
 	if err := runCommand("ensure mount directory", "sudo", "mkdir", "-p", target); err != nil {
 		return err
 	}
 
-	// DO NOT chmod/chown recursively on a mounted NFS tree from the client.
-	// If you want to ensure perms, do it on the SERVER export path, not here.
-	opts := []string{
-		"rw", "hard", "proto=tcp", "vers=4.2",
-		"rsize=1048576", "wsize=1048576",
-		"noatime", "nodiratime", "_netdev",
-		"actimeo=0",
-		// keep or tune this once stable:
-		"nconnect=4",
-	}
-
-	if err := runCommand("mount nfs share",
-		"sudo", "mount", "-t", "nfs4", "-o", strings.Join(opts, ","), source, target); err != nil {
+	// First-time mount with correct options
+	if err := ensureMountedWithOpts(false); err != nil {
 		return err
 	}
 
