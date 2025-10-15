@@ -129,7 +129,7 @@ func InstallNFS() error {
 }
 
 func exportsEntry(path string) string {
-	return fmt.Sprintf("%s *(rw,sync,no_subtree_check,no_root_squash)", path)
+	return fmt.Sprintf("%s *(rw,sync,no_subtree_check,no_root_squash,insecure)", path)
 }
 
 func allowSELinuxForNFS(path string) error {
@@ -547,6 +547,10 @@ func ensureNFSSELinuxBoolean() error {
 	if err := runCommand("enable nfs_export_all_rw", "sudo", "setsebool", "-P", "nfs_export_all_rw", "on"); err != nil {
 		return err
 	}
+	// Allow NFS daemon to modify files with virt_image_t label
+	if err := runCommand("enable nfsd_anon_write", "sudo", "setsebool", "-P", "nfsd_anon_write", "on"); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -557,7 +561,8 @@ func labelNFSMountSource(path string) error {
 	}
 	pattern := fmt.Sprintf("%s(/.*)?", strings.TrimRight(path, "/"))
 	escapedPattern := escapeForSingleQuotes(pattern)
-	cmd := fmt.Sprintf("semanage fcontext -a -t public_content_rw_t '%s' || semanage fcontext -m -t public_content_rw_t '%s'", escapedPattern, escapedPattern)
+	// Use virt_image_t instead of public_content_rw_t for VM images
+	cmd := fmt.Sprintf("semanage fcontext -a -t virt_image_t '%s' || semanage fcontext -m -t virt_image_t '%s'", escapedPattern, escapedPattern)
 	if err := runCommand("label selinux context for share", "sudo", "bash", "-lc", cmd); err != nil {
 		return err
 	}
