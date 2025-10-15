@@ -47,8 +47,7 @@ func CreateVMHostPassthrough(params VMCreationParams) (string, error) {
 	}
 
 	// Create/inspect disk and get its format (qcow2/raw/…)
-	diskFmt, err := EnsureDiskAndDetectFormat(disk, params.DiskSizeGB)
-	if err != nil {
+	if _, err := EnsureDiskAndDetectFormat(disk, params.DiskSizeGB); err != nil {
 		return "", fmt.Errorf("disk: %w", err)
 	}
 
@@ -129,7 +128,7 @@ func CreateVMHostPassthrough(params VMCreationParams) (string, error) {
   <cpu mode='host-passthrough' check='none'/>
   <devices>
     <disk type='file' device='disk'>
-      <driver name='qemu' type='%s' cache='none' discard='unmap'/>
+      <driver name='qemu' type='qcow2' cache='writeback' io='threads'/>
       <source file='%s'/>
       <target dev='vda' bus='virtio'/>
     </disk>%s
@@ -145,8 +144,8 @@ func CreateVMHostPassthrough(params VMCreationParams) (string, error) {
 		cputuneXML, // <- new
 		machineAttr,
 		bootDev,
-		diskFmt, disk, cdromXML, params.Network, graphicsAttrs,
-	)
+		disk, cdromXML, params.Network, graphicsAttrs,
+)
 
 	xmlPath, err := WriteDomainXMLToDisk(params.Name, domainXML, disk)
 	if err != nil {

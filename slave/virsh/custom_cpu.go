@@ -93,8 +93,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	}
 
 	// detect/create disk & get its format
-	diskFmt, err := EnsureDiskAndDetectFormat(disk, opts.DiskSizeGB)
-	if err != nil {
+	if _, err := EnsureDiskAndDetectFormat(disk, opts.DiskSizeGB); err != nil {
 		return "", fmt.Errorf("disk: %w", err)
 	}
 
@@ -162,7 +161,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
   %s
   <devices>
 	<disk type='file' device='disk'>
-	  <driver name='qemu' type='%s' cache='none' discard='unmap'/>
+	  <driver name='qemu' type='qcow2' cache='writeback' io='threads'/>
 	  <source file='%s'/>
 	  <target dev='vda' bus='virtio'/>
 	</disk>%s
@@ -182,8 +181,8 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 				return "hd"
 			}
 		}(),
-		cpuXML, diskFmt, disk, cdromXML, opts.Network, graphicsAttrs,
-	)
+		cpuXML, disk, cdromXML, opts.Network, graphicsAttrs,
+)
 
 	xmlPath, err := WriteDomainXMLToDisk(opts.Name, domainXML, disk)
 	if err != nil {

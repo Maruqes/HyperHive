@@ -100,6 +100,11 @@ func InstallNFS() error {
 	if err := runCommand("enable nfs-server", "sudo", "systemctl", "enable", "--now", "nfs-server"); err != nil {
 		return err
 	}
+
+	if err := runCommand("virt_use_nfs", "sudo", "setsebool", "-P", "virt_use_nfs", "on"); err != nil {
+		return err
+	}
+
 	logger.Info("NFS installed and nfs-server enabled")
 	go MonitorMounts()
 	return nil
