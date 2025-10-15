@@ -94,6 +94,10 @@ func EnsureClientPrereqs() error {
 		if err := runCommand("enable virt_use_nfs", "sudo", "setsebool", "-P", "virt_use_nfs", "on"); err != nil {
 			return err
 		}
+		// Allow virt domains to manage NFS files
+		if err := runCommand("enable virt_sandbox_use_nfs", "sudo", "setsebool", "-P", "virt_sandbox_use_nfs", "on"); err != nil {
+			logger.Warn("Failed to enable virt_sandbox_use_nfs (may not exist on this system):", err)
+		}
 	}
 	// Ensure libvirt lock/log services (advisory locks across hosts)
 	_ = runCommand("enable virtlockd", "sudo", "systemctl", "enable", "--now", "virtlockd")
@@ -129,7 +133,9 @@ func InstallNFS() error {
 }
 
 func exportsEntry(path string) string {
-	return fmt.Sprintf("%s *(rw,sync,no_subtree_check,no_root_squash,insecure)", path)
+	// no_root_squash allows root operations, insecure allows non-privileged ports
+	// sec=sys is the default but explicit here for clarity
+	return fmt.Sprintf("%s *(rw,sync,no_subtree_check,no_root_squash,insecure,sec=sys)", path)
 }
 
 func allowSELinuxForNFS(path string) error {
@@ -365,9 +371,19 @@ func ensureOpenPermissions(path string, recursive bool) error {
 		chownArgs = append(chownArgs, "-R")
 		chmodArgs = append(chmodArgs, "-R")
 	}
-	chownArgs = append(chownArgs, "root:root", clean)
-	if err := runCommand("set owner root:root "+clean, chownArgs...); err != nil {
-		return err
+	// Use qemu:qemu ownership instead of root:root for better QEMU compatibility
+	chownArgs = append(chownArgs, "qemu:qemu", clean)
+	if err := runCommand("set owner qemu:qemu "+clean, chownArgs...); err != nil {
+		// Fallback to root if qemu user doesn't exist
+		logger.Warn("Failed to set qemu:qemu ownership, trying root:root", err)
+		chownArgs = []string{"sudo", "chown"}
+		if recursive {
+			chownArgs = append(chownArgs, "-R")
+		}
+		chownArgs = append(chownArgs, "root:root", clean)
+		if err := runCommand("set owner root:root "+clean, chownArgs...); err != nil {
+			return err
+		}
 	}
 
 	chmodArgs = append(chmodArgs, "0777", clean)
