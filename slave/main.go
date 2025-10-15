@@ -54,12 +54,17 @@ func setupSSHKeys() error {
 	pubKeyFile := keyFile + ".pub"
 
 	for _, ip := range env512.OTHER_SLAVES {
-		if err := ensureAuthorizedKey(ip, keyFile, pubKeyFile); err != nil {
-			return fmt.Errorf("ensure authorized key for %s: %w", ip, err)
-		}
+		for {
+			if err := ensureAuthorizedKey(ip, keyFile, pubKeyFile); err != nil {
+				logger.Error(fmt.Sprintf("ensure authorized key for %s: %v", ip, err))
+				continue
+			}
 
-		if err := ensureHostConfig(configPath, ip, keyFile); err != nil {
-			return fmt.Errorf("ensure ssh config for %s: %w", ip, err)
+			if err := ensureHostConfig(configPath, ip, keyFile); err != nil {
+				logger.Error(fmt.Sprintf("ensure ssh config for %s: %v", ip, err))
+				continue
+			}
+			break
 		}
 	}
 	return nil
@@ -331,10 +336,6 @@ func main() {
 		log.Fatalf("env setup: %v", err)
 	}
 
-	if err := setupAll(); err != nil {
-		log.Fatalf("setup all: %v", err)
-	}
-
 	if err := virsh.SetVNCPorts(env512.VNC_MIN_PORT, env512.VNC_MAX_PORT); err != nil {
 		log.Fatalf("set vnc ports: %v", err)
 	}
@@ -343,6 +344,10 @@ func main() {
 	logger.SetCallBack(logs512.LogMessage)
 	if err := nfs.InstallNFS(); err != nil {
 		log.Fatalf("failed to install NFS: %v", err)
+	}
+
+	if err := setupAll(); err != nil {
+		log.Fatalf("setup all: %v", err)
 	}
 
 	conn := protocol.ConnectGRPC()
