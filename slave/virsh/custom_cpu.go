@@ -72,8 +72,11 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 
 	//make sure DiskFolder exists
 	if opts.DiskFolder != "" {
-		if err := os.MkdirAll(opts.DiskFolder, 0755); err != nil {
+		if err := os.MkdirAll(opts.DiskFolder, 0o777); err != nil {
 			return "", fmt.Errorf("creating disk folder: %w", err)
+		}
+		if err := os.Chmod(opts.DiskFolder, 0o777); err != nil {
+			return "", fmt.Errorf("chmod disk folder: %w", err)
 		}
 	}
 
@@ -85,8 +88,11 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	if parentDir == "" || parentDir == "." {
 		return "", fmt.Errorf("disk path must include a directory")
 	}
-	if err := os.MkdirAll(parentDir, 0o755); err != nil {
+	if err := os.MkdirAll(parentDir, 0o777); err != nil {
 		return "", fmt.Errorf("create disk directory: %w", err)
+	}
+	if err := os.Chmod(parentDir, 0o777); err != nil {
+		return "", fmt.Errorf("chmod disk directory: %w", err)
 	}
 	if err := ensureParentDirExists(disk); err != nil {
 		return "", fmt.Errorf("disk directory: %w", err)
@@ -182,7 +188,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 			}
 		}(),
 		cpuXML, disk, cdromXML, opts.Network, graphicsAttrs,
-)
+	)
 
 	xmlPath, err := WriteDomainXMLToDisk(opts.Name, domainXML, disk)
 	if err != nil {

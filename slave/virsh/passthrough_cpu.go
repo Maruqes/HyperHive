@@ -3,6 +3,7 @@ package virsh
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strconv"
@@ -31,8 +32,11 @@ func CreateVMHostPassthrough(params VMCreationParams) (string, error) {
 
 	//make sure DiskFolder exists
 	if params.DiskFolder != "" {
-		if err := os.MkdirAll(params.DiskFolder, 0755); err != nil {
+		if err := os.MkdirAll(params.DiskFolder, 0o777); err != nil {
 			return "", fmt.Errorf("creating disk folder: %w", err)
+		}
+		if err := os.Chmod(params.DiskFolder, 0o777); err != nil {
+			return "", fmt.Errorf("chmod disk folder: %w", err)
 		}
 	}
 
@@ -41,6 +45,16 @@ func CreateVMHostPassthrough(params VMCreationParams) (string, error) {
 	disk := strings.TrimSpace(params.DiskPath)
 	if disk == "" {
 		return "", fmt.Errorf("disk path is required")
+	}
+	parentDir := filepath.Dir(disk)
+	if strings.TrimSpace(parentDir) == "" || parentDir == "." {
+		return "", fmt.Errorf("disk path must include a directory")
+	}
+	if err := os.MkdirAll(parentDir, 0o777); err != nil {
+		return "", fmt.Errorf("create disk directory: %w", err)
+	}
+	if err := os.Chmod(parentDir, 0o777); err != nil {
+		return "", fmt.Errorf("chmod disk directory: %w", err)
 	}
 	if err := ensureParentDirExists(disk); err != nil {
 		return "", fmt.Errorf("disk directory: %w", err)
@@ -145,7 +159,7 @@ func CreateVMHostPassthrough(params VMCreationParams) (string, error) {
 		machineAttr,
 		bootDev,
 		disk, cdromXML, params.Network, graphicsAttrs,
-)
+	)
 
 	xmlPath, err := WriteDomainXMLToDisk(params.Name, domainXML, disk)
 	if err != nil {
