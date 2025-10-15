@@ -89,6 +89,15 @@ func MonitorMounts() {
 }
 
 func EnsureClientPrereqs() error {
+	// Allow QEMU/libvirt contexts to use NFS storage
+	if commandExists("setsebool") {
+		if err := runCommand("enable virt_use_nfs", "sudo", "setsebool", "-P", "virt_use_nfs", "on"); err != nil {
+			return err
+		}
+		if err := runCommand("enable virt_sandbox_use_nfs", "sudo", "setsebool", "-P", "virt_sandbox_use_nfs", "on"); err != nil {
+			logger.Warn("Failed to enable virt_sandbox_use_nfs (may not exist on this system):", err)
+		}
+	}
 	// Ensure libvirt lock/log services (advisory locks across hosts)
 	_ = runCommand("enable virtlockd", "sudo", "systemctl", "enable", "--now", "virtlockd")
 	_ = runCommand("enable virtlogd", "sudo", "systemctl", "enable", "--now", "virtlogd")
@@ -124,7 +133,34 @@ func exportsEntry(path string) string {
 	return fmt.Sprintf("%s *(rw,sync,no_subtree_check,no_root_squash,insecure,sec=sys)", path)
 }
 
-func allowSELinuxForNFS(_ string) error {
+func allowSELinuxForNFS(path string) error {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return fmt.Errorf("selinux path is required")
+	}
+
+	if !commandExists("getenforce") {
+		return nil
+	}
+
+	modeOut, err := exec.Command("getenforce").Output()
+	if err != nil {
+		logger.Warn("SELinux detection failed, skipping adjustments:", err)
+		return nil
+	}
+	mode := strings.TrimSpace(string(modeOut))
+	if strings.EqualFold(mode, "disabled") {
+		return nil
+	}
+
+	if err := ensureNFSSELinuxBoolean(); err != nil {
+		return err
+	}
+
+	if err := labelNFSMountSource(path); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -500,6 +536,38 @@ func runCommand(desc string, args ...string) error {
 func commandExists(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
+}
+
+func ensureNFSSELinuxBoolean() error {
+	if !commandExists("setsebool") {
+		logger.Warn("setsebool binary not available, skipping SELinux boolean for NFS exports")
+		return nil
+	}
+	if err := runCommand("enable nfs_export_all_rw", "sudo", "setsebool", "-P", "nfs_export_all_rw", "on"); err != nil {
+		return err
+	}
+	// Allow the NFS daemon to modify files on behalf of anonymous users
+	if err := runCommand("enable nfsd_anon_write", "sudo", "setsebool", "-P", "nfsd_anon_write", "on"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func labelNFSMountSource(path string) error {
+	if !commandExists("semanage") || !commandExists("restorecon") {
+		logger.Warn("semanage or restorecon missing, skipping SELinux labeling for", path)
+		return nil
+	}
+	pattern := fmt.Sprintf("%s(/.*)?", strings.TrimRight(path, "/"))
+	escapedPattern := escapeForSingleQuotes(pattern)
+	cmd := fmt.Sprintf("semanage fcontext -a -t virt_image_t '%s' || semanage fcontext -m -t virt_image_t '%s'", escapedPattern, escapedPattern)
+	if err := runCommand("label selinux context for share", "sudo", "bash", "-lc", cmd); err != nil {
+		return err
+	}
+	if err := runCommand("restore selinux context", "sudo", "restorecon", "-Rv", path); err != nil {
+		return err
+	}
+	return nil
 }
 
 // check if folder exists, if not return error
