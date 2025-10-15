@@ -177,7 +177,7 @@ func IsSafePath(path string) error {
 	return nil
 }
 
-// CreateSharedFolder creates a directory (0777) and ensures it is exported via exportsFile.
+// CreateSharedFolder creates a directory and ensures it is exported via exportsFile.
 func CreateSharedFolder(folder FolderMount) error {
 	if err := IsSafePath(folder.FolderPath); err != nil {
 		return fmt.Errorf("invalid folder path: %w", err)
@@ -192,8 +192,7 @@ func CreateSharedFolder(folder FolderMount) error {
 		return err
 	}
 
-	// Give full read/write/execute permissions to everyone (owner/group/others)
-	if err := runCommand("set share directory permissions", "sudo", "chmod", "777", path); err != nil {
+	if err := ensureOpenPermissions(path, true); err != nil {
 		return err
 	}
 
@@ -231,6 +230,10 @@ func SyncSharedFolder(folder []FolderMount) error {
 		}
 
 		if err := runCommand(fmt.Sprintf("ensure share directory %s", path), "sudo", "mkdir", "-p", path); err != nil {
+			return err
+		}
+
+		if err := ensureOpenPermissions(path, true); err != nil {
 			return err
 		}
 
@@ -333,11 +336,35 @@ func givePermissionsToEveryone(folder FolderMount) error {
 		return fmt.Errorf("target is required")
 	}
 
-	if err := runCommand("give permissions to everyone", "sudo", "chmod", "777", path); err != nil {
+	if err := ensureOpenPermissions(path, true); err != nil {
 		return err
 	}
 
 	logger.Info("Permissions given to everyone for NFS share:", path)
+	return nil
+}
+
+func ensureOpenPermissions(path string, recursive bool) error {
+	clean := strings.TrimSpace(path)
+	if clean == "" {
+		return fmt.Errorf("path is required")
+	}
+
+	chownArgs := []string{"sudo", "chown"}
+	chmodArgs := []string{"sudo", "chmod"}
+	if recursive {
+		chownArgs = append(chownArgs, "-R")
+		chmodArgs = append(chmodArgs, "-R")
+	}
+	chownArgs = append(chownArgs, "root:root", clean)
+	if err := runCommand("set owner root:root "+clean, chownArgs...); err != nil {
+		return err
+	}
+
+	chmodArgs = append(chmodArgs, "0777", clean)
+	if err := runCommand("set mode 0777 "+clean, chmodArgs...); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -355,6 +382,9 @@ func MountSharedFolder(folder FolderMount) error {
 	}
 
 	if err := runCommand("ensure mount directory", "sudo", "mkdir", "-p", target); err != nil {
+		return err
+	}
+	if err := ensureOpenPermissions(target, false); err != nil {
 		return err
 	}
 

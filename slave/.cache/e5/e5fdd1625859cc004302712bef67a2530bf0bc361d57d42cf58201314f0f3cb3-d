@@ -1,0 +1,5 @@
+./cpu.go
+./disk.go
+./info.go
+./mem.go
+./services.go
