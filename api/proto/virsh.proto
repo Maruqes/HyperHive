@@ -89,6 +89,8 @@ service SlaveVirshService {
   rpc StartVM(Vm) returns (OkResponse);
   rpc RemoveVM(Vm) returns (OkResponse);
   rpc RestartVM(Vm) returns (OkResponse);
+  rpc PauseVM(Vm) returns (OkResponse);
+  rpc ResumeVM(Vm) returns (OkResponse);
 
   rpc GetAllVms(Empty) returns (GetAllVmsResponse);
   rpc GetVmByName(GetVmByNameRequest) returns (Vm);

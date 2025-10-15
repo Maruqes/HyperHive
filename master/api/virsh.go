@@ -307,6 +307,42 @@ func removeIso(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ISO removed from VM successfully"))
 }
 
+func resumeVm(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err := virshServices.ResumeVM(vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("VM resumed successfully"))
+}
+
+func pauseVm(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err := virshServices.PauseVM(vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("VM paused successfully"))
+}
+
 func setupVirshAPI(r chi.Router) chi.Router {
 	return r.Route("/virsh", func(r chi.Router) {
 		r.Get("/getcpudisablefeatures", getCpuFeatures)
@@ -320,6 +356,8 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Post("/forceshutdownvm/{vm_name}", forceShutdownVM)
 		r.Post("/restartvm/{vm_name}", restartVM)
 		r.Post("/editvm/{vm_name}", editVM)
+		r.Post("/pausevm/{vm_name}", pauseVm)
+		r.Post("/resumevm/{vm_name}", resumeVm)
 		r.Get("/getvmbyname/{vm_name}", getVmByName)
 		r.Post("/removeiso/{vm_name}", removeIso)
 	})

@@ -28,6 +28,8 @@ const (
 	SlaveVirshService_StartVM_FullMethodName         = "/virsh.SlaveVirshService/StartVM"
 	SlaveVirshService_RemoveVM_FullMethodName        = "/virsh.SlaveVirshService/RemoveVM"
 	SlaveVirshService_RestartVM_FullMethodName       = "/virsh.SlaveVirshService/RestartVM"
+	SlaveVirshService_PauseVM_FullMethodName         = "/virsh.SlaveVirshService/PauseVM"
+	SlaveVirshService_ResumeVM_FullMethodName        = "/virsh.SlaveVirshService/ResumeVM"
 	SlaveVirshService_GetAllVms_FullMethodName       = "/virsh.SlaveVirshService/GetAllVms"
 	SlaveVirshService_GetVmByName_FullMethodName     = "/virsh.SlaveVirshService/GetVmByName"
 	SlaveVirshService_RemoveIsoFromVm_FullMethodName = "/virsh.SlaveVirshService/RemoveIsoFromVm"
@@ -47,6 +49,8 @@ type SlaveVirshServiceClient interface {
 	StartVM(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
 	RemoveVM(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
 	RestartVM(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
+	PauseVM(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
+	ResumeVM(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
 	GetAllVms(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GetAllVmsResponse, error)
 	GetVmByName(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*Vm, error)
 	RemoveIsoFromVm(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
@@ -153,6 +157,26 @@ func (c *slaveVirshServiceClient) RestartVM(ctx context.Context, in *Vm, opts ..
 	return out, nil
 }
 
+func (c *slaveVirshServiceClient) PauseVM(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OkResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_PauseVM_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) ResumeVM(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OkResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_ResumeVM_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *slaveVirshServiceClient) GetAllVms(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GetAllVmsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetAllVmsResponse)
@@ -206,6 +230,8 @@ type SlaveVirshServiceServer interface {
 	StartVM(context.Context, *Vm) (*OkResponse, error)
 	RemoveVM(context.Context, *Vm) (*OkResponse, error)
 	RestartVM(context.Context, *Vm) (*OkResponse, error)
+	PauseVM(context.Context, *Vm) (*OkResponse, error)
+	ResumeVM(context.Context, *Vm) (*OkResponse, error)
 	GetAllVms(context.Context, *Empty) (*GetAllVmsResponse, error)
 	GetVmByName(context.Context, *GetVmByNameRequest) (*Vm, error)
 	RemoveIsoFromVm(context.Context, *Vm) (*OkResponse, error)
@@ -245,6 +271,12 @@ func (UnimplementedSlaveVirshServiceServer) RemoveVM(context.Context, *Vm) (*OkR
 }
 func (UnimplementedSlaveVirshServiceServer) RestartVM(context.Context, *Vm) (*OkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RestartVM not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) PauseVM(context.Context, *Vm) (*OkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PauseVM not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) ResumeVM(context.Context, *Vm) (*OkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResumeVM not implemented")
 }
 func (UnimplementedSlaveVirshServiceServer) GetAllVms(context.Context, *Empty) (*GetAllVmsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAllVms not implemented")
@@ -433,6 +465,42 @@ func _SlaveVirshService_RestartVM_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SlaveVirshService_PauseVM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Vm)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).PauseVM(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_PauseVM_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).PauseVM(ctx, req.(*Vm))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_ResumeVM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Vm)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).ResumeVM(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_ResumeVM_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).ResumeVM(ctx, req.(*Vm))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SlaveVirshService_GetAllVms_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Empty)
 	if err := dec(in); err != nil {
@@ -547,6 +615,14 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RestartVM",
 			Handler:    _SlaveVirshService_RestartVM_Handler,
+		},
+		{
+			MethodName: "PauseVM",
+			Handler:    _SlaveVirshService_PauseVM_Handler,
+		},
+		{
+			MethodName: "ResumeVM",
+			Handler:    _SlaveVirshService_ResumeVM_Handler,
 		},
 		{
 			MethodName: "GetAllVms",

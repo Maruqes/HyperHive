@@ -32,31 +32,24 @@ const (
 var CurrentMounts = []FolderMount{}
 var CurrentMountsLock = &sync.RWMutex{}
 
-func listFilesInDir(dir string) ([]string, error) {
-	f, err := os.Open(dir)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	files, err := f.Readdirnames(-1)
-	if err != nil {
-		return nil, err
-	}
-	return files, nil
-}
-
 func isMounted(target string) bool {
-	_, err := listFilesInDir(target)
-	if err != nil {
-		// If we can't read the directory, assume it's not mounted
-		logger.Error("cannot read mount target:", target, err)
+	if strings.TrimSpace(target) == "" {
 		return false
 	}
-	// Use the mountpoint command to check if the target is a mount point
-	out, err := exec.Command("mountpoint", "-q", target).CombinedOutput()
-	if err != nil {
-		logger.Error("mountpoint check failed:", err, string(out))
+
+	cmd := exec.Command("mountpoint", "-q", target)
+	if err := cmd.Run(); err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			switch exitErr.ExitCode() {
+			case 0:
+				return true
+			case 1, 32:
+				// mountpoint uses 1 or 32 when the path is not a mount point
+				return false
+			}
+		}
+		logger.Error("mountpoint check failed:", target, err)
 		return false
 	}
 	return true
@@ -80,15 +73,11 @@ func MonitorMounts() {
 						success = true
 						break
 					}
+					logger.Warn("remount attempt failed:", mount.Target, err)
 					time.Sleep(monitorInterval)
 				}
 				if !success {
 					logger.Error("Failed to remount NFS share after multiple attempts:", mount.Target)
-					err := UnmountSharedFolder(mount)
-					if err != nil {
-						logger.Error("Failed to unmount NFS share:", mount.Target, err)
-					}
-					logger.Error("NFS share unmounted to prevent further issues:", mount.Target)
 				} else {
 					logger.Info("Successfully remounted NFS share:", mount.Target)
 				}
@@ -359,6 +348,12 @@ func MountSharedFolder(folder FolderMount) error {
 	if source == "" || target == "" {
 		return fmt.Errorf("source and target are required")
 	}
+
+	if isMounted(target) {
+		logger.Info("mount nfs share skipped (already mounted):", source, "->", target)
+		return nil
+	}
+
 	if err := runCommand("ensure mount directory", "sudo", "mkdir", "-p", target); err != nil {
 		return err
 	}

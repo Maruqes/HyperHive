@@ -848,6 +848,62 @@ func RestartVM(name string) error {
 	return nil
 }
 
+func PauseVM(name string) error {
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	dom, err := conn.LookupDomainByName(name)
+	if err != nil {
+		return fmt.Errorf("lookup: %w", err)
+	}
+	defer dom.Free()
+
+	state, _, err := dom.GetState()
+	if err != nil {
+		return fmt.Errorf("get state: %w", err)
+	}
+	if state != libvirt.DOMAIN_RUNNING {
+		stateLabel := domainStateToString(state).String()
+		return fmt.Errorf("vm %s must be running to pause (state %s)", name, stateLabel)
+	}
+
+	if err := dom.Suspend(); err != nil {
+		return fmt.Errorf("pause: %w", err)
+	}
+	return nil
+}
+
+func ResumeVM(name string) error {
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	dom, err := conn.LookupDomainByName(name)
+	if err != nil {
+		return fmt.Errorf("lookup: %w", err)
+	}
+	defer dom.Free()
+
+	state, _, err := dom.GetState()
+	if err != nil {
+		return fmt.Errorf("get state: %w", err)
+	}
+	if state != libvirt.DOMAIN_PAUSED {
+		stateLabel := domainStateToString(state).String()
+		return fmt.Errorf("vm %s must be paused to resume (state %s)", name, stateLabel)
+	}
+
+	if err := dom.Resume(); err != nil {
+		return fmt.Errorf("resume: %w", err)
+	}
+	return nil
+}
+
 func EditVm(name string, newCPU, newMemMiB int, newDiskSizeGB ...int) error {
 	name = strings.TrimSpace(name)
 	if name == "" {

@@ -545,3 +545,53 @@ func (v *VirshService) RemoveIso(vmName string) error {
 	}
 	return fmt.Errorf("failed to find VM %s on any machine", vmName)
 }
+
+func (v *VirshService) PauseVM(name string) error {
+	//find vm by name
+	exists, err := virsh.DoesVMExist(name)
+	if err != nil {
+		return fmt.Errorf("error checking if VM exists: %v", err)
+	}
+	if !exists {
+		return fmt.Errorf("a VM with the name %s does not exist", name)
+	}
+
+	con := protocol.GetAllGRPCConnections()
+	for _, conn := range con {
+		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: name})
+		if err == nil && vm != nil {
+			//found the vm
+			err = virsh.PauseVM(conn, vm)
+			if err != nil {
+				return fmt.Errorf("failed to pause VM %s: %v", name, err)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("failed to find VM %s on any machine", name)
+}
+
+func (v *VirshService) ResumeVM(name string) error {
+	//find vm by name
+	exists, err := virsh.DoesVMExist(name)
+	if err != nil {
+		return fmt.Errorf("error checking if VM exists: %v", err)
+	}
+	if !exists {
+		return fmt.Errorf("a VM with the name %s does not exist", name)
+	}
+
+	con := protocol.GetAllGRPCConnections()
+	for _, conn := range con {
+		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: name})
+		if err == nil && vm != nil {
+			//found the vm
+			err = virsh.ResumeVM(conn, vm)
+			if err != nil {
+				return fmt.Errorf("failed to resume VM %s: %v", name, err)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("failed to find VM %s on any machine", name)
+}

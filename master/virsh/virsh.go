@@ -166,3 +166,21 @@ func RemoveIso(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
 	}
 	return nil
 }
+
+func PauseVM(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.PauseVM(context.Background(), req)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func ResumeVM(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.ResumeVM(context.Background(), req)
+	if err != nil {
+		return err
+	}
+	return nil
+}
