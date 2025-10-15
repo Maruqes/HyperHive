@@ -124,6 +124,7 @@ func CreateVMHostPassthrough(params VMCreationParams) (string, error) {
 
 	domainXML := fmt.Sprintf(`
 <domain type='kvm'>
+  <seclabel type='none'/>
   <name>%s</name>
   <memory unit='MiB'>%d</memory>
   <vcpu placement='static'>%d</vcpu>

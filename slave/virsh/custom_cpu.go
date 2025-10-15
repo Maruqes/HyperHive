@@ -155,6 +155,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 
 	domainXML := fmt.Sprintf(`
 <domain type='kvm'>
+  <seclabel type='none'/>
   <name>%s</name>
   <memory unit='MiB'>%d</memory>
   <vcpu>%d</vcpu>
