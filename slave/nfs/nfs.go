@@ -87,6 +87,19 @@ func MonitorMounts() {
 	}
 }
 
+func EnsureClientPrereqs() error {
+	// Allow QEMU/libvirt to use NFS under SELinux
+	if commandExists("setsebool") {
+		if err := runCommand("enable virt_use_nfs", "sudo", "setsebool", "-P", "virt_use_nfs", "on"); err != nil {
+			return err
+		}
+	}
+	// Ensure libvirt lock/log services (advisory locks across hosts)
+	_ = runCommand("enable virtlockd", "sudo", "systemctl", "enable", "--now", "virtlockd")
+	_ = runCommand("enable virtlogd", "sudo", "systemctl", "enable", "--now", "virtlogd")
+	return nil
+}
+
 func InstallNFS() error {
 	resetCmd := fmt.Sprintf("mkdir -p %s && : > %s", exportsDir, exportsFile)
 	if err := runCommand("reset NFS exports file", "sudo", "bash", "-lc", resetCmd); err != nil {
@@ -102,6 +115,10 @@ func InstallNFS() error {
 	}
 
 	if err := runCommand("virt_use_nfs", "sudo", "setsebool", "-P", "virt_use_nfs", "on"); err != nil {
+		return err
+	}
+
+	if err := EnsureClientPrereqs(); err != nil {
 		return err
 	}
 
@@ -335,20 +352,6 @@ func escapeForSingleQuotes(s string) string {
 	return strings.ReplaceAll(s, `'`, `'"'"'`)
 }
 
-func givePermissionsToEveryone(folder FolderMount) error {
-	path := strings.TrimSpace(folder.Target)
-	if path == "" {
-		return fmt.Errorf("target is required")
-	}
-
-	if err := ensureOpenPermissions(path, true); err != nil {
-		return err
-	}
-
-	logger.Info("Permissions given to everyone for NFS share:", path)
-	return nil
-}
-
 func ensureOpenPermissions(path string, recursive bool) error {
 	clean := strings.TrimSpace(path)
 	if clean == "" {
@@ -389,24 +392,31 @@ func MountSharedFolder(folder FolderMount) error {
 	if err := runCommand("ensure mount directory", "sudo", "mkdir", "-p", target); err != nil {
 		return err
 	}
-	if err := ensureOpenPermissions(target, false); err != nil {
-		return err
-	}
 
-	optsFast := []string{
+	// DO NOT chmod/chown recursively on a mounted NFS tree from the client.
+	// If you want to ensure perms, do it on the SERVER export path, not here.
+
+	opts := []string{
 		"rw", "hard", "proto=tcp", "vers=4.2",
 		"rsize=1048576", "wsize=1048576",
-		"nconnect=4",
 		"noatime", "nodiratime", "_netdev",
+		"actimeo=0",
+		// keep or tune this once stable:
+		"nconnect=4",
 	}
+
+	// If SELinux is enforcing, apply a default label sVirt accepts for VM images
+	if commandExists("getenforce") {
+		if out, _ := exec.Command("getenforce").Output(); strings.HasPrefix(strings.TrimSpace(string(out)), "Enforc") {
+			opts = append(opts, "context=system_u:object_r:virt_image_t:s0")
+		}
+	}
+
 	if err := runCommand("mount nfs share",
-		"sudo", "mount", "-t", "nfs4", "-o", strings.Join(optsFast, ","), source, target); err != nil {
+		"sudo", "mount", "-t", "nfs4", "-o", strings.Join(opts, ","), source, target); err != nil {
 		return err
 	}
 
-	if err := givePermissionsToEveryone(folder); err != nil {
-		return err
-	}
 	CurrentMountsLock.Lock()
 	CurrentMounts = append(CurrentMounts, folder)
 	CurrentMountsLock.Unlock()
