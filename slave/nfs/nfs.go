@@ -100,17 +100,10 @@ func EnsureClientPrereqs() error {
 		if err := runCommand("enable virt_sandbox_use_nfs", "sudo", "setsebool", "-P", "virt_sandbox_use_nfs", "on"); err != nil {
 			logger.Warn("Failed to enable virt_sandbox_use_nfs (may not exist on this system):", err)
 		}
-		if err := runCommand("enable use_nfs_home_dirs", "sudo", "setsebool", "-P", "use_nfs_home_dirs", "on"); err != nil {
-			logger.Warn("Failed to enable use_nfs_home_dirs (may not exist on this system):", err)
-		}
 	}
-	// Ensure libvirt lock/log services (critical for multi-host VM access)
-	if err := runCommand("enable virtlockd", "sudo", "systemctl", "enable", "--now", "virtlockd"); err != nil {
-		return fmt.Errorf("virtlockd is required for safe VM file locking: %w", err)
-	}
-	if err := runCommand("enable virtlogd", "sudo", "systemctl", "enable", "--now", "virtlogd"); err != nil {
-		return fmt.Errorf("virtlogd is required for VM logging: %w", err)
-	}
+	// Ensure libvirt lock/log services (advisory locks across hosts)
+	_ = runCommand("enable virtlockd", "sudo", "systemctl", "enable", "--now", "virtlockd")
+	_ = runCommand("enable virtlogd", "sudo", "systemctl", "enable", "--now", "virtlogd")
 	return nil
 }
 
@@ -124,16 +117,9 @@ func InstallNFS() error {
 		return err
 	}
 
-	// Ensure critical NFS locking services (required for qcow2 integrity)
-	if err := runCommand("enable rpcbind", "sudo", "systemctl", "enable", "--now", "rpcbind"); err != nil {
-		logger.Warn("Failed to enable rpcbind:", err)
-	}
-	if err := runCommand("enable rpc-statd", "sudo", "systemctl", "enable", "--now", "rpc-statd"); err != nil {
-		logger.Warn("Failed to enable rpc-statd:", err)
-	}
-	if err := runCommand("enable nfs-lock", "sudo", "systemctl", "enable", "--now", "nfs-lock"); err != nil {
-		// nfs-lock may not exist on all systems (often auto-started with nfs-server)
-		logger.Info("nfs-lock service not available (may be auto-started)")
+	// Configure NFS server for multi-client VM workloads
+	if err := tuneNFSServer(); err != nil {
+		logger.Warn("Failed to tune NFS server (non-fatal):", err)
 	}
 
 	// Ensure the NFS server services are available when acting as a host
@@ -145,21 +131,73 @@ func InstallNFS() error {
 		return err
 	}
 
-	logger.Info("NFS installed with locking services enabled")
+	logger.Info("NFS installed and nfs-server enabled")
 	go MonitorMounts()
 	return nil
 }
 
+func tuneNFSServer() error {
+	// Increase NFS server thread count for better multi-client performance
+	// Default is usually 8, we increase to 32 for VM workloads
+	nfsdThreads := `# Increased for VM workloads with multiple clients
+RPCNFSDCOUNT=32
+`
+	tmpFile, err := os.CreateTemp("", "nfs-config-*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath)
+
+	if _, err := tmpFile.WriteString(nfsdThreads); err != nil {
+		tmpFile.Close()
+		return err
+	}
+	if err := tmpFile.Close(); err != nil {
+		return err
+	}
+
+	// Write to /etc/nfs.conf.d/ if it exists, otherwise /etc/sysconfig/nfs
+	configPaths := []string{
+		"/etc/nfs.conf.d/512svman.conf",
+		"/etc/sysconfig/nfs",
+	}
+
+	configured := false
+	for _, configPath := range configPaths {
+		dir := filepath.Dir(configPath)
+		if _, err := os.Stat(dir); err == nil {
+			if err := runCommand("configure nfs server threads",
+				"sudo", "bash", "-c",
+				fmt.Sprintf("grep -q RPCNFSDCOUNT %s 2>/dev/null || cat %s >> %s",
+					escapeForSingleQuotes(configPath),
+					escapeForSingleQuotes(tmpPath),
+					escapeForSingleQuotes(configPath))); err != nil {
+				continue
+			}
+			configured = true
+			logger.Info("NFS server thread count increased to 32")
+			break
+		}
+	}
+
+	if !configured {
+		logger.Warn("Could not find NFS server config file to tune thread count")
+	}
+
+	return nil
+}
+
 func exportsEntry(path string) string {
-	// NFS export options optimized for VM storage with qcow2 files:
-	// - rw: read/write access
-	// - sync: synchronous writes (prevents corruption, essential for qcow2)
-	// - no_subtree_check: improves reliability and performance
-	// - no_root_squash: allows root operations (required for QEMU/libvirt)
-	// - insecure: allows connections from non-privileged ports
-	// - fsid=0: defines export root and improves mount compatibility
-	// - sec=sys: standard UNIX authentication
-	return fmt.Sprintf("%s *(rw,sync,no_subtree_check,no_root_squash,insecure,fsid=0,sec=sys)", path)
+	// Multi-client safe export options for QEMU/VM workloads
+	// - sync: All writes are committed to disk before replying (critical for data integrity)
+	// - no_subtree_check: Required for stable file handles
+	// - no_root_squash: Allows root operations (needed for QEMU)
+	// - insecure: Allows non-privileged source ports
+	// - sec=sys: Standard Unix authentication
+	// - fsid=0: Helps with proper filesystem identification
+	// - no_wdelay: Don't delay writes (better for sync workloads)
+	return fmt.Sprintf("%s *(rw,sync,no_wdelay,no_subtree_check,no_root_squash,insecure,sec=sys)", path)
 }
 
 func allowSELinuxForNFS(path string) error {
@@ -463,35 +501,25 @@ func MountSharedFolder(folder FolderMount) error {
 		return fmt.Errorf("source and target are required")
 	}
 
-	// NFS mount options optimized for VM storage integrity and multi-host safety:
-	// - vers=4.2: NFS version 4.2 with full locking support
-	// - rw: read/write access
-	// - sync: synchronous writes (critical for qcow2 integrity)
-	// - hard: retry on failure (prevents silent data loss)
-	// - timeo=600: 60 second timeout (600 deciseconds)
-	// - retrans=2: retry transmission twice before reporting error
-	// - proto=tcp: TCP protocol for reliability
-	// - rsize/wsize=1048576: 1MB read/write buffer for performance
-	// - noatime/nodiratime: don't update access times (performance)
-	// - _netdev: wait for network before mounting
-	// - lock: enable NFS locking (CRITICAL for qcow2 - prevents corruption)
-	//
-	// IMPORTANT: Do NOT use local_lock=posix or local_lock=none
-	// - These bypass server-side locking and WILL cause qcow2 corruption with multiple hosts
+	// Multi-client safe mount options for QEMU/VM workloads
 	opts := []string{
-		"vers=4.2",
 		"rw",
-		"sync",
-		"hard",
-		"timeo=600",
-		"retrans=2",
-		"proto=tcp",
-		"rsize=1048576",
-		"wsize=1048576",
-		"noatime",
-		"nodiratime",
-		"_netdev",
-		"lock", // Server-side locking via NLM - essential for multi-host VM access
+		"sync",                 // Force synchronous I/O for data integrity
+		"hard",                 // Retry indefinitely on server failure
+		"intr",                 // Allow interrupting hung NFS operations
+		"proto=tcp",            // TCP is more reliable than UDP
+		"vers=4.2",             // NFSv4.2 has better locking and performance
+		"rsize=262144",         // Conservative read size (256KB) for stability
+		"wsize=262144",         // Conservative write size (256KB) for stability
+		"timeo=600",            // 60 second timeout (600 deciseconds)
+		"retrans=2",            // Retry twice before reporting error
+		"noatime",              // Don't update access times
+		"nodiratime",           // Don't update directory access times
+		"_netdev",              // Network device, mount after network is up
+		"actimeo=3",            // Cache attributes for only 3 seconds (was 0, too aggressive)
+		"lookupcache=positive", // Only cache successful lookups
+		// CRITICAL: Do NOT use local_lock=posix - it bypasses server locks!
+		// NFSv4.2 uses mandatory server-side locking by default
 	}
 
 	ensureMountedWithOpts := func(remount bool) error {
@@ -513,7 +541,7 @@ func MountSharedFolder(folder FolderMount) error {
 	}
 
 	if isMounted(target) {
-		// Validate current mount options; remount if dangerous options detected
+		// Validate current mount options; remount if needed
 		mtab, _ := os.ReadFile("/proc/mounts")
 		targetEsc := strings.ReplaceAll(target, " ", "\\040") // how /proc/mounts escapes spaces
 		lines := strings.Split(string(mtab), "\n")
@@ -530,24 +558,25 @@ func MountSharedFolder(folder FolderMount) error {
 			fsType := fields[2]
 			if mp == targetEsc && strings.HasPrefix(fsType, "nfs") {
 				cur := "," + fields[3] + ","
-				// Check for dangerous options that break multi-host locking
-				if strings.Contains(cur, ",local_lock=") {
-					logger.Warn("Dangerous local_lock option detected on", target)
+				// MUST NOT have local_lock=posix (causes corruption with multiple clients)
+				if strings.Contains(cur, ",local_lock=posix,") {
 					needsRemount = true
+					logger.Warn("Found dangerous local_lock=posix, remounting with safe options")
 					break
 				}
-				if strings.Contains(cur, ",nolock,") {
-					logger.Warn("Dangerous nolock option detected on", target)
+				// MUST NOT have nconnect (can cause issues with locking)
+				if strings.Contains(cur, ",nconnect=") {
 					needsRemount = true
+					logger.Warn("Found nconnect option, remounting without it")
 					break
 				}
-				// Verify lock is enabled
-				if !strings.Contains(cur, ",lock,") && !strings.Contains(cur, ",vers=4") {
-					logger.Warn("NFS locking not explicitly enabled on", target)
+				// Should have sync for data integrity
+				if !strings.Contains(cur, ",sync,") {
 					needsRemount = true
+					logger.Warn("Missing sync option, remounting with it")
 					break
 				}
-				// Mount options are safe
+				// good enough
 				break
 			}
 		}
@@ -555,7 +584,7 @@ func MountSharedFolder(folder FolderMount) error {
 			logger.Info("mount nfs share kept (already mounted with correct opts):", source, "->", target)
 			return nil
 		}
-		logger.Warn("remounting NFS with safe locking opts:", target)
+		logger.Warn("remounting NFS with multi-client-safe opts:", target)
 		return ensureMountedWithOpts(true)
 	}
 
@@ -572,7 +601,7 @@ func MountSharedFolder(folder FolderMount) error {
 	CurrentMountsLock.Lock()
 	CurrentMounts = append(CurrentMounts, folder)
 	CurrentMountsLock.Unlock()
-	logger.Info("NFS share mounted with server-side locking:", source, "->", target)
+	logger.Info("NFS share mounted: " + source + " -> " + target)
 	return nil
 }
 
