@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/joho/godotenv"
+	"google.golang.org/grpc"
 )
 
 var (
@@ -16,7 +17,12 @@ var (
 	VNC_MIN_PORT int
 	VNC_MAX_PORT int
 	OTHER_SLAVES []string
+	Conn         *grpc.ClientConn
 )
+
+func SetConn(conn *grpc.ClientConn) {
+	Conn = conn
+}
 
 func Setup() error {
 	godotenv.Load(".env")

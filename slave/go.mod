@@ -14,7 +14,9 @@ require (
 
 require (
 	github.com/coreos/go-systemd/v22 v22.6.0 // indirect
+	github.com/creack/pty v1.1.24 // indirect
 	github.com/ebitengine/purego v0.9.0 // indirect
+	github.com/go-cmd/cmd v1.4.3 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect

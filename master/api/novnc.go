@@ -46,7 +46,7 @@ func initNoVNC() {
 				logger.Error("novnc: VM not found or VNC not configured")
 				return "", http.ErrNoLocation
 			}
-
+			logger.Info("novnc: connecting to VM %s on slave %s at %s:%d", vmName, slaveName, slaveMachine.Addr, vm.NovncPort)
 			return slaveMachine.Addr + ":" + vm.NovncPort, nil
 		},
 	})

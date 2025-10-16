@@ -4,6 +4,7 @@ import (
 	"512SvMan/db"
 	"512SvMan/nfs"
 	"512SvMan/protocol"
+	"context"
 	"fmt"
 	"strings"
 
@@ -272,7 +273,7 @@ func (s *NFSService) UpdateNFSShit() error {
 	return nil
 }
 
-func (s *NFSService) DownloadISO(url, isoName string, nfsShare db.NFSShare) (string, error) {
+func (s *NFSService) DownloadISO(ctx context.Context, url, isoName string, nfsShare db.NFSShare) (string, error) {
 	conn := protocol.GetConnectionByMachineName(nfsShare.MachineName)
 	if conn == nil || conn.Connection == nil {
 		return "", fmt.Errorf("slave not connected")
@@ -293,7 +294,7 @@ func (s *NFSService) DownloadISO(url, isoName string, nfsShare db.NFSShare) (str
 		},
 	}
 
-	if err := nfs.DownloadISO(conn.Connection, isoRequest); err != nil {
+	if err := nfs.DownloadISO(conn.Connection, ctx, isoRequest); err != nil {
 		logger.Error("DownloadISO failed: %v", err)
 		return "", err
 	}

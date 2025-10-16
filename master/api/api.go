@@ -3,16 +3,42 @@ package api
 import (
 	"512SvMan/api/npmapi"
 	"512SvMan/npm"
+	ws "512SvMan/websocket"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/gorilla/websocket"
 )
+
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		// allow all origins (customize for production)
+		return true
+	},
+}
+
+func wsHandler(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+	ws.RegisterConnection(conn)
+
+	// Keep the connection open
+	for {
+		if _, _, err := conn.NextReader(); err != nil {
+			break
+		}
+	}
+}
 
 var baseURL string
 
 func protectedRoutes(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("This is a protected route"))
 }
+
 func StartApi() {
 	hostAdmin := "127.0.0.1:81"
 	baseURL = "http://" + hostAdmin
@@ -29,20 +55,20 @@ func StartApi() {
 
 	r.Post("/login", loginHandler)
 
-	//testing
-	r.Group(func(r chi.Router) {
-	})
-
 	//create a group protected by auth middleware
 	r.Group(func(r chi.Router) {
 		r.Use(authMiddleware)
 		setupNoVNCAPI(r)
 		r.Get("/protected", protectedRoutes)
+
+		r.Get("/ws", wsHandler)
+
 		npmapi.SetupProxyAPI(r)
 		npmapi.Setup404API(r)
 		npmapi.SetupStreamAPI(r)
 		npmapi.SetupRedirectionAPI(r)
 		npmapi.SetupCertAPI(r)
+
 		setupVirshAPI(r)
 		setupNFSAPI(r)
 		setupProtocolAPI(r)

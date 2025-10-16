@@ -86,7 +86,7 @@ func (s *NFSService) SyncSharedFolder(ctx context.Context, req *pb.FolderMountLi
 }
 
 func (s *NFSService) DownloadIso(ctx context.Context, req *pb.DownloadIsoRequest) (*pb.CreateResponse, error) {
-	path, err := DownloadISO(req.IsoUrl, req.IsoName, req.FolderMount.Target)
+	path, err := DownloadISO(ctx, req.IsoUrl, req.IsoName, req.FolderMount.Target)
 	if err != nil {
 		logger.Error("DownloadISO failed", "error", err)
 		return &pb.CreateResponse{Ok: false}, err

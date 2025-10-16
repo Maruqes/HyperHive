@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"512SvMan/extra"
 	"512SvMan/logs512"
 	"context"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
 	logsGrpc "github.com/Maruqes/512SvMan/api/proto/logsserve"
 	pb "github.com/Maruqes/512SvMan/api/proto/protocol"
 	"github.com/Maruqes/512SvMan/logger"
@@ -278,6 +280,7 @@ func ListenGRPC(recievedNewConnectionFunction func(addr, machineName string, con
 	s := grpc.NewServer()
 	pb.RegisterProtocolServiceServer(s, &protocolServer{})
 	logsGrpc.RegisterLogsServeServer(s, &logs512.LogsServer{})
+	extraGrpc.RegisterExtraServiceServer(s, &extra.ExtraServiceServer{})
 	logger.Info("Master a ouvir em :50051")
 	go func() {
 		if err := s.Serve(lis); err != nil {

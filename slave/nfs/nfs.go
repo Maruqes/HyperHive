@@ -1,18 +1,21 @@
 package nfs
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slave/extra"
 	"sort"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
+	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
 	"github.com/Maruqes/512SvMan/logger"
 )
 
@@ -629,7 +632,7 @@ func labelNFSMountSource(path string) error {
 }
 
 // check if folder exists, if not return error
-func DownloadISO(url, isoName, downloadFolder string) (string, error) {
+func DownloadISO(ctx context.Context, url, isoName, downloadFolder string) (string, error) {
 	if url == "" {
 		return "", fmt.Errorf("url is required")
 	}
@@ -662,10 +665,8 @@ func DownloadISO(url, isoName, downloadFolder string) (string, error) {
 		return "", fmt.Errorf("curl is not installed")
 	}
 
-	cmd := exec.Command("curl", "-L", "-o", isoPath, url)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+	err := extra.ExecWithOutToSocket(ctx, extraGrpc.WebSocketsMessageType_DownloadIso, "curl", "-L", "-o", isoPath, url)
+	if err != nil {
 		return "", fmt.Errorf("failed to download ISO: %w", err)
 	}
 	return isoPath, nil
