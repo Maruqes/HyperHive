@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slave/extra"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -100,7 +102,18 @@ func EnsureClientPrereqs() error {
 		if err := runCommand("enable virt_sandbox_use_nfs", "sudo", "setsebool", "-P", "virt_sandbox_use_nfs", "on"); err != nil {
 			logger.Warn("Failed to enable virt_sandbox_use_nfs (may not exist on this system):", err)
 		}
+		if err := runCommand("enable use_nfs_home_dirs", "sudo", "setsebool", "-P", "use_nfs_home_dirs", "on"); err != nil {
+			logger.Warn("Failed to enable use_nfs_home_dirs (may not exist on this system):", err)
+		}
 	}
+
+	requiredServices := []string{"rpcbind", "rpc-statd", "nfs-lock"}
+	for _, svc := range requiredServices {
+		if err := runCommand("enable "+svc, "sudo", "systemctl", "enable", "--now", svc); err != nil {
+			return err
+		}
+	}
+
 	// Ensure libvirt lock/log services (advisory locks across hosts)
 	_ = runCommand("enable virtlockd", "sudo", "systemctl", "enable", "--now", "virtlockd")
 	_ = runCommand("enable virtlogd", "sudo", "systemctl", "enable", "--now", "virtlogd")
@@ -130,10 +143,167 @@ func InstallNFS() error {
 	return nil
 }
 
-func exportsEntry(path string) string {
-	// no_root_squash allows root operations, insecure allows non-privileged ports
-	// sec=sys is the default but explicit here for clarity
-	return fmt.Sprintf("%s *(rw,sync,no_subtree_check,no_root_squash,insecure,sec=sys)", path)
+type exportState struct {
+	paths   []string
+	fsids   map[string]uint32
+	hasRoot bool
+}
+
+func exportsEntry(path string, fsid uint32) string {
+	// fsid ensures consistent export identifiers for NFSv4 clients
+	return fmt.Sprintf("%s *(rw,sync,no_root_squash,no_subtree_check,fsid=%d,sec=sys)", path, fsid)
+}
+
+func readExportState() (*exportState, error) {
+	data, err := os.ReadFile(exportsFile)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return &exportState{
+				paths:   nil,
+				fsids:   make(map[string]uint32),
+				hasRoot: false,
+			}, nil
+		}
+		return nil, err
+	}
+
+	state := &exportState{
+		paths: make([]string, 0),
+		fsids: make(map[string]uint32),
+	}
+
+	lines := strings.Split(string(data), "\n")
+	for _, ln := range lines {
+		trimmed := strings.TrimSpace(ln)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		fields := strings.Fields(trimmed)
+		if len(fields) == 0 {
+			continue
+		}
+		path := fields[0]
+		var fsid uint32
+		if matches := fsidPattern.FindStringSubmatch(trimmed); len(matches) == 2 {
+			if parsed, err := strconv.ParseUint(matches[1], 10, 32); err == nil {
+				fsid = uint32(parsed)
+			} else {
+				logger.Warn("failed to parse fsid for export", path, err)
+			}
+		}
+		state.paths = append(state.paths, path)
+		state.fsids[path] = fsid
+		if fsid == 0 {
+			state.hasRoot = true
+		}
+	}
+	return state, nil
+}
+
+func computeStableFsid(path string, used map[uint32]struct{}) uint32 {
+	candidate := crc32.ChecksumIEEE([]byte(path)) & 0x7fffffff
+	if candidate == 0 {
+		candidate = 1
+	}
+	for {
+		if _, exists := used[candidate]; !exists {
+			return candidate
+		}
+		candidate++
+		if candidate == 0 {
+			candidate = 1
+		}
+	}
+}
+
+func dedupePaths(paths []string) []string {
+	seen := make(map[string]struct{}, len(paths))
+	out := make([]string, 0, len(paths))
+	for _, p := range paths {
+		clean := strings.TrimSpace(p)
+		if clean == "" {
+			continue
+		}
+		if _, exists := seen[clean]; exists {
+			continue
+		}
+		seen[clean] = struct{}{}
+		out = append(out, clean)
+	}
+	return out
+}
+
+func syncExports(paths []string) error {
+	state, err := readExportState()
+	if err != nil {
+		return err
+	}
+
+	deduped := dedupePaths(paths)
+	sort.Strings(deduped)
+
+	used := make(map[uint32]struct{}, len(deduped))
+	hasRoot := false
+	for _, path := range deduped {
+		if fsid, ok := state.fsids[path]; ok {
+			used[fsid] = struct{}{}
+			if fsid == 0 {
+				hasRoot = true
+			}
+		}
+	}
+
+	entries := make([]string, 0, len(deduped))
+	for _, path := range deduped {
+		fsid, ok := state.fsids[path]
+		if !ok {
+			if !hasRoot {
+				fsid = 0
+				hasRoot = true
+			} else {
+				fsid = computeStableFsid(path, used)
+			}
+		} else if fsid == 0 {
+			hasRoot = true
+		}
+		used[fsid] = struct{}{}
+		entries = append(entries, exportsEntry(path, fsid))
+	}
+
+	content := strings.Join(entries, "\n")
+	if len(content) > 0 {
+		content += "\n"
+	}
+
+	tmpFile, err := os.CreateTemp("", "svman-exports-*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath)
+
+	if _, err := tmpFile.WriteString(content); err != nil {
+		tmpFile.Close()
+		return err
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		return err
+	}
+
+	if err := runCommand("ensure exports directory", "sudo", "mkdir", "-p", exportsDir); err != nil {
+		return err
+	}
+
+	if err := runCommand("sync exports file", "sudo", "install", "-m", "0644", tmpPath, exportsFile); err != nil {
+		return err
+	}
+
+	if err := runCommand("refresh nfs exports", "sudo", "exportfs", "-ra"); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func allowSELinuxForNFS(path string) error {
@@ -167,7 +337,10 @@ func allowSELinuxForNFS(path string) error {
 	return nil
 }
 
-var safeName = regexp.MustCompile(`^[\p{L}\p{N}._-]+$`)
+var (
+	safeName    = regexp.MustCompile(`^[\p{L}\p{N}._-]+$`)
+	fsidPattern = regexp.MustCompile(`fsid=([0-9]+)`)
+)
 
 func IsSafePath(path string) error {
 	clean := filepath.Clean(path)
@@ -223,13 +396,13 @@ func CreateSharedFolder(folder FolderMount) error {
 		return err
 	}
 
-	entry := exportsEntry(path)
-	cmdStr := fmt.Sprintf("mkdir -p %s && touch %s && (grep -Fxq %q %s || echo %q >> %s)", exportsDir, exportsFile, entry, exportsFile, entry, exportsFile)
-	if err := runCommand("update NFS exports", "sudo", "bash", "-lc", cmdStr); err != nil {
+	state, err := readExportState()
+	if err != nil {
 		return err
 	}
-
-	if err := runCommand("refresh nfs exports", "sudo", "exportfs", "-ra"); err != nil {
+	paths := append([]string(nil), state.paths...)
+	paths = append(paths, path)
+	if err := syncExports(paths); err != nil {
 		return err
 	}
 	logger.Info("NFS share created: " + path)
@@ -270,41 +443,7 @@ func SyncSharedFolder(folder []FolderMount) error {
 
 	sort.Strings(paths)
 
-	entries := make([]string, len(paths))
-	for i, path := range paths {
-		entries[i] = exportsEntry(path)
-	}
-
-	content := strings.Join(entries, "\n")
-	if len(content) > 0 {
-		content += "\n"
-	}
-
-	tmpFile, err := os.CreateTemp("", "svman-exports-*.tmp")
-	if err != nil {
-		return err
-	}
-	tmpPath := tmpFile.Name()
-	defer os.Remove(tmpPath)
-
-	if _, err := tmpFile.WriteString(content); err != nil {
-		tmpFile.Close()
-		return err
-	}
-
-	if err := tmpFile.Close(); err != nil {
-		return err
-	}
-
-	if err := runCommand("ensure exports directory", "sudo", "mkdir", "-p", exportsDir); err != nil {
-		return err
-	}
-
-	if err := runCommand("sync exports file", "sudo", "install", "-m", "0644", tmpPath, exportsFile); err != nil {
-		return err
-	}
-
-	if err := runCommand("refresh nfs exports", "sudo", "exportfs", "-ra"); err != nil {
+	if err := syncExports(paths); err != nil {
 		return err
 	}
 
@@ -440,17 +579,17 @@ func MountSharedFolder(folder FolderMount) error {
 	// Desired mount options (multi-client safe)
 	opts := []string{
 		"rw",
-		"sync", // Added for data integrity
+		"sync", // ensure client waits for server commits
 		"hard",
 		"proto=tcp",
 		"vers=4.2",
+		"timeo=600",
+		"retrans=2",
 		"rsize=1048576",
 		"wsize=1048576",
 		"noatime",
 		"nodiratime",
 		"_netdev",
-		"actimeo=0", // Consider adjusting if performance is an issue
-		// "local_lock=posix", // REMOVED: This causes the multi-client corruption
 		"lock", // Explicitly request NLM locking (often implied by vers=4.x)
 	}
 
@@ -489,18 +628,59 @@ func MountSharedFolder(folder FolderMount) error {
 			mp := fields[1]
 			fsType := fields[2]
 			if mp == targetEsc && strings.HasPrefix(fsType, "nfs") {
-				cur := "," + fields[3] + ","
-				// must have local_lock=posix
-				if !strings.Contains(cur, ",local_lock=posix,") {
+				optionParts := strings.Split(fields[3], ",")
+				flagSet := make(map[string]bool, len(optionParts))
+				kvSet := make(map[string]string, len(optionParts))
+				for _, opt := range optionParts {
+					opt = strings.TrimSpace(opt)
+					if opt == "" {
+						continue
+					}
+					if strings.Contains(opt, "=") {
+						parts := strings.SplitN(opt, "=", 2)
+						kvSet[parts[0]] = parts[1]
+					} else {
+						flagSet[opt] = true
+					}
+				}
+
+				if val, ok := kvSet["local_lock"]; ok && strings.EqualFold(val, "none") {
 					needsRemount = true
 					break
 				}
-				// must NOT have nconnect
-				if strings.Contains(cur, ",nconnect=") {
+
+				requiredFlags := []string{"hard", "noatime", "nodiratime"}
+				for _, flag := range requiredFlags {
+					if !flagSet[flag] {
+						needsRemount = true
+						break
+					}
+				}
+				if needsRemount {
+					break
+				}
+
+				requiredPairs := map[string]string{
+					"vers":    "4.2",
+					"timeo":   "600",
+					"retrans": "2",
+					"rsize":   "1048576",
+					"wsize":   "1048576",
+					"proto":   "tcp",
+				}
+				for key, expected := range requiredPairs {
+					if value, ok := kvSet[key]; !ok || value != expected {
+						needsRemount = true
+						break
+					}
+				}
+				if needsRemount {
+					break
+				}
+				if _, ok := kvSet["nconnect"]; ok {
 					needsRemount = true
 					break
 				}
-				// good enough
 				break
 			}
 		}

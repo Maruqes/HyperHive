@@ -143,7 +143,7 @@ func CreateVMHostPassthrough(params VMCreationParams) (string, error) {
   <cpu mode='host-passthrough' check='none'/>
   <devices>
     <disk type='file' device='disk'>
-      <driver name='qemu' type='qcow2' cache='writeback' io='threads'/>
+      <driver name='qemu' type='qcow2' cache='none' io='native'/>
       <source file='%s'/>
       <target dev='vda' bus='virtio'/>
     </disk>%s
