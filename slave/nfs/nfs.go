@@ -440,6 +440,7 @@ func MountSharedFolder(folder FolderMount) error {
 	// Desired mount options (multi-client safe)
 	opts := []string{
 		"rw",
+		"sync", // Added for data integrity
 		"hard",
 		"proto=tcp",
 		"vers=4.2",
@@ -448,9 +449,9 @@ func MountSharedFolder(folder FolderMount) error {
 		"noatime",
 		"nodiratime",
 		"_netdev",
-		"actimeo=0",        // strongest coherency; relax later if needed
-		"local_lock=posix", // CRITICAL: propagate fcntl() locks across hosts
-		// NOTE: intentionally NO "nconnect" here (can break lock semantics)
+		"actimeo=0", // Consider adjusting if performance is an issue
+		// "local_lock=posix", // REMOVED: This causes the multi-client corruption
+		"lock", // Explicitly request NLM locking (often implied by vers=4.x)
 	}
 
 	ensureMountedWithOpts := func(remount bool) error {
