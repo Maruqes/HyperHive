@@ -7,9 +7,10 @@ import "database/sql"
 type NFSShare struct {
 	Id          int
 	MachineName string
-	FolderPath  string // local folder path 
+	FolderPath  string // local folder path
 	Source      string // nfs server path example-> ip:/mnt/nfs_share
 	Target      string // mount path on the VM example-> /mnt/nfs_share
+	Name        string // optional name for the share
 }
 
 func CreateNFSTable() error {
@@ -19,19 +20,21 @@ func CreateNFSTable() error {
 		machine_name TEXT NOT NULL,
 		folder_path TEXT NOT NULL,
 		source TEXT NOT NULL,
-		target TEXT NOT NULL
+		target TEXT NOT NULL,
+		name TEXT,
+		UNIQUE(machine_name, folder_path)
 	);
 	`
 	_, err := DB.Exec(query)
 	return err
 }
 
-func AddNFSShare(machineName, folderPath, source, target string) error {
+func AddNFSShare(machineName, folderPath, source, target, name string) error {
 	query := `
-	INSERT INTO nfs_shares (machine_name, folder_path, source, target)
-	VALUES (?, ?, ?, ?);
+	INSERT INTO nfs_shares (machine_name, folder_path, source, target, name)
+	VALUES (?, ?, ?, ?, ?);
 	`
-	_, err := DB.Exec(query, machineName, folderPath, source, target)
+	_, err := DB.Exec(query, machineName, folderPath, source, target, name)
 	return err
 }
 
@@ -46,7 +49,7 @@ func RemoveNFSShare(machineName, folderPath string) error {
 
 func GetAllNFShares() ([]NFSShare, error) {
 	const query = `
-	SELECT id, machine_name, folder_path, source, target
+	SELECT id, machine_name, folder_path, source, target, name
 	FROM nfs_shares;
 	`
 	rows, err := DB.Query(query)
@@ -58,7 +61,7 @@ func GetAllNFShares() ([]NFSShare, error) {
 	var shares []NFSShare
 	for rows.Next() {
 		var share NFSShare
-		if err := rows.Scan(&share.Id, &share.MachineName, &share.FolderPath, &share.Source, &share.Target); err != nil {
+		if err := rows.Scan(&share.Id, &share.MachineName, &share.FolderPath, &share.Source, &share.Target, &share.Name); err != nil {
 			return nil, err
 		}
 		shares = append(shares, share)
@@ -110,7 +113,7 @@ func GetAllMachineNamesWithShares() ([]string, error) {
 }
 func GetNFSharesByMachineName(machineName string) ([]NFSShare, error) {
 	const query = `
-	SELECT machine_name, folder_path, source, target
+	SELECT machine_name, folder_path, source, target, name
 	FROM nfs_shares
 	WHERE machine_name = ?;
 	`
@@ -123,7 +126,7 @@ func GetNFSharesByMachineName(machineName string) ([]NFSShare, error) {
 	var shares []NFSShare
 	for rows.Next() {
 		var share NFSShare
-		if err := rows.Scan(&share.MachineName, &share.FolderPath, &share.Source, &share.Target); err != nil {
+		if err := rows.Scan(&share.MachineName, &share.FolderPath, &share.Source, &share.Target, &share.Name); err != nil {
 			return nil, err
 		}
 		shares = append(shares, share)
@@ -136,12 +139,12 @@ func GetNFSharesByMachineName(machineName string) ([]NFSShare, error) {
 
 func GetNFSShareByID(id int) (*NFSShare, error) {
 	const query = `
-	SELECT id, machine_name, folder_path, source, target
+	SELECT id, machine_name, folder_path, source, target, name
 	FROM nfs_shares
 	WHERE id = ?;
 	`
 	var share NFSShare
-	err := DB.QueryRow(query, id).Scan(&share.Id, &share.MachineName, &share.FolderPath, &share.Source, &share.Target)
+	err := DB.QueryRow(query, id).Scan(&share.Id, &share.MachineName, &share.FolderPath, &share.Source, &share.Target, &share.Name)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil

@@ -45,6 +45,7 @@ func ConvertNSFShareToGRPCFolderMount(share []db.NFSShare) *proto.FolderMountLis
 type SharePoint struct {
 	MachineName string `json:"machine_name"` //this machine want to share
 	FolderPath  string `json:"folder_path"`  //this folder
+	Name        string `json:"name"`         //optional friendly name for the share
 }
 
 type NFSService struct {
@@ -70,7 +71,7 @@ func (s *NFSService) CreateSharePoint() error {
 		return err
 	}
 
-	err := db.AddNFSShare(mount.MachineName, mount.FolderPath, mount.Source, mount.Target)
+	err := db.AddNFSShare(mount.MachineName, mount.FolderPath, mount.Source, mount.Target, s.SharePoint.Name)
 	if err != nil {
 		logger.Error("AddNFSShare failed: %v", err)
 		return err
@@ -103,16 +104,37 @@ func (s *NFSService) DeleteSharePoint() error {
 		return fmt.Errorf("NFS share does not exist")
 	}
 
-	//get vms and isos and delete them first
-	// virshService := VirshService{}
-	// virshService.
-
 	//remove last slash
 	mount := &proto.FolderMount{
 		MachineName: s.SharePoint.MachineName,
 		FolderPath:  s.SharePoint.FolderPath,
 		Source:      conn.Addr + ":" + s.SharePoint.FolderPath,
 		Target:      "/mnt/512SvMan/shared/" + s.SharePoint.MachineName + "_" + getFolderName(s.SharePoint.FolderPath),
+	}
+
+	//get vms and isos and delete them first
+	virshService := VirshService{}
+	vms, err := virshService.GetAllVmsByOnNfsShare(mount.Target)
+	if err != nil {
+		return fmt.Errorf("failed to get VMs on NFS share: %v", err)
+	}
+	if len(vms) > 0 {
+		vmsNames := []string{}
+		for _, vm := range vms {
+			vmsNames = append(vmsNames, vm.Name)
+		}
+		return fmt.Errorf("cannot delete NFS share, there are VMs using it: %v", vmsNames)
+	}
+
+	//check if any iso is on this nfs share
+	isos, err := db.GetAllISOs()
+	if err != nil {
+		return fmt.Errorf("failed to get ISOs: %v", err)
+	}
+	for _, iso := range isos {
+		if strings.HasPrefix(iso.FilePath, mount.Target) {
+			return fmt.Errorf("cannot delete NFS share, there are ISOs using it: %v", iso.Name)
+		}
 	}
 
 	if err := nfs.RemoveSharedFolder(conn.Connection, mount); err != nil {
@@ -131,7 +153,7 @@ func (s *NFSService) DeleteSharePoint() error {
 		}
 	}
 
-	err := db.RemoveNFSShare(mount.MachineName, mount.FolderPath)
+	err = db.RemoveNFSShare(mount.MachineName, mount.FolderPath)
 	if err != nil {
 		return fmt.Errorf("failed to remove NFS share from database: %v", err)
 	}

@@ -266,6 +266,34 @@ func IsSafePath(path string) error {
 	return nil
 }
 
+func IsFolderBeingShared(path string) bool {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return false
+	}
+
+	data, err := os.ReadFile(exportsFile)
+	if err != nil {
+		return false
+	}
+
+	lines := strings.Split(string(data), "\n")
+	for _, ln := range lines {
+		trim := strings.TrimSpace(ln)
+		if trim == "" || strings.HasPrefix(trim, "#") {
+			continue
+		}
+		fields := strings.Fields(trim)
+		if len(fields) == 0 {
+			continue
+		}
+		if fields[0] == path {
+			return true
+		}
+	}
+	return false
+}
+
 // CreateSharedFolder creates a directory and ensures it is exported via exportsFile.
 func CreateSharedFolder(folder FolderMount) error {
 	if err := IsSafePath(folder.FolderPath); err != nil {
@@ -627,14 +655,15 @@ func UnmountSharedFolder(folder FolderMount) error {
 		return nil
 	}
 
-	// Try normal unmount first
-	if err := runCommand("unmount nfs share", "sudo", "umount", target); err != nil {
-		// Force unmount (useful for NFS)
-		_ = runCommand("force unmount nfs share (-f)", "sudo", "umount", "-f", target)
+	// Always force unmount first; some NFS mounts report success yet remain busy.
+	if err := runCommand("force unmount nfs share (-f)", "sudo", "umount", "-f", target); err != nil {
+		logger.Warn("force unmount (-f) failed, attempting lazy force:", err)
+	}
 
-		// If still mounted, lazy unmount as last resort
-		if isMounted(target) {
-			_ = runCommand("lazy unmount nfs share (-l)", "sudo", "umount", "-l", target)
+	// If still mounted, lazy-force unmount as a last resort.
+	if isMounted(target) {
+		if err := runCommand("lazy force unmount nfs share (-fl)", "sudo", "umount", "-f", "-l", target); err != nil {
+			logger.Warn("lazy force unmount (-fl) failed", err)
 		}
 	}
 

@@ -330,12 +330,19 @@ func setupAll() error {
 		return fmt.Errorf("setup ssh keys: %w", err)
 	}
 
+	// with firewalld, open VNC port range only for this boot (runtime only)
+	portRange := fmt.Sprintf("%d-%d/tcp", env512.VNC_MIN_PORT, env512.VNC_MAX_PORT)
+	if err := exec.Command("firewall-cmd", "--add-port="+portRange).Run(); err != nil {
+		return fmt.Errorf("failed to add runtime firewall rule for vnc ports: %w", err)
+	}
+
 	return nil
 }
 
 func main() {
 	askForSudo()
 
+	//varsc
 	if err := env512.Setup(); err != nil {
 		log.Fatalf("env setup: %v", err)
 	}

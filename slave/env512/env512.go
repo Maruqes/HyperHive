@@ -48,8 +48,8 @@ func Setup() error {
 		panic("MACHINE_NAME must be set")
 	}
 
-	if VNC_MIN_PORT == 0 || VNC_MAX_PORT == 0 || VNC_MIN_PORT < 5900 || VNC_MAX_PORT > 65535 || VNC_MIN_PORT > VNC_MAX_PORT {
-		panic("VNC_MIN_PORT and VNC_MAX_PORT must be set and valid (5900-65535)")
+	if VNC_MIN_PORT == 0 || VNC_MAX_PORT == 0 || VNC_MIN_PORT < 35000 || VNC_MAX_PORT > 65535 || VNC_MIN_PORT > VNC_MAX_PORT {
+		panic("VNC_MIN_PORT and VNC_MAX_PORT must be set and valid (35000-65535)")
 	}
 
 	// OTHER_SLAVE1_IP, OTHER_SLAVE2_IP, ...
@@ -62,5 +62,6 @@ func Setup() error {
 		OTHER_SLAVES = append(OTHER_SLAVES, ip)
 	}
 
+	
 	return nil
 }
