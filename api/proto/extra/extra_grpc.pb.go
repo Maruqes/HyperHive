@@ -30,7 +30,9 @@ const (
 //
 // master service
 type ExtraServiceClient interface {
+	// master
 	SendWebsocketMessage(ctx context.Context, in *WebsocketMessage, opts ...grpc.CallOption) (*Empty, error)
+	// master
 	CheckForUpdates(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*AllUpdates, error)
 	PerformUpdate(ctx context.Context, in *UpdateRequest, opts ...grpc.CallOption) (*Empty, error)
 }
@@ -79,7 +81,9 @@ func (c *extraServiceClient) PerformUpdate(ctx context.Context, in *UpdateReques
 //
 // master service
 type ExtraServiceServer interface {
+	// master
 	SendWebsocketMessage(context.Context, *WebsocketMessage) (*Empty, error)
+	// master
 	CheckForUpdates(context.Context, *Empty) (*AllUpdates, error)
 	PerformUpdate(context.Context, *UpdateRequest) (*Empty, error)
 	mustEmbedUnimplementedExtraServiceServer()

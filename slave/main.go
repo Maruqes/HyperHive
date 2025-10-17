@@ -323,6 +323,9 @@ func setupAll() error {
 	if err := exec.Command("dnf", "install", "-y", "xmlstarlet").Run(); err != nil {
 		return fmt.Errorf("failed to install xmlstarlet: %w", err)
 	}
+	if err := exec.Command("sudo", "setenforce", "0").Run(); err != nil {
+		return fmt.Errorf("failed to setenforce 0: %w", err)
+	}
 	if err := setupSSHKeys(); err != nil {
 		return fmt.Errorf("setup ssh keys: %w", err)
 	}

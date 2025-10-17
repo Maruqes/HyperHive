@@ -81,7 +81,6 @@ func ExecWithOutToSocket(ctx context.Context, msgType extraGrpc.WebSocketsMessag
 			}
 			logger.Error("read error: %v", err)
 			_ = SendWebsocketMessage(fmt.Sprintf("read error: %v", err))
-			return
 		}
 	}()
 

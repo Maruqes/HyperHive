@@ -1,9 +1,11 @@
 package nfs
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -661,10 +663,30 @@ func runCommand(desc string, args ...string) error {
 	}
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	var stdoutBuf, stderrBuf bytes.Buffer
+	cmd.Stdout = io.MultiWriter(os.Stdout, &stdoutBuf)
+	cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
 	if err := cmd.Run(); err != nil {
+		stdoutStr := strings.TrimSpace(stdoutBuf.String())
+		stderrStr := strings.TrimSpace(stderrBuf.String())
 		logger.Error(desc + " failed: " + err.Error())
+		if stderrStr != "" {
+			logger.Error(desc + " stderr: " + stderrStr)
+		}
+		if stdoutStr != "" {
+			logger.Error(desc + " stdout: " + stdoutStr)
+		}
+
+		var details []string
+		if stderrStr != "" {
+			details = append(details, "stderr: "+stderrStr)
+		}
+		if stdoutStr != "" {
+			details = append(details, "stdout: "+stdoutStr)
+		}
+		if len(details) > 0 {
+			return fmt.Errorf("%s: %s: %w", desc, strings.Join(details, "; "), err)
+		}
 		return fmt.Errorf("%s: %w", desc, err)
 	}
 	logger.Info(desc + " succeeded")

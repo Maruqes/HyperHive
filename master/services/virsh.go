@@ -487,6 +487,22 @@ func (v *VirshService) GetAllVms() ([]VmType, error) {
 	}
 	return allVms, nil
 }
+
+// func (v *VirshService) GetAllVmsByOnNfsShare(nfsSharePath string) ([]VmType, error) {
+// 	allVms, err := v.GetAllVms()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	var vmsOnShare []VmType
+// 	//if vm include in nfsShareId
+// 	for _, vm := range allVms {
+// 		if strings.Contains(vm.DiskPath, nfsSharePath) {
+// 			vmsOnShare = append(vmsOnShare, vm)
+// 		}
+// 	}
+// 	return vmsOnShare, nil
+// }
+
 func (v *VirshService) EditVM(name string, cpuCount, memory int, diskSizeGB int) error {
 	//find vm by name
 	exists, err := virsh.DoesVMExist(name)

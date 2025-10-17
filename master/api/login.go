@@ -7,18 +7,20 @@ import (
 	"net/http"
 )
 
-type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
 type LoginResponse struct {
 	Token string `json:"token"`
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+
 	loginService := services.LoginService{}
+
+	type LoginRequest struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)

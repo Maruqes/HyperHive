@@ -103,6 +103,10 @@ func (s *NFSService) DeleteSharePoint() error {
 		return fmt.Errorf("NFS share does not exist")
 	}
 
+	//get vms and isos and delete them first
+	// virshService := VirshService{}
+	// virshService.
+
 	//remove last slash
 	mount := &proto.FolderMount{
 		MachineName: s.SharePoint.MachineName,

@@ -7,10 +7,13 @@ import (
 	"512SvMan/logs512"
 	"512SvMan/protocol"
 	"512SvMan/services"
+	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 
 	logger "github.com/Maruqes/512SvMan/logger"
 	"google.golang.org/grpc"
@@ -38,9 +41,18 @@ func askForSudo() {
 
 func execCommand(name string, arg ...string) error {
 	cmd := exec.Command(name, arg...)
+	var stderr bytes.Buffer
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
+
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		if msg != "" {
+			return fmt.Errorf("%w: %s", err, msg)
+		}
+		return err
+	}
+	return nil
 }
 
 func downloadNoVNC() error {
@@ -106,23 +118,6 @@ func main() {
 	protocol.ListenGRPC(newSlave)
 
 	api.StartApi()
-
-	// webServer()
-
-	// xml, err := virsh.CreateVMCustomCPU(
-	// 	"qemu:///system",
-	// 	"debian-kde",
-	// 	8192, 6,
-	// 	"/mnt/data/debian-live-13.1.0-amd64-kde.iso", 50, // relativo -> /var/512SvMan/qcow2/debian-kde.qcow2
-	// 	"/mnt/data/debian.qcow2", // relativo -> /var/512SvMan/iso/...
-	// 	"",                                 // machine (user decide; "" = auto)
-	// 	"default", "0.0.0.0",
-	// 	"Westmere", nil, // baseline portable
-	// )
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// fmt.Println("XML gravado em:", xml)
 
 	select {}
 }
