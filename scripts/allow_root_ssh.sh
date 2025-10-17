@@ -57,3 +57,10 @@ if restart_service; then
 else
     echo "Root SSH login enabled in config, but automatic restart failed. Please restart SSH manually." >&2
 fi
+
+echo
+echo "============================================"
+echo "DEFINE ROOT PASSWORD NOW ->"
+echo "============================================"
+# Prompt the operator to define the root password immediately
+sudo passwd root

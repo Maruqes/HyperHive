@@ -5,10 +5,12 @@ import (
 	"512SvMan/protocol"
 	"512SvMan/virsh"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
+	"libvirt.org/go/libvirt"
 )
 
 type VirshService struct {
@@ -104,14 +106,45 @@ func ClusterDisableList(all [][]string) []string {
 	return disable
 }
 
-func (v *VirshService) GetCpuDisableFeatures() ([]string, error) {
-	var features [][]string
-	for _, conn := range protocol.GetAllGRPCConnections() {
-		features_conn := virsh.GetCpuFeatures(conn)
-		features = append(features, features_conn)
-		fmt.Println(features)
+func ComputeBaseline(xmls []string) (string, error) {
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return "", err
 	}
-	return ClusterDisableList(features), nil
+	defer conn.Close()
+
+	flags := libvirt.CONNECT_BASELINE_CPU_MIGRATABLE | libvirt.CONNECT_BASELINE_CPU_EXPAND_FEATURES
+	baselineXML, err := conn.BaselineCPU(xmls, flags)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return baselineXML, nil
+}
+
+func (v *VirshService) GetCpuDisableFeatures() ([]string, error) {
+	// var features [][]string
+	// for _, conn := range protocol.GetAllGRPCConnections() {
+	// 	features_conn := virsh.GetCpuFeatures(conn)
+	// 	features = append(features, features_conn)
+	// 	fmt.Println(features)
+	// }
+	// return ClusterDisableList(features), nil
+
+	var xmls []string
+	for _, conn := range protocol.GetAllGRPCConnections() {
+		cpuXML, err := virsh.GetCPUXML(conn)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Println(cpuXML)
+		xmls = append(xmls, cpuXML)
+	}
+	baselineXML, err := ComputeBaseline(xmls)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(baselineXML)
+	return []string{}, nil
 }
 
 // vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword
@@ -488,7 +521,7 @@ func (v *VirshService) GetAllVms() ([]VmType, error) {
 	return allVms, nil
 }
 
-//nfsSharePathTarget -> /mnt/...
+// nfsSharePathTarget -> /mnt/...
 func (v *VirshService) GetAllVmsByOnNfsShare(nfsSharePathTarget string) ([]VmType, error) {
 	allVms, err := v.GetAllVms()
 	if err != nil {

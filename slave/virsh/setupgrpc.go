@@ -18,6 +18,14 @@ func (s *SlaveVirshService) GetCpuFeatures(ctx context.Context, e *grpcVirsh.Emp
 	return &grpcVirsh.GetCpuFeaturesResponse{Features: cpuFeatures}, nil
 }
 
+func (s *SlaveVirshService) GetCPUXML(ctx context.Context, e *grpcVirsh.Empty) (*grpcVirsh.CPUXMLResponse, error) {
+	cpuXML, err := GetHostCPUXML()
+	if err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.CPUXMLResponse{CpuXML: cpuXML}, nil
+}
+
 func (s *SlaveVirshService) CreateVm(ctx context.Context, req *grpcVirsh.CreateVmRequest) (*grpcVirsh.OkResponse, error) {
 	params := VMCreationParams{
 		ConnURI:        "qemu:///system",

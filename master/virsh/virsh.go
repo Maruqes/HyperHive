@@ -18,6 +18,15 @@ func GetCpuFeatures(conn *grpc.ClientConn) []string {
 	return resp.Features
 }
 
+func GetCPUXML(conn *grpc.ClientConn) (string, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetCPUXML(context.Background(), &grpcVirsh.Empty{})
+	if err != nil {
+		return "", err
+	}
+	return resp.CpuXML, nil
+}
+
 func CreateVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder, diskPath string, diskSizeGB int32, isoPath, network, VNCPassword string) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.CreateVm(context.Background(), &grpcVirsh.CreateVmRequest{

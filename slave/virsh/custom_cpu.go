@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -336,4 +337,23 @@ func GetCpuFeatures() ([]string, error) {
 		return nil, fmt.Errorf("failed to get CPU features: %w", err)
 	}
 	return strings.Split(strings.TrimSpace(out.String()), "\n"), nil
+}
+
+func GetHostCPUXML() (string, error) {
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+
+	caps, err := conn.GetCapabilities()
+	if err != nil {
+		return "", err
+	}
+	re := regexp.MustCompile(`(?s)<host>.*?(<cpu>.*?</cpu>).*</host>`)
+	m := re.FindStringSubmatch(caps)
+	if len(m) < 2 {
+		return "", fmt.Errorf("no <cpu> block found in capabilities")
+	}
+	return m[1], nil
 }

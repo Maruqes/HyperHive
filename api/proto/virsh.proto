@@ -75,9 +75,14 @@ message MigrateVmRequest {
   bool live = 4;
 }
 
+message CPUXMLResponse {
+  string cpuXML = 1;
+}
+
 //defines on slave
 service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
+  rpc GetCPUXML(Empty) returns (CPUXMLResponse);
 
   rpc CreateVm(CreateVmRequest) returns (OkResponse);
   rpc CreateLiveVM(CreateVmLiveRequest) returns (OkResponse);

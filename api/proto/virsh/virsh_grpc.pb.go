@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	SlaveVirshService_GetCpuFeatures_FullMethodName  = "/virsh.SlaveVirshService/GetCpuFeatures"
+	SlaveVirshService_GetCPUXML_FullMethodName       = "/virsh.SlaveVirshService/GetCPUXML"
 	SlaveVirshService_CreateVm_FullMethodName        = "/virsh.SlaveVirshService/CreateVm"
 	SlaveVirshService_CreateLiveVM_FullMethodName    = "/virsh.SlaveVirshService/CreateLiveVM"
 	SlaveVirshService_MigrateVM_FullMethodName       = "/virsh.SlaveVirshService/MigrateVM"
@@ -43,6 +44,7 @@ const (
 // defines on slave
 type SlaveVirshServiceClient interface {
 	GetCpuFeatures(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GetCpuFeaturesResponse, error)
+	GetCPUXML(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*CPUXMLResponse, error)
 	CreateVm(ctx context.Context, in *CreateVmRequest, opts ...grpc.CallOption) (*OkResponse, error)
 	CreateLiveVM(ctx context.Context, in *CreateVmLiveRequest, opts ...grpc.CallOption) (*OkResponse, error)
 	MigrateVM(ctx context.Context, in *MigrateVmRequest, opts ...grpc.CallOption) (*OkResponse, error)
@@ -73,6 +75,16 @@ func (c *slaveVirshServiceClient) GetCpuFeatures(ctx context.Context, in *Empty,
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetCpuFeaturesResponse)
 	err := c.cc.Invoke(ctx, SlaveVirshService_GetCpuFeatures_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) GetCPUXML(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*CPUXMLResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CPUXMLResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_GetCPUXML_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -226,6 +238,7 @@ func (c *slaveVirshServiceClient) EditVmResources(ctx context.Context, in *Vm, o
 // defines on slave
 type SlaveVirshServiceServer interface {
 	GetCpuFeatures(context.Context, *Empty) (*GetCpuFeaturesResponse, error)
+	GetCPUXML(context.Context, *Empty) (*CPUXMLResponse, error)
 	CreateVm(context.Context, *CreateVmRequest) (*OkResponse, error)
 	CreateLiveVM(context.Context, *CreateVmLiveRequest) (*OkResponse, error)
 	MigrateVM(context.Context, *MigrateVmRequest) (*OkResponse, error)
@@ -254,6 +267,9 @@ type UnimplementedSlaveVirshServiceServer struct{}
 
 func (UnimplementedSlaveVirshServiceServer) GetCpuFeatures(context.Context, *Empty) (*GetCpuFeaturesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCpuFeatures not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) GetCPUXML(context.Context, *Empty) (*CPUXMLResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCPUXML not implemented")
 }
 func (UnimplementedSlaveVirshServiceServer) CreateVm(context.Context, *CreateVmRequest) (*OkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateVm not implemented")
@@ -332,6 +348,24 @@ func _SlaveVirshService_GetCpuFeatures_Handler(srv interface{}, ctx context.Cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SlaveVirshServiceServer).GetCpuFeatures(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_GetCPUXML_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).GetCPUXML(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_GetCPUXML_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).GetCPUXML(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -598,6 +632,10 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetCpuFeatures",
 			Handler:    _SlaveVirshService_GetCpuFeatures_Handler,
+		},
+		{
+			MethodName: "GetCPUXML",
+			Handler:    _SlaveVirshService_GetCPUXML_Handler,
 		},
 		{
 			MethodName: "CreateVm",

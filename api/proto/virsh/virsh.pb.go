@@ -653,6 +653,50 @@ func (x *MigrateVmRequest) GetLive() bool {
 	return false
 }
 
+type CPUXMLResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CpuXML        string                 `protobuf:"bytes,1,opt,name=cpuXML,proto3" json:"cpuXML,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CPUXMLResponse) Reset() {
+	*x = CPUXMLResponse{}
+	mi := &file_virsh_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CPUXMLResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CPUXMLResponse) ProtoMessage() {}
+
+func (x *CPUXMLResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_virsh_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CPUXMLResponse.ProtoReflect.Descriptor instead.
+func (*CPUXMLResponse) Descriptor() ([]byte, []int) {
+	return file_virsh_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *CPUXMLResponse) GetCpuXML() string {
+	if x != nil {
+		return x.CpuXML
+	}
+	return ""
+}
+
 var File_virsh_proto protoreflect.FileDescriptor
 
 const file_virsh_proto_rawDesc = "" +
@@ -702,7 +746,9 @@ const file_virsh_proto_rawDesc = "" +
 	"\x10MigrateVmRequest\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
 	"\aslaveIp\x18\x03 \x01(\tR\aslaveIp\x12\x12\n" +
-	"\x04live\x18\x04 \x01(\bR\x04live*\x82\x01\n" +
+	"\x04live\x18\x04 \x01(\bR\x04live\"(\n" +
+	"\x0eCPUXMLResponse\x12\x16\n" +
+	"\x06cpuXML\x18\x01 \x01(\tR\x06cpuXML*\x82\x01\n" +
 	"\aVmState\x12\v\n" +
 	"\aUNKNOWN\x10\x00\x12\v\n" +
 	"\aRUNNING\x10\x01\x12\v\n" +
@@ -713,9 +759,10 @@ const file_virsh_proto_rawDesc = "" +
 	"\aSHUTOFF\x10\x05\x12\v\n" +
 	"\aCRASHED\x10\x06\x12\x0f\n" +
 	"\vPMSUSPENDED\x10\a\x12\v\n" +
-	"\aNOSTATE\x10\b2\xfb\x05\n" +
+	"\aNOSTATE\x10\b2\xad\x06\n" +
 	"\x11SlaveVirshService\x12=\n" +
-	"\x0eGetCpuFeatures\x12\f.virsh.Empty\x1a\x1d.virsh.GetCpuFeaturesResponse\x125\n" +
+	"\x0eGetCpuFeatures\x12\f.virsh.Empty\x1a\x1d.virsh.GetCpuFeaturesResponse\x120\n" +
+	"\tGetCPUXML\x12\f.virsh.Empty\x1a\x15.virsh.CPUXMLResponse\x125\n" +
 	"\bCreateVm\x12\x16.virsh.CreateVmRequest\x1a\x11.virsh.OkResponse\x12=\n" +
 	"\fCreateLiveVM\x12\x1a.virsh.CreateVmLiveRequest\x1a\x11.virsh.OkResponse\x127\n" +
 	"\tMigrateVM\x12\x17.virsh.MigrateVmRequest\x1a\x11.virsh.OkResponse\x12*\n" +
@@ -745,7 +792,7 @@ func file_virsh_proto_rawDescGZIP() []byte {
 }
 
 var file_virsh_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_virsh_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_virsh_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_virsh_proto_goTypes = []any{
 	(VmState)(0),                   // 0: virsh.VmState
 	(*Empty)(nil),                  // 1: virsh.Empty
@@ -757,43 +804,46 @@ var file_virsh_proto_goTypes = []any{
 	(*GetAllVmsResponse)(nil),      // 7: virsh.GetAllVmsResponse
 	(*CreateVmLiveRequest)(nil),    // 8: virsh.CreateVmLiveRequest
 	(*MigrateVmRequest)(nil),       // 9: virsh.MigrateVmRequest
+	(*CPUXMLResponse)(nil),         // 10: virsh.CPUXMLResponse
 }
 var file_virsh_proto_depIdxs = []int32{
 	0,  // 0: virsh.Vm.state:type_name -> virsh.VmState
 	5,  // 1: virsh.GetAllVmsResponse.vms:type_name -> virsh.Vm
 	3,  // 2: virsh.CreateVmLiveRequest.vm:type_name -> virsh.CreateVmRequest
 	1,  // 3: virsh.SlaveVirshService.GetCpuFeatures:input_type -> virsh.Empty
-	3,  // 4: virsh.SlaveVirshService.CreateVm:input_type -> virsh.CreateVmRequest
-	8,  // 5: virsh.SlaveVirshService.CreateLiveVM:input_type -> virsh.CreateVmLiveRequest
-	9,  // 6: virsh.SlaveVirshService.MigrateVM:input_type -> virsh.MigrateVmRequest
-	5,  // 7: virsh.SlaveVirshService.ShutdownVM:input_type -> virsh.Vm
-	5,  // 8: virsh.SlaveVirshService.ForceShutdownVM:input_type -> virsh.Vm
-	5,  // 9: virsh.SlaveVirshService.StartVM:input_type -> virsh.Vm
-	5,  // 10: virsh.SlaveVirshService.RemoveVM:input_type -> virsh.Vm
-	5,  // 11: virsh.SlaveVirshService.RestartVM:input_type -> virsh.Vm
-	5,  // 12: virsh.SlaveVirshService.PauseVM:input_type -> virsh.Vm
-	5,  // 13: virsh.SlaveVirshService.ResumeVM:input_type -> virsh.Vm
-	1,  // 14: virsh.SlaveVirshService.GetAllVms:input_type -> virsh.Empty
-	6,  // 15: virsh.SlaveVirshService.GetVmByName:input_type -> virsh.GetVmByNameRequest
-	5,  // 16: virsh.SlaveVirshService.RemoveIsoFromVm:input_type -> virsh.Vm
-	5,  // 17: virsh.SlaveVirshService.EditVmResources:input_type -> virsh.Vm
-	2,  // 18: virsh.SlaveVirshService.GetCpuFeatures:output_type -> virsh.GetCpuFeaturesResponse
-	4,  // 19: virsh.SlaveVirshService.CreateVm:output_type -> virsh.OkResponse
-	4,  // 20: virsh.SlaveVirshService.CreateLiveVM:output_type -> virsh.OkResponse
-	4,  // 21: virsh.SlaveVirshService.MigrateVM:output_type -> virsh.OkResponse
-	4,  // 22: virsh.SlaveVirshService.ShutdownVM:output_type -> virsh.OkResponse
-	4,  // 23: virsh.SlaveVirshService.ForceShutdownVM:output_type -> virsh.OkResponse
-	4,  // 24: virsh.SlaveVirshService.StartVM:output_type -> virsh.OkResponse
-	4,  // 25: virsh.SlaveVirshService.RemoveVM:output_type -> virsh.OkResponse
-	4,  // 26: virsh.SlaveVirshService.RestartVM:output_type -> virsh.OkResponse
-	4,  // 27: virsh.SlaveVirshService.PauseVM:output_type -> virsh.OkResponse
-	4,  // 28: virsh.SlaveVirshService.ResumeVM:output_type -> virsh.OkResponse
-	7,  // 29: virsh.SlaveVirshService.GetAllVms:output_type -> virsh.GetAllVmsResponse
-	5,  // 30: virsh.SlaveVirshService.GetVmByName:output_type -> virsh.Vm
-	4,  // 31: virsh.SlaveVirshService.RemoveIsoFromVm:output_type -> virsh.OkResponse
-	4,  // 32: virsh.SlaveVirshService.EditVmResources:output_type -> virsh.OkResponse
-	18, // [18:33] is the sub-list for method output_type
-	3,  // [3:18] is the sub-list for method input_type
+	1,  // 4: virsh.SlaveVirshService.GetCPUXML:input_type -> virsh.Empty
+	3,  // 5: virsh.SlaveVirshService.CreateVm:input_type -> virsh.CreateVmRequest
+	8,  // 6: virsh.SlaveVirshService.CreateLiveVM:input_type -> virsh.CreateVmLiveRequest
+	9,  // 7: virsh.SlaveVirshService.MigrateVM:input_type -> virsh.MigrateVmRequest
+	5,  // 8: virsh.SlaveVirshService.ShutdownVM:input_type -> virsh.Vm
+	5,  // 9: virsh.SlaveVirshService.ForceShutdownVM:input_type -> virsh.Vm
+	5,  // 10: virsh.SlaveVirshService.StartVM:input_type -> virsh.Vm
+	5,  // 11: virsh.SlaveVirshService.RemoveVM:input_type -> virsh.Vm
+	5,  // 12: virsh.SlaveVirshService.RestartVM:input_type -> virsh.Vm
+	5,  // 13: virsh.SlaveVirshService.PauseVM:input_type -> virsh.Vm
+	5,  // 14: virsh.SlaveVirshService.ResumeVM:input_type -> virsh.Vm
+	1,  // 15: virsh.SlaveVirshService.GetAllVms:input_type -> virsh.Empty
+	6,  // 16: virsh.SlaveVirshService.GetVmByName:input_type -> virsh.GetVmByNameRequest
+	5,  // 17: virsh.SlaveVirshService.RemoveIsoFromVm:input_type -> virsh.Vm
+	5,  // 18: virsh.SlaveVirshService.EditVmResources:input_type -> virsh.Vm
+	2,  // 19: virsh.SlaveVirshService.GetCpuFeatures:output_type -> virsh.GetCpuFeaturesResponse
+	10, // 20: virsh.SlaveVirshService.GetCPUXML:output_type -> virsh.CPUXMLResponse
+	4,  // 21: virsh.SlaveVirshService.CreateVm:output_type -> virsh.OkResponse
+	4,  // 22: virsh.SlaveVirshService.CreateLiveVM:output_type -> virsh.OkResponse
+	4,  // 23: virsh.SlaveVirshService.MigrateVM:output_type -> virsh.OkResponse
+	4,  // 24: virsh.SlaveVirshService.ShutdownVM:output_type -> virsh.OkResponse
+	4,  // 25: virsh.SlaveVirshService.ForceShutdownVM:output_type -> virsh.OkResponse
+	4,  // 26: virsh.SlaveVirshService.StartVM:output_type -> virsh.OkResponse
+	4,  // 27: virsh.SlaveVirshService.RemoveVM:output_type -> virsh.OkResponse
+	4,  // 28: virsh.SlaveVirshService.RestartVM:output_type -> virsh.OkResponse
+	4,  // 29: virsh.SlaveVirshService.PauseVM:output_type -> virsh.OkResponse
+	4,  // 30: virsh.SlaveVirshService.ResumeVM:output_type -> virsh.OkResponse
+	7,  // 31: virsh.SlaveVirshService.GetAllVms:output_type -> virsh.GetAllVmsResponse
+	5,  // 32: virsh.SlaveVirshService.GetVmByName:output_type -> virsh.Vm
+	4,  // 33: virsh.SlaveVirshService.RemoveIsoFromVm:output_type -> virsh.OkResponse
+	4,  // 34: virsh.SlaveVirshService.EditVmResources:output_type -> virsh.OkResponse
+	19, // [19:35] is the sub-list for method output_type
+	3,  // [3:19] is the sub-list for method input_type
 	3,  // [3:3] is the sub-list for extension type_name
 	3,  // [3:3] is the sub-list for extension extendee
 	0,  // [0:3] is the sub-list for field type_name
@@ -810,7 +860,7 @@ func file_virsh_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_virsh_proto_rawDesc), len(file_virsh_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   9,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
