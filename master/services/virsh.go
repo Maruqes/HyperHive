@@ -131,7 +131,8 @@ func (v *VirshService) GetCpuDisableFeatures() ([]string, error) {
 	// return ClusterDisableList(features), nil
 
 	var xmls []string
-	for _, conn := range protocol.GetAllGRPCConnections() {
+	for i, conn := range protocol.GetAllGRPCConnections() {
+		fmt.Println("Connection", i)
 		cpuXML, err := virsh.GetCPUXML(conn)
 		if err != nil {
 			return nil, err
