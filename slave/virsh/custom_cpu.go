@@ -113,7 +113,12 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 		hasISO = true
 	}
 
-	conn, err := libvirt.NewConnect(opts.ConnURI)
+	connURI := strings.TrimSpace(opts.ConnURI)
+	if connURI == "" {
+		connURI = "qemu:///system"
+	}
+
+	conn, err := libvirt.NewConnect(connURI)
 	if err != nil {
 		return "", fmt.Errorf("connect: %w", err)
 	}
@@ -153,12 +158,26 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 		graphicsAttrs = " listen='127.0.0.1'"
 	}
 
+	cputuneXML, err := buildCPUTuneXML(opts.VCPUs)
+	if err != nil {
+		return "", fmt.Errorf("cputune: %w", err)
+	}
+
+	bootDev := "hd"
+	if hasISO {
+		bootDev = "cdrom"
+	}
+
 	domainXML := fmt.Sprintf(`
 <domain type='kvm'>
   <seclabel type='none'/>
   <name>%s</name>
   <memory unit='MiB'>%d</memory>
-  <vcpu>%d</vcpu>
+  <vcpu placement='static'>%d</vcpu>
+
+  <iothreads>1</iothreads>
+
+  %s
   <os>
 	<type arch='x86_64'%s>hvm</type>
 	<boot dev='%s'/>
@@ -168,7 +187,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
   %s
   <devices>
 	<disk type='file' device='disk'>
-	  <driver name='qemu' type='qcow2' cache='writeback' io='threads'/>
+	  <driver name='qemu' type='qcow2' cache='none' io='native'/>
 	  <source file='%s'/>
 	  <target dev='vda' bus='virtio'/>
 	</disk>%s
@@ -180,14 +199,10 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	<video><model type='virtio'/></video>
   </devices>
 </domain>`,
-		opts.Name, opts.MemoryMB, opts.VCPUs, machineAttr,
-		func() string {
-			if hasISO {
-				return "cdrom"
-			} else {
-				return "hd"
-			}
-		}(),
+		opts.Name, opts.MemoryMB, opts.VCPUs,
+		cputuneXML,
+		machineAttr,
+		bootDev,
 		cpuXML, disk, cdromXML, opts.Network, graphicsAttrs,
 	)
 

@@ -75,6 +75,7 @@ func ExecWithOutToSocket(ctx context.Context, msgType extraGrpc.WebSocketsMessag
 			for reader.Buffered() > 0 {
 				rest, _ := reader.ReadString('\r')
 				if len(rest) > 0 {
+					logger.Info(rest)
 					_ = SendWebsocketMessage(rest)
 				}
 			}
