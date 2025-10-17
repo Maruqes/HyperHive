@@ -2,6 +2,7 @@ package virsh
 
 import (
 	"context"
+	"fmt"
 
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 )
@@ -23,6 +24,7 @@ func (s *SlaveVirshService) GetCPUXML(ctx context.Context, e *grpcVirsh.Empty) (
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println(cpuXML)
 	return &grpcVirsh.CPUXMLResponse{CpuXML: cpuXML}, nil
 }
 
