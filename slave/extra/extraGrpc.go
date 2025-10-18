@@ -70,7 +70,9 @@ func ExecWithOutToSocket(ctx context.Context, msgType extraGrpc.WebSocketsMessag
 				_ = SendWebsocketMessage(line)
 			}
 			if err != nil {
-				continue
+				logger.Error("read error: %v", err)
+				_ = SendWebsocketMessage(fmt.Sprintf("read error: %v", err))
+				break
 			}
 			for reader.Buffered() > 0 {
 				rest, _ := reader.ReadString('\r')
@@ -79,8 +81,6 @@ func ExecWithOutToSocket(ctx context.Context, msgType extraGrpc.WebSocketsMessag
 					_ = SendWebsocketMessage(rest)
 				}
 			}
-			logger.Error("read error: %v", err)
-			_ = SendWebsocketMessage(fmt.Sprintf("read error: %v", err))
 		}
 	}()
 

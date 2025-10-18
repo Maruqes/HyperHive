@@ -155,6 +155,10 @@ func InstallNFS() error {
 		return err
 	}
 
+	if err := runCommand("ensure exports file", "sudo", "touch", "/etc/exports"); err != nil {
+		return err
+	}
+
 	logger.Info("NFS installed and nfs-server enabled")
 	go MonitorMounts()
 	return nil
