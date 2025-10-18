@@ -338,6 +338,14 @@ func setupAll() error {
 		return fmt.Errorf("failed to add runtime firewall rule for vnc ports: %w", err)
 	}
 
+	//adicionar porta 50051 e 50052
+	if err := exec.Command("firewall-cmd", "--add-port=50051/tcp").Run(); err != nil {
+		return fmt.Errorf("failed to add runtime firewall rule for port 50051: %w", err)
+	}
+	if err := exec.Command("firewall-cmd", "--add-port=50052/tcp").Run(); err != nil {
+		return fmt.Errorf("failed to add runtime firewall rule for port 50052: %w", err)
+	}
+
 	return nil
 }
 

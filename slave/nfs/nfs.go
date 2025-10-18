@@ -38,6 +38,28 @@ var CurrentMounts = []FolderMount{}
 var CurrentMountsLock = &sync.RWMutex{}
 var setfaclWarnOnce sync.Once
 
+func ensureExportsLocation() error {
+	if _, err := os.Stat(exportsDir); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		if err := runCommand("ensure exports directory", "sudo", "mkdir", "-p", exportsDir); err != nil {
+			return err
+		}
+	}
+
+	if _, err := os.Stat(exportsFile); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		if err := runCommand("ensure exports file", "sudo", "touch", exportsFile); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func isMounted(target string) bool {
 	if strings.TrimSpace(target) == "" {
 		return false
@@ -317,8 +339,12 @@ func CreateSharedFolder(folder FolderMount) error {
 		return err
 	}
 
+	if err := ensureExportsLocation(); err != nil {
+		return err
+	}
+
 	entry := exportsEntry(path)
-	cmdStr := fmt.Sprintf("mkdir -p %s && touch %s && (grep -Fxq %q %s || echo %q >> %s)", exportsDir, exportsFile, entry, exportsFile, entry, exportsFile)
+	cmdStr := fmt.Sprintf("(grep -Fxq %q %q 2>/dev/null || echo %q >> %q)", entry, exportsFile, entry, exportsFile)
 	if err := runCommand("update NFS exports", "sudo", "bash", "-lc", cmdStr); err != nil {
 		return err
 	}
@@ -363,6 +389,10 @@ func SyncSharedFolder(folder []FolderMount) error {
 	}
 
 	sort.Strings(paths)
+
+	if err := ensureExportsLocation(); err != nil {
+		return err
+	}
 
 	entries := make([]string, len(paths))
 	for i, path := range paths {

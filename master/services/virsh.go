@@ -5,7 +5,6 @@ import (
 	"512SvMan/protocol"
 	"512SvMan/virsh"
 	"fmt"
-	"log"
 	"sort"
 	"strings"
 
@@ -116,7 +115,7 @@ func ComputeBaseline(xmls []string) (string, error) {
 	flags := libvirt.CONNECT_BASELINE_CPU_MIGRATABLE | libvirt.CONNECT_BASELINE_CPU_EXPAND_FEATURES
 	baselineXML, err := conn.BaselineCPU(xmls, flags)
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
 	return baselineXML, nil
 }
