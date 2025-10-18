@@ -4,6 +4,7 @@ import (
 	"512SvMan/services"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -11,7 +12,17 @@ import (
 func getCpuFeatures(w http.ResponseWriter, r *http.Request) {
 	virshServices := services.VirshService{}
 	w.Header().Set("Content-Type", "application/json")
-	features, err := virshServices.GetCpuDisableFeatures()
+
+	var slaveNames []string
+	for _, raw := range r.URL.Query()["slavesnames"] {
+		for _, name := range strings.Split(raw, ",") {
+			if trimmed := strings.TrimSpace(name); trimmed != "" {
+				slaveNames = append(slaveNames, trimmed)
+			}
+		}
+	}
+
+	features, err := virshServices.GetCpuDisableFeatures(slaveNames)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -223,17 +234,16 @@ func editVM(w http.ResponseWriter, r *http.Request) {
 
 func createLiveVM(w http.ResponseWriter, r *http.Request) {
 	type VMLiveRequest struct {
-		MachineName     string   `json:"machine_name"`
-		Name            string   `json:"name"`
-		Memory          int32    `json:"memory"`
-		Vcpu            int32    `json:"vcpu"`
-		DiskSizeGB      int32    `json:"disk_sizeGB"`
-		IsoID           int      `json:"iso_id"`
-		NfsShareId      int      `json:"nfs_share_id"`
-		Network         string   `json:"network"`
-		VNCPassword     string   `json:"VNC_password"`
-		CpuModel        string   `json:"cpu_model"` // eg: Westmere if not exists is passthrough
-		DisableFeatures []string `json:"disable_features"`
+		MachineName string `json:"machine_name"`
+		Name        string `json:"name"`
+		Memory      int32  `json:"memory"`
+		Vcpu        int32  `json:"vcpu"`
+		DiskSizeGB  int32  `json:"disk_sizeGB"`
+		IsoID       int    `json:"iso_id"`
+		NfsShareId  int    `json:"nfs_share_id"`
+		Network     string `json:"network"`
+		VNCPassword string `json:"VNC_password"`
+		CpuXml      string `json:"cpu_xml"` 
 	}
 
 	var vmReq VMLiveRequest
@@ -244,7 +254,7 @@ func createLiveVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshServices := services.VirshService{}
-	err = virshServices.CreateLiveVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuModel, vmReq.DisableFeatures)
+	err = virshServices.CreateLiveVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

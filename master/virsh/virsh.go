@@ -46,9 +46,9 @@ func CreateVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder
 	return nil
 }
 
-func CreateLiveVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder, diskPath string, diskSizeGB int32, isoPath, network, VNCPassword string, cpuModel string, disabledCpuFeatures []string) error {
+func CreateLiveVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder, diskPath string, diskSizeGB int32, isoPath, network, VNCPassword string, cpuXml string) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
-	fmt.Println("Creating live VM with CPU model:", cpuModel, "and disabled features:", disabledCpuFeatures)
+	fmt.Println("Creating live VM with CPU XML:", cpuXml)
 	_, err := client.CreateLiveVM(context.Background(), &grpcVirsh.CreateVmLiveRequest{
 		Vm: &grpcVirsh.CreateVmRequest{
 			Name:        name,
@@ -61,8 +61,7 @@ func CreateLiveVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFo
 			Network:     network,
 			VncPassword: VNCPassword,
 		},
-		CpuModel:            cpuModel,
-		DisabledCpuFeatures: disabledCpuFeatures,
+		CpuXml: cpuXml,
 	})
 	if err != nil {
 		return err

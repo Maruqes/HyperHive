@@ -53,20 +53,19 @@ func BuildCPUXMLCustom(model string, disabledFeatures []string) string {
 }
 
 type CreateVMCustomCPUOptions struct {
-	ConnURI          string
-	Name             string
-	MemoryMB         int
-	VCPUs            int
-	DiskFolder       string //fazer
-	DiskPath         string
-	DiskSizeGB       int
-	ISOPath          string
-	Machine          string
-	Network          string
-	GraphicsListen   string
-	VNCPassword      string // fazer
-	CPUModel         string
-	DisabledFeatures []string
+	ConnURI        string
+	Name           string
+	MemoryMB       int
+	VCPUs          int
+	DiskFolder     string //fazer
+	DiskPath       string
+	DiskSizeGB     int
+	ISOPath        string
+	Machine        string
+	Network        string
+	GraphicsListen string
+	VNCPassword    string // fazer
+	CPUXml         string
 }
 
 func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
@@ -129,12 +128,9 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	if opts.Machine != "" {
 		machineAttr = fmt.Sprintf(" machine='%s'", opts.Machine)
 	}
-	cpuModelTrim := strings.TrimSpace(opts.CPUModel)
-	var cpuXML string
-	if cpuModelTrim == "" {
+	cpuXML := strings.TrimSpace(opts.CPUXml)
+	if cpuXML == "" {
 		cpuXML = "<cpu mode='host-passthrough' check='none'/>"
-	} else {
-		cpuXML = BuildCPUXMLCustom(cpuModelTrim, opts.DisabledFeatures)
 	}
 
 	cdromXML := ""

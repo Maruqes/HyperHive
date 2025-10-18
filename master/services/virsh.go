@@ -112,7 +112,7 @@ func ComputeBaseline(xmls []string) (string, error) {
 	}
 	defer conn.Close()
 
-	flags := libvirt.CONNECT_BASELINE_CPU_MIGRATABLE | libvirt.CONNECT_BASELINE_CPU_EXPAND_FEATURES
+	flags := libvirt.CONNECT_BASELINE_CPU_MIGRATABLE
 	baselineXML, err := conn.BaselineCPU(xmls, flags)
 	if err != nil {
 		return "", err
@@ -120,7 +120,7 @@ func ComputeBaseline(xmls []string) (string, error) {
 	return baselineXML, nil
 }
 
-func (v *VirshService) GetCpuDisableFeatures() ([]string, error) {
+func (v *VirshService) GetCpuDisableFeatures(conns []string) (string, error) {
 	// var features [][]string
 	// for _, conn := range protocol.GetAllGRPCConnections() {
 	// 	features_conn := virsh.GetCpuFeatures(conn)
@@ -130,21 +130,23 @@ func (v *VirshService) GetCpuDisableFeatures() ([]string, error) {
 	// return ClusterDisableList(features), nil
 
 	var xmls []string
-	for i, conn := range protocol.GetAllGRPCConnections() {
-		fmt.Println("Connection", i)
-		cpuXML, err := virsh.GetCPUXML(conn)
-		if err != nil {
-			return nil, err
+	for _, machineName := range conns {
+		conn := protocol.GetConnectionByMachineName(machineName)
+		if conn == nil {
+			return "", fmt.Errorf("machine %s not found", machineName)
 		}
-		fmt.Println(cpuXML)
+		cpuXML, err := virsh.GetCPUXML(conn.Connection)
+		if err != nil {
+			return "", err
+		}
 		xmls = append(xmls, cpuXML)
 	}
 	baselineXML, err := ComputeBaseline(xmls)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	fmt.Println(baselineXML)
-	return []string{}, nil
+
+	return baselineXML, nil
 }
 
 // vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword
@@ -205,7 +207,7 @@ func (v *VirshService) CreateVM(machine_name string, name string, memory int32, 
 	return virsh.CreateVM(slaveMachine.Connection, name, memory, vcpu, diskFolder, qcowFile, diskSizeGB, isoPath, network, VNCPassword)
 }
 
-func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuModel string, disableFeatures []string) error {
+func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXml string) error {
 	exists, err := db.DoesVmLiveExist(name)
 	if err != nil {
 		return fmt.Errorf("failed to check if live VM exists in database: %v", err)
@@ -266,7 +268,7 @@ func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int
 		diskFolder = nfsShare.Target + name
 	}
 
-	err = virsh.CreateLiveVM(slaveMachine.Connection, name, memory, vcpu, diskFolder, qcowFile, diskSizeGB, isoPath, network, VNCPassword, cpuModel, disableFeatures)
+	err = virsh.CreateLiveVM(slaveMachine.Connection, name, memory, vcpu, diskFolder, qcowFile, diskSizeGB, isoPath, network, VNCPassword, cpuXml)
 	if err != nil {
 		return err
 	}

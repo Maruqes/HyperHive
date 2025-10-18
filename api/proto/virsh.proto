@@ -65,8 +65,7 @@ message GetAllVmsResponse {
 
 message CreateVmLiveRequest{
   CreateVmRequest vm = 1;
-  string cpuModel = 2;
-  repeated string disabledCpuFeatures = 3;
+  string cpuXml = 2;
 }
 
 message MigrateVmRequest {
