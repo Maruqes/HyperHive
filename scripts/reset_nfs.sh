@@ -92,16 +92,16 @@ if [[ -d /etc/exports.d ]]; then rm -f /etc/exports.d/* 2>/dev/null || true; fi
 if [[ -d /var/lib/nfs ]]; then rm -rf /var/lib/nfs/* 2>/dev/null || true; fi
 
 # 5) Firewall (remover regras e depois, se reinstalar, voltar a abrir)
-if [[ $TOUCH_FIREWALL -eq 1 && $(command -v firewall-cmd) && $(firewall-cmd --state 2>/dev/null) ]]; then
+if [[ $TOUCH_FIREWALL -eq 1 ]] && have firewall-cmd && firewall-cmd --state &>/dev/null; then
   log "A limpar serviços NFS do firewalld (permanent)…"
-  firewall-cmd --permanent --remove-service=nfs     2>/dev/null || true
-  firewall-cmd --permanent --remove-service=mountd  2>/dev/null || true
-  firewall-cmd --permanent --remove-service=rpc-bind 2>/dev/null || true
+  firewall-cmd --permanent --remove-service=nfs       2>/dev/null || true
+  firewall-cmd --permanent --remove-service=mountd    2>/dev/null || true
+  firewall-cmd --permanent --remove-service=rpc-bind  2>/dev/null || true
   firewall-cmd --reload 2>/dev/null || true
 fi
 
 # 6) SELinux (booleans)
-if [[ $TOUCH_SELINUX -eq 1 && $(command -v getsebool) ]]; then
+if [[ $TOUCH_SELINUX -eq 1 ]] && have getsebool; then
   if getsebool virt_use_nfs &>/dev/null; then
     log "A repor virt_use_nfs=off (podes voltar a ligar no fim)…"
     setsebool -P virt_use_nfs off 2>/dev/null || true
@@ -145,16 +145,16 @@ if [[ $DO_REINSTALL -eq 1 ]]; then
   fi
 
   # 10) Abrir firewall novamente
-  if [[ $TOUCH_FIREWALL -eq 1 && $(command -v firewall-cmd) && $(firewall-cmd --state 2>/dev/null) ]]; then
+  if [[ $TOUCH_FIREWALL -eq 1 ]] && have firewall-cmd && firewall-cmd --state &>/dev/null; then
     log "A abrir serviços NFS no firewalld (permanent)…"
-    firewall-cmd --permanent --add-service=nfs     2>/dev/null || true
-    firewall-cmd --permanent --add-service=mountd  2>/dev/null || true
+    firewall-cmd --permanent --add-service=nfs       2>/dev/null || true
+    firewall-cmd --permanent --add-service=mountd    2>/dev/null || true
     [[ $WITH_RPCBIND -eq 1 ]] && firewall-cmd --permanent --add-service=rpc-bind 2>/dev/null || true
     firewall-cmd --reload 2>/dev/null || true
   fi
 
   # 11) SELinux — ligar boolean útil para VMs (opcional)
-  if [[ $TOUCH_SELINUX -eq 1 && $(command -v getsebool) && getsebool virt_use_nfs &>/dev/null ]]; then
+  if [[ $TOUCH_SELINUX -eq 1 ]] && have getsebool && getsebool virt_use_nfs &>/dev/null; then
     log "A definir virt_use_nfs=on (útil para QEMU/libvirt usar NFS)…"
     setsebool -P virt_use_nfs on 2>/dev/null || true
   fi
