@@ -77,8 +77,5 @@ func StartApi() {
 		setupExtraAPI(r)
 	})
 
-	//put web folder on /
-	r.Handle("/*", http.FileServer(http.Dir("./web")))
-
 	http.ListenAndServe(":9595", r)
 }
