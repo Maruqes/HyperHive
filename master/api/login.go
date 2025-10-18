@@ -4,7 +4,10 @@ import (
 	"512SvMan/services"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 )
 
 type LoginResponse struct {
@@ -48,18 +51,50 @@ func GetTokenFromContext(r *http.Request) string {
 	return ""
 }
 
+func normalizeTokenValue(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+
+	// Authorization headers typically arrive as "Bearer <token>"
+	bearerPrefix := "Bearer "
+	if len(value) >= len(bearerPrefix) && strings.EqualFold(value[:len(bearerPrefix)], bearerPrefix) {
+		return strings.TrimSpace(value[len(bearerPrefix):])
+	}
+
+	return value
+}
+
+func tokenFromRequest(r *http.Request) string {
+	headerToken := normalizeTokenValue(r.Header.Get("Authorization"))
+	if headerToken != "" {
+		return headerToken
+	}
+
+	cookie, err := r.Cookie("Authorization")
+	if err != nil {
+		return ""
+	}
+
+	cookieValue := strings.TrimSpace(cookie.Value)
+	if strings.Contains(cookieValue, "%") {
+		if decoded, err := url.QueryUnescape(cookieValue); err == nil {
+			cookieValue = decoded
+		}
+	}
+
+	return normalizeTokenValue(cookieValue)
+}
+
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		//gets token from header
-		token := r.Header.Get("Authorization")
-
-		//check cookies for token if header is empty
+		token := tokenFromRequest(r)
 		if token == "" {
-			cookie, err := r.Cookie("Authorization")
-			if err == nil {
-				token = cookie.Value
-			}
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
 		}
+
 
 		loginService := services.LoginService{}
 		if !loginService.IsLoginValid(baseURL, token) {

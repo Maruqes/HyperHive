@@ -2,6 +2,7 @@ package virsh
 
 import (
 	"context"
+	"fmt"
 
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 )
@@ -89,9 +90,10 @@ func (s *SlaveVirshService) MigrateVM(ctx context.Context, e *grpcVirsh.MigrateV
 }
 
 func (s *SlaveVirshService) GetAllVms(ctx context.Context, e *grpcVirsh.Empty) (*grpcVirsh.GetAllVmsResponse, error) {
-	vms, err := GetAllVMs()
-	if err != nil {
-		return nil, err
+	vms, errs := GetAllVMs()
+	//convert errs slice into a single error
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("get all vms: %v", errs)
 	}
 	return &grpcVirsh.GetAllVmsResponse{Vms: vms}, nil
 }

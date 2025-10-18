@@ -587,17 +587,19 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 	return info, nil
 }
 
-func GetAllVMs() ([]*grpcVirsh.Vm, error) {
+func GetAllVMs() ([]*grpcVirsh.Vm, []error) {
+	var errs []error
+
 	connURI := "qemu:///system"
 	conn, err := libvirt.NewConnect(connURI)
 	if err != nil {
-		return nil, fmt.Errorf("connect: %w", err)
+		return nil, []error{fmt.Errorf("connect: %w", err)}
 	}
 	defer conn.Close()
 
 	doms, err := conn.ListAllDomains(0)
 	if err != nil {
-		return nil, fmt.Errorf("list domains: %w", err)
+		return nil, []error{fmt.Errorf("list domains: %w", err)}
 	}
 
 	var vms []*grpcVirsh.Vm
@@ -605,19 +607,21 @@ func GetAllVMs() ([]*grpcVirsh.Vm, error) {
 		name, err := dom.GetName()
 		if err != nil {
 			dom.Free()
-			return nil, fmt.Errorf("get name: %w", err)
+			continue
 		}
 
 		state, _, err := dom.GetState()
 		if err != nil {
 			dom.Free()
-			return nil, fmt.Errorf("state: %w", err)
+			errs = append(errs, fmt.Errorf("state: %w", err))
+			continue
 		}
 
 		xmlDesc, err := dom.GetXMLDesc(0)
 		if err != nil {
 			dom.Free()
-			return nil, fmt.Errorf("xml: %w", err)
+			errs = append(errs, fmt.Errorf("xml: %w", err))
+			continue
 		}
 
 		port := 0
@@ -648,7 +652,25 @@ func GetAllVMs() ([]*grpcVirsh.Vm, error) {
 		diskInfo, err := GetPrimaryDiskInfo(&dom)
 		if err != nil {
 			dom.Free()
-			return nil, fmt.Errorf("get disk info: %w", err)
+			errs = append(errs, fmt.Errorf("get disk info: %w", err))
+			continue
+		}
+
+		networkIP := []string{}
+
+		if state == libvirt.DOMAIN_RUNNING {
+			ifAddrs, err := dom.ListAllInterfaceAddresses(libvirt.DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE)
+			if err != nil {
+				dom.Free()
+				errs = append(errs, fmt.Errorf("get interface addresses: %w", err))
+				continue
+			}
+
+			for _, ifAddr := range ifAddrs {
+				for _, addr := range ifAddr.Addrs {
+					networkIP = append(networkIP, addr.Addr)
+				}
+			}
 		}
 
 		info := &grpcVirsh.Vm{
@@ -662,12 +684,14 @@ func GetAllVMs() ([]*grpcVirsh.Vm, error) {
 			CurrentMemoryUsageMB: usedMemMB,
 			DiskSizeGB:           int32(diskInfo.SizeGB),
 			DiskPath:             diskInfo.Path,
+			Ip:                   networkIP,
 		}
 		vms = append(vms, info)
 		dom.Free()
 	}
-	return vms, nil
+	return vms, errs
 }
+
 func ShutdownVM(name string) error {
 	conn, err := libvirt.NewConnect("qemu:///system")
 	if err != nil {
