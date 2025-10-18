@@ -4,7 +4,6 @@ import (
 	"512SvMan/services"
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -94,7 +93,6 @@ func authMiddleware(next http.Handler) http.Handler {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
-
 
 		loginService := services.LoginService{}
 		if !loginService.IsLoginValid(baseURL, token) {

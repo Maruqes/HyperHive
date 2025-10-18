@@ -2,57 +2,56 @@
 set -euo pipefail
 
 # ===========================
-#  CONFIGURAÇÃO PELO UTILIZADOR
+#  USER CONFIGURATION
 # ===========================
 
-# (Obrigatório ler) Define aqui as versões exatas que queres — ou deixa vazio para instalar a última.
-# Usa as chaves exatamente como os nomes dos pacotes dnf.
-# Dica: vê versões disponíveis com: dnf list --showduplicates <pacote>
+# (Required reading) Define the exact versions you want here, or leave empty to install the latest one.
+# Use keys that match the dnf package names exactly.
+# Tip: list available versions with `dnf list --showduplicates <package>`
 declare -A VERSAO=(
-  ["qemu-kvm"]="9.2.4-2.fc42"
-  ["qemu-img"]="9.2.4-2.fc42"
-  ["libvirt"]="11.0.0-4.fc42"
-  ["libvirt-devel"]="11.0.0-4.fc42"
-  ["libvirt-daemon"]="11.0.0-4.fc42"
-  ["libvirt-daemon-kvm"]="11.0.0-4.fc42"
-  ["libvirt-daemon-driver-qemu"]="11.0.0-4.fc42"
-  ["libvirt-daemon-driver-network"]="11.0.0-4.fc42"
-  ["libvirt-daemon-driver-storage"]="11.0.0-4.fc42"
-  ["libvirt-daemon-config-network"]="11.0.0-4.fc42"
-  ["libvirt-daemon-config-nwfilter"]="11.0.0-4.fc42"
-  ["virt-install"]="5.0.0-2.fc42"
-  ["virt-manager"]="5.0.0-2.fc42"
-  ["virt-viewer"]="11.0-15.fc42"
-  ["edk2-ovmf"]="20250523-16.fc42"
-  ["bridge-utils"]="1.7.1-12.fc42"
-  ["dnsmasq"]="2.90-6.fc42"
-  ["pkgconf-pkg-config"]="2.3.0-2.fc42"
-  ["pkg-config"]=""   # não instalado
+  ["qemu-kvm"]=""
+  ["qemu-img"]=""
+  ["libvirt"]=""
+  ["libvirt-devel"]=""
+  ["libvirt-daemon"]=""
+  ["libvirt-daemon-kvm"]=""
+  ["libvirt-daemon-driver-qemu"]=""
+  ["libvirt-daemon-driver-network"]=""
+  ["libvirt-daemon-driver-storage"]=""
+  ["libvirt-daemon-config-network"]=""
+  ["libvirt-daemon-config-nwfilter"]=""
+  ["virt-install"]=""
+  ["virt-manager"]=""
+  ["virt-viewer"]=""
+  ["edk2-ovmf"]=""
+  ["bridge-utils"]=""
+  ["dnsmasq"]=""
+  ["pkgconf-pkg-config"]=""
+  ["pkg-config"]=""   # not installed
 )
 
 
-# Trancar versões após instalar? (usa dnf versionlock)
+# Lock package versions after installation? (uses dnf versionlock)
 ENABLE_VERSIONLOCK=true
 
-# Apagar *todo* o estado do sistema/libvirt (configs, logs, caches) e também
-# os ficheiros de estado dos utilizadores (ex.: ~/.config/virt-manager)?
-# ⚠️ NÃO apaga discos de VMs (.qcow2) — isso tens de apagar à parte.
+# Remove *all* libvirt/system state (configs, logs, caches) and also user state
+# files (for example ~/.config/virt-manager)? Keeps VM disks (.qcow2) intact.
 NUKE_USER_STATE=false
 
-# Fazer backup de /etc/libvirt antes de limpar
+# Create a backup of /etc/libvirt before wiping everything
 DO_BACKUP_ETC_LIBVIRT=true
 
-# Forçar a destruição/undefine de VMs e redes existentes antes de remover
+# Force destroy/undefine existing VMs and networks before removing packages
 FORCE_KILL_VMS=true
 
-# Adicionar o utilizador atual ao grupo 'libvirt'
+# Add the current user to the 'libvirt' group
 ADD_USER_TO_GROUP=true
 
 # ===========================
-#  LÓGICA
+#  LOGIC
 # ===========================
 
-need_cmd() { command -v "$1" >/dev/null 2>&1 || { echo "Falta o comando: $1"; exit 1; }; }
+need_cmd() { command -v "$1" >/dev/null 2>&1 || { echo "Missing command: $1"; exit 1; }; }
 need_cmd dnf
 need_cmd systemctl
 
@@ -63,13 +62,13 @@ fi
 
 info()  { echo -e "\033[1;34m[INFO]\033[0m $*"; }
 warn()  { echo -e "\033[1;33m[WARN]\033[0m $*"; }
-err()   { echo -e "\033[1;31m[ERRO]\033[0m $*" >&2; }
+err()   { echo -e "\033[1;31m[ERROR]\033[0m $*" >&2; }
 
 pkg_spec() {
   local name="$1"
   local ver="${VERSAO[$name]:-}"
   if [[ "$name" == @* ]]; then
-    # grupos (ex.: @virtualization) não têm versão
+    # groups (e.g. @virtualization) do not take an explicit version
     echo "$name"
   elif [[ -n "$ver" ]]; then
     echo "${name}-${ver}"
@@ -78,7 +77,7 @@ pkg_spec() {
   fi
 }
 
-# Lista base (inclui grupo)
+# Base package list (includes the group)
 BASE_PKGS=(
   "@virtualization"
   qemu-kvm
@@ -109,66 +108,66 @@ STOP_SERVICES=(
   libvirtd virtqemud virtlogd virtstoraged virtnetworkd
 )
 
-# 1) Parar serviços e matar VMs/rede
-info "A parar serviços de virtualização…"
+# 1) Stop services and terminate VMs/networks
+info "Stopping virtualization services..."
 for s in "${STOP_SOCKETS[@]}";   do $SUDO systemctl stop "$s" 2>/dev/null || true; done
 for s in "${STOP_SERVICES[@]}";  do $SUDO systemctl stop "$s" 2>/dev/null || true; done
 $SUDO systemctl disable libvirtd 2>/dev/null || true
 
 if $FORCE_KILL_VMS && command -v virsh >/dev/null 2>&1; then
-  warn "A destruir VMs e redes definidas no libvirt…"
-  # destruir VMs a correr
+  warn "Destroying libvirt-defined VMs and networks..."
+  # destroy running VMs
   mapfile -t RUNNING < <(virsh list --name | sed '/^$/d' || true)
   for vm in "${RUNNING[@]:-}"; do virsh destroy "$vm" || true; done
-  # remover definições (inclui NVRAM)
+  # remove definitions (includes NVRAM)
   mapfile -t ALL < <(virsh list --all --name | sed '/^$/d' || true)
   for vm in "${ALL[@]:-}"; do virsh undefine --nvram "$vm" || virsh undefine "$vm" || true; done
-  # destruir/undef default network se existir
+  # destroy/undefine the default network if present
   if virsh net-info default >/dev/null 2>&1; then
     virsh net-destroy default || true
     virsh net-undefine default || true
   fi
 fi
 
-# 2) Backup opcional
+# 2) Optional backup
 if $DO_BACKUP_ETC_LIBVIRT && [[ -d /etc/libvirt ]]; then
   TS="$(date +%Y%m%d_%H%M%S)"
   BK="/root/libvirt-backup-${TS}.tar.gz"
-  info "A guardar backup de /etc/libvirt em ${BK}"
-  $SUDO tar -czf "$BK" /etc/libvirt || warn "Falhou backup (segue sem backup)."
+  info "Saving /etc/libvirt backup to ${BK}"
+  $SUDO tar -czf "$BK" /etc/libvirt || warn "Backup failed (continuing without it)."
 fi
 
-# 3) Remoção total de pacotes
-info "A remover pacotes de virtualização…"
-# remover grupo primeiro (se existir)
+# 3) Full package removal
+info "Removing virtualization packages..."
+# remove group first (if available)
 $SUDO dnf -y group remove virtualization || true
-# remover pacotes específicos
+# remove specific packages
 $SUDO dnf -y remove \
   qemu-kvm qemu-img qemu-system-* \
   libvirt libvirt-* \
   virt-install virt-manager virt-viewer \
   edk2-ovmf* bridge-utils dnsmasq || true
 
-# limpar dependências órfãs
+# remove orphaned dependencies
 $SUDO dnf -y autoremove || true
 
-# 4) Limpeza de estado/configuração
-info "A limpar diretórios do libvirt…"
+# 4) Clean state/config directories
+info "Cleaning libvirt directories..."
 $SUDO systemctl daemon-reload || true
 
-# Mantemos /var/lib/libvirt/images para não tocar nos discos das VMs.
+# Keep /var/lib/libvirt/images so VM disks remain untouched.
 $SUDO rm -rf /etc/libvirt /var/cache/libvirt /var/log/libvirt || true
 $SUDO find /var/lib/libvirt -maxdepth 1 -mindepth 1 ! -name images -exec rm -rf {} + 2>/dev/null || true
 
 if $NUKE_USER_STATE; then
-  warn "A limpar estado de utilizadores (~/.config/virt-manager, etc.)"
+  warn "Clearing user state (~/.config/virt-manager, etc.)"
   while IFS= read -r -d '' home; do
     $SUDO rm -rf "${home}/.config/virt-manager" "${home}/.cache/virt-manager" 2>/dev/null || true
   done < <(find /home -maxdepth 1 -mindepth 1 -type d -print0 2>/dev/null || true)
 fi
 
-# 5) Reinstalação com versões
-info "A atualizar índices do dnf…"
+# 5) Reinstall with versions
+info "Refreshing dnf metadata..."
 $SUDO dnf -y clean all
 $SUDO dnf -y makecache
 
@@ -177,16 +176,16 @@ for p in "${BASE_PKGS[@]}"; do
   INSTALL_SPECS+=("$(pkg_spec "$p")")
 done
 
-info "A instalar pacotes: ${INSTALL_SPECS[*]}"
+info "Installing packages: ${INSTALL_SPECS[*]}"
 $SUDO dnf install -y "${INSTALL_SPECS[@]}"
 
-# 6) (Opcional) Trancar versões
+# 6) (Optional) Enable version locks
 if $ENABLE_VERSIONLOCK; then
-  info "A ativar versionlock…"
+  info "Enabling versionlock..."
   $SUDO dnf -y install dnf-plugins-core
-  # Limpar locks antigos destes pacotes
+  # Clear previous locks for these packages
   $SUDO dnf versionlock delete '*' >/dev/null 2>&1 || true
-  # Lock por pacote instalado
+  # Lock each installed package
   for p in "${BASE_PKGS[@]}"; do
     [[ "$p" == @* ]] && continue
     if rpm -q "$p" >/dev/null 2>&1; then
@@ -196,12 +195,12 @@ if $ENABLE_VERSIONLOCK; then
   done
 fi
 
-# 7) Ativar sockets/daemons (split + monolítico)
-info "A (re)ativar serviços libvirt…"
+# 7) Enable sockets/daemons (split + monolithic)
+info "Re-enabling libvirt services..."
 $SUDO systemctl enable --now virtqemud.socket virtlogd.socket virtstoraged.socket virtnetworkd.socket
 $SUDO systemctl enable --now libvirtd || true
 
-# 8) Rede default (se pacote de config instalou)
+# 8) Default network (if config package was installed)
 if command -v virsh >/dev/null 2>&1; then
   if virsh net-info default >/dev/null 2>&1; then
     virsh net-autostart default || true
@@ -209,19 +208,19 @@ if command -v virsh >/dev/null 2>&1; then
   fi
 fi
 
-# 9) Adicionar utilizador ao grupo libvirt
+# 9) Add user to the libvirt group
 if $ADD_USER_TO_GROUP; then
   USER_TO_ADD="${SUDO_USER:-$(id -un)}"
-  info "A adicionar ${USER_TO_ADD} ao grupo 'libvirt'…"
+  info "Adding ${USER_TO_ADD} to the 'libvirt' group..."
   $SUDO usermod -aG libvirt "$USER_TO_ADD" || true
-  warn "Poderás ter de fazer logout/login para aplicar permissões."
+  warn "You may need to log out and back in for permissions to take effect."
 fi
 
-# 10) Verificações
-info "Versões finais:"
+# 10) Verification
+info "Final versions:"
 command -v virsh >/dev/null 2>&1 && virsh --version
 command -v qemu-system-x86_64 >/dev/null 2>&1 && qemu-system-x86_64 --version || true
 rpm -q libvirt || true
 rpm -q qemu-kvm || true
 
-info "Concluído ✅"
+info "All done."

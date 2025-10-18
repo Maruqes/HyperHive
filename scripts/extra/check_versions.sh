@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # check_virt_versions.sh
-# Mostra versões instaladas de pacotes e binários do stack de virtualização
+# Display installed package and binary versions for the virtualization stack
 
 set -u
 IFS=$'\n\t'
 
-# Pacotes RPM a inspecionar (podes adicionar/remover aqui)
+# RPM packages to inspect (feel free to adjust)
 PACKAGES=(
   qemu-kvm
   qemu-img
@@ -28,7 +28,7 @@ PACKAGES=(
   pkg-config
 )
 
-# Binários para mostrar runtime --version (a 1ª linha)
+# Binaries to report via --version (first output line)
 BINARIES=(
   virsh
   qemu-system-x86_64
@@ -39,59 +39,59 @@ BINARIES=(
   dnsmasq
 )
 
-line() { printf '%*s\n' "${COLUMNS:-80}" '' | tr ' ' '─'; }
+line() { printf '%*s\n' "${COLUMNS:-80}" '' | tr ' ' '-'; }
 
-echo "== RPM instalados (NVRA) =="
+echo "== Installed RPMs (NVRA) =="
 {
-  printf "%-40s %-30s\n" "Pacote" "Versão-Release.Arquitetura"
-  printf "%-40s %-30s\n" "------" "---------------------------"
+  printf "%-40s %-30s\n" "Package" "Version-Release.Arch"
+  printf "%-40s %-30s\n" "-------" "---------------------"
   for pkg in "${PACKAGES[@]}"; do
     if rpm -q "$pkg" &>/dev/null; then
-      # nome + versão-release.arquitetura
+      # package name plus version-release.arch
       vr=$(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' "$pkg" | head -n1)
       printf "%-40s %-30s\n" "$pkg" "$vr"
     else
-      printf "%-40s %-30s\n" "$pkg" "NÃO INSTALADO"
+      printf "%-40s %-30s\n" "$pkg" "NOT INSTALLED"
     fi
   done
 } | column -t
 
 echo
-echo "== Versões em runtime (comando --version) =="
+echo "== Runtime versions (command --version) =="
 {
-  printf "%-28s %s\n" "Comando" "Versão (1ª linha do output)"
-  printf "%-28s %s\n" "-------" "-----------------------------"
+  printf "%-28s %s\n" "Command" "Version (first output line)"
+  printf "%-28s %s\n" "-------" "----------------------------"
   for cmd in "${BINARIES[@]}"; do
     if command -v "$cmd" >/dev/null 2>&1; then
       v=$("$cmd" --version 2>&1 | head -n1 | tr -s ' ')
       printf "%-28s %s\n" "$cmd" "$v"
     else
-      printf "%-28s %s\n" "$cmd" "NÃO ENCONTRADO"
+      printf "%-28s %s\n" "$cmd" "NOT FOUND"
     fi
   done
 } | column -t
 
 echo
-echo "== Libvirt (se disponível) =="
+echo "== Libvirt (if available) =="
 if command -v virsh >/dev/null 2>&1; then
-  # Isto mostra versões de biblioteca, driver e hypervisor
+  # This reports library, driver, and hypervisor versions
   if virsh -c qemu:///system version >/dev/null 2>&1; then
     virsh -c qemu:///system version
   else
-    echo "virsh existe, mas não conseguiu ligar ao daemon (libvirtd/virtqemud)."
+    echo "virsh is installed but could not connect to libvirtd/virtqemud."
   fi
 else
-  echo "virsh não instalado."
+  echo "virsh is not installed."
 fi
 
 echo
-echo "== Versionlocks do DNF (se existirem) =="
+echo "== DNF versionlocks (if any) =="
 if command -v dnf >/dev/null 2>&1; then
   if dnf -q list installed dnf-plugins-core >/dev/null 2>&1; then
-    dnf versionlock list || echo "Sem versionlocks definidos."
+    dnf versionlock list || echo "No versionlocks defined."
   else
-    echo "dnf-plugins-core não instalado (sem versionlocks)."
+    echo "dnf-plugins-core is not installed (no versionlocks)."
   fi
 else
-  echo "DNF não encontrado."
+  echo "DNF not found."
 fi

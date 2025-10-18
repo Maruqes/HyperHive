@@ -2,14 +2,16 @@
 
 set -euo pipefail
 
+TARGET_IFACE_NAME="512rede"
+
 usage() {
-    echo "Uso: $(basename "$0") <nome_atual> <novo_nome>" >&2
+    echo "Usage: $(basename "$0") <current_name>" >&2
     exit 1
 }
 
 require_root() {
     if [ "$(id -u)" -ne 0 ]; then
-        echo "Este script precisa ser executado como root." >&2
+        echo "This script must be run as root." >&2
         exit 1
     fi
 }
@@ -19,24 +21,24 @@ validate_iface_name() {
     local label="$2"
 
     if [ -z "$name" ]; then
-        echo "${label} não pode ser vazio." >&2
+        echo "${label} cannot be empty." >&2
         exit 1
     fi
 
     if [ "${#name}" -gt 15 ]; then
-        echo "${label} deve ter no máximo 15 caracteres (limite do kernel para interfaces)." >&2
+        echo "${label} must have at most 15 characters (kernel limit for interfaces)." >&2
         exit 1
     fi
 
     if [[ ! "$name" =~ ^[[:alnum:]._-]+$ ]]; then
-        echo "${label} '${name}' contém caracteres inválidos. Use apenas letras, números, '.', '_' ou '-'." >&2
+        echo "${label} '${name}' contains invalid characters. Use only letters, numbers, '.', '_' or '-'." >&2
         exit 1
     fi
 }
 
 ensure_command() {
     if ! command -v "$1" >/dev/null 2>&1; then
-        echo "Comando obrigatório não encontrado: $1" >&2
+        echo "Required command not found: $1" >&2
         exit 1
     fi
 }
@@ -62,7 +64,7 @@ backup_conflicting_files() {
     done < <(find "$dir" -maxdepth 1 -type f -name "$pattern" -print0)
 }
 
-if [ "$#" -ne 2 ]; then
+if [ "$#" -ne 1 ]; then
     usage
 fi
 
@@ -70,37 +72,37 @@ require_root
 ensure_command ip
 
 OLD_IFACE="$1"
-NEW_IFACE="$2"
+NEW_IFACE="$TARGET_IFACE_NAME"
 
-validate_iface_name "$OLD_IFACE" "Nome atual"
-validate_iface_name "$NEW_IFACE" "Novo nome"
+validate_iface_name "$OLD_IFACE" "Current name"
+validate_iface_name "$NEW_IFACE" "New name"
 
 if [ "$OLD_IFACE" = "$NEW_IFACE" ]; then
-    echo "O nome atual e o novo nome são iguais; nada a fazer." >&2
+    echo "The current interface name already matches the target name; nothing to do." >&2
     exit 0
 fi
 
 if ! ip link show "$OLD_IFACE" >/dev/null 2>&1; then
-    echo "Interface '${OLD_IFACE}' não encontrada." >&2
+    echo "Interface '${OLD_IFACE}' not found." >&2
     exit 1
 fi
 
 if ip link show "$NEW_IFACE" >/dev/null 2>&1; then
-    echo "Já existe uma interface chamada '${NEW_IFACE}'." >&2
+    echo "An interface named '${NEW_IFACE}' already exists." >&2
     exit 1
 fi
 
 MAC_ADDRESS=$(cat "/sys/class/net/${OLD_IFACE}/address" 2>/dev/null || true)
 if [ -z "$MAC_ADDRESS" ]; then
-    echo "Não foi possível obter o endereço MAC de '${OLD_IFACE}'." >&2
+    echo "Unable to determine the MAC address for '${OLD_IFACE}'." >&2
     exit 1
 fi
 
-printf "Renomeando interface '%s' para '%s'...\n" "$OLD_IFACE" "$NEW_IFACE"
+printf "Renaming interface '%s' to '%s'...\n" "$OLD_IFACE" "$NEW_IFACE"
 ip link set dev "$OLD_IFACE" down
 ip link set dev "$OLD_IFACE" name "$NEW_IFACE"
 ip link set dev "$NEW_IFACE" up
-printf "Interface renomeada com sucesso.\n"
+printf "Interface renamed successfully.\n"
 
 LINK_DIR="/etc/systemd/network"
 LINK_PRIORITY="01"
@@ -151,14 +153,14 @@ ACTION=="add", SUBSYSTEM=="net", ATTR{address}=="${MAC_ADDRESS}", NAME="${NEW_IF
 EOF3
 chmod 0644 "$UDEV_RULE_FILE"
 
-# Assegura que alterações sejam aplicadas em futuros boots
+# Ensure changes are applied on future boots
 if command -v udevadm >/dev/null 2>&1; then
     udevadm control --reload >/dev/null 2>&1 || true
     udevadm control --reload-rules >/dev/null 2>&1 || true
     udevadm trigger --attr-match=subsystem=net --attr-match=address="$MAC_ADDRESS" >/dev/null 2>&1 || true
 fi
 
-printf "Persistência configurada em '%s'." "$LINK_FILE"
-printf "\nReinicie ou reconecte a interface para confirmar o novo nome em todos os serviços.\n"
+printf "Persistence configuration written to '%s'.\n" "$LINK_FILE"
+printf "Restart or reconnect the interface to propagate the new name to every service.\n"
 
 exit 0

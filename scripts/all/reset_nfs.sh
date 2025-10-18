@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# reset_nfs.sh — Remove toda a configuração/estado do NFS e reinstala versões especificadas
-# Uso:
-#   ./reset_nfs.sh --force                  # limpa tudo e NÃO reinstala (se REMOVE_PACKAGES=1)
-#   ./reset_nfs.sh --force --reinstall      # limpa e reinstala conforme VERSAO no topo
-# Flags opcionais:
-#   --keep-packages   Não desinstala pacotes (apenas limpa config/estado)
-#   --with-rpcbind    Arranca rpcbind (para NFSv3)
-#   --no-firewall     Não mexe no firewalld
-#   --no-selinux      Não mexe em booleans do SELinux
-# Saída segura: backups em /root/nfs-reset-YYYYmmdd-HHMMSS/
+# reset_nfs.sh - Wipes all NFS configuration/state and optionally reinstalls specific versions
+# Usage:
+#   ./reset_nfs.sh --force                  # wipe everything and DO NOT reinstall (if REMOVE_PACKAGES=1)
+#   ./reset_nfs.sh --force --reinstall      # wipe and reinstall according to VERSAO defined below
+# Optional flags:
+#   --keep-packages   Do not remove packages (only clean config/state)
+#   --with-rpcbind    Start rpcbind (for NFSv3)
+#   --no-firewall     Leave firewalld untouched
+#   --no-selinux      Leave SELinux booleans untouched
+# Safety net: backups stored in /root/nfs-reset-YYYYmmdd-HHMMSS/
 
 set -euo pipefail
 
-# ==================== CONFIGURA VERSÕES AQUI ====================
-# Deixa "" para instalar a última disponível.
+# ==================== SET VERSIONS HERE ====================
+# Leave "" to install the latest available version.
 declare -A VERSAO=(
   ["nfs-utils"]=""
   ["libnfsidmap"]=""
@@ -37,16 +37,16 @@ for a in "$@"; do
     --with-rpcbind)  WITH_RPCBIND=1 ;;
     --no-firewall)   TOUCH_FIREWALL=0 ;;
     --no-selinux)    TOUCH_SELINUX=0 ;;
-    *) echo "Uso: $0 --force [--reinstall] [--keep-packages] [--with-rpcbind] [--no-firewall] [--no-selinux]"; exit 2;;
+    *) echo "Usage: $0 --force [--reinstall] [--keep-packages] [--with-rpcbind] [--no-firewall] [--no-selinux]"; exit 2;;
   esac
 done
 
-# sudo automático
+# auto-escalate with sudo
 if [[ $EUID -ne 0 ]]; then exec sudo -E bash "$0" "$@"; fi
 
 if [[ $FORCE -ne 1 ]]; then
-  echo "Este script é DESTRUTIVO para a configuração do NFS."
-  echo "Se tens a certeza, corre novamente com --force"
+  echo "This script is DESTRUCTIVE for existing NFS configuration."
+  echo "If you are sure, rerun with --force."
   exit 1
 fi
 
@@ -57,30 +57,30 @@ TS=$(date +%Y%m%d-%H%M%S)
 BK="/root/nfs-reset-$TS"
 mkdir -p "$BK"/{etc,var_lib_nfs,firewalld}
 
-log "Backup de configuração/estado para $BK"
+log "Backing up configuration/state to $BK"
 
-# 1) Parar e desativar serviços
-log "A parar serviços NFS/RPC…"
+# 1) Stop and disable services
+log "Stopping NFS/RPC services..."
 systemctl stop nfs-server nfs-mountd nfs-idmapd rpc-statd rpcbind 2>/dev/null || true
 systemctl disable nfs-server nfs-mountd nfs-idmapd rpc-statd rpcbind 2>/dev/null || true
 systemctl reset-failed nfs-server nfs-mountd nfs-idmapd rpc-statd rpcbind 2>/dev/null || true
 
-# 2) Desmontar mounts NFS (cliente)
-log "A desmontar mounts NFS (se existirem)…"
+# 2) Unmount client-side NFS mounts
+log "Unmounting NFS mounts (if any)..."
 mapfile -t NFS_MPTS < <(awk '$3 ~ /^nfs/ {print $2}' /proc/mounts)
 for m in "${NFS_MPTS[@]:-}"; do
   log " - umount -fl $m"
   umount -fl "$m" 2>/dev/null || true
 done
 
-# 3) Desexportar tudo (servidor)
+# 3) Unexport everything (server)
 if have exportfs; then
-  log "A desexportar sistemas de ficheiros (exportfs -ua)…"
+  log "Running exportfs -ua to drop all exports..."
   exportfs -ua 2>/dev/null || true
 fi
 
-# 4) Backups e limpeza de ficheiros
-log "A salvar e limpar /etc/exports, /etc/exports.d, /etc/nfs.conf, /var/lib/nfs…"
+# 4) Backup and wipe config files
+log "Saving and cleaning /etc/exports, /etc/exports.d, /etc/nfs.conf, /var/lib/nfs..."
 test -f /etc/exports   && cp -a /etc/exports   "$BK/etc/exports"
 test -d /etc/exports.d && cp -a /etc/exports.d "$BK/etc/exports.d"
 test -f /etc/nfs.conf  && cp -a /etc/nfs.conf  "$BK/etc/nfs.conf"
@@ -91,9 +91,9 @@ rm -f /etc/nfs.conf 2>/dev/null || true
 if [[ -d /etc/exports.d ]]; then rm -f /etc/exports.d/* 2>/dev/null || true; fi
 if [[ -d /var/lib/nfs ]]; then rm -rf /var/lib/nfs/* 2>/dev/null || true; fi
 
-# 5) Firewall (remover regras e depois, se reinstalar, voltar a abrir)
+# 5) Firewall (remove rules and later re-open if reinstalling)
 if [[ $TOUCH_FIREWALL -eq 1 ]] && have firewall-cmd && firewall-cmd --state &>/dev/null; then
-  log "A limpar serviços NFS do firewalld (permanent)…"
+  log "Cleaning NFS services from firewalld (permanent)..."
   firewall-cmd --permanent --remove-service=nfs       2>/dev/null || true
   firewall-cmd --permanent --remove-service=mountd    2>/dev/null || true
   firewall-cmd --permanent --remove-service=rpc-bind  2>/dev/null || true
@@ -103,7 +103,7 @@ fi
 # 6) SELinux (booleans)
 if [[ $TOUCH_SELINUX -eq 1 ]] && have getsebool; then
   if getsebool virt_use_nfs &>/dev/null; then
-    log "A repor virt_use_nfs=off (podes voltar a ligar no fim)…"
+    log "Setting virt_use_nfs=off (you can enable it again later)..."
     setsebool -P virt_use_nfs off 2>/dev/null || true
   fi
   if getsebool use_nfs_home_dirs &>/dev/null; then
@@ -111,63 +111,63 @@ if [[ $TOUCH_SELINUX -eq 1 ]] && have getsebool; then
   fi
 fi
 
-# 7) Desinstalar pacotes (opcional)
+# 7) Remove packages (optional)
 if [[ $REMOVE_PACKAGES -eq 1 ]]; then
-  log "A desinstalar pacotes NFS…"
+  log "Removing NFS packages..."
   dnf remove -y nfs-utils libnfsidmap rpcbind nfs4-acl-tools 2>/dev/null || true
 else
-  log "A manter pacotes instalados (--keep-packages)."
+  log "Keeping installed packages (--keep-packages)."
 fi
 
-# 8) Reinstalar conforme VERSAO (opcional)
+# 8) Reinstall according to VERSAO (optional)
 if [[ $DO_REINSTALL -eq 1 ]]; then
-  log "A reinstalar pacotes conforme versões definidas…"
+  log "Reinstalling packages as requested..."
   for pkg in "${!VERSAO[@]}"; do
     ver="${VERSAO[$pkg]}"
     if [[ -n "$ver" ]]; then
       log " - dnf install -y --allowerasing ${pkg}-${ver}"
       dnf install -y --allowerasing "${pkg}-${ver}"
     else
-      log " - dnf install -y ${pkg} (última)"
+      log " - dnf install -y ${pkg} (latest available)"
       dnf install -y "${pkg}"
     fi
   done
 
-  # 9) Re-ativar serviços principais
-  log "A activar/arrancar nfs-server, idmapd, statd…"
+  # 9) Re-enable core services
+  log "Starting nfs-server, idmapd, statd..."
   systemctl enable --now nfs-server 2>/dev/null || true
   systemctl enable --now nfs-idmapd 2>/dev/null || true
   systemctl enable --now rpc-statd  2>/dev/null || true
 
   if [[ $WITH_RPCBIND -eq 1 ]]; then
-    log "A activar rpcbind (NFSv3)…"
+    log "Starting rpcbind (NFSv3)..."
     systemctl enable --now rpcbind 2>/dev/null || true
   fi
 
-  # 10) Abrir firewall novamente
+  # 10) Re-open firewall rules
   if [[ $TOUCH_FIREWALL -eq 1 ]] && have firewall-cmd && firewall-cmd --state &>/dev/null; then
-    log "A abrir serviços NFS no firewalld (permanent)…"
+    log "Adding NFS services to firewalld (permanent)..."
     firewall-cmd --permanent --add-service=nfs       2>/dev/null || true
     firewall-cmd --permanent --add-service=mountd    2>/dev/null || true
     [[ $WITH_RPCBIND -eq 1 ]] && firewall-cmd --permanent --add-service=rpc-bind 2>/dev/null || true
     firewall-cmd --reload 2>/dev/null || true
   fi
 
-  # 11) SELinux — ligar boolean útil para VMs (opcional)
+  # 11) SELinux - enable boolean useful for VMs (optional)
   if [[ $TOUCH_SELINUX -eq 1 ]] && have getsebool && getsebool virt_use_nfs &>/dev/null; then
-    log "A definir virt_use_nfs=on (útil para QEMU/libvirt usar NFS)…"
+    log "Setting virt_use_nfs=on (needed for QEMU/libvirt over NFS)..."
     setsebool -P virt_use_nfs on 2>/dev/null || true
   fi
 fi
 
 echo
-log "Concluído."
-log "Backups em: $BK"
+log "Done."
+log "Backups stored at: $BK"
 if [[ $DO_REINSTALL -eq 1 ]]; then
-  log "Estado actual:"
+  log "Current service snapshot:"
   systemctl --no-pager --type=service | grep -E 'nfs-|rpc' || true
   echo
-  echo "• Define os exports em /etc/exports (ex.):"
+  echo "- Define your exports in /etc/exports (for example):"
   echo "    /mnt/vms *(rw,sync,no_subtree_check,no_root_squash,sec=sys)"
-  echo "  Depois:  sudo exportfs -ra"
+  echo "  Then run: sudo exportfs -ra"
 fi

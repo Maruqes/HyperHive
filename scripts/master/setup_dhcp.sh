@@ -9,13 +9,13 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: setup_dhcp.sh [LAN_IFACE] [WAN_IFACE]
+Usage: setup_dhcp.sh [WAN_IFACE] (the interface with internet access)
 
-  LAN_IFACE : Interface that should serve DHCP (defaults to NETWORK_NAME env or 512rede)
+  LAN interface is fixed to 512rede
   WAN_IFACE : Upstream interface used for NAT (auto-detected if omitted)
 
-Environment variables still override defaults (NETWORK_NAME, WAN_IF, SUBNET_CIDR, ...).
-Command-line arguments take precedence over the environment.
+Environment variables still override defaults (WAN_IF, SUBNET_CIDR, ...).
+Command-line arguments take precedence over the environment when applicable.
 USAGE
   exit 1
 }
@@ -37,17 +37,11 @@ else
 fi
 
 # --- CLI overrides -----------------------------------------------------------
-CLI_NETWORK_NAME=""
 CLI_WAN_IF=""
 
 case "${1:-}" in
   -h|--help) usage ;;
 esac
-
-if [[ $# -gt 0 ]]; then
-  CLI_NETWORK_NAME=$1
-  shift
-fi
 
 if [[ $# -gt 0 ]]; then
   CLI_WAN_IF=$1
@@ -59,8 +53,8 @@ if [[ $# -gt 0 ]]; then
 fi
 
 # --- Tunables (override via env) ---------------------------------------------
-NETWORK_NAME_DEFAULT="${NETWORK_NAME:-512rede}"   # your LAN interface name
-NETWORK_NAME="${CLI_NETWORK_NAME:-${NETWORK_NAME_DEFAULT}}"
+LAN_INTERFACE_NAME="512rede"
+NETWORK_NAME="$LAN_INTERFACE_NAME"
 SUBNET_CIDR="${SUBNET_CIDR:-192.168.76.0/24}"     # LAN subnet
 GATEWAY_IP="${GATEWAY_IP:-192.168.76.1}"          # LAN gateway (this host)
 DHCP_RANGE_START="${DHCP_RANGE_START:-192.168.76.50}"
