@@ -60,20 +60,6 @@ func ExecWithOutToSocketCMD(ctx context.Context, msgType extraGrpc.WebSocketsMes
 		wg       sync.WaitGroup
 	)
 
-	type streamMessage struct {
-		line  string
-		isErr bool
-	}
-
-	var (
-		msgCh            = make(chan streamMessage, 1024)
-		senderWG         sync.WaitGroup
-		dropWarnOnce     sync.Once
-		stderrLines      []string
-		stderrLinesMu    sync.Mutex
-		maxStoredStderr  = 200
-	)
-
 	//helper function
 	appendErr := func(err error) {
 		if err == nil {
@@ -116,19 +102,6 @@ func ExecWithOutToSocketCMD(ctx context.Context, msgType extraGrpc.WebSocketsMes
 		return 0, nil, nil
 	}
 
-	senderWG.Add(1)
-	go func() {
-		defer senderWG.Done()
-		for msg := range msgCh {
-			if msg.line == "" {
-				continue
-			}
-			if err := SendWebsocketMessage(msg.line, msgType); err != nil {
-				appendErr(fmt.Errorf("websocket send failed: %w", err))
-			}
-		}
-	}()
-
 	stream := func(r io.Reader, isErr bool) {
 		defer wg.Done()
 		scanner := bufio.NewScanner(r)
@@ -139,21 +112,9 @@ func ExecWithOutToSocketCMD(ctx context.Context, msgType extraGrpc.WebSocketsMes
 				continue
 			}
 			logger.Info(line)
+			_ = SendWebsocketMessage(line, msgType)
 			if isErr {
-				stderrLinesMu.Lock()
-				stderrLines = append(stderrLines, line)
-				if overflow := len(stderrLines) - maxStoredStderr; overflow > 0 {
-					stderrLines = stderrLines[overflow:]
-				}
-				stderrLinesMu.Unlock()
-			}
-			msg := streamMessage{line: line, isErr: isErr}
-			select {
-			case msgCh <- msg:
-			default:
-				dropWarnOnce.Do(func() {
-					logger.Warn("dropping websocket messages due to backpressure")
-				})
+				appendErr(fmt.Errorf("stderr: %s", line))
 			}
 		}
 		if scanErr := scanner.Err(); scanErr != nil {
@@ -184,19 +145,12 @@ func ExecWithOutToSocketCMD(ctx context.Context, msgType extraGrpc.WebSocketsMes
 	close(waitDone)
 
 	wg.Wait()
-	close(msgCh)
-	senderWG.Wait()
 
-	if waitErr != nil {
-		stderrLinesMu.Lock()
-		for _, line := range stderrLines {
-			appendErr(fmt.Errorf("stderr: %s", line))
-		}
-		stderrLinesMu.Unlock()
-		appendErr(waitErr)
-	}
 	if err := ctx.Err(); err != nil {
 		appendErr(err)
+	}
+	if waitErr != nil {
+		appendErr(waitErr)
 	}
 
 	return errors

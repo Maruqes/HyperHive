@@ -19,6 +19,7 @@ import (
 
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
 	"github.com/Maruqes/512SvMan/logger"
+	"github.com/cavaliergopher/grab/v3"
 )
 
 type FolderMount struct {
@@ -793,6 +794,72 @@ func labelNFSMountSource(path string) error {
 	return nil
 }
 
+func downloadFile(ctx context.Context, url, destPath string) error {
+	//if file exists return error
+	if _, err := os.Stat(destPath); err == nil {
+		return fmt.Errorf("file already exists: %s", destPath)
+	}
+
+	client := grab.NewClient()
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	req, err := grab.NewRequest(destPath, url)
+	if err != nil {
+		return err
+	}
+	// bind request to ctx so it cancels the transfer
+	req = req.WithContext(ctx)
+
+	fmt.Printf("Downloading %v...\n", req.URL())
+	resp := client.Do(req)
+
+	if resp.HTTPResponse != nil {
+		fmt.Printf("  %v\n", resp.HTTPResponse.Status)
+	}
+
+	t := time.NewTicker(500 * time.Millisecond)
+	defer t.Stop()
+
+Loop:
+	for {
+		select {
+		case <-ctx.Done():
+			// context canceled; grab will stop the request via req.WithContext
+			fmt.Fprintf(os.Stderr, "Download canceled\n")
+			return ctx.Err()
+		case <-t.C:
+			fmt.Printf("  transferred %v / %v bytes (%.2f%%)   - %.2f MB/s\n",
+				resp.BytesComplete(),
+				resp.Size(),
+				100*resp.Progress(),
+				float64(resp.BytesPerSecond())/1024/1024,
+			)
+
+			extra.SendWebsocketMessage(
+				fmt.Sprintf("Download progress: %v / %v bytes (%.2f%%)  - %.2f MB/s",
+					resp.BytesComplete(),
+					resp.Size(),
+					100*resp.Progress(),
+					float64(resp.BytesPerSecond())/1024/1024),
+				extraGrpc.WebSocketsMessageType_DownloadIso,
+			)
+		case <-resp.Done:
+			break Loop
+		}
+	}
+
+	// check for errors
+	if err := resp.Err(); err != nil {
+		return fmt.Errorf("download failed: %w", err)
+	}
+
+	fmt.Printf("Download saved to %v\n", resp.Filename)
+	return nil
+}
+
 // check if folder exists, if not return error
 func DownloadISO(ctx context.Context, url, isoName, downloadFolder string) (string, error) {
 	if url == "" {
@@ -818,23 +885,10 @@ func DownloadISO(ctx context.Context, url, isoName, downloadFolder string) (stri
 	}
 
 	isoPath := filepath.Join(downloadFolder, isoName)
-	if _, err := os.Stat(isoPath); err == nil {
-		logger.Info("ISO already exists, skipping download:", isoPath)
-		return isoPath, nil
-	}
 
-	if !commandExists("curl") {
-		return "", fmt.Errorf("curl is not installed")
-	}
-
-	errors := extra.ExecWithOutToSocket(ctx, extraGrpc.WebSocketsMessageType_DownloadIso, "curl", "-L", "-o", isoPath, url)
-	if errors != nil {
-		//convert to wrapped error
-		var errMsgs string
-		for _, e := range errors {
-			errMsgs += e.Error() + "; "
-		}
-		return "", fmt.Errorf("failed to download ISO: %s", errMsgs)
+	err := downloadFile(ctx, url, isoPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to download ISO: %w", err)
 	}
 	return isoPath, nil
 }
