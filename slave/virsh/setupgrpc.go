@@ -82,7 +82,7 @@ func (s *SlaveVirshService) MigrateVM(ctx context.Context, e *grpcVirsh.MigrateV
 			UserKnownHostsFile: "/dev/null",
 		},
 	}
-	err := MigrateVM(opts)
+	err := MigrateVM(opts, ctx)
 	if err != nil {
 		return nil, err
 	}

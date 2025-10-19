@@ -243,7 +243,7 @@ func createLiveVM(w http.ResponseWriter, r *http.Request) {
 		NfsShareId  int    `json:"nfs_share_id"`
 		Network     string `json:"network"`
 		VNCPassword string `json:"VNC_password"`
-		CpuXml      string `json:"cpu_xml"` 
+		CpuXml      string `json:"cpu_xml"`
 	}
 
 	var vmReq VMLiveRequest
@@ -289,7 +289,7 @@ func migrateLiveVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshServices := services.VirshService{}
-	err = virshServices.MigrateVm(migReq.OriginMachine, migReq.DestinationMachine, vmName, migReq.Live)
+	err = virshServices.MigrateVm(r.Context(), migReq.OriginMachine, migReq.DestinationMachine, vmName, migReq.Live)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

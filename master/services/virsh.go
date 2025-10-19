@@ -4,6 +4,7 @@ import (
 	"512SvMan/db"
 	"512SvMan/protocol"
 	"512SvMan/virsh"
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -281,7 +282,7 @@ func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int
 	return nil
 }
 
-func (v *VirshService) MigrateVm(originMachine string, destMachine string, vmName string, live bool) error {
+func (v *VirshService) MigrateVm(ctx context.Context, originMachine string, destMachine string, vmName string, live bool) error {
 	exists, err := db.DoesVmLiveExist(vmName)
 	if err != nil {
 		return fmt.Errorf("failed to check if live VM exists in database: %v", err)
@@ -325,7 +326,7 @@ func (v *VirshService) MigrateVm(originMachine string, destMachine string, vmNam
 		return fmt.Errorf("VM %s is not running on origin machine %s", vmName, originMachine)
 	}
 
-	return virsh.MigrateVm(originConn.Connection, vmName, destConn.Addr, live)
+	return virsh.MigrateVm(ctx, originConn.Connection, vmName, destConn.Addr, live)
 }
 
 func (v *VirshService) DeleteVM(name string) error {

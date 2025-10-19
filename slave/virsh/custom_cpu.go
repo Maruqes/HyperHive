@@ -2,16 +2,17 @@ package virsh
 
 import (
 	"bytes"
-	"errors"
+	"context"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slave/extra"
 	"sort"
 	"strings"
 
+	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
 	libvirt "libvirt.org/go/libvirt"
 )
 
@@ -239,7 +240,7 @@ type MigrateOptions struct {
 }
 
 // MigrateVM shells out to virsh, allowing ssh configuration via sshpass or LIBVIRT_SSH_OPTS.
-func MigrateVM(opts MigrateOptions) error {
+func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 	connURI := strings.TrimSpace(opts.ConnURI)
 	if connURI == "" {
 		return fmt.Errorf("conn uri is required")
@@ -291,35 +292,39 @@ func MigrateVM(opts MigrateOptions) error {
 		env = append(env, fmt.Sprintf("LIBVIRT_SSH_OPTS=%s", strings.Join(sshOpts, " ")))
 	}
 
-	// //testar esta merda melhor
-	// err := extra.ExecWithOutToSocket(context.Background(), extraGrpc.WebSocketsMessageType_DownloadIso, "virsh", baseArgs...)
-	// if err != nil {
-	// 	return fmt.Errorf("virsh migrate: %w", err)
-	// }
-
 	cmd := exec.Command("virsh", baseArgs...)
 	cmd.Env = env
 
-	var stdoutBuf, stderrBuf bytes.Buffer
-	cmd.Stdout = io.MultiWriter(os.Stdout, &stdoutBuf)
-	cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
-
-	err := cmd.Run()
-	output := strings.TrimSpace(stdoutBuf.String() + "\n" + stderrBuf.String())
+	err := extra.ExecWithOutToSocketCMD(ctx, extraGrpc.WebSocketsMessageType_MigrateVm, cmd)
 	if err != nil {
-		fullCmd := strings.Join(cmd.Args, " ")
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			if output == "" {
-				output = "no output captured"
-			}
-			return fmt.Errorf("virsh migrate failed (%s): exit code %d: %s", fullCmd, exitErr.ExitCode(), output)
+		//convert []error to a single error
+		var errMsgs []string
+		for _, e := range err {
+			errMsgs = append(errMsgs, e.Error())
 		}
-		if output != "" {
-			return fmt.Errorf("virsh migrate failed (%s): %s: %w", fullCmd, output, err)
-		}
-		return fmt.Errorf("virsh migrate failed (%s): %w", fullCmd, err)
+		return fmt.Errorf("virsh migrate: %s", strings.Join(errMsgs, "; "))
 	}
+
+	// var stdoutBuf, stderrBuf bytes.Buffer
+	// cmd.Stdout = io.MultiWriter(os.Stdout, &stdoutBuf)
+	// cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
+
+	// err := cmd.Run()
+	// output := strings.TrimSpace(stdoutBuf.String() + "\n" + stderrBuf.String())
+	// if err != nil {
+	// 	fullCmd := strings.Join(cmd.Args, " ")
+	// 	var exitErr *exec.ExitError
+	// 	if errors.As(err, &exitErr) {
+	// 		if output == "" {
+	// 			output = "no output captured"
+	// 		}
+	// 		return fmt.Errorf("virsh migrate failed (%s): exit code %d: %s", fullCmd, exitErr.ExitCode(), output)
+	// 	}
+	// 	if output != "" {
+	// 		return fmt.Errorf("virsh migrate failed (%s): %s: %w", fullCmd, output, err)
+	// 	}
+	// 	return fmt.Errorf("virsh migrate failed (%s): %w", fullCmd, err)
+	// }
 
 	return nil
 }
