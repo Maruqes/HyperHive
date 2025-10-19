@@ -41,12 +41,12 @@ func (s *ExtraService) PerformUpdate(ctx context.Context, req *extraGrpc.UpdateR
 	return &extraGrpc.Empty{}, nil
 }
 
-func SendWebsocketMessage(message string) error {
+func SendWebsocketMessage(message string, msgType extraGrpc.WebSocketsMessageType) error {
 	if env512.Conn == nil {
 		return fmt.Errorf("gRPC connection not set")
 	}
 	h := extraGrpc.NewExtraServiceClient(env512.Conn)
-	_, err := h.SendWebsocketMessage(context.Background(), &extraGrpc.WebsocketMessage{Message: message})
+	_, err := h.SendWebsocketMessage(context.Background(), &extraGrpc.WebsocketMessage{Message: message, Type: msgType})
 	if err != nil {
 		logger.Error("SendWebsocketMessage: %v", err)
 	}
@@ -112,7 +112,7 @@ func ExecWithOutToSocketCMD(ctx context.Context, msgType extraGrpc.WebSocketsMes
 				continue
 			}
 			logger.Info(line)
-			_ = SendWebsocketMessage(line)
+			_ = SendWebsocketMessage(line, msgType)
 			if isErr {
 				appendErr(fmt.Errorf("stderr: %s", line))
 			}

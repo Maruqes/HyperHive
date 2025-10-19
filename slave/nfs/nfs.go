@@ -826,8 +826,7 @@ func DownloadISO(ctx context.Context, url, isoName, downloadFolder string) (stri
 	if !commandExists("curl") {
 		return "", fmt.Errorf("curl is not installed")
 	}
-
-	errors := extra.ExecWithOutToSocket(ctx, extraGrpc.WebSocketsMessageType_DownloadIso, "curl", "-L", "-o", isoPath, url)
+	errors := extra.ExecWithOutToSocket(ctx, extraGrpc.WebSocketsMessageType_DownloadIso, "wget", "-O", isoPath, url)
 	if errors != nil {
 		//convert to wrapped error
 		var errMsgs string

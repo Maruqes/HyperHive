@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"slave/env512"
-	"slave/extra"
 	"slave/logs512"
 	"slave/nfs"
 	"slave/protocol"
@@ -374,15 +373,5 @@ func main() {
 	conn := protocol.ConnectGRPC()
 	env512.SetConn(conn)
 	defer conn.Close()
-	reader := bufio.NewReader(os.Stdin)
-	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			log.Printf("stdin read error: %v", err)
-			break
-		}
-		if strings.TrimSpace(line) == "" {
-			extra.SendWebsocketMessage("Enter pressed")
-		}
-	}
+	select {}
 }
