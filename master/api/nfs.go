@@ -36,12 +36,21 @@ func listShares(w http.ResponseWriter, r *http.Request) {
 		})
 		if err != nil {
 			logger.Error("GetSharedFolderStatus failed: %v", err)
-			continue
+			res = append(res, resStruct{
+				NfsShare: shares[i],
+				Status: &proto.SharedFolderStatusResponse{
+					Working:         false,
+					SpaceOccupiedGB: -1,
+					SpaceFreeGB:     -1,
+					SpaceTotalGB:    -1,
+				},
+			})
+		} else {
+			res = append(res, resStruct{
+				NfsShare: shares[i],
+				Status:   status,
+			})
 		}
-		res = append(res, resStruct{
-			NfsShare: shares[i],
-			Status:   status,
-		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -82,7 +91,12 @@ func deleteShare(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	err := nfsService.DeleteSharePoint()
+	force := false
+	if r.URL.Query().Get("force") == "true" {
+		force = true
+	}
+
+	err := nfsService.DeleteSharePoint(force)
 	if err != nil {
 		logger.Error("DeleteSharePoint failed: %v", err)
 		http.Error(w, "failed to delete share point: "+err.Error(), http.StatusInternalServerError)

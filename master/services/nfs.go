@@ -91,7 +91,76 @@ func (s *NFSService) CreateSharePoint() error {
 	return nil
 }
 
-func (s *NFSService) DeleteSharePoint() error {
+func forcedelete(s *NFSService) error {
+	//check if exists in db
+	if exists, err := db.DoesExistNFSShare(s.SharePoint.MachineName, s.SharePoint.FolderPath); err != nil {
+		return fmt.Errorf("failed to check if NFS share exists: %v", err)
+	} else if !exists {
+		return fmt.Errorf("NFS share does not exist")
+	}
+
+	//remove last slash
+	mount := &proto.FolderMount{
+		MachineName: s.SharePoint.MachineName,
+		FolderPath:  s.SharePoint.FolderPath,
+		Source:      "",
+		Target:      "/mnt/512SvMan/shared/" + s.SharePoint.MachineName + "_" + getFolderName(s.SharePoint.FolderPath),
+	}
+
+	conns := protocol.GetAllGRPCConnections()
+	// unmount on all provided connections
+	for _, c := range conns {
+		if c == nil {
+			continue
+		}
+		if err := nfs.UnmountSharedFolder(c, mount); err != nil {
+			logger.Error("UnmountSharedFolder failed: %v", err)
+			continue
+		}
+	}
+
+	//remove all VMs and ISOs on this nfs share
+	virshService := VirshService{}
+	vms, err := virshService.GetAllVmsByOnNfsShare(mount.Target)
+	if err != nil {
+		return fmt.Errorf("failed to get VMs on NFS share: %v", err)
+	}
+	for _, vm := range vms {
+		err := virshService.DeleteVM(vm.Name)
+		if err != nil {
+			logger.Error("failed to delete VM %s on NFS share: %v", vm.Name, err)
+			continue
+		}
+	}
+
+	isos, err := db.GetAllISOs()
+	if err != nil {
+		return fmt.Errorf("failed to get ISOs: %v", err)
+	}
+	for _, iso := range isos {
+		if strings.HasPrefix(iso.FilePath, mount.Target) {
+			err := db.RemoveISOByID(iso.Id)
+			if err != nil {
+				logger.Error("failed to remove ISO %s on NFS share: %v", iso.Name, err)
+				continue
+			}
+		}
+	}
+
+	err = db.RemoveNFSShare(mount.MachineName, mount.FolderPath)
+	if err != nil {
+		return fmt.Errorf("failed to remove NFS share from database: %v", err)
+	}
+
+	return nil
+}
+
+func (s *NFSService) DeleteSharePoint(force bool) error {
+
+	if force {
+		return forcedelete(s)
+	}
+
 	conn := protocol.GetConnectionByMachineName(s.SharePoint.MachineName)
 	if conn == nil || conn.Connection == nil {
 		return fmt.Errorf("slave not connected")
@@ -164,7 +233,7 @@ func (s *NFSService) DeleteSharePoint() error {
 func (s *NFSService) GetSharedFolderStatus(folderMount *proto.FolderMount) (*proto.SharedFolderStatusResponse, error) {
 	conn := protocol.GetConnectionByMachineName(folderMount.MachineName)
 	if conn == nil || conn.Connection == nil {
-		return nil, fmt.Errorf("slave not connected")
+		return nil, fmt.Errorf("%s", "slave not connected :"+folderMount.MachineName)
 	}
 
 	status, err := nfs.GetSharedFolderStatus(conn.Connection, folderMount)
@@ -289,12 +358,11 @@ func (s *NFSService) UpdateNFSShit() error {
 	err := s.SyncSharedFolder()
 	if err != nil {
 		logger.Error("SyncSharedFolder failed: %v", err)
-		return err
 	}
 
 	err = s.MountAllSharedFolders()
 	if err != nil {
-		return err
+		logger.Error("MountAllSharedFolders failed: %v", err)
 	}
 	return nil
 }

@@ -24,7 +24,7 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 	nfsService := services.NFSService{}
 	err := nfsService.UpdateNFSShit()
 	if err != nil {
-		logger.Error("SyncSharedFolder failed: %v", err)
+		logger.Error("UpdateNFS failed: %v", err)
 		return err
 	}
 
