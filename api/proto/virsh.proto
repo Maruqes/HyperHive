@@ -84,6 +84,9 @@ service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
   rpc GetCPUXML(Empty) returns (CPUXMLResponse);
 
+  rpc GetVMCPUXml(GetVmByNameRequest) returns (CPUXMLResponse);
+  rpc CanMigrateLiveVm(CPUXMLResponse) returns (OkResponse);
+
   rpc CreateVm(CreateVmRequest) returns (OkResponse);
   rpc CreateLiveVM(CreateVmLiveRequest) returns (OkResponse);
 

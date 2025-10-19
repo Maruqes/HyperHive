@@ -27,6 +27,22 @@ func (s *SlaveVirshService) GetCPUXML(ctx context.Context, e *grpcVirsh.Empty) (
 	return &grpcVirsh.CPUXMLResponse{CpuXML: cpuXML}, nil
 }
 
+func (s *SlaveVirshService) GetVMCPUXml(ctx context.Context, e *grpcVirsh.GetVmByNameRequest) (*grpcVirsh.CPUXMLResponse, error) {
+	xml, err := GetVmCPUXML(e.Name)
+	if err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.CPUXMLResponse{CpuXML: xml}, nil
+}
+
+func (s *SlaveVirshService) CanMigrateLiveVm(ctx context.Context, e *grpcVirsh.CPUXMLResponse) (*grpcVirsh.OkResponse, error) {
+	canRun, _, err := CPUXMLCanRunOn(e.CpuXML)
+	if err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{Ok: canRun}, nil
+}
+
 func (s *SlaveVirshService) CreateVm(ctx context.Context, req *grpcVirsh.CreateVmRequest) (*grpcVirsh.OkResponse, error) {
 	params := VMCreationParams{
 		ConnURI:        "qemu:///system",

@@ -326,6 +326,22 @@ func (v *VirshService) MigrateVm(ctx context.Context, originMachine string, dest
 		return fmt.Errorf("VM %s is not running on origin machine %s", vmName, originMachine)
 	}
 
+	//check if can migrate live
+	//get cpuxml of vm
+	cpuXml, err := virsh.GetVMCPUXml(originConn.Connection, vmName)
+	if err != nil {
+		return fmt.Errorf("failed to get CPU XML for VM %s: %v", vmName, err)
+	}
+
+	//check if dest machine supports cpu xml
+	supported, err := virsh.CanMigrateLiveVm(destConn.Connection, cpuXml)
+	if err != nil {
+		return fmt.Errorf("failed to check if destination machine %s supports CPU XML: %v", destMachine, err)
+	}
+	if !supported {
+		return fmt.Errorf("destination machine %s does not support the CPU features required for VM %s", destMachine, vmName)
+	}
+
 	return virsh.MigrateVm(ctx, originConn.Connection, vmName, destConn.Addr, live)
 }
 

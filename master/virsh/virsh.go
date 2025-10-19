@@ -27,6 +27,24 @@ func GetCPUXML(conn *grpc.ClientConn) (string, error) {
 	return resp.CpuXML, nil
 }
 
+func GetVMCPUXml(conn *grpc.ClientConn, vmName string) (string, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetVMCPUXml(context.Background(), &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return "", err
+	}
+	return resp.CpuXML, nil
+}
+
+func CanMigrateLiveVm(conn *grpc.ClientConn, cpuXML string) (bool, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.CanMigrateLiveVm(context.Background(), &grpcVirsh.CPUXMLResponse{CpuXML: cpuXML})
+	if err != nil {
+		return false, err
+	}
+	return resp.Ok, nil
+}
+
 func CreateVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder, diskPath string, diskSizeGB int32, isoPath, network, VNCPassword string) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.CreateVm(context.Background(), &grpcVirsh.CreateVmRequest{

@@ -692,8 +692,6 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []error) {
 	return vms, errs
 }
 
-
-
 func EditVm(name string, newCPU, newMemMiB int, newDiskSizeGB ...int) error {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -1166,4 +1164,58 @@ func RemoveIsoFromVM(name string) error {
 	defer newDom.Free()
 
 	return nil
+}
+
+func GetVmCPUXML(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", fmt.Errorf("vm name is empty")
+	}
+
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return "", fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	dom, err := conn.LookupDomainByName(name)
+	if err != nil {
+		return "", fmt.Errorf("lookup: %w", err)
+	}
+	defer dom.Free()
+
+	// Get domain XML
+	xmlDesc, err := dom.GetXMLDesc(0)
+	if err != nil {
+		return "", fmt.Errorf("xml: %w", err)
+	}
+
+	cpuxml := extractCPUXML(xmlDesc)
+	return cpuxml, nil
+}
+
+func CPUXMLCanRunOn(vmCPUXML string) (bool, string, error) {
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return false, "", fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	res, err := conn.CompareCPU(vmCPUXML, 0)
+	if err != nil {
+		return false, "", err
+	}
+
+	switch res {
+	case libvirt.CPU_COMPARE_ERROR:
+		return false, "destination CPU is missing required features", nil
+	case libvirt.CPU_COMPARE_INCOMPATIBLE:
+		return false, "destination CPU is missing required features", nil
+	case libvirt.CPU_COMPARE_IDENTICAL:
+		return true, "destination CPU is identical", nil
+	case libvirt.CPU_COMPARE_SUPERSET:
+		return true, "destination CPU is a superset (OK for migration)", nil
+	default:
+		return false, fmt.Sprintf("unexpected compare result: %d", res), nil
+	}
 }
