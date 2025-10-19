@@ -831,13 +831,6 @@ Loop:
 			fmt.Fprintf(os.Stderr, "Download canceled\n")
 			return ctx.Err()
 		case <-t.C:
-			fmt.Printf("  transferred %v / %v bytes (%.2f%%)   - %.2f MB/s\n",
-				resp.BytesComplete(),
-				resp.Size(),
-				100*resp.Progress(),
-				float64(resp.BytesPerSecond())/1024/1024,
-			)
-
 			extra.SendWebsocketMessage(
 				fmt.Sprintf("Download progress: %v / %v bytes (%.2f%%)  - %.2f MB/s",
 					resp.BytesComplete(),

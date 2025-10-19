@@ -347,3 +347,12 @@ func renderCPURange(start, end int) string {
 	}
 	return fmt.Sprintf("%d-%d", start, end)
 }
+
+func MigrateColdLose(name string) (string,error) {
+	return "", nil
+}
+
+
+func MigrateColdWin(name string, qcow2file string) error {
+	return nil
+}
