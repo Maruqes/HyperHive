@@ -52,6 +52,10 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 		return fmt.Errorf("destination URI is required")
 	}
 
+	if opts.Timeout < 0 {
+		return fmt.Errorf("timeout must be non-negative")
+	}
+
 	baseArgs := []string{
 		"-c", connURI,
 		"migrate",
@@ -60,7 +64,10 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 		"--undefinesource",
 		"--p2p",
 		"--tunnelled",
-		"--timeout", strconv.Itoa(int(opts.Timeout)),
+	}	
+
+	if opts.Timeout > 0 {	
+		baseArgs = append(baseArgs, "--timeout", strconv.FormatInt(int64(opts.Timeout), 10))
 	}
 
 	if opts.Live {
