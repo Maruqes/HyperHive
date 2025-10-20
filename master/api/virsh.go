@@ -445,6 +445,11 @@ func exportVM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if vm.State != grpcVirsh.VmState_SHUTOFF {
+		http.Error(w, "VM must be shut off to export", http.StatusBadRequest)
+		return
+	}
+
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+vmName+".qcow2\"")
 	w.Header().Set("Content-Type", "application/octet-stream")
 	http.ServeFile(w, r, vm.DiskPath)
