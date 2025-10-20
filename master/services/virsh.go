@@ -6,6 +6,7 @@ import (
 	"512SvMan/virsh"
 	"context"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -711,4 +712,39 @@ func (v *VirshService) ResumeVM(name string) error {
 		}
 	}
 	return fmt.Errorf("failed to find VM %s on any machine", name)
+}
+
+// returns file path or error
+func (v *VirshService) ImportVmHelper(nfsId int, filename string) (string, error) {
+	//get nfs share
+	nfsShare, err := db.GetNFSShareByID(nfsId)
+	if err != nil {
+		return "", fmt.Errorf("failed to get NFS share by ID: %v", err)
+	}
+	if nfsShare == nil {
+		return "", fmt.Errorf("NFS share with ID %d not found", nfsId)
+	}
+
+	var folder string
+	if nfsShare.Target[len(nfsShare.Target)-1] != '/' {
+		// mnt/ nfs / vmname / vmname.qcow2
+		folder = nfsShare.Target + "/" + filename
+	} else {
+		// mnt/ nfs / vmname / vmname.qcow2
+		folder = nfsShare.Target + filename
+	}
+
+	//if folder exists return err else create it
+	exists, err := os.Stat(folder)
+	if err == nil && exists.IsDir() {
+		return "", fmt.Errorf("folder %s already exists", folder)
+	}
+
+	err = os.MkdirAll(folder, 0777)
+	if err != nil {
+		return "", fmt.Errorf("failed to create folder %s: %v", folder, err)
+	}
+	filePath := folder + "/" + filename + ".qcow2"
+
+	return filePath, nil
 }

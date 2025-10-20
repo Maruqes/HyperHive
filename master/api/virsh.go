@@ -3,7 +3,10 @@ package api
 import (
 	"512SvMan/services"
 	"encoding/json"
+	"io"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -421,6 +424,81 @@ func pauseVm(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("VM paused successfully"))
 }
+func exportVM(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	vm, err := virshServices.GetVmByName(vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if vm == nil {
+		http.Error(w, "VM not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+vmName+".qcow2\"")
+	w.Header().Set("Content-Type", "application/octet-stream")
+	http.ServeFile(w, r, vm.DiskPath)
+}
+
+const bufSize = 8 << 20 // 8 MiB
+
+func importVM(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" || vmName == "." || vmName == ".." {
+		http.Error(w, "invalid vmname "+vmName, http.StatusBadRequest)
+		return
+	}
+	nfsID := chi.URLParam(r, "nfs_id")
+	if nfsID == "" {
+		http.Error(w, "nfs_id is required", http.StatusBadRequest)
+		return
+	}
+	if r.ContentLength <= 0 {
+		http.Error(w, "Content-Length required", http.StatusLengthRequired)
+		return
+	}
+
+	virshService := services.VirshService{}
+	nid, err := strconv.Atoi(nfsID)
+	if err != nil {
+		http.Error(w, "invalid nfs_id", http.StatusBadRequest)
+		return
+	}
+
+	finalFile, err := virshService.ImportVmHelper(nid, vmName)
+	if err != nil {
+		http.Error(w, "error preparing import: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	tmp := finalFile + ".part"
+	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		http.Error(w, "open error", http.StatusInternalServerError)
+		return
+	}
+	defer f.Close()
+
+	buf := make([]byte, bufSize)
+	if _, err := io.CopyBuffer(f, r.Body, buf); err != nil {
+		http.Error(w, "write error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	_ = f.Sync()
+
+	if err := os.Rename(tmp, finalFile); err != nil {
+		http.Error(w, "finalize error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+}
 
 func setupVirshAPI(r chi.Router) chi.Router {
 	return r.Route("/virsh", func(r chi.Router) {
@@ -433,6 +511,7 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Post("/updatecpuxml/{vm_name}", updateCpuXml)
 		r.Get("/cpuxml/{vm_name}", getCpuXML)
 
+		//controll
 		r.Delete("/deletevm/{vm_name}", deleteVM)
 		r.Post("/startvm/{vm_name}", startVM)
 		r.Post("/shutdownvm/{vm_name}", shutdownVM)
@@ -443,5 +522,9 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Post("/resumevm/{vm_name}", resumeVm)
 		r.Get("/getvmbyname/{vm_name}", getVmByName)
 		r.Post("/removeiso/{vm_name}", removeIso)
+
+		//export/import
+		r.Get("/export/{vm_name}", exportVM)
+		r.Put("/import/{vm_name}/{nfs_id}", importVM)
 	})
 }
