@@ -108,6 +108,7 @@ func (s *SlaveVirshService) UpdateVMCPUXml(ctx context.Context, e *grpcVirsh.Upd
 func (s *SlaveVirshService) GetAllVms(ctx context.Context, e *grpcVirsh.Empty) (*grpcVirsh.GetAllVmsResponse, error) {
 	vms, errs := GetAllVMs()
 	//convert errs slice into a single error
+	fmt.Println(vms)
 	if len(errs) > 0 {
 		return &grpcVirsh.GetAllVmsResponse{Vms: vms}, fmt.Errorf("get all vms: %v", errs)
 	}

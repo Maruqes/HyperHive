@@ -555,6 +555,7 @@ func (v *VirshService) GetAllVms() ([]VmType, []error) {
 	con := protocol.GetAllGRPCConnections()
 	for _, conn := range con {
 		vms, err := virsh.GetAllVms(conn, &grpcVirsh.Empty{})
+		fmt.Println(vms)
 		if err != nil {
 			errors = append(errors, fmt.Errorf("failed to get VMs from a machine: %v", err))
 		}
