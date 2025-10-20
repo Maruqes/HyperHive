@@ -86,6 +86,17 @@ message UpdateVMCPUXmlRequest {
   string cpuXML = 2;
 }
 
+
+message ColdMigrationRequest {
+  string vm_name = 1;
+  int32 memory = 2;
+  int32 v_cpus = 3;
+  string network = 4;
+  string vnc_password = 5;
+  string cpuXML = 6;
+  string disk_path = 7;
+}
+
 //defines on slave
 service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
@@ -114,4 +125,6 @@ service SlaveVirshService {
   //only sees machine name, cpuCount and memoryMB
   //cpuCount and memoryMB are the new values to set
   rpc EditVmResources(Vm) returns (OkResponse);
+
+  rpc ColdMigrateVm(ColdMigrationRequest) returns (OkResponse);
 }

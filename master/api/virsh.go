@@ -1,14 +1,17 @@
 package api
 
 import (
+	"512SvMan/protocol"
 	"512SvMan/services"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 
+	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -448,31 +451,105 @@ func exportVM(w http.ResponseWriter, r *http.Request) {
 }
 
 const bufSize = 8 << 20 // 8 MiB
+func q(r *http.Request, key string) string {
+	return strings.TrimSpace(r.URL.Query().Get(key))
+}
+
+type VMRequest struct {
+	Slave_name  string
+	NfsShareId  int
+	VmName      string
+	Memory      int32
+	Vcpu        int32
+	Network     string
+	VNCPassword string
+	CpuXML      string
+}
+
+func readVMRequest(r *http.Request) (*VMRequest, error) {
+	var vmReq VMRequest
+	var err error
+
+	vmReq.Slave_name = q(r, "slave_name")
+	vmReq.VmName = q(r, "vm_name")
+	if vmReq.Slave_name == "" || vmReq.VmName == "" {
+		return nil, fmt.Errorf("slave_name and vm_name are required")
+	}
+
+	nfsShareIDStr := q(r, "nfs_share_id")
+	if nfsShareIDStr == "" {
+		return nil, fmt.Errorf("nfs_share_id is required")
+	}
+	nfsID, err := strconv.Atoi(nfsShareIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid nfs_share_id: %v", err)
+	}
+	vmReq.NfsShareId = nfsID
+
+	if s := q(r, "memory"); s != "" {
+		v, err := strconv.ParseInt(s, 10, 32)
+		if err != nil {
+		}
+		vmReq.Memory = int32(v)
+	}
+	if s := q(r, "vcpu"); s != "" {
+		v, err := strconv.ParseInt(s, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("invalid vcpu: %v", err)
+		}
+		vmReq.Vcpu = int32(v)
+	}
+	vmReq.Network = q(r, "network")
+	vmReq.VNCPassword = q(r, "VNC_password")
+	vmReq.CpuXML = q(r, "cpu_xml") // URL-encode on client if it includes <, >, " …
+
+	return &vmReq, nil
+}
 
 func importVM(w http.ResponseWriter, r *http.Request) {
-	vmName := chi.URLParam(r, "vm_name")
-	if vmName == "" || vmName == "." || vmName == ".." {
-		http.Error(w, "invalid vmname "+vmName, http.StatusBadRequest)
+
+	if r.Method != http.MethodPut {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	nfsID := chi.URLParam(r, "nfs_id")
-	if nfsID == "" {
-		http.Error(w, "nfs_id is required", http.StatusBadRequest)
+
+	vmReq, err := readVMRequest(r)
+	if err != nil {
+		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
 		return
 	}
+
 	if r.ContentLength <= 0 {
 		http.Error(w, "Content-Length required", http.StatusLengthRequired)
 		return
 	}
 
 	virshService := services.VirshService{}
-	nid, err := strconv.Atoi(nfsID)
+
+	/*
+		check
+		Slave_name  string
+		NfsShareId  int
+		VmName      string
+	*/
+	vm, err := virshService.GetVmByName(vmReq.VmName)
 	if err != nil {
-		http.Error(w, "invalid nfs_id", http.StatusBadRequest)
+		http.Error(w, "error checking existing VMs: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if vm != nil {
+		http.Error(w, "a VM with this name already exists", http.StatusConflict)
 		return
 	}
 
-	finalFile, err := virshService.ImportVmHelper(nid, vmName)
+	slaveMachine := protocol.GetConnectionByMachineName(vmReq.Slave_name)
+	if slaveMachine == nil {
+		http.Error(w, "slave machine not found", http.StatusNotFound)
+		return
+	}
+
+	//checks if nfsShareId exists also and creates finalFile path
+	finalFile, err := virshService.ImportVmHelper(vmReq.NfsShareId, vmReq.VmName)
 	if err != nil {
 		http.Error(w, "error preparing import: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -497,6 +574,28 @@ func importVM(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "finalize error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	//chmod 777 file
+	_ = os.Chmod(finalFile, 0o777)
+
+	err = virshService.ColdMigrateVm(
+		r.Context(),
+		vmReq.Slave_name,
+		&grpcVirsh.ColdMigrationRequest{
+			VmName:      vmReq.VmName,
+			DiskPath:    finalFile,
+			Memory:      vmReq.Memory,
+			VCpus:       vmReq.Vcpu,
+			Network:     vmReq.Network,
+			VncPassword: vmReq.VNCPassword,
+			CpuXML:      vmReq.CpuXML,
+		},
+	)
+	if err != nil {
+		http.Error(w, "error creating VM after import: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -525,6 +624,6 @@ func setupVirshAPI(r chi.Router) chi.Router {
 
 		//export/import
 		r.Get("/export/{vm_name}", exportVM)
-		r.Put("/import/{vm_name}/{nfs_id}", importVM)
+		r.Put("/import", importVM)
 	})
 }

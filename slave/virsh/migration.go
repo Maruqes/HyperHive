@@ -163,6 +163,33 @@ func MigrateColdLose(name string) (*ColdMigrationInfo, error) {
 // cria uma maquina com passthrough, com x nome usando o disco qcow2file
 func MigrateColdWin(coldFile ColdMigrationInfo) error {
 
+	//check coldFile info is valid
+	if strings.TrimSpace(coldFile.VmName) == "" {
+		return fmt.Errorf("vm name is required")
+	}
+	if strings.TrimSpace(coldFile.DiskPath) == "" {
+		return fmt.Errorf("disk path is required")
+	}
+	if coldFile.Memory <= 0 {
+		return fmt.Errorf("memory must be positive")
+	}
+	if coldFile.VCpus <= 0 {
+		return fmt.Errorf("vcpus must be positive")
+	}
+	if strings.TrimSpace(coldFile.Network) == "" {
+		return fmt.Errorf("network is required")
+	}
+
+	//check if diskPath qcow2 file exists
+	if _, err := os.Stat(coldFile.DiskPath); os.IsNotExist(err) {
+		return fmt.Errorf("disk path qcow2 file does not exist: %w", err)
+	}
+
+	err := validateCPUXML(coldFile.CpuXML)
+	if err != nil {
+		return fmt.Errorf("invalid CPU XML: %w", err)
+	}
+
 	//get folder of diskPath qcow file
 	parentDir := strings.TrimSpace(filepath.Dir(coldFile.DiskPath))
 
@@ -182,7 +209,7 @@ func MigrateColdWin(coldFile ColdMigrationInfo) error {
 		CPUXml:            coldFile.CpuXML,
 	}
 
-	_, err := CreateVMCustomCPU(params)
+	_, err = CreateVMCustomCPU(params)
 	if err != nil {
 		return err
 	}

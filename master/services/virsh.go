@@ -331,6 +331,15 @@ func (v *VirshService) MigrateVm(ctx context.Context, originMachine string, dest
 	return virsh.MigrateVm(ctx, originConn.Connection, vmName, destConn.Addr, live, timeoutSeconds)
 }
 
+func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, machine *grpcVirsh.ColdMigrationRequest) error {
+	originConn := protocol.GetConnectionByMachineName(slaveName)
+	if originConn == nil {
+		return fmt.Errorf("origin machine %s not found", slaveName)
+	}
+
+	return virsh.ColdMigrateVm(ctx, originConn.Connection, machine)
+}
+
 func (v *VirshService) UpdateCpuXml(machine_name string, vmName string, cpuXml string) error {
 	slaveMachine := protocol.GetConnectionByMachineName(machine_name)
 	if slaveMachine == nil {

@@ -98,6 +98,23 @@ func (s *SlaveVirshService) MigrateVM(ctx context.Context, e *grpcVirsh.MigrateV
 	return &grpcVirsh.OkResponse{}, nil
 }
 
+func (s *SlaveVirshService) ColdMigrateVm(ctx context.Context, e *grpcVirsh.ColdMigrationRequest) (*grpcVirsh.OkResponse, error) {
+	opts := ColdMigrationInfo{
+		VmName:      e.VmName,
+		DiskPath:    e.DiskPath,
+		Memory:      e.Memory,
+		VCpus:       e.VCpus,
+		Network:     e.Network,
+		VNCPassword: e.VncPassword,
+		CpuXML:      e.CpuXML,
+	}
+	err := MigrateColdWin(opts)
+	if err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{}, nil
+}
+
 func (s *SlaveVirshService) UpdateVMCPUXml(ctx context.Context, e *grpcVirsh.UpdateVMCPUXmlRequest) (*grpcVirsh.OkResponse, error) {
 	err := UpdateVMCPUXml(e.Name, e.CpuXML)
 	if err != nil {

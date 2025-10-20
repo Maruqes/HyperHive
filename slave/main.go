@@ -353,7 +353,7 @@ func main() {
 
 	// virsh.MigrateColdWin(virsh.ColdMigrationInfo{
 	// 	VmName:      "meudeus",
-	// 	DiskPath:    "/mnt/512SvMan/shared/slave2_aa/plsfunfa/plsfunfa.qcow2",
+	// 	DiskPath:    "/mnt/512SvMan/shared/slave1_aa/aimportaa/aimportaa.qcow2",
 	// 	Memory:      8192,
 	// 	VCpus:       6,
 	// 	Network:     "default",

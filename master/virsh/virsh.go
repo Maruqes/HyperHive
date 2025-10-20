@@ -93,6 +93,15 @@ func MigrateVm(ctx context.Context, conn *grpc.ClientConn, name, slaveIp string,
 	return nil
 }
 
+func ColdMigrateVm(ctx context.Context, conn *grpc.ClientConn, machine *grpcVirsh.ColdMigrationRequest) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.ColdMigrateVm(ctx, machine)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func UpdateVMCPUXml(conn *grpc.ClientConn, vmName, cpuXml string) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.UpdateVMCPUXml(context.Background(), &grpcVirsh.UpdateVMCPUXmlRequest{
