@@ -326,23 +326,62 @@ func (v *VirshService) MigrateVm(ctx context.Context, originMachine string, dest
 		return fmt.Errorf("VM %s is not running on origin machine %s", vmName, originMachine)
 	}
 
-	//check if can migrate live
-	//get cpuxml of vm
-	cpuXml, err := virsh.GetVMCPUXml(originConn.Connection, vmName)
-	if err != nil {
-		return fmt.Errorf("failed to get CPU XML for VM %s: %v", vmName, err)
-	}
-
-	//check if dest machine supports cpu xml
-	supported, err := virsh.CanMigrateLiveVm(destConn.Connection, cpuXml)
-	if err != nil {
-		return fmt.Errorf("failed to check if destination machine %s supports CPU XML: %v", destMachine, err)
-	}
-	if !supported {
-		return fmt.Errorf("destination machine %s does not support the CPU features required for VM %s", destMachine, vmName)
-	}
-
 	return virsh.MigrateVm(ctx, originConn.Connection, vmName, destConn.Addr, live)
+}
+
+func (v *VirshService) UpdateCpuXml(machine_name string, vmName string, cpuXml string) error {
+	slaveMachine := protocol.GetConnectionByMachineName(machine_name)
+	if slaveMachine == nil {
+		return fmt.Errorf("machine %s not found", machine_name)
+	}
+
+	//it needs to be live vm
+	exists, err := db.DoesVmLiveExist(vmName)
+	if err != nil {
+		return fmt.Errorf("failed to check if live VM exists in database: %v", err)
+	}
+	if !exists {
+		return fmt.Errorf("a live VM with the name %s does not exist in the database", vmName)
+	}
+
+	//get vm by name
+	vm, err := virsh.GetVmByName(slaveMachine.Connection, &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return fmt.Errorf("failed to get VM by name: %v", err)
+	}
+	if vm == nil {
+		return fmt.Errorf("VM %s not found on machine %s", vmName, machine_name)
+	}
+
+	err = virsh.UpdateVMCPUXml(slaveMachine.Connection, vmName, cpuXml)
+	if err != nil {
+		return fmt.Errorf("failed to update VM CPU XML: %v", err)
+	}
+
+	return nil
+}
+
+func (v *VirshService) GetCpuXML(machine_name string, vmName string) (string, error) {
+	slaveMachine := protocol.GetConnectionByMachineName(machine_name)
+	if slaveMachine == nil {
+		return "", fmt.Errorf("machine %s not found", machine_name)
+	}
+
+	//get vm by name
+	vm, err := virsh.GetVmByName(slaveMachine.Connection, &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return "", fmt.Errorf("failed to get VM by name: %v", err)
+	}
+	if vm == nil {
+		return "", fmt.Errorf("VM %s not found on machine %s", vmName, machine_name)
+	}
+
+	cpuXml, err := virsh.GetVMCPUXml(slaveMachine.Connection, vmName)
+	if err != nil {
+		return "", fmt.Errorf("failed to get VM CPU XML: %v", err)
+	}
+
+	return cpuXml, nil
 }
 
 func (v *VirshService) DeleteVM(name string) error {
@@ -509,18 +548,22 @@ type VmType struct {
 	IsLive bool
 }
 
-func (v *VirshService) GetAllVms() ([]VmType, error) {
+func (v *VirshService) GetAllVms() ([]VmType, []error) {
 	var allVms []VmType
+	var errors []error
+
 	con := protocol.GetAllGRPCConnections()
 	for _, conn := range con {
 		vms, err := virsh.GetAllVms(conn, &grpcVirsh.Empty{})
 		if err != nil {
-			return nil, fmt.Errorf("failed to get VMs from a machine: %v", err)
+			errors = append(errors, fmt.Errorf("failed to get VMs from a machine: %v", err))
+			continue
 		}
 		for _, vm := range vms.Vms {
 			isLive, err := db.DoesVmLiveExist(vm.Name)
 			if err != nil {
-				return nil, fmt.Errorf("failed to check if live VM exists in database: %v", err)
+				errors = append(errors, fmt.Errorf("failed to check if live VM exists in database: %v", err))
+				continue
 			}
 			//if name already in allVms skip
 			found := false
@@ -537,14 +580,14 @@ func (v *VirshService) GetAllVms() ([]VmType, error) {
 		}
 
 	}
-	return allVms, nil
+	return allVms, errors
 }
 
 // nfsSharePathTarget -> /mnt/...
 func (v *VirshService) GetAllVmsByOnNfsShare(nfsSharePathTarget string) ([]VmType, error) {
-	allVms, err := v.GetAllVms()
-	if err != nil {
-		return nil, err
+	allVms, errors := v.GetAllVms()
+	if len(errors) > 0 {
+		return nil, fmt.Errorf("failed to get all VMs: %v", errors)
 	}
 	var vmsOnShare []VmType
 	//if vm include in nfsShareId

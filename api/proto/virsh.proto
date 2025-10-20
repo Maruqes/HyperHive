@@ -79,13 +79,18 @@ message CPUXMLResponse {
   string cpuXML = 1;
 }
 
+message UpdateVMCPUXmlRequest {
+  string name = 1;
+  string cpuXML = 2;
+}
+
 //defines on slave
 service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
   rpc GetCPUXML(Empty) returns (CPUXMLResponse);
 
   rpc GetVMCPUXml(GetVmByNameRequest) returns (CPUXMLResponse);
-  rpc CanMigrateLiveVm(CPUXMLResponse) returns (OkResponse);
+  rpc UpdateVMCPUXml(UpdateVMCPUXmlRequest) returns (OkResponse);
 
   rpc CreateVm(CreateVmRequest) returns (OkResponse);
   rpc CreateLiveVM(CreateVmLiveRequest) returns (OkResponse);

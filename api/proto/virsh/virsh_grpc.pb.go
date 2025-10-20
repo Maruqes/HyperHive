@@ -19,24 +19,24 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	SlaveVirshService_GetCpuFeatures_FullMethodName   = "/virsh.SlaveVirshService/GetCpuFeatures"
-	SlaveVirshService_GetCPUXML_FullMethodName        = "/virsh.SlaveVirshService/GetCPUXML"
-	SlaveVirshService_GetVMCPUXml_FullMethodName      = "/virsh.SlaveVirshService/GetVMCPUXml"
-	SlaveVirshService_CanMigrateLiveVm_FullMethodName = "/virsh.SlaveVirshService/CanMigrateLiveVm"
-	SlaveVirshService_CreateVm_FullMethodName         = "/virsh.SlaveVirshService/CreateVm"
-	SlaveVirshService_CreateLiveVM_FullMethodName     = "/virsh.SlaveVirshService/CreateLiveVM"
-	SlaveVirshService_MigrateVM_FullMethodName        = "/virsh.SlaveVirshService/MigrateVM"
-	SlaveVirshService_ShutdownVM_FullMethodName       = "/virsh.SlaveVirshService/ShutdownVM"
-	SlaveVirshService_ForceShutdownVM_FullMethodName  = "/virsh.SlaveVirshService/ForceShutdownVM"
-	SlaveVirshService_StartVM_FullMethodName          = "/virsh.SlaveVirshService/StartVM"
-	SlaveVirshService_RemoveVM_FullMethodName         = "/virsh.SlaveVirshService/RemoveVM"
-	SlaveVirshService_RestartVM_FullMethodName        = "/virsh.SlaveVirshService/RestartVM"
-	SlaveVirshService_PauseVM_FullMethodName          = "/virsh.SlaveVirshService/PauseVM"
-	SlaveVirshService_ResumeVM_FullMethodName         = "/virsh.SlaveVirshService/ResumeVM"
-	SlaveVirshService_GetAllVms_FullMethodName        = "/virsh.SlaveVirshService/GetAllVms"
-	SlaveVirshService_GetVmByName_FullMethodName      = "/virsh.SlaveVirshService/GetVmByName"
-	SlaveVirshService_RemoveIsoFromVm_FullMethodName  = "/virsh.SlaveVirshService/RemoveIsoFromVm"
-	SlaveVirshService_EditVmResources_FullMethodName  = "/virsh.SlaveVirshService/EditVmResources"
+	SlaveVirshService_GetCpuFeatures_FullMethodName  = "/virsh.SlaveVirshService/GetCpuFeatures"
+	SlaveVirshService_GetCPUXML_FullMethodName       = "/virsh.SlaveVirshService/GetCPUXML"
+	SlaveVirshService_GetVMCPUXml_FullMethodName     = "/virsh.SlaveVirshService/GetVMCPUXml"
+	SlaveVirshService_UpdateVMCPUXml_FullMethodName  = "/virsh.SlaveVirshService/UpdateVMCPUXml"
+	SlaveVirshService_CreateVm_FullMethodName        = "/virsh.SlaveVirshService/CreateVm"
+	SlaveVirshService_CreateLiveVM_FullMethodName    = "/virsh.SlaveVirshService/CreateLiveVM"
+	SlaveVirshService_MigrateVM_FullMethodName       = "/virsh.SlaveVirshService/MigrateVM"
+	SlaveVirshService_ShutdownVM_FullMethodName      = "/virsh.SlaveVirshService/ShutdownVM"
+	SlaveVirshService_ForceShutdownVM_FullMethodName = "/virsh.SlaveVirshService/ForceShutdownVM"
+	SlaveVirshService_StartVM_FullMethodName         = "/virsh.SlaveVirshService/StartVM"
+	SlaveVirshService_RemoveVM_FullMethodName        = "/virsh.SlaveVirshService/RemoveVM"
+	SlaveVirshService_RestartVM_FullMethodName       = "/virsh.SlaveVirshService/RestartVM"
+	SlaveVirshService_PauseVM_FullMethodName         = "/virsh.SlaveVirshService/PauseVM"
+	SlaveVirshService_ResumeVM_FullMethodName        = "/virsh.SlaveVirshService/ResumeVM"
+	SlaveVirshService_GetAllVms_FullMethodName       = "/virsh.SlaveVirshService/GetAllVms"
+	SlaveVirshService_GetVmByName_FullMethodName     = "/virsh.SlaveVirshService/GetVmByName"
+	SlaveVirshService_RemoveIsoFromVm_FullMethodName = "/virsh.SlaveVirshService/RemoveIsoFromVm"
+	SlaveVirshService_EditVmResources_FullMethodName = "/virsh.SlaveVirshService/EditVmResources"
 )
 
 // SlaveVirshServiceClient is the client API for SlaveVirshService service.
@@ -46,7 +46,7 @@ type SlaveVirshServiceClient interface {
 	GetCpuFeatures(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GetCpuFeaturesResponse, error)
 	GetCPUXML(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*CPUXMLResponse, error)
 	GetVMCPUXml(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*CPUXMLResponse, error)
-	CanMigrateLiveVm(ctx context.Context, in *CPUXMLResponse, opts ...grpc.CallOption) (*OkResponse, error)
+	UpdateVMCPUXml(ctx context.Context, in *UpdateVMCPUXmlRequest, opts ...grpc.CallOption) (*OkResponse, error)
 	CreateVm(ctx context.Context, in *CreateVmRequest, opts ...grpc.CallOption) (*OkResponse, error)
 	CreateLiveVM(ctx context.Context, in *CreateVmLiveRequest, opts ...grpc.CallOption) (*OkResponse, error)
 	MigrateVM(ctx context.Context, in *MigrateVmRequest, opts ...grpc.CallOption) (*OkResponse, error)
@@ -103,10 +103,10 @@ func (c *slaveVirshServiceClient) GetVMCPUXml(ctx context.Context, in *GetVmByNa
 	return out, nil
 }
 
-func (c *slaveVirshServiceClient) CanMigrateLiveVm(ctx context.Context, in *CPUXMLResponse, opts ...grpc.CallOption) (*OkResponse, error) {
+func (c *slaveVirshServiceClient) UpdateVMCPUXml(ctx context.Context, in *UpdateVMCPUXmlRequest, opts ...grpc.CallOption) (*OkResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(OkResponse)
-	err := c.cc.Invoke(ctx, SlaveVirshService_CanMigrateLiveVm_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, SlaveVirshService_UpdateVMCPUXml_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +260,7 @@ type SlaveVirshServiceServer interface {
 	GetCpuFeatures(context.Context, *Empty) (*GetCpuFeaturesResponse, error)
 	GetCPUXML(context.Context, *Empty) (*CPUXMLResponse, error)
 	GetVMCPUXml(context.Context, *GetVmByNameRequest) (*CPUXMLResponse, error)
-	CanMigrateLiveVm(context.Context, *CPUXMLResponse) (*OkResponse, error)
+	UpdateVMCPUXml(context.Context, *UpdateVMCPUXmlRequest) (*OkResponse, error)
 	CreateVm(context.Context, *CreateVmRequest) (*OkResponse, error)
 	CreateLiveVM(context.Context, *CreateVmLiveRequest) (*OkResponse, error)
 	MigrateVM(context.Context, *MigrateVmRequest) (*OkResponse, error)
@@ -293,8 +293,8 @@ func (UnimplementedSlaveVirshServiceServer) GetCPUXML(context.Context, *Empty) (
 func (UnimplementedSlaveVirshServiceServer) GetVMCPUXml(context.Context, *GetVmByNameRequest) (*CPUXMLResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetVMCPUXml not implemented")
 }
-func (UnimplementedSlaveVirshServiceServer) CanMigrateLiveVm(context.Context, *CPUXMLResponse) (*OkResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CanMigrateLiveVm not implemented")
+func (UnimplementedSlaveVirshServiceServer) UpdateVMCPUXml(context.Context, *UpdateVMCPUXmlRequest) (*OkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateVMCPUXml not implemented")
 }
 func (UnimplementedSlaveVirshServiceServer) CreateVm(context.Context, *CreateVmRequest) (*OkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateVm not implemented")
@@ -405,20 +405,20 @@ func _SlaveVirshService_GetVMCPUXml_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SlaveVirshService_CanMigrateLiveVm_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CPUXMLResponse)
+func _SlaveVirshService_UpdateVMCPUXml_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateVMCPUXmlRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SlaveVirshServiceServer).CanMigrateLiveVm(ctx, in)
+		return srv.(SlaveVirshServiceServer).UpdateVMCPUXml(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SlaveVirshService_CanMigrateLiveVm_FullMethodName,
+		FullMethod: SlaveVirshService_UpdateVMCPUXml_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SlaveVirshServiceServer).CanMigrateLiveVm(ctx, req.(*CPUXMLResponse))
+		return srv.(SlaveVirshServiceServer).UpdateVMCPUXml(ctx, req.(*UpdateVMCPUXmlRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -695,8 +695,8 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _SlaveVirshService_GetVMCPUXml_Handler,
 		},
 		{
-			MethodName: "CanMigrateLiveVm",
-			Handler:    _SlaveVirshService_CanMigrateLiveVm_Handler,
+			MethodName: "UpdateVMCPUXml",
+			Handler:    _SlaveVirshService_UpdateVMCPUXml_Handler,
 		},
 		{
 			MethodName: "CreateVm",

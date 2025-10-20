@@ -236,7 +236,6 @@ type MigrateOptions struct {
 	SSH SSHOptions
 }
 
-
 func GetCpuFeatures() ([]string, error) {
 	//call "sudo virsh -c qemu:///system capabilities | xmlstarlet sel -t -m '/capabilities/host/cpu/feature' -v '@name' -n | sort -u"
 	cmd := exec.Command("bash", "-c", "sudo virsh -c qemu:///system capabilities | xmlstarlet sel -t -m '/capabilities/host/cpu/feature' -v '@name' -n | sort -u")
@@ -265,4 +264,87 @@ func GetHostCPUXML() (string, error) {
 		return "", fmt.Errorf("no <cpu> block found in capabilities")
 	}
 	return m[1], nil
+}
+
+func validateCPUXML(cpuXML string) error {
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	// Compare this CPU against the host CPU
+	res, err := conn.CompareCPU(cpuXML, 0)
+	if err != nil {
+		return fmt.Errorf("compare failed: %w", err)
+	}
+
+	switch int(res) {
+	case 0:
+		return fmt.Errorf("CPU incompatible: host lacks required features")
+	case 1:
+		return nil // perfect match
+	case 2:
+		return nil // host supports all required features
+	default:
+		return fmt.Errorf("unknown compare result: %v", res)
+	}
+}
+
+func UpdateVMCPUXml(vmName, cpuXml string) error {
+
+	//validate cpuXml has <cpu> block
+	if err := validateCPUXML(cpuXml); err != nil {
+		return fmt.Errorf("validate CPU XML: %w", err)
+	}
+
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	dom, err := conn.LookupDomainByName(vmName)
+	if err != nil {
+		return fmt.Errorf("lookup domain: %w", err)
+	}
+	defer dom.Free()
+
+	//get state if != shutdown return error
+	state, _, err := dom.GetState()
+	if err != nil {
+		return fmt.Errorf("get state: %w", err)
+	}
+	if state != libvirt.DOMAIN_SHUTOFF {
+		return fmt.Errorf("domain %s must be shut off to update CPU XML", vmName)
+	}
+
+	//get current xml
+	xmlDesc, err := dom.GetXMLDesc(0)
+	if err != nil {
+		return fmt.Errorf("get xml desc: %w", err)
+	}
+
+	//old cpu block
+	oldCpu, err := GetVmCPUXML(vmName)
+	if err != nil {
+		return fmt.Errorf("get old cpu xml: %w", err)
+	}
+
+	//replace old cpu block with new cpu block
+	newXmlDesc := strings.Replace(xmlDesc, oldCpu, cpuXml, 1)
+
+	//undefine domain
+	if err := dom.Undefine(); err != nil {
+		return fmt.Errorf("undefine domain: %w", err)
+	}
+
+	//define domain with new xml
+	newDom, err := conn.DomainDefineXML(newXmlDesc)
+	if err != nil {
+		return fmt.Errorf("define domain with new xml: %w", err)
+	}
+	defer newDom.Free()
+
+	return nil
 }

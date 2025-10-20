@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Maruqes/512SvMan/logger"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -70,10 +71,9 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 
 	virshServices := services.VirshService{}
 
-	res, err := virshServices.GetAllVms()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	res, errors := virshServices.GetAllVms()
+	if len(errors) > 0 {
+		logger.Error("GetAllVms encountered errors: %v", errors)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	data, err := json.Marshal(res)
@@ -299,6 +299,74 @@ func migrateLiveVM(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("VM migrated successfully"))
 }
 
+func updateCpuXml(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type UpdateCpuRequest struct {
+		MachineName string `json:"machine_name"`
+		CpuXml      string `json:"cpu_xml"`
+	}
+
+	var cpuReq UpdateCpuRequest
+	err := json.NewDecoder(r.Body).Decode(&cpuReq)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err = virshServices.UpdateCpuXml(cpuReq.MachineName, vmName, cpuReq.CpuXml)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("CPU XML updated successfully"))
+}
+
+func getCpuXML(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type GetCpuXMLRequest struct {
+		MachineName string `json:"machine_name"`
+	}
+
+	var cpuReq GetCpuXMLRequest
+	err := json.NewDecoder(r.Body).Decode(&cpuReq)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	cpuXml, err := virshServices.GetCpuXML(cpuReq.MachineName, vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(struct {
+		CpuXML string `json:"cpu_xml"`
+	}{
+		CpuXML: cpuXml,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
+}
+
 func removeIso(w http.ResponseWriter, r *http.Request) {
 	vmName := chi.URLParam(r, "vm_name")
 	if vmName == "" {
@@ -360,6 +428,9 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Post("/createvm", createVM)
 		r.Post("/createlivevm", createLiveVM)
 		r.Post("/migratevm/{vm_name}", migrateLiveVM)
+		r.Post("/updatecpuxml/{vm_name}", updateCpuXml)
+		r.Get("/cpuxml/{vm_name}", getCpuXML)
+
 		r.Delete("/deletevm/{vm_name}", deleteVM)
 		r.Post("/startvm/{vm_name}", startVM)
 		r.Post("/shutdownvm/{vm_name}", shutdownVM)

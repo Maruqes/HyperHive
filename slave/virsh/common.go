@@ -15,6 +15,7 @@ import (
 	"time"
 
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
+	"github.com/Maruqes/512SvMan/logger"
 	libvirt "libvirt.org/go/libvirt"
 )
 
@@ -653,7 +654,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []error) {
 		if err != nil {
 			dom.Free()
 			errs = append(errs, fmt.Errorf("get disk info: %w", err))
-			continue
+			logger.Error("failed to get diskInfo err: " + err.Error())
 		}
 
 		networkIP := []string{}
@@ -663,7 +664,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []error) {
 			if err != nil {
 				dom.Free()
 				errs = append(errs, fmt.Errorf("get interface addresses: %w", err))
-				continue
+				logger.Error("failed to get interface addresses err: " + err.Error())
 			}
 
 			for _, ifAddr := range ifAddrs {
@@ -1192,30 +1193,4 @@ func GetVmCPUXML(name string) (string, error) {
 
 	cpuxml := extractCPUXML(xmlDesc)
 	return cpuxml, nil
-}
-
-func CPUXMLCanRunOn(vmCPUXML string) (bool, string, error) {
-	conn, err := libvirt.NewConnect("qemu:///system")
-	if err != nil {
-		return false, "", fmt.Errorf("connect: %w", err)
-	}
-	defer conn.Close()
-
-	res, err := conn.CompareCPU(vmCPUXML, 0)
-	if err != nil {
-		return false, "", err
-	}
-
-	switch res {
-	case libvirt.CPU_COMPARE_ERROR:
-		return false, "destination CPU is missing required features", nil
-	case libvirt.CPU_COMPARE_INCOMPATIBLE:
-		return false, "destination CPU is missing required features", nil
-	case libvirt.CPU_COMPARE_IDENTICAL:
-		return true, "destination CPU is identical", nil
-	case libvirt.CPU_COMPARE_SUPERSET:
-		return true, "destination CPU is a superset (OK for migration)", nil
-	default:
-		return false, fmt.Sprintf("unexpected compare result: %d", res), nil
-	}
 }

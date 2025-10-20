@@ -35,14 +35,6 @@ func (s *SlaveVirshService) GetVMCPUXml(ctx context.Context, e *grpcVirsh.GetVmB
 	return &grpcVirsh.CPUXMLResponse{CpuXML: xml}, nil
 }
 
-func (s *SlaveVirshService) CanMigrateLiveVm(ctx context.Context, e *grpcVirsh.CPUXMLResponse) (*grpcVirsh.OkResponse, error) {
-	canRun, _, err := CPUXMLCanRunOn(e.CpuXML)
-	if err != nil {
-		return nil, err
-	}
-	return &grpcVirsh.OkResponse{Ok: canRun}, nil
-}
-
 func (s *SlaveVirshService) CreateVm(ctx context.Context, req *grpcVirsh.CreateVmRequest) (*grpcVirsh.OkResponse, error) {
 	params := VMCreationParams{
 		ConnURI:        "qemu:///system",
@@ -104,6 +96,16 @@ func (s *SlaveVirshService) MigrateVM(ctx context.Context, e *grpcVirsh.MigrateV
 	}
 	return &grpcVirsh.OkResponse{}, nil
 }
+
+
+func (s *SlaveVirshService) UpdateVMCPUXml(ctx context.Context, e *grpcVirsh.UpdateVMCPUXmlRequest) (*grpcVirsh.OkResponse, error) {
+	err := UpdateVMCPUXml(e.Name, e.CpuXML)
+	if err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{}, nil
+}
+
 
 func (s *SlaveVirshService) GetAllVms(ctx context.Context, e *grpcVirsh.Empty) (*grpcVirsh.GetAllVmsResponse, error) {
 	vms, errs := GetAllVMs()
