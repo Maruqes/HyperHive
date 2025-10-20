@@ -652,12 +652,14 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []error) {
 		//get diskSize and DiskPath
 		diskInfo, err := GetPrimaryDiskInfo(&dom)
 		diskInfoPath := ""
+		diskSizeGB := int32(0)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("get disk info: %w", err))
 			logger.Error("failed to get diskInfo err: " + err.Error())
 			diskInfoPath = ""
-		} else {
+		} else if diskInfo != nil {
 			diskInfoPath = diskInfo.Path
+			diskSizeGB = int32(diskInfo.SizeGB)
 		}
 
 		networkIP := []string{}
@@ -685,7 +687,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []error) {
 			MemoryMB:             totalMemMB,
 			CurrentCpuUsage:      int32(cpuPct),
 			CurrentMemoryUsageMB: usedMemMB,
-			DiskSizeGB:           int32(diskInfo.SizeGB),
+			DiskSizeGB:           diskSizeGB,
 			DiskPath:             diskInfoPath,
 			Ip:                   networkIP,
 		}
