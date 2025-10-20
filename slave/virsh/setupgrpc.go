@@ -57,18 +57,19 @@ func (s *SlaveVirshService) CreateVm(ctx context.Context, req *grpcVirsh.CreateV
 
 func (s *SlaveVirshService) CreateLiveVM(ctx context.Context, req *grpcVirsh.CreateVmLiveRequest) (*grpcVirsh.OkResponse, error) {
 	params := CreateVMCustomCPUOptions{
-		ConnURI:        "qemu:///system",
-		Name:           req.Vm.Name,
-		MemoryMB:       int(req.Vm.Memory),
-		VCPUs:          int(req.Vm.Vcpu),
-		DiskFolder:     req.Vm.DiskFolder,
-		DiskPath:       req.Vm.DiskPath,
-		DiskSizeGB:     int(req.Vm.DiskSizeGB),
-		ISOPath:        req.Vm.IsoPath,
-		Network:        req.Vm.Network,
-		GraphicsListen: "0.0.0.0",
-		VNCPassword:    req.Vm.VncPassword,
-		CPUXml:         req.CpuXml,
+		ConnURI:           "qemu:///system",
+		Name:              req.Vm.Name,
+		MemoryMB:          int(req.Vm.Memory),
+		VCPUs:             int(req.Vm.Vcpu),
+		DiskAlreadyExists: false,
+		DiskFolder:        req.Vm.DiskFolder,
+		DiskPath:          req.Vm.DiskPath,
+		DiskSizeGB:        int(req.Vm.DiskSizeGB),
+		ISOPath:           req.Vm.IsoPath,
+		Network:           req.Vm.Network,
+		GraphicsListen:    "0.0.0.0",
+		VNCPassword:       req.Vm.VncPassword,
+		CPUXml:            req.CpuXml,
 	}
 	_, err := CreateVMCustomCPU(params)
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"slave/extra"
 	"strconv"
@@ -64,9 +65,9 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 		"--undefinesource",
 		"--p2p",
 		"--tunnelled",
-	}	
+	}
 
-	if opts.Timeout > 0 {	
+	if opts.Timeout > 0 {
 		baseArgs = append(baseArgs, "--timeout", strconv.FormatInt(int64(opts.Timeout), 10))
 	}
 
@@ -141,12 +142,50 @@ func extractCPUXML(s string) string {
 	return m
 }
 
+type ColdMigrationInfo struct {
+	VmName      string
+	Memory      int32
+	VCpus       int32
+	Network     string
+	VNCPassword string
+	CpuXML      string
+	DiskPath    string //qcow file
+}
+
 // returns qcow2file path, cpuXML
-func MigrateColdLose(name string) (string, string, error) {
-	return "", "", nil
+func MigrateColdLose(name string) (*ColdMigrationInfo, error) {
+	//destroy
+	//undefine (sem delete ao qcow2)
+
+	return nil, nil
 }
 
 // cria uma maquina com passthrough, com x nome usando o disco qcow2file
-func MigrateColdWin(name string, qcow2file string, cpuXML string) error {
+func MigrateColdWin(coldFile ColdMigrationInfo) error {
+
+	//get folder of diskPath qcow file
+	parentDir := strings.TrimSpace(filepath.Dir(coldFile.DiskPath))
+
+	params := CreateVMCustomCPUOptions{
+		ConnURI:           "qemu:///system",
+		Name:              coldFile.VmName,
+		MemoryMB:          int(coldFile.Memory),
+		VCPUs:             int(coldFile.VCpus),
+		DiskAlreadyExists: true,
+		DiskFolder:        parentDir,
+		DiskPath:          coldFile.DiskPath,
+		DiskSizeGB:        0,
+		ISOPath:           "",
+		Network:           coldFile.Network,
+		GraphicsListen:    "0.0.0.0",
+		VNCPassword:       coldFile.VNCPassword,
+		CPUXml:            coldFile.CpuXML,
+	}
+
+	_, err := CreateVMCustomCPU(params)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

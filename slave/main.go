@@ -351,6 +351,17 @@ func setupAll() error {
 func main() {
 	askForSudo()
 
+	// virsh.MigrateColdWin(virsh.ColdMigrationInfo{
+	// 	VmName:      "meudeus",
+	// 	DiskPath:    "/mnt/512SvMan/shared/slave2_aa/plsfunfa/plsfunfa.qcow2",
+	// 	Memory:      8192,
+	// 	VCpus:       6,
+	// 	Network:     "default",
+	// 	VNCPassword: "132",
+	// 	CpuXML:      "",
+	// })
+	// return
+
 	//varsc
 	if err := env512.Setup(); err != nil {
 		log.Fatalf("env setup: %v", err)

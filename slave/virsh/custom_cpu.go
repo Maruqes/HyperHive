@@ -51,22 +51,29 @@ func BuildCPUXMLCustom(model string, disabledFeatures []string) string {
 }
 
 type CreateVMCustomCPUOptions struct {
-	ConnURI        string
-	Name           string
-	MemoryMB       int
-	VCPUs          int
-	DiskFolder     string //fazer
-	DiskPath       string
-	DiskSizeGB     int
-	ISOPath        string
-	Machine        string
-	Network        string
-	GraphicsListen string
-	VNCPassword    string // fazer
-	CPUXml         string
+	ConnURI           string
+	Name              string
+	MemoryMB          int
+	VCPUs             int
+	DiskAlreadyExists bool   //already exists qcow2 file?
+	DiskFolder        string // creates folder, can be "" ignored
+	DiskPath          string // qcow2 file
+	DiskSizeGB        int
+	ISOPath           string
+	Machine           string
+	Network           string
+	GraphicsListen    string
+	VNCPassword       string
+	CPUXml            string
 }
 
 func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
+
+	if opts.DiskAlreadyExists {
+		if opts.ISOPath != "" {
+			return "", fmt.Errorf("how the heel i want to create a vm with an already")
+		}
+	}
 
 	//make sure DiskFolder exists
 	if opts.DiskFolder != "" {
@@ -96,9 +103,11 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 		return "", fmt.Errorf("disk directory: %w", err)
 	}
 
-	// detect/create disk & get its format
-	if _, err := EnsureDiskAndDetectFormat(disk, opts.DiskSizeGB); err != nil {
-		return "", fmt.Errorf("disk: %w", err)
+	if !opts.DiskAlreadyExists {
+		// detect/create disk & get its format
+		if _, err := EnsureDiskAndDetectFormat(disk, opts.DiskSizeGB); err != nil {
+			return "", fmt.Errorf("disk: %w", err)
+		}
 	}
 
 	// ISO optional
@@ -230,7 +239,7 @@ type MigrateOptions struct {
 	ConnURI string
 	Name    string
 	DestURI string
-	Live bool
+	Live    bool
 	Timeout int32
 
 	SSH SSHOptions
