@@ -283,7 +283,7 @@ func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int
 	return nil
 }
 
-func (v *VirshService) MigrateVm(ctx context.Context, originMachine string, destMachine string, vmName string, live bool) error {
+func (v *VirshService) MigrateVm(ctx context.Context, originMachine string, destMachine string, vmName string, live bool, timeoutSeconds int) error {
 	exists, err := db.DoesVmLiveExist(vmName)
 	if err != nil {
 		return fmt.Errorf("failed to check if live VM exists in database: %v", err)
@@ -327,7 +327,7 @@ func (v *VirshService) MigrateVm(ctx context.Context, originMachine string, dest
 		return fmt.Errorf("VM %s is not running on origin machine %s", vmName, originMachine)
 	}
 
-	return virsh.MigrateVm(ctx, originConn.Connection, vmName, destConn.Addr, live)
+	return virsh.MigrateVm(ctx, originConn.Connection, vmName, destConn.Addr, live, timeoutSeconds)
 }
 
 func (v *VirshService) UpdateCpuXml(machine_name string, vmName string, cpuXml string) error {

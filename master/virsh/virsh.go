@@ -79,12 +79,13 @@ func CreateLiveVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFo
 }
 
 // conn machine will migrate do slaveIp machine
-func MigrateVm(ctx context.Context, conn *grpc.ClientConn, name, slaveIp string, live bool) error {
+func MigrateVm(ctx context.Context, conn *grpc.ClientConn, name, slaveIp string, live bool, timeoutSeconds int) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.MigrateVM(ctx, &grpcVirsh.MigrateVmRequest{
-		Name:    name,
-		SlaveIp: slaveIp,
-		Live:    live,
+		Name:           name,
+		SlaveIp:        slaveIp,
+		Live:           live,
+		TimeoutSeconds: int32(timeoutSeconds),
 	})
 	if err != nil {
 		return err

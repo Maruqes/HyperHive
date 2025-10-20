@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"regexp"
 	"slave/extra"
+	"strconv"
 	"strings"
 
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
@@ -59,6 +60,7 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 		"--undefinesource",
 		"--p2p",
 		"--tunnelled",
+		"--timeout", strconv.Itoa(int(opts.Timeout)),
 	}
 
 	if opts.Live {
@@ -131,8 +133,6 @@ func extractCPUXML(s string) string {
 	}
 	return m
 }
-
-
 
 // returns qcow2file path, cpuXML
 func MigrateColdLose(name string) (string, string, error) {

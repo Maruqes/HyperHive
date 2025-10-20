@@ -88,6 +88,7 @@ func (s *SlaveVirshService) MigrateVM(ctx context.Context, e *grpcVirsh.MigrateV
 			SkipHostKeyCheck:   true,
 			UserKnownHostsFile: "/dev/null",
 		},
+		Timeout: e.TimeoutSeconds,
 	}
 	err := MigrateVM(opts, ctx)
 	if err != nil {

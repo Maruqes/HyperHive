@@ -74,6 +74,7 @@ message MigrateVmRequest {
   string name = 2;
   string slaveIp = 3;
   bool live = 4;
+  int32 timeoutSeconds = 5;
 }
 
 message CPUXMLResponse {

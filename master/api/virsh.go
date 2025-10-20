@@ -279,6 +279,7 @@ func migrateLiveVM(w http.ResponseWriter, r *http.Request) {
 		OriginMachine      string `json:"origin_machine"`
 		DestinationMachine string `json:"destination_machine"`
 		Live               bool   `json:"live"`
+		TimeoutSeconds     int    `json:"timeout"`
 	}
 
 	var migReq MigrateRequest
@@ -289,7 +290,7 @@ func migrateLiveVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshServices := services.VirshService{}
-	err = virshServices.MigrateVm(r.Context(), migReq.OriginMachine, migReq.DestinationMachine, vmName, migReq.Live)
+	err = virshServices.MigrateVm(r.Context(), migReq.OriginMachine, migReq.DestinationMachine, vmName, migReq.Live, migReq.TimeoutSeconds)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -427,6 +428,7 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Get("/getallvms", getAllVms)
 		r.Post("/createvm", createVM)
 		r.Post("/createlivevm", createLiveVM)
+
 		r.Post("/migratevm/{vm_name}", migrateLiveVM)
 		r.Post("/updatecpuxml/{vm_name}", updateCpuXml)
 		r.Get("/cpuxml/{vm_name}", getCpuXML)

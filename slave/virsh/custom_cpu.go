@@ -230,8 +230,8 @@ type MigrateOptions struct {
 	ConnURI string
 	Name    string
 	DestURI string
-
 	Live bool
+	Timeout int32
 
 	SSH SSHOptions
 }
