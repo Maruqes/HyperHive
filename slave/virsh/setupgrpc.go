@@ -2,7 +2,6 @@ package virsh
 
 import (
 	"context"
-	"fmt"
 
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 )
@@ -106,9 +105,11 @@ func (s *SlaveVirshService) UpdateVMCPUXml(ctx context.Context, e *grpcVirsh.Upd
 }
 
 func (s *SlaveVirshService) GetAllVms(ctx context.Context, e *grpcVirsh.Empty) (*grpcVirsh.GetAllVmsResponse, error) {
-	vms, warnings, errs := GetAllVMs()
-	fmt.Println("Returing vms:", vms)
-	return &grpcVirsh.GetAllVmsResponse{Vms: vms, Warnings: warnings}, fmt.Errorf("get all vms: %v", errs)
+	vms, warnings, err := GetAllVMs()
+	if err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.GetAllVmsResponse{Vms: vms, Warnings: warnings}, nil
 }
 
 func (s *SlaveVirshService) GetVmByName(ctx context.Context, req *grpcVirsh.GetVmByNameRequest) (*grpcVirsh.Vm, error) {
