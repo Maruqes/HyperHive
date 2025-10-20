@@ -97,7 +97,6 @@ func (s *SlaveVirshService) MigrateVM(ctx context.Context, e *grpcVirsh.MigrateV
 	return &grpcVirsh.OkResponse{}, nil
 }
 
-
 func (s *SlaveVirshService) UpdateVMCPUXml(ctx context.Context, e *grpcVirsh.UpdateVMCPUXmlRequest) (*grpcVirsh.OkResponse, error) {
 	err := UpdateVMCPUXml(e.Name, e.CpuXML)
 	if err != nil {
@@ -106,12 +105,11 @@ func (s *SlaveVirshService) UpdateVMCPUXml(ctx context.Context, e *grpcVirsh.Upd
 	return &grpcVirsh.OkResponse{}, nil
 }
 
-
 func (s *SlaveVirshService) GetAllVms(ctx context.Context, e *grpcVirsh.Empty) (*grpcVirsh.GetAllVmsResponse, error) {
 	vms, errs := GetAllVMs()
 	//convert errs slice into a single error
 	if len(errs) > 0 {
-		return nil, fmt.Errorf("get all vms: %v", errs)
+		return &grpcVirsh.GetAllVmsResponse{Vms: vms}, fmt.Errorf("get all vms: %v", errs)
 	}
 	return &grpcVirsh.GetAllVmsResponse{Vms: vms}, nil
 }
