@@ -653,7 +653,6 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []error) {
 		diskInfo, err := GetPrimaryDiskInfo(&dom)
 		diskInfoPath := ""
 		if err != nil {
-			dom.Free()
 			errs = append(errs, fmt.Errorf("get disk info: %w", err))
 			logger.Error("failed to get diskInfo err: " + err.Error())
 			diskInfoPath = ""
@@ -666,7 +665,6 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []error) {
 		if state == libvirt.DOMAIN_RUNNING {
 			ifAddrs, err := dom.ListAllInterfaceAddresses(libvirt.DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE)
 			if err != nil {
-				dom.Free()
 				errs = append(errs, fmt.Errorf("get interface addresses: %w", err))
 				logger.Error("failed to get interface addresses err: " + err.Error())
 			}
