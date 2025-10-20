@@ -604,41 +604,41 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []error) {
 	}
 
 	var vms []*grpcVirsh.Vm
-	for _, dom := range doms {
+	for i := range doms {
+		dom := doms[i]
+
 		name, err := dom.GetName()
 		if err != nil {
+			errs = append(errs, fmt.Errorf("get name: %w", err))
 			dom.Free()
 			continue
 		}
 
-		state, _, err := dom.GetState()
-		if err != nil {
-			dom.Free()
-			errs = append(errs, fmt.Errorf("state: %w", err))
-			continue
+		info := &grpcVirsh.Vm{
+			MachineName: env512.MachineName,
+			Name:        name,
+			NovncPort:   "0",
+			State:       grpcVirsh.VmState_UNKNOWN,
 		}
 
-		xmlDesc, err := dom.GetXMLDesc(0)
-		if err != nil {
-			dom.Free()
-			errs = append(errs, fmt.Errorf("xml: %w", err))
-			continue
+		state := libvirt.DOMAIN_NOSTATE
+		stateKnown := false
+		if s, _, err := dom.GetState(); err != nil {
+			errs = append(errs, fmt.Errorf("%s: state: %w", name, err))
+		} else {
+			state = s
+			stateKnown = true
+			info.State = domainStateToString(state)
 		}
 
-		port := 0
-		if strings.Contains(xmlDesc, "graphics type='vnc'") {
-			start := strings.Index(xmlDesc, "port='")
-			if start != -1 {
-				fmt.Sscanf(xmlDesc[start:], "port='%d'", &port)
-			}
-		}
+		var (
+			totalMemMB int32
+			usedMemMB  int32
+			cpuPct     int32
+			vcpuCount  int32
+		)
 
-		var usedMemMB int32
-		var cpuPct int32
-		var vcpuCount int32
-		var totalMemMB int32
-		// Only do live sampling when actually running
-		if state == libvirt.DOMAIN_RUNNING {
+		if stateKnown && state == libvirt.DOMAIN_RUNNING {
 			if totalKiB, usedKiB, err := getMemStats(&dom); err == nil {
 				totalMemMB = int32(totalKiB / 1024)
 				usedMemMB = int32(usedKiB / 1024)
@@ -649,48 +649,54 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []error) {
 			}
 		}
 
-		//get diskSize and DiskPath
-		diskInfo, err := GetPrimaryDiskInfo(&dom)
+		xmlDesc := ""
+		if xml, err := dom.GetXMLDesc(0); err != nil {
+			errs = append(errs, fmt.Errorf("%s: xml: %w", name, err))
+		} else {
+			xmlDesc = xml
+		}
+
+		port := 0
+		if xmlDesc != "" && strings.Contains(xmlDesc, "graphics type='vnc'") {
+			start := strings.Index(xmlDesc, "port='")
+			if start != -1 {
+				fmt.Sscanf(xmlDesc[start:], "port='%d'", &port)
+			}
+		}
+
 		diskInfoPath := ""
 		diskSizeGB := int32(0)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("get disk info: %w", err))
+		if diskInfo, err := GetPrimaryDiskInfo(&dom); err != nil {
+			errs = append(errs, fmt.Errorf("%s: get disk info: %w", name, err))
 			logger.Error("failed to get diskInfo err: " + err.Error())
-			diskInfoPath = ""
 		} else if diskInfo != nil {
 			diskInfoPath = diskInfo.Path
 			diskSizeGB = int32(diskInfo.SizeGB)
 		}
 
 		networkIP := []string{}
-
-		if state == libvirt.DOMAIN_RUNNING {
-			ifAddrs, err := dom.ListAllInterfaceAddresses(libvirt.DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE)
-			if err != nil {
-				errs = append(errs, fmt.Errorf("get interface addresses: %w", err))
+		if stateKnown && state == libvirt.DOMAIN_RUNNING {
+			if ifAddrs, err := dom.ListAllInterfaceAddresses(libvirt.DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE); err != nil {
+				errs = append(errs, fmt.Errorf("%s: get interface addresses: %w", name, err))
 				logger.Error("failed to get interface addresses err: " + err.Error())
-			}
-
-			for _, ifAddr := range ifAddrs {
-				for _, addr := range ifAddr.Addrs {
-					networkIP = append(networkIP, addr.Addr)
+			} else {
+				for _, ifAddr := range ifAddrs {
+					for _, addr := range ifAddr.Addrs {
+						networkIP = append(networkIP, addr.Addr)
+					}
 				}
 			}
 		}
 
-		info := &grpcVirsh.Vm{
-			MachineName:          env512.MachineName,
-			Name:                 name,
-			State:                domainStateToString(state),
-			NovncPort:            strconv.Itoa(port),
-			CpuCount:             int32(vcpuCount),
-			MemoryMB:             totalMemMB,
-			CurrentCpuUsage:      int32(cpuPct),
-			CurrentMemoryUsageMB: usedMemMB,
-			DiskSizeGB:           diskSizeGB,
-			DiskPath:             diskInfoPath,
-			Ip:                   networkIP,
-		}
+		info.NovncPort = strconv.Itoa(port)
+		info.CpuCount = vcpuCount
+		info.MemoryMB = totalMemMB
+		info.CurrentCpuUsage = cpuPct
+		info.CurrentMemoryUsageMB = usedMemMB
+		info.DiskSizeGB = diskSizeGB
+		info.DiskPath = diskInfoPath
+		info.Ip = networkIP
+
 		vms = append(vms, info)
 		dom.Free()
 	}

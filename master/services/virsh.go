@@ -557,6 +557,8 @@ func (v *VirshService) GetAllVms() ([]VmType, []error) {
 		vms, err := virsh.GetAllVms(conn, &grpcVirsh.Empty{})
 		if err != nil {
 			errors = append(errors, fmt.Errorf("failed to get VMs from a machine: %v", err))
+		}
+		if vms == nil {
 			continue
 		}
 		for _, vm := range vms.Vms {
