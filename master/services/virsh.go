@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
+	"github.com/Maruqes/512SvMan/logger"
 	"libvirt.org/go/libvirt"
 )
 
@@ -548,25 +549,25 @@ type VmType struct {
 	IsLive bool
 }
 
-func (v *VirshService) GetAllVms() ([]VmType, []error) {
+func (v *VirshService) GetAllVms() ([]VmType, []string, error) {
 	var allVms []VmType
-	var errors []error
+	var warningErrors []string
 
 	con := protocol.GetAllGRPCConnections()
 	for _, conn := range con {
 		vms, err := virsh.GetAllVms(conn, &grpcVirsh.Empty{})
-		fmt.Println(vms)
 		if err != nil {
-			errors = append(errors, fmt.Errorf("failed to get VMs from a machine: %v", err))
+			return nil, nil, fmt.Errorf("failed to get VMs from a machine: %v", err)
 		}
-		if vms == nil {
-			continue
+
+		for _, warning := range vms.Warnings {
+			logger.Warn(warning)
 		}
+
 		for _, vm := range vms.Vms {
 			isLive, err := db.DoesVmLiveExist(vm.Name)
 			if err != nil {
-				errors = append(errors, fmt.Errorf("failed to check if live VM exists in database: %v", err))
-				continue
+				return nil, nil, fmt.Errorf("failed to check if live VM exists in database: %v", err)
 			}
 			//if name already in allVms skip
 			found := false
@@ -583,14 +584,15 @@ func (v *VirshService) GetAllVms() ([]VmType, []error) {
 		}
 
 	}
-	return allVms, errors
+
+	return allVms, warningErrors, nil
 }
 
 // nfsSharePathTarget -> /mnt/...
 func (v *VirshService) GetAllVmsByOnNfsShare(nfsSharePathTarget string) ([]VmType, error) {
-	allVms, errors := v.GetAllVms()
-	if len(errors) > 0 {
-		return nil, fmt.Errorf("failed to get all VMs: %v", errors)
+	allVms, _, err := v.GetAllVms()
+	if err != nil {
+		return nil, err
 	}
 	var vmsOnShare []VmType
 	//if vm include in nfsShareId

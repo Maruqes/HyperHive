@@ -62,6 +62,7 @@ message GetVmByNameRequest {
 
 message GetAllVmsResponse {
   repeated Vm vms = 1;
+  repeated string warnings = 2;
 }
 
 message CreateVmLiveRequest{

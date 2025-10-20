@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Maruqes/512SvMan/logger"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -71,9 +70,10 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 
 	virshServices := services.VirshService{}
 
-	res, errors := virshServices.GetAllVms()
-	if len(errors) > 0 {
-		logger.Error("GetAllVms encountered errors: %v", errors)
+	res, _, err := virshServices.GetAllVms()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	data, err := json.Marshal(res)

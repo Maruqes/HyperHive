@@ -588,19 +588,19 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 	return info, nil
 }
 
-func GetAllVMs() ([]*grpcVirsh.Vm, []error) {
-	var errs []error
+func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
+	var warnings []string
 
 	connURI := "qemu:///system"
 	conn, err := libvirt.NewConnect(connURI)
 	if err != nil {
-		return nil, []error{fmt.Errorf("connect: %w", err)}
+		return nil, nil, fmt.Errorf("connect: %w", err)
 	}
 	defer conn.Close()
 
 	doms, err := conn.ListAllDomains(0)
 	if err != nil {
-		return nil, []error{fmt.Errorf("list domains: %w", err)}
+		return nil, nil, fmt.Errorf("list domains: %w", err)
 	}
 
 	var vms []*grpcVirsh.Vm
@@ -609,8 +609,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []error) {
 
 		name, err := dom.GetName()
 		if err != nil {
-			errs = append(errs, fmt.Errorf("get name: %w", err))
-			dom.Free()
+			warnings = append(warnings, fmt.Sprintf("get name: %v", err))
 			continue
 		}
 
@@ -624,7 +623,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []error) {
 		state := libvirt.DOMAIN_NOSTATE
 		stateKnown := false
 		if s, _, err := dom.GetState(); err != nil {
-			errs = append(errs, fmt.Errorf("%s: state: %w", name, err))
+			warnings = append(warnings, fmt.Sprintf("%s: state: %w", name, err))
 		} else {
 			state = s
 			stateKnown = true
@@ -651,7 +650,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []error) {
 
 		xmlDesc := ""
 		if xml, err := dom.GetXMLDesc(0); err != nil {
-			errs = append(errs, fmt.Errorf("%s: xml: %w", name, err))
+			warnings = append(warnings, fmt.Sprintf("%s: xml: %w", name, err))
 		} else {
 			xmlDesc = xml
 		}
@@ -667,7 +666,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []error) {
 		diskInfoPath := ""
 		diskSizeGB := int32(0)
 		if diskInfo, err := GetPrimaryDiskInfo(&dom); err != nil {
-			errs = append(errs, fmt.Errorf("%s: get disk info: %w", name, err))
+			warnings = append(warnings, fmt.Sprintf("%s: get disk info: %w", name, err))
 			logger.Error("failed to get diskInfo err: " + err.Error())
 		} else if diskInfo != nil {
 			diskInfoPath = diskInfo.Path
@@ -677,7 +676,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []error) {
 		networkIP := []string{}
 		if stateKnown && state == libvirt.DOMAIN_RUNNING {
 			if ifAddrs, err := dom.ListAllInterfaceAddresses(libvirt.DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE); err != nil {
-				errs = append(errs, fmt.Errorf("%s: get interface addresses: %w", name, err))
+				warnings = append(warnings, fmt.Sprintf("%s: get interface addresses: %w", name, err))
 				logger.Error("failed to get interface addresses err: " + err.Error())
 			} else {
 				for _, ifAddr := range ifAddrs {
@@ -700,7 +699,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []error) {
 		vms = append(vms, info)
 		dom.Free()
 	}
-	return vms, errs
+	return vms, warnings, nil
 }
 
 func EditVm(name string, newCPU, newMemMiB int, newDiskSizeGB ...int) error {

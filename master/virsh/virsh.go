@@ -106,7 +106,11 @@ func UpdateVMCPUXml(conn *grpc.ClientConn, vmName, cpuXml string) error {
 
 func GetAllVms(conn *grpc.ClientConn, empty *grpcVirsh.Empty) (*grpcVirsh.GetAllVmsResponse, error) {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
-	return client.GetAllVms(context.Background(), empty)
+	resp, err := client.GetAllVms(context.Background(), empty)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 func GetVmByName(conn *grpc.ClientConn, empty *grpcVirsh.GetVmByNameRequest) (*grpcVirsh.Vm, error) {
