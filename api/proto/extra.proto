@@ -7,6 +7,7 @@ option go_package = "github.com/Maruqes/512SvMan/api/proto/extra;proto";
 enum WebSocketsMessageType {
   DownloadIso = 0;
   MigrateVm = 1;
+  BackUpVM = 2;
 }
 
 message WebsocketMessage {

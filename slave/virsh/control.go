@@ -161,12 +161,19 @@ func RemoveVM(name string) error {
 
 		xmlDir := filepath.Dir(diskPath)
 		if xmlDir == "" {
-			xmlDir = "."
+			return fmt.Errorf("cannot determine directory for disk path: %s", diskPath)
 		}
 		xmlPath := filepath.Join(xmlDir, name+".xml")
 		if err := os.Remove(xmlPath); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("remove xml %s: %w", xmlPath, err)
 		}
+
+		// Remove the main folder
+		if err := os.RemoveAll(xmlDir); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove directory %s: %w", xmlDir, err)
+		}
+	}else{
+		return fmt.Errorf("err getting diskPath RemoveVm Slave")
 	}
 
 	return nil

@@ -163,6 +163,10 @@ func MigrateColdLose(name string) (*ColdMigrationInfo, error) {
 // cria uma maquina com passthrough, com x nome usando o disco qcow2file
 func MigrateColdWin(coldFile ColdMigrationInfo) error {
 
+	if coldFile.CpuXML == "" {
+		coldFile.CpuXML = "<cpu mode='host-passthrough'/>"
+	}
+
 	//check coldFile info is valid
 	if strings.TrimSpace(coldFile.VmName) == "" {
 		return fmt.Errorf("vm name is required")

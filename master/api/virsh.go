@@ -1,6 +1,7 @@
 package api
 
 import (
+	"512SvMan/db"
 	"512SvMan/protocol"
 	"512SvMan/services"
 	"encoding/json"
@@ -461,14 +462,14 @@ func q(r *http.Request, key string) string {
 }
 
 type VMRequest struct {
-	Slave_name  string
-	NfsShareId  int
-	VmName      string
-	Memory      int32
-	Vcpu        int32
-	Network     string
-	VNCPassword string
-	CpuXML      string
+	Slave_name  string `json:"slave_name"`
+	NfsShareId  int    `json:"nfs_share_id"`
+	VmName      string `json:"vm_name"`
+	Memory      int32  `json:"memory"`
+	Vcpu        int32  `json:"vcpu"`
+	Network     string `json:"network"`
+	VNCPassword string `json:"VNC_password"`
+	CpuXML      string `json:"cpu_xml"`
 }
 
 func readVMRequest(r *http.Request) (*VMRequest, error) {
@@ -604,6 +605,160 @@ func importVM(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+func backupVM(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	nfsID := chi.URLParam(r, "nfs_id")
+	if nfsID == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	nfsIdInt, err := strconv.Atoi(nfsID)
+	if err != nil {
+		http.Error(w, "nfs id is not a number, problem atoi", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err = virshServices.BackupVM(vmName, nfsIdInt)
+	if err != nil {
+		http.Error(w, "was not possible to backup your vm err: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func caniseefileorfolder(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func getAllBackups(w http.ResponseWriter, r *http.Request) {
+	virshBackups, err := db.GetAllVirshBackups()
+	if err != nil {
+		http.Error(w, "error getting all backups "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	type Res struct {
+		DbRes db.VirshBackup `json:"db_res"`
+		Live  bool           `json:"live"`
+	}
+
+	var res []Res
+
+	for i := 0; i < len(virshBackups); i++ {
+		bak := virshBackups[i]
+		nres := Res{
+			DbRes: bak,
+			Live:  caniseefileorfolder(bak.Path),
+		}
+		res = append(res, nres)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(res)
+	if err != nil {
+		http.Error(w, "error getting all backups "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(data)
+}
+
+func downloadBackup(w http.ResponseWriter, r *http.Request) {
+	backupId := chi.URLParam(r, "backup_id")
+	if backupId == "" {
+		http.Error(w, "backup_id is required", http.StatusBadRequest)
+		return
+	}
+
+	backupIdInt, err := strconv.Atoi(backupId)
+	if err != nil {
+		http.Error(w, "error with backup_id "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	bak, err := db.GetVirshBackupById(backupIdInt)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if bak == nil {
+		http.Error(w, "bak not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+bak.Name+".qcow2\"")
+	w.Header().Set("Content-Type", "application/octet-stream")
+	http.ServeFile(w, r, bak.Path)
+}
+
+// ask for new vmname ans use import code
+func useBackup(w http.ResponseWriter, r *http.Request) {
+	//backup_id
+	//new_vm_name
+	backupId := chi.URLParam(r, "backup_id")
+	if backupId == "" {
+		http.Error(w, "backup_id is required", http.StatusBadRequest)
+		return
+	}
+
+	backupIdInt, err := strconv.Atoi(backupId)
+	if err != nil {
+		http.Error(w, "error on backupId", http.StatusBadRequest)
+		return
+	}
+
+	var vmReq VMRequest
+	err = json.NewDecoder(r.Body).Decode(&vmReq)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err = virshServices.UseBackup(r.Context(), backupIdInt,
+		vmReq.Slave_name, vmReq.NfsShareId,
+		&grpcVirsh.ColdMigrationRequest{
+			VmName:      vmReq.VmName,
+			Memory:      vmReq.Memory,
+			VCpus:       vmReq.Vcpu,
+			Network:     vmReq.Network,
+			VncPassword: vmReq.VNCPassword,
+			CpuXML:      vmReq.CpuXML,
+			DiskPath:    "", //UseBackup FUNCTION WILL SET THIS
+		})
+	if err != nil {
+		http.Error(w, "was not possible to backup your vm err: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func deleteBackup(w http.ResponseWriter, r *http.Request) {
+	backupId := chi.URLParam(r, "backup_id")
+	if backupId == "" {
+		http.Error(w, "backup_id is required", http.StatusBadRequest)
+		return
+	}
+
+	backupIdInt, err := strconv.Atoi(backupId)
+	if err != nil {
+		http.Error(w, "error with backup_id "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	_ = backupIdInt
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func setupVirshAPI(r chi.Router) chi.Router {
 	return r.Route("/virsh", func(r chi.Router) {
 		r.Get("/getcpudisablefeatures", getCpuFeatures)
@@ -630,5 +785,12 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		//export/import
 		r.Get("/export/{vm_name}", exportVM)
 		r.Put("/import", importVM)
+
+		//backups
+		r.Post("/backup/{vm_name}/{nfs_id}", backupVM)
+		r.Get("/backups", getAllBackups)
+		r.Get("/downloadbackup/{backup_id}", downloadBackup)
+		r.Post("/useBackup/{backup_id}", useBackup)
+		r.Delete("/delete/{backup_id}", deleteBackup)
 	})
 }

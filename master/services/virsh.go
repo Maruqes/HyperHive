@@ -2,16 +2,22 @@ package services
 
 import (
 	"512SvMan/db"
+	"512SvMan/extra"
 	"512SvMan/protocol"
 	"512SvMan/virsh"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
+	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
+
 	"github.com/Maruqes/512SvMan/logger"
+	"github.com/google/uuid"
 	"libvirt.org/go/libvirt"
 )
 
@@ -756,4 +762,191 @@ func (v *VirshService) ImportVmHelper(nfsId int, filename string) (string, error
 	filePath := folder + "/" + filename + ".qcow2"
 
 	return filePath, nil
+}
+
+func copyFile(origin, dest, vmName string) error {
+	//actually write the file using buffered I/O with progress tracking
+	input, err := os.Open(origin)
+	if err != nil {
+		return fmt.Errorf("cannot open source file during backup: %v", err)
+	}
+	defer input.Close()
+
+	output, err := os.Create(dest)
+	if err != nil {
+		return fmt.Errorf("cannot create destination file: %v", err)
+	}
+	defer output.Close()
+
+	// Get total file size for progress calculation
+	fileInfo, err := input.Stat()
+	if err != nil {
+		return fmt.Errorf("cannot stat source file: %v", err)
+	}
+	totalSize := fileInfo.Size()
+
+	// Progress tracking
+	var copied int64
+	buf := make([]byte, 32*1024*1024) // 32MB buffer
+
+	for {
+		n, err := input.Read(buf)
+		if n > 0 {
+			_, writeErr := output.Write(buf[:n])
+			if writeErr != nil {
+				return fmt.Errorf("error writing file: %v", writeErr)
+			}
+			copied += int64(n)
+
+			// Calculate and log progress
+			progress := float64(copied) / float64(totalSize) * 100
+			extra.SendWebsocketMessage(extraGrpc.WebSocketsMessageType_BackUpVM, fmt.Sprintf("Backup progress for %s: %.2f%%", vmName, progress))
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("error reading file: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func (v *VirshService) BackupVM(vmName string, nfsID int) error {
+	//check if vmName exists and is turned off, check if nfsID exists
+	vm, err := v.GetVmByName(vmName)
+	if err != nil || vm == nil {
+		return fmt.Errorf("problem getting vm it may not exist")
+	}
+
+	if vm.State != grpcVirsh.VmState_SHUTOFF {
+		return fmt.Errorf("vm may be shutdown")
+	}
+
+	nfsShare, err := db.GetNFSShareByID(nfsID)
+	if err != nil {
+		return fmt.Errorf("failed to get NFS share by ID: %v", err)
+	}
+	if nfsShare == nil {
+		return fmt.Errorf("%s", "NFS share not found with ID"+strconv.Itoa(nfsID))
+	}
+
+	// nfsShare.Target + "/backUpFolder" + uuid.string
+	//generate uuid
+	bakUUID := uuid.New()
+
+	if nfsShare.Target[len(nfsShare.Target)-1] == '/' {
+		nfsShare.Target = nfsShare.Target[:len(nfsShare.Target)-1]
+	}
+
+	//creating actual backUpFolder folder
+	backUpFolder := nfsShare.Target + "/" + "backup-" + bakUUID.String()
+
+	//if backUpFolder folder already exists
+	_, err = os.Stat(backUpFolder)
+	if err != nil {
+		//check if err is already exists
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("the uuid existed?!?!?! 0 in a quadrillion chance")
+		}
+	}
+
+	//create folder
+	err = os.Mkdir(backUpFolder, 0o777)
+	if err != nil {
+		return fmt.Errorf("could not create the backUpFolder folder")
+	}
+
+	//create struct with already qcow2 file path
+	backup := &db.VirshBackup{
+		Name:  vmName,
+		Path:  backUpFolder + "/" + vmName + ".qcow2",
+		NfsId: nfsID,
+	}
+
+	err = copyFile(vm.DiskPath, backup.Path, vmName)
+
+	err = db.InsertVirshBackup(backup)
+	if err != nil {
+		return fmt.Errorf("problems writing to db backup: %v", err)
+	}
+
+	return nil
+}
+
+// clonar bak para uma nova pasta e defenir
+func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName string, nfsId int, coldReq *grpcVirsh.ColdMigrationRequest) error {
+	originConn := protocol.GetConnectionByMachineName(slaveName)
+	if originConn == nil {
+		return fmt.Errorf("origin machine %s not found", slaveName)
+	}
+
+	backup, err := db.GetVirshBackupById(bakID)
+	if err != nil {
+		return fmt.Errorf("failed to get backup by ID: %v", err)
+	}
+	if backup == nil {
+		return fmt.Errorf("backup with ID %d not found", bakID)
+	}
+
+	exists, err := virsh.DoesVMExist(coldReq.VmName)
+	if err != nil {
+		return fmt.Errorf("error checking if VM exists: %v", err)
+	}
+	if exists {
+		return fmt.Errorf("a VM with the name %s already exists", coldReq.VmName)
+	}
+
+	// Get NFS share
+	nfsShare, err := db.GetNFSShareByID(nfsId)
+	if err != nil {
+		return fmt.Errorf("failed to get NFS share by ID: %v", err)
+	}
+	if nfsShare == nil {
+		return fmt.Errorf("NFS share with ID %d not found", nfsId)
+	}
+
+	// Create new folder for the VM
+	var newFolder string
+	if nfsShare.Target[len(nfsShare.Target)-1] != '/' {
+		newFolder = nfsShare.Target + "/" + coldReq.VmName
+	} else {
+		newFolder = nfsShare.Target + coldReq.VmName
+	}
+
+	// Check if folder exists
+	_, err = os.Stat(newFolder)
+	if err == nil {
+		return fmt.Errorf("folder %s already exists", newFolder)
+	}
+
+	// Create folder
+	err = os.MkdirAll(newFolder, 0777)
+	if err != nil {
+		return fmt.Errorf("failed to create folder %s: %v", newFolder, err)
+	}
+
+	// Copy backup to new location
+	newDiskPath := newFolder + "/" + coldReq.VmName + ".qcow2"
+	err = copyFile(backup.Path, newDiskPath, coldReq.VmName)
+	if err != nil {
+		os.RemoveAll(newFolder)
+		return fmt.Errorf("failed to copy backup file: %v", err)
+	}
+
+	coldReq.DiskPath = newDiskPath
+
+	//fazer cold migration
+	err = v.ColdMigrateVm(
+		ctx,
+		slaveName,
+		coldReq,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

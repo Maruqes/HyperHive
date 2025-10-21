@@ -22,11 +22,15 @@ type ExtraServiceServer struct {
 	extraGrpc.UnimplementedExtraServiceServer
 }
 
-func (s *ExtraServiceServer) SendWebsocketMessage(ctx context.Context, req *extraGrpc.WebsocketMessage) (*extraGrpc.Empty, error) {
+func SendWebsocketMessage(Type extraGrpc.WebSocketsMessageType, Message string) {
 	websocketMsg := websocket.Message{
-		Type: req.Type.String(),
-		Data: req.Message,
+		Type: Type.String(),
+		Data: Message,
 	}
 	websocket.BroadcastMessage(websocketMsg)
+}
+
+func (s *ExtraServiceServer) SendWebsocketMessage(ctx context.Context, req *extraGrpc.WebsocketMessage) (*extraGrpc.Empty, error) {
+	SendWebsocketMessage(req.Type, req.Message)
 	return &extraGrpc.Empty{}, nil
 }
