@@ -18,6 +18,8 @@ var (
 	VNC_MAX_PORT int
 	OTHER_SLAVES []string
 	Conn         *grpc.ClientConn
+	Qemu_UID     string
+	Qemu_GID     string
 )
 
 func SetConn(conn *grpc.ClientConn) {
@@ -30,6 +32,8 @@ func Setup() error {
 	SlaveIP = os.Getenv("SLAVE_IP")
 	Mode = os.Getenv("MODE")
 	MachineName = os.Getenv("MACHINE_NAME")
+	Qemu_UID = os.Getenv("QEMU_UID")
+	Qemu_GID = os.Getenv("QEMU_GID")
 	PingInterval, _ = strconv.Atoi(os.Getenv("PING_INTERVAL"))
 	VNC_MIN_PORT, _ = strconv.Atoi(os.Getenv("VNC_MIN_PORT"))
 	VNC_MAX_PORT, _ = strconv.Atoi(os.Getenv("VNC_MAX_PORT"))
@@ -62,6 +66,5 @@ func Setup() error {
 		OTHER_SLAVES = append(OTHER_SLAVES, ip)
 	}
 
-	
 	return nil
 }

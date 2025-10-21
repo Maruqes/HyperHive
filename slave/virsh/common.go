@@ -160,12 +160,68 @@ func ensureDiskPermissions(path string) error {
 	if err != nil {
 		return fmt.Errorf("stat disk %s: %w", path, err)
 	}
+	if info.IsDir() {
+		return fmt.Errorf("disk %s is a directory", path)
+	}
 
-	current := info.Mode().Perm()
-	desired := current | 0o066
-	if desired != current {
-		if err := os.Chmod(path, desired); err != nil {
+	if info.Mode().Perm() != 0o777 {
+		if err := os.Chmod(path, 0o777); err != nil {
 			return fmt.Errorf("chmod disk %s: %w", path, err)
+		}
+	}
+
+	uid, err := strconv.Atoi(env512.Qemu_UID)
+	if err != nil {
+		return fmt.Errorf("parse qemu uid: %w", err)
+	}
+	gid, err := strconv.Atoi(env512.Qemu_GID)
+	if err != nil {
+		return fmt.Errorf("parse qemu gid: %w", err)
+	}
+	if err := os.Chown(path, uid, gid); err != nil {
+		return fmt.Errorf("chown disk %s: %w", path, err)
+	}
+
+	if err := ensureDirTreePermissions(filepath.Dir(path)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func ensureDirTreePermissions(path string) error {
+	cleaned := filepath.Clean(path)
+	root := string(filepath.Separator)
+
+	for cleaned != "" && cleaned != "." && cleaned != root {
+		if err := ensureDirPermissions(cleaned); err != nil {
+			return err
+		}
+
+		next := filepath.Dir(cleaned)
+		if next == cleaned {
+			break
+		}
+		cleaned = next
+	}
+	return nil
+}
+
+func ensureDirPermissions(path string) error {
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("directory path is empty")
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("stat dir %s: %w", path, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("%s is not a directory", path)
+	}
+
+	if info.Mode().Perm() != 0o777 {
+		if err := os.Chmod(path, 0o777); err != nil {
+			return fmt.Errorf("chmod dir %s: %w", path, err)
 		}
 	}
 	return nil

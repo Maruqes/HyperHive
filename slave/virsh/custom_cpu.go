@@ -67,7 +67,25 @@ type CreateVMCustomCPUOptions struct {
 	CPUXml            string
 }
 
+func isValidVMName(vmName string) error {
+	if vmName == "" {
+		return fmt.Errorf("VM name cannot be empty")
+	}
+	matched, err := regexp.MatchString("^[a-zA-Z0-9]+$", vmName)
+	if err != nil {
+		return fmt.Errorf("regex error: %w", err)
+	}
+	if !matched {
+		return fmt.Errorf("VM name can only contain letters and numbers")
+	}
+	return nil
+}
+
 func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
+	err := isValidVMName(opts.Name)
+	if err != nil {
+		return "", err
+	}
 
 	if opts.DiskAlreadyExists {
 		if opts.ISOPath != "" {

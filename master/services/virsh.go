@@ -2,6 +2,7 @@ package services
 
 import (
 	"512SvMan/db"
+	"512SvMan/env512"
 	"512SvMan/extra"
 	"512SvMan/protocol"
 	"512SvMan/virsh"
@@ -766,6 +767,28 @@ func copyFile(origin, dest, vmName string) error {
 		if err != nil {
 			return fmt.Errorf("error reading file: %v", err)
 		}
+	}
+
+	if err := output.Sync(); err != nil {
+		return fmt.Errorf("failed to flush destination file: %v", err)
+	}
+
+	qemuUID, err := strconv.Atoi(env512.Qemu_UID)
+	if err != nil {
+		return fmt.Errorf("invalid qemu uid %s: %v", env512.Qemu_UID, err)
+	}
+
+	qemuGID, err := strconv.Atoi(env512.Qemu_GID)
+	if err != nil {
+		return fmt.Errorf("invalid qemu gid %s: %v", env512.Qemu_GID, err)
+	}
+
+	if err := output.Chown(qemuUID, qemuGID); err != nil {
+		return fmt.Errorf("failed to set qemu ownership: %v", err)
+	}
+
+	if err := output.Chmod(0o777); err != nil {
+		return fmt.Errorf("failed to set destination permissions: %v", err)
 	}
 
 	return nil

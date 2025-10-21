@@ -8,19 +8,23 @@ import (
 )
 
 var (
-	PingInterval   int
-	Mode          string
+	PingInterval int
+	Mode         string
+	Qemu_UID     string
+	Qemu_GID     string
 )
 
 func Setup() error {
 	godotenv.Load(".env")
 	PingInterval, _ = strconv.Atoi(os.Getenv("PING_INTERVAL"))
 	Mode = os.Getenv("MODE")
+	Qemu_UID = os.Getenv("QEMU_UID")
+	Qemu_GID = os.Getenv("QEMU_GID")
 
 	if PingInterval == 0 {
 		PingInterval = 10 //default 10 seconds
 	}
-	if Mode != "dev"{
+	if Mode != "dev" {
 		Mode = "prod" //default prod
 	}
 	return nil
