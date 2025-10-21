@@ -23,6 +23,7 @@ message CreateVmRequest{
   string iso_path = 7;
   string network = 8;
   string vnc_password = 9;
+  string cpuXml = 10;
 }
 
 message OkResponse {
@@ -65,10 +66,6 @@ message GetAllVmsResponse {
   repeated string warnings = 2;
 }
 
-message CreateVmLiveRequest{
-  CreateVmRequest vm = 1;
-  string cpuXml = 2;
-}
 
 message MigrateVmRequest {
   string name = 2;
@@ -95,6 +92,7 @@ message ColdMigrationRequest {
   string vnc_password = 5;
   string cpuXML = 6;
   string disk_path = 7;
+  bool live = 8;
 }
 
 //defines on slave
@@ -106,7 +104,6 @@ service SlaveVirshService {
   rpc UpdateVMCPUXml(UpdateVMCPUXmlRequest) returns (OkResponse);
 
   rpc CreateVm(CreateVmRequest) returns (OkResponse);
-  rpc CreateLiveVM(CreateVmLiveRequest) returns (OkResponse);
 
   rpc MigrateVM(MigrateVmRequest) returns (OkResponse);
 

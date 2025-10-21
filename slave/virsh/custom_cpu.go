@@ -71,7 +71,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 
 	if opts.DiskAlreadyExists {
 		if opts.ISOPath != "" {
-			return "", fmt.Errorf("how the heel i want to create a vm with an already")
+			return "", fmt.Errorf("how the hell i want to create a vm with an already DiskAlreadyExists")
 		}
 	}
 
@@ -138,6 +138,11 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	cpuXML := strings.TrimSpace(opts.CPUXml)
 	if cpuXML == "" {
 		cpuXML = "<cpu mode='host-passthrough' check='none'/>"
+	}
+
+	err = validateCPUXML(cpuXML)
+	if err != nil {
+		return "", fmt.Errorf("invalid CPU XML: %w", err)
 	}
 
 	cdromXML := ""

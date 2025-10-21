@@ -35,7 +35,7 @@ func (s *SlaveVirshService) GetVMCPUXml(ctx context.Context, e *grpcVirsh.GetVmB
 }
 
 func (s *SlaveVirshService) CreateVm(ctx context.Context, req *grpcVirsh.CreateVmRequest) (*grpcVirsh.OkResponse, error) {
-	params := VMCreationParams{
+	params := CreateVMCustomCPUOptions{
 		ConnURI:        "qemu:///system",
 		Name:           req.Name,
 		MemoryMB:       int(req.Memory),
@@ -47,29 +47,7 @@ func (s *SlaveVirshService) CreateVm(ctx context.Context, req *grpcVirsh.CreateV
 		Network:        req.Network,
 		GraphicsListen: "0.0.0.0",
 		VNCPassword:    req.VncPassword,
-	}
-	_, err := CreateVMHostPassthrough(params)
-	if err != nil {
-		return nil, err
-	}
-	return &grpcVirsh.OkResponse{Ok: true}, nil
-}
-
-func (s *SlaveVirshService) CreateLiveVM(ctx context.Context, req *grpcVirsh.CreateVmLiveRequest) (*grpcVirsh.OkResponse, error) {
-	params := CreateVMCustomCPUOptions{
-		ConnURI:           "qemu:///system",
-		Name:              req.Vm.Name,
-		MemoryMB:          int(req.Vm.Memory),
-		VCPUs:             int(req.Vm.Vcpu),
-		DiskAlreadyExists: false,
-		DiskFolder:        req.Vm.DiskFolder,
-		DiskPath:          req.Vm.DiskPath,
-		DiskSizeGB:        int(req.Vm.DiskSizeGB),
-		ISOPath:           req.Vm.IsoPath,
-		Network:           req.Vm.Network,
-		GraphicsListen:    "0.0.0.0",
-		VNCPassword:       req.Vm.VncPassword,
-		CPUXml:            req.CpuXml,
+		CPUXml:         req.CpuXml,
 	}
 	_, err := CreateVMCustomCPU(params)
 	if err != nil {
@@ -107,6 +85,7 @@ func (s *SlaveVirshService) ColdMigrateVm(ctx context.Context, e *grpcVirsh.Cold
 		Network:     e.Network,
 		VNCPassword: e.VncPassword,
 		CpuXML:      e.CpuXML,
+		Live:        e.Live,
 	}
 	err := MigrateColdWin(opts)
 	if err != nil {

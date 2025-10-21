@@ -150,6 +150,7 @@ type ColdMigrationInfo struct {
 	VNCPassword string
 	CpuXML      string
 	DiskPath    string //qcow file
+	Live        bool
 }
 
 // returns qcow2file path, cpuXML
@@ -163,7 +164,7 @@ func MigrateColdLose(name string) (*ColdMigrationInfo, error) {
 // cria uma maquina com passthrough, com x nome usando o disco qcow2file
 func MigrateColdWin(coldFile ColdMigrationInfo) error {
 
-	if coldFile.CpuXML == "" {
+	if coldFile.CpuXML == "" || !coldFile.Live {
 		coldFile.CpuXML = "<cpu mode='host-passthrough'/>"
 	}
 

@@ -53,6 +53,8 @@ func createVM(w http.ResponseWriter, r *http.Request) {
 		NfsShareId  int    `json:"nfs_share_id"`
 		Network     string `json:"network"`
 		VNCPassword string `json:"VNC_password"`
+		CpuXml      string `json:"cpu_xml"`
+		Live        bool   `json:"live"`
 	}
 
 	var vmReq VMRequest
@@ -63,14 +65,60 @@ func createVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshServices := services.VirshService{}
-	err = virshServices.CreateVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword)
+	if vmReq.Live {
+		err = virshServices.CreateLiveVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+	} else {
+		err = virshServices.CreateVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, "")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("VM created successfully"))
+}
+
+func migrateLiveVM(w http.ResponseWriter, r *http.Request) {
+	//get origin machine name
+	//get destination machine name
+	//get vm name
+	//get live bool
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type MigrateRequest struct {
+		OriginMachine      string `json:"origin_machine"`
+		DestinationMachine string `json:"destination_machine"`
+		Live               bool   `json:"live"`
+		TimeoutSeconds     int    `json:"timeout"`
+	}
+
+	var migReq MigrateRequest
+	err := json.NewDecoder(r.Body).Decode(&migReq)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err = virshServices.MigrateVm(r.Context(), migReq.OriginMachine, migReq.DestinationMachine, vmName, migReq.Live, migReq.TimeoutSeconds)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("VM created successfully"))
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("VM migrated successfully"))
 }
 
 func getAllVms(w http.ResponseWriter, r *http.Request) {
@@ -239,74 +287,6 @@ func editVM(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("VM edited successfully"))
 }
 
-func createLiveVM(w http.ResponseWriter, r *http.Request) {
-	type VMLiveRequest struct {
-		MachineName string `json:"machine_name"`
-		Name        string `json:"name"`
-		Memory      int32  `json:"memory"`
-		Vcpu        int32  `json:"vcpu"`
-		DiskSizeGB  int32  `json:"disk_sizeGB"`
-		IsoID       int    `json:"iso_id"`
-		NfsShareId  int    `json:"nfs_share_id"`
-		Network     string `json:"network"`
-		VNCPassword string `json:"VNC_password"`
-		CpuXml      string `json:"cpu_xml"`
-	}
-
-	var vmReq VMLiveRequest
-	err := json.NewDecoder(r.Body).Decode(&vmReq)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	virshServices := services.VirshService{}
-	err = virshServices.CreateLiveVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("Live VM created successfully"))
-}
-
-func migrateLiveVM(w http.ResponseWriter, r *http.Request) {
-	//get origin machine name
-	//get destination machine name
-	//get vm name
-	//get live bool
-	vmName := chi.URLParam(r, "vm_name")
-	if vmName == "" {
-		http.Error(w, "vm_name is required", http.StatusBadRequest)
-		return
-	}
-
-	type MigrateRequest struct {
-		OriginMachine      string `json:"origin_machine"`
-		DestinationMachine string `json:"destination_machine"`
-		Live               bool   `json:"live"`
-		TimeoutSeconds     int    `json:"timeout"`
-	}
-
-	var migReq MigrateRequest
-	err := json.NewDecoder(r.Body).Decode(&migReq)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	virshServices := services.VirshService{}
-	err = virshServices.MigrateVm(r.Context(), migReq.OriginMachine, migReq.DestinationMachine, vmName, migReq.Live, migReq.TimeoutSeconds)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("VM migrated successfully"))
-}
-
 func updateCpuXml(w http.ResponseWriter, r *http.Request) {
 	vmName := chi.URLParam(r, "vm_name")
 	if vmName == "" {
@@ -461,7 +441,7 @@ func q(r *http.Request, key string) string {
 	return strings.TrimSpace(r.URL.Query().Get(key))
 }
 
-type VMRequest struct {
+type VMRequestImport struct {
 	Slave_name  string `json:"slave_name"`
 	NfsShareId  int    `json:"nfs_share_id"`
 	VmName      string `json:"vm_name"`
@@ -470,10 +450,11 @@ type VMRequest struct {
 	Network     string `json:"network"`
 	VNCPassword string `json:"VNC_password"`
 	CpuXML      string `json:"cpu_xml"`
+	Live        bool   `json:"live"`
 }
 
-func readVMRequest(r *http.Request) (*VMRequest, error) {
-	var vmReq VMRequest
+func readVMRequest(r *http.Request) (*VMRequestImport, error) {
+	var vmReq VMRequestImport
 	var err error
 
 	vmReq.Slave_name = q(r, "slave_name")
@@ -595,6 +576,7 @@ func importVM(w http.ResponseWriter, r *http.Request) {
 			Network:     vmReq.Network,
 			VncPassword: vmReq.VNCPassword,
 			CpuXML:      vmReq.CpuXML,
+			Live:        vmReq.Live,
 		},
 	)
 	if err != nil {
@@ -715,7 +697,7 @@ func useBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var vmReq VMRequest
+	var vmReq VMRequestImport
 	err = json.NewDecoder(r.Body).Decode(&vmReq)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -733,6 +715,7 @@ func useBackup(w http.ResponseWriter, r *http.Request) {
 			VncPassword: vmReq.VNCPassword,
 			CpuXML:      vmReq.CpuXML,
 			DiskPath:    "", //UseBackup FUNCTION WILL SET THIS
+			Live:        vmReq.Live,
 		})
 	if err != nil {
 		http.Error(w, "was not possible to backup your vm err: "+err.Error(), http.StatusInternalServerError)
@@ -756,15 +739,42 @@ func deleteBackup(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = backupIdInt
 
+	//TODO
+	//TODO
+	//TODO
+	//TODO
+	//TODO
+	//TODO
+	//TODO
+	//TODO
+	//TODO
+
 	w.WriteHeader(http.StatusOK)
 }
+
+// LEMBRETE VM CREATION TEM DE CRIAR A PROPRIA PASTA, INDEPENDENTEMENTE SE É IMPORT LIVE NORMAL
+/*
+apis que criam vms
+
+/createvm
+/createlivevm
+
+devem conseguir criar live/normal
+/import
+/useBackup
+
+
+Temos 3 funcoes que criam vms
+	virsh.CreateVM           cria vm normal
+	virsh.CreateLiveVM       cria vm normal mas com live
+	virsh.ColdMigrateVm      cria vm a partir de um qcow existente
+*/
 
 func setupVirshAPI(r chi.Router) chi.Router {
 	return r.Route("/virsh", func(r chi.Router) {
 		r.Get("/getcpudisablefeatures", getCpuFeatures)
 		r.Get("/getallvms", getAllVms)
 		r.Post("/createvm", createVM)
-		r.Post("/createlivevm", createLiveVM)
 
 		r.Post("/migratevm/{vm_name}", migrateLiveVM)
 		r.Post("/updatecpuxml/{vm_name}", updateCpuXml)

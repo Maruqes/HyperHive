@@ -3,7 +3,6 @@ package virsh
 import (
 	"512SvMan/protocol"
 	"context"
-	"fmt"
 
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 	"google.golang.org/grpc"
@@ -36,7 +35,7 @@ func GetVMCPUXml(conn *grpc.ClientConn, vmName string) (string, error) {
 	return resp.CpuXML, nil
 }
 
-func CreateVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder, diskPath string, diskSizeGB int32, isoPath, network, VNCPassword string) error {
+func CreateVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder, diskPath string, diskSizeGB int32, isoPath, network, VNCPassword string, cpuXML string) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.CreateVm(context.Background(), &grpcVirsh.CreateVmRequest{
 		Name:        name,
@@ -48,29 +47,7 @@ func CreateVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder
 		IsoPath:     isoPath,
 		Network:     network,
 		VncPassword: VNCPassword,
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func CreateLiveVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder, diskPath string, diskSizeGB int32, isoPath, network, VNCPassword string, cpuXml string) error {
-	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
-	fmt.Println("Creating live VM with CPU XML:", cpuXml)
-	_, err := client.CreateLiveVM(context.Background(), &grpcVirsh.CreateVmLiveRequest{
-		Vm: &grpcVirsh.CreateVmRequest{
-			Name:        name,
-			Memory:      memory,
-			Vcpu:        vcpu,
-			DiskFolder:  diskFolder,
-			DiskPath:    diskPath,
-			DiskSizeGB:  diskSizeGB,
-			IsoPath:     isoPath,
-			Network:     network,
-			VncPassword: VNCPassword,
-		},
-		CpuXml: cpuXml,
+		CpuXml:      cpuXML,
 	})
 	if err != nil {
 		return err

@@ -159,10 +159,8 @@ func (v *VirshService) GetCpuDisableFeatures(conns []string) (string, error) {
 }
 
 // vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword
-func (v *VirshService) CreateVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string) error {
+func (v *VirshService) CreateVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXML string) error {
 
-	//get all vms cant have same name
-	//cant have two vms with the same name
 	exists, err := virsh.DoesVMExist(name)
 	if err != nil {
 		return fmt.Errorf("error checking if VM exists: %v", err)
@@ -213,7 +211,7 @@ func (v *VirshService) CreateVM(machine_name string, name string, memory int32, 
 		diskFolder = nfsShare.Target + name
 	}
 
-	return virsh.CreateVM(slaveMachine.Connection, name, memory, vcpu, diskFolder, qcowFile, diskSizeGB, isoPath, network, VNCPassword)
+	return virsh.CreateVM(slaveMachine.Connection, name, memory, vcpu, diskFolder, qcowFile, diskSizeGB, isoPath, network, VNCPassword, cpuXML)
 }
 
 func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXml string) error {
@@ -225,59 +223,7 @@ func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int
 		return fmt.Errorf("a live VM with the name %s already exists in the database", name)
 	}
 
-	//get all vms cant have same name
-	//cant have two vms with the same name
-	exists, err = virsh.DoesVMExist(name)
-	if err != nil {
-		return fmt.Errorf("error checking if VM exists: %v", err)
-	}
-	if exists {
-		return fmt.Errorf("a VM with the name %s already exists", name)
-	}
-
-	slaveMachine := protocol.GetConnectionByMachineName(machine_name)
-	if slaveMachine == nil {
-		return fmt.Errorf("machine %s not found", machine_name)
-	}
-
-	//get disk path from nfsShareId
-	nfsShare, err := db.GetNFSShareByID(nfsShareId)
-	if err != nil {
-		return fmt.Errorf("failed to get NFS share by ID: %v", err)
-	}
-	if nfsShare == nil {
-		return fmt.Errorf("NFS share with ID %d not found", nfsShareId)
-	}
-
-	//get iso path from isoID
-	iso, err := db.GetIsoByID(isoID)
-	if err != nil {
-		return fmt.Errorf("failed to get ISO by ID: %v", err)
-	}
-	if iso == nil {
-		return fmt.Errorf("ISO with ID %d not found", isoID)
-	}
-	isoPath := iso.FilePath
-
-	var qcowFile string
-	if nfsShare.Target[len(nfsShare.Target)-1] != '/' {
-		// mnt/ nfs / vmname / vmname.qcow2
-		qcowFile = nfsShare.Target + "/" + name + "/" + name + ".qcow2"
-	} else {
-		// mnt/ nfs / vmname / vmname.qcow2
-		qcowFile = nfsShare.Target + name + "/" + name + ".qcow2"
-	}
-
-	var diskFolder string
-	if nfsShare.Target[len(nfsShare.Target)-1] != '/' {
-		// mnt/ nfs / vmname / vmname.qcow2
-		diskFolder = nfsShare.Target + "/" + name
-	} else {
-		// mnt/ nfs / vmname / vmname.qcow2
-		diskFolder = nfsShare.Target + name
-	}
-
-	err = virsh.CreateLiveVM(slaveMachine.Connection, name, memory, vcpu, diskFolder, qcowFile, diskSizeGB, isoPath, network, VNCPassword, cpuXml)
+	err = v.CreateVM(machine_name, name, memory, vcpu, nfsShareId, diskSizeGB, isoID, network, VNCPassword, cpuXml)
 	if err != nil {
 		return err
 	}
@@ -287,6 +233,27 @@ func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int
 	if err != nil {
 		return fmt.Errorf("failed to add live VM to database: %v", err)
 	}
+	return nil
+}
+
+func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, machine *grpcVirsh.ColdMigrationRequest) error {
+	originConn := protocol.GetConnectionByMachineName(slaveName)
+	if originConn == nil {
+		return fmt.Errorf("origin machine %s not found", slaveName)
+	}
+
+	err := virsh.ColdMigrateVm(ctx, originConn.Connection, machine)
+	if err != nil {
+		return err
+	}
+
+	if machine.Live {
+		err = db.AddVmLive(machine.VmName)
+		if err != nil {
+			return fmt.Errorf("failed to add live VM to database: %v", err)
+		}
+	}
+
 	return nil
 }
 
@@ -335,15 +302,6 @@ func (v *VirshService) MigrateVm(ctx context.Context, originMachine string, dest
 	}
 
 	return virsh.MigrateVm(ctx, originConn.Connection, vmName, destConn.Addr, live, timeoutSeconds)
-}
-
-func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, machine *grpcVirsh.ColdMigrationRequest) error {
-	originConn := protocol.GetConnectionByMachineName(slaveName)
-	if originConn == nil {
-		return fmt.Errorf("origin machine %s not found", slaveName)
-	}
-
-	return virsh.ColdMigrateVm(ctx, originConn.Connection, machine)
 }
 
 func (v *VirshService) UpdateCpuXml(machine_name string, vmName string, cpuXml string) error {
