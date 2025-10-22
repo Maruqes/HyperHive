@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -572,6 +573,58 @@ func GetPrimaryDiskInfo(dom *libvirt.Domain) (*DiskInfo, error) {
 	return &DiskInfo{Path: srcPath, SizeGB: allocGB}, nil
 }
 
+func isUsefulIP(ip string) bool {
+	p := net.ParseIP(ip)
+	if p == nil {
+		return false
+	}
+	// skip loopback and link-local (keeps private + public)
+	if p.IsLoopback() || p.IsLinkLocalUnicast() || p.IsLinkLocalMulticast() {
+		return false
+	}
+	return true
+}
+
+func addUnique(ips *[]string, seen map[string]struct{}, ip string) {
+	if !isUsefulIP(ip) {
+		return
+	}
+	if _, ok := seen[ip]; ok {
+		return
+	}
+	seen[ip] = struct{}{}
+	*ips = append(*ips, ip)
+}
+
+func ipsForDomain(dom *libvirt.Domain) ([]string, []string) {
+	var ips []string
+	seen := map[string]struct{}{}
+	var warns []string
+
+	try := func(src libvirt.DomainInterfaceAddressesSource) bool {
+		ifAddrs, err := dom.ListAllInterfaceAddresses(src)
+		if err != nil {
+			warns = append(warns, fmt.Sprintf("iface addresses (%v): %v", src, err))
+			return false
+		}
+		for _, ifa := range ifAddrs {
+			for _, a := range ifa.Addrs {
+				addUnique(&ips, seen, a.Addr)
+			}
+		}
+		return len(ips) > 0
+	}
+
+	// tiny backoff helps right after boot
+	for attempt := 0; attempt < 3; attempt++ {
+		if try(libvirt.DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT) || try(libvirt.DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE) {
+			break
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+	return ips, warns
+}
+
 func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 	connURI := "qemu:///system"
 	conn, err := libvirt.NewConnect(connURI)
@@ -629,6 +682,8 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		return nil, fmt.Errorf("get disk info: %w", err)
 	}
 
+	ips, _ := ipsForDomain(dom)
+
 	info := &grpcVirsh.Vm{
 		MachineName:          env512.MachineName,
 		Name:                 name,
@@ -640,6 +695,7 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		CurrentMemoryUsageMB: usedMemMB,
 		DiskSizeGB:           int32(diskInfo.SizeGB),
 		DiskPath:             diskInfo.Path,
+		Ip:                   ips,
 	}
 	return info, nil
 }
@@ -729,19 +785,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 			diskSizeGB = int32(diskInfo.SizeGB)
 		}
 
-		networkIP := []string{}
-		if stateKnown && state == libvirt.DOMAIN_RUNNING {
-			if ifAddrs, err := dom.ListAllInterfaceAddresses(libvirt.DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE); err != nil {
-				warnings = append(warnings, fmt.Sprintf("%s: get interface addresses: %w", name, err))
-				logger.Error("failed to get interface addresses err: " + err.Error())
-			} else {
-				for _, ifAddr := range ifAddrs {
-					for _, addr := range ifAddr.Addrs {
-						networkIP = append(networkIP, addr.Addr)
-					}
-				}
-			}
-		}
+		ips, _ := ipsForDomain(&dom)
 
 		info.NovncPort = strconv.Itoa(port)
 		info.CpuCount = vcpuCount
@@ -750,7 +794,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 		info.CurrentMemoryUsageMB = usedMemMB
 		info.DiskSizeGB = diskSizeGB
 		info.DiskPath = diskInfoPath
-		info.Ip = networkIP
+		info.Ip = ips
 
 		vms = append(vms, info)
 		dom.Free()
