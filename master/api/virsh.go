@@ -489,6 +489,9 @@ func readVMRequest(r *http.Request) (*VMRequestImport, error) {
 	vmReq.Network = q(r, "network")
 	vmReq.VNCPassword = q(r, "VNC_password")
 	vmReq.CpuXML = q(r, "cpu_xml") // URL-encode on client if it includes <, >, " …
+	if s := q(r, "live"); s != "" {
+		vmReq.Live = s == "true"
+	}
 
 	return &vmReq, nil
 }
@@ -561,9 +564,6 @@ func importVM(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "finalize error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	//chmod 777 file
-	_ = os.Chmod(finalFile, 0o777)
 
 	err = virshService.ColdMigrateVm(
 		r.Context(),

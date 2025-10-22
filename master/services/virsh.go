@@ -243,7 +243,26 @@ func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, mach
 		return fmt.Errorf("origin machine %s not found", slaveName)
 	}
 
-	err := virsh.ColdMigrateVm(ctx, originConn.Connection, machine)
+	// chmod 777 and give qemu ownership with machine.DiskPath
+	qemuUID, err := strconv.Atoi(env512.Qemu_UID)
+	if err != nil {
+		return fmt.Errorf("invalid qemu uid %s: %v", env512.Qemu_UID, err)
+	}
+
+	qemuGID, err := strconv.Atoi(env512.Qemu_GID)
+	if err != nil {
+		return fmt.Errorf("invalid qemu gid %s: %v", env512.Qemu_GID, err)
+	}
+
+	if err := os.Chown(machine.DiskPath, qemuUID, qemuGID); err != nil {
+		return fmt.Errorf("failed to set qemu ownership on %s: %v", machine.DiskPath, err)
+	}
+
+	if err := os.Chmod(machine.DiskPath, 0o777); err != nil {
+		return fmt.Errorf("failed to chmod %s: %v", machine.DiskPath, err)
+	}
+
+	err = virsh.ColdMigrateVm(ctx, originConn.Connection, machine)
 	if err != nil {
 		return err
 	}
@@ -534,7 +553,6 @@ func (v *VirshService) GetAllVms() ([]VmType, []string, error) {
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get VMs from a machine: %v", err)
 		}
-
 		for _, warning := range vms.Warnings {
 			logger.Warn(warning)
 		}
@@ -553,7 +571,8 @@ func (v *VirshService) GetAllVms() ([]VmType, []string, error) {
 				}
 			}
 			if found {
-				continue
+				logger.Error("DOUBLE VM IN GetALLVMS")
+				logger.Error("DOUBLE VM IN GetALLVMS")
 			}
 			allVms = append(allVms, VmType{Vm: vm, IsLive: isLive})
 		}
