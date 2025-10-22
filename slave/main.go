@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"slave/env512"
-	"slave/info"
 	"slave/logs512"
 	"slave/nfs"
 	"slave/protocol"
@@ -351,15 +350,6 @@ func setupAll() error {
 
 func main() {
 	askForSudo()
-
-	sensor,err := info.CPUInfo.GetCpuTemps()
-	if err != nil {
-		panic(err)
-	}
-	for i := 0; i < len(sensor); i++ {
-		fmt.Println(sensor[i])
-	}
-	return;
 
 	//varsc
 	if err := env512.Setup(); err != nil {

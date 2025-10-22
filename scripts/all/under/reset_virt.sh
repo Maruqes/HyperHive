@@ -28,6 +28,7 @@ declare -A VERSAO=(
   ["dnsmasq"]=""
   ["pkgconf-pkg-config"]=""
   ["pkg-config"]=""   # not installed
+  ["qemu-guest-agent"]=""
 )
 
 
@@ -99,6 +100,7 @@ BASE_PKGS=(
   pkgconf-pkg-config
   pkg-config
   libvirt-devel
+  qemu-guest-agent
 )
 
 STOP_SOCKETS=(

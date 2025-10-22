@@ -1,12 +1,10 @@
 package info
 
 import (
-	"flag"
 	"fmt"
 	"regexp"
 	"time"
 
-	"github.com/klauspost/cpuid/v2"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/sensors"
 )
@@ -70,14 +68,4 @@ func (c *CPUInfoStruct) GetCPUUsage() ([]float64, error) {
 		return nil, err
 	}
 	return usage, nil
-}
-
-// CPUS TEM DE SER OS MESMOS NO MESMO NO, nao pode ter um servidor com 2 cpus diferentes e5-2680v3 e e5-2680v4
-// use https://github.com/klauspost/cpuid
-func (c *CPUInfoStruct) GetCPUInfo() (cpuid.CPUInfo, error) {
-	cpuid.Flags()
-	flag.Parse()
-	cpuid.Detect()
-	//get all features
-	return cpuid.CPU, nil
 }

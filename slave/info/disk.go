@@ -1,18 +1,118 @@
 package info
 
+import (
+	"github.com/shirou/gopsutil/v4/disk"
+)
+
 type DiskInfoStruct struct{}
 
 var DiskInfo DiskInfoStruct
 
-func (d *DiskInfoStruct) GetDisks() ([]string, error) {
-	return []string{}, nil
+type DiskStruct struct {
+	Device      string   // Device name (e.g., /dev/sda1)
+	MountPoint  string   // Mount point path (e.g., /)
+	Fstype      string   // File system type (e.g., ext4, xfs, ntfs)
+	Total       uint64   // Total size in bytes
+	Free        uint64   // Free space in bytes
+	Used        uint64   // Used space in bytes
+	UsedPercent float64  // Used percentage
+	Opts        []string // Mount options
 }
 
-// % of used/free
-func (d *DiskInfoStruct) GetDiskUsage() ([]float64, error) {
-	return []float64{}, nil
+func (d *DiskInfoStruct) GetDisks() ([]DiskStruct, error) {
+	partitions, err := disk.Partitions(false) // false = exclude pseudo filesystems
+	if err != nil {
+		return nil, err
+	}
+
+	var disks []DiskStruct
+
+	for _, partition := range partitions {
+		usage, err := disk.Usage(partition.Mountpoint)
+		if err != nil {
+			// Skip partitions we can't read
+			continue
+		}
+
+		diskInfo := DiskStruct{
+			Device:      partition.Device,
+			MountPoint:  partition.Mountpoint,
+			Fstype:      partition.Fstype,
+			Total:       usage.Total,
+			Free:        usage.Free,
+			Used:        usage.Used,
+			UsedPercent: usage.UsedPercent,
+			Opts:        partition.Opts,
+		}
+
+		disks = append(disks, diskInfo)
+	}
+
+	return disks, nil
 }
 
-func (d *DiskInfoStruct) GetDiskIOUsage() ([]float64, error) {
-	return []float64{}, nil
+// GetDiskUsage returns the usage percentage for each disk partition
+func (d *DiskInfoStruct) GetDiskUsage() (map[string]float64, error) {
+	partitions, err := disk.Partitions(false)
+	if err != nil {
+		return nil, err
+	}
+
+	usage := make(map[string]float64)
+
+	for _, partition := range partitions {
+		usageStats, err := disk.Usage(partition.Mountpoint)
+		if err != nil {
+			continue
+		}
+		usage[partition.Device] = usageStats.UsedPercent
+	}
+
+	return usage, nil
+}
+
+// DiskIOStruct contains disk I/O statistics
+type DiskIOStruct struct {
+	Device           string // Device name
+	ReadCount        uint64 // Number of read operations
+	WriteCount       uint64 // Number of write operations
+	ReadBytes        uint64 // Bytes read
+	WriteBytes       uint64 // Bytes written
+	ReadTime         uint64 // Time spent reading (ms)
+	WriteTime        uint64 // Time spent writing (ms)
+	IopsInProgress   uint64 // I/O operations in progress
+	IoTime           uint64 // Time spent doing I/Os (ms)
+	WeightedIO       uint64 // Weighted time spent doing I/Os (ms)
+	MergedReadCount  uint64 // Number of merged reads
+	MergedWriteCount uint64 // Number of merged writes
+}
+
+// GetDiskIOUsage returns I/O statistics for each disk
+func (d *DiskInfoStruct) GetDiskIOUsage() ([]DiskIOStruct, error) {
+	ioCounters, err := disk.IOCounters()
+	if err != nil {
+		return nil, err
+	}
+
+	var diskIOs []DiskIOStruct
+
+	for device, io := range ioCounters {
+		diskIO := DiskIOStruct{
+			Device:           device,
+			ReadCount:        io.ReadCount,
+			WriteCount:       io.WriteCount,
+			ReadBytes:        io.ReadBytes,
+			WriteBytes:       io.WriteBytes,
+			ReadTime:         io.ReadTime,
+			WriteTime:        io.WriteTime,
+			IopsInProgress:   io.IopsInProgress,
+			IoTime:           io.IoTime,
+			WeightedIO:       io.WeightedIO,
+			MergedReadCount:  io.MergedReadCount,
+			MergedWriteCount: io.MergedWriteCount,
+		}
+		diskIOs = append(diskIOs, diskIO)
+	}
+
+	return diskIOs, nil
 }
