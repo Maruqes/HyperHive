@@ -20,4 +20,6 @@ func (p *ProcessInfoStruct) GetProcesses() ([]map[string]any, error) {
 	return []map[string]any{}, nil
 }
 
+//info de processos memoria cpu ram etc etc matar procesos
+
 
