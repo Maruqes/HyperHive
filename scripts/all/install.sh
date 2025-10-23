@@ -42,6 +42,10 @@ echo "     • NFS service will be RESTARTED"
 echo "     • Exported directories may become INACCESSIBLE"
 echo "     • Client connections will be DROPPED"
 echo ""
+echo -e "${RED}  3. EXTRA PACKAGES (extra.sh)${NC}"
+echo "     • Additional useful packages will be installed"
+echo "     • fio (disk I/O benchmarking tool)"
+echo ""
 echo -e "${YELLOW}${BOLD}POTENTIAL DATA LOSS:${NC}"
 echo "  • NFS shared data may become temporarily inaccessible"
 echo "  • VM state and snapshots will be lost"
@@ -93,7 +97,7 @@ echo ""
 
 # Execute reset_virt.sh
 if [[ -f "${SCRIPT_DIR}/reset_virt.sh" ]]; then
-    echo -e "${BOLD}[1/2] Running Virtualization Reset...${NC}"
+    echo -e "${BOLD}[1/3] Running Virtualization Reset...${NC}"
     echo ""
     bash "${SCRIPT_DIR}/reset_virt.sh"
     echo ""
@@ -109,7 +113,7 @@ echo ""
 
 # Execute reset_nfs.sh
 if [[ -f "${SCRIPT_DIR}/reset_nfs.sh" ]]; then
-    echo -e "${BOLD}[2/2] Running NFS Reset...${NC}"
+    echo -e "${BOLD}[2/3] Running NFS Reset...${NC}"
     echo ""
     bash "${SCRIPT_DIR}/reset_nfs.sh"
     echo ""
@@ -117,6 +121,21 @@ if [[ -f "${SCRIPT_DIR}/reset_nfs.sh" ]]; then
 else
     echo -e "${RED}ERROR: reset_nfs.sh not found at ${SCRIPT_DIR}/reset_nfs.sh${NC}"
     exit 1
+fi
+
+echo ""
+echo "═══════════════════════════════════════════════════════════════════════════"
+echo ""
+
+# Execute extra.sh
+if [[ -f "${SCRIPT_DIR}/extra.sh" ]]; then
+    echo -e "${BOLD}[3/3] Installing Extra Packages...${NC}"
+    echo ""
+    bash "${SCRIPT_DIR}/extra.sh"
+    echo ""
+    echo -e "${YELLOW}✓ Extra packages installation completed${NC}"
+else
+    echo -e "${RED}WARNING: extra.sh not found at ${SCRIPT_DIR}/extra.sh${NC}"
 fi
 
 echo ""
