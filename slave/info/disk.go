@@ -200,3 +200,35 @@ func (d *DiskInfoStruct) GetWriteReadSpeed(folderMount string) (float64, float64
 
 	return write, read, nil
 }
+
+// DiskSummary groups together disk inventory, usage, and IO stats.
+type DiskSummary struct {
+	Disks []DiskStruct       `json:"disks"`
+	Usage map[string]float64 `json:"usage"`
+	IO    []DiskIOStruct     `json:"io"`
+}
+
+// GetDiskSummary returns a consolidated view of disk information by calling
+// GetDisks, GetDiskUsage, and GetDiskIOUsage. It returns the first error encountered.
+func (d *DiskInfoStruct) GetDiskSummary() (*DiskSummary, error) {
+	disks, err := d.GetDisks()
+	if err != nil {
+		return nil, err
+	}
+
+	usage, err := d.GetDiskUsage()
+	if err != nil {
+		return nil, err
+	}
+
+	ioStats, err := d.GetDiskIOUsage()
+	if err != nil {
+		return nil, err
+	}
+
+	return &DiskSummary{
+		Disks: disks,
+		Usage: usage,
+		IO:    ioStats,
+	}, nil
+}

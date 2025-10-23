@@ -108,6 +108,39 @@ func (n *NetworkInfoStruct) GetInterfaceUsage() (map[string]uint64, error) {
 	return usage, nil
 }
 
+// NetworkSummary aggregates interface inventory, per-interface stats, and usage.
+type NetworkSummary struct {
+	Interfaces []NetworkInterfaceStruct `json:"interfaces"`
+	Stats      []NetworkStatsStruct     `json:"stats"`
+	Usage      map[string]uint64        `json:"usage"`
+}
+
+// GetNetworkSummary returns a consolidated view of network information by
+// calling GetInterfaces, GetInterfaceStats, and GetInterfaceUsage. It returns
+// the first error encountered.
+func (n *NetworkInfoStruct) GetNetworkSummary() (*NetworkSummary, error) {
+	ifaces, err := n.GetInterfaces()
+	if err != nil {
+		return nil, err
+	}
+
+	stats, err := n.GetInterfaceStats()
+	if err != nil {
+		return nil, err
+	}
+
+	usage, err := n.GetInterfaceUsage()
+	if err != nil {
+		return nil, err
+	}
+
+	return &NetworkSummary{
+		Interfaces: ifaces,
+		Stats:      stats,
+		Usage:      usage,
+	}, nil
+}
+
 type ProcessInfoStruct struct{}
 
 var ProcessInfo ProcessInfoStruct
@@ -343,4 +376,3 @@ func (p *ProcessInfoStruct) TerminateProcess(pid int32) error {
 
 	return proc.Terminate()
 }
-

@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package info;
+
+option go_package = "github.com/Maruqes/512SvMan/api/proto/info;proto";
+
+message Empty{}
+
+
+service Info {
+}
+
+

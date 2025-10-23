@@ -15,9 +15,12 @@ BOLD='\033[1m'
 echo -e "${BOLD}${GREEN}Installing Extra Packages...${NC}"
 echo ""
 
-# Install fio (Flexible I/O Tester - disk read/write benchmarking tool)
-echo -e "${YELLOW}Installing fio...${NC}"
-sudo dnf install -y fio
+# Install tools:
+# - fio: disk read/write benchmarking tool
+# - stress-ng: CPU/memory/disk stress testing tool
+# - memtester: user-space memory tester
+echo -e "${YELLOW}Installing: fio, stress-ng, memtester...${NC}"
+sudo dnf install -y fio stress-ng memtester
 
 echo ""
 echo -e "${BOLD}${GREEN}✓ Extra packages installation complete${NC}"
