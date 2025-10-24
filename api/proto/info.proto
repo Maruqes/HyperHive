@@ -5,9 +5,112 @@ package info;
 option go_package = "github.com/Maruqes/512SvMan/api/proto/info;proto";
 
 message Empty{}
+message Ok{
+	string resp = 1;
+}
 
+message Core {
+	double usage = 1;
+	double temp = 2;
+}
+
+message CPUCoreInfo {
+	repeated Core cores = 1;
+}
+
+message MemSummary {
+	double used_percent = 1;
+	double free_percent = 2;
+	int32 total_mb = 3;
+	int32 used_mb = 4;
+	int32 free_mb = 5;
+}
+
+
+message DiskStruct {
+	string device = 1;
+	string mount_point = 2;
+	string fstype = 3;
+	uint64 total = 4;
+	uint64 free = 5;
+	uint64 used = 6;
+	double used_percent = 7;
+	repeated string opts = 8;
+}
+
+message DiskIOStruct {
+	string device = 1;
+	uint64 read_count = 2;
+	uint64 write_count = 3;
+	uint64 read_bytes = 4;
+	uint64 write_bytes = 5;
+	uint64 read_time = 6;
+	uint64 write_time = 7;
+	uint64 iops_in_progress = 8;
+	uint64 io_time = 9;
+	uint64 weighted_io = 10;
+	uint64 merged_read_count = 11;
+	uint64 merged_write_count = 12;
+}
+
+message DiskSummary {
+	repeated DiskStruct disks = 1;
+	map<string, double> usage = 2;
+	repeated DiskIOStruct io = 3;
+}
+
+
+message NetworkInterfaceStruct {
+	string name = 1;
+	int32 mtu = 2;
+	string hardware_addr = 3;
+	repeated string flags = 4;
+	repeated string addrs = 5;
+}
+
+message NetworkStatsStruct {
+	string name = 1;
+	uint64 bytes_sent = 2;
+	uint64 bytes_recv = 3;
+	uint64 packets_sent = 4;
+	uint64 packets_recv = 5;
+}
+
+message NetworkConnectionStruct {
+	uint32 fd = 1;
+	uint32 family = 2;
+	uint32 type = 3;
+	string laddr = 4;
+	string raddr = 5;
+	string status = 6;
+	int32 pid = 7;
+}
+
+message NetworkSummary {
+	repeated NetworkInterfaceStruct interfaces = 1;
+	repeated NetworkStatsStruct stats = 2;
+	map<string, uint64> usage = 3;
+}
+
+
+message StressCPUParams{
+	int32 numVCPU = 1;
+	int32 numSeconds = 2;
+}
+
+message TestRamMEMParams{
+	int32 numGigs = 1;
+	int32 numOfPasses = 2;
+}
 
 service Info {
+	rpc GetCPUInfo(Empty)returns(CPUCoreInfo); 
+	rpc GetMemSummary(Empty)returns(MemSummary);
+	rpc GetDiskSummary(Empty)returns(DiskSummary);
+	rpc GetNetworkSummary(Empty)returns(NetworkSummary);
+
+	rpc StressCPU(StressCPUParams)returns(Empty);
+	rpc TestRamMEM(TestRamMEMParams)returns(Ok);
 }
 
 

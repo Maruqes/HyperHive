@@ -8,6 +8,7 @@ import (
 	"os"
 	"slave/env512"
 	"slave/extra"
+	"slave/info"
 	"slave/logs512"
 	nfsservice "slave/nfs"
 	"slave/virsh"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
+	infoGrpc "github.com/Maruqes/512SvMan/api/proto/info"
 	nfsproto "github.com/Maruqes/512SvMan/api/proto/nfs"
 	pb "github.com/Maruqes/512SvMan/api/proto/protocol"
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
@@ -60,6 +62,7 @@ func listenGRPC() {
 	nfsproto.RegisterNFSServiceServer(s, &nfsservice.NFSService{})
 	grpcVirsh.RegisterSlaveVirshServiceServer(s, &virsh.SlaveVirshService{})
 	extraGrpc.RegisterExtraServiceServer(s, &extra.ExtraService{})
+	infoGrpc.RegisterInfoServer(s, &info.INFOService{})
 	logger.Info("Cliente a ouvir em :50052")
 	if err := s.Serve(lis); err != nil {
 		logger.Error("serve: %v", err)

@@ -24,6 +24,7 @@ type DiskStruct struct {
 	Opts        []string // Mount options
 }
 
+
 func (d *DiskInfoStruct) GetDisks() ([]DiskStruct, error) {
 	partitions, err := disk.Partitions(false) // false = exclude pseudo filesystems
 	if err != nil {
