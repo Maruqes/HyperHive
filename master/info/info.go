@@ -27,12 +27,12 @@ func GetNetworkSummary(conn *grpc.ClientConn, empty *infoGrpc.Empty) (*infoGrpc.
 	return client.GetNetworkSummary(context.Background(), empty)
 }
 
-func StressCPU(conn *grpc.ClientConn, params *infoGrpc.StressCPUParams) (*infoGrpc.Empty, error) {
+func StressCPU(ctx context.Context, conn *grpc.ClientConn, params *infoGrpc.StressCPUParams) (*infoGrpc.Empty, error) {
 	client := infoGrpc.NewInfoClient(conn)
-	return client.StressCPU(context.Background(), params)
+	return client.StressCPU(ctx, params)
 }
 
-func TestRamMEM(conn *grpc.ClientConn, params *infoGrpc.TestRamMEMParams) (*infoGrpc.Ok, error) {
+func TestRamMEM(ctx context.Context, conn *grpc.ClientConn, params *infoGrpc.TestRamMEMParams) (*infoGrpc.Ok, error) {
 	client := infoGrpc.NewInfoClient(conn)
-	return client.TestRamMEM(context.Background(), params)
+	return client.TestRamMEM(ctx, params)
 }

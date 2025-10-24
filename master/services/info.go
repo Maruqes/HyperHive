@@ -3,7 +3,7 @@ package services
 import (
 	"512SvMan/info"
 	"512SvMan/protocol"
-	"encoding/json"
+	"context"
 	"fmt"
 
 	infoGrpc "github.com/Maruqes/512SvMan/api/proto/info"
@@ -48,33 +48,30 @@ func (s *InfoService) GetNetworkSummary(machineName string) (*infoGrpc.NetworkSu
 	return info.GetNetworkSummary(conStruct.Connection, &infoGrpc.Empty{})
 }
 
-func (s *InfoService) StressCPU(machineName string, params *infoGrpc.StressCPUParams) (*infoGrpc.Empty, error) {
+func (s *InfoService) StressCPU(ctx context.Context, machineName string, params *infoGrpc.StressCPUParams) (*infoGrpc.Empty, error) {
 	conStruct := protocol.GetConnectionByMachineName(machineName)
 	if conStruct == nil || conStruct.Connection == nil {
 		return nil, fmt.Errorf("slave %s not found or not connected", machineName)
 	}
 
-	return info.StressCPU(conStruct.Connection, params)
+	return info.StressCPU(ctx, conStruct.Connection, params)
 }
 
-func (s *InfoService) TestRamMEM(machineName string, params *infoGrpc.TestRamMEMParams) (string, error) {
+func (s *InfoService) TestRamMEM(ctx context.Context, machineName string, params *infoGrpc.TestRamMEMParams) (string, error) {
 	conStruct := protocol.GetConnectionByMachineName(machineName)
 	if conStruct == nil || conStruct.Connection == nil {
 		return "", fmt.Errorf("slave %s not found or not connected", machineName)
 	}
 
 	go func() {
-		res, err := info.TestRamMEM(conStruct.Connection, params)
+		newCTX := context.WithoutCancel(context.Background())
+		_, err := info.TestRamMEM(newCTX, conStruct.Connection, params)
 		if err != nil {
 			logger.Error("MEM-TEST ERROR: " + err.Error())
 			return
 		}
-		jsonBytes, err := json.Marshal(res)
-		if err != nil {
-			logger.Error("Failed to marshal result to JSON: " + err.Error())
-			return
-		}
-		logger.Info(string(jsonBytes))
+
+		logger.Warn("TEST RAM FINISH SEE INFO LOG")
 	}()
 
 	return "TestRam is going it may take 10 mins or some hours (1/2/3) see logs to check results", nil

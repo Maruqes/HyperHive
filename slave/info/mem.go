@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"time"
 
+	"github.com/Maruqes/512SvMan/logger"
 	"github.com/shirou/gopsutil/v4/mem"
 )
 
@@ -87,6 +89,26 @@ func (m *MemInfoStruct) GetMemSummary() (*MemSummary, error) {
 	}, nil
 }
 
+// cleanBackspaces removes backspace characters and processes the string properly
+func cleanBackspaces(s string) string {
+	// Convert string to rune slice for proper character handling
+	runes := []rune(s)
+	result := make([]rune, 0, len(runes))
+
+	for _, r := range runes {
+		if r == '\b' {
+			// Remove the last character if backspace is encountered
+			if len(result) > 0 {
+				result = result[:len(result)-1]
+			}
+		} else {
+			result = append(result, r)
+		}
+	}
+
+	return string(result)
+}
+
 // sudo memtester 48G 2  //number of G and number of passes
 func (c *MemInfoStruct) SressTestMem(ctx context.Context, numOfGigs, numOfPasses int) (string, error) {
 
@@ -95,9 +117,29 @@ func (c *MemInfoStruct) SressTestMem(ctx context.Context, numOfGigs, numOfPasses
 		fmt.Sprintf("%d", numOfPasses),
 	}
 
+	logger.Info("Started memTest")
 	cmd := exec.CommandContext(ctx, "memtester", args...)
 
+	//logs every 5 mins q esta a correr
+	done := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				logger.Info("memtester is still running...")
+			case <-done:
+				return
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	out, err := cmd.CombinedOutput()
+	close(done) // Signal the goroutine to stop
+
 	if ctx.Err() != nil {
 		// Context was canceled or deadline exceeded; ensure we return that explicitly.
 		return "", ctx.Err()
@@ -106,5 +148,10 @@ func (c *MemInfoStruct) SressTestMem(ctx context.Context, numOfGigs, numOfPasses
 		return "", fmt.Errorf("memtester failed: %w\n--- memtester output ---\n%s", err, string(out))
 	}
 
-	return string(out), nil
+	// Clean backspaces from output
+	cleanedOutput := cleanBackspaces(string(out))
+
+	logger.Info("Finished memTest")
+	logger.Info(cleanedOutput)
+	return cleanedOutput, nil
 }
