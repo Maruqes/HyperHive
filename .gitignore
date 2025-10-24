@@ -48,3 +48,4 @@ master/npm-ssl/
 data.db
 novnc
 master/novnc
+certs/

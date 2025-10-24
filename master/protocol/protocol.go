@@ -14,6 +14,7 @@ import (
 	logsGrpc "github.com/Maruqes/512SvMan/api/proto/logsserve"
 	pb "github.com/Maruqes/512SvMan/api/proto/protocol"
 	"github.com/Maruqes/512SvMan/logger"
+	protocolTLS "github.com/Maruqes/512SvMan/protocol"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -277,11 +278,18 @@ func ListenGRPC(recievedNewConnectionFunction func(addr, machineName string, con
 	if err != nil {
 		log.Fatalf("listen: %v", err)
 	}
-	s := grpc.NewServer()
+
+	unaryServer := protocolTLS.RequireAuth("ola")
+	credentials := protocolTLS.BuildServerTLS("certs/server.crt", "certs/server.key", "certs/ca.crt", "ola")
+
+	s := grpc.NewServer(
+		grpc.UnaryInterceptor(unaryServer),
+		grpc.Creds(credentials),
+	)
 	pb.RegisterProtocolServiceServer(s, &protocolServer{})
 	logsGrpc.RegisterLogsServeServer(s, &logs512.LogsServer{})
 	extraGrpc.RegisterExtraServiceServer(s, &extra.ExtraServiceServer{})
-	logger.Info("Master a ouvir em :50051")
+	logger.Info("Master a ouvir em :50051 (TLS obrigatório)")
 	go func() {
 		if err := s.Serve(lis); err != nil {
 			log.Fatalf("serve: %v", err)
