@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	"google.golang.org/grpc"
@@ -31,19 +32,31 @@ CLIENTE:
 	grpc.WithUnaryInterceptor(AttachProject(project)),
 */
 
-func RequireAuth(expected string) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{},
-		info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-
+func RequireAuthUnary(expected string) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
-			return nil, status.Error(codes.Unauthenticated, "sem metadata")
+			return nil, status.Error(codes.Unauthenticated, "missing metadata")
 		}
 		v := md.Get("x-string")
 		if len(v) == 0 || v[0] != expected {
-			return nil, status.Error(codes.Unauthenticated, "string invalida")
+			return nil, status.Error(codes.Unauthenticated, "invalid x-string")
 		}
 		return handler(ctx, req)
+	}
+}
+
+func RequireAuthStream(expected string) grpc.StreamServerInterceptor {
+	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		md, ok := metadata.FromIncomingContext(ss.Context())
+		if !ok {
+			return status.Error(codes.Unauthenticated, "missing metadata")
+		}
+		v := md.Get("x-string")
+		if len(v) == 0 || v[0] != expected {
+			return status.Error(codes.Unauthenticated, "invalid x-string")
+		}
+		return handler(srv, ss)
 	}
 }
 
@@ -90,4 +103,37 @@ func BuildServerTLS(serverCrtPath, keyPath, caCrtPath, expected string) credenti
 		},
 	}
 	return credentials.NewTLS(tlsCfg)
+}
+
+func ServeCaCRTFile(path string, master bool) {
+	go func() {
+		port := 50053 //for master
+		if !master {
+			port = 50054 // for slave
+		}
+		http.HandleFunc("/ca.crt", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/x-pem-file")
+			w.Header().Set("Content-Disposition", "attachment; filename=ca.crt")
+			http.ServeFile(w, r, path)
+		})
+
+		addr := fmt.Sprintf(":%d", port)
+		log.Printf("Serving CA certificate at http://localhost:%d/ca.crt", port)
+		if err := http.ListenAndServe(addr, nil); err != nil {
+			log.Fatalf("HTTP server error: %v", err)
+		}
+	}()
+}
+
+func GenerateGRPCServer(isMaster bool) *grpc.Server {
+	unaryServer := RequireAuthUnary("ola")
+	streamServer := RequireAuthStream("ola")
+	credentials := BuildServerTLS("certs/server.crt", "certs/server.key", "certs/ca.crt", "ola")
+	ServeCaCRTFile("certs/ca.crt", isMaster)
+
+	return grpc.NewServer(
+		grpc.UnaryInterceptor(unaryServer),
+		grpc.StreamInterceptor(streamServer),
+		grpc.Creds(credentials),
+	)
 }

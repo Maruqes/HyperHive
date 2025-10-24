@@ -5,6 +5,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 
 	"google.golang.org/grpc"
@@ -16,9 +18,19 @@ func AttachProject(val string) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply interface{},
 		cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 
-		md := metadata.Pairs("x-project", val)
+		md := metadata.Pairs("x-string", val)
 		ctx = metadata.NewOutgoingContext(ctx, md)
 		return invoker(ctx, method, req, reply, cc, opts...)
+	}
+}
+
+func AttachProjectStream(val string) grpc.StreamClientInterceptor {
+	return func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn,
+		method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+
+		md := metadata.Pairs("x-string", val)
+		ctx = metadata.NewOutgoingContext(ctx, md)
+		return streamer(ctx, desc, cc, method, opts...)
 	}
 }
 
@@ -47,4 +59,48 @@ func BuildClientTLS(serverCrtPath, keyPath, caCrtPath, server_name string) crede
 		ServerName: server_name,
 	}
 	return credentials.NewTLS(tlsCfg)
+}
+
+func getCaCRT(masterIp string, caPort string) ([]byte, error) {
+	//ca.crt do slave esta na 50054
+	url := fmt.Sprintf("http://%s:%s/ca.crt", masterIp, caPort)
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ca.crt: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get ca.crt: status code %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	return body, nil
+}
+
+func GenerateClientConn(ctx context.Context, addr string, grpcPort, caPort, secret string) (conn *grpc.ClientConn, err error) {
+	caCRT, err := getCaCRT(addr, caPort)
+	if err != nil {
+		panic("could not get CA.CRT")
+	}
+
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(caCRT) {
+		panic("bad CA PEM")
+	}
+	creds := credentials.NewTLS(&tls.Config{
+		MinVersion: tls.VersionTLS13,
+		RootCAs:    pool,
+		ServerName: addr,
+	})
+
+	unary := AttachProject(secret)
+	stream := AttachProjectStream(secret)
+
+	target := addr + grpcPort
+	return grpc.DialContext(ctx, target, grpc.WithTransportCredentials(creds), grpc.WithBlock(), grpc.WithUnaryInterceptor(unary), grpc.WithStreamInterceptor(stream))
 }
