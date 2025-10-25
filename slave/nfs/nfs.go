@@ -663,9 +663,12 @@ func MountSharedFolder(folder FolderMount) error {
 		return err
 	}
 
+	logger.Info("NFS LOCK")
 	CurrentMountsLock.Lock()
 	CurrentMounts = append(CurrentMounts, folder)
 	CurrentMountsLock.Unlock()
+	logger.Info("NFS UNLOCK")
+
 	logger.Info("NFS share mounted: " + source + " -> " + target)
 	return nil
 }
