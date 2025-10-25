@@ -1,5 +1,5 @@
 # Runtime Configuration & Autostart
-Complete these steps after any installation guide (Solo, Normal, or Extra). They cover `.env` configuration for master/slave nodes and setting up automatic startup with PM2.
+Complete these steps after finishing any install guide.
 
 ## 1. Prepare `.env` on the Master
 1. Copy the template if needed:
@@ -8,75 +8,87 @@ Complete these steps after any installation guide (Solo, Normal, or Extra). They
    cp master/.env.example master/.env
    ```
 2. Edit `master/.env` and set:
-   - `MODE`: `prod` for production clusters, otherwise leave `dev`.
-   - `QEMU_UID` / `QEMU_GID`: match the system `qemu` user. Discover with:
-     ```bash
-     id -u qemu
-     id -g qemu
-     ```
-
+   - `MODE`: `prod` for production, otherwise leave `dev`.
+   - `QEMU_UID` / `QEMU_GID`: match the system `qemu` user (check with `id -u qemu` / `id -g qemu`).
+3. Lock down permissions:
+   ```bash
+   sudo chown root:root master/.env
+   sudo chmod 600 master/.env
+   ```
 
 ## 2. Prepare `.env` on Each Slave
-1. Copy the template if needed:
+1. Copy the template:
    ```bash
    cp slave/.env.example slave/.env
    ```
 2. Edit `slave/.env` and set:
-   - `MASTER_IP`: management IP or resolvable hostname of the master.
-   - `SLAVE_IP`: this slave’s management IP or hostname.
-   - `OTHER_SLAVE*_IP`: optional peers for live migration; comment out unused lines.
-   - `MODE`: `prod` in production.
-   - `MACHINE_NAME`: unique identifier (e.g., `slave1`).
-   - `VNC_MIN_PORT` / `VNC_MAX_PORT`: per-slave port range, non-overlapping across nodes.
-   - `QEMU_UID` / `QEMU_GID`: same method as the master—usually the `qemu` system user.
+   - `MASTER_IP`: master management IP/hostname.
+   - `SLAVE_IP`: this slave’s management IP/hostname.
+   - `OTHER_SLAVE*_IP`: optional peers for migration (comment unused lines).
+   - `MODE`, `MACHINE_NAME`, `VNC_MIN_PORT`, `VNC_MAX_PORT`, `QEMU_UID`, `QEMU_GID`.
+3. Protect the file:
+   ```bash
+   sudo chown root:root slave/.env
+   sudo chmod 600 slave/.env
+   ```
 
-
-## 3. Build Binaries (Master & Slaves)
-Run these on every node after each code update.
+## 3. Build Binaries (Manual)
+Run on every node after code changes.
 ```bash
-cd /path/to/HyperHive
-mkdir -p bin
-
-cd master
-go build -o ../bin/hyperhive-master ./main.go
+cd /path/to/HyperHive/master
+go build
 
 cd ../slave
-go build -o ../bin/hyperhive-slave ./main.go
+go build
 ```
-Ensure Go 1.25+ is installed. Adjust paths if you prefer a different binary location (e.g., `/usr/local/bin`).
 
-## 4. Install PM2 and Configure Autostart
-Perform as root (`sudo -i`) on each node.
-
-1. Install PM2 (skip if already present):
-   ```bash
-   sudo npm install -g pm2
-   ```
-2. From the HyperHive root, register the master process (on the master node):
-   ```bash
-   sudo pm2 start /path/to/HyperHive/bin/hyperhive-master --name hyperhive-master
-   ```
-   On each slave node start the slave binary:
-   ```bash
-   sudo pm2 start /path/to/HyperHive/bin/hyperhive-slave --name hyperhive-slave
-   ```
-3. Persist the PM2 process list and enable system boot integration:
-   ```bash
-   sudo pm2 save
-   sudo pm2 startup systemd -u root --hp /root
-   ```
-   Follow the command printed by PM2 (usually another `pm2 startup` line to copy/paste).
-4. Confirm services:
-   ```bash
-   sudo pm2 status
-   sudo pm2 logs hyperhive-master      # or hyperhive-slave
-   ```
-
-## 5. Maintenance Tips
-- Re-run the build and PM2 restart after pulling new code:
+## 4. Manual Runtime (using Make)
+Keep terminals open and run these to observe logs and ensure connectivity.
+- On the master:
   ```bash
-  cd /path/to/HyperHive/master && go build -o ../bin/hyperhive-master ./main.go
-  sudo pm2 restart hyperhive-master
+  cd /path/to/HyperHive/master
+  sudo make run
   ```
-- Use `sudo pm2 delete <name>` to remove old definitions before re-registering binaries.
-***
+- On each slave:
+  ```bash
+  cd /path/to/HyperHive/slave
+  sudo make run
+  ```
+Leave them running until every slave prints a message similar to `Ok Master`, confirming the cluster is healthy.
+
+## 5. Install PM2 and Configure Autostart
+Perform on each node (as root or with `sudo`).
+1. Install PM2 if needed:
+   ```bash
+   npm install -g pm2
+   ```
+2. Register processes **from inside each project folder** so `.env` files are available:
+   - Master:
+     ```bash
+     cd /path/to/HyperHive/master
+     pm2 start sudo --name hyperhive-master -- make run
+     ```
+   - Slaves:
+     ```bash
+     cd /path/to/HyperHive/slave
+     pm2 start sudo --name hyperhive-slave -- make run
+     ```
+3. Persist and enable autostart:
+   ```bash
+   pm2 save
+   pm2 startup systemd -u root --hp /root
+   ```
+   Follow any command PM2 prints to finalize boot integration.
+4. Check status/logs:
+   ```bash
+   pm2 status
+   pm2 logs hyperhive-master    # or hyperhive-slave
+   ```
+
+## 6. Maintenance Tips
+- Rebuild/restart after pulling new code:
+  ```bash
+  cd /path/to/HyperHive/master && go build && pm2 restart hyperhive-master
+  cd /path/to/HyperHive/slave && go build && pm2 restart hyperhive-slave
+  ```
+- Use `pm2 delete <name>` before re-registering if needed.
