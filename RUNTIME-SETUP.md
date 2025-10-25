@@ -66,11 +66,11 @@ Perform on each node (as root or with `sudo`).
 2. Register processes; PM2 will change directories and invoke `make` for you:
    - Master:
      ```bash
-     sudo pm2 start bash --name hyperhive-master -- -lc "cd /path/to/HyperHive/master && make"
+     sudo pm2 start bash --name hyperhive-master -- -lc "cd /path/to/HyperHive/master && ./512SvMan"
      ```
    - Slaves:
      ```bash
-     sudo pm2 start bash --name hyperhive-slave -- -lc "cd /path/to/HyperHive/slave && make"
+     sudo pm2 start bash --name hyperhive-slave -- -lc "cd /path/to/HyperHive/slave && ./slave"
      ```
 3. Persist and enable autostart:
    ```bash
