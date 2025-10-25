@@ -15,4 +15,4 @@ Choose the right install guide, follow the runtime setup, and make sure required
 - `50053` — master CA distribution.
 - `50054` — slave CA distribution.
 
-If a slave lives outside the internal network, ensure these ports are reachable through firewalls/VPNs (consider TLS SAN entries and NAT rules).
+If a slave lives outside the internal network, ensure these ports are reachable through firewalls/VPNs and adjust NAT rules as needed.

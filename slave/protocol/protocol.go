@@ -21,11 +21,10 @@ import (
 	pb "github.com/Maruqes/512SvMan/api/proto/protocol"
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 
-	protocolTLS "github.com/Maruqes/512SvMan/protocol"
-
 	"github.com/Maruqes/512SvMan/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func restartSelf() error {
@@ -57,7 +56,7 @@ func listenGRPC() {
 	if err != nil {
 		log.Fatalf("listen: %v", err)
 	}
-	s := protocolTLS.GenerateGRPCServer(false, env512.GRPC_TLS_PASSWORD)
+	s := grpc.NewServer()
 
 	//registar services
 	pb.RegisterClientServiceServer(s, &clientServer{})
@@ -124,9 +123,7 @@ func ConnectGRPC() *grpc.ClientConn {
 		logger.Info("Connecting to master at", target)
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 
-		//50051 onse conecta ao server do master grpc
-		//50053 onse conecta ao server do master ca.crt
-		conn, err := protocolTLS.GenerateClientConn(ctx, env512.MasterIP, ":50051", "50053", env512.GRPC_TLS_PASSWORD)
+		conn, err := grpc.DialContext(ctx, target, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 		cancel()
 		if err != nil {
 			logger.Error("dial master failed: %v", err)

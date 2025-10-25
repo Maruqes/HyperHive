@@ -14,7 +14,6 @@ Complete these steps after any installation guide (Solo, Normal, or Extra). They
      id -u qemu
      id -g qemu
      ```
-   - `GRPC_TLS_PASSWORD`: choose a strong value and reuse the same password on every slave (`slave/.env`). It must match the TLS password you entered when running `gen_server_cert.sh`.
 
 
 ## 2. Prepare `.env` on Each Slave
@@ -23,19 +22,13 @@ Complete these steps after any installation guide (Solo, Normal, or Extra). They
    cp slave/.env.example slave/.env
    ```
 2. Edit `slave/.env` and set:
-   - `MASTER_IP`: management IP **or DNS name** of the master (must resolve and be present in the certificate SAN).
-   - `SLAVE_IP`: this slave’s management IP or hostname (also included in its SAN).
+   - `MASTER_IP`: management IP or resolvable hostname of the master.
+   - `SLAVE_IP`: this slave’s management IP or hostname.
    - `OTHER_SLAVE*_IP`: optional peers for live migration; comment out unused lines.
    - `MODE`: `prod` in production.
    - `MACHINE_NAME`: unique identifier (e.g., `slave1`).
    - `VNC_MIN_PORT` / `VNC_MAX_PORT`: per-slave port range, non-overlapping across nodes.
    - `QEMU_UID` / `QEMU_GID`: same method as the master—usually the `qemu` system user.
-   - `GRPC_TLS_PASSWORD`: **must match** the master’s value. Simplest approach: copy it from the master.
-     ```bash
-     TLS_PASS=$(grep '^GRPC_TLS_PASSWORD' master/.env | cut -d= -f2-)
-     echo "GRPC_TLS_PASSWORD=$TLS_PASS" | sudo tee slave/.env >/dev/null
-     ```
-     (Then reopen `slave/.env` to fill in the other fields.)
 
 
 ## 3. Build Binaries (Master & Slaves)
@@ -86,4 +79,4 @@ Perform as root (`sudo -i`) on each node.
   pm2 restart hyperhive-master
   ```
 - Use `pm2 delete <name>` to remove old definitions before re-registering binaries.
-- Keep TLS password and `.env` copies synchronized across nodes to avoid authentication issues.***
+***

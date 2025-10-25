@@ -20,23 +20,13 @@ Use this for small production/pre-production clusters with one master and multip
    ```
    Run sequentially per slave with the same confirmations. Only execute on nodes you intend to wipe.
 
-3. **Generate certificates (master twice, then each slave).**
-   ```bash
-   cd scripts/certsBash
-   ./gen_server_cert.sh   # on master: choose master
-   ./gen_server_cert.sh   # on master again: choose slave (master doubles as worker)
-   ./gen_server_cert.sh   # on each slave: choose slave
-   cd -
-   ```
-   The master’s two runs populate `master/certs/` and `slave/certs/`; each physical slave populates its own `slave/certs/`. Copy `master/certs/ca.crt` everywhere and verify fingerprints.
-
-4. **Enable root SSH where required.**
+3. **Enable root SSH where required.**
    ```bash
    sudo bash scripts/all/allow_root_ssh.sh
    ```
    Execute on master and any slave needing root SSH access. Set strong passwords and tighten firewall rules afterwards.
 
-5. **Verify services and connectivity.**
+4. **Verify services and connectivity.**
    ```bash
    systemctl status libvirtd nfs-server
    chronyc sources
@@ -45,8 +35,8 @@ Use this for small production/pre-production clusters with one master and multip
    Confirm libvirt/NFS are running, time sync is healthy, and nodes can reach each other.
 
 ## Tips
-- Keep `/etc/hosts` or DNS updated with master/slave hostnames before certificate generation.
-- If you re-run `install.sh`, repeat the certificate and SSH steps because prior configuration is replaced.
+- Keep `/etc/hosts` or DNS updated with master/slave hostnames to simplify management and migration.
+- If you re-run `install.sh`, repeat any custom SSH configuration because prior settings are replaced.
 
 ## Next Steps
 Complete `.env` setup and PM2 autostart by following `RUNTIME-SETUP.md`.

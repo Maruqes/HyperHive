@@ -1,7 +1,6 @@
 package protocol
 
 import (
-	"512SvMan/env512"
 	"512SvMan/extra"
 	"512SvMan/logs512"
 	"context"
@@ -15,8 +14,8 @@ import (
 	logsGrpc "github.com/Maruqes/512SvMan/api/proto/logsserve"
 	pb "github.com/Maruqes/512SvMan/api/proto/protocol"
 	"github.com/Maruqes/512SvMan/logger"
-	protocolTLS "github.com/Maruqes/512SvMan/protocol"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type ConnectionsStruct struct {
@@ -203,9 +202,7 @@ func NewSlaveConnection(addr, machineName string) error {
 	target := addr + ":50052"
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 
-	//50052 onse conecta ao server do slave grpc
-	//50054 onse conecta ao server do slave ca.crt
-	conn, err := protocolTLS.GenerateClientConn(ctx, addr, ":50052", "50054", env512.GRPC_TLS_PASSWORD)
+	conn, err := grpc.DialContext(ctx, target, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	cancel()
 	if err != nil {
 		return fmt.Errorf("dial slave %s: %w", target, err)
@@ -281,12 +278,12 @@ func ListenGRPC(recievedNewConnectionFunction func(addr, machineName string, con
 		log.Fatalf("listen: %v", err)
 	}
 
-	s := protocolTLS.GenerateGRPCServer(true, env512.GRPC_TLS_PASSWORD)
+	s := grpc.NewServer()
 
 	pb.RegisterProtocolServiceServer(s, &protocolServer{})
 	logsGrpc.RegisterLogsServeServer(s, &logs512.LogsServer{})
 	extraGrpc.RegisterExtraServiceServer(s, &extra.ExtraServiceServer{})
-	logger.Info("Master a ouvir em :50051 (TLS obrigatório)")
+	logger.Info("Master a ouvir em :50051")
 	go func() {
 		if err := s.Serve(lis); err != nil {
 			log.Fatalf("serve: %v", err)
