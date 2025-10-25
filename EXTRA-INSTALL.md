@@ -24,7 +24,11 @@ Choose this mode when the master must also provide an isolated `512rede` network
    ```bash
    sudo bash scripts/all/change_interface_name.sh <current-nic-name>
    ```
-   Replace `<current-nic-name>` with the detected interface (e.g., `enp7s0`). Run this on the master and on each slave that connects to the isolated LAN so all nodes present the interface as `512rede`. The script makes the rename persistent via systemd/udev.
+   Replace `<current-nic-name>` with the detected interface (e.g., `enp7s0`). Run this on the master and on each slave that connects to the isolated LAN so all nodes present the interface as `512rede`. The script makes the rename persistent via systemd/udev. After renaming on every slave, bring the NetworkManager connection up and mark it for autostart so the node actually requests a lease from the master’s DHCP service:
+   ```bash
+   sudo nmcli con up 512rede              # or the connection name created by the script
+   sudo nmcli connection modify 512rede connection.autoconnect yes
+   ```
 
 4. **Configure DHCP/NAT for `512rede` (master).**
    ```bash
