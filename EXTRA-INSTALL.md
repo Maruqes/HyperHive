@@ -20,21 +20,21 @@ Choose this mode when the master must also provide an isolated `512rede` network
    ```
    Run sequentially per slave; only execute on hosts you intend to reset.
 
-3. **Configure DHCP/NAT for `512rede` (master).**
-   ```bash
-   sudo ./scripts/master/setup_dhcp.sh <wan-interface>
-   ```
-   Supply the upstream/WAN NIC (e.g., `enp1s0`). Before running this step, ensure the master’s isolated interface is already named `512rede` (see Step 4). The script writes `dnsmasq` config, enables masquerading, and starts `dnsmasq-512rede.service`.
-
-4. **Rename the isolated NIC to `512rede` (master + every LAN-connected slave).**
+3. **Rename the isolated NIC to `512rede` (master + every LAN-connected slave).**
    ```bash
    sudo bash scripts/all/change_interface_name.sh <current-nic-name>
    ```
-   Replace `<current-nic-name>` with the detected interface (e.g., `enp7s0`). Run this on the master (prior to Step 3) and on each slave that connects to the isolated LAN so all nodes present the interface as `512rede`. The script makes the rename persistent via systemd/udev. After renaming on every slave, bring the NetworkManager connection up and mark it for autostart so the node actually requests a lease from the master’s DHCP service:
+   Replace `<current-nic-name>` with the detected interface (e.g., `enp7s0`). Run this on the master and on each slave that connects to the isolated LAN so all nodes present the interface as `512rede`. The script makes the rename persistent via systemd/udev. After renaming on every slave, bring the NetworkManager connection up and mark it for autostart so the node actually requests a lease from the master’s DHCP service:
    ```bash
    sudo nmcli con up 512rede              # or the connection name created by the script
    sudo nmcli connection modify 512rede connection.autoconnect yes
    ```
+
+4. **Configure DHCP/NAT for `512rede` (master).**
+   ```bash
+   sudo ./scripts/master/setup_dhcp.sh <wan-interface>
+   ```
+   Supply the upstream/WAN NIC (e.g., `enp1s0`). The script writes `dnsmasq` config, enables masquerading, and starts `dnsmasq-512rede.service`.
 
 5. **Generate certificates (master twice, then each slave).**
    ```bash
