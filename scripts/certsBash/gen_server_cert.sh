@@ -28,30 +28,29 @@ trim_csv() { # normalize comma lists (remove extra spaces/commas)
 need openssl
 
 echo "==> TLS BOOTSTRAP (SERVER): create a CA (if missing) + a server certificate with DNS/IP SANs."
-OUT_DIR="$(ask 'Output directory' 'tls')"
+NODE_TYPE="$(ask 'Is this for a slave or master node? (slave/master)' 'master')"
+if [[ "$NODE_TYPE" == "slave" ]]; then
+  OUT_DIR="../../slave/certs"
+elif [[ "$NODE_TYPE" == "master" ]]; then
+  OUT_DIR="../../master/certs"
+else
+  echo "Invalid node type. Must be 'slave' or 'master'." >&2
+  exit 1
+fi
+echo "Output directory: $OUT_DIR"
 mkdir -p "$OUT_DIR"
 cd "$OUT_DIR"
 
 echo
 echo "📌 Certificate Authority (CA)"
-use_existing="$(ask 'Reuse an existing CA? (y/n)' 'y')"
-if [[ "$use_existing" =~ ^[Yy]$ ]]; then
-  CA_CRT="$(ask 'Path to ca.crt' 'ca.crt')"
-  CA_KEY="$(ask 'Path to ca.key' 'ca.key')"
-  [[ -f "$CA_CRT" && -f "$CA_KEY" ]] || { echo 'CA files not found.' >&2; exit 1; }
-  # if paths are outside OUT_DIR, copy for convenience
-  [[ "$CA_CRT" != "ca.crt" ]] && cp "$CA_CRT" ca.crt
-  [[ "$CA_KEY" != "ca.key" ]] && cp "$CA_KEY" ca.key && chmod 600 ca.key
-else
-  echo "   Example CA CN: My Private CA"
-  CA_CN="$(ask 'CA Common Name (CN)' 'My Private CA')"
-  echo "   Validity: number of days (e.g. 3650) or 'inf' (~100 years)"
-  CA_D_IN="$(ask 'CA validity (days/inf)' '3650')"; CA_D="$(parse_days "$CA_D_IN")"
-  openssl genpkey -algorithm Ed25519 -out ca.key
-  openssl req -x509 -new -key ca.key -sha256 -days "$CA_D" \
-    -subj "/CN=${CA_CN}" -out ca.crt
-  chmod 600 ca.key
-fi
+echo "   Example CA CN: My Private CA"
+CA_CN="$(ask 'CA Common Name (CN)' 'My Private CA')"
+echo "   Validity: number of days (e.g. 3650) or 'inf' (~100 years)"
+CA_D_IN="$(ask 'CA validity (days/inf)' 'inf')"; CA_D="$(parse_days "$CA_D_IN")"
+openssl genpkey -algorithm Ed25519 -out ca.key
+openssl req -x509 -new -key ca.key -sha256 -days "$CA_D" \
+  -subj "/CN=${CA_CN}" -out ca.crt
+chmod 600 ca.key
 
 echo
 echo "🔐 Server key algorithm (RSA = widest compatibility; Ed25519 = modern & small)"
@@ -75,13 +74,12 @@ if [[ "$MODE" == "ip" || "$MODE" == "both" ]]; then
   IP_LIST="$(trim_csv "$IP_LIST")"
 fi
 
-DEFAULT_CN="${DNS_LIST%%,*}"; [[ -z "$DEFAULT_CN" ]] && DEFAULT_CN="${IP_LIST%%,*}"
 echo
-echo "🪪 Server CN (label only; SAN is what’s verified)"
-SERVER_CN="$(ask 'Server CN' "${DEFAULT_CN:-grpc-server}")"
+echo "🪪 Server CN (label only; SAN is what's verified)"
+SERVER_CN="$(ask 'Server CN' 'hyper-hive-cn')"
 PREFIX="$(ask 'Filename prefix (no extension)' 'server')"
 echo "   Validity for the SERVER certificate (days or 'inf')"
-SRV_D_IN="$(ask 'Server cert validity (days/inf)' '825')"; SRV_D="$(parse_days "$SRV_D_IN")"
+SRV_D_IN="$(ask 'Server cert validity (days/inf)' 'inf')"; SRV_D="$(parse_days "$SRV_D_IN")"
 
 # Build SAN string for OpenSSL
 SAN=""

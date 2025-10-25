@@ -57,7 +57,7 @@ func listenGRPC() {
 	if err != nil {
 		log.Fatalf("listen: %v", err)
 	}
-	s := protocolTLS.GenerateGRPCServer(false)
+	s := protocolTLS.GenerateGRPCServer(false, env512.GRPC_TLS_PASSWORD)
 
 	//registar services
 	pb.RegisterClientServiceServer(s, &clientServer{})
@@ -126,7 +126,7 @@ func ConnectGRPC() *grpc.ClientConn {
 
 		//50051 onse conecta ao server do master grpc
 		//50053 onse conecta ao server do master ca.crt
-		conn, err := protocolTLS.GenerateClientConn(ctx, env512.MasterIP, ":50051", "50053", "ola")
+		conn, err := protocolTLS.GenerateClientConn(ctx, env512.MasterIP, ":50051", "50053", env512.GRPC_TLS_PASSWORD)
 		cancel()
 		if err != nil {
 			logger.Error("dial master failed: %v", err)

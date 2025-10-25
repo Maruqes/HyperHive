@@ -9,17 +9,18 @@ import (
 )
 
 var (
-	MasterIP     string
-	SlaveIP      string
-	PingInterval int
-	Mode         string
-	MachineName  string
-	VNC_MIN_PORT int
-	VNC_MAX_PORT int
-	OTHER_SLAVES []string
-	Conn         *grpc.ClientConn
-	Qemu_UID     string
-	Qemu_GID     string
+	MasterIP          string
+	SlaveIP           string
+	PingInterval      int
+	Mode              string
+	MachineName       string
+	VNC_MIN_PORT      int
+	VNC_MAX_PORT      int
+	OTHER_SLAVES      []string
+	Conn              *grpc.ClientConn
+	Qemu_UID          string
+	Qemu_GID          string
+	GRPC_TLS_PASSWORD string
 )
 
 func SetConn(conn *grpc.ClientConn) {
@@ -37,6 +38,12 @@ func Setup() error {
 	PingInterval, _ = strconv.Atoi(os.Getenv("PING_INTERVAL"))
 	VNC_MIN_PORT, _ = strconv.Atoi(os.Getenv("VNC_MIN_PORT"))
 	VNC_MAX_PORT, _ = strconv.Atoi(os.Getenv("VNC_MAX_PORT"))
+	GRPC_TLS_PASSWORD = os.Getenv("GRPC_TLS_PASSWORD")
+
+	if GRPC_TLS_PASSWORD == "" {
+		panic("GRPC_TLS_PASSWORD needs to be set")
+	}
+
 	if PingInterval == 0 {
 		PingInterval = 10 //default 10 seconds
 	}

@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"512SvMan/env512"
 	"512SvMan/extra"
 	"512SvMan/logs512"
 	"context"
@@ -204,7 +205,7 @@ func NewSlaveConnection(addr, machineName string) error {
 
 	//50052 onse conecta ao server do slave grpc
 	//50054 onse conecta ao server do slave ca.crt
-	conn, err := protocolTLS.GenerateClientConn(ctx, addr, ":50052", "50054", "ola")
+	conn, err := protocolTLS.GenerateClientConn(ctx, addr, ":50052", "50054", env512.GRPC_TLS_PASSWORD)
 	cancel()
 	if err != nil {
 		return fmt.Errorf("dial slave %s: %w", target, err)
@@ -280,7 +281,7 @@ func ListenGRPC(recievedNewConnectionFunction func(addr, machineName string, con
 		log.Fatalf("listen: %v", err)
 	}
 
-	s := protocolTLS.GenerateGRPCServer(true)
+	s := protocolTLS.GenerateGRPCServer(true, env512.GRPC_TLS_PASSWORD)
 
 	pb.RegisterProtocolServiceServer(s, &protocolServer{})
 	logsGrpc.RegisterLogsServeServer(s, &logs512.LogsServer{})

@@ -125,10 +125,10 @@ func ServeCaCRTFile(path string, master bool) {
 	}()
 }
 
-func GenerateGRPCServer(isMaster bool) *grpc.Server {
-	unaryServer := RequireAuthUnary("ola")
-	streamServer := RequireAuthStream("ola")
-	credentials := BuildServerTLS("certs/server.crt", "certs/server.key", "certs/ca.crt", "ola")
+func GenerateGRPCServer(isMaster bool, GRPC_TLS_PASSWORD string) *grpc.Server {
+	unaryServer := RequireAuthUnary(GRPC_TLS_PASSWORD)
+	streamServer := RequireAuthStream(GRPC_TLS_PASSWORD)
+	credentials := BuildServerTLS("certs/server.crt", "certs/server.key", "certs/ca.crt", GRPC_TLS_PASSWORD)
 	ServeCaCRTFile("certs/ca.crt", isMaster)
 
 	return grpc.NewServer(
