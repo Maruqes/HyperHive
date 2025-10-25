@@ -12,7 +12,5 @@ Choose the right install guide, follow the runtime setup, and make sure required
 ## Network Ports
 - `50051` — master gRPC endpoint.
 - `50052` — slave gRPC endpoint.
-- `50053` — master CA distribution.
-- `50054` — slave CA distribution.
 
 If a slave lives outside the internal network, ensure these ports are reachable through firewalls/VPNs and adjust NAT rules as needed.
