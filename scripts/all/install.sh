@@ -9,6 +9,19 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/under" && pwd)"
 
+SUDO_CMD=""
+if [[ $EUID -ne 0 ]]; then
+    SUDO_CMD="sudo"
+fi
+
+sudo_run() {
+    if [[ -n "$SUDO_CMD" ]]; then
+        "$SUDO_CMD" "$@"
+    else
+        "$@"
+    fi
+}
+
 # Colors for output
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
@@ -143,6 +156,60 @@ fi
 echo ""
 echo "═══════════════════════════════════════════════════════════════════════════"
 echo ""
+
+echo -e "${BOLD}[4/4] Updating Firewall and Permissions...${NC}"
+echo ""
+
+FIREWALL_ZONE="FedoraServer"
+EFFECTIVE_FIREWALL_ZONE=""
+if command -v firewall-cmd >/dev/null 2>&1; then
+    if sudo_run firewall-cmd --state >/dev/null 2>&1; then
+        if sudo_run firewall-cmd --get-zones | tr ' ' '\n' | grep -Fxq "$FIREWALL_ZONE"; then
+            TARGET_ZONE="$FIREWALL_ZONE"
+        else
+            DEFAULT_ZONE="$(sudo_run firewall-cmd --get-default-zone 2>/dev/null || true)"
+            TARGET_ZONE="${DEFAULT_ZONE:-}"
+            echo -e "${YELLOW}Zone '${FIREWALL_ZONE}' not found. Using default zone '${TARGET_ZONE:-public}'.${NC}"
+        fi
+        EFFECTIVE_FIREWALL_ZONE="${TARGET_ZONE:-$FIREWALL_ZONE}"
+
+        SERVICES=(nfs mountd rpc-bind libvirt libvirt-tls)
+        for svc in "${SERVICES[@]}"; do
+            if [[ -n "${TARGET_ZONE:-}" ]]; then
+                sudo_run firewall-cmd --permanent --zone="$TARGET_ZONE" --add-service="$svc" >/dev/null \
+                    || echo -e "${YELLOW}Could not add service '${svc}' to zone '${TARGET_ZONE}'.${NC}"
+            else
+                sudo_run firewall-cmd --permanent --add-service="$svc" >/dev/null \
+                    || echo -e "${YELLOW}Could not add service '${svc}' to the default zone.${NC}"
+            fi
+        done
+        sudo_run firewall-cmd --reload >/dev/null || echo -e "${YELLOW}firewalld reload failed (continuing).${NC}"
+        echo -e "${YELLOW}✓ Firewall configuration updated for NFS and libvirt services.${NC}"
+    else
+        echo -e "${YELLOW}firewalld is installed but not running; skipped firewall configuration.${NC}"
+    fi
+else
+    echo -e "${YELLOW}firewall-cmd not found; skipping firewall configuration.${NC}"
+fi
+
+CURRENT_USER="${SUDO_USER:-$(id -un)}"
+if getent group kvm >/dev/null 2>&1; then
+    if id -nG "$CURRENT_USER" | tr ' ' '\n' | grep -Fxq kvm; then
+        echo -e "${YELLOW}User ${CURRENT_USER} already in 'kvm' group.${NC}"
+    else
+        if sudo_run usermod -aG kvm "$CURRENT_USER" >/dev/null 2>&1; then
+            echo -e "${YELLOW}✓ Added ${CURRENT_USER} to 'kvm' group for KVM device access.${NC}"
+        else
+            echo -e "${YELLOW}Could not add ${CURRENT_USER} to 'kvm' group. Add manually if needed.${NC}"
+        fi
+    fi
+else
+    echo -e "${YELLOW}'kvm' group not present; skipping group membership update.${NC}"
+fi
+
+echo ""
+echo "═══════════════════════════════════════════════════════════════════════════"
+echo ""
 echo -e "${BOLD}${YELLOW}✓ SYSTEM RESET COMPLETE${NC}"
 echo ""
 echo -e "${YELLOW}IMPORTANT NEXT STEPS:${NC}"
@@ -152,6 +219,7 @@ echo "  3. Verify NFS services: systemctl status nfs-server"
 echo "  4. Reconfigure any custom settings as needed"
 echo "  5. Redefine VMs and networks if necessary"
 echo "  6. Re-export NFS shares if needed"
+echo "  7. Confirm firewalld services: firewall-cmd --zone=${EFFECTIVE_FIREWALL_ZONE:-FedoraServer} --list-services"
 echo ""
 echo -e "${YELLOW}Check logs for any errors or warnings above.${NC}"
 echo ""

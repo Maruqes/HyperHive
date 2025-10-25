@@ -47,9 +47,12 @@ func buildCPUTuneXML(vcpuCount int) (string, error) {
 	}
 	iothreadSet := emulatorSet
 
-	shares := vcpuCount * 1024
-	if shares < 1024 {
-		shares = 1024
+	shares := vcpuCount * 400 // 25 vCPU ⇒ 10 000
+	if shares < 100 {
+		shares = 100
+	}
+	if shares > 10000 {
+		shares = 10000
 	}
 
 	var b strings.Builder
