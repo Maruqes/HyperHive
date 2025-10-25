@@ -63,16 +63,14 @@ Perform on each node (as root or with `sudo`).
    ```bash
    npm install -g pm2
    ```
-2. Register processes **from inside each project folder** so `.env` files are available:
+2. Register processes; PM2 will change directories and invoke `make` for you:
    - Master:
      ```bash
-     cd /path/to/HyperHive/master
-     sudo pm2 start sudo --name hyperhive-master -- make run
+     sudo pm2 start bash --name hyperhive-master -- -lc "cd /path/to/HyperHive/master && make"
      ```
    - Slaves:
      ```bash
-     cd /path/to/HyperHive/slave
-     sudo pm2 start sudo --name hyperhive-slave -- make run
+     sudo pm2 start bash --name hyperhive-slave -- -lc "cd /path/to/HyperHive/slave && make"
      ```
 3. Persist and enable autostart:
    ```bash
@@ -87,4 +85,9 @@ Perform on each node (as root or with `sudo`).
    ```
 
 ## 6. Maintenance Tips
+- Rebuild/restart after pulling new code:
+  ```bash
+  cd /path/to/HyperHive/master && go build && sudo pm2 restart hyperhive-master
+  cd /path/to/HyperHive/slave && go build && sudo pm2 restart hyperhive-slave
+  ```
 - Use `sudo pm2 delete <name>` before re-registering if needed.
