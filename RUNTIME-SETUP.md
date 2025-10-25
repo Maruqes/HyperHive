@@ -50,33 +50,33 @@ Perform as root (`sudo -i`) on each node.
 
 1. Install PM2 (skip if already present):
    ```bash
-   npm install -g pm2
+   sudo npm install -g pm2
    ```
 2. From the HyperHive root, register the master process (on the master node):
    ```bash
-   pm2 start /path/to/HyperHive/bin/hyperhive-master --name hyperhive-master
+   sudo pm2 start /path/to/HyperHive/bin/hyperhive-master --name hyperhive-master
    ```
    On each slave node start the slave binary:
    ```bash
-   pm2 start /path/to/HyperHive/bin/hyperhive-slave --name hyperhive-slave
+   sudo pm2 start /path/to/HyperHive/bin/hyperhive-slave --name hyperhive-slave
    ```
 3. Persist the PM2 process list and enable system boot integration:
    ```bash
-   pm2 save
-   pm2 startup systemd -u root --hp /root
+   sudo pm2 save
+   sudo pm2 startup systemd -u root --hp /root
    ```
    Follow the command printed by PM2 (usually another `pm2 startup` line to copy/paste).
 4. Confirm services:
    ```bash
-   pm2 status
-   pm2 logs hyperhive-master      # or hyperhive-slave
+   sudo pm2 status
+   sudo pm2 logs hyperhive-master      # or hyperhive-slave
    ```
 
 ## 5. Maintenance Tips
 - Re-run the build and PM2 restart after pulling new code:
   ```bash
   cd /path/to/HyperHive/master && go build -o ../bin/hyperhive-master ./main.go
-  pm2 restart hyperhive-master
+  sudo pm2 restart hyperhive-master
   ```
-- Use `pm2 delete <name>` to remove old definitions before re-registering binaries.
+- Use `sudo pm2 delete <name>` to remove old definitions before re-registering binaries.
 ***
