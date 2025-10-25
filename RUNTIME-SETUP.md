@@ -44,15 +44,16 @@ go build
 
 ## 4. Manual Runtime (using Make)
 Keep terminals open and run these to observe logs and ensure connectivity.
+THIS IS A MUST DO IT SETS PASSWORD BETWEEN SLAVES NEEDS TO BE RAN AT LEAST ONCE AND EVERY TIME A NEW SLAVE IS ADDED
 - On the master:
   ```bash
   cd /path/to/HyperHive/master
-  sudo make run
+  make
   ```
 - On each slave:
   ```bash
   cd /path/to/HyperHive/slave
-  sudo make run
+  make
   ```
 Leave them running until every slave prints a message similar to `Ok Master`, confirming the cluster is healthy.
 
@@ -66,29 +67,24 @@ Perform on each node (as root or with `sudo`).
    - Master:
      ```bash
      cd /path/to/HyperHive/master
-     pm2 start sudo --name hyperhive-master -- make run
+     sudo pm2 start sudo --name hyperhive-master -- make run
      ```
    - Slaves:
      ```bash
      cd /path/to/HyperHive/slave
-     pm2 start sudo --name hyperhive-slave -- make run
+     sudo pm2 start sudo --name hyperhive-slave -- make run
      ```
 3. Persist and enable autostart:
    ```bash
-   pm2 save
-   pm2 startup systemd -u root --hp /root
+   sudo pm2 save
+   sudo pm2 startup systemd -u root --hp /root
    ```
    Follow any command PM2 prints to finalize boot integration.
 4. Check status/logs:
    ```bash
-   pm2 status
-   pm2 logs hyperhive-master    # or hyperhive-slave
+   sudo pm2 status
+   sudo pm2 logs hyperhive-master    # or hyperhive-slave
    ```
 
 ## 6. Maintenance Tips
-- Rebuild/restart after pulling new code:
-  ```bash
-  cd /path/to/HyperHive/master && go build && pm2 restart hyperhive-master
-  cd /path/to/HyperHive/slave && go build && pm2 restart hyperhive-slave
-  ```
-- Use `pm2 delete <name>` before re-registering if needed.
+- Use `sudo pm2 delete <name>` before re-registering if needed.
