@@ -218,15 +218,13 @@ RPCNFSDCOUNT=32
 }
 
 func exportsEntry(path string) string {
-	// Multi-client safe export options for QEMU/VM workloads
-	// - sync: All writes are committed to disk before replying (critical for data integrity)
-	// - no_subtree_check: Required for stable file handles
-	// - no_root_squash: Allows root operations (needed for QEMU)
-	// - insecure: Allows non-privileged source ports
-	// - sec=sys: Standard Unix authentication
-	// - fsid=0: Helps with proper filesystem identification
-	// - no_wdelay: Don't delay writes (better for sync workloads)
-	return fmt.Sprintf("%s *(rw,sync,no_wdelay,no_subtree_check,no_root_squash,insecure,sec=sys)", path)
+	// FAST profile (performance > durabilidade)
+	// - async: confirma antes de gravar em disco → muito mais rápido
+	// - no_subtree_check: evita overhead em lookups
+	// - no_root_squash: permite qemu/libvirt operar como root (mais simples/compat)
+	// - insecure: permite portas >1024 (útil em alguns clientes)
+	// - sec=sys: autenticação UNIX simples
+	return fmt.Sprintf("%s *(rw,async,no_subtree_check,no_root_squash,insecure,sec=sys)", path)
 }
 
 func allowSELinuxForNFS(path string) error {
@@ -574,7 +572,7 @@ func MountSharedFolder(folder FolderMount) error {
 		"vers=4.2",
 		"rsize=1048576",
 		"wsize=1048576",
-		"nconnect=8", 
+		"nconnect=8",
 		"timeo=600",
 		"retrans=2",
 		"noatime",
