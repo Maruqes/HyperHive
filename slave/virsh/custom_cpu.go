@@ -214,7 +214,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
   %s
   <devices>
 	<disk type='file' device='disk'>
-	  <driver name='qemu' type='qcow2' cache='none' io='native'/>
+	  <driver name='qemu' type='qcow2' cache='writeback' io='threads'/>
 	  <source file='%s'/>
 	  <target dev='vda' bus='virtio'/>
 	</disk>%s

@@ -566,25 +566,22 @@ func MountSharedFolder(folder FolderMount) error {
 		return fmt.Errorf("source and target are required")
 	}
 
-	// Multi-client safe mount options for QEMU/VM workloads
 	opts := []string{
 		"rw",
-		"sync",                 // Force synchronous I/O for data integrity
-		"hard",                 // Retry indefinitely on server failure
-		"intr",                 // Allow interrupting hung NFS operations
-		"proto=tcp",            // TCP is more reliable than UDP
-		"vers=4.2",             // NFSv4.2 has better locking and performance
-		"rsize=262144",         // Conservative read size (256KB) for stability
-		"wsize=262144",         // Conservative write size (256KB) for stability
-		"timeo=600",            // 60 second timeout (600 deciseconds)
-		"retrans=2",            // Retry twice before reporting error
-		"noatime",              // Don't update access times
-		"nodiratime",           // Don't update directory access times
-		"_netdev",              // Network device, mount after network is up
-		"actimeo=3",            // Cache attributes for only 3 seconds (was 0, too aggressive)
-		"lookupcache=positive", // Only cache successful lookups
-		// CRITICAL: Do NOT use local_lock=posix - it bypasses server locks!
-		// NFSv4.2 uses mandatory server-side locking by default
+		"async",
+		"hard",
+		"proto=tcp",
+		"vers=4.2",
+		"rsize=1048576",
+		"wsize=1048576",
+		"nconnect=8", 
+		"timeo=600",
+		"retrans=2",
+		"noatime",
+		"nodiratime",
+		"_netdev",
+		"actimeo=3",
+		"lookupcache=positive",
 	}
 
 	ensureMountedWithOpts := func(remount bool) error {
