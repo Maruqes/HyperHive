@@ -67,8 +67,8 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 		"--tunnelled",
 		"--auto-converge",
 		"--compressed",
-		"--comp-methods", "zstd",
-		"--comp-zstd-level", "3",
+		"--comp-methods", "xbzrle",
+		"--comp-xbzrle-cache", "256",
 		"--bandwidth", "0",
 		"--abort-on-error",
 	}
