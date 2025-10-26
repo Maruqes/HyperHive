@@ -57,7 +57,6 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 	if opts.Timeout < 0 {
 		return fmt.Errorf("timeout must be non-negative")
 	}
-
 	baseArgs := []string{
 		"-c", connURI,
 		"migrate",
@@ -66,6 +65,14 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 		"--undefinesource",
 		"--p2p",
 		"--tunnelled",
+		"--live",
+		"--auto-converge",
+		"--compressed",
+		"--comp-methods", "zstd",
+		"--comp-zstd-level", "3",
+		"--bandwidth", "0",
+		"--downtime", "1000",
+		"--abort-on-error",
 	}
 
 	if opts.Timeout > 0 {
