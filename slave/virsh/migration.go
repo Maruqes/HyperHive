@@ -65,7 +65,6 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 		"--undefinesource",
 		"--p2p",
 		"--tunnelled",
-		"--live",
 		"--auto-converge",
 		"--compressed",
 		"--comp-methods", "zstd",
