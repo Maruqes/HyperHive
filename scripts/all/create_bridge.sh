@@ -208,21 +208,33 @@ else
 fi
 
 # IPv4
-nmcli con mod "$BR_CONN" ipv4.method "$IPV4_METHOD"
 if [[ "$IPV4_METHOD" == "manual" ]]; then
   log "Clonagem IPv4 manual para o bridge..."
-  if ! nmcli con mod "$BR_CONN" ipv4.addresses "" 2>/dev/null; then
-    warn "Falha ao limpar ipv4.addresses no bridge."
-  fi
   if [[ -n "${IPV4_ADDRS//[[:space:]]/}" ]]; then
+    if ! nmcli con mod "$BR_CONN" ipv4.addresses "" 2>/dev/null; then
+      warn "Falha ao limpar ipv4.addresses no bridge."
+    fi
+    first_ipv4=true
     while IFS= read -r line; do
       [[ -z "$line" ]] && continue
-      if ! nmcli con mod "$BR_CONN" +ipv4.addresses "$line" 2>/dev/null; then
-        warn "Falha ao aplicar ipv4.addresses='$line' no bridge."
+      if [[ "$first_ipv4" == true ]]; then
+        if ! nmcli con mod "$BR_CONN" ipv4.addresses "$line" ipv4.method manual 2>/dev/null; then
+          warn "Falha ao definir primeiro IPv4 '$line' no bridge."
+        fi
+        first_ipv4=false
+      else
+        if ! nmcli con mod "$BR_CONN" +ipv4.addresses "$line" 2>/dev/null; then
+          warn "Falha ao adicionar ipv4.addresses='$line' no bridge."
+        fi
       fi
     done <<< "$IPV4_ADDRS"
+    if [[ "$first_ipv4" == true ]]; then
+      warn "Ligação original usa IPv4 manual mas não devolveu endereços."
+      nmcli con mod "$BR_CONN" ipv4.method auto 2>/dev/null || true
+    fi
   else
     warn "Ligação original usa IPv4 manual mas sem endereços definidos."
+    nmcli con mod "$BR_CONN" ipv4.method auto 2>/dev/null || true
   fi
   if [[ -n "${IPV4_GW//[[:space:]]/}" ]]; then
     nmcli con mod "$BR_CONN" ipv4.gateway "$IPV4_GW"
@@ -231,6 +243,7 @@ if [[ "$IPV4_METHOD" == "manual" ]]; then
   fi
 else
   log "Bridge fica com método IPv4='$IPV4_METHOD' (sem endereços manuais)."
+  nmcli con mod "$BR_CONN" ipv4.method "$IPV4_METHOD"
   nmcli con mod "$BR_CONN" ipv4.addresses "" ipv4.gateway ""
 fi
 
@@ -249,19 +262,33 @@ nm_copy_single "ipv4.dhcp-timeout"
 nm_copy_single "ipv4.dhcp-fqdn"
 
 # IPv6
-nmcli con mod "$BR_CONN" ipv6.method "$IPV6_METHOD"
 if [[ "$IPV6_METHOD" == "manual" ]]; then
   log "Clonagem IPv6 manual para o bridge..."
-  if ! nmcli con mod "$BR_CONN" ipv6.addresses "" 2>/dev/null; then
-    warn "Falha ao limpar ipv6.addresses no bridge."
-  fi
   if [[ -n "${IPV6_ADDRS//[[:space:]]/}" ]]; then
+    if ! nmcli con mod "$BR_CONN" ipv6.addresses "" 2>/dev/null; then
+      warn "Falha ao limpar ipv6.addresses no bridge."
+    fi
+    first_ipv6=true
     while IFS= read -r line; do
       [[ -z "$line" ]] && continue
-      if ! nmcli con mod "$BR_CONN" +ipv6.addresses "$line" 2>/dev/null; then
-        warn "Falha ao aplicar ipv6.addresses='$line' no bridge."
+      if [[ "$first_ipv6" == true ]]; then
+        if ! nmcli con mod "$BR_CONN" ipv6.addresses "$line" ipv6.method manual 2>/dev/null; then
+          warn "Falha ao definir primeiro IPv6 '$line' no bridge."
+        fi
+        first_ipv6=false
+      else
+        if ! nmcli con mod "$BR_CONN" +ipv6.addresses "$line" 2>/dev/null; then
+          warn "Falha ao adicionar ipv6.addresses='$line' no bridge."
+        fi
       fi
     done <<< "$IPV6_ADDRS"
+    if [[ "$first_ipv6" == true ]]; then
+      warn "Ligação original usa IPv6 manual mas não devolveu endereços."
+      nmcli con mod "$BR_CONN" ipv6.method auto 2>/dev/null || true
+    fi
+  else
+    warn "Ligação original usa IPv6 manual mas sem endereços definidos."
+    nmcli con mod "$BR_CONN" ipv6.method auto 2>/dev/null || true
   fi
   if [[ -n "${IPV6_GW//[[:space:]]/}" ]]; then
     nmcli con mod "$BR_CONN" ipv6.gateway "$IPV6_GW"
@@ -270,6 +297,7 @@ if [[ "$IPV6_METHOD" == "manual" ]]; then
   fi
 else
   log "Bridge fica com método IPv6='$IPV6_METHOD'."
+  nmcli con mod "$BR_CONN" ipv6.method "$IPV6_METHOD"
   nmcli con mod "$BR_CONN" ipv6.addresses "" ipv6.gateway ""
 fi
 
