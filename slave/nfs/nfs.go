@@ -3,9 +3,12 @@ package nfs
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -792,45 +795,75 @@ func labelNFSMountSource(path string) error {
 	return nil
 }
 
+func fastHTTPClient() *http.Client {
+	tr := &http.Transport{
+		// Dial rápido com keep-alives agressivos
+		DialContext: (&net.Dialer{
+			Timeout:   10 * time.Second,
+			KeepAlive: 60 * time.Second,
+			// Buffers do SO (deixa o kernel auto-tunar; se quiseres, ajusta aqui)
+		}).DialContext,
+		ForceAttemptHTTP2:     true, // HTTPS → tenta HTTP/2 (melhor multiplexing)
+		MaxIdleConns:          200,
+		MaxIdleConnsPerHost:   200,
+		MaxConnsPerHost:       0, // 0 = sem limite (deixa o cliente gerir)
+		IdleConnTimeout:       90 * time.Second,
+		DisableCompression:    true, // não interessa para binários
+		ExpectContinueTimeout: 0,    // evita espera extra
+		TLSClientConfig: &tls.Config{
+			MinVersion: tls.VersionTLS12,
+			// HTTP/3 não é suportado por net/http puro; para isso usar quic-go (extra).
+		},
+	}
+	return &http.Client{
+		Transport: tr,
+		Timeout:   0, // sem timeout global; usa o ctx do pedido
+	}
+}
+
 func downloadFile(ctx context.Context, url, destPath string) error {
-	//if file exists return error
+	// FAIL-FAST se o ficheiro já existe
 	if _, err := os.Stat(destPath); err == nil {
 		return fmt.Errorf("file already exists: %s", destPath)
 	}
-
-	client := grab.NewClient()
-
 	if ctx == nil {
 		ctx = context.Background()
 	}
+
+	client := grab.NewClient()
+	client.HTTPClient = fastHTTPClient()
 
 	req, err := grab.NewRequest(destPath, url)
 	if err != nil {
 		return err
 	}
-	// bind request to ctx so it cancels the transfer
+	req.HTTPRequest.Header.Set("User-Agent",
+		"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "+
+			"(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+	// Evita encodings/negociações esquisitas
+	req.HTTPRequest.Header.Set("Accept", "*/*")
+	req.HTTPRequest.Header.Del("Accept-Encoding") // n/comprimir
+
+	// Contexto para cancelamento
 	req = req.WithContext(ctx)
 
-	fmt.Printf("Downloading %v...\n", req.URL())
 	resp := client.Do(req)
-
 	if resp.HTTPResponse != nil {
-		fmt.Printf("  %v\n", resp.HTTPResponse.Status)
+		fmt.Printf("HTTP %s\n", resp.HTTPResponse.Status)
 	}
 
 	t := time.NewTicker(500 * time.Millisecond)
 	defer t.Stop()
 
-Loop:
 	for {
 		select {
 		case <-ctx.Done():
-			// context canceled; grab will stop the request via req.WithContext
-			fmt.Fprintf(os.Stderr, "Download canceled\n")
+			fmt.Fprintln(os.Stderr, "Download canceled")
 			return ctx.Err()
 		case <-t.C:
+			// progresso
 			extra.SendWebsocketMessage(
-				fmt.Sprintf("Download progress: %v / %v bytes (%.2f%%)  - %.2f MB/s",
+				fmt.Sprintf("Download: %d / %d (%.2f%%) - %.2f MB/s",
 					resp.BytesComplete(),
 					resp.Size(),
 					100*resp.Progress(),
@@ -838,17 +871,13 @@ Loop:
 				extraGrpc.WebSocketsMessageType_DownloadIso,
 			)
 		case <-resp.Done:
-			break Loop
+			if err := resp.Err(); err != nil {
+				return fmt.Errorf("download failed: %w", err)
+			}
+			fmt.Printf("Saved to %s\n", resp.Filename)
+			return nil
 		}
 	}
-
-	// check for errors
-	if err := resp.Err(); err != nil {
-		return fmt.Errorf("download failed: %w", err)
-	}
-
-	fmt.Printf("Download saved to %v\n", resp.Filename)
-	return nil
 }
 
 // check if folder exists, if not return error
