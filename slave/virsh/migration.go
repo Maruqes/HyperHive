@@ -66,9 +66,6 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 		"--p2p",
 		"--tunnelled",
 		"--auto-converge",
-		"--compressed",
-		"--comp-methods", "xbzrle",
-		"--comp-xbzrle-cache", "256",
 		"--bandwidth", "0",
 		"--abort-on-error",
 	}
