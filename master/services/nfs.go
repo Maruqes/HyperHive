@@ -59,6 +59,23 @@ func (s *NFSService) CreateSharePoint() error {
 		return fmt.Errorf("slave not connected")
 	}
 
+	//make sure name exists and sanitize it (only letters and numbers), and add it to folder_path
+	if s.SharePoint.Name != "" {
+		sanitized := ""
+		for _, r := range s.SharePoint.Name {
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+				sanitized += string(r)
+			}
+		}
+		if sanitized != "" {
+			if s.SharePoint.FolderPath[len(s.SharePoint.FolderPath)-1] != '/' {
+				s.SharePoint.FolderPath = s.SharePoint.FolderPath + "/" + sanitized
+			} else {
+				s.SharePoint.FolderPath = s.SharePoint.FolderPath + sanitized
+			}
+		}
+	}
+
 	mount := &proto.FolderMount{
 		MachineName: s.SharePoint.MachineName,                  // machine that shares
 		FolderPath:  s.SharePoint.FolderPath,                   // folder to share
