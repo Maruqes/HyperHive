@@ -13,6 +13,7 @@ import (
 	"slave/protocol"
 	"slave/virsh"
 	"strings"
+	"time"
 
 	"github.com/Maruqes/512SvMan/logger"
 )
@@ -43,8 +44,10 @@ sudo chmod 600 /root/.ssh/config
 */
 func setupSSHKeys() error {
 	const (
-		keyFile    = "/root/.ssh/id_rsa_512svman"
-		configPath = "/root/.ssh/config"
+		keyFile      = "/root/.ssh/id_rsa_512svman"
+		configPath   = "/root/.ssh/config"
+		maxAttempts  = 5
+		attemptDelay = 2 * time.Second
 	)
 
 	if err := ensureSSHKey(keyFile); err != nil {
@@ -54,17 +57,24 @@ func setupSSHKeys() error {
 	pubKeyFile := keyFile + ".pub"
 
 	for _, ip := range env512.OTHER_SLAVES {
-		for {
+		success := false
+		for attempt := 1; attempt <= maxAttempts; attempt++ {
 			if err := ensureAuthorizedKey(ip, keyFile, pubKeyFile); err != nil {
-				logger.Error(fmt.Sprintf("ensure authorized key for %s: %v", ip, err))
-				continue
+				logger.Error(fmt.Sprintf("ensure authorized key for %s (attempt %d/%d): %v", ip, attempt, maxAttempts, err))
+			} else if err := ensureHostConfig(configPath, ip, keyFile); err != nil {
+				logger.Error(fmt.Sprintf("ensure ssh config for %s (attempt %d/%d): %v", ip, attempt, maxAttempts, err))
+			} else {
+				success = true
+				break
 			}
 
-			if err := ensureHostConfig(configPath, ip, keyFile); err != nil {
-				logger.Error(fmt.Sprintf("ensure ssh config for %s: %v", ip, err))
-				continue
+			if attempt < maxAttempts {
+				time.Sleep(attemptDelay)
 			}
-			break
+		}
+
+		if !success {
+			logger.Error(fmt.Sprintf("skipping SSH setup for %s after %d attempts", ip, maxAttempts))
 		}
 	}
 	return nil
