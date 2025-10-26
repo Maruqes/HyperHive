@@ -402,6 +402,9 @@ fi
 ip addr flush dev "$BR_IF" 2>/dev/null || true
 ip link set "$BR_IF" down 2>/dev/null || true
 ip link delete "$BR_IF" type bridge 2>/dev/null || true
+if ip link show "$BR_IF" >/dev/null 2>&1; then
+  warn "Interface '$BR_IF' ainda existe após a remoção. Remove manualmente com: sudo ip link delete $BR_IF type bridge"
+fi
 
 ip link set "$NIC_DEV" promisc off 2>/dev/null || true
 
