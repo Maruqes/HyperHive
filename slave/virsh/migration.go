@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
+	"github.com/Maruqes/512SvMan/logger"
 	libvirt "libvirt.org/go/libvirt"
 )
 
@@ -101,7 +102,7 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 
 	cmd := exec.Command("virsh", baseArgs...)
 	cmd.Env = env
-
+	logger.Info("Executing: " + cmd.String())
 	errors := extra.ExecWithOutToSocketCMD(ctx, extraGrpc.WebSocketsMessageType_MigrateVm, cmd)
 	if errors != nil {
 		//convert []error to a single error
