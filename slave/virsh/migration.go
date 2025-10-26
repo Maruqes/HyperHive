@@ -71,7 +71,6 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 		"--comp-methods", "zstd",
 		"--comp-zstd-level", "3",
 		"--bandwidth", "0",
-		"--downtime", "1000",
 		"--abort-on-error",
 	}
 
