@@ -187,6 +187,9 @@ nm_copy_single "connection.llmnr"
 nm_copy_single "connection.autoconnect-priority"
 
 BRIDGE_MTU="$(nm_get "802-3-ethernet.mtu")"
+if [[ "${BRIDGE_MTU,,}" == "auto" ]]; then
+  BRIDGE_MTU=""
+fi
 if [[ -n "${BRIDGE_MTU//[[:space:]]/}" ]]; then
   if ! nmcli con mod "$BR_CONN" bridge.mtu "$BRIDGE_MTU" 2>/dev/null; then
     warn "Não consegui aplicar bridge.mtu='$BRIDGE_MTU' no perfil '$BR_CONN'."
@@ -313,13 +316,26 @@ nm_slave_copy_single "802-3-ethernet.wake-on-lan-password"
 log "A ativar o bridge '$BR_CONN' (pode haver 1–3s de latência na rede)..."
 nmcli -w 20 con up "$BR_CONN"
 
+if [[ -n "${SLAVE_CONN:-}" ]]; then
+  if [[ "$AUTOCONNECT_MODIFIED" == false && "$ACTIVE_CONN" != "$BR_CONN" && "$ORIG_AUTOCONNECT" == "yes" ]]; then
+    log "A desativar autoconnect da ligação antiga '$ACTIVE_CONN' enquanto migra..."
+    if nmcli con mod "$ACTIVE_CONN" connection.autoconnect no; then
+      AUTOCONNECT_MODIFIED=true
+    else
+      warn "Falha ao desativar autoconnect da ligação '$ACTIVE_CONN'."
+    fi
+  fi
+  log "A ativar a ligação slave '$SLAVE_CONN'..."
+  nmcli -w 20 con up "$SLAVE_CONN"
+fi
+
 # Validar que os endereços migraram para o bridge antes de mexer mais
 BR_CURRENT_V4=""
 BR_CURRENT_V6=""
 
 if [[ "$IPV4_METHOD" == "manual" && -n "${IPV4_ADDRS//[[:space:]]/}" ]]; then
   IPv4_OK=false
-  for attempt in {1..10}; do
+  for attempt in {1..30}; do
     BR_CURRENT_V4="$(ip -o -4 addr show dev "$BR_NAME" | awk '{print $4}')"
     MISSING_V4=false
     while IFS= read -r addr; do
@@ -339,7 +355,7 @@ if [[ "$IPV4_METHOD" == "manual" && -n "${IPV4_ADDRS//[[:space:]]/}" ]]; then
     die "Endereços IPv4 esperados não apareceram no bridge '$BR_NAME' — abortado para evitar perda de conectividade."
   fi
 else
-  for attempt in {1..10}; do
+  for attempt in {1..30}; do
     BR_CURRENT_V4="$(ip -o -4 addr show dev "$BR_NAME" | awk '{print $4}')"
     if [[ -n "${BR_CURRENT_V4//[[:space:]]/}" || -z "${PHY_IPV4_ACTIVE//[[:space:]]/}" ]]; then
       break
@@ -353,7 +369,7 @@ fi
 
 if [[ "$IPV6_METHOD" == "manual" && -n "${IPV6_ADDRS//[[:space:]]/}" ]]; then
   IPv6_OK=false
-  for attempt in {1..10}; do
+  for attempt in {1..40}; do
     BR_CURRENT_V6="$(ip -o -6 addr show dev "$BR_NAME" scope global | awk '{print $4}')"
     MISSING_V6=false
     while IFS= read -r addr; do
@@ -373,7 +389,7 @@ if [[ "$IPV6_METHOD" == "manual" && -n "${IPV6_ADDRS//[[:space:]]/}" ]]; then
     die "Endereços IPv6 esperados não apareceram no bridge '$BR_NAME'."
   fi
 else
-  for attempt in {1..10}; do
+  for attempt in {1..40}; do
     BR_CURRENT_V6="$(ip -o -6 addr show dev "$BR_NAME" scope global | awk '{print $4}')"
     if [[ -n "${BR_CURRENT_V6//[[:space:]]/}" || -z "${PHY_IPV6_ACTIVE//[[:space:]]/}" ]]; then
       break
@@ -397,7 +413,7 @@ else
   log "Bridge sem IPv6 globais ativos atualmente."
 fi
 
-if [[ "$ACTIVE_CONN" != "$BR_CONN" && "$ORIG_AUTOCONNECT" == "yes" ]]; then
+if [[ "$AUTOCONNECT_MODIFIED" == false && "$ACTIVE_CONN" != "$BR_CONN" && "$ORIG_AUTOCONNECT" == "yes" ]]; then
   log "A desativar autoconnect da ligação antiga '$ACTIVE_CONN' (somente após sucesso)."
   if nmcli con mod "$ACTIVE_CONN" connection.autoconnect no; then
     AUTOCONNECT_MODIFIED=true

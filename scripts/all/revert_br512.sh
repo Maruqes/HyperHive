@@ -208,6 +208,9 @@ BRIDGE_MTU=""
 if [[ -n "${SLAVE_CONN:-}" ]]; then
   BRIDGE_MTU="$(nm_conn_get "$SLAVE_CONN" "802-3-ethernet.mtu")"
 fi
+if [[ "${BRIDGE_MTU,,}" == "auto" ]]; then
+  BRIDGE_MTU=""
+fi
 if [[ -n "${BRIDGE_MTU//[[:space:]]/}" ]]; then
   nmcli con mod "$ETH_CONN" 802-3-ethernet.mtu "$BRIDGE_MTU" 2>/dev/null || warn "Não consegui aplicar MTU '$BRIDGE_MTU' à ligação '$ETH_CONN'."
 else
