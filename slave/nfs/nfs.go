@@ -45,7 +45,7 @@ var (
 		"rsize=1048576", "wsize=1048576",
 		"timeo=600", "retrans=3",
 		"noatime", "nodiratime", "_netdev",
-		"actimeo=0",
+		"actimeo=1",
 		"lookupcache=positive",
 	}
 
