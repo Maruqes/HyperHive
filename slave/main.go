@@ -355,6 +355,17 @@ func setupAll() error {
 		return fmt.Errorf("failed to add runtime firewall rule for port 50052: %w", err)
 	}
 
+	// Enable NFS for virtualization in SELinux
+	if err := exec.Command("setsebool", "-P", "virt_use_nfs", "on").Run(); err != nil {
+		return fmt.Errorf("failed to set SELinux boolean virt_use_nfs: %w", err)
+	}
+
+	// Enable domain_can_mmap_files in SELinux
+	if err := exec.Command("setsebool", "-P", "domain_can_mmap_files", "1").Run(); err != nil {
+		return fmt.Errorf("failed to set SELinux boolean domain_can_mmap_files: %w", err)
+	}
+
+
 	return nil
 }
 
