@@ -34,7 +34,7 @@ func (s *NFSService) MountFolder(ctx context.Context, req *pb.FolderMount) (*pb.
 		logger.Error("MountFolder failed", "error", err)
 		return &pb.MountResponse{Ok: false}, err
 	}
-	logger.Info("MountFolder succeeded", "folder", req.FolderPath, "source", req.Source, "target", req.Target)
+	logger.Info("MountFolder succeeded", "folder", req.FolderPath, "source", req.Source, "target", req.Target, "HostNormalMount", req.HostNormalMount)
 	return &pb.MountResponse{Ok: true}, nil
 }
 

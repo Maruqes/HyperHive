@@ -111,34 +111,58 @@ func isMounted(target string) bool {
 }
 
 func MonitorMounts() {
-	for {
+	ticker := time.NewTicker(monitorInterval)
+	defer ticker.Stop()
+
+	for range ticker.C {
 		CurrentMountsLock.RLock()
 		mounts := append([]FolderMount(nil), CurrentMounts...)
 		CurrentMountsLock.RUnlock()
 
 		for _, mount := range mounts {
-			//check if is mounted
+			// Skip empty targets
+			if strings.TrimSpace(mount.Target) == "" {
+				continue
+			}
+
+			// Check if is mounted
 			if !isMounted(mount.Target) {
-				//if not try to mount 3 times with 5 seconds interval
 				logger.Warn("NFS mount lost, attempting to remount:", mount.Target)
 				success := false
-				for i := 0; i < monitorFailureThreshold; i++ {
+
+				for attempt := 1; attempt <= monitorFailureThreshold; attempt++ {
+					logger.Info("Remount attempt", "attempt", attempt, "of", monitorFailureThreshold, "target", mount.Target)
+
 					err := MountSharedFolder(mount)
 					if err == nil {
 						success = true
+						logger.Info("Successfully remounted NFS share on attempt", attempt, ":", mount.Target)
 						break
 					}
-					logger.Warn("remount attempt failed:", mount.Target, err)
-					time.Sleep(monitorInterval)
+
+					logger.Warn("Remount attempt failed:", "attempt", attempt, "target", mount.Target, "error", err)
+
+					// Don't sleep after last attempt
+					if attempt < monitorFailureThreshold {
+						time.Sleep(monitorInterval)
+					}
 				}
+
 				if !success {
-					logger.Error("Failed to remount NFS share after multiple attempts:", mount.Target)
-				} else {
-					logger.Info("Successfully remounted NFS share:", mount.Target)
+					logger.Error("Failed to remount NFS share after", monitorFailureThreshold, "attempts:", mount.Target)
+					// Remove from CurrentMounts to avoid constant retry spam
+					CurrentMountsLock.Lock()
+					for i, m := range CurrentMounts {
+						if m.Target == mount.Target {
+							CurrentMounts = append(CurrentMounts[:i], CurrentMounts[i+1:]...)
+							logger.Warn("Removed failed mount from tracking:", mount.Target)
+							break
+						}
+					}
+					CurrentMountsLock.Unlock()
 				}
 			}
 		}
-		time.Sleep(monitorInterval)
 	}
 }
 
@@ -471,6 +495,11 @@ func RemoveSharedFolder(folder FolderMount) error {
 		return fmt.Errorf("folder path is required")
 	}
 
+	// Validate path for safety
+	if err := IsSafePath(path); err != nil {
+		return fmt.Errorf("invalid folder path: %w", err)
+	}
+
 	// 1) Remove any export line whose first field equals the path
 	//    - Keeps comments/blank lines intact
 	//    - Robust to different export options/spacing on the line
@@ -584,11 +613,37 @@ func applyWorldWritableACL(path string, recursive bool) error {
 }
 
 func mountLocalFolder(folder FolderMount) error {
-	logger.Info("MOUNTING LOCAL FOLDER")
-	source := strings.TrimSpace(folder.FolderPath)
+
+	logger.Info("Mouting local Folder")
+	logger.Info("Mouting local Folder")
+	logger.Info("Mouting local Folder")
+
+	parts := strings.SplitN(folder.Source, ":", 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid source format for local mount: %s (expected host:path)", folder.Source)
+	}
+
+	source := strings.TrimSpace(parts[1]) // Get the path part
 	target := strings.TrimSpace(folder.Target)
+
 	if source == "" || target == "" {
-		return fmt.Errorf("source and target are required")
+		return fmt.Errorf("source and target paths are required")
+	}
+
+	// Validate paths
+	if err := IsSafePath(source); err != nil {
+		return fmt.Errorf("invalid source path: %w", err)
+	}
+	if err := IsSafePath(target); err != nil {
+		return fmt.Errorf("invalid target path: %w", err)
+	}
+
+	// Check if source exists
+	if _, err := os.Stat(source); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("source folder does not exist: %s", source)
+		}
+		return fmt.Errorf("failed to stat source folder: %w", err)
 	}
 
 	if err := runCommand("ensure mount directory", "sudo", "mkdir", "-p", target); err != nil {
@@ -596,41 +651,77 @@ func mountLocalFolder(folder FolderMount) error {
 	}
 
 	if isMounted(target) {
-		logger.Info("local folder already mounted:", source, "->", target)
+		logger.Info("Local folder already mounted:", source, "->", target)
+		// Ensure it's in CurrentMounts (idempotent)
+		CurrentMountsLock.Lock()
+		alreadyTracked := false
+		for _, m := range CurrentMounts {
+			if m.Target == target {
+				alreadyTracked = true
+				break
+			}
+		}
+		if !alreadyTracked {
+			CurrentMounts = append(CurrentMounts, folder)
+		}
+		CurrentMountsLock.Unlock()
 		return nil
 	}
 
 	if err := runCommand("bind mount local folder",
 		"sudo", "mount", "--bind", source, target); err != nil {
-		return err
+		return fmt.Errorf("failed to bind mount: %w", err)
 	}
 
+	// Only add to CurrentMounts after successful mount
 	CurrentMountsLock.Lock()
-	CurrentMounts = append(CurrentMounts, folder)
+	alreadyTracked := false
+	for _, m := range CurrentMounts {
+		if m.Target == target {
+			alreadyTracked = true
+			break
+		}
+	}
+	if !alreadyTracked {
+		CurrentMounts = append(CurrentMounts, folder)
+	}
 	CurrentMountsLock.Unlock()
 
-	logger.Info("Local folder mounted:", source, "->", target)
+	logger.Info("Local folder mounted successfully:", source, "->", target)
 	return nil
 }
 
 func MountSharedFolder(folder FolderMount) error {
-
-	//if local mount is with localhost loopback
-	//divide folder.Source unitl ":", first part is the ip
-	if folder.HostNormalMount {
-		ip := strings.Split(folder.Source, ":")[0]
-		if ip == env512.SlaveIP {
-			return mountLocalFolder(folder)
-		}
-	}
-
+	// Validate and trim inputs first
 	source := strings.TrimSpace(folder.Source)
 	target := strings.TrimSpace(folder.Target)
 	if source == "" || target == "" {
 		return fmt.Errorf("source and target are required")
 	}
 
+	// Handle local mount if HostNormalMount is enabled and source IP matches this slave
+	if folder.HostNormalMount {
+		// Validate source format (must contain ":")
+		if !strings.Contains(source, ":") {
+			return fmt.Errorf("invalid NFS source format: %s (expected host:path)", source)
+		}
+
+		ip := strings.Split(source, ":")[0]
+		if ip == env512.SlaveIP || ip == "localhost" || ip == "127.0.0.1" {
+			logger.Info("Local mount detected (IP matches this slave):", ip)
+			return mountLocalFolder(folder)
+		}
+	}
+
 	opts := append([]string(nil), nfsMountOptions...)
+
+	// Ensure mount point exists BEFORE checking if it's mounted
+	if err := IsSafePath(target); err != nil {
+		return fmt.Errorf("invalid target path: %w", err)
+	}
+	if err := runCommand("ensure mount directory", "sudo", "mkdir", "-p", target); err != nil {
+		return err
+	}
 
 	ensureMountedWithOpts := func(remount bool) error {
 		if remount {
@@ -640,6 +731,7 @@ func MountSharedFolder(folder FolderMount) error {
 				return nil
 			}
 			// Fall back to full unmount + mount if remount failed
+			logger.Warn("In-place remount failed, doing full unmount+mount")
 			_ = runCommand("unmount nfs share", "sudo", "umount", "-f", target)
 		}
 		// Fresh mount
@@ -652,10 +744,17 @@ func MountSharedFolder(folder FolderMount) error {
 
 	if isMounted(target) {
 		// Validate current mount options; remount if needed
-		mtab, _ := os.ReadFile("/proc/mounts")
+		mtab, err := os.ReadFile("/proc/mounts")
+		if err != nil {
+			logger.Warn("Failed to read /proc/mounts, assuming remount needed:", err)
+			return ensureMountedWithOpts(true)
+		}
+
 		targetEsc := strings.ReplaceAll(target, " ", "\\040") // how /proc/mounts escapes spaces
 		lines := strings.Split(string(mtab), "\n")
 		needsRemount := false
+		foundMount := false
+
 		for _, ln := range lines {
 			if ln == "" {
 				continue
@@ -667,54 +766,95 @@ func MountSharedFolder(folder FolderMount) error {
 			mp := fields[1]
 			fsType := fields[2]
 			if mp == targetEsc && strings.HasPrefix(fsType, "nfs") {
+				foundMount = true
 				cur := "," + fields[3] + ","
-				// MUST NOT have local_lock=posix (causes corruption with multiple clients)
-				if strings.Contains(cur, ",local_lock=posix,") {
-					needsRemount = true
-					logger.Warn("Found dangerous local_lock=posix, remounting with safe options")
-					break
+				// Check against expected nfsMountOptions
+				for _, opt := range nfsMountOptions {
+					// Handle options with values (e.g., "rsize=1048576")
+					if strings.Contains(opt, "=") {
+						optKey := strings.Split(opt, "=")[0]
+						// Check if the option key exists in current mounts
+						if !strings.Contains(cur, ","+optKey+"=") {
+							needsRemount = true
+							logger.Warn("Missing expected mount option:", opt)
+							break
+						}
+					} else {
+						// Simple option without value
+						if !strings.Contains(cur, ","+opt+",") {
+							needsRemount = true
+							logger.Warn("Missing expected mount option:", opt)
+							break
+						}
+					}
 				}
-				// MUST NOT have nconnect (can cause issues with locking)
-				if strings.Contains(cur, ",nconnect=") {
-					needsRemount = true
-					logger.Warn("Found nconnect option, remounting without it")
-					break
-				}
-				// Should have sync for data integrity
-				if !strings.Contains(cur, ",sync,") {
-					needsRemount = true
-					logger.Warn("Missing sync option, remounting with it")
-					break
-				}
-				// good enough
 				break
 			}
 		}
+
+		if !foundMount {
+			logger.Warn("Mount point exists but not found in /proc/mounts, remounting")
+			needsRemount = true
+		}
+
 		if !needsRemount {
-			logger.Info("mount nfs share kept (already mounted with correct opts):", source, "->", target)
+			logger.Info("NFS share already mounted with correct options:", source, "->", target)
+			// Ensure it's in CurrentMounts (idempotent)
+			CurrentMountsLock.Lock()
+			alreadyTracked := false
+			for _, m := range CurrentMounts {
+				if m.Target == target {
+					alreadyTracked = true
+					break
+				}
+			}
+			if !alreadyTracked {
+				CurrentMounts = append(CurrentMounts, folder)
+			}
+			CurrentMountsLock.Unlock()
 			return nil
 		}
-		logger.Warn("remounting NFS with multi-client-safe opts:", target)
-		return ensureMountedWithOpts(true)
-	}
 
-	// Ensure mount point exists
-	if err := runCommand("ensure mount directory", "sudo", "mkdir", "-p", target); err != nil {
-		return err
+		logger.Warn("Remounting NFS with correct options:", target)
+		if err := ensureMountedWithOpts(true); err != nil {
+			return fmt.Errorf("failed to remount NFS share: %w", err)
+		}
+		// Update CurrentMounts after successful remount
+		CurrentMountsLock.Lock()
+		alreadyTracked := false
+		for _, m := range CurrentMounts {
+			if m.Target == target {
+				alreadyTracked = true
+				break
+			}
+		}
+		if !alreadyTracked {
+			CurrentMounts = append(CurrentMounts, folder)
+		}
+		CurrentMountsLock.Unlock()
+		return nil
 	}
 
 	// First-time mount with correct options
 	if err := ensureMountedWithOpts(false); err != nil {
-		return err
+		return fmt.Errorf("failed to mount NFS share: %w", err)
 	}
 
-	logger.Info("NFS LOCK")
+	// Only add to CurrentMounts after successful mount
 	CurrentMountsLock.Lock()
-	CurrentMounts = append(CurrentMounts, folder)
+	alreadyTracked := false
+	for _, m := range CurrentMounts {
+		if m.Target == target {
+			alreadyTracked = true
+			break
+		}
+	}
+	if !alreadyTracked {
+		CurrentMounts = append(CurrentMounts, folder)
+	}
 	CurrentMountsLock.Unlock()
-	logger.Info("NFS UNLOCK")
 
-	logger.Info("NFS share mounted: " + source + " -> " + target)
+	logger.Info("NFS share mounted successfully:", source, "->", target)
 	return nil
 }
 
@@ -968,22 +1108,27 @@ type SharedFolderStatus struct {
 }
 
 func GetSharedFolderStatus(folder FolderMount) (*SharedFolderStatus, error) {
-	path := strings.TrimSpace(folder.FolderPath)
-	if path == "" {
-		return nil, fmt.Errorf("folder path is required")
+	target := strings.TrimSpace(folder.Target)
+	if target == "" {
+		return nil, fmt.Errorf("target path is required")
 	}
 
 	var status SharedFolderStatus
 
-	if !isMounted(folder.Target) {
+	// Check if the target is mounted (not the source FolderPath)
+	if !isMounted(target) {
 		status.Working = false
+		status.SpaceOccupiedGB = -1
+		status.SpaceFreeGB = -1
+		status.SpaceTotalGB = -1
 		return &status, nil
 	}
 	status.Working = true
 
+	// Use target (mount point) for filesystem stats, not the source path
 	var statfs syscall.Statfs_t
-	if err := syscall.Statfs(path, &statfs); err != nil {
-		return nil, fmt.Errorf("failed to get filesystem stats: %w", err)
+	if err := syscall.Statfs(target, &statfs); err != nil {
+		return nil, fmt.Errorf("failed to get filesystem stats for %s: %w", target, err)
 	}
 
 	const bytesInGB = 1024 * 1024 * 1024

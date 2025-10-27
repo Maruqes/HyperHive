@@ -33,10 +33,11 @@ func ConvertNSFShareToGRPCFolderMount(share []db.NFSShare) *proto.FolderMountLis
 	}
 	for _, s := range share {
 		folderMounts.Mounts = append(folderMounts.Mounts, &proto.FolderMount{
-			MachineName: s.MachineName,
-			FolderPath:  s.FolderPath,
-			Source:      s.Source,
-			Target:      s.Target,
+			MachineName:     s.MachineName,
+			FolderPath:      s.FolderPath,
+			Source:          s.Source,
+			Target:          s.Target,
+			HostNormalMount: s.HostNormalMount,
 		})
 	}
 	return folderMounts
@@ -90,7 +91,7 @@ func (s *NFSService) CreateSharePoint() error {
 		return err
 	}
 
-	err := db.AddNFSShare(mount.MachineName, mount.FolderPath, mount.Source, mount.Target, s.SharePoint.Name, s.SharePoint.HostNormalMount)
+	err := db.AddNFSShare(mount.MachineName, mount.FolderPath, mount.Source, mount.Target, s.SharePoint.Name, mount.HostNormalMount)
 	if err != nil {
 		logger.Error("AddNFSShare failed: %v", err)
 		return err
@@ -120,10 +121,11 @@ func forcedelete(s *NFSService) error {
 
 	//remove last slash
 	mount := &proto.FolderMount{
-		MachineName: s.SharePoint.MachineName,
-		FolderPath:  s.SharePoint.FolderPath,
-		Source:      "",
-		Target:      "/mnt/512SvMan/shared/" + s.SharePoint.MachineName + "_" + getFolderName(s.SharePoint.FolderPath),
+		MachineName:     s.SharePoint.MachineName,
+		FolderPath:      s.SharePoint.FolderPath,
+		Source:          "",
+		Target:          "/mnt/512SvMan/shared/" + s.SharePoint.MachineName + "_" + getFolderName(s.SharePoint.FolderPath),
+		HostNormalMount: s.SharePoint.HostNormalMount,
 	}
 
 	conns := protocol.GetAllGRPCConnections()
@@ -194,10 +196,11 @@ func (s *NFSService) DeleteSharePoint(force bool) error {
 
 	//remove last slash
 	mount := &proto.FolderMount{
-		MachineName: s.SharePoint.MachineName,
-		FolderPath:  s.SharePoint.FolderPath,
-		Source:      conn.Addr + ":" + s.SharePoint.FolderPath,
-		Target:      "/mnt/512SvMan/shared/" + s.SharePoint.MachineName + "_" + getFolderName(s.SharePoint.FolderPath),
+		MachineName:     s.SharePoint.MachineName,
+		FolderPath:      s.SharePoint.FolderPath,
+		Source:          conn.Addr + ":" + s.SharePoint.FolderPath,
+		Target:          "/mnt/512SvMan/shared/" + s.SharePoint.MachineName + "_" + getFolderName(s.SharePoint.FolderPath),
+		HostNormalMount: s.SharePoint.HostNormalMount,
 	}
 
 	//get vms and isos and delete them first
@@ -329,10 +332,11 @@ func (s *NFSService) MountAllSharedFolders() error {
 	// create shared folders on all provided connections
 	for _, svNSF := range serversNFS {
 		mount := &proto.FolderMount{
-			FolderPath:  svNSF.FolderPath,
-			Source:      svNSF.Source,
-			Target:      svNSF.Target,
-			MachineName: svNSF.MachineName,
+			FolderPath:      svNSF.FolderPath,
+			Source:          svNSF.Source,
+			Target:          svNSF.Target,
+			MachineName:     svNSF.MachineName,
+			HostNormalMount: svNSF.HostNormalMount,
 		}
 		for i, conn := range conns {
 			if conn == nil {
@@ -359,10 +363,11 @@ func (s *NFSService) MountAllSharedFolders() error {
 		}
 		for _, svNSF := range serversNFS {
 			mount := &proto.FolderMount{
-				FolderPath:  svNSF.FolderPath,
-				Source:      svNSF.Source,
-				Target:      svNSF.Target,
-				MachineName: svNSF.MachineName,
+				FolderPath:      svNSF.FolderPath,
+				Source:          svNSF.Source,
+				Target:          svNSF.Target,
+				MachineName:     svNSF.MachineName,
+				HostNormalMount: svNSF.HostNormalMount,
 			}
 			logger.Info("Mounting NFS shared folder on machine with mount:", mount)
 			if err := nfs.MountSharedFolder(conn, mount); err != nil {
@@ -400,10 +405,11 @@ func (s *NFSService) DownloadISO(ctx context.Context, url, isoName string, nfsSh
 		IsoUrl:  url,
 		IsoName: isoName,
 		FolderMount: &proto.FolderMount{
-			MachineName: nfsShare.MachineName,
-			FolderPath:  nfsShare.FolderPath,
-			Source:      nfsShare.Source,
-			Target:      nfsShare.Target,
+			MachineName:     nfsShare.MachineName,
+			FolderPath:      nfsShare.FolderPath,
+			Source:          nfsShare.Source,
+			Target:          nfsShare.Target,
+			HostNormalMount: nfsShare.HostNormalMount,
 		},
 	}
 
