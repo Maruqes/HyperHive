@@ -45,7 +45,7 @@ var (
 		"proto=tcp",
 		"vers=4.2",
 		"timeo=600",
-		"retrans=5",
+		"retrans=3",
 		"noatime",
 		"nodiratime",
 		"_netdev",
@@ -56,6 +56,7 @@ var (
 	nfsServerOptions = []string{
 		"rw",
 		"sync",
+		"no_wdelay",
 		"no_subtree_check",
 		"no_root_squash",
 		"insecure",
