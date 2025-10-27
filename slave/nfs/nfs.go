@@ -49,8 +49,14 @@ var (
 		"noatime",
 		"nodiratime",
 		"_netdev",
-		"actimeo=0",
-		"lookupcache=positive",
+		// performance + stability:
+		"rsize=1048576", // 1MiB RPC size
+		"wsize=1048576",
+		"actimeo=1",            // short attr cache; avoids thrash from actimeo=0
+		"lookupcache=positive", // safe metadata caching
+		"local_lock=none",      // avoid client-side local locking quirks
+		// Optional (kernel >= 5.3); boosts throughput on 2.5GbE+:
+		// "nconnect=4",
 	}
 
 	nfsServerOptions = []string{
@@ -61,6 +67,7 @@ var (
 		"no_root_squash",
 		"insecure",
 		"sec=sys",
+		"fsid=0",
 	}
 )
 
