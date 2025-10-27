@@ -49,10 +49,12 @@ var (
 		"noatime",
 		"nodiratime",
 		"_netdev",
-		"rsize=1048576", 
+		"rsize=1048576",
 		"wsize=1048576",
-		"actimeo=0",
+		"nconnect=4", // if kernel >= 5.3; otherwise remove
+		"actimeo=1",  // avoid actimeo=0 thrash
 		"lookupcache=positive",
+		"local_lock=none",
 	}
 
 	nfsServerOptions = []string{
@@ -63,6 +65,7 @@ var (
 		"no_root_squash",
 		"insecure",
 		"sec=sys",
+		"fsid=0",
 	}
 )
 
