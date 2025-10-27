@@ -25,9 +25,10 @@ func (s *NFSService) CreateSharedFolder(ctx context.Context, req *pb.FolderMount
 
 func (s *NFSService) MountFolder(ctx context.Context, req *pb.FolderMount) (*pb.MountResponse, error) {
 	err := MountSharedFolder(FolderMount{
-		FolderPath: req.FolderPath,
-		Source:     req.Source,
-		Target:     req.Target,
+		FolderPath:      req.FolderPath,
+		Source:          req.Source,
+		Target:          req.Target,
+		HostNormalMount: req.HostNormalMount,
 	})
 	if err != nil {
 		logger.Error("MountFolder failed", "error", err)

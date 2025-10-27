@@ -27,9 +27,10 @@ import (
 )
 
 type FolderMount struct {
-	FolderPath string // shared folder, folder in host that will be shared via nfs
-	Source     string // nfs source (ip:/path)
-	Target     string // local mount point
+	FolderPath      string // shared folder, folder in host that will be shared via nfs
+	Source          string // nfs source (ip:/path)
+	Target          string // local mount point
+	HostNormalMount bool
 }
 
 const (
@@ -615,9 +616,11 @@ func MountSharedFolder(folder FolderMount) error {
 
 	//if local mount is with localhost loopback
 	//divide folder.Source unitl ":", first part is the ip
-	ip := strings.Split(folder.Source, ":")[0]
-	if ip == env512.SlaveIP {
-		return mountLocalFolder(folder)
+	if folder.HostNormalMount{
+		ip := strings.Split(folder.Source, ":")[0]
+		if ip == env512.SlaveIP {
+			return mountLocalFolder(folder)
+		}
 	}
 
 	source := strings.TrimSpace(folder.Source)

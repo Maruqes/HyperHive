@@ -43,9 +43,10 @@ func ConvertNSFShareToGRPCFolderMount(share []db.NFSShare) *proto.FolderMountLis
 }
 
 type SharePoint struct {
-	MachineName string `json:"machine_name"` //this machine want to share
-	FolderPath  string `json:"folder_path"`  //this folder
-	Name        string `json:"name"`         //optional friendly name for the share
+	MachineName     string `json:"machine_name"` //this machine want to share
+	FolderPath      string `json:"folder_path"`  //this folder
+	Name            string `json:"name"`         //optional friendly name for the share
+	HostNormalMount bool   `json:"host_normal_mount"`
 }
 
 type NFSService struct {
@@ -77,10 +78,11 @@ func (s *NFSService) CreateSharePoint() error {
 	}
 
 	mount := &proto.FolderMount{
-		MachineName: s.SharePoint.MachineName,                  // machine that shares
-		FolderPath:  s.SharePoint.FolderPath,                   // folder to share
-		Source:      conn.Addr + ":" + s.SharePoint.FolderPath, // creates ip:folderpath
-		Target:      "/mnt/512SvMan/shared/" + s.SharePoint.MachineName + "_" + getFolderName(s.SharePoint.FolderPath),
+		MachineName:     s.SharePoint.MachineName,                  // machine that shares
+		FolderPath:      s.SharePoint.FolderPath,                   // folder to share
+		Source:          conn.Addr + ":" + s.SharePoint.FolderPath, // creates ip:folderpath
+		Target:          "/mnt/512SvMan/shared/" + s.SharePoint.MachineName + "_" + getFolderName(s.SharePoint.FolderPath),
+		HostNormalMount: s.SharePoint.HostNormalMount,
 	}
 
 	if err := nfs.CreateSharedFolder(conn.Connection, mount); err != nil {
@@ -88,7 +90,7 @@ func (s *NFSService) CreateSharePoint() error {
 		return err
 	}
 
-	err := db.AddNFSShare(mount.MachineName, mount.FolderPath, mount.Source, mount.Target, s.SharePoint.Name)
+	err := db.AddNFSShare(mount.MachineName, mount.FolderPath, mount.Source, mount.Target, s.SharePoint.Name, s.SharePoint.HostNormalMount)
 	if err != nil {
 		logger.Error("AddNFSShare failed: %v", err)
 		return err
