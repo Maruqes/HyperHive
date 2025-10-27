@@ -582,16 +582,42 @@ func applyWorldWritableACL(path string, recursive bool) error {
 	return nil
 }
 
+func mountLocalFolder(folder FolderMount) error {
+	source := strings.TrimSpace(folder.FolderPath)
+	target := strings.TrimSpace(folder.Target)
+	if source == "" || target == "" {
+		return fmt.Errorf("source and target are required")
+	}
+
+	if err := runCommand("ensure mount directory", "sudo", "mkdir", "-p", target); err != nil {
+		return err
+	}
+
+	if isMounted(target) {
+		logger.Info("local folder already mounted:", source, "->", target)
+		return nil
+	}
+
+	if err := runCommand("bind mount local folder",
+		"sudo", "mount", "--bind", source, target); err != nil {
+		return err
+	}
+
+	CurrentMountsLock.Lock()
+	CurrentMounts = append(CurrentMounts, folder)
+	CurrentMountsLock.Unlock()
+
+	logger.Info("Local folder mounted:", source, "->", target)
+	return nil
+}
+
 func MountSharedFolder(folder FolderMount) error {
 
 	//if local mount is with localhost loopback
 	//divide folder.Source unitl ":", first part is the ip
 	ip := strings.Split(folder.Source, ":")[0]
 	if ip == env512.SlaveIP {
-		folder.Source = strings.Replace(folder.Source, ip, "localhost", 1)
-		logger.Info("MONTADO COM LOCALHOST")
-		logger.Info("MONTADO COM LOCALHOST")
-		logger.Info("MONTADO COM LOCALHOST")
+		return mountLocalFolder(folder)
 	}
 
 	source := strings.TrimSpace(folder.Source)
