@@ -584,6 +584,7 @@ func applyWorldWritableACL(path string, recursive bool) error {
 }
 
 func mountLocalFolder(folder FolderMount) error {
+	logger.Info("MOUNTING LOCAL FOLDER")
 	source := strings.TrimSpace(folder.FolderPath)
 	target := strings.TrimSpace(folder.Target)
 	if source == "" || target == "" {
@@ -616,7 +617,7 @@ func MountSharedFolder(folder FolderMount) error {
 
 	//if local mount is with localhost loopback
 	//divide folder.Source unitl ":", first part is the ip
-	if folder.HostNormalMount{
+	if folder.HostNormalMount {
 		ip := strings.Split(folder.Source, ":")[0]
 		if ip == env512.SlaveIP {
 			return mountLocalFolder(folder)
