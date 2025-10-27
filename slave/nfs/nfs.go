@@ -41,25 +41,18 @@ const (
 
 var (
 	nfsMountOptions = []string{
-		"rw",
-		"async",
-		"hard",
-		"proto=tcp",
-		"vers=4.2",
-		"rsize=1048576",
-		"wsize=1048576",
-		"nconnect=8",
-		"timeo=600",
-		"retrans=2",
-		"noatime",
-		"nodiratime",
-		"_netdev",
-		"actimeo=3",
+		"rw", "hard", "proto=tcp", "vers=4.2",
+		"nconnect=4",
+		"rsize=1048576", "wsize=1048576",
+		"timeo=600", "retrans=3",
+		"noatime", "nodiratime", "_netdev",
+		"actimeo=1",
 		"lookupcache=positive",
 	}
+
 	nfsServerOptions = []string{
 		"rw",
-		"async",
+		"async", // muito mais rápido em HDD, menos seguro
 		"no_subtree_check",
 		"no_root_squash",
 		"insecure",
