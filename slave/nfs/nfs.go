@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slave/env512"
 	"slave/extra"
 	"sort"
 	"strings"
@@ -589,6 +590,17 @@ func applyWorldWritableACL(path string, recursive bool) error {
 }
 
 func MountSharedFolder(folder FolderMount) error {
+
+	//if local mount is with localhost loopback
+	//divide folder.Source unitl ":", first part is the ip
+	ip := strings.Split(folder.Source, ":")[0]
+	if ip == env512.SlaveIP {
+		folder.Source = strings.Replace(folder.Source, ip, "localhost", 1)
+		logger.Info("MONTADO COM LOCALHOST")
+		logger.Info("MONTADO COM LOCALHOST")
+		logger.Info("MONTADO COM LOCALHOST")
+	}
+
 	source := strings.TrimSpace(folder.Source)
 	target := strings.TrimSpace(folder.Target)
 	if source == "" || target == "" {
