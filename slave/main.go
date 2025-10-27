@@ -358,27 +358,8 @@ func setupAll() error {
 	return nil
 }
 
-// if cant find 512rede and br512 interfaces panic
-func checkRequiredInterfaces() error {
-	requiredInterfaces := []string{"512rede", "br512"}
-
-	for _, iface := range requiredInterfaces {
-		cmd := exec.Command("ip", "link", "show", iface)
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("required network interface '%s' not found see NETWORK-SETUP.md", iface)
-		}
-	}
-
-	return nil
-}
-
 func main() {
 	askForSudo()
-
-	err := checkRequiredInterfaces()
-	if err != nil {
-		panic(err)
-	}
 
 	//varsc
 	if err := env512.Setup(); err != nil {

@@ -38,6 +38,34 @@ const (
 	exportsFile             = "/etc/exports.d/512svman.exports"
 )
 
+var (
+	nfsMountOptions = []string{
+		"rw",
+		"async",
+		"hard",
+		"proto=tcp",
+		"vers=4.2",
+		"rsize=1048576",
+		"wsize=1048576",
+		"nconnect=8",
+		"timeo=600",
+		"retrans=2",
+		"noatime",
+		"nodiratime",
+		"_netdev",
+		"actimeo=3",
+		"lookupcache=positive",
+	}
+	nfsServerOptions = []string{
+		"rw",
+		"async",
+		"no_subtree_check",
+		"no_root_squash",
+		"insecure",
+		"sec=sys",
+	}
+)
+
 var CurrentMounts = []FolderMount{}
 var CurrentMountsLock = &sync.RWMutex{}
 var setfaclWarnOnce sync.Once
@@ -227,7 +255,7 @@ func exportsEntry(path string) string {
 	// - no_root_squash: permite qemu/libvirt operar como root (mais simples/compat)
 	// - insecure: permite portas >1024 (útil em alguns clientes)
 	// - sec=sys: autenticação UNIX simples
-	return fmt.Sprintf("%s *(rw,async,no_subtree_check,no_root_squash,insecure,sec=sys)", path)
+	return fmt.Sprintf("%s *(%s)", path, strings.Join(nfsServerOptions, ","))
 }
 
 func allowSELinuxForNFS(path string) error {
@@ -567,23 +595,7 @@ func MountSharedFolder(folder FolderMount) error {
 		return fmt.Errorf("source and target are required")
 	}
 
-	opts := []string{
-		"rw",
-		"async",
-		"hard",
-		"proto=tcp",
-		"vers=4.2",
-		"rsize=1048576",
-		"wsize=1048576",
-		"nconnect=8",
-		"timeo=600",
-		"retrans=2",
-		"noatime",
-		"nodiratime",
-		"_netdev",
-		"actimeo=3",
-		"lookupcache=positive",
-	}
+	opts := append([]string(nil), nfsMountOptions...)
 
 	ensureMountedWithOpts := func(remount bool) error {
 		if remount {
