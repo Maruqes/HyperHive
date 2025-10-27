@@ -366,6 +366,19 @@ func setupAll() error {
 	}
 
 
+	// Enable virtqemud sockets (modern split model)
+	if err := exec.Command("systemctl", "enable", "--now", "virtqemud.socket", "virtqemud-ro.socket", "virtqemud-admin.socket").Run(); err != nil {
+		logger.Error(fmt.Sprintf("failed to enable virtqemud sockets: %v", err))
+	}
+	if err := exec.Command("systemctl", "enable", "--now", "virtlogd.socket", "virtlockd.socket").Run(); err != nil {
+		logger.Error(fmt.Sprintf("failed to enable virtlogd/virtlockd sockets: %v", err))
+	}
+
+	// Fallback to monolithic libvirtd
+	if err := exec.Command("systemctl", "enable", "--now", "libvirtd").Run(); err != nil {
+		logger.Error(fmt.Sprintf("failed to enable libvirtd: %v", err))
+	}
+
 	return nil
 }
 
