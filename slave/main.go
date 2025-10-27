@@ -360,25 +360,7 @@ func setupAll() error {
 		return fmt.Errorf("failed to set SELinux boolean virt_use_nfs: %w", err)
 	}
 
-	// Enable domain_can_mmap_files in SELinux
-	if err := exec.Command("setsebool", "-P", "domain_can_mmap_files", "1").Run(); err != nil {
-		return fmt.Errorf("failed to set SELinux boolean domain_can_mmap_files: %w", err)
-	}
-
-
-	// Enable virtqemud sockets (modern split model)
-	if err := exec.Command("systemctl", "enable", "--now", "virtqemud.socket", "virtqemud-ro.socket", "virtqemud-admin.socket").Run(); err != nil {
-		logger.Error(fmt.Sprintf("failed to enable virtqemud sockets: %v", err))
-	}
-	if err := exec.Command("systemctl", "enable", "--now", "virtlogd.socket", "virtlockd.socket").Run(); err != nil {
-		logger.Error(fmt.Sprintf("failed to enable virtlogd/virtlockd sockets: %v", err))
-	}
-
-	// Fallback to monolithic libvirtd
-	if err := exec.Command("systemctl", "enable", "--now", "libvirtd").Run(); err != nil {
-		logger.Error(fmt.Sprintf("failed to enable libvirtd: %v", err))
-	}
-
+	
 	return nil
 }
 
