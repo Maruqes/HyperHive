@@ -41,24 +41,21 @@ const (
 var (
 	nfsMountOptions = []string{
 		"rw",
-		"async",
 		"hard",
 		"proto=tcp",
 		"vers=4.2",
-		"rsize=1048576",
-		"wsize=1048576",
-		"nconnect=8",
 		"timeo=600",
-		"retrans=2",
+		"retrans=5",
 		"noatime",
 		"nodiratime",
 		"_netdev",
-		"actimeo=3",
+		"actimeo=0",
 		"lookupcache=positive",
 	}
+
 	nfsServerOptions = []string{
 		"rw",
-		"async",
+		"sync",
 		"no_subtree_check",
 		"no_root_squash",
 		"insecure",
