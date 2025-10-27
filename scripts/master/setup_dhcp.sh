@@ -1,23 +1,21 @@
 #!/usr/bin/env bash
-# Linux bridge setup for KVM/libvirt VMs on the same LAN as host (Fedora)
-# - Creates a Linux bridge (br-lan) and enslaves the physical NIC
-# - Moves the host IP to the bridge for transparent L2 connectivity
-# - Configures dnsmasq to serve DHCP on the bridge
-# - VMs attach to the bridge and get IPs from the same DHCP pool
-# - NO NAT, NO macvlan/macvtap - simple L2 bridging
+# Hardened, isolated DHCP + NAT for a single interface on Fedora.
+# - Wipes old per-network artifacts and conflicting settings for this network.
+# - Disables the global dnsmasq.service (to avoid any 10.42.* leftovers).
+# - Runs a dedicated dnsmasq-<network>.service that reads ONLY /etc/dnsmasq.d/<network>.conf
+# - firewalld NAT (iptables fallback) + persistent IPv4 forwarding.
 
 set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: setup_dhcp.sh [--rollback]
+Usage: setup_dhcp.sh [WAN_IFACE] (the interface with internet access)
 
-  --rollback : Remove bridge and restore IP to physical interface
+  LAN interface is fixed to 512rede
+  WAN_IFACE : Upstream interface used for NAT (auto-detected if omitted)
 
-Environment variables override defaults (PHYS_IF, SUBNET_CIDR, GATEWAY_IP, ...).
-
-This script creates a Linux bridge (br-lan) that allows KVM VMs to be on the
-same LAN as the host and other nodes without NAT or macvlan.
+Environment variables still override defaults (WAN_IF, SUBNET_CIDR, ...).
+Command-line arguments take precedence over the environment when applicable.
 USAGE
   exit 1
 }
@@ -38,32 +36,42 @@ else
   fatal 'Unable to determine distribution (missing /etc/os-release).'
 fi
 
-# --- CLI parsing -------------------------------------------------------------
-ROLLBACK=0
+# --- CLI overrides -----------------------------------------------------------
+CLI_WAN_IF=""
+
 case "${1:-}" in
   -h|--help) usage ;;
-  --rollback) ROLLBACK=1 ;;
 esac
 
+if [[ $# -gt 0 ]]; then
+  CLI_WAN_IF=$1
+  shift
+fi
+
+if [[ $# -gt 0 ]]; then
+  usage
+fi
+
 # --- Tunables (override via env) ---------------------------------------------
-PHYS_IF="${PHYS_IF:-512rede}"                      # Physical NIC
-BRIDGE_NAME="${BRIDGE_NAME:-br-lan}"               # Linux bridge name
+LAN_INTERFACE_NAME="512rede"
+NETWORK_NAME="$LAN_INTERFACE_NAME"
 SUBNET_CIDR="${SUBNET_CIDR:-192.168.76.0/24}"     # LAN subnet
-GATEWAY_IP="${GATEWAY_IP:-192.168.76.1}"          # Host IP (will move to bridge)
+GATEWAY_IP="${GATEWAY_IP:-192.168.76.1}"          # LAN gateway (this host)
 DHCP_RANGE_START="${DHCP_RANGE_START:-192.168.76.50}"
 DHCP_RANGE_END="${DHCP_RANGE_END:-192.168.76.200}"
-RESOLV_CONF="${RESOLV_CONF:-/etc/resolv.conf}"
+RESOLV_CONF="${RESOLV_CONF:-/etc/resolv.conf}"    # upstream resolvers to forward to
 DNSMASQ_CONF_DIR="${DNSMASQ_CONF_DIR:-/etc/dnsmasq.d}"
 DNSMASQ_LEASE_DIR="${DNSMASQ_LEASE_DIR:-/var/lib/dnsmasq}"
-BRIDGE_CONN_NAME="bridge-${BRIDGE_NAME}"
-SLAVE_CONN_NAME="bridge-slave-${PHYS_IF}"
-DEDICATED_UNIT="dnsmasq-${BRIDGE_NAME}.service"
+NM_CONNECTION_NAME="${NM_CONNECTION_NAME:-${NETWORK_NAME}-static}"
+SYSCTL_CONF="/etc/sysctl.d/99-${NETWORK_NAME}-ipforward.conf"
+DEDICATED_UNIT="dnsmasq-${NETWORK_NAME}.service"
+NAT_UNIT="${NETWORK_NAME}-nat.service"
+NAT_HELPER="/usr/local/sbin/${NETWORK_NAME}-nat.sh"
 
 # --- Pre-reqs -----------------------------------------------------------------
 command -v ip        >/dev/null 2>&1 || fatal 'iproute2 tools are required (missing `ip`).'
 command -v dnsmasq   >/dev/null 2>&1 || fatal 'dnsmasq must be installed before running this script.'
-command -v nmcli     >/dev/null 2>&1 || fatal 'nmcli (NetworkManager) is required for bridge management.'
-command -v virsh     >/dev/null 2>&1 || warn 'virsh not found: libvirt integration will not be verified.'
+command -v nmcli     >/dev/null 2>&1 || warn 'nmcli not found: persistence for interface may be weaker.'
 
 # --- CIDR helpers -------------------------------------------------------------
 cidr_prefix=${SUBNET_CIDR#*/}
@@ -86,280 +94,199 @@ network_address=$(int_to_ip "${network_int}")
 SUBNET_NETWORK="${network_address}/${cidr_prefix}"
 NETMASK=$(prefix_to_mask "${cidr_prefix}")
 
-# --- Verify physical interface exists -----------------------------------------
-ip link show "${PHYS_IF}" >/dev/null 2>&1 || fatal "Physical interface '${PHYS_IF}' not found."
+# --- Verify interface exists --------------------------------------------------
+ip link show "${NETWORK_NAME}" >/dev/null 2>&1 || fatal "Interface '${NETWORK_NAME}' not found."
 
-# =============================================================================
-# ROLLBACK: Remove bridge and restore IP to physical interface
-# =============================================================================
-if [[ ${ROLLBACK} -eq 1 ]]; then
-  info "═══ ROLLBACK MODE: Removing bridge ${BRIDGE_NAME} and restoring ${PHYS_IF} ═══"
-  
-  # Stop dnsmasq service
-  systemctl disable --now "${DEDICATED_UNIT}" >/dev/null 2>&1 || true
-  rm -f "/etc/systemd/system/${DEDICATED_UNIT}"
-  systemctl daemon-reload
-  
-  # Remove dnsmasq config
-  rm -f "${DNSMASQ_CONF_DIR}/${BRIDGE_NAME}.conf"
-  rm -f "${DNSMASQ_LEASE_DIR}/${BRIDGE_NAME}.leases"
-  
-  # Delete NetworkManager connections
-  nmcli connection delete "${BRIDGE_CONN_NAME}" >/dev/null 2>&1 || true
-  nmcli connection delete "${SLAVE_CONN_NAME}" >/dev/null 2>&1 || true
-  
-  # Restore physical interface with IP
-  info "Restoring ${PHYS_IF} with IP ${GATEWAY_IP}/${cidr_prefix}"
-  nmcli connection add type ethernet ifname "${PHYS_IF}" con-name "${PHYS_IF}-direct" \
-    ipv4.addresses "${GATEWAY_IP}/${cidr_prefix}" ipv4.method manual \
-    ipv6.method ignore autoconnect yes >/dev/null
-  nmcli connection up "${PHYS_IF}-direct" >/dev/null
-  
-  info "✓ Rollback complete. ${PHYS_IF} now has IP ${GATEWAY_IP}"
-  info "Verification:"
-  ip addr show "${PHYS_IF}" | grep inet
-  exit 0
-fi
+# --- Cleanup: remove anything for THIS network that could interfere ----------
+cleanup_for_network() {
+  info "Cleaning prior artifacts for ${NETWORK_NAME}"
 
-# =============================================================================
-# MAIN SETUP: Create bridge, enslave physical NIC, move IP, configure dnsmasq
-# =============================================================================
-
-# =============================================================================
-# MAIN SETUP: Create bridge, enslave physical NIC, move IP, configure dnsmasq
-# =============================================================================
-
-# --- Cleanup: remove old artifacts -------------------------------------------
-cleanup_old_setup() {
-  info "Cleaning old configurations..."
-  
-  # Stop old dnsmasq services
-  systemctl disable --now dnsmasq.service >/dev/null 2>&1 || true
-  systemctl disable --now "dnsmasq-${PHYS_IF}.service" >/dev/null 2>&1 || true
-  rm -f "/etc/systemd/system/dnsmasq-${PHYS_IF}.service"
-  
-  # Remove old NAT-related units
-  systemctl disable --now "${PHYS_IF}-nat.service" >/dev/null 2>&1 || true
-  rm -f "/etc/systemd/system/${PHYS_IF}-nat.service"
-  
-  # Clean old dnsmasq configs
-  rm -f "${DNSMASQ_CONF_DIR}/${PHYS_IF}.conf"
-  
-  # Ensure directories exist
+  # 1) Old per-network dnsmasq conf and leases (we'll recreate)
   install -d -m 755 "${DNSMASQ_CONF_DIR}" "${DNSMASQ_LEASE_DIR}"
-  
-  systemctl daemon-reload
+  rm -f "${DNSMASQ_CONF_DIR}/${NETWORK_NAME}.conf"
+  rm -f "${DNSMASQ_LEASE_DIR}/${NETWORK_NAME}.leases"
+
+  # 2) Remove old drop-ins we might have created on the global dnsmasq.service
+  rm -f "/etc/systemd/system/dnsmasq.service.d/${NETWORK_NAME}-wait.conf"
+  rmdir --ignore-fail-on-non-empty "/etc/systemd/system/dnsmasq.service.d" 2>/dev/null || true
+
+  # 3) Stop & disable the global dnsmasq (we'll run a dedicated instance)
+  if systemctl list-unit-files | grep -q '^dnsmasq\.service'; then
+    systemctl disable --now dnsmasq.service >/dev/null 2>&1 || true
+  fi
+
+  # 4) Kill any stray dnsmasq bound to our iface/IP
+  pkill -f "dnsmasq.*${NETWORK_NAME}" >/dev/null 2>&1 || true
+
+  # 5) Remove legacy iptables NAT unit
+  systemctl disable --now "${NAT_UNIT}" >/dev/null 2>&1 || true
+  rm -f "/etc/systemd/system/${NAT_UNIT}" "${NAT_HELPER}"
+
+  # 6) Ensure NM connection for this iface is NOT in 'shared' mode and is clean
+  if command -v nmcli >/dev/null 2>&1; then
+    # Delete every NM profile bound to this DEVICE except our target name
+    while read -r uuid name; do
+      [[ -z ${uuid} ]] && continue
+      [[ ${name} == "${NM_CONNECTION_NAME}" ]] && continue
+      info "Deleting NM profile '${name}' on ${NETWORK_NAME}"
+      nmcli connection delete uuid "${uuid}" >/dev/null 2>&1 || true
+    done < <(nmcli -t -f UUID,NAME,DEVICE connection show | awk -F: -v dev="${NETWORK_NAME}" '$3==dev{print $1" "$2}')
+
+    # Recreate our clean static profile
+    nmcli connection delete "${NM_CONNECTION_NAME}" >/dev/null 2>&1 || true
+    info "Creating NM static profile ${NM_CONNECTION_NAME} on ${NETWORK_NAME} (${GATEWAY_IP}/${cidr_prefix})"
+    nmcli connection add type ethernet ifname "${NETWORK_NAME}" con-name "${NM_CONNECTION_NAME}" \
+      ipv4.addresses "${GATEWAY_IP}/${cidr_prefix}" ipv4.method manual ipv4.never-default yes \
+      ipv6.method ignore autoconnect yes >/dev/null
+    nmcli connection modify "${NM_CONNECTION_NAME}" ipv4.gateway "" ipv4.dns "" ipv4.may-fail no >/dev/null
+    nmcli connection up "${NM_CONNECTION_NAME}" >/dev/null || warn "Failed to activate ${NM_CONNECTION_NAME}"
+  else
+    # Fallback if NM missing: set IP directly
+    ip addr flush dev "${NETWORK_NAME}" || true
+    ip link set "${NETWORK_NAME}" up
+    ip addr add "${GATEWAY_IP}/${cidr_prefix}" dev "${NETWORK_NAME}" valid_lft forever preferred_lft forever
+  fi
 }
-cleanup_old_setup
+cleanup_for_network
 
-# --- Step 1: Create Linux bridge with NetworkManager ------------------------
-info "═══ Step 1: Creating Linux bridge ${BRIDGE_NAME} ═══"
-
-# Delete existing bridge and slave connections if they exist
-nmcli connection delete "${BRIDGE_CONN_NAME}" >/dev/null 2>&1 || true
-nmcli connection delete "${SLAVE_CONN_NAME}" >/dev/null 2>&1 || true
-
-# Delete any connection currently bound to PHYS_IF
-while read -r uuid name; do
-  [[ -z ${uuid} ]] && continue
-  info "Removing old connection '${name}' from ${PHYS_IF}"
-  nmcli connection delete uuid "${uuid}" >/dev/null 2>&1 || true
-done < <(nmcli -t -f UUID,NAME,DEVICE connection show | awk -F: -v dev="${PHYS_IF}" '$3==dev{print $1" "$2}')
-
-info "Creating bridge connection ${BRIDGE_CONN_NAME}..."
-nmcli connection add type bridge ifname "${BRIDGE_NAME}" con-name "${BRIDGE_CONN_NAME}" \
-  bridge.stp no \
-  ipv4.addresses "${GATEWAY_IP}/${cidr_prefix}" \
-  ipv4.method manual \
-  ipv4.never-default no \
-  ipv6.method ignore \
-  autoconnect yes >/dev/null
-
-info "Adding ${PHYS_IF} as bridge slave (IP will move to bridge)..."
-nmcli connection add type ethernet ifname "${PHYS_IF}" con-name "${SLAVE_CONN_NAME}" \
-  master "${BRIDGE_NAME}" \
-  slave-type bridge \
-  autoconnect yes >/dev/null
-
-info "⚠️  DOWNTIME: Activating bridge (network will briefly disconnect)..."
-nmcli connection up "${BRIDGE_CONN_NAME}" >/dev/null
-sleep 2
-nmcli connection up "${SLAVE_CONN_NAME}" >/dev/null
-sleep 1
-
-info "✓ Bridge ${BRIDGE_NAME} created with IP ${GATEWAY_IP}"
-info "✓ ${PHYS_IF} enslaved to ${BRIDGE_NAME} (no IP on slave)"
-
-info "✓ Bridge ${BRIDGE_NAME} created with IP ${GATEWAY_IP}"
-info "✓ ${PHYS_IF} enslaved to ${BRIDGE_NAME} (no IP on slave)"
-
-# --- Step 2: Configure dnsmasq to listen on bridge ---------------------------
-info "═══ Step 2: Configuring dnsmasq on ${BRIDGE_NAME} ═══"
-
-DNSMASQ_CONF="${DNSMASQ_CONF_DIR}/${BRIDGE_NAME}.conf"
+# --- Write a per-network dnsmasq config (isolated) ---------------------------
+DNSMASQ_CONF="${DNSMASQ_CONF_DIR}/${NETWORK_NAME}.conf"
+info "Writing ${DNSMASQ_CONF}"
 cat >"${DNSMASQ_CONF}" <<CFG
-# Auto-generated for bridge ${BRIDGE_NAME} - KVM VMs on same LAN
-# Listens ONLY on ${BRIDGE_NAME}, isolated from other networks
-
-interface=${BRIDGE_NAME}
+# Auto-generated for ${NETWORK_NAME} -- DO NOT EDIT BY HAND
+interface=${NETWORK_NAME}
 bind-interfaces
 domain-needed
 bogus-priv
-
-# DHCP configuration
+# DHCP
 dhcp-authoritative
 dhcp-range=${DHCP_RANGE_START},${DHCP_RANGE_END},${NETMASK},infinite
 dhcp-option=option:router,${GATEWAY_IP}
 dhcp-option=option:dns-server,${GATEWAY_IP}
-dhcp-leasefile=${DNSMASQ_LEASE_DIR}/${BRIDGE_NAME}.leases
-
-# DNS forwarding
+dhcp-leasefile=${DNSMASQ_LEASE_DIR}/${NETWORK_NAME}.leases
+# DNS forwarders
 resolv-file=${RESOLV_CONF}
 log-dhcp
-log-queries
-
-# Don't read /etc/hosts or /etc/dnsmasq.conf to avoid conflicts
-no-hosts
 CFG
 
-# Test config
-dnsmasq --test -C "${DNSMASQ_CONF}" >/dev/null || fatal "dnsmasq config test failed"
+# Sanity check config before starting a service with it
+dnsmasq --test -C "${DNSMASQ_CONF}" >/dev/null || fatal "dnsmasq config test failed for ${DNSMASQ_CONF}"
 
-info "✓ dnsmasq config written to ${DNSMASQ_CONF}"
+# --- IPv4 forwarding (persist) -----------------------------------------------
+info 'Enabling IPv4 forwarding'
+cat >"${SYSCTL_CONF}" <<SYSCTL
+net.ipv4.ip_forward = 1
+SYSCTL
+sysctl -w net.ipv4.ip_forward=1 >/dev/null
 
-info "✓ dnsmasq config written to ${DNSMASQ_CONF}"
+# --- WAN detection ------------------------------------------------------------
+find_wan_iface() {
+  local iface
+  iface=$(ip route show default 0.0.0.0/0 | awk '/default/ {print $5; exit}')
+  [[ -n ${iface} ]] || fatal 'Unable to determine upstream (WAN) interface. Set WAN_IF env before running.'
+  printf '%s' "${iface}"
+}
+WAN_IF_INPUT="${CLI_WAN_IF:-${WAN_IF:-}}"
+WAN_IF="${WAN_IF_INPUT:-$(find_wan_iface)}"
+[[ -n ${WAN_IF} ]] || fatal 'WAN interface detection failed.'
+[[ "${WAN_IF}" != "${NETWORK_NAME}" ]] || fatal 'WAN interface must differ from the DHCP-serving interface.'
+ip link show "${WAN_IF}" >/dev/null 2>&1 || fatal "WAN interface '${WAN_IF}' not found."
 
-# --- Step 3: Create dedicated dnsmasq systemd service -------------------------
-info "═══ Step 3: Creating systemd service ${DEDICATED_UNIT} ═══"
+# --- NAT via firewalld (preferred) or iptables fallback ----------------------
+apply_firewall_cmd() {
+  if ! command -v firewall-cmd >/dev/null 2>&1; then
+    return 1
+  fi
+  local default_zone
+  default_zone=$(firewall-cmd --get-default-zone)
+  info "Configuring firewalld (default zone=${default_zone}, LAN=${NETWORK_NAME})"
+  firewall-cmd --permanent --zone="${default_zone}" --remove-interface="${NETWORK_NAME}" >/dev/null 2>&1 || true
+  firewall-cmd --permanent --zone=trusted --add-interface="${NETWORK_NAME}" >/dev/null
+  firewall-cmd --permanent --zone="${default_zone}" --add-masquerade >/dev/null
+  # Allow DHCP/DNS explicitly in trusted (usually open, but be explicit)
+  firewall-cmd --permanent --zone=trusted --add-service=dhcp >/dev/null 2>&1 || true
+  firewall-cmd --permanent --zone=trusted --add-service=dns  >/dev/null 2>&1 || true
+  firewall-cmd --reload >/dev/null
+  return 0
+}
+apply_iptables_rules() {
+  if ! command -v iptables >/dev/null 2>&1; then
+    warn 'iptables not available; skipping explicit NAT rules.'
+    return 1
+  fi
+  info "Configuring NAT via iptables (WAN=${WAN_IF}, LAN=${SUBNET_NETWORK})"
+  iptables -t nat -D POSTROUTING -s "${SUBNET_NETWORK}" -o "${WAN_IF}" -j MASQUERADE 2>/dev/null || true
+  iptables -D FORWARD -i "${WAN_IF}" -o "${NETWORK_NAME}" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
+  iptables -D FORWARD -i "${NETWORK_NAME}" -o "${WAN_IF}" -j ACCEPT 2>/dev/null || true
 
+  iptables -t nat -A POSTROUTING -s "${SUBNET_NETWORK}" -o "${WAN_IF}" -j MASQUERADE
+  iptables -A FORWARD -i "${WAN_IF}" -o "${NETWORK_NAME}" -m state --state RELATED,ESTABLISHED -j ACCEPT
+  iptables -A FORWARD -i "${NETWORK_NAME}" -o "${WAN_IF}" -j ACCEPT
+
+  # Persist with a simple oneshot unit
+  cat >"/etc/systemd/system/${NAT_UNIT}" <<UNIT
+[Unit]
+Description=Persist NAT rules for ${NETWORK_NAME}
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/iptables -t nat -C POSTROUTING -s ${SUBNET_NETWORK} -o ${WAN_IF} -j MASQUERADE || /usr/sbin/iptables -t nat -A POSTROUTING -s ${SUBNET_NETWORK} -o ${WAN_IF} -j MASQUERADE
+ExecStart=/usr/sbin/iptables -C FORWARD -i ${WAN_IF} -o ${NETWORK_NAME} -m state --state RELATED,ESTABLISHED -j ACCEPT || /usr/sbin/iptables -A FORWARD -i ${WAN_IF} -o ${NETWORK_NAME} -m state --state RELATED,ESTABLISHED -j ACCEPT
+ExecStart=/usr/sbin/iptables -C FORWARD -i ${NETWORK_NAME} -o ${WAN_IF} -j ACCEPT || /usr/sbin/iptables -A FORWARD -i ${NETWORK_NAME} -o ${WAN_IF} -j ACCEPT
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+  systemctl daemon-reload
+  systemctl enable --now "${NAT_UNIT}" >/dev/null 2>&1 || true
+  return 0
+}
+firewall_configured=0
+if apply_firewall_cmd; then
+  firewall_configured=1
+else
+  warn 'firewalld not configured; attempting iptables fallback.'
+  apply_iptables_rules || warn 'iptables NAT not configured; you must add forwarding manually.'
+fi
+
+# --- Dedicated dnsmasq service bound to this interface ONLY -------------------
 UNIT_PATH="/etc/systemd/system/${DEDICATED_UNIT}"
+info "Creating dedicated service ${DEDICATED_UNIT}"
 cat >"${UNIT_PATH}" <<EOF
 [Unit]
-Description=dnsmasq DHCP/DNS for bridge ${BRIDGE_NAME} (KVM VMs)
-Documentation=man:dnsmasq(8)
-Requires=sys-subsystem-net-devices-${BRIDGE_NAME}.device
-BindsTo=sys-subsystem-net-devices-${BRIDGE_NAME}.device
-After=sys-subsystem-net-devices-${BRIDGE_NAME}.device network-online.target NetworkManager-wait-online.service
-Before=libvirtd.service
+Description=dnsmasq for ${NETWORK_NAME}
+Requires=sys-subsystem-net-devices-${NETWORK_NAME}.device
+BindsTo=sys-subsystem-net-devices-${NETWORK_NAME}.device
+After=sys-subsystem-net-devices-${NETWORK_NAME}.device network-online.target NetworkManager-wait-online.service
 
 [Service]
 Type=simple
-# Wait for bridge to have an IP
-ExecStartPre=/bin/bash -c 'for i in {1..60}; do ip -4 addr show ${BRIDGE_NAME} | grep -q "inet " && exit 0; sleep 1; done; echo "${BRIDGE_NAME} has no IPv4"; exit 1'
-# Run with isolated config (ignore /etc/dnsmasq.conf to avoid conflicts)
-ExecStart=/usr/sbin/dnsmasq -k --conf-file=${DNSMASQ_CONF} --bind-interfaces --except-interface=lo
+# Wait until ${NETWORK_NAME} has an IPv4 address
+ExecStartPre=/bin/bash -c 'for i in {1..60}; do ip -4 addr show ${NETWORK_NAME} | grep -q "inet " && exit 0; sleep 1; done; echo "${NETWORK_NAME} has no IPv4"; exit 1'
+# Run ONLY with the per-network config; ignore /etc/dnsmasq.conf to avoid 10.42.* or other leftovers
+ExecStart=/usr/sbin/dnsmasq -k --conf-file=${DNSMASQ_CONF} --bind-interfaces
 Restart=on-failure
-RestartSec=3
+RestartSec=2
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
+# --- Enable/Start services ----------------------------------------------------
+info "Enabling NetworkManager-wait-online for better ordering"
+systemctl enable NetworkManager-wait-online.service >/dev/null 2>&1 || true
+
 systemctl daemon-reload
+info "Starting ${DEDICATED_UNIT}"
 systemctl enable --now "${DEDICATED_UNIT}"
-sleep 2
 
-info "✓ ${DEDICATED_UNIT} started"
-
-info "✓ ${DEDICATED_UNIT} started"
-
-# --- Step 4: Firewall configuration (allow DHCP/DNS, no NAT) -----------------
-info "═══ Step 4: Configuring firewall (no NAT - bridged mode) ═══"
-
-if command -v firewall-cmd >/dev/null 2>&1; then
-  # Add bridge to trusted zone (VMs are on same LAN)
-  firewall-cmd --permanent --zone=trusted --add-interface="${BRIDGE_NAME}" >/dev/null 2>&1 || true
-  firewall-cmd --permanent --zone=trusted --add-service=dhcp >/dev/null 2>&1 || true
-  firewall-cmd --permanent --zone=trusted --add-service=dns >/dev/null 2>&1 || true
-  firewall-cmd --reload >/dev/null
-  info "✓ firewalld: ${BRIDGE_NAME} in trusted zone (no NAT needed)"
-else
-  warn "firewalld not available. Ensure DHCP (67/68) and DNS (53) are allowed."
-fi
-
-# --- Step 5: libvirt network verification -------------------------------------
-info "═══ Step 5: Verifying libvirt default network isolation ═══"
-
-if command -v virsh >/dev/null 2>&1; then
-  # Ensure libvirt's default NAT network (virbr0) doesn't conflict
-  if virsh net-info default >/dev/null 2>&1; then
-    local_default_net=$(virsh net-dumpxml default 2>/dev/null | grep -oP '(?<=<ip address=")[^"]+' || echo "")
-    if [[ ${local_default_net} == "192.168.76."* ]]; then
-      warn "libvirt default network uses ${local_default_net} - conflicts with your LAN!"
-      warn "Consider: virsh net-destroy default && virsh net-undefine default"
-    else
-      info "✓ libvirt default network (${local_default_net:-virbr0}) is isolated"
-    fi
-  fi
-fi
-
-# --- Verification and instructions --------------------------------------------
-info ""
-info "═══════════════════════════════════════════════════════════════════════════"
-info "✓ Bridge setup complete! ${BRIDGE_NAME} is serving DHCP ${DHCP_RANGE_START}-${DHCP_RANGE_END}"
-info "═══════════════════════════════════════════════════════════════════════════"
-info ""
-info "VERIFICATION COMMANDS:"
-info "  1. Check bridge status:"
-info "     ip -d link show ${BRIDGE_NAME}"
-info "     bridge link"
-info ""
-info "  2. Verify IP on bridge:"
-info "     ip addr show ${BRIDGE_NAME}"
-info ""
-info "  3. Check dnsmasq service:"
-info "     systemctl status ${DEDICATED_UNIT}"
-info "     ss -ulpn | grep ':53\\|:67'"
-info ""
-info "  4. Monitor DHCP leases:"
-info "     tail -f ${DNSMASQ_LEASE_DIR}/${BRIDGE_NAME}.leases"
-info ""
-info "  5. Test DHCP from another machine:"
-info "     sudo dhclient -v ${PHYS_IF}"
-info ""
-info "  6. Ping test from VM:"
-info "     ping ${GATEWAY_IP}"
-info ""
-info "══════════════════════════════════════════════════════════════════════════"
-info "LIBVIRT VM CONFIGURATION:"
-info "══════════════════════════════════════════════════════════════════════════"
-info ""
-info "Option A - Edit existing VM:"
-info "  virsh edit <vm-name>"
-info "  Replace network interface section with:"
-info "    <interface type='bridge'>"
-info "      <source bridge='${BRIDGE_NAME}'/>"
-info "      <model type='virtio'/>"
-info "    </interface>"
-info ""
-info "Option B - Create new VM with bridge:"
-info "  virt-install \\"
-info "    --name my-vm \\"
-info "    --memory 2048 \\"
-info "    --vcpus 2 \\"
-info "    --disk size=20 \\"
-info "    --network bridge=${BRIDGE_NAME},model=virtio \\"
-info "    --cdrom /path/to/installer.iso"
-info ""
-info "Option C - Attach existing VM to bridge:"
-info "  virsh attach-interface <vm-name> bridge ${BRIDGE_NAME} --model virtio --config"
-info "  virsh reboot <vm-name>"
-info ""
-info "══════════════════════════════════════════════════════════════════════════"
-info "ROLLBACK (if needed):"
-info "══════════════════════════════════════════════════════════════════════════"
-info "  sudo $0 --rollback"
-info ""
-info "This will:"
-info "  - Remove bridge ${BRIDGE_NAME}"
-info "  - Stop dnsmasq service"
-info "  - Restore IP ${GATEWAY_IP} directly to ${PHYS_IF}"
-info ""
-info "═══════════════════════════════════════════════════════════════════════════"
-
-# Final status check
+# --- Verification -------------------------------------------------------------
 sleep 1
-systemctl --no-pager --lines=20 status "${DEDICATED_UNIT}" || true
-echo ""
-ip -br addr show "${BRIDGE_NAME}" || true
-bridge link show | grep "${PHYS_IF}" || true
+systemctl --no-pager --lines=50 status "${DEDICATED_UNIT}" || true
+ss -lupn | egrep ':(53|67|68)\b' || true
+
+info "Done. ${NETWORK_NAME} is serving DHCP ${DHCP_RANGE_START}-${DHCP_RANGE_END} via ${GATEWAY_IP} and NATing out ${WAN_IF}."
+echo "Tip: test with 'tcpdump -ni ${NETWORK_NAME} port 67 or 68' while a client requests DHCP."
