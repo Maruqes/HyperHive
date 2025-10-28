@@ -77,6 +77,22 @@ func downloadNoVNC() error {
 	return nil
 }
 
+func setupFirewallD() error {
+	if err := execCommand("firewall-cmd", "--permanent", "--add-service=http"); err != nil {
+		return fmt.Errorf("failed to add http service: %w", err)
+	}
+
+	if err := execCommand("firewall-cmd", "--permanent", "--add-service=https"); err != nil {
+		return fmt.Errorf("failed to add https service: %w", err)
+	}
+
+	if err := execCommand("firewall-cmd", "--reload"); err != nil {
+		return fmt.Errorf("failed to reload firewall: %w", err)
+	}
+
+	return nil
+}
+
 func main() {
 	askForSudo()
 
