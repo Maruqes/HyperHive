@@ -41,50 +41,32 @@ const (
 )
 
 var (
-	// NFS Client Mount Options - Optimized for VM workloads over 10GbE+
 	nfsMountOptions = []string{
-		"rw",
-		"hard",            // retry indefinitely on failure (critical for VMs)
-		"proto=tcp",       // TCP for reliability
-		"vers=4.2",        // NFSv4.2 with better performance features
-		"nconnect=16",     // multiple TCP connections (16 for 10GbE+)
-		"rsize=1048576",   // 1MB read size (max performance)
-		"wsize=1048576",   // 1MB write size (max performance)
-		"timeo=600",       // 60s timeout (6 deciseconds units)
-		"retrans=3",       // 3 retransmissions before timeout
-		"noatime",         // don't update access time
-		"nodiratime",      // don't update directory access time
-		"_netdev",         // wait for network before mounting
-		"actimeo=1",       // 1s attribute cache (balance consistency/performance)
-		"lookupcache=all", // cache all lookups (faster than 'positive')
-		"fsc",             // enable FS-Cache for client-side caching
-		"nocto",           // don't check consistency on open (faster)
-		"nolock",          // disable NFS locking (libvirt has its own)
-		"async",           // async client writes (much faster, kernel manages flush)
+		"rw", "hard", "proto=tcp", "vers=4.2",
+		"nconnect=8", // sobe paralelismo (testa 8/16 conforme CPU/NIC)
+		"rsize=1048576", "wsize=1048576",
+		"timeo=600", "retrans=3",
+		"noatime", "nodiratime", "_netdev",
+		"nocto",           // desliga close-to-open; +perf, menos coerência
+		"actimeo=30",      // cache attrs 30s (podes subir p/ 60s)
+		"lookupcache=all", // também faz cache de lookups negativos
+		"fsc",             // cache em disco local (requer cachefilesd ativo)
 	}
 
-	// NFS Server Export Options - Maximum performance profile
 	nfsServerOptions = []string{
 		"rw",
-		"async",            // async server writes (HDD: 10x faster, less crash-safe)
-		"no_subtree_check", // skip subtree checking (faster exports)
-		"no_root_squash",   // allow root access (needed for QEMU/libvirt)
-		"no_all_squash",    // don't squash all users
-		"insecure",         // allow connections from ports >1024
-		"sec=sys",          // simple UNIX authentication
-		"fsid=0",           // export as root filesystem
-		"no_wdelay",        // disable write delay (faster with async)
-		"crossmnt",         // allow crossing mount points
+		"async", "no_wdelay", // máximo throughput; aceita risco em falhas de energia
+		"no_subtree_check",
+		"no_root_squash",
+		"insecure",
+		"sec=sys",
 	}
 
-	// Local Bind Mount Options - Optimized for direct disk access
 	localMountOpts = []string{
 		"rw",
-		"noatime",    // don't update access times (big perf win)
+		"noatime",    // don't update access times
 		"nodiratime", // don't update directory access times
-		"lazytime",   // lazy update of atime/mtime (kernel 4.0+)
-		"async",      // async writes (kernel manages flush)
-		"nobarrier",  // disable write barriers (faster, less safe on crash)
+		"relatime",   // update atime relative to mtime
 	}
 )
 
