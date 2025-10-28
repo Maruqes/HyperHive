@@ -40,33 +40,42 @@ const (
 	exportsFile             = "/etc/exports.d/512svman.exports"
 )
 
+// obrigado gpt pela configuraçao
 var (
 	nfsMountOptions = []string{
-		"rw", "hard", "proto=tcp", "vers=4.2",
-		"nconnect=8", // sobe paralelismo (testa 8/16 conforme CPU/NIC)
-		"rsize=1048576", "wsize=1048576",
-		"timeo=600", "retrans=3",
-		"noatime", "nodiratime", "_netdev",
-		"nocto",           // desliga close-to-open; +perf, menos coerência
-		"actimeo=30",      // cache attrs 30s (podes subir p/ 60s)
-		"lookupcache=all", // também faz cache de lookups negativos
-		"fsc",             // cache em disco local (requer cachefilesd ativo)
+		"rw",
+		"hard",            // chamadas bloqueiam e re-tentam até o servidor responder (evita corrupção)
+		"proto=tcp",       // usa TCP (mais estável e fiável que UDP)
+		"vers=4.2",        // força NFS versão 4.2 (melhor suporte e desempenho)
+		"nconnect=8",      // múltiplas ligações TCP paralelas para mais throughput (testar 8 ou 16)
+		"rsize=1048576",   // tamanho máximo de leitura (1 MiB)
+		"wsize=1048576",   // tamanho máximo de escrita (1 MiB)
+		"timeo=600",       // timeout base (60s) antes de reintentar
+		"retrans=3",       // número de reintentos antes de declarar falha
+		"noatime",         // não atualiza tempo de acesso de ficheiros (menos writes)
+		"nodiratime",      // não atualiza tempo de acesso de diretórios
+		"_netdev",         // indica dependência da rede (ordem de montagem correta)
+		"nocto",           // desativa verificação close-to-open (melhor performance, menos coerência)
+		"actimeo=30",      // cache de atributos por 30s (menos RPCs; aceitável p/ single-writer)
+		"lookupcache=all", // guarda resultados de lookup positivos e negativos
+		"fsc",             // ativa cache local em disco (requer cachefilesd ativo)
 	}
 
 	nfsServerOptions = []string{
-		"rw",
-		"async", "no_wdelay", // máximo throughput; aceita risco em falhas de energia
-		"no_subtree_check",
-		"no_root_squash",
-		"insecure",
-		"sec=sys",
+		"rw",               // leitura/escrita
+		"async",            // respostas antes de gravar em disco (máxima performance, menor segurança)
+		"no_wdelay",        // não atrasa writes pequenos (melhor latência)
+		"no_subtree_check", // evita verificações dispendiosas de subdiretórios
+		"no_root_squash",   // permite que o root do cliente mantenha privilégios (necessário para libvirt/qemu)
+		"insecure",         // aceita conexões de portas não privilegiadas (>1024)
+		"sec=sys",          // autenticação simples por UID/GID (rápida, padrão em LAN segura)
 	}
 
 	localMountOpts = []string{
-		"rw",
-		"noatime",    // don't update access times
-		"nodiratime", // don't update directory access times
-		"relatime",   // update atime relative to mtime
+		"rw",         // leitura/escrita
+		"noatime",    // não atualizar tempo de acesso (reduz IO)
+		"nodiratime", // idem para diretórios
+		"relatime",   // só atualiza atime se for mais antigo que mtime (compromisso equilibrado)
 	}
 )
 
@@ -277,12 +286,6 @@ RPCNFSDCOUNT=32
 }
 
 func exportsEntry(path string) string {
-	// FAST profile (performance > durabilidade)
-	// - async: confirma antes de gravar em disco → muito mais rápido
-	// - no_subtree_check: evita overhead em lookups
-	// - no_root_squash: permite qemu/libvirt operar como root (mais simples/compat)
-	// - insecure: permite portas >1024 (útil em alguns clientes)
-	// - sec=sys: autenticação UNIX simples
 	return fmt.Sprintf("%s *(%s)", path, strings.Join(nfsServerOptions, ","))
 }
 
