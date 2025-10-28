@@ -100,3 +100,12 @@ func CanFindFileOrDir(conn *grpc.ClientConn, path string) (bool, error) {
 	}
 	return res.GetOk(), nil
 }
+
+func Sync(conn *grpc.ClientConn) error {
+	client := pbnfs.NewNFSServiceClient(conn)
+	_, err := client.Sync(context.Background(), &pbnfs.Empty{})
+	if err != nil {
+		return err
+	}
+	return nil
+}

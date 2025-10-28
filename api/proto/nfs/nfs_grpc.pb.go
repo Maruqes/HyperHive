@@ -19,6 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
+	NFSService_Sync_FullMethodName                  = "/nfs.NFSService/Sync"
 	NFSService_CreateSharedFolder_FullMethodName    = "/nfs.NFSService/CreateSharedFolder"
 	NFSService_RemoveSharedFolder_FullMethodName    = "/nfs.NFSService/RemoveSharedFolder"
 	NFSService_MountFolder_FullMethodName           = "/nfs.NFSService/MountFolder"
@@ -34,6 +35,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type NFSServiceClient interface {
+	Sync(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*OkResponse, error)
 	CreateSharedFolder(ctx context.Context, in *FolderMount, opts ...grpc.CallOption) (*CreateResponse, error)
 	RemoveSharedFolder(ctx context.Context, in *FolderMount, opts ...grpc.CallOption) (*CreateResponse, error)
 	MountFolder(ctx context.Context, in *FolderMount, opts ...grpc.CallOption) (*MountResponse, error)
@@ -52,6 +54,16 @@ type nFSServiceClient struct {
 
 func NewNFSServiceClient(cc grpc.ClientConnInterface) NFSServiceClient {
 	return &nFSServiceClient{cc}
+}
+
+func (c *nFSServiceClient) Sync(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*OkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OkResponse)
+	err := c.cc.Invoke(ctx, NFSService_Sync_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *nFSServiceClient) CreateSharedFolder(ctx context.Context, in *FolderMount, opts ...grpc.CallOption) (*CreateResponse, error) {
@@ -148,6 +160,7 @@ func (c *nFSServiceClient) DownloadIso(ctx context.Context, in *DownloadIsoReque
 // All implementations must embed UnimplementedNFSServiceServer
 // for forward compatibility
 type NFSServiceServer interface {
+	Sync(context.Context, *Empty) (*OkResponse, error)
 	CreateSharedFolder(context.Context, *FolderMount) (*CreateResponse, error)
 	RemoveSharedFolder(context.Context, *FolderMount) (*CreateResponse, error)
 	MountFolder(context.Context, *FolderMount) (*MountResponse, error)
@@ -165,6 +178,9 @@ type NFSServiceServer interface {
 type UnimplementedNFSServiceServer struct {
 }
 
+func (UnimplementedNFSServiceServer) Sync(context.Context, *Empty) (*OkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Sync not implemented")
+}
 func (UnimplementedNFSServiceServer) CreateSharedFolder(context.Context, *FolderMount) (*CreateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateSharedFolder not implemented")
 }
@@ -203,6 +219,24 @@ type UnsafeNFSServiceServer interface {
 
 func RegisterNFSServiceServer(s grpc.ServiceRegistrar, srv NFSServiceServer) {
 	s.RegisterService(&NFSService_ServiceDesc, srv)
+}
+
+func _NFSService_Sync_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NFSServiceServer).Sync(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NFSService_Sync_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NFSServiceServer).Sync(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _NFSService_CreateSharedFolder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -374,6 +408,10 @@ var NFSService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "nfs.NFSService",
 	HandlerType: (*NFSServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Sync",
+			Handler:    _NFSService_Sync_Handler,
+		},
 		{
 			MethodName: "CreateSharedFolder",
 			Handler:    _NFSService_CreateSharedFolder_Handler,

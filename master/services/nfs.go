@@ -417,6 +417,10 @@ func (s *NFSService) DownloadISO(ctx context.Context, url, isoName string, nfsSh
 		logger.Error("DownloadISO failed: %v", err)
 		return "", err
 	}
+	err := nfs.Sync(conn.Connection)
+	if err != nil {
+		return "",err
+	}
 	return isoPath, nil
 }
 
@@ -472,4 +476,36 @@ func (s *NFSService) CanFindFileOrDirOnAllSlaves(path string) (map[string]bool, 
 	}
 
 	return results, nil
+}
+
+//uses "sync" command so nfs fushes all dirty tables
+func (s *NFSService) SyncNFSAllSlaves() error {
+	var errRet string
+	conns := protocol.GetAllGRPCConnections()
+	for i, con := range conns {
+		if con == nil {
+			continue
+		}
+		err := nfs.Sync(con)
+		if err != nil {
+			errRet += fmt.Sprintf("err %d: %s\n", i, err.Error())
+		}
+	}
+	if errRet != "" {
+		return fmt.Errorf("%s", errRet)
+	}
+	return nil
+}
+
+func (s *NFSService) SyncNFSSlavesByMachineName(machineName string) error {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil || conn.Connection == nil {
+		return fmt.Errorf("machineName doe snot exist or conn is nil")
+	}
+
+	err := nfs.Sync(conn.Connection)
+	if err != nil {
+		return err
+	}
+	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"512SvMan/db"
 	"512SvMan/env512"
 	"512SvMan/extra"
+	"512SvMan/nfs"
 	"512SvMan/protocol"
 	"512SvMan/virsh"
 	"context"
@@ -262,6 +263,12 @@ func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, mach
 		return fmt.Errorf("failed to chmod %s: %v", machine.DiskPath, err)
 	}
 
+	//flush before to make sure everything is on disk
+	err = nfs.Sync(originConn.Connection)
+	if err != nil {
+		return err
+	}
+
 	err = virsh.ColdMigrateVm(ctx, originConn.Connection, machine)
 	if err != nil {
 		return err
@@ -272,6 +279,12 @@ func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, mach
 		if err != nil {
 			return fmt.Errorf("failed to add live VM to database: %v", err)
 		}
+	}
+
+	//flush after also for redundancy
+	err = nfs.Sync(originConn.Connection)
+	if err != nil {
+		return err
 	}
 
 	return nil

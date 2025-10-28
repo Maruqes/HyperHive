@@ -43,8 +43,18 @@ message FolderPath{
   string path = 1;
 }
 
+message OkResponse {
+  bool ok = 1;
+  string message = 2;
+}
+
+message Empty{}
+
 //defines for slaves
 service NFSService {
+  rpc Sync(Empty) returns (OkResponse); //flushs memory
+
+
   rpc CreateSharedFolder(FolderMount) returns (CreateResponse);
   rpc RemoveSharedFolder(FolderMount) returns (CreateResponse);
   rpc MountFolder(FolderMount) returns (MountResponse);

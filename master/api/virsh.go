@@ -416,6 +416,7 @@ func exportVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshServices := services.VirshService{}
+	nfsServices := services.NFSService{}
 	vm, err := virshServices.GetVmByName(vmName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -423,6 +424,12 @@ func exportVM(w http.ResponseWriter, r *http.Request) {
 	}
 	if vm == nil {
 		http.Error(w, "VM not found", http.StatusNotFound)
+		return
+	}
+
+	err = nfsServices.SyncNFSSlavesByMachineName(vm.MachineName)
+	if err != nil {
+		http.Error(w, "cant sync nfs across all slaves", http.StatusInternalServerError)
 		return
 	}
 
@@ -606,7 +613,20 @@ func backupVM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	nfsServices := services.NFSService{}
 	virshServices := services.VirshService{}
+
+	vm, err := virshServices.GetVmByName(vmName)
+	if err != nil {
+		http.Error(w, "cant get vm by name", http.StatusInternalServerError)
+	}
+
+	err = nfsServices.SyncNFSSlavesByMachineName(vm.MachineName)
+	if err != nil {
+		http.Error(w, "cant sync nfs across all slaves", http.StatusInternalServerError)
+		return
+	}
+
 	err = virshServices.BackupVM(vmName, nfsIdInt)
 	if err != nil {
 		http.Error(w, "was not possible to backup your vm err: "+err.Error(), http.StatusInternalServerError)

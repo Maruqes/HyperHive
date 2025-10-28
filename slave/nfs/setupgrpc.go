@@ -135,3 +135,11 @@ func (s *NFSService) CanFindFileOrDir(ctx context.Context, req *pb.FolderPath) (
 	logger.Info("CanFindFileOrDir succeeded", "path", req.Path)
 	return &pb.CreateResponse{Ok: true}, nil
 }
+
+func (s *NFSService) Sync(ctx context.Context, req *pb.Empty) (*pb.OkResponse, error) {
+	err := Sync()
+	if err != nil {
+		return nil, err
+	}
+	return &pb.OkResponse{Ok: true}, nil
+}

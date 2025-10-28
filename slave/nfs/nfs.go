@@ -1286,3 +1286,7 @@ func CanFindFileOrDir(folderPath string) (bool, error) {
 	}
 	return true, nil
 }
+
+func Sync() error {
+	return runCommand("sync filesystem", "sync")
+}
