@@ -41,23 +41,50 @@ const (
 )
 
 var (
+	// NFS Client Mount Options - Optimized for VM workloads over 10GbE+
 	nfsMountOptions = []string{
-		"rw", "hard", "proto=tcp", "vers=4.2",
-		"nconnect=4",
-		"rsize=1048576", "wsize=1048576",
-		"timeo=600", "retrans=3",
-		"noatime", "nodiratime", "_netdev",
-		"actimeo=1",
-		"lookupcache=positive",
+		"rw",
+		"hard",            // retry indefinitely on failure (critical for VMs)
+		"proto=tcp",       // TCP for reliability
+		"vers=4.2",        // NFSv4.2 with better performance features
+		"nconnect=16",     // multiple TCP connections (16 for 10GbE+)
+		"rsize=1048576",   // 1MB read size (max performance)
+		"wsize=1048576",   // 1MB write size (max performance)
+		"timeo=600",       // 60s timeout (6 deciseconds units)
+		"retrans=3",       // 3 retransmissions before timeout
+		"noatime",         // don't update access time
+		"nodiratime",      // don't update directory access time
+		"_netdev",         // wait for network before mounting
+		"actimeo=1",       // 1s attribute cache (balance consistency/performance)
+		"lookupcache=all", // cache all lookups (faster than 'positive')
+		"fsc",             // enable FS-Cache for client-side caching
+		"nocto",           // don't check consistency on open (faster)
+		"nolock",          // disable NFS locking (libvirt has its own)
+		"async",           // async client writes (much faster, kernel manages flush)
 	}
 
+	// NFS Server Export Options - Maximum performance profile
 	nfsServerOptions = []string{
 		"rw",
-		"async", // muito mais rápido em HDD, menos seguro
-		"no_subtree_check",
-		"no_root_squash",
-		"insecure",
-		"sec=sys",
+		"async",            // async server writes (HDD: 10x faster, less crash-safe)
+		"no_subtree_check", // skip subtree checking (faster exports)
+		"no_root_squash",   // allow root access (needed for QEMU/libvirt)
+		"no_all_squash",    // don't squash all users
+		"insecure",         // allow connections from ports >1024
+		"sec=sys",          // simple UNIX authentication
+		"fsid=0",           // export as root filesystem
+		"no_wdelay",        // disable write delay (faster with async)
+		"crossmnt",         // allow crossing mount points
+	}
+
+	// Local Bind Mount Options - Optimized for direct disk access
+	localMountOpts = []string{
+		"rw",
+		"noatime",    // don't update access times (big perf win)
+		"nodiratime", // don't update directory access times
+		"lazytime",   // lazy update of atime/mtime (kernel 4.0+)
+		"async",      // async writes (kernel manages flush)
+		"nobarrier",  // disable write barriers (faster, less safe on crash)
 	}
 )
 
@@ -613,10 +640,7 @@ func applyWorldWritableACL(path string, recursive bool) error {
 }
 
 func mountLocalFolder(folder FolderMount) error {
-
-	logger.Info("Mouting local Folder")
-	logger.Info("Mouting local Folder")
-	logger.Info("Mouting local Folder")
+	logger.Info("Mounting local Folder with performance optimizations")
 
 	parts := strings.SplitN(folder.Source, ":", 2)
 	if len(parts) != 2 {
@@ -650,9 +674,95 @@ func mountLocalFolder(folder FolderMount) error {
 		return err
 	}
 
+	ensureMountedWithOpts := func(remount bool) error {
+		if remount {
+			// Try remount in place first
+			if err := runCommand("remount local folder with correct opts",
+				"sudo", "mount", "-o", "remount,"+strings.Join(localMountOpts, ","), target); err == nil {
+				return nil
+			}
+			// Fall back to full unmount + mount if remount failed
+			logger.Warn("In-place remount failed, doing full unmount+mount")
+			_ = runCommand("unmount local folder", "sudo", "umount", "-f", target)
+		}
+		// Fresh mount with bind + options
+		if err := runCommand("bind mount local folder",
+			"sudo", "mount", "--bind", source, target); err != nil {
+			return fmt.Errorf("failed to bind mount: %w", err)
+		}
+		// Apply mount options on top of the bind mount
+		if err := runCommand("apply mount options to local folder",
+			"sudo", "mount", "-o", "remount,"+strings.Join(localMountOpts, ","), target); err != nil {
+			return fmt.Errorf("failed to apply mount options: %w", err)
+		}
+		return nil
+	}
+
 	if isMounted(target) {
-		logger.Info("Local folder already mounted:", source, "->", target)
-		// Ensure it's in CurrentMounts (idempotent)
+		// Validate current mount options; remount if needed
+		mtab, err := os.ReadFile("/proc/mounts")
+		if err != nil {
+			logger.Warn("Failed to read /proc/mounts, assuming remount needed:", err)
+			return ensureMountedWithOpts(true)
+		}
+
+		targetEsc := strings.ReplaceAll(target, " ", "\\040")
+		lines := strings.Split(string(mtab), "\n")
+		needsRemount := false
+		foundMount := false
+
+		for _, ln := range lines {
+			if ln == "" {
+				continue
+			}
+			fields := strings.Fields(ln)
+			if len(fields) < 4 {
+				continue
+			}
+			mp := fields[1]
+			if mp == targetEsc {
+				foundMount = true
+				cur := "," + fields[3] + ","
+				// Check against expected localMountOpts
+				for _, opt := range localMountOpts {
+					if !strings.Contains(cur, ","+opt+",") {
+						needsRemount = true
+						logger.Warn("Missing expected mount option:", opt)
+						break
+					}
+				}
+				break
+			}
+		}
+
+		if !foundMount {
+			logger.Warn("Mount point exists but not found in /proc/mounts, remounting")
+			needsRemount = true
+		}
+
+		if !needsRemount {
+			logger.Info("Local folder already mounted with correct options:", source, "->", target)
+			// Ensure it's in CurrentMounts (idempotent)
+			CurrentMountsLock.Lock()
+			alreadyTracked := false
+			for _, m := range CurrentMounts {
+				if m.Target == target {
+					alreadyTracked = true
+					break
+				}
+			}
+			if !alreadyTracked {
+				CurrentMounts = append(CurrentMounts, folder)
+			}
+			CurrentMountsLock.Unlock()
+			return nil
+		}
+
+		logger.Warn("Remounting local folder with correct options:", target)
+		if err := ensureMountedWithOpts(true); err != nil {
+			return fmt.Errorf("failed to remount local folder: %w", err)
+		}
+		// Update CurrentMounts after successful remount
 		CurrentMountsLock.Lock()
 		alreadyTracked := false
 		for _, m := range CurrentMounts {
@@ -668,9 +778,9 @@ func mountLocalFolder(folder FolderMount) error {
 		return nil
 	}
 
-	if err := runCommand("bind mount local folder",
-		"sudo", "mount", "--bind", source, target); err != nil {
-		return fmt.Errorf("failed to bind mount: %w", err)
+	// First-time mount with correct options
+	if err := ensureMountedWithOpts(false); err != nil {
+		return fmt.Errorf("failed to mount local folder: %w", err)
 	}
 
 	// Only add to CurrentMounts after successful mount
@@ -687,7 +797,7 @@ func mountLocalFolder(folder FolderMount) error {
 	}
 	CurrentMountsLock.Unlock()
 
-	logger.Info("Local folder mounted successfully:", source, "->", target)
+	logger.Info("Local folder mounted successfully with optimizations:", source, "->", target)
 	return nil
 }
 
