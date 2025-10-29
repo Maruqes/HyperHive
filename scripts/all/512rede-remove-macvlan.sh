@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 # --- parâmetros (ajusta se usaste outros nomes) ---
 LOWER="${LOWER:-512rede}"         # NIC física ligada ao switch
-MACVLAN="${MACVLAN:-host-macvlan}"# nome da macvlan que criaste
+MACVLAN="${MACVLAN:-host-macvlan}" # nome da macvlan que criaste
 CON="${CON:-$MACVLAN}"            # nome da ligação no NetworkManager
 
 echo "[i] A remover macvlan '$MACVLAN' (ligação NM: '$CON') sobre '$LOWER'..."
