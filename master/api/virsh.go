@@ -111,19 +111,6 @@ func migrateLiveVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshServices := services.VirshService{}
-	nfsServices := services.NFSService{}
-
-	err = nfsServices.SyncNFSSlavesByMachineName(migReq.OriginMachine)
-	if err != nil {
-		http.Error(w, "cant sync nfs across all slaves", http.StatusInternalServerError)
-		return
-	}
-
-	err = nfsServices.SyncNFSSlavesByMachineName(migReq.DestinationMachine)
-	if err != nil {
-		http.Error(w, "cant sync nfs across all slaves", http.StatusInternalServerError)
-		return
-	}
 
 	err = virshServices.MigrateVm(r.Context(), migReq.OriginMachine, migReq.DestinationMachine, vmName, migReq.Live, migReq.TimeoutSeconds)
 	if err != nil {

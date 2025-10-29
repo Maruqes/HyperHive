@@ -225,6 +225,19 @@ func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int
 		return fmt.Errorf("a live VM with the name %s already exists in the database", name)
 	}
 
+	//get disk path from nfsShareId
+	nfsShare, err := db.GetNFSShareByID(nfsShareId)
+	if err != nil {
+		return fmt.Errorf("failed to get NFS share by ID: %v", err)
+	}
+	if nfsShare == nil {
+		return fmt.Errorf("NFS share with ID %d not found", nfsShareId)
+	}
+
+	if nfsShare.HostNormalMount {
+		return fmt.Errorf("cant have live VM on a HostNormalMount NFS true, use a nfs where HostNormalMount is false")
+	}
+
 	err = v.CreateVM(machine_name, name, memory, vcpu, nfsShareId, diskSizeGB, isoID, network, VNCPassword, cpuXml)
 	if err != nil {
 		return err
