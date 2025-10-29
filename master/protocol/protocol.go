@@ -16,6 +16,7 @@ import (
 	"github.com/Maruqes/512SvMan/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 )
 
 type ConnectionsStruct struct {
@@ -202,7 +203,13 @@ func NewSlaveConnection(addr, machineName string) error {
 	target := addr + ":50052"
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 
-	conn, err := grpc.DialContext(ctx, target, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	ka := keepalive.ClientParameters{
+		Time:                30 * time.Second, // envia ping se não houver tráfego durante 30s
+		Timeout:             10 * time.Second, // espera 10s pelo ACK do ping
+		PermitWithoutStream: true,             // pings mesmo sem RPCs ativas
+	}
+
+	conn, err := grpc.DialContext(ctx, target, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock(), grpc.WithKeepaliveParams(ka))
 	cancel()
 	if err != nil {
 		return fmt.Errorf("dial slave %s: %w", target, err)
@@ -278,7 +285,22 @@ func ListenGRPC(recievedNewConnectionFunction func(addr, machineName string, con
 		log.Fatalf("listen: %v", err)
 	}
 
-	s := grpc.NewServer()
+	enf := keepalive.EnforcementPolicy{
+		MinTime:             10 * time.Second, // aceita pings >= 10s de intervalo
+		PermitWithoutStream: true,
+	}
+
+	srvParams := keepalive.ServerParameters{
+		MaxConnectionIdle: 0,                // 0 ⇒ não fecha por idle
+		Time:              60 * time.Second, // servidor também pinga
+		Timeout:           15 * time.Second,
+		// opcional: MaxConnectionAge/Grace se precisares de reciclar ligações
+	}
+
+	s := grpc.NewServer(
+		grpc.KeepaliveEnforcementPolicy(enf),
+		grpc.KeepaliveParams(srvParams),
+	)
 
 	pb.RegisterProtocolServiceServer(s, &protocolServer{})
 	logsGrpc.RegisterLogsServeServer(s, &logs512.LogsServer{})

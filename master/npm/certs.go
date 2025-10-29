@@ -77,7 +77,7 @@ func handleCertValidate(baseURL, token string, cert Cert) error {
 
 	req, err := http.NewRequest(http.MethodPost, baseURL, &body)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	// Required headers
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -89,7 +89,7 @@ func handleCertValidate(baseURL, token string, cert Cert) error {
 
 	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -123,7 +123,7 @@ func certUpload(baseURL, token string, certID int, cert Cert) error {
 
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/nginx/certificates/%d/upload", baseURL, certID), &body)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	// Required headers
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -135,7 +135,7 @@ func certUpload(baseURL, token string, certID int, cert Cert) error {
 
 	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer resp.Body.Close()
 
