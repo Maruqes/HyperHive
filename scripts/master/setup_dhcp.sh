@@ -11,8 +11,7 @@ usage() {
   cat <<'USAGE'
 Usage: setup_dhcp.sh [WAN_IFACE] (the interface with internet access)
 
-  Physical LAN interface is fixed to 512rede
-  A bridge br512rede is created so VMs and the host share the DHCP LAN
+  LAN interface is fixed to 512rede
   WAN_IFACE : Upstream interface used for NAT (auto-detected if omitted)
 
 Environment variables still override defaults (WAN_IF, SUBNET_CIDR, ...).
@@ -54,9 +53,8 @@ if [[ $# -gt 0 ]]; then
 fi
 
 # --- Tunables (override via env) ---------------------------------------------
-LAN_INTERFACE_NAME="${LAN_INTERFACE_NAME:-512rede}"   # physical interface
-BRIDGE_NAME="${BRIDGE_NAME:-br512rede}"
-NETWORK_NAME="${BRIDGE_NAME}"
+LAN_INTERFACE_NAME="512rede"
+NETWORK_NAME="$LAN_INTERFACE_NAME"
 SUBNET_CIDR="${SUBNET_CIDR:-192.168.76.0/24}"     # LAN subnet
 GATEWAY_IP="${GATEWAY_IP:-192.168.76.1}"          # LAN gateway (this host)
 DHCP_RANGE_START="${DHCP_RANGE_START:-192.168.76.50}"
@@ -65,7 +63,6 @@ RESOLV_CONF="${RESOLV_CONF:-/etc/resolv.conf}"    # upstream resolvers to forwar
 DNSMASQ_CONF_DIR="${DNSMASQ_CONF_DIR:-/etc/dnsmasq.d}"
 DNSMASQ_LEASE_DIR="${DNSMASQ_LEASE_DIR:-/var/lib/dnsmasq}"
 NM_CONNECTION_NAME="${NM_CONNECTION_NAME:-${NETWORK_NAME}-static}"
-NM_SLAVE_CONNECTION_NAME="${NM_SLAVE_CONNECTION_NAME:-${LAN_INTERFACE_NAME}-slave}"
 SYSCTL_CONF="/etc/sysctl.d/99-${NETWORK_NAME}-ipforward.conf"
 DEDICATED_UNIT="dnsmasq-${NETWORK_NAME}.service"
 NAT_UNIT="${NETWORK_NAME}-nat.service"
@@ -98,7 +95,7 @@ SUBNET_NETWORK="${network_address}/${cidr_prefix}"
 NETMASK=$(prefix_to_mask "${cidr_prefix}")
 
 # --- Verify interface exists --------------------------------------------------
-ip link show "${LAN_INTERFACE_NAME}" >/dev/null 2>&1 || fatal "Interface '${LAN_INTERFACE_NAME}' not found."
+ip link show "${NETWORK_NAME}" >/dev/null 2>&1 || fatal "Interface '${NETWORK_NAME}' not found."
 
 # --- Cleanup: remove anything for THIS network that could interfere ----------
 cleanup_for_network() {
@@ -127,46 +124,27 @@ cleanup_for_network() {
 
   # 6) Ensure NM connection for this iface is NOT in 'shared' mode and is clean
   if command -v nmcli >/dev/null 2>&1; then
-    # Delete every NM profile bound to the bridge or slave except our target names
-    for dev in "${NETWORK_NAME}" "${LAN_INTERFACE_NAME}"; do
-      while read -r uuid name; do
-        [[ -z ${uuid} ]] && continue
-        [[ ${name} == "${NM_CONNECTION_NAME}" || ${name} == "${NM_SLAVE_CONNECTION_NAME}" ]] && continue
-        info "Deleting NM profile '${name}' on ${dev}"
-        nmcli connection delete uuid "${uuid}" >/dev/null 2>&1 || true
-      done < <(nmcli -t -f UUID,NAME,DEVICE connection show | awk -F: -v dev="${dev}" '$3==dev{print $1" "$2}')
-    done
+    # Delete every NM profile bound to this DEVICE except our target name
+    while read -r uuid name; do
+      [[ -z ${uuid} ]] && continue
+      [[ ${name} == "${NM_CONNECTION_NAME}" ]] && continue
+      info "Deleting NM profile '${name}' on ${NETWORK_NAME}"
+      nmcli connection delete uuid "${uuid}" >/dev/null 2>&1 || true
+    done < <(nmcli -t -f UUID,NAME,DEVICE connection show | awk -F: -v dev="${NETWORK_NAME}" '$3==dev{print $1" "$2}')
 
-    # Recreate clean bridge + slave profiles
-    nmcli connection delete "${NM_SLAVE_CONNECTION_NAME}" >/dev/null 2>&1 || true
+    # Recreate our clean static profile
     nmcli connection delete "${NM_CONNECTION_NAME}" >/dev/null 2>&1 || true
-    info "Creating NM bridge ${NM_CONNECTION_NAME} (${NETWORK_NAME}) with ${GATEWAY_IP}/${cidr_prefix}"
-    nmcli connection add type bridge ifname "${NETWORK_NAME}" con-name "${NM_CONNECTION_NAME}" \
+    info "Creating NM static profile ${NM_CONNECTION_NAME} on ${NETWORK_NAME} (${GATEWAY_IP}/${cidr_prefix})"
+    nmcli connection add type ethernet ifname "${NETWORK_NAME}" con-name "${NM_CONNECTION_NAME}" \
       ipv4.addresses "${GATEWAY_IP}/${cidr_prefix}" ipv4.method manual ipv4.never-default yes \
       ipv6.method ignore autoconnect yes >/dev/null
-    nmcli connection modify "${NM_CONNECTION_NAME}" bridge.stp no ipv4.gateway "" ipv4.dns "" ipv4.may-fail no >/dev/null
+    nmcli connection modify "${NM_CONNECTION_NAME}" ipv4.gateway "" ipv4.dns "" ipv4.may-fail no >/dev/null
     nmcli connection up "${NM_CONNECTION_NAME}" >/dev/null || warn "Failed to activate ${NM_CONNECTION_NAME}"
-
-    info "Enslaving ${LAN_INTERFACE_NAME} to ${NETWORK_NAME} via ${NM_SLAVE_CONNECTION_NAME}"
-    nmcli connection add type bridge-slave ifname "${LAN_INTERFACE_NAME}" con-name "${NM_SLAVE_CONNECTION_NAME}" master "${NM_CONNECTION_NAME}" >/dev/null
-    nmcli connection up "${NM_SLAVE_CONNECTION_NAME}" >/dev/null || warn "Failed to activate ${NM_SLAVE_CONNECTION_NAME}"
   else
-    # Fallback if NM missing: build bridge manually
-    ip link set "${LAN_INTERFACE_NAME}" down >/dev/null 2>&1 || true
-    ip link set "${LAN_INTERFACE_NAME}" nomaster >/dev/null 2>&1 || true
-    if ! ip link show "${NETWORK_NAME}" >/dev/null 2>&1; then
-      info "Creating bridge ${NETWORK_NAME}"
-      ip link add name "${NETWORK_NAME}" type bridge
-    else
-      info "Reusing existing bridge ${NETWORK_NAME}"
-    fi
-    ip link set "${NETWORK_NAME}" type bridge stp_state 0 2>/dev/null || true
+    # Fallback if NM missing: set IP directly
     ip addr flush dev "${NETWORK_NAME}" || true
-    ip addr flush dev "${LAN_INTERFACE_NAME}" || true
     ip link set "${NETWORK_NAME}" up
     ip addr add "${GATEWAY_IP}/${cidr_prefix}" dev "${NETWORK_NAME}" valid_lft forever preferred_lft forever
-    ip link set "${LAN_INTERFACE_NAME}" master "${NETWORK_NAME}"
-    ip link set "${LAN_INTERFACE_NAME}" up
   fi
 }
 cleanup_for_network
