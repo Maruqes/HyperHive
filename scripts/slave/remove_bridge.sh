@@ -43,6 +43,9 @@ BRIDGE_NAME="${BRIDGE_NAME:-br512rede}"
 NM_CONNECTION_NAME="${NM_CONNECTION_NAME:-${BRIDGE_NAME}-dhcp}"
 NM_SLAVE_CONNECTION_NAME="${NM_SLAVE_CONNECTION_NAME:-${LAN_INTERFACE_NAME}-slave}"
 NM_RESTORE_CONNECTION_NAME="${NM_RESTORE_CONNECTION_NAME:-${LAN_INTERFACE_NAME}-dhcp}"
+STATE_DIR="${STATE_DIR:-/var/lib/hyperhive}"
+STATE_FILE="${STATE_DIR}/${LAN_INTERFACE_NAME}.bridge_state"
+STATE_CONN_FILE="${STATE_DIR}/${LAN_INTERFACE_NAME}.nmconnection"
 
 command -v ip >/dev/null 2>&1 || fatal 'iproute2 tools are required (missing `ip`).'
 ip link show "${LAN_INTERFACE_NAME}" >/dev/null 2>&1 || fatal "Interface '${LAN_INTERFACE_NAME}' not found."
@@ -57,6 +60,34 @@ remove_bridge_nm() {
   nmcli device disconnect "${BRIDGE_NAME}" >/dev/null 2>&1 || true
   nmcli device disconnect "${LAN_INTERFACE_NAME}" >/dev/null 2>&1 || true
 
+  if ip link show "${BRIDGE_NAME}" >/dev/null 2>&1; then
+    ip link set "${BRIDGE_NAME}" down >/dev/null 2>&1 || true
+    ip link delete "${BRIDGE_NAME}" type bridge >/dev/null 2>&1 || true
+  fi
+
+  local restored=0
+  if [[ -f ${STATE_CONN_FILE} ]]; then
+    if [[ -f ${STATE_FILE} ]]; then
+      original_connection=$(<"${STATE_FILE}")
+    else
+      original_connection=""
+    fi
+    info "Restoring original NM profile ${original_connection:-from backup}"
+    if nmcli connection import type ethernet file "${STATE_CONN_FILE}" >/dev/null 2>&1; then
+      restored=1
+      if [[ -n ${original_connection} ]]; then
+        nmcli connection up "${original_connection}" >/dev/null || warn "Failed to reactivate ${original_connection}"
+      fi
+      rm -f "${STATE_CONN_FILE}" "${STATE_FILE}"
+    else
+      warn "Failed to import saved profile from ${STATE_CONN_FILE}"
+    fi
+  fi
+
+  if (( restored )); then
+    return
+  fi
+
   if nmcli -t -f NAME connection show | grep -Fxq "${NM_RESTORE_CONNECTION_NAME}"; then
     info "Bringing up existing ${NM_RESTORE_CONNECTION_NAME}"
     nmcli connection up "${NM_RESTORE_CONNECTION_NAME}" >/dev/null || warn "Failed to activate ${NM_RESTORE_CONNECTION_NAME}"
@@ -64,6 +95,7 @@ remove_bridge_nm() {
   fi
 
   info "Creating restoration profile ${NM_RESTORE_CONNECTION_NAME} for ${LAN_INTERFACE_NAME}"
+  ip addr flush dev "${LAN_INTERFACE_NAME}" || true
   nmcli connection add type ethernet ifname "${LAN_INTERFACE_NAME}" con-name "${NM_RESTORE_CONNECTION_NAME}" \
     ipv4.method auto ipv6.method ignore autoconnect yes >/dev/null
   nmcli connection up "${NM_RESTORE_CONNECTION_NAME}" >/dev/null || warn "Failed to activate ${NM_RESTORE_CONNECTION_NAME}"
