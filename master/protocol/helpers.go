@@ -3,7 +3,6 @@ package protocol
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	pb "github.com/Maruqes/512SvMan/api/proto/protocol"
@@ -135,30 +134,4 @@ func PingSlave(conn *grpc.ClientConn, name string) error {
 	}
 
 	return nil
-}
-
-// removes conn if it is really down
-func CheckConnectionStateRemove(connection ConnectionsStruct) {
-	if connection.Connection == nil {
-		log.Printf("connection for slave %s is nil, removing", connection.Addr)
-		if removed := removeConnection(connection.Addr); removed != nil && removed.Connection != nil {
-			_ = removed.Connection.Close()
-		}
-		return
-	}
-
-	for i := 0; i < 3; i++ {
-		err := PingSlave(connection.Connection, connection.MachineName)
-		if err == nil {
-			markSlaveHealthy(connection.Addr)
-			return
-		}
-		log.Printf("ping slave %s attempt %d failed: %v", connection.Addr, i+1, err)
-		time.Sleep(2 * time.Second)
-	}
-
-	log.Printf("removing slave %s from connections", connection.Addr)
-	if removed := removeConnection(connection.Addr); removed != nil && removed.Connection != nil {
-		_ = removed.Connection.Close()
-	}
 }

@@ -38,6 +38,54 @@ func init() {
 	connections = make([]*ConnectionsStruct, 0)
 }
 
+func tryRestoreConnection(connection ConnectionsStruct) {
+	for attempt := range 3 {
+		err := NewSlaveConnection(connection.Addr, connection.MachineName)
+		if err == nil {
+			log.Printf("reconnected slave %s (%s) on attempt %d", connection.MachineName, connection.Addr, attempt+1)
+			return
+		}
+		log.Printf("reconnect attempt %d for slave %s failed: %v", attempt+1, connection.Addr, err)
+		if attempt < 2 {
+			time.Sleep(2 * time.Second)
+		}
+	}
+}
+
+// removes conn if it is really down
+func CheckConnectionStateRemove(connection ConnectionsStruct) {
+	//se a conexao for nil, vamos tentar criar uma nova
+	if connection.Connection == nil {
+		log.Printf("connection for slave %s is nil, removing", connection.Addr)
+		if removed := removeConnection(connection.Addr); removed != nil && removed.Connection != nil {
+			_ = removed.Connection.Close()
+		}
+		tryRestoreConnection(connection)
+		return
+	}
+
+	//se ouver conn tentamos pingar se nao der discartamos a conexao e criamos uma nova com tryRestoreConnection
+	for attempt := range 3 {
+		err := PingSlave(connection.Connection, connection.MachineName)
+		if err == nil {
+			markSlaveHealthy(connection.Addr)
+			return
+		}
+		log.Printf("ping slave %s attempt %d failed: %v", connection.Addr, attempt+1, err)
+		if attempt < 2 {
+			time.Sleep(2 * time.Second)
+		}
+	}
+
+	log.Printf("removing slave %s from connections", connection.Addr)
+	if removed := removeConnection(connection.Addr); removed != nil && removed.Connection != nil {
+		_ = removed.Connection.Close()
+	}
+
+	tryRestoreConnection(connection)
+	log.Printf("failed to recreate connection for slave %s after 3 attempts", connection.Addr)
+}
+
 // pinga todas as conexoes master -> slave (slave server)
 func PingAllSlaves() {
 	for _, c := range GetConnectionsSnapshot() {
@@ -56,6 +104,13 @@ func PingAllSlaves() {
 }
 
 func NewSlaveConnection(addr, machineName string) error {
+	if addr == "" {
+		return fmt.Errorf("addr cannot be empty")
+	}
+	if machineName == "" {
+		return fmt.Errorf("machineName cannot be empty")
+	}
+
 	target := addr + ":50052"
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 
