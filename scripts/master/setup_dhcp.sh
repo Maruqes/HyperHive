@@ -148,8 +148,7 @@ cleanup_for_network() {
     nmcli connection up "${NM_CONNECTION_NAME}" >/dev/null || warn "Failed to activate ${NM_CONNECTION_NAME}"
 
     info "Enslaving ${LAN_INTERFACE_NAME} to ${NETWORK_NAME} via ${NM_SLAVE_CONNECTION_NAME}"
-    nmcli connection add type ethernet ifname "${LAN_INTERFACE_NAME}" con-name "${NM_SLAVE_CONNECTION_NAME}" master "${NM_CONNECTION_NAME}" slave-type bridge \
-      ipv4.method disabled ipv6.method ignore autoconnect yes >/dev/null
+    nmcli connection add type bridge-slave ifname "${LAN_INTERFACE_NAME}" con-name "${NM_SLAVE_CONNECTION_NAME}" master "${NM_CONNECTION_NAME}" >/dev/null
     nmcli connection up "${NM_SLAVE_CONNECTION_NAME}" >/dev/null || warn "Failed to activate ${NM_SLAVE_CONNECTION_NAME}"
   else
     # Fallback if NM missing: build bridge manually
