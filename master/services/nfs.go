@@ -101,6 +101,14 @@ func (s *NFSService) CreateSharePoint() error {
 		}
 	}
 
+	//block certain linux important paths like /root or /boot and others
+	blockedPaths := []string{"/root", "/boot", "/etc", "/bin", "/sbin", "/usr", "/lib", "/lib64", "/sys", "/proc", "/dev"}
+	for _, blocked := range blockedPaths {
+		if strings.HasPrefix(s.SharePoint.FolderPath, blocked) {
+			return fmt.Errorf("cannot share system path: %s", blocked)
+		}
+	}
+
 	mount := &proto.FolderMount{
 		MachineName:     s.SharePoint.MachineName,                  // machine that shares
 		FolderPath:      s.SharePoint.FolderPath,                   // folder to share

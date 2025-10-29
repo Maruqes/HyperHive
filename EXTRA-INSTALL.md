@@ -20,17 +20,11 @@ Choose this mode when the master must also provide an isolated `512rede` network
    ```
    Run sequentially per slave; only execute on hosts you intend to reset.
 
-3. **Configure DHCP/NAT for `512rede` (master).**
-   ```bash
-   sudo ./scripts/master/setup_dhcp.sh <wan-interface>
-   ```
-   Supply the upstream/WAN NIC (e.g., `enp1s0`). Run this only after the master’s isolated interface already uses the name `512rede` (perform Step 4 on the master first). The script now auto-creates a macvtap child named `512rede-host` linked to the physical NIC, assigns `192.168.76.1/24`, writes the `dnsmasq` config, enables masquerading, and starts `dnsmasq-512rede-host.service`.
-
-4. **Rename the isolated NIC to `512rede` (master + every LAN-connected slave).**
+3. **Rename the isolated NIC to `512rede` (master + every LAN-connected slave).**
    ```bash
    sudo bash scripts/all/change_interface_name.sh <current-nic-name>
    ```
-   Replace `<current-nic-name>` with the detected interface (e.g., `enp7s0`). On the master, execute this step before returning to Step 3; then repeat on each slave that connects to the isolated LAN so all nodes present the interface as `512rede`. The script makes the rename persistent via systemd/udev. After renaming on every slave, bring the NetworkManager connection up and mark it for autostart so the node actually requests a lease from the master’s DHCP service:
+   Replace `<current-nic-name>` with the detected interface (e.g., `enp7s0`). On the master execute this step **before** running the DHCP setup; then repeat on each slave that connects to the isolated LAN so all nodes present the interface as `512rede`. The script makes the rename persistent via systemd/udev. After renaming on every slave, bring the NetworkManager connection up and mark it for autostart so the node actually requests a lease from the master’s DHCP service:
    ```bash
    sudo nmcli con up 512rede              # or the connection name created by the script
    sudo nmcli connection modify 512rede connection.autoconnect yes
@@ -43,6 +37,12 @@ Choose this mode when the master must also provide an isolated `512rede` network
    ```bash
    sudo dhclient 512rede-host
    ```
+
+4. **Configure DHCP/NAT for `512rede` (master).**
+   ```bash
+   sudo ./scripts/master/setup_dhcp.sh <wan-interface>
+   ```
+   Supply the upstream/WAN NIC (e.g., `enp1s0`). The script now auto-creates (or refreshes) the macvtap child `512rede-host`, assigns `192.168.76.1/24`, writes the `dnsmasq` config, enables masquerading, and starts `dnsmasq-512rede-host.service`.
 
 5. **Enable root SSH where needed.**
    ```bash
