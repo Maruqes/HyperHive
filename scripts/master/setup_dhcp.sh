@@ -7,11 +7,19 @@
 
 set -euo pipefail
 
+truthy() {
+  local v="${1:-}"
+  case "${v,,}" in
+    1|true|yes|on) return 0 ;;
+  esac
+  return 1
+}
+
 usage() {
   cat <<'USAGE'
 Usage: setup_dhcp.sh [WAN_IFACE] (the interface with internet access)
 
-  LAN interface is fixed to 512rede
+  LAN parent interface defaults to 512rede; macvtap child defaults to 512rede-host
   WAN_IFACE : Upstream interface used for NAT (auto-detected if omitted)
 
 Environment variables still override defaults (WAN_IF, SUBNET_CIDR, ...).
@@ -53,7 +61,12 @@ if [[ $# -gt 0 ]]; then
 fi
 
 # --- Tunables (override via env) ---------------------------------------------
-LAN_INTERFACE_NAME="512rede"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MACVTAP_HELPER="${SCRIPT_DIR}/create_macvtap.sh"
+[[ -x "${MACVTAP_HELPER}" ]] || fatal "Helper not found or not executable: ${MACVTAP_HELPER}"
+
+LAN_PARENT_IF="${LAN_PARENT_IF:-512rede}"
+LAN_INTERFACE_NAME="${LAN_INTERFACE_NAME:-${LAN_PARENT_IF}-host}"
 NETWORK_NAME="$LAN_INTERFACE_NAME"
 SUBNET_CIDR="${SUBNET_CIDR:-192.168.76.0/24}"     # LAN subnet
 GATEWAY_IP="${GATEWAY_IP:-192.168.76.1}"          # LAN gateway (this host)
@@ -67,6 +80,7 @@ SYSCTL_CONF="/etc/sysctl.d/99-${NETWORK_NAME}-ipforward.conf"
 DEDICATED_UNIT="dnsmasq-${NETWORK_NAME}.service"
 NAT_UNIT="${NETWORK_NAME}-nat.service"
 NAT_HELPER="/usr/local/sbin/${NETWORK_NAME}-nat.sh"
+MACVTAP_PERSIST="${MACVTAP_PERSIST:-1}"
 
 # --- Pre-reqs -----------------------------------------------------------------
 command -v ip        >/dev/null 2>&1 || fatal 'iproute2 tools are required (missing `ip`).'
@@ -93,6 +107,31 @@ network_int=$(( $(ip_to_int "${network_base}") & mask_int ))
 network_address=$(int_to_ip "${network_int}")
 SUBNET_NETWORK="${network_address}/${cidr_prefix}"
 NETMASK=$(prefix_to_mask "${cidr_prefix}")
+
+ensure_macvtap() {
+  local ip_cidr="${GATEWAY_IP}/${cidr_prefix}"
+  local args=()
+  if truthy "${MACVTAP_PERSIST}"; then
+    args+=(--persist)
+  fi
+
+  info "Ensuring macvtap ${LAN_INTERFACE_NAME} on parent ${LAN_PARENT_IF}"
+  ip link show "${LAN_PARENT_IF}" >/dev/null 2>&1 || fatal "Parent interface '${LAN_PARENT_IF}' not found."
+
+  if ! ip link show "${LAN_INTERFACE_NAME}" >/dev/null 2>&1; then
+    "${MACVTAP_HELPER}" "${args[@]}" "${LAN_PARENT_IF}" "${LAN_INTERFACE_NAME}" "${ip_cidr}"
+  else
+    info "macvtap ${LAN_INTERFACE_NAME} already exists; refreshing address ${ip_cidr}"
+    ip link set "${LAN_PARENT_IF}" promisc on
+    ip link set "${LAN_INTERFACE_NAME}" up
+    ip addr flush dev "${LAN_INTERFACE_NAME}" || true
+    ip addr add "${ip_cidr}" dev "${LAN_INTERFACE_NAME}"
+    if sysctl -a 2>/dev/null | grep -q "^net.ipv4.conf.${LAN_INTERFACE_NAME}.proxy_arp"; then
+      sysctl -q -w "net.ipv4.conf.${LAN_INTERFACE_NAME}.proxy_arp=1"
+    fi
+  fi
+}
+ensure_macvtap
 
 # --- Verify interface exists --------------------------------------------------
 ip link show "${NETWORK_NAME}" >/dev/null 2>&1 || fatal "Interface '${NETWORK_NAME}' not found."
@@ -132,19 +171,15 @@ cleanup_for_network() {
       nmcli connection delete uuid "${uuid}" >/dev/null 2>&1 || true
     done < <(nmcli -t -f UUID,NAME,DEVICE connection show | awk -F: -v dev="${NETWORK_NAME}" '$3==dev{print $1" "$2}')
 
-    # Recreate our clean static profile
-    nmcli connection delete "${NM_CONNECTION_NAME}" >/dev/null 2>&1 || true
-    info "Creating NM static profile ${NM_CONNECTION_NAME} on ${NETWORK_NAME} (${GATEWAY_IP}/${cidr_prefix})"
-    nmcli connection add type ethernet ifname "${NETWORK_NAME}" con-name "${NM_CONNECTION_NAME}" \
-      ipv4.addresses "${GATEWAY_IP}/${cidr_prefix}" ipv4.method manual ipv4.never-default yes \
-      ipv6.method ignore autoconnect yes >/dev/null
-    nmcli connection modify "${NM_CONNECTION_NAME}" ipv4.gateway "" ipv4.dns "" ipv4.may-fail no >/dev/null
-    nmcli connection up "${NM_CONNECTION_NAME}" >/dev/null || warn "Failed to activate ${NM_CONNECTION_NAME}"
-  else
-    # Fallback if NM missing: set IP directly
-    ip addr flush dev "${NETWORK_NAME}" || true
-    ip link set "${NETWORK_NAME}" up
-    ip addr add "${GATEWAY_IP}/${cidr_prefix}" dev "${NETWORK_NAME}" valid_lft forever preferred_lft forever
+    warn "Skipping NetworkManager macvtap profile creation; falling back to static configuration."
+  fi
+
+  ip addr flush dev "${NETWORK_NAME}" || true
+  ip link set "${NETWORK_NAME}" up
+  ip addr add "${GATEWAY_IP}/${cidr_prefix}" dev "${NETWORK_NAME}" valid_lft forever preferred_lft forever
+  ip link set "${LAN_PARENT_IF}" promisc on
+  if sysctl -a 2>/dev/null | grep -q "^net.ipv4.conf.${NETWORK_NAME}.proxy_arp"; then
+    sysctl -q -w "net.ipv4.conf.${NETWORK_NAME}.proxy_arp=1"
   fi
 }
 cleanup_for_network

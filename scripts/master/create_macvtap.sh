@@ -1,22 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Create a macvtap interface anchored to an existing NIC.
-# Usage: create_macvtap.sh <parent_iface> <macvtap_iface> [ipv4_cidr]
-# Example: sudo ./create_macvtap.sh 512rede 512rede-host 192.168.76.1/24
+# Create (and optionally persist) a macvtap interface anchored to a parent NIC.
+# Usage:
+#   sudo ./create_macvtap.sh [--persist] <parent_iface> <macvtap_iface> [ipv4_cidr]
+# Example:
+#   sudo ./create_macvtap.sh --persist 512rede 512rede-host 192.168.76.1/24
+#
+# When --persist is supplied the script installs a systemd oneshot unit that
+# recreates the macvtap and reapplies the address on boot.
 
 usage() {
   cat <<'USAGE'
-Usage: create_macvtap.sh <parent_iface> <macvtap_iface> [ipv4_cidr]
+Usage: create_macvtap.sh [--persist] <parent_iface> <macvtap_iface> [ipv4_cidr]
 
+  --persist      Install a systemd unit to recreate the interface at boot
   parent_iface   Existing physical NIC (e.g. 512rede)
-  macvtap_iface  New macvtap name to create (e.g. 512rede-host)
-  ipv4_cidr      Optional IPv4 address/prefix to assign (e.g. 192.168.76.1/24)
+  macvtap_iface  macvtap name to create (e.g. 512rede-host)
+  ipv4_cidr      Optional IPv4/prefix to assign (e.g. 192.168.76.1/24)
 
 Notes:
   - Requires root and iproute2 (ip command).
   - Uses macvtap mode bridge so VMs with type='direct' can reach the host.
-  - Sets the parent interface to promiscuous mode for reliable forwarding.
+  - Puts the parent interface in promiscuous mode for reliable forwarding.
 USAGE
   exit 1
 }
@@ -34,8 +40,92 @@ info() {
   printf '[INFO] %s\n' "$*"
 }
 
+install_persistence() {
+  local parent=$1
+  local child=$2
+  local ipv4=$3
+  local helper="/usr/local/sbin/macvtap-${child}.sh"
+  local unit="/etc/systemd/system/macvtap-${child}.service"
+
+  info "Installing persistence helper ${helper}"
+  cat >"${helper}" <<SCRIPT
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ip link show ${child} >/dev/null 2>&1; then
+  ip link set ${child} down || true
+  ip link delete ${child} || true
+fi
+
+ip link show ${parent} >/dev/null 2>&1 || exit 1
+ip link set ${parent} promisc on
+ip link add link ${parent} name ${child} type macvtap mode bridge
+ip link set ${child} up
+$(if [[ -n ${ipv4} ]]; then
+  cat <<EOF
+ip addr add ${ipv4} dev ${child}
+EOF
+fi)
+if sysctl -a 2>/dev/null | grep -q '^net.ipv4.conf.${child}.proxy_arp'; then
+  sysctl -q -w net.ipv4.conf.${child}.proxy_arp=1
+fi
+SCRIPT
+  chmod 0755 "${helper}"
+
+  info "Creating systemd unit ${unit}"
+  cat >"${unit}" <<UNIT
+[Unit]
+Description=macvtap ${child} on ${parent}
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=${helper}
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+  sysctl_conf="/etc/sysctl.d/99-${child}-proxy-arp.conf"
+  if [[ -n ${ipv4} ]]; then
+    info "Persisting proxy_arp enablement for ${child}"
+    cat >"${sysctl_conf}" <<CONF
+net.ipv4.conf.${child}.proxy_arp = 1
+CONF
+  fi
+
+  systemctl daemon-reload
+  systemctl enable --now "macvtap-${child}.service"
+  info "Persistence enabled for ${child}"
+}
+
 [[ ${EUID:-0} -eq 0 ]] || fatal 'This script must run as root.'
 command -v ip >/dev/null 2>&1 || fatal 'ip command not found (install iproute2).'
+
+PERSIST=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --persist)
+      PERSIST=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      fatal "Unknown option '$1'"
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
 
 if [[ $# -lt 2 || $# -gt 3 ]]; then
   usage
@@ -80,6 +170,10 @@ else
 fi
 
 trap - ERR
+
+if (( PERSIST )); then
+  install_persistence "$PARENT_IF" "$MACVTAP_IF" "$IPV4_CIDR"
+fi
 
 info "macvtap '${MACVTAP_IF}' ready."
 if [[ -n $IPV4_CIDR ]]; then

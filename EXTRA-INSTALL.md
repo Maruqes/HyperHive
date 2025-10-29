@@ -24,7 +24,7 @@ Choose this mode when the master must also provide an isolated `512rede` network
    ```bash
    sudo ./scripts/master/setup_dhcp.sh <wan-interface>
    ```
-   Supply the upstream/WAN NIC (e.g., `enp1s0`). Run this only after the master’s isolated interface already uses the name `512rede` (perform Step 4 on the master first). The script writes `dnsmasq` config, enables masquerading, and starts `dnsmasq-512rede.service`.
+   Supply the upstream/WAN NIC (e.g., `enp1s0`). Run this only after the master’s isolated interface already uses the name `512rede` (perform Step 4 on the master first). The script now auto-creates a macvtap child named `512rede-host` linked to the physical NIC, assigns `192.168.76.1/24`, writes the `dnsmasq` config, enables masquerading, and starts `dnsmasq-512rede-host.service`.
 
 4. **Rename the isolated NIC to `512rede` (master + every LAN-connected slave).**
    ```bash
@@ -35,6 +35,14 @@ Choose this mode when the master must also provide an isolated `512rede` network
    sudo nmcli con up 512rede              # or the connection name created by the script
    sudo nmcli connection modify 512rede connection.autoconnect yes
    ```
+   For the host itself (master and slaves) to share the same L2 domain as the VMs that use `<interface type='direct'>`, create the macvtap companion interface:
+   ```bash
+   sudo ./scripts/master/create_macvtap.sh --persist 512rede 512rede-host
+   ```
+   Slaves that should obtain an address from the master can then request one with:
+   ```bash
+   sudo dhclient 512rede-host
+   ```
 
 5. **Enable root SSH where needed.**
    ```bash
@@ -44,11 +52,11 @@ Choose this mode when the master must also provide an isolated `512rede` network
 
 6. **Verify services and networking.**
    ```bash
-   systemctl status dnsmasq-512rede libvirtd nfs-server
-   ip addr show 512rede
+   systemctl status dnsmasq-512rede-host libvirtd nfs-server
+   ip addr show 512rede-host
    ss -lupn | grep -E ':67|:53'
    ```
-   Confirm DHCP/NAT, virtualization, and NFS are active; ensure `512rede` carries the expected address.
+   Confirm DHCP/NAT, virtualization, and NFS are active; ensure `512rede-host` carries `192.168.76.1/24`.
 
 ## Tips
 - Before Step 4 capture current interface names with `ip -o link show`.
