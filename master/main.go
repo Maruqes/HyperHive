@@ -96,13 +96,18 @@ func setupFirewallD() error {
 func main() {
 	askForSudo()
 
+	err := setupFirewallD()
+	if err != nil {
+		panic(err)
+	}
+
 	if err := env512.Setup(); err != nil {
 		log.Fatalf("env setup: %v", err)
 	}
 	logger.SetType(env512.Mode)
 
 	//check if novnc folder exists, if not download it
-	err := downloadNoVNC()
+	err = downloadNoVNC()
 	if err != nil {
 		log.Fatalf("download noVNC: %v", err)
 	}

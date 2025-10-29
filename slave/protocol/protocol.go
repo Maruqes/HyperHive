@@ -77,9 +77,6 @@ func monitorConnection(conn *grpc.ClientConn) {
 		switch state {
 		case connectivity.Ready:
 			// healthy, nothing to do
-		case connectivity.Idle:
-			logger.Info("connection to master idle, forcing reconnect")
-			conn.Connect()
 		case connectivity.Connecting:
 			logger.Info("connection to master reconnecting...")
 		case connectivity.Shutdown, connectivity.TransientFailure:
