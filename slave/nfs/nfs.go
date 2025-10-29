@@ -1001,6 +1001,8 @@ func UnmountSharedFolder(folder FolderMount) error {
 	}
 	CurrentMountsLock.Unlock()
 
+	//delete target folder if it can be deleted
+	_ = os.Remove(folder.Target)
 	return nil
 }
 
@@ -1287,6 +1289,6 @@ func CanFindFileOrDir(folderPath string) (bool, error) {
 	return true, nil
 }
 
-func Sync() error { 	
+func Sync() error {
 	return runCommand("sync filesystem", "sync")
 }
