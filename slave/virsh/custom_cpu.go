@@ -199,8 +199,8 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	//<driver name='qemu' type='qcow2' cache='none' io='native'/>
 	networkXML := ""
 	if opts.Network == "512rede" {
-		networkXML = `<interface type='direct'>
-	  <source dev='512rede' mode='bridge'/>
+		networkXML = `<interface type='bridge'>
+	  <source bridge='br512rede'/>
 	  <model type='virtio'/>
 	</interface>`
 	} else {
