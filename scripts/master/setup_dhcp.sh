@@ -115,21 +115,10 @@ ensure_macvtap() {
     args+=(--persist)
   fi
 
-  info "Ensuring macvtap ${LAN_INTERFACE_NAME} on parent ${LAN_PARENT_IF}"
+  info "Recreating macvtap ${LAN_INTERFACE_NAME} on parent ${LAN_PARENT_IF}"
   ip link show "${LAN_PARENT_IF}" >/dev/null 2>&1 || fatal "Parent interface '${LAN_PARENT_IF}' not found."
 
-  if ! ip link show "${LAN_INTERFACE_NAME}" >/dev/null 2>&1; then
-    "${MACVTAP_HELPER}" "${args[@]}" "${LAN_PARENT_IF}" "${LAN_INTERFACE_NAME}" "${ip_cidr}"
-  else
-    info "macvtap ${LAN_INTERFACE_NAME} already exists; refreshing address ${ip_cidr}"
-    ip link set "${LAN_PARENT_IF}" promisc on
-    ip link set "${LAN_INTERFACE_NAME}" up
-    ip addr flush dev "${LAN_INTERFACE_NAME}" || true
-    ip addr add "${ip_cidr}" dev "${LAN_INTERFACE_NAME}"
-    if sysctl -a 2>/dev/null | grep -q "^net.ipv4.conf.${LAN_INTERFACE_NAME}.proxy_arp"; then
-      sysctl -q -w "net.ipv4.conf.${LAN_INTERFACE_NAME}.proxy_arp=1"
-    fi
-  fi
+  "${MACVTAP_HELPER}" "${args[@]}" "${LAN_PARENT_IF}" "${LAN_INTERFACE_NAME}" "${ip_cidr}"
 }
 ensure_macvtap
 
@@ -144,6 +133,9 @@ cleanup_for_network() {
   install -d -m 755 "${DNSMASQ_CONF_DIR}" "${DNSMASQ_LEASE_DIR}"
   rm -f "${DNSMASQ_CONF_DIR}/${NETWORK_NAME}.conf"
   rm -f "${DNSMASQ_LEASE_DIR}/${NETWORK_NAME}.leases"
+
+  # Stop dedicated dnsmasq unit if present
+  systemctl disable --now "${DEDICATED_UNIT}" >/dev/null 2>&1 || true
 
   # 2) Remove old drop-ins we might have created on the global dnsmasq.service
   rm -f "/etc/systemd/system/dnsmasq.service.d/${NETWORK_NAME}-wait.conf"

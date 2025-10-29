@@ -46,6 +46,13 @@ install_persistence() {
   local ipv4=$3
   local helper="/usr/local/sbin/macvtap-${child}.sh"
   local unit="/etc/systemd/system/macvtap-${child}.service"
+  local sysctl_conf="/etc/sysctl.d/99-${child}-proxy-arp.conf"
+
+  info "Cleaning previous persistence artifacts for ${child}"
+  systemctl disable --now "macvtap-${child}.service" >/dev/null 2>&1 || true
+  rm -f "${helper}" "${unit}" "${sysctl_conf}"
+  install -d -m 755 "$(dirname "${helper}")"
+  install -d -m 755 "$(dirname "${unit}")"
 
   info "Installing persistence helper ${helper}"
   cat >"${helper}" <<SCRIPT
@@ -87,7 +94,6 @@ RemainAfterExit=yes
 WantedBy=multi-user.target
 UNIT
 
-  sysctl_conf="/etc/sysctl.d/99-${child}-proxy-arp.conf"
   if [[ -n ${ipv4} ]]; then
     info "Persisting proxy_arp enablement for ${child}"
     cat >"${sysctl_conf}" <<CONF
@@ -140,7 +146,9 @@ IPV4_CIDR=${3:-}
 
 ip link show "$PARENT_IF" >/dev/null 2>&1 || fatal "Parent interface '$PARENT_IF' not found."
 if ip link show "$MACVTAP_IF" >/dev/null 2>&1; then
-  fatal "Interface '$MACVTAP_IF' already exists."
+  info "Removing existing interface '${MACVTAP_IF}' before recreation"
+  ip link set "$MACVTAP_IF" down 2>/dev/null || true
+  ip link delete "$MACVTAP_IF" 2>/dev/null || true
 fi
 
 info "Enabling promiscuous mode on ${PARENT_IF}"
