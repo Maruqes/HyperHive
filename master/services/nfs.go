@@ -5,7 +5,9 @@ import (
 	"512SvMan/nfs"
 	"512SvMan/protocol"
 	"context"
+	"crypto/rand"
 	"fmt"
+	"math/big"
 	"strings"
 
 	proto "github.com/Maruqes/512SvMan/api/proto/nfs"
@@ -54,6 +56,23 @@ type NFSService struct {
 	SharePoint SharePoint
 }
 
+const alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+var max = big.NewInt(int64(len(alphabet)))
+
+func ShortID(n int) (string, error) {
+	var b strings.Builder
+	b.Grow(n)
+	for i := 0; i < n; i++ {
+		x, err := rand.Int(rand.Reader, max) // sem viés
+		if err != nil {
+			return "", err
+		}
+		b.WriteByte(alphabet[x.Int64()])
+	}
+	return b.String(), nil
+}
+
 func (s *NFSService) CreateSharePoint() error {
 	//find connection by machine name
 	conn := protocol.GetConnectionByMachineName(s.SharePoint.MachineName)
@@ -63,17 +82,21 @@ func (s *NFSService) CreateSharePoint() error {
 
 	//make sure name exists and sanitize it (only letters and numbers), and add it to folder_path
 	if s.SharePoint.Name != "" {
-		sanitized := ""
+		sanitizedName := ""
 		for _, r := range s.SharePoint.Name {
 			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
-				sanitized += string(r)
+				sanitizedName += string(r)
 			}
 		}
-		if sanitized != "" {
+		if sanitizedName != "" {
+			shortId, err := ShortID(6)
+			if err != nil {
+				return err
+			}
 			if s.SharePoint.FolderPath[len(s.SharePoint.FolderPath)-1] != '/' {
-				s.SharePoint.FolderPath = s.SharePoint.FolderPath + "/" + sanitized
+				s.SharePoint.FolderPath = s.SharePoint.FolderPath + "/" + sanitizedName + shortId
 			} else {
-				s.SharePoint.FolderPath = s.SharePoint.FolderPath + sanitized
+				s.SharePoint.FolderPath = s.SharePoint.FolderPath + sanitizedName + shortId
 			}
 		}
 	}
@@ -419,7 +442,7 @@ func (s *NFSService) DownloadISO(ctx context.Context, url, isoName string, nfsSh
 	}
 	err := nfs.Sync(conn.Connection)
 	if err != nil {
-		return "",err
+		return "", err
 	}
 	return isoPath, nil
 }
@@ -478,7 +501,7 @@ func (s *NFSService) CanFindFileOrDirOnAllSlaves(path string) (map[string]bool, 
 	return results, nil
 }
 
-//uses "sync" command so nfs fushes all dirty tables
+// uses "sync" command so nfs fushes all dirty tables
 func (s *NFSService) SyncNFSAllSlaves() error {
 	var errRet string
 	conns := protocol.GetAllGRPCConnections()

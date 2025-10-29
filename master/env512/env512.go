@@ -8,10 +8,10 @@ import (
 )
 
 var (
-	PingInterval      int
-	Mode              string
-	Qemu_UID          string
-	Qemu_GID          string
+	PingInterval int
+	Mode         string
+	Qemu_UID     string
+	Qemu_GID     string
 )
 
 func Setup() error {
@@ -23,7 +23,7 @@ func Setup() error {
 	Qemu_GID = os.Getenv("QEMU_GID")
 
 	if PingInterval == 0 {
-		PingInterval = 10 //default 10 seconds
+		PingInterval = 15 //default 15 seconds
 	}
 	if Mode != "dev" {
 		Mode = "prod" //default prod
