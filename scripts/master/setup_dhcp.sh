@@ -292,7 +292,7 @@ After=sys-subsystem-net-devices-${NETWORK_NAME}.device network-online.target Net
 [Service]
 Type=simple
 # Wait until ${NETWORK_NAME} has an IPv4 address
-ExecStartPre=/bin/bash -c 'for i in {1..60}; do ip -4 addr show ${NETWORK_NAME} | grep -q "inet " && exit 0; sleep 1; done; echo "${NETWORK_NAME} has no IPv4"; exit 1'
+ExecStartPre=/bin/bash -c 'for i in {1..15}; do ip -4 addr show ${NETWORK_NAME} | grep -q "inet " && exit 0; sleep 1; done; echo "${NETWORK_NAME} has no IPv4"; exit 1'
 # Run ONLY with the per-network config; ignore /etc/dnsmasq.conf to avoid 10.42.* or other leftovers
 ExecStart=/usr/sbin/dnsmasq -k --conf-file=${DNSMASQ_CONF} --bind-interfaces
 Restart=on-failure
@@ -307,11 +307,31 @@ info "Enabling NetworkManager-wait-online for better ordering"
 systemctl enable NetworkManager-wait-online.service >/dev/null 2>&1 || true
 
 systemctl daemon-reload
+systemctl reset-failed "${DEDICATED_UNIT}" >/dev/null 2>&1 || true
+
+info "Enabling ${DEDICATED_UNIT}"
+systemctl enable "${DEDICATED_UNIT}" >/dev/null 2>&1 || fatal "Failed to enable ${DEDICATED_UNIT}"
+
 info "Starting ${DEDICATED_UNIT}"
-systemctl enable --now "${DEDICATED_UNIT}"
+systemctl start "${DEDICATED_UNIT}" --no-block >/dev/null 2>&1 || fatal "Failed to start ${DEDICATED_UNIT}"
+
+info "Waiting up to 20s for ${DEDICATED_UNIT} to report active"
+service_ready=0
+for i in {1..20}; do
+  if systemctl is-active --quiet "${DEDICATED_UNIT}"; then
+    service_ready=1
+    break
+  fi
+  sleep 1
+done
+
+if (( service_ready == 0 )); then
+  warn "${DEDICATED_UNIT} did not reach active state within 20 seconds."
+  systemctl --no-pager --lines=50 status "${DEDICATED_UNIT}" || true
+  fatal "${DEDICATED_UNIT} failed to start (see status output above)."
+fi
 
 # --- Verification -------------------------------------------------------------
-sleep 1
 systemctl --no-pager --lines=50 status "${DEDICATED_UNIT}" || true
 ss -lupn | egrep ':(53|67|68)\b' || true
 
