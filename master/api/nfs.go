@@ -142,6 +142,6 @@ func setupNFSAPI(r chi.Router) chi.Router {
 		r.Get("/list", listShares)
 		r.Post("/create", createShare)
 		r.Delete("/delete", deleteShare)
-		r.Get("/contents/{machine}", listPathContents)
+		r.Post("/contents/{machine}", listPathContents)
 	})
 }
