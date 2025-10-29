@@ -37,43 +37,44 @@ var (
 func init() {
 	connections = make([]*ConnectionsStruct, 0)
 }
-
-func tryRestoreConnection(connection ConnectionsStruct) {
-	for attempt := range 3 {
-		err := NewSlaveConnection(connection.Addr, connection.MachineName)
-		if err == nil {
-			log.Printf("reconnected slave %s (%s) on attempt %d", connection.MachineName, connection.Addr, attempt+1)
-			return
-		}
-		log.Printf("reconnect attempt %d for slave %s failed: %v", attempt+1, connection.Addr, err)
-		if attempt < 2 {
-			time.Sleep(2 * time.Second)
+func tryRestoreConnection(addr, machine string) bool {
+	for attempt := 0; attempt < 3; attempt++ {
+		if err := NewSlaveConnection(addr, machine); err == nil {
+			log.Printf("reconnected slave %s (%s) on attempt %d", machine, addr, attempt+1)
+			return true
+		} else {
+			log.Printf("reconnect attempt %d for slave %s failed: %v", attempt+1, addr, err)
+			if attempt < 2 {
+				time.Sleep(2 * time.Second)
+			}
 		}
 	}
+	return false
 }
 
 // removes conn if it is really down
 func CheckConnectionStateRemove(connection ConnectionsStruct) {
-	//se a conexao for nil, vamos tentar criar uma nova
 	if connection.Connection == nil {
 		log.Printf("connection for slave %s is nil, removing", connection.Addr)
 		if removed := removeConnection(connection.Addr); removed != nil && removed.Connection != nil {
 			_ = removed.Connection.Close()
 		}
-		tryRestoreConnection(connection)
+		if !tryRestoreConnection(connection.Addr, connection.MachineName) {
+			log.Printf("failed to recreate connection for slave %s after 3 attempts", connection.Addr)
+		}
 		return
 	}
 
-	//se ouver conn tentamos pingar se nao der discartamos a conexao e criamos uma nova com tryRestoreConnection
-	for attempt := range 3 {
-		err := PingSlave(connection.Connection, connection.MachineName)
-		if err == nil {
+	// 3 tentativas de ping
+	for attempt := 0; attempt < 3; attempt++ {
+		if err := PingSlave(connection.Connection, connection.MachineName); err == nil {
 			markSlaveHealthy(connection.Addr)
 			return
-		}
-		log.Printf("ping slave %s attempt %d failed: %v", connection.Addr, attempt+1, err)
-		if attempt < 2 {
-			time.Sleep(2 * time.Second)
+		} else {
+			log.Printf("ping slave %s attempt %d failed: %v", connection.Addr, attempt+1, err)
+			if attempt < 2 {
+				time.Sleep(2 * time.Second)
+			}
 		}
 	}
 
@@ -81,9 +82,9 @@ func CheckConnectionStateRemove(connection ConnectionsStruct) {
 	if removed := removeConnection(connection.Addr); removed != nil && removed.Connection != nil {
 		_ = removed.Connection.Close()
 	}
-
-	tryRestoreConnection(connection)
-	log.Printf("failed to recreate connection for slave %s after 3 attempts", connection.Addr)
+	if !tryRestoreConnection(connection.Addr, connection.MachineName) {
+		log.Printf("failed to recreate connection for slave %s after 3 attempts", connection.Addr)
+	}
 }
 
 // pinga todas as conexoes master -> slave (slave server)
@@ -111,35 +112,35 @@ func NewSlaveConnection(addr, machineName string) error {
 		return fmt.Errorf("machineName cannot be empty")
 	}
 
-	target := addr + ":50052"
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	target := net.JoinHostPort(addr, "50052")
 
 	ka := keepalive.ClientParameters{
-		Time:                15 * time.Second, // envia ping a cada 15s (mais agressivo)
-		Timeout:             10 * time.Second, // espera 10s pelo ACK do ping
-		PermitWithoutStream: true,             // pings mesmo sem RPCs ativas
+		Time: 15 * time.Second, Timeout: 10 * time.Second, PermitWithoutStream: true,
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	conn, err := grpc.DialContext(ctx, target,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
 		grpc.WithKeepaliveParams(ka),
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(50*1024*1024), grpc.MaxCallSendMsgSize(50*1024*1024)),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(50*1024*1024),
+			grpc.MaxCallSendMsgSize(50*1024*1024),
+		),
 	)
-	cancel()
 	if err != nil {
 		return fmt.Errorf("dial slave %s: %w", target, err)
 	}
 
-	err = PingSlave(conn, machineName)
-	if err != nil {
-		return err
+	if err := PingSlave(conn, machineName); err != nil {
+		_ = conn.Close()
+		return fmt.Errorf("initial ping to slave %s failed: %w", machineName, err)
 	}
+
 	entry := &ConnectionsStruct{
-		Addr:        addr,
-		MachineName: machineName,
-		Connection:  conn,
-		LastSeen:    time.Now(),
+		Addr: addr, MachineName: machineName, Connection: conn, LastSeen: time.Now(),
 	}
 
 	replaced, err := addOrReplaceConnection(entry)
@@ -151,12 +152,14 @@ func NewSlaveConnection(addr, machineName string) error {
 		_ = replaced.Connection.Close()
 	}
 
-	if err := recievedNewSlaveFunc(addr, machineName, conn); err != nil {
-		if removed := removeConnection(addr); removed != nil && removed.Connection != nil {
-			_ = removed.Connection.Close()
+	if recievedNewSlaveFunc != nil {
+		if err := recievedNewSlaveFunc(addr, machineName, conn); err != nil {
+			if removed := removeConnection(addr); removed != nil && removed.Connection != nil {
+				_ = removed.Connection.Close()
+			}
+			_ = conn.Close()
+			return err
 		}
-		_ = conn.Close()
-		return err
 	}
 
 	logger.Info("Nova conexao com slave:", addr, machineName)

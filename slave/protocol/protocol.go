@@ -95,19 +95,22 @@ func monitorConnection(conn *grpc.ClientConn) {
 		state := conn.GetState()
 		switch state {
 		case connectivity.Ready:
-			// healthy, nothing to do
+			// ok
 		case connectivity.Connecting:
 			logger.Info("connection to master reconnecting...")
+		case connectivity.Idle:
+			logger.Info("connection state changed: IDLE -> forcing Connect()")
+			conn.Connect()
 		case connectivity.Shutdown, connectivity.TransientFailure:
-			logger.Info("connection to master lost (state: %s), restarting", state)
+			logger.Info("connection to master lost; restarting")
 			_ = conn.Close()
 			if err := restartSelf(); err != nil {
-				logger.Error("failed to restart slave process: %v", err)
+				logger.Error(fmt.Sprintf("failed to restart slave process: %v", err))
 			}
 			os.Exit(1)
 			return
 		default:
-			logger.Info("connection state changed: %s", state)
+			logger.Info(fmt.Sprintf("connection state changed: %s", state.String()))
 		}
 		if !conn.WaitForStateChange(ctx, state) {
 			logger.Info("monitorConnection: no further state changes, stopping monitor")
@@ -128,15 +131,22 @@ func PingMaster(conn *grpc.ClientConn) {
 		cancel()
 		if err != nil {
 			logger.Error("PingMaster: %v", err)
-			// Try to detect if connection is dead
-			if conn.GetState() == connectivity.TransientFailure || conn.GetState() == connectivity.Shutdown {
-				logger.Error("Connection to master is dead, triggering restart")
+			// Check connection state and handle accordingly
+			state := conn.GetState()
+			switch state {
+			case connectivity.Idle:
+				logger.Info("Connection idle, attempting to reconnect...")
+				conn.Connect()
+			case connectivity.TransientFailure, connectivity.Shutdown:
+				logger.Error("Connection to master is dead (state: %s), triggering restart", state)
 				_ = conn.Close()
 				if err := restartSelf(); err != nil {
 					logger.Error("failed to restart slave process: %v", err)
 				}
 				os.Exit(1)
 				return
+			default:
+				logger.Debug("Connection state: %s, continuing...", state)
 			}
 		} else {
 			logger.Debug("Ping to master successful")
