@@ -282,12 +282,18 @@ fi
 # --- Dedicated dnsmasq service bound to this interface ONLY -------------------
 UNIT_PATH="/etc/systemd/system/${DEDICATED_UNIT}"
 info "Creating dedicated service ${DEDICATED_UNIT}"
+unit_after="After=network-online.target NetworkManager-wait-online.service"
+unit_wants=""
+if truthy "${MACVTAP_PERSIST}"; then
+  unit_after="After=macvtap-${NETWORK_NAME}.service network-online.target NetworkManager-wait-online.service"
+  unit_wants="Wants=macvtap-${NETWORK_NAME}.service"
+fi
+
 cat >"${UNIT_PATH}" <<EOF
 [Unit]
 Description=dnsmasq for ${NETWORK_NAME}
-Requires=sys-subsystem-net-devices-${NETWORK_NAME}.device
-BindsTo=sys-subsystem-net-devices-${NETWORK_NAME}.device
-After=sys-subsystem-net-devices-${NETWORK_NAME}.device network-online.target NetworkManager-wait-online.service
+${unit_wants}
+${unit_after}
 
 [Service]
 Type=simple
