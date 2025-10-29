@@ -48,6 +48,7 @@ type clientServer struct {
 
 // serve para ser pingado e ver se esta vivo
 func (s *clientServer) Notify(ctx context.Context, req *pb.NotifyRequest) (*pb.NotifyResponse, error) {
+	logger.Info(req.Text)
 	return &pb.NotifyResponse{Ok: "OK do Cliente"}, nil
 }
 
@@ -59,15 +60,16 @@ func listenGRPC() {
 	}
 
 	enf := keepalive.EnforcementPolicy{
-		MinTime:             10 * time.Second, // aceita pings >= 10s de intervalo
+		MinTime:             5 * time.Second, // aceita pings >= 5s de intervalo (mais agressivo)
 		PermitWithoutStream: true,
 	}
 
 	srvParams := keepalive.ServerParameters{
-		MaxConnectionIdle: 0,                // 0 ⇒ não fecha por idle
-		Time:              60 * time.Second, // servidor também pinga
-		Timeout:           15 * time.Second,
-		// opcional: MaxConnectionAge/Grace se precisares de reciclar ligações
+		MaxConnectionIdle:     0,                // 0 ⇒ não fecha por idle
+		MaxConnectionAge:      0,                // 0 ⇒ não recicla conexão por idade
+		MaxConnectionAgeGrace: 0,                // sem período de graça
+		Time:                  20 * time.Second, // servidor pinga a cada 20s (mais frequente)
+		Timeout:               10 * time.Second, // espera 10s pela resposta
 	}
 
 	s := grpc.NewServer(
@@ -114,7 +116,11 @@ func monitorConnection(conn *grpc.ClientConn) {
 	}
 }
 
+// pinga todas as conexoes slave -> master (master server)
 func PingMaster(conn *grpc.ClientConn) {
+	ticker := time.NewTicker(time.Duration(env512.PingInterval) * time.Second)
+	defer ticker.Stop()
+
 	for {
 		h := pb.NewProtocolServiceClient(conn)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -122,9 +128,20 @@ func PingMaster(conn *grpc.ClientConn) {
 		cancel()
 		if err != nil {
 			logger.Error("PingMaster: %v", err)
+			// Try to detect if connection is dead
+			if conn.GetState() == connectivity.TransientFailure || conn.GetState() == connectivity.Shutdown {
+				logger.Error("Connection to master is dead, triggering restart")
+				_ = conn.Close()
+				if err := restartSelf(); err != nil {
+					logger.Error("failed to restart slave process: %v", err)
+				}
+				os.Exit(1)
+				return
+			}
+		} else {
+			logger.Debug("Ping to master successful")
 		}
-		//ping every 30 seconds
-		time.Sleep(time.Duration(env512.PingInterval) * time.Second)
+		<-ticker.C
 	}
 }
 
@@ -138,12 +155,17 @@ func ConnectGRPC() *grpc.ClientConn {
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 
 		ka := keepalive.ClientParameters{
-			Time:                30 * time.Second, // envia ping se não houver tráfego durante 30s
+			Time:                15 * time.Second, // envia ping a cada 15s (mais agressivo)
 			Timeout:             10 * time.Second, // espera 10s pelo ACK do ping
 			PermitWithoutStream: true,             // pings mesmo sem RPCs ativas
 		}
 
-		conn, err := grpc.DialContext(ctx, target, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock(), grpc.WithKeepaliveParams(ka))
+		conn, err := grpc.DialContext(ctx, target,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithBlock(),
+			grpc.WithKeepaliveParams(ka),
+			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(50*1024*1024), grpc.MaxCallSendMsgSize(50*1024*1024)),
+		)
 		cancel()
 		if err != nil {
 			logger.Error("dial master failed: %v", err)

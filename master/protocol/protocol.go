@@ -147,6 +147,24 @@ func markSlaveHealthy(addr string) {
 	}
 }
 
+func PingSlave(conn *grpc.ClientConn, name string) error {
+	if conn == nil {
+		return fmt.Errorf("connection is nil")
+	}
+
+	client := pb.NewClientServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := client.Notify(ctx, &pb.NotifyRequest{Text: "Ping to slave " + name})
+	if err != nil {
+		return fmt.Errorf("ping failed: %w", err)
+	}
+
+	return nil
+}
+
+// removes conn if it is really down
 func CheckConnection(connection ConnectionsStruct) {
 	if connection.Connection == nil {
 		log.Printf("connection for slave %s is nil, removing", connection.Addr)
@@ -156,11 +174,8 @@ func CheckConnection(connection ConnectionsStruct) {
 		return
 	}
 
-	h := pb.NewClientServiceClient(connection.Connection)
 	for i := 0; i < 3; i++ {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		_, err := h.Notify(ctx, &pb.NotifyRequest{Text: "Ping do Master"})
-		cancel()
+		err := PingSlave(connection.Connection, connection.MachineName)
 		if err == nil {
 			markSlaveHealthy(connection.Addr)
 			return
@@ -175,21 +190,14 @@ func CheckConnection(connection ConnectionsStruct) {
 	}
 }
 
-func PingAllSlaves(ctx context.Context) {
-	baseCtx := ctx
-	if baseCtx == nil {
-		baseCtx = context.Background()
-	}
-
+// pinga todas as conexoes master -> slave (slave server)
+func PingAllSlaves() {
 	for _, c := range GetConnectionsSnapshot() {
 		if c.Connection == nil {
 			CheckConnection(c)
 			continue
 		}
-		pingCtx, cancel := context.WithTimeout(baseCtx, 5*time.Second)
-		h := pb.NewClientServiceClient(c.Connection)
-		_, err := h.Notify(pingCtx, &pb.NotifyRequest{Text: "Ping do Master"})
-		cancel()
+		err := PingSlave(c.Connection, c.MachineName)
 		if err != nil {
 			log.Printf("could not notify slave %s: %v", c.Addr, err)
 			CheckConnection(c)
@@ -204,26 +212,26 @@ func NewSlaveConnection(addr, machineName string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 
 	ka := keepalive.ClientParameters{
-		Time:                30 * time.Second, // envia ping se não houver tráfego durante 30s
+		Time:                15 * time.Second, // envia ping a cada 15s (mais agressivo)
 		Timeout:             10 * time.Second, // espera 10s pelo ACK do ping
 		PermitWithoutStream: true,             // pings mesmo sem RPCs ativas
 	}
 
-	conn, err := grpc.DialContext(ctx, target, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock(), grpc.WithKeepaliveParams(ka))
+	conn, err := grpc.DialContext(ctx, target,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock(),
+		grpc.WithKeepaliveParams(ka),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(50*1024*1024), grpc.MaxCallSendMsgSize(50*1024*1024)),
+	)
 	cancel()
 	if err != nil {
 		return fmt.Errorf("dial slave %s: %w", target, err)
 	}
 
-	client := pb.NewClientServiceClient(conn)
-	pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	if _, err := client.Notify(pingCtx, &pb.NotifyRequest{Text: "Ping do Master"}); err != nil {
-		pingCancel()
-		_ = conn.Close()
-		return fmt.Errorf("initial ping slave %s: %w", target, err)
+	err = PingSlave(conn, machineName)
+	if err != nil {
+		return err
 	}
-	pingCancel()
-
 	entry := &ConnectionsStruct{
 		Addr:        addr,
 		MachineName: machineName,
@@ -259,11 +267,11 @@ type protocolServer struct {
 
 func (s *protocolServer) SetConnection(ctx context.Context, req *pb.SetConnectionRequest) (*pb.SetConnectionResponse, error) {
 	log.Printf("Master recebeu SetConnection: %s", req.GetAddr())
-	PingAllSlaves(ctx)
 	err := NewSlaveConnection(req.GetAddr(), req.GetMachineName())
 	if err != nil {
 		return &pb.SetConnectionResponse{Ok: "Erro ao conectar ao slave"}, err
 	}
+	PingAllSlaves()
 	return &pb.SetConnectionResponse{Ok: "OK do Master"}, nil
 }
 
@@ -273,12 +281,6 @@ func (s *protocolServer) Notify(ctx context.Context, req *pb.NotifyRequest) (*pb
 
 func ListenGRPC(recievedNewConnectionFunction func(addr, machineName string, conn *grpc.ClientConn) error) {
 	recievedNewSlaveFunc = recievedNewConnectionFunction
-	go func() {
-		for {
-			PingAllSlaves(context.Background())
-			time.Sleep(30 * time.Second)
-		}
-	}()
 
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
@@ -286,22 +288,22 @@ func ListenGRPC(recievedNewConnectionFunction func(addr, machineName string, con
 	}
 
 	enf := keepalive.EnforcementPolicy{
-		MinTime:             10 * time.Second, // aceita pings >= 10s de intervalo
+		MinTime:             5 * time.Second, // aceita pings >= 5s de intervalo (mais agressivo)
 		PermitWithoutStream: true,
 	}
 
 	srvParams := keepalive.ServerParameters{
-		MaxConnectionIdle: 0,                // 0 ⇒ não fecha por idle
-		Time:              60 * time.Second, // servidor também pinga
-		Timeout:           15 * time.Second,
-		// opcional: MaxConnectionAge/Grace se precisares de reciclar ligações
+		MaxConnectionIdle:     0,                // 0 ⇒ não fecha por idle
+		MaxConnectionAge:      0,                // 0 ⇒ não recicla conexão por idade
+		MaxConnectionAgeGrace: 0,                // sem período de graça
+		Time:                  20 * time.Second, // servidor pinga a cada 20s (mais frequente)
+		Timeout:               10 * time.Second, // espera 10s pela resposta
 	}
 
 	s := grpc.NewServer(
 		grpc.KeepaliveEnforcementPolicy(enf),
 		grpc.KeepaliveParams(srvParams),
 	)
-
 	pb.RegisterProtocolServiceServer(s, &protocolServer{})
 	logsGrpc.RegisterLogsServeServer(s, &logs512.LogsServer{})
 	extraGrpc.RegisterExtraServiceServer(s, &extra.ExtraServiceServer{})
@@ -312,4 +314,11 @@ func ListenGRPC(recievedNewConnectionFunction func(addr, machineName string, con
 		}
 	}()
 
+}
+
+func PingAllSlavesLoop() {
+	for {
+		PingAllSlaves()
+		time.Sleep(time.Second * 15)
+	}
 }

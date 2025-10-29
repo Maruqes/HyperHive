@@ -141,6 +141,7 @@ func main() {
 
 	//listen and connects to gRPC
 	logger.SetCallBack(logs512.LoggerCallBack)
+	go protocol.PingAllSlavesLoop()
 	protocol.ListenGRPC(newSlave)
 
 	api.StartApi()
