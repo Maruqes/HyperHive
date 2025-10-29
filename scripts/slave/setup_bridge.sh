@@ -7,6 +7,9 @@ usage() {
   cat <<'USAGE'
 Usage: setup_bridge.sh
 
+This moves the LAN IP from the physical interface onto the bridge. After completion,
+the bridge holds the IP; the physical interface will appear without an address.
+
 Environment variables:
   LAN_INTERFACE_NAME   Physical interface plugged into the master network (default: 512rede)
   BRIDGE_NAME          Bridge name to create/ensure (default: br512rede)
@@ -116,4 +119,4 @@ else
   ensure_bridge_manual
 fi
 
-info "Bridge ${BRIDGE_NAME} ready. Attach VMs to this bridge to reach the master DHCP server."
+info "Bridge ${BRIDGE_NAME} ready. The bridge now carries the host IP; ${LAN_INTERFACE_NAME} stays enslaved. Attach VMs to ${BRIDGE_NAME} to reach the master DHCP server."
