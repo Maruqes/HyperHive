@@ -874,7 +874,7 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Get("/backups", getAllBackups)
 		r.Get("/downloadbackup/{backup_id}", downloadBackup)
 		r.Post("/useBackup/{backup_id}", useBackup)
-		r.Delete("/delete/{backup_id}", deleteBackup)
+		r.Delete("/deleteBackup/{backup_id}", deleteBackup)
 
 		r.Post("/autostart/{vm_name}", autoStart)
 	})
