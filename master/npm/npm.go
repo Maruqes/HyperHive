@@ -108,24 +108,30 @@ func PullImage() error {
 		return err
 	}
 
-	// 2) Write docker-compose.yml
+	// 2) Write docker-compose.yml if it doesn't already exist
 	composeFile := filepath.Join(work, "docker-compose.yml")
-	composeContent := fmt.Sprintf(`version: "3"
+	if _, err := os.Stat(composeFile); err == nil {
+		// file exists, don't overwrite
+	} else if os.IsNotExist(err) {
+		composeContent := fmt.Sprintf(`version: "3"
 services:
   app:
-    image: jc21/nginx-proxy-manager:latest
-    restart: unless-stopped
-    network_mode: "host"
-    ports:
-      - "80:80"
-      - "443:443"
-      - "81:81"
-    volumes:
-      - %s:/data
-      - %s:/etc/letsencrypt
-`, data, ssl)
+	image: %s
+	restart: unless-stopped
+	network_mode: "host"
+	ports:
+	  - "80:80"
+	  - "443:443"
+	  - "81:81"
+	volumes:
+	  - %s:/data
+	  - %s:/etc/letsencrypt
+`, image, data, ssl)
 
-	if err := os.WriteFile(composeFile, []byte(composeContent), 0o644); err != nil {
+		if err := os.WriteFile(composeFile, []byte(composeContent), 0o644); err != nil {
+			return err
+		}
+	} else {
 		return err
 	}
 
