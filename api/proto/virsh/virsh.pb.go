@@ -182,6 +182,7 @@ type CreateVmRequest struct {
 	VncPassword   string                 `protobuf:"bytes,9,opt,name=vnc_password,json=vncPassword,proto3" json:"vnc_password,omitempty"`
 	CpuXml        string                 `protobuf:"bytes,10,opt,name=cpuXml,proto3" json:"cpuXml,omitempty"`
 	Raw           bool                   `protobuf:"varint,11,opt,name=raw,proto3" json:"raw,omitempty"`
+	AutoStart     bool                   `protobuf:"varint,12,opt,name=autoStart,proto3" json:"autoStart,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -293,6 +294,13 @@ func (x *CreateVmRequest) GetRaw() bool {
 	return false
 }
 
+func (x *CreateVmRequest) GetAutoStart() bool {
+	if x != nil {
+		return x.AutoStart
+	}
+	return false
+}
+
 type OkResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
@@ -358,6 +366,7 @@ type Vm struct {
 	DiskSizeGB           int32                  `protobuf:"varint,9,opt,name=diskSizeGB,proto3" json:"diskSizeGB,omitempty"`
 	DiskPath             string                 `protobuf:"bytes,10,opt,name=diskPath,proto3" json:"diskPath,omitempty"`
 	Ip                   []string               `protobuf:"bytes,12,rep,name=ip,proto3" json:"ip,omitempty"`
+	AutoStart            bool                   `protobuf:"varint,13,opt,name=autoStart,proto3" json:"autoStart,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -467,6 +476,13 @@ func (x *Vm) GetIp() []string {
 		return x.Ip
 	}
 	return nil
+}
+
+func (x *Vm) GetAutoStart() bool {
+	if x != nil {
+		return x.AutoStart
+	}
+	return false
 }
 
 type GetVmByNameRequest struct {
@@ -829,6 +845,58 @@ func (x *ColdMigrationRequest) GetLive() bool {
 	return false
 }
 
+type AutoStartRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	VmName        string                 `protobuf:"bytes,1,opt,name=vmName,proto3" json:"vmName,omitempty"`
+	AutoStart     bool                   `protobuf:"varint,2,opt,name=autoStart,proto3" json:"autoStart,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AutoStartRequest) Reset() {
+	*x = AutoStartRequest{}
+	mi := &file_virsh_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AutoStartRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AutoStartRequest) ProtoMessage() {}
+
+func (x *AutoStartRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_virsh_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AutoStartRequest.ProtoReflect.Descriptor instead.
+func (*AutoStartRequest) Descriptor() ([]byte, []int) {
+	return file_virsh_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *AutoStartRequest) GetVmName() string {
+	if x != nil {
+		return x.VmName
+	}
+	return ""
+}
+
+func (x *AutoStartRequest) GetAutoStart() bool {
+	if x != nil {
+		return x.AutoStart
+	}
+	return false
+}
+
 var File_virsh_proto protoreflect.FileDescriptor
 
 const file_virsh_proto_rawDesc = "" +
@@ -836,7 +904,7 @@ const file_virsh_proto_rawDesc = "" +
 	"\vvirsh.proto\x12\x05virsh\"\a\n" +
 	"\x05Empty\"4\n" +
 	"\x16GetCpuFeaturesResponse\x12\x1a\n" +
-	"\bfeatures\x18\x01 \x03(\tR\bfeatures\"\xb2\x02\n" +
+	"\bfeatures\x18\x01 \x03(\tR\bfeatures\"\xd0\x02\n" +
 	"\x0fCreateVmRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06memory\x18\x02 \x01(\x05R\x06memory\x12\x12\n" +
@@ -851,11 +919,12 @@ const file_virsh_proto_rawDesc = "" +
 	"\fvnc_password\x18\t \x01(\tR\vvncPassword\x12\x16\n" +
 	"\x06cpuXml\x18\n" +
 	" \x01(\tR\x06cpuXml\x12\x10\n" +
-	"\x03raw\x18\v \x01(\bR\x03raw\"6\n" +
+	"\x03raw\x18\v \x01(\bR\x03raw\x12\x1c\n" +
+	"\tautoStart\x18\f \x01(\bR\tautoStart\"6\n" +
 	"\n" +
 	"OkResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\xe0\x02\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xfe\x02\n" +
 	"\x02Vm\x12 \n" +
 	"\vmachineName\x18\x01 \x01(\tR\vmachineName\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12$\n" +
@@ -870,7 +939,8 @@ const file_virsh_proto_rawDesc = "" +
 	"diskSizeGB\x12\x1a\n" +
 	"\bdiskPath\x18\n" +
 	" \x01(\tR\bdiskPath\x12\x0e\n" +
-	"\x02ip\x18\f \x03(\tR\x02ip\"(\n" +
+	"\x02ip\x18\f \x03(\tR\x02ip\x12\x1c\n" +
+	"\tautoStart\x18\r \x01(\bR\tautoStart\"(\n" +
 	"\x12GetVmByNameRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"L\n" +
 	"\x11GetAllVmsResponse\x12\x1b\n" +
@@ -894,7 +964,10 @@ const file_virsh_proto_rawDesc = "" +
 	"\fvnc_password\x18\x05 \x01(\tR\vvncPassword\x12\x16\n" +
 	"\x06cpuXML\x18\x06 \x01(\tR\x06cpuXML\x12\x1b\n" +
 	"\tdisk_path\x18\a \x01(\tR\bdiskPath\x12\x12\n" +
-	"\x04live\x18\b \x01(\bR\x04live*\x82\x01\n" +
+	"\x04live\x18\b \x01(\bR\x04live\"H\n" +
+	"\x10AutoStartRequest\x12\x16\n" +
+	"\x06vmName\x18\x01 \x01(\tR\x06vmName\x12\x1c\n" +
+	"\tautoStart\x18\x02 \x01(\bR\tautoStart*\x82\x01\n" +
 	"\aVmState\x12\v\n" +
 	"\aUNKNOWN\x10\x00\x12\v\n" +
 	"\aRUNNING\x10\x01\x12\v\n" +
@@ -905,7 +978,7 @@ const file_virsh_proto_rawDesc = "" +
 	"\aSHUTOFF\x10\x05\x12\v\n" +
 	"\aCRASHED\x10\x06\x12\x0f\n" +
 	"\vPMSUSPENDED\x10\a\x12\v\n" +
-	"\aNOSTATE\x10\b2\xb3\a\n" +
+	"\aNOSTATE\x10\b2\xec\a\n" +
 	"\x11SlaveVirshService\x12=\n" +
 	"\x0eGetCpuFeatures\x12\f.virsh.Empty\x1a\x1d.virsh.GetCpuFeaturesResponse\x120\n" +
 	"\tGetCPUXML\x12\f.virsh.Empty\x1a\x15.virsh.CPUXMLResponse\x12?\n" +
@@ -925,7 +998,8 @@ const file_virsh_proto_rawDesc = "" +
 	"\vGetVmByName\x12\x19.virsh.GetVmByNameRequest\x1a\t.virsh.Vm\x12/\n" +
 	"\x0fRemoveIsoFromVm\x12\t.virsh.Vm\x1a\x11.virsh.OkResponse\x12/\n" +
 	"\x0fEditVmResources\x12\t.virsh.Vm\x1a\x11.virsh.OkResponse\x12?\n" +
-	"\rColdMigrateVm\x12\x1b.virsh.ColdMigrationRequest\x1a\x11.virsh.OkResponseB3Z1github.com/Maruqes/512SvMan/api/proto/virsh;protob\x06proto3"
+	"\rColdMigrateVm\x12\x1b.virsh.ColdMigrationRequest\x1a\x11.virsh.OkResponse\x127\n" +
+	"\tAutoStart\x12\x17.virsh.AutoStartRequest\x1a\x11.virsh.OkResponseB3Z1github.com/Maruqes/512SvMan/api/proto/virsh;protob\x06proto3"
 
 var (
 	file_virsh_proto_rawDescOnce sync.Once
@@ -940,7 +1014,7 @@ func file_virsh_proto_rawDescGZIP() []byte {
 }
 
 var file_virsh_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_virsh_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_virsh_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_virsh_proto_goTypes = []any{
 	(VmState)(0),                   // 0: virsh.VmState
 	(*Empty)(nil),                  // 1: virsh.Empty
@@ -954,6 +1028,7 @@ var file_virsh_proto_goTypes = []any{
 	(*CPUXMLResponse)(nil),         // 9: virsh.CPUXMLResponse
 	(*UpdateVMCPUXmlRequest)(nil),  // 10: virsh.UpdateVMCPUXmlRequest
 	(*ColdMigrationRequest)(nil),   // 11: virsh.ColdMigrationRequest
+	(*AutoStartRequest)(nil),       // 12: virsh.AutoStartRequest
 }
 var file_virsh_proto_depIdxs = []int32{
 	0,  // 0: virsh.Vm.state:type_name -> virsh.VmState
@@ -976,26 +1051,28 @@ var file_virsh_proto_depIdxs = []int32{
 	5,  // 17: virsh.SlaveVirshService.RemoveIsoFromVm:input_type -> virsh.Vm
 	5,  // 18: virsh.SlaveVirshService.EditVmResources:input_type -> virsh.Vm
 	11, // 19: virsh.SlaveVirshService.ColdMigrateVm:input_type -> virsh.ColdMigrationRequest
-	2,  // 20: virsh.SlaveVirshService.GetCpuFeatures:output_type -> virsh.GetCpuFeaturesResponse
-	9,  // 21: virsh.SlaveVirshService.GetCPUXML:output_type -> virsh.CPUXMLResponse
-	9,  // 22: virsh.SlaveVirshService.GetVMCPUXml:output_type -> virsh.CPUXMLResponse
-	4,  // 23: virsh.SlaveVirshService.UpdateVMCPUXml:output_type -> virsh.OkResponse
-	4,  // 24: virsh.SlaveVirshService.CreateVm:output_type -> virsh.OkResponse
-	4,  // 25: virsh.SlaveVirshService.MigrateVM:output_type -> virsh.OkResponse
-	4,  // 26: virsh.SlaveVirshService.ShutdownVM:output_type -> virsh.OkResponse
-	4,  // 27: virsh.SlaveVirshService.ForceShutdownVM:output_type -> virsh.OkResponse
-	4,  // 28: virsh.SlaveVirshService.StartVM:output_type -> virsh.OkResponse
-	4,  // 29: virsh.SlaveVirshService.RemoveVM:output_type -> virsh.OkResponse
-	4,  // 30: virsh.SlaveVirshService.RestartVM:output_type -> virsh.OkResponse
-	4,  // 31: virsh.SlaveVirshService.PauseVM:output_type -> virsh.OkResponse
-	4,  // 32: virsh.SlaveVirshService.ResumeVM:output_type -> virsh.OkResponse
-	7,  // 33: virsh.SlaveVirshService.GetAllVms:output_type -> virsh.GetAllVmsResponse
-	5,  // 34: virsh.SlaveVirshService.GetVmByName:output_type -> virsh.Vm
-	4,  // 35: virsh.SlaveVirshService.RemoveIsoFromVm:output_type -> virsh.OkResponse
-	4,  // 36: virsh.SlaveVirshService.EditVmResources:output_type -> virsh.OkResponse
-	4,  // 37: virsh.SlaveVirshService.ColdMigrateVm:output_type -> virsh.OkResponse
-	20, // [20:38] is the sub-list for method output_type
-	2,  // [2:20] is the sub-list for method input_type
+	12, // 20: virsh.SlaveVirshService.AutoStart:input_type -> virsh.AutoStartRequest
+	2,  // 21: virsh.SlaveVirshService.GetCpuFeatures:output_type -> virsh.GetCpuFeaturesResponse
+	9,  // 22: virsh.SlaveVirshService.GetCPUXML:output_type -> virsh.CPUXMLResponse
+	9,  // 23: virsh.SlaveVirshService.GetVMCPUXml:output_type -> virsh.CPUXMLResponse
+	4,  // 24: virsh.SlaveVirshService.UpdateVMCPUXml:output_type -> virsh.OkResponse
+	4,  // 25: virsh.SlaveVirshService.CreateVm:output_type -> virsh.OkResponse
+	4,  // 26: virsh.SlaveVirshService.MigrateVM:output_type -> virsh.OkResponse
+	4,  // 27: virsh.SlaveVirshService.ShutdownVM:output_type -> virsh.OkResponse
+	4,  // 28: virsh.SlaveVirshService.ForceShutdownVM:output_type -> virsh.OkResponse
+	4,  // 29: virsh.SlaveVirshService.StartVM:output_type -> virsh.OkResponse
+	4,  // 30: virsh.SlaveVirshService.RemoveVM:output_type -> virsh.OkResponse
+	4,  // 31: virsh.SlaveVirshService.RestartVM:output_type -> virsh.OkResponse
+	4,  // 32: virsh.SlaveVirshService.PauseVM:output_type -> virsh.OkResponse
+	4,  // 33: virsh.SlaveVirshService.ResumeVM:output_type -> virsh.OkResponse
+	7,  // 34: virsh.SlaveVirshService.GetAllVms:output_type -> virsh.GetAllVmsResponse
+	5,  // 35: virsh.SlaveVirshService.GetVmByName:output_type -> virsh.Vm
+	4,  // 36: virsh.SlaveVirshService.RemoveIsoFromVm:output_type -> virsh.OkResponse
+	4,  // 37: virsh.SlaveVirshService.EditVmResources:output_type -> virsh.OkResponse
+	4,  // 38: virsh.SlaveVirshService.ColdMigrateVm:output_type -> virsh.OkResponse
+	4,  // 39: virsh.SlaveVirshService.AutoStart:output_type -> virsh.OkResponse
+	21, // [21:40] is the sub-list for method output_type
+	2,  // [2:21] is the sub-list for method input_type
 	2,  // [2:2] is the sub-list for extension type_name
 	2,  // [2:2] is the sub-list for extension extendee
 	0,  // [0:2] is the sub-list for field type_name
@@ -1012,7 +1089,7 @@ func file_virsh_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_virsh_proto_rawDesc), len(file_virsh_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   11,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

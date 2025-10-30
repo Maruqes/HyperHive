@@ -14,6 +14,7 @@ import (
 
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 	"github.com/go-chi/chi/v5"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func getCpuFeatures(w http.ResponseWriter, r *http.Request) {
@@ -56,6 +57,7 @@ func createVM(w http.ResponseWriter, r *http.Request) {
 		CpuXml      string `json:"cpu_xml"`
 		Live        bool   `json:"live"`
 		Raw         bool   `json:"raw"`
+		AutoStart   bool   `json:"auto_start"`
 	}
 
 	var vmReq VMRequest
@@ -67,14 +69,14 @@ func createVM(w http.ResponseWriter, r *http.Request) {
 
 	virshServices := services.VirshService{}
 	if vmReq.Live {
-		err = virshServices.CreateLiveVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml, vmReq.Raw)
+		err = virshServices.CreateLiveVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml, vmReq.Raw, vmReq.AutoStart)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 	} else {
-		err = virshServices.CreateVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, "", vmReq.Raw)
+		err = virshServices.CreateVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, "", vmReq.Raw, vmReq.AutoStart)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -133,7 +135,35 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	data, err := json.Marshal(res)
+
+	opts := protojson.MarshalOptions{
+		EmitUnpopulated: true,
+		UseEnumNumbers:  true,
+	}
+
+	payload := make([]map[string]interface{}, 0, len(res))
+	for _, vm := range res {
+		vmMap := map[string]interface{}{
+			"isLive": vm.IsLive,
+		}
+
+		if vm.Vm != nil {
+			raw, err := opts.Marshal(vm.Vm)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			if err := json.Unmarshal(raw, &vmMap); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+		vmMap["isLive"] = vm.IsLive
+		payload = append(payload, vmMap)
+	}
+
+	data, err := json.Marshal(payload)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -759,17 +789,38 @@ func deleteBackup(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "error with backup_id "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	_ = backupIdInt
+	virshServices := services.VirshService{}
+	err = virshServices.DeleteBackup(backupIdInt)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
 
-	//TODO
-	//TODO
-	//TODO
-	//TODO
-	//TODO
-	//TODO
-	//TODO
-	//TODO
-	//TODO
+func autoStart(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type msg struct {
+		AutoStart bool `json:"auto_start"`
+	}
+
+	var m msg
+	if err := json.NewDecoder(r.Body).Decode(&m); err != nil && err != io.EOF {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err := virshServices.AutoStart(vmName, m.AutoStart)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -824,5 +875,7 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Get("/downloadbackup/{backup_id}", downloadBackup)
 		r.Post("/useBackup/{backup_id}", useBackup)
 		r.Delete("/delete/{backup_id}", deleteBackup)
+
+		r.Post("/autostart/{vm_name}", autoStart)
 	})
 }

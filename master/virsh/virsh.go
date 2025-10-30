@@ -35,7 +35,7 @@ func GetVMCPUXml(conn *grpc.ClientConn, vmName string) (string, error) {
 	return resp.CpuXML, nil
 }
 
-func CreateVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder, diskPath string, diskSizeGB int32, isoPath, network, VNCPassword string, cpuXML string, raw bool) error {
+func CreateVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder, diskPath string, diskSizeGB int32, isoPath, network, VNCPassword string, cpuXML string, raw bool, autoStart bool) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.CreateVm(context.Background(), &grpcVirsh.CreateVmRequest{
 		Name:        name,
@@ -49,6 +49,7 @@ func CreateVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder
 		VncPassword: VNCPassword,
 		CpuXml:      cpuXML,
 		Raw:         raw,
+		AutoStart:   autoStart,
 	})
 	if err != nil {
 		return err
@@ -196,6 +197,15 @@ func PauseVM(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
 func ResumeVM(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.ResumeVM(context.Background(), req)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func AutoStart(conn *grpc.ClientConn, req *grpcVirsh.AutoStartRequest) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.AutoStart(context.Background(), req)
 	if err != nil {
 		return err
 	}

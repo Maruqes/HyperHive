@@ -54,6 +54,11 @@ func (s *SlaveVirshService) CreateVm(ctx context.Context, req *grpcVirsh.CreateV
 	if err != nil {
 		return nil, err
 	}
+
+	if req.AutoStart {
+		SetAutoStartVM(req.Name, true)
+	}
+
 	return &grpcVirsh.OkResponse{Ok: true}, nil
 }
 
@@ -176,6 +181,13 @@ func (s *SlaveVirshService) PauseVM(ctx context.Context, req *grpcVirsh.Vm) (*gr
 
 func (s *SlaveVirshService) ResumeVM(ctx context.Context, req *grpcVirsh.Vm) (*grpcVirsh.OkResponse, error) {
 	if err := ResumeVM(req.Name); err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{Ok: true}, nil
+}
+
+func (s *SlaveVirshService) AutoStart(ctx context.Context, req *grpcVirsh.AutoStartRequest) (*grpcVirsh.OkResponse, error) {
+	if err := SetAutoStartVM(req.VmName, req.AutoStart); err != nil {
 		return nil, err
 	}
 	return &grpcVirsh.OkResponse{Ok: true}, nil

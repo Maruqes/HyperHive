@@ -161,7 +161,7 @@ func (v *VirshService) GetCpuDisableFeatures(conns []string) (string, error) {
 }
 
 // vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword
-func (v *VirshService) CreateVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXML string, raw bool) error {
+func (v *VirshService) CreateVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXML string, raw bool, autoStart bool) error {
 
 	exists, err := virsh.DoesVMExist(name)
 	if err != nil {
@@ -217,10 +217,10 @@ func (v *VirshService) CreateVM(machine_name string, name string, memory int32, 
 		diskFolder = nfsShare.Target + name
 	}
 
-	return virsh.CreateVM(slaveMachine.Connection, name, memory, vcpu, diskFolder, qcowFile, diskSizeGB, isoPath, network, VNCPassword, cpuXML, raw)
+	return virsh.CreateVM(slaveMachine.Connection, name, memory, vcpu, diskFolder, qcowFile, diskSizeGB, isoPath, network, VNCPassword, cpuXML, raw, autoStart)
 }
 
-func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXml string, raw bool) error {
+func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXml string, raw bool, autoStart bool) error {
 	exists, err := db.DoesVmLiveExist(name)
 	if err != nil {
 		return fmt.Errorf("failed to check if live VM exists in database: %v", err)
@@ -242,7 +242,7 @@ func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int
 		return fmt.Errorf("cant have live VM on a HostNormalMount NFS true, use a nfs where HostNormalMount is false")
 	}
 
-	err = v.CreateVM(machine_name, name, memory, vcpu, nfsShareId, diskSizeGB, isoID, network, VNCPassword, cpuXml, raw)
+	err = v.CreateVM(machine_name, name, memory, vcpu, nfsShareId, diskSizeGB, isoID, network, VNCPassword, cpuXml, raw, autoStart)
 	if err != nil {
 		return err
 	}
@@ -896,12 +896,32 @@ func (v *VirshService) BackupVM(vmName string, nfsID int) error {
 	}
 
 	err = copyFile(vm.DiskPath, backup.Path, vmName)
+	if err != nil {
+		return err
+	}
 
 	err = db.InsertVirshBackup(backup)
 	if err != nil {
 		return fmt.Errorf("problems writing to db backup: %v", err)
 	}
 
+	return nil
+}
+
+func (v *VirshService) DeleteBackup(bakId int) error {
+	bakup, err := db.GetVirshBackupById(bakId)
+	if err != nil {
+		return nil
+	}
+
+	if bakup == nil {
+		return fmt.Errorf("backupId not found")
+	}
+
+	err = os.Remove(bakup.Path)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -979,4 +999,20 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 	}
 
 	return nil
+}
+
+func (v *VirshService) AutoStart(vmName string, autoStart bool) error {
+	con := protocol.GetAllGRPCConnections()
+	for _, conn := range con {
+		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: vmName})
+		if err == nil && vm != nil {
+			//found the vm
+			err = virsh.AutoStart(conn, &grpcVirsh.AutoStartRequest{VmName: vmName, AutoStart: autoStart})
+			if err != nil {
+				return fmt.Errorf("failed to autostart VM %s: %v", vmName, err)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("%s", fmt.Sprint("VM %s not found in auto start", vmName))
 }

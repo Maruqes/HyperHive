@@ -37,6 +37,7 @@ const (
 	SlaveVirshService_RemoveIsoFromVm_FullMethodName = "/virsh.SlaveVirshService/RemoveIsoFromVm"
 	SlaveVirshService_EditVmResources_FullMethodName = "/virsh.SlaveVirshService/EditVmResources"
 	SlaveVirshService_ColdMigrateVm_FullMethodName   = "/virsh.SlaveVirshService/ColdMigrateVm"
+	SlaveVirshService_AutoStart_FullMethodName       = "/virsh.SlaveVirshService/AutoStart"
 )
 
 // SlaveVirshServiceClient is the client API for SlaveVirshService service.
@@ -65,6 +66,7 @@ type SlaveVirshServiceClient interface {
 	// cpuCount and memoryMB are the new values to set
 	EditVmResources(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
 	ColdMigrateVm(ctx context.Context, in *ColdMigrationRequest, opts ...grpc.CallOption) (*OkResponse, error)
+	AutoStart(ctx context.Context, in *AutoStartRequest, opts ...grpc.CallOption) (*OkResponse, error)
 }
 
 type slaveVirshServiceClient struct {
@@ -255,6 +257,16 @@ func (c *slaveVirshServiceClient) ColdMigrateVm(ctx context.Context, in *ColdMig
 	return out, nil
 }
 
+func (c *slaveVirshServiceClient) AutoStart(ctx context.Context, in *AutoStartRequest, opts ...grpc.CallOption) (*OkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OkResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_AutoStart_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SlaveVirshServiceServer is the server API for SlaveVirshService service.
 // All implementations must embed UnimplementedSlaveVirshServiceServer
 // for forward compatibility.
@@ -281,6 +293,7 @@ type SlaveVirshServiceServer interface {
 	// cpuCount and memoryMB are the new values to set
 	EditVmResources(context.Context, *Vm) (*OkResponse, error)
 	ColdMigrateVm(context.Context, *ColdMigrationRequest) (*OkResponse, error)
+	AutoStart(context.Context, *AutoStartRequest) (*OkResponse, error)
 	mustEmbedUnimplementedSlaveVirshServiceServer()
 }
 
@@ -344,6 +357,9 @@ func (UnimplementedSlaveVirshServiceServer) EditVmResources(context.Context, *Vm
 }
 func (UnimplementedSlaveVirshServiceServer) ColdMigrateVm(context.Context, *ColdMigrationRequest) (*OkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ColdMigrateVm not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) AutoStart(context.Context, *AutoStartRequest) (*OkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AutoStart not implemented")
 }
 func (UnimplementedSlaveVirshServiceServer) mustEmbedUnimplementedSlaveVirshServiceServer() {}
 func (UnimplementedSlaveVirshServiceServer) testEmbeddedByValue()                           {}
@@ -690,6 +706,24 @@ func _SlaveVirshService_ColdMigrateVm_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SlaveVirshService_AutoStart_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AutoStartRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).AutoStart(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_AutoStart_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).AutoStart(ctx, req.(*AutoStartRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SlaveVirshService_ServiceDesc is the grpc.ServiceDesc for SlaveVirshService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -768,6 +802,10 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ColdMigrateVm",
 			Handler:    _SlaveVirshService_ColdMigrateVm_Handler,
+		},
+		{
+			MethodName: "AutoStart",
+			Handler:    _SlaveVirshService_AutoStart_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
