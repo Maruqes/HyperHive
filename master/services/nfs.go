@@ -5,7 +5,9 @@ import (
 	"512SvMan/nfs"
 	"512SvMan/protocol"
 	"context"
+	"crypto/rand"
 	"fmt"
+	"math/big"
 	"strings"
 
 	proto "github.com/Maruqes/512SvMan/api/proto/nfs"
@@ -33,23 +35,42 @@ func ConvertNSFShareToGRPCFolderMount(share []db.NFSShare) *proto.FolderMountLis
 	}
 	for _, s := range share {
 		folderMounts.Mounts = append(folderMounts.Mounts, &proto.FolderMount{
-			MachineName: s.MachineName,
-			FolderPath:  s.FolderPath,
-			Source:      s.Source,
-			Target:      s.Target,
+			MachineName:     s.MachineName,
+			FolderPath:      s.FolderPath,
+			Source:          s.Source,
+			Target:          s.Target,
+			HostNormalMount: s.HostNormalMount,
 		})
 	}
 	return folderMounts
 }
 
 type SharePoint struct {
-	MachineName string `json:"machine_name"` //this machine want to share
-	FolderPath  string `json:"folder_path"`  //this folder
-	Name        string `json:"name"`         //optional friendly name for the share
+	MachineName     string `json:"machine_name"` //this machine want to share
+	FolderPath      string `json:"folder_path"`  //this folder
+	Name            string `json:"name"`         //optional friendly name for the share
+	HostNormalMount bool   `json:"host_normal_mount"`
 }
 
 type NFSService struct {
 	SharePoint SharePoint
+}
+
+const alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+var max = big.NewInt(int64(len(alphabet)))
+
+func ShortID(n int) (string, error) {
+	var b strings.Builder
+	b.Grow(n)
+	for i := 0; i < n; i++ {
+		x, err := rand.Int(rand.Reader, max) // sem viés
+		if err != nil {
+			return "", err
+		}
+		b.WriteByte(alphabet[x.Int64()])
+	}
+	return b.String(), nil
 }
 
 func (s *NFSService) CreateSharePoint() error {
@@ -61,26 +82,39 @@ func (s *NFSService) CreateSharePoint() error {
 
 	//make sure name exists and sanitize it (only letters and numbers), and add it to folder_path
 	if s.SharePoint.Name != "" {
-		sanitized := ""
+		sanitizedName := ""
 		for _, r := range s.SharePoint.Name {
 			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
-				sanitized += string(r)
+				sanitizedName += string(r)
 			}
 		}
-		if sanitized != "" {
+		if sanitizedName != "" {
+			shortId, err := ShortID(6)
+			if err != nil {
+				return err
+			}
 			if s.SharePoint.FolderPath[len(s.SharePoint.FolderPath)-1] != '/' {
-				s.SharePoint.FolderPath = s.SharePoint.FolderPath + "/" + sanitized
+				s.SharePoint.FolderPath = s.SharePoint.FolderPath + "/" + sanitizedName + shortId
 			} else {
-				s.SharePoint.FolderPath = s.SharePoint.FolderPath + sanitized
+				s.SharePoint.FolderPath = s.SharePoint.FolderPath + sanitizedName + shortId
 			}
 		}
 	}
 
+	//block certain linux important paths like /root or /boot and others
+	blockedPaths := []string{"/root", "/boot", "/etc", "/bin", "/sbin", "/usr", "/lib", "/lib64", "/sys", "/proc", "/dev"}
+	for _, blocked := range blockedPaths {
+		if strings.HasPrefix(s.SharePoint.FolderPath, blocked) {
+			return fmt.Errorf("cannot share system path: %s", blocked)
+		}
+	}
+
 	mount := &proto.FolderMount{
-		MachineName: s.SharePoint.MachineName,                  // machine that shares
-		FolderPath:  s.SharePoint.FolderPath,                   // folder to share
-		Source:      conn.Addr + ":" + s.SharePoint.FolderPath, // creates ip:folderpath
-		Target:      "/mnt/512SvMan/shared/" + s.SharePoint.MachineName + "_" + getFolderName(s.SharePoint.FolderPath),
+		MachineName:     s.SharePoint.MachineName,                  // machine that shares
+		FolderPath:      s.SharePoint.FolderPath,                   // folder to share
+		Source:          conn.Addr + ":" + s.SharePoint.FolderPath, // creates ip:folderpath
+		Target:          "/mnt/512SvMan/shared/" + s.SharePoint.MachineName + "_" + getFolderName(s.SharePoint.FolderPath),
+		HostNormalMount: s.SharePoint.HostNormalMount,
 	}
 
 	if err := nfs.CreateSharedFolder(conn.Connection, mount); err != nil {
@@ -88,7 +122,7 @@ func (s *NFSService) CreateSharePoint() error {
 		return err
 	}
 
-	err := db.AddNFSShare(mount.MachineName, mount.FolderPath, mount.Source, mount.Target, s.SharePoint.Name)
+	err := db.AddNFSShare(mount.MachineName, mount.FolderPath, mount.Source, mount.Target, s.SharePoint.Name, mount.HostNormalMount)
 	if err != nil {
 		logger.Error("AddNFSShare failed: %v", err)
 		return err
@@ -118,10 +152,11 @@ func forcedelete(s *NFSService) error {
 
 	//remove last slash
 	mount := &proto.FolderMount{
-		MachineName: s.SharePoint.MachineName,
-		FolderPath:  s.SharePoint.FolderPath,
-		Source:      "",
-		Target:      "/mnt/512SvMan/shared/" + s.SharePoint.MachineName + "_" + getFolderName(s.SharePoint.FolderPath),
+		MachineName:     s.SharePoint.MachineName,
+		FolderPath:      s.SharePoint.FolderPath,
+		Source:          "",
+		Target:          "/mnt/512SvMan/shared/" + s.SharePoint.MachineName + "_" + getFolderName(s.SharePoint.FolderPath),
+		HostNormalMount: s.SharePoint.HostNormalMount,
 	}
 
 	conns := protocol.GetAllGRPCConnections()
@@ -192,10 +227,11 @@ func (s *NFSService) DeleteSharePoint(force bool) error {
 
 	//remove last slash
 	mount := &proto.FolderMount{
-		MachineName: s.SharePoint.MachineName,
-		FolderPath:  s.SharePoint.FolderPath,
-		Source:      conn.Addr + ":" + s.SharePoint.FolderPath,
-		Target:      "/mnt/512SvMan/shared/" + s.SharePoint.MachineName + "_" + getFolderName(s.SharePoint.FolderPath),
+		MachineName:     s.SharePoint.MachineName,
+		FolderPath:      s.SharePoint.FolderPath,
+		Source:          conn.Addr + ":" + s.SharePoint.FolderPath,
+		Target:          "/mnt/512SvMan/shared/" + s.SharePoint.MachineName + "_" + getFolderName(s.SharePoint.FolderPath),
+		HostNormalMount: s.SharePoint.HostNormalMount,
 	}
 
 	//get vms and isos and delete them first
@@ -327,10 +363,11 @@ func (s *NFSService) MountAllSharedFolders() error {
 	// create shared folders on all provided connections
 	for _, svNSF := range serversNFS {
 		mount := &proto.FolderMount{
-			FolderPath:  svNSF.FolderPath,
-			Source:      svNSF.Source,
-			Target:      svNSF.Target,
-			MachineName: svNSF.MachineName,
+			FolderPath:      svNSF.FolderPath,
+			Source:          svNSF.Source,
+			Target:          svNSF.Target,
+			MachineName:     svNSF.MachineName,
+			HostNormalMount: svNSF.HostNormalMount,
 		}
 		for i, conn := range conns {
 			if conn == nil {
@@ -357,10 +394,11 @@ func (s *NFSService) MountAllSharedFolders() error {
 		}
 		for _, svNSF := range serversNFS {
 			mount := &proto.FolderMount{
-				FolderPath:  svNSF.FolderPath,
-				Source:      svNSF.Source,
-				Target:      svNSF.Target,
-				MachineName: svNSF.MachineName,
+				FolderPath:      svNSF.FolderPath,
+				Source:          svNSF.Source,
+				Target:          svNSF.Target,
+				MachineName:     svNSF.MachineName,
+				HostNormalMount: svNSF.HostNormalMount,
 			}
 			logger.Info("Mounting NFS shared folder on machine with mount:", mount)
 			if err := nfs.MountSharedFolder(conn, mount); err != nil {
@@ -398,15 +436,20 @@ func (s *NFSService) DownloadISO(ctx context.Context, url, isoName string, nfsSh
 		IsoUrl:  url,
 		IsoName: isoName,
 		FolderMount: &proto.FolderMount{
-			MachineName: nfsShare.MachineName,
-			FolderPath:  nfsShare.FolderPath,
-			Source:      nfsShare.Source,
-			Target:      nfsShare.Target,
+			MachineName:     nfsShare.MachineName,
+			FolderPath:      nfsShare.FolderPath,
+			Source:          nfsShare.Source,
+			Target:          nfsShare.Target,
+			HostNormalMount: nfsShare.HostNormalMount,
 		},
 	}
 
 	if err := nfs.DownloadISO(conn.Connection, ctx, isoRequest); err != nil {
 		logger.Error("DownloadISO failed: %v", err)
+		return "", err
+	}
+	err := nfs.Sync(conn.Connection)
+	if err != nil {
 		return "", err
 	}
 	return isoPath, nil
@@ -464,4 +507,36 @@ func (s *NFSService) CanFindFileOrDirOnAllSlaves(path string) (map[string]bool, 
 	}
 
 	return results, nil
+}
+
+// uses "sync" command so nfs fushes all dirty tables
+func (s *NFSService) SyncNFSAllSlaves() error {
+	var errRet string
+	conns := protocol.GetAllGRPCConnections()
+	for i, con := range conns {
+		if con == nil {
+			continue
+		}
+		err := nfs.Sync(con)
+		if err != nil {
+			errRet += fmt.Sprintf("err %d: %s\n", i, err.Error())
+		}
+	}
+	if errRet != "" {
+		return fmt.Errorf("%s", errRet)
+	}
+	return nil
+}
+
+func (s *NFSService) SyncNFSSlavesByMachineName(machineName string) error {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil || conn.Connection == nil {
+		return fmt.Errorf("machineName doe snot exist or conn is nil")
+	}
+
+	err := nfs.Sync(conn.Connection)
+	if err != nil {
+		return err
+	}
+	return nil
 }

@@ -7,11 +7,19 @@
 
 set -euo pipefail
 
+truthy() {
+  local v="${1:-}"
+  case "${v,,}" in
+    1|true|yes|on) return 0 ;;
+  esac
+  return 1
+}
+
 usage() {
   cat <<'USAGE'
 Usage: setup_dhcp.sh [WAN_IFACE] (the interface with internet access)
 
-  LAN interface is fixed to 512rede
+  LAN parent interface defaults to 512rede; macvtap child defaults to 512rede-host
   WAN_IFACE : Upstream interface used for NAT (auto-detected if omitted)
 
 Environment variables still override defaults (WAN_IF, SUBNET_CIDR, ...).
@@ -53,7 +61,12 @@ if [[ $# -gt 0 ]]; then
 fi
 
 # --- Tunables (override via env) ---------------------------------------------
-LAN_INTERFACE_NAME="512rede"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MACVTAP_HELPER="${SCRIPT_DIR}/create_macvtap.sh"
+[[ -x "${MACVTAP_HELPER}" ]] || fatal "Helper not found or not executable: ${MACVTAP_HELPER}"
+
+LAN_PARENT_IF="${LAN_PARENT_IF:-512rede}"
+LAN_INTERFACE_NAME="${LAN_INTERFACE_NAME:-${LAN_PARENT_IF}-host}"
 NETWORK_NAME="$LAN_INTERFACE_NAME"
 SUBNET_CIDR="${SUBNET_CIDR:-192.168.76.0/24}"     # LAN subnet
 GATEWAY_IP="${GATEWAY_IP:-192.168.76.1}"          # LAN gateway (this host)
@@ -67,6 +80,7 @@ SYSCTL_CONF="/etc/sysctl.d/99-${NETWORK_NAME}-ipforward.conf"
 DEDICATED_UNIT="dnsmasq-${NETWORK_NAME}.service"
 NAT_UNIT="${NETWORK_NAME}-nat.service"
 NAT_HELPER="/usr/local/sbin/${NETWORK_NAME}-nat.sh"
+MACVTAP_PERSIST="${MACVTAP_PERSIST:-1}"
 
 # --- Pre-reqs -----------------------------------------------------------------
 command -v ip        >/dev/null 2>&1 || fatal 'iproute2 tools are required (missing `ip`).'
@@ -94,6 +108,20 @@ network_address=$(int_to_ip "${network_int}")
 SUBNET_NETWORK="${network_address}/${cidr_prefix}"
 NETMASK=$(prefix_to_mask "${cidr_prefix}")
 
+ensure_macvtap() {
+  local ip_cidr="${GATEWAY_IP}/${cidr_prefix}"
+  local args=()
+  if truthy "${MACVTAP_PERSIST}"; then
+    args+=(--persist)
+  fi
+
+  info "Recreating macvtap ${LAN_INTERFACE_NAME} on parent ${LAN_PARENT_IF}"
+  ip link show "${LAN_PARENT_IF}" >/dev/null 2>&1 || fatal "Parent interface '${LAN_PARENT_IF}' not found."
+
+  "${MACVTAP_HELPER}" "${args[@]}" "${LAN_PARENT_IF}" "${LAN_INTERFACE_NAME}" "${ip_cidr}"
+}
+ensure_macvtap
+
 # --- Verify interface exists --------------------------------------------------
 ip link show "${NETWORK_NAME}" >/dev/null 2>&1 || fatal "Interface '${NETWORK_NAME}' not found."
 
@@ -105,6 +133,9 @@ cleanup_for_network() {
   install -d -m 755 "${DNSMASQ_CONF_DIR}" "${DNSMASQ_LEASE_DIR}"
   rm -f "${DNSMASQ_CONF_DIR}/${NETWORK_NAME}.conf"
   rm -f "${DNSMASQ_LEASE_DIR}/${NETWORK_NAME}.leases"
+
+  # Stop dedicated dnsmasq unit if present
+  systemctl disable --now "${DEDICATED_UNIT}" >/dev/null 2>&1 || true
 
   # 2) Remove old drop-ins we might have created on the global dnsmasq.service
   rm -f "/etc/systemd/system/dnsmasq.service.d/${NETWORK_NAME}-wait.conf"
@@ -132,19 +163,15 @@ cleanup_for_network() {
       nmcli connection delete uuid "${uuid}" >/dev/null 2>&1 || true
     done < <(nmcli -t -f UUID,NAME,DEVICE connection show | awk -F: -v dev="${NETWORK_NAME}" '$3==dev{print $1" "$2}')
 
-    # Recreate our clean static profile
-    nmcli connection delete "${NM_CONNECTION_NAME}" >/dev/null 2>&1 || true
-    info "Creating NM static profile ${NM_CONNECTION_NAME} on ${NETWORK_NAME} (${GATEWAY_IP}/${cidr_prefix})"
-    nmcli connection add type ethernet ifname "${NETWORK_NAME}" con-name "${NM_CONNECTION_NAME}" \
-      ipv4.addresses "${GATEWAY_IP}/${cidr_prefix}" ipv4.method manual ipv4.never-default yes \
-      ipv6.method ignore autoconnect yes >/dev/null
-    nmcli connection modify "${NM_CONNECTION_NAME}" ipv4.gateway "" ipv4.dns "" ipv4.may-fail no >/dev/null
-    nmcli connection up "${NM_CONNECTION_NAME}" >/dev/null || warn "Failed to activate ${NM_CONNECTION_NAME}"
-  else
-    # Fallback if NM missing: set IP directly
-    ip addr flush dev "${NETWORK_NAME}" || true
-    ip link set "${NETWORK_NAME}" up
-    ip addr add "${GATEWAY_IP}/${cidr_prefix}" dev "${NETWORK_NAME}" valid_lft forever preferred_lft forever
+    warn "Skipping NetworkManager macvtap profile creation; falling back to static configuration."
+  fi
+
+  ip addr flush dev "${NETWORK_NAME}" || true
+  ip link set "${NETWORK_NAME}" up
+  ip addr add "${GATEWAY_IP}/${cidr_prefix}" dev "${NETWORK_NAME}" valid_lft forever preferred_lft forever
+  ip link set "${LAN_PARENT_IF}" promisc on
+  if sysctl -a 2>/dev/null | grep -q "^net.ipv4.conf.${NETWORK_NAME}.proxy_arp"; then
+    sysctl -q -w "net.ipv4.conf.${NETWORK_NAME}.proxy_arp=1"
   fi
 }
 cleanup_for_network
@@ -255,17 +282,23 @@ fi
 # --- Dedicated dnsmasq service bound to this interface ONLY -------------------
 UNIT_PATH="/etc/systemd/system/${DEDICATED_UNIT}"
 info "Creating dedicated service ${DEDICATED_UNIT}"
+unit_after="After=network-online.target NetworkManager-wait-online.service"
+unit_wants=""
+if truthy "${MACVTAP_PERSIST}"; then
+  unit_after="After=macvtap-${NETWORK_NAME}.service network-online.target NetworkManager-wait-online.service"
+  unit_wants="Wants=macvtap-${NETWORK_NAME}.service"
+fi
+
 cat >"${UNIT_PATH}" <<EOF
 [Unit]
 Description=dnsmasq for ${NETWORK_NAME}
-Requires=sys-subsystem-net-devices-${NETWORK_NAME}.device
-BindsTo=sys-subsystem-net-devices-${NETWORK_NAME}.device
-After=sys-subsystem-net-devices-${NETWORK_NAME}.device network-online.target NetworkManager-wait-online.service
+${unit_wants}
+${unit_after}
 
 [Service]
 Type=simple
 # Wait until ${NETWORK_NAME} has an IPv4 address
-ExecStartPre=/bin/bash -c 'for i in {1..60}; do ip -4 addr show ${NETWORK_NAME} | grep -q "inet " && exit 0; sleep 1; done; echo "${NETWORK_NAME} has no IPv4"; exit 1'
+ExecStartPre=/bin/bash -c 'for i in {1..15}; do ip -4 addr show ${NETWORK_NAME} | grep -q "inet " && exit 0; sleep 1; done; echo "${NETWORK_NAME} has no IPv4"; exit 1'
 # Run ONLY with the per-network config; ignore /etc/dnsmasq.conf to avoid 10.42.* or other leftovers
 ExecStart=/usr/sbin/dnsmasq -k --conf-file=${DNSMASQ_CONF} --bind-interfaces
 Restart=on-failure
@@ -280,11 +313,31 @@ info "Enabling NetworkManager-wait-online for better ordering"
 systemctl enable NetworkManager-wait-online.service >/dev/null 2>&1 || true
 
 systemctl daemon-reload
+systemctl reset-failed "${DEDICATED_UNIT}" >/dev/null 2>&1 || true
+
+info "Enabling ${DEDICATED_UNIT}"
+systemctl enable "${DEDICATED_UNIT}" >/dev/null 2>&1 || fatal "Failed to enable ${DEDICATED_UNIT}"
+
 info "Starting ${DEDICATED_UNIT}"
-systemctl enable --now "${DEDICATED_UNIT}"
+systemctl start "${DEDICATED_UNIT}" --no-block >/dev/null 2>&1 || fatal "Failed to start ${DEDICATED_UNIT}"
+
+info "Waiting up to 20s for ${DEDICATED_UNIT} to report active"
+service_ready=0
+for i in {1..20}; do
+  if systemctl is-active --quiet "${DEDICATED_UNIT}"; then
+    service_ready=1
+    break
+  fi
+  sleep 1
+done
+
+if (( service_ready == 0 )); then
+  warn "${DEDICATED_UNIT} did not reach active state within 20 seconds."
+  systemctl --no-pager --lines=50 status "${DEDICATED_UNIT}" || true
+  fatal "${DEDICATED_UNIT} failed to start (see status output above)."
+fi
 
 # --- Verification -------------------------------------------------------------
-sleep 1
 systemctl --no-pager --lines=50 status "${DEDICATED_UNIT}" || true
 ss -lupn | egrep ':(53|67|68)\b' || true
 

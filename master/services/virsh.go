@@ -4,6 +4,7 @@ import (
 	"512SvMan/db"
 	"512SvMan/env512"
 	"512SvMan/extra"
+	"512SvMan/nfs"
 	"512SvMan/protocol"
 	"512SvMan/virsh"
 	"context"
@@ -224,6 +225,19 @@ func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int
 		return fmt.Errorf("a live VM with the name %s already exists in the database", name)
 	}
 
+	//get disk path from nfsShareId
+	nfsShare, err := db.GetNFSShareByID(nfsShareId)
+	if err != nil {
+		return fmt.Errorf("failed to get NFS share by ID: %v", err)
+	}
+	if nfsShare == nil {
+		return fmt.Errorf("NFS share with ID %d not found", nfsShareId)
+	}
+
+	if nfsShare.HostNormalMount {
+		return fmt.Errorf("cant have live VM on a HostNormalMount NFS true, use a nfs where HostNormalMount is false")
+	}
+
 	err = v.CreateVM(machine_name, name, memory, vcpu, nfsShareId, diskSizeGB, isoID, network, VNCPassword, cpuXml)
 	if err != nil {
 		return err
@@ -262,6 +276,12 @@ func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, mach
 		return fmt.Errorf("failed to chmod %s: %v", machine.DiskPath, err)
 	}
 
+	//flush before to make sure everything is on disk
+	err = nfs.Sync(originConn.Connection)
+	if err != nil {
+		return err
+	}
+
 	err = virsh.ColdMigrateVm(ctx, originConn.Connection, machine)
 	if err != nil {
 		return err
@@ -272,6 +292,12 @@ func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, mach
 		if err != nil {
 			return fmt.Errorf("failed to add live VM to database: %v", err)
 		}
+	}
+
+	//flush after also for redundancy
+	err = nfs.Sync(originConn.Connection)
+	if err != nil {
+		return err
 	}
 
 	return nil

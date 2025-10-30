@@ -11,6 +11,7 @@ message FolderMount {
   string folderPath = 2; // shared folder
   string source = 3; // nfs source (ip:/path)
   string target = 4; // local mount point
+  bool host_normal_mount = 5; //does it mount localhost or the ip, if false uses nfs and cache
 }
 
 // --- Wrapper for multiple FolderMount entries ---
@@ -42,8 +43,18 @@ message FolderPath{
   string path = 1;
 }
 
+message OkResponse {
+  bool ok = 1;
+  string message = 2;
+}
+
+message Empty{}
+
 //defines for slaves
 service NFSService {
+  rpc Sync(Empty) returns (OkResponse); //flushs memory
+
+
   rpc CreateSharedFolder(FolderMount) returns (CreateResponse);
   rpc RemoveSharedFolder(FolderMount) returns (CreateResponse);
   rpc MountFolder(FolderMount) returns (MountResponse);

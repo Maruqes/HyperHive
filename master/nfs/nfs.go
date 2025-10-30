@@ -11,7 +11,6 @@ import (
 
 func CreateSharedFolder(conn *grpc.ClientConn, folderMount *pbnfs.FolderMount) error {
 	client := pbnfs.NewNFSServiceClient(conn)
-
 	res, err := client.CreateSharedFolder(context.Background(), folderMount)
 	if err != nil {
 		return err
@@ -100,4 +99,13 @@ func CanFindFileOrDir(conn *grpc.ClientConn, path string) (bool, error) {
 		return false, err
 	}
 	return res.GetOk(), nil
+}
+
+func Sync(conn *grpc.ClientConn) error {
+	client := pbnfs.NewNFSServiceClient(conn)
+	_, err := client.Sync(context.Background(), &pbnfs.Empty{})
+	if err != nil {
+		return err
+	}
+	return nil
 }

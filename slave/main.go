@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"regexp"
 	"slave/env512"
 	"slave/logs512"
 	"slave/nfs"
@@ -357,6 +358,41 @@ func setupAll() error {
 
 	return nil
 }
+func set_host_uuid_source() error {
+	const path = "/etc/libvirt/virtqemud.conf"
+
+	current, _ := os.ReadFile(path)
+	text := string(current)
+
+	reSrc := regexp.MustCompile(`(?m)^\s*#?\s*host_uuid_source\s*=.*$`)
+	if reSrc.MatchString(text) {
+		text = reSrc.ReplaceAllString(text, `host_uuid_source = "machine-id"`)
+	} else {
+		if len(text) > 0 && text[len(text)-1] != '\n' {
+			text += "\n"
+		}
+		text += `host_uuid_source = "machine-id"` + "\n"
+	}
+
+	reHost := regexp.MustCompile(`(?m)^\s*host_uuid\s*=.*$`)
+	text = reHost.ReplaceAllStringFunc(text, func(line string) string {
+		trim := strings.TrimSpace(line)
+		if strings.HasPrefix(trim, "#") {
+			return line
+		}
+		return "# " + line
+	})
+
+	if err := os.WriteFile(path, []byte(text), 0644); err != nil {
+		return fmt.Errorf("escrever %s: %w", path, err)
+	}
+	if err := exec.Command("systemctl", "reload", "virtqemud").Run(); err != nil {
+		if err2 := exec.Command("systemctl", "restart", "virtqemud").Run(); err2 != nil {
+			return fmt.Errorf("reload/restart virtqemud falhou: %v / %v", err, err2)
+		}
+	}
+	return nil
+}
 
 func main() {
 	askForSudo()
@@ -378,6 +414,11 @@ func main() {
 
 	if err := setupAll(); err != nil {
 		log.Fatalf("setup all: %v", err)
+	}
+
+	err := set_host_uuid_source()
+	if err != nil {
+		logger.Error(err.Error())
 	}
 
 	conn := protocol.ConnectGRPC()

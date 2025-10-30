@@ -77,8 +77,29 @@ func downloadNoVNC() error {
 	return nil
 }
 
+func setupFirewallD() error {
+	if err := execCommand("firewall-cmd", "--permanent", "--add-service=http"); err != nil {
+		return fmt.Errorf("failed to add http service: %w", err)
+	}
+
+	if err := execCommand("firewall-cmd", "--permanent", "--add-service=https"); err != nil {
+		return fmt.Errorf("failed to add https service: %w", err)
+	}
+
+	if err := execCommand("firewall-cmd", "--reload"); err != nil {
+		return fmt.Errorf("failed to reload firewall: %w", err)
+	}
+
+	return nil
+}
+
 func main() {
 	askForSudo()
+
+	err := setupFirewallD()
+	if err != nil {
+		panic(err)
+	}
 
 	if err := env512.Setup(); err != nil {
 		log.Fatalf("env setup: %v", err)
@@ -86,7 +107,7 @@ func main() {
 	logger.SetType(env512.Mode)
 
 	//check if novnc folder exists, if not download it
-	err := downloadNoVNC()
+	err = downloadNoVNC()
 	if err != nil {
 		log.Fatalf("download noVNC: %v", err)
 	}
@@ -120,6 +141,7 @@ func main() {
 
 	//listen and connects to gRPC
 	logger.SetCallBack(logs512.LoggerCallBack)
+	go protocol.PingAllSlavesLoop()
 	protocol.ListenGRPC(newSlave)
 
 	api.StartApi()

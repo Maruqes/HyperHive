@@ -197,6 +197,19 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 
 	//<driver name='qemu' type='qcow2' cache='writeback' io='threads'/>
 	//<driver name='qemu' type='qcow2' cache='none' io='native'/>
+	networkXML := ""
+	if opts.Network == "512rede" {
+		networkXML = `<interface type='direct'>
+  <source dev='512rede' mode='bridge'/>
+  <model type='virtio'/>
+</interface>`
+	} else {
+		networkXML = fmt.Sprintf(`<interface type='network'>
+	  <source network='%s'/>
+	  <model type='virtio'/>
+	</interface>`, opts.Network)
+	}
+
 	domainXML := fmt.Sprintf(`
 <domain type='kvm'>
   <seclabel type='none'/>
@@ -220,10 +233,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	  <source file='%s'/>
 	  <target dev='vda' bus='virtio'/>
 	</disk>%s
-	<interface type='network'>
-	  <source network='%s'/>
-	  <model type='virtio'/>
-	</interface>
+	%s
 	<graphics type='vnc' autoport='yes' port='-1'%s/>
 	<video><model type='virtio'/></video>
   </devices>
@@ -232,7 +242,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 		cputuneXML,
 		machineAttr,
 		bootDev,
-		cpuXML, disk, cdromXML, opts.Network, graphicsAttrs,
+		cpuXML, disk, cdromXML, networkXML, graphicsAttrs,
 	)
 
 	xmlPath, err := WriteDomainXMLToDisk(opts.Name, domainXML, disk)
