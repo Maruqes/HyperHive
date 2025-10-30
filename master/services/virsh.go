@@ -1018,17 +1018,44 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 }
 
 func (v *VirshService) AutoStart(vmName string, autoStart bool) error {
-	con := protocol.GetAllGRPCConnections()
-	for _, conn := range con {
-		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: vmName})
-		if err == nil && vm != nil {
-			//found the vm
-			err = virsh.AutoStart(conn, &grpcVirsh.AutoStartRequest{VmName: vmName, AutoStart: autoStart})
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return err
+	}
+
+	if vm == nil {
+		return fmt.Errorf("Failed to get vm " + vmName)
+	}
+
+	if autoStart {
+		// Check if VM already exists in auto_start table
+		exists, err := db.DoesAutoStartExist(vmName)
+		if err != nil {
+			return fmt.Errorf("failed to check if VM exists in auto_start: %v", err)
+		}
+
+		// Only add if it doesn't exist
+		if !exists {
+			err = db.AddAutoStart(vmName)
 			if err != nil {
-				return fmt.Errorf("failed to autostart VM %s: %v", vmName, err)
+				return fmt.Errorf("failed to add VM to auto_start: %v", err)
 			}
-			return nil
+		}
+	} else {
+		// Check if VM exists in auto_start table before removing
+		exists, err := db.DoesAutoStartExist(vmName)
+		if err != nil {
+			return fmt.Errorf("failed to check if VM exists in auto_start: %v", err)
+		}
+
+		// Only remove if it exists
+		if exists {
+			err = db.RemoveAutoStart(vmName)
+			if err != nil {
+				return fmt.Errorf("failed to remove VM from auto_start: %v", err)
+			}
 		}
 	}
-	return fmt.Errorf("%s", fmt.Sprint("VM %s not found in auto start", vmName))
+
+	return nil
 }

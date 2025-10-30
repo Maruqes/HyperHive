@@ -185,10 +185,3 @@ func (s *SlaveVirshService) ResumeVM(ctx context.Context, req *grpcVirsh.Vm) (*g
 	}
 	return &grpcVirsh.OkResponse{Ok: true}, nil
 }
-
-func (s *SlaveVirshService) AutoStart(ctx context.Context, req *grpcVirsh.AutoStartRequest) (*grpcVirsh.OkResponse, error) {
-	if err := SetAutoStartVM(req.VmName, req.AutoStart); err != nil {
-		return nil, err
-	}
-	return &grpcVirsh.OkResponse{Ok: true}, nil
-}

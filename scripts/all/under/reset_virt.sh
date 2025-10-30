@@ -200,6 +200,7 @@ fi
 # 7) Enable sockets/daemons (split + monolithic)
 info "Re-enabling libvirt services..."
 $SUDO systemctl enable --now virtqemud.socket virtlogd.socket virtstoraged.socket virtnetworkd.socket
+$SUDO systemctl enable --now virtqemud.service
 $SUDO systemctl enable --now libvirtd || true
 
 # 8) Default network (if config package was installed)

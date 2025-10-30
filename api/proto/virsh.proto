@@ -98,11 +98,6 @@ message ColdMigrationRequest {
   bool live = 8;
 }
 
-message AutoStartRequest{
-  string vmName = 1;
-  bool autoStart = 2;
-}
-
 //defines on slave
 service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
@@ -132,6 +127,4 @@ service SlaveVirshService {
   rpc EditVmResources(Vm) returns (OkResponse);
 
   rpc ColdMigrateVm(ColdMigrationRequest) returns (OkResponse);
-
-  rpc AutoStart(AutoStartRequest) returns (OkResponse);
 }

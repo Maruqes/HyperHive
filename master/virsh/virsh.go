@@ -202,12 +202,3 @@ func ResumeVM(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
 	}
 	return nil
 }
-
-func AutoStart(conn *grpc.ClientConn, req *grpcVirsh.AutoStartRequest) error {
-	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
-	_, err := client.AutoStart(context.Background(), req)
-	if err != nil {
-		return err
-	}
-	return nil
-}
