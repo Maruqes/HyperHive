@@ -35,7 +35,7 @@ func GetVMCPUXml(conn *grpc.ClientConn, vmName string) (string, error) {
 	return resp.CpuXML, nil
 }
 
-func CreateVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder, diskPath string, diskSizeGB int32, isoPath, network, VNCPassword string, cpuXML string) error {
+func CreateVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder, diskPath string, diskSizeGB int32, isoPath, network, VNCPassword string, cpuXML string, raw bool) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.CreateVm(context.Background(), &grpcVirsh.CreateVmRequest{
 		Name:        name,
@@ -48,6 +48,7 @@ func CreateVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder
 		Network:     network,
 		VncPassword: VNCPassword,
 		CpuXml:      cpuXML,
+		Raw:         raw,
 	})
 	if err != nil {
 		return err

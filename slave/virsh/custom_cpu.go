@@ -65,6 +65,7 @@ type CreateVMCustomCPUOptions struct {
 	GraphicsListen    string
 	VNCPassword       string
 	CPUXml            string
+	Raw               bool
 }
 
 func isValidVMName(vmName string) error {
@@ -123,7 +124,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 
 	if !opts.DiskAlreadyExists {
 		// detect/create disk & get its format
-		if _, err := EnsureDiskAndDetectFormat(disk, opts.DiskSizeGB); err != nil {
+		if _, err := EnsureDiskAndDetectFormat(disk, opts.DiskSizeGB, opts.Raw); err != nil {
 			return "", fmt.Errorf("disk: %w", err)
 		}
 	}
@@ -210,6 +211,12 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	</interface>`, opts.Network)
 	}
 
+	// choose driver type depending on raw flag
+	driverType := "qcow2"
+	if opts.Raw {
+		driverType = "raw"
+	}
+
 	domainXML := fmt.Sprintf(`
 <domain type='kvm'>
   <seclabel type='none'/>
@@ -229,7 +236,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
   %s
   <devices>
 	<disk type='file' device='disk'>
-	  <driver name='qemu' type='qcow2' cache='none' io='native'/>
+	  <driver name='qemu' type='%s' cache='none' io='native'/>
 	  <source file='%s'/>
 	  <target dev='vda' bus='virtio'/>
 	</disk>%s
@@ -242,7 +249,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 		cputuneXML,
 		machineAttr,
 		bootDev,
-		cpuXML, disk, cdromXML, networkXML, graphicsAttrs,
+		cpuXML, driverType, disk, cdromXML, networkXML, graphicsAttrs,
 	)
 
 	xmlPath, err := WriteDomainXMLToDisk(opts.Name, domainXML, disk)

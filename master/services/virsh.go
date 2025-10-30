@@ -161,7 +161,7 @@ func (v *VirshService) GetCpuDisableFeatures(conns []string) (string, error) {
 }
 
 // vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword
-func (v *VirshService) CreateVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXML string) error {
+func (v *VirshService) CreateVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXML string, raw bool) error {
 
 	exists, err := virsh.DoesVMExist(name)
 	if err != nil {
@@ -196,12 +196,16 @@ func (v *VirshService) CreateVM(machine_name string, name string, memory int32, 
 	isoPath := iso.FilePath
 
 	var qcowFile string
+	fileExtension := ".qcow2"
+	if raw {
+		fileExtension = ".raw"
+	}
 	if nfsShare.Target[len(nfsShare.Target)-1] != '/' {
 		// mnt/ nfs / vmname / vmname.qcow2
-		qcowFile = nfsShare.Target + "/" + name + "/" + name + ".qcow2"
+		qcowFile = nfsShare.Target + "/" + name + "/" + name + fileExtension
 	} else {
 		// mnt/ nfs / vmname / vmname.qcow2
-		qcowFile = nfsShare.Target + name + "/" + name + ".qcow2"
+		qcowFile = nfsShare.Target + name + "/" + name + fileExtension
 	}
 
 	var diskFolder string
@@ -213,10 +217,10 @@ func (v *VirshService) CreateVM(machine_name string, name string, memory int32, 
 		diskFolder = nfsShare.Target + name
 	}
 
-	return virsh.CreateVM(slaveMachine.Connection, name, memory, vcpu, diskFolder, qcowFile, diskSizeGB, isoPath, network, VNCPassword, cpuXML)
+	return virsh.CreateVM(slaveMachine.Connection, name, memory, vcpu, diskFolder, qcowFile, diskSizeGB, isoPath, network, VNCPassword, cpuXML, raw)
 }
 
-func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXml string) error {
+func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXml string, raw bool) error {
 	exists, err := db.DoesVmLiveExist(name)
 	if err != nil {
 		return fmt.Errorf("failed to check if live VM exists in database: %v", err)
@@ -238,7 +242,7 @@ func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int
 		return fmt.Errorf("cant have live VM on a HostNormalMount NFS true, use a nfs where HostNormalMount is false")
 	}
 
-	err = v.CreateVM(machine_name, name, memory, vcpu, nfsShareId, diskSizeGB, isoID, network, VNCPassword, cpuXml)
+	err = v.CreateVM(machine_name, name, memory, vcpu, nfsShareId, diskSizeGB, isoID, network, VNCPassword, cpuXml, raw)
 	if err != nil {
 		return err
 	}

@@ -55,6 +55,7 @@ func createVM(w http.ResponseWriter, r *http.Request) {
 		VNCPassword string `json:"VNC_password"`
 		CpuXml      string `json:"cpu_xml"`
 		Live        bool   `json:"live"`
+		Raw         bool   `json:"raw"`
 	}
 
 	var vmReq VMRequest
@@ -66,14 +67,14 @@ func createVM(w http.ResponseWriter, r *http.Request) {
 
 	virshServices := services.VirshService{}
 	if vmReq.Live {
-		err = virshServices.CreateLiveVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml)
+		err = virshServices.CreateLiveVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml, vmReq.Raw)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 	} else {
-		err = virshServices.CreateVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, "")
+		err = virshServices.CreateVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, "", vmReq.Raw)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

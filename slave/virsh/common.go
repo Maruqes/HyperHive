@@ -104,25 +104,42 @@ func DetectDiskFormat(path string) (string, error) {
 
 // EnsureDiskAndDetectFormat creates the disk if missing (using detected format)
 // and returns the resulting format (e.g. "qcow2" or "raw").
-func EnsureDiskAndDetectFormat(path string, sizeGB int) (string, error) {
-	fmtStr, err := DetectDiskFormat(path)
-	if err != nil {
+func EnsureDiskAndDetectFormat(path string, sizeGB int, raw bool) (string, error) {
+	if strings.TrimSpace(path) == "" {
+		return "", fmt.Errorf("disk path is empty")
+	}
+
+	// ensure parent dir exists before any operation
+	if err := ensureParentDirExists(path); err != nil {
 		return "", err
 	}
 
+	// If file already exists, detect its format and ensure perms
 	if _, err := os.Stat(path); err == nil {
+		fmtStr, err := DetectDiskFormat(path)
+		if err != nil {
+			return "", err
+		}
 		if err := ensureDiskPermissions(path); err != nil {
 			return "", err
 		}
-		return fmtStr, nil
+		return strings.ToLower(fmtStr), nil
+	} else if !os.IsNotExist(err) {
+		return "", fmt.Errorf("stat %s: %w", path, err)
 	}
 
+	// File does not exist: must have a size to create it
 	if sizeGB <= 0 {
 		return "", fmt.Errorf("disk %s does not exist and sizeGB <= 0", path)
 	}
 
-	// Create with chosen format
-	args := []string{"create", "-f", fmtStr, path, fmt.Sprintf("%dG", sizeGB)}
+	// Choose format based on raw flag
+	createFmt := "qcow2"
+	if raw {
+		createFmt = "raw"
+	}
+
+	args := []string{"create", "-f", createFmt, path, fmt.Sprintf("%dG", sizeGB)}
 	cmd := exec.Command("qemu-img", args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -132,10 +149,11 @@ func EnsureDiskAndDetectFormat(path string, sizeGB int) (string, error) {
 		}
 		return "", fmt.Errorf("qemu-img create %s: %w", path, err)
 	}
+
 	if err := ensureDiskPermissions(path); err != nil {
 		return "", err
 	}
-	return fmtStr, nil
+	return createFmt, nil
 }
 
 func readQemuImgInfo(path string) (*qiInfo, error) {
@@ -171,14 +189,30 @@ func ensureDiskPermissions(path string) error {
 		}
 	}
 
-	uid, err := strconv.Atoi(env512.Qemu_UID)
-	if err != nil {
-		return fmt.Errorf("parse qemu uid: %w", err)
+	var uid int
+	var gid int
+
+	// Use configured QEMU UID/GID when provided, otherwise fall back to the current process values.
+	if s := strings.TrimSpace(env512.Qemu_UID); s != "" {
+		u, err := strconv.Atoi(s)
+		if err != nil {
+			return fmt.Errorf("parse qemu uid: %w", err)
+		}
+		uid = u
+	} else {
+		uid = os.Geteuid()
 	}
-	gid, err := strconv.Atoi(env512.Qemu_GID)
-	if err != nil {
-		return fmt.Errorf("parse qemu gid: %w", err)
+
+	if s := strings.TrimSpace(env512.Qemu_GID); s != "" {
+		g, err := strconv.Atoi(s)
+		if err != nil {
+			return fmt.Errorf("parse qemu gid: %w", err)
+		}
+		gid = g
+	} else {
+		gid = os.Getegid()
 	}
+
 	if err := os.Chown(path, uid, gid); err != nil {
 		return fmt.Errorf("chown disk %s: %w", path, err)
 	}

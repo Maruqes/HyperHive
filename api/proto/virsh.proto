@@ -24,6 +24,7 @@ message CreateVmRequest{
   string network = 8;
   string vnc_password = 9;
   string cpuXml = 10;
+  bool raw = 11;
 }
 
 message OkResponse {
