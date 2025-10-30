@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -918,7 +919,22 @@ func (v *VirshService) DeleteBackup(bakId int) error {
 		return fmt.Errorf("backupId not found")
 	}
 
+	dir := filepath.Dir(bakup.Path)
+	if dir == "" || dir == "/" || dir == "." {
+		return fmt.Errorf("refusing to remove unsafe directory: %q", dir)
+	}
+
 	err = os.Remove(bakup.Path)
+	if err != nil {
+		return err
+	}
+
+	// remove the folder that contained the backup
+	if err := os.RemoveAll(dir); err != nil {
+		return fmt.Errorf("failed to remove backup folder %s: %v", dir, err)
+	}
+
+	err = db.DeleteVirshBackupById(bakId)
 	if err != nil {
 		return err
 	}
