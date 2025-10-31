@@ -1024,7 +1024,7 @@ func (v *VirshService) AutoStart(vmName string, autoStart bool) error {
 	}
 
 	if vm == nil {
-		return fmt.Errorf("Failed to get vm " + vmName)
+		return fmt.Errorf("failed to get vm " + vmName)
 	}
 
 	if autoStart {
@@ -1057,5 +1057,42 @@ func (v *VirshService) AutoStart(vmName string, autoStart bool) error {
 		}
 	}
 
+	return nil
+}
+
+func (v *VirshService) StartAutoStartVms(machineName string) error {
+	autoStart, err := db.GetAllAutoStart()
+	if err != nil {
+		return err
+	}
+
+	for _, auto := range autoStart {
+		vm, err := v.GetVmByName(auto.VmName)
+		if err != nil {
+			logger.Error("auto start vm does not exist: " + auto.VmName + " err: " + err.Error())
+			continue
+		}
+		if vm == nil {
+			logger.Error("auto start vm does not exist: " + auto.VmName)
+			continue
+		}
+
+		if vm.MachineName != machineName {
+			continue
+		}
+
+		conn := protocol.GetConnectionByMachineName(vm.MachineName)
+
+		if conn == nil || conn.Connection == nil {
+			logger.Error("machine for auto start vm is not connected: " + vm.MachineName)
+			continue
+		}
+
+		err = virsh.StartVm(conn.Connection, vm)
+		if err != nil {
+			logger.Error("cannot start vm auto start: " + vm.Name + " err: " + err.Error())
+			continue
+		}
+	}
 	return nil
 }

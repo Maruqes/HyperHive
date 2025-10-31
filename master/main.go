@@ -28,6 +28,9 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 		return err
 	}
 
+	virshServices := services.VirshService{}
+	virshServices.StartAutoStartVms(machineName)
+
 	return nil
 }
 

@@ -143,8 +143,17 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 
 	payload := make([]map[string]interface{}, 0, len(res))
 	for _, vm := range res {
+
+		//autostart
+		autoStart, err := db.DoesAutoStartExist(vm.Name)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		vmMap := map[string]interface{}{
-			"isLive": vm.IsLive,
+			"isLive":    vm.IsLive,
+			"autoStart": autoStart,
 		}
 
 		if vm.Vm != nil {
@@ -160,6 +169,7 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		vmMap["isLive"] = vm.IsLive
+		vmMap["autoStart"] = vm.AutoStart
 		payload = append(payload, vmMap)
 	}
 
