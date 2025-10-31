@@ -217,6 +217,14 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 		driverType = "raw"
 	}
 
+	virtioSerialControllerXML := `
+  <controller type='virtio-serial' index='0'/>`
+	guestAgentChannelXML := `
+  <channel type='unix'>
+	<source mode='bind'/>
+	<target type='virtio' name='org.qemu.guest_agent.0'/>
+  </channel>`
+
 	domainXML := fmt.Sprintf(`
 <domain type='kvm'>
   <seclabel type='none'/>
@@ -241,6 +249,8 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	  <target dev='vda' bus='virtio'/>
 	</disk>%s
 	%s
+	%s
+	%s
 	<graphics type='vnc' autoport='yes' port='-1'%s/>
 	<video><model type='virtio'/></video>
   </devices>
@@ -249,7 +259,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 		cputuneXML,
 		machineAttr,
 		bootDev,
-		cpuXML, driverType, disk, cdromXML, networkXML, graphicsAttrs,
+		cpuXML, driverType, disk, cdromXML, networkXML, virtioSerialControllerXML, guestAgentChannelXML, graphicsAttrs,
 	)
 
 	xmlPath, err := WriteDomainXMLToDisk(opts.Name, domainXML, disk)

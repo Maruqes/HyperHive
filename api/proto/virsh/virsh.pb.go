@@ -905,7 +905,7 @@ const file_virsh_proto_rawDesc = "" +
 	"\aSHUTOFF\x10\x05\x12\v\n" +
 	"\aCRASHED\x10\x06\x12\x0f\n" +
 	"\vPMSUSPENDED\x10\a\x12\v\n" +
-	"\aNOSTATE\x10\b2\xb3\a\n" +
+	"\aNOSTATE\x10\b2\x8d\b\n" +
 	"\x11SlaveVirshService\x12=\n" +
 	"\x0eGetCpuFeatures\x12\f.virsh.Empty\x1a\x1d.virsh.GetCpuFeaturesResponse\x120\n" +
 	"\tGetCPUXML\x12\f.virsh.Empty\x1a\x15.virsh.CPUXMLResponse\x12?\n" +
@@ -925,7 +925,10 @@ const file_virsh_proto_rawDesc = "" +
 	"\vGetVmByName\x12\x19.virsh.GetVmByNameRequest\x1a\t.virsh.Vm\x12/\n" +
 	"\x0fRemoveIsoFromVm\x12\t.virsh.Vm\x1a\x11.virsh.OkResponse\x12/\n" +
 	"\x0fEditVmResources\x12\t.virsh.Vm\x1a\x11.virsh.OkResponse\x12?\n" +
-	"\rColdMigrateVm\x12\x1b.virsh.ColdMigrationRequest\x1a\x11.virsh.OkResponseB3Z1github.com/Maruqes/512SvMan/api/proto/virsh;protob\x06proto3"
+	"\rColdMigrateVm\x12\x1b.virsh.ColdMigrationRequest\x1a\x11.virsh.OkResponse\x12*\n" +
+	"\n" +
+	"FreezeDisk\x12\t.virsh.Vm\x1a\x11.virsh.OkResponse\x12,\n" +
+	"\fUnFreezeDisk\x12\t.virsh.Vm\x1a\x11.virsh.OkResponseB3Z1github.com/Maruqes/512SvMan/api/proto/virsh;protob\x06proto3"
 
 var (
 	file_virsh_proto_rawDescOnce sync.Once
@@ -976,26 +979,30 @@ var file_virsh_proto_depIdxs = []int32{
 	5,  // 17: virsh.SlaveVirshService.RemoveIsoFromVm:input_type -> virsh.Vm
 	5,  // 18: virsh.SlaveVirshService.EditVmResources:input_type -> virsh.Vm
 	11, // 19: virsh.SlaveVirshService.ColdMigrateVm:input_type -> virsh.ColdMigrationRequest
-	2,  // 20: virsh.SlaveVirshService.GetCpuFeatures:output_type -> virsh.GetCpuFeaturesResponse
-	9,  // 21: virsh.SlaveVirshService.GetCPUXML:output_type -> virsh.CPUXMLResponse
-	9,  // 22: virsh.SlaveVirshService.GetVMCPUXml:output_type -> virsh.CPUXMLResponse
-	4,  // 23: virsh.SlaveVirshService.UpdateVMCPUXml:output_type -> virsh.OkResponse
-	4,  // 24: virsh.SlaveVirshService.CreateVm:output_type -> virsh.OkResponse
-	4,  // 25: virsh.SlaveVirshService.MigrateVM:output_type -> virsh.OkResponse
-	4,  // 26: virsh.SlaveVirshService.ShutdownVM:output_type -> virsh.OkResponse
-	4,  // 27: virsh.SlaveVirshService.ForceShutdownVM:output_type -> virsh.OkResponse
-	4,  // 28: virsh.SlaveVirshService.StartVM:output_type -> virsh.OkResponse
-	4,  // 29: virsh.SlaveVirshService.RemoveVM:output_type -> virsh.OkResponse
-	4,  // 30: virsh.SlaveVirshService.RestartVM:output_type -> virsh.OkResponse
-	4,  // 31: virsh.SlaveVirshService.PauseVM:output_type -> virsh.OkResponse
-	4,  // 32: virsh.SlaveVirshService.ResumeVM:output_type -> virsh.OkResponse
-	7,  // 33: virsh.SlaveVirshService.GetAllVms:output_type -> virsh.GetAllVmsResponse
-	5,  // 34: virsh.SlaveVirshService.GetVmByName:output_type -> virsh.Vm
-	4,  // 35: virsh.SlaveVirshService.RemoveIsoFromVm:output_type -> virsh.OkResponse
-	4,  // 36: virsh.SlaveVirshService.EditVmResources:output_type -> virsh.OkResponse
-	4,  // 37: virsh.SlaveVirshService.ColdMigrateVm:output_type -> virsh.OkResponse
-	20, // [20:38] is the sub-list for method output_type
-	2,  // [2:20] is the sub-list for method input_type
+	5,  // 20: virsh.SlaveVirshService.FreezeDisk:input_type -> virsh.Vm
+	5,  // 21: virsh.SlaveVirshService.UnFreezeDisk:input_type -> virsh.Vm
+	2,  // 22: virsh.SlaveVirshService.GetCpuFeatures:output_type -> virsh.GetCpuFeaturesResponse
+	9,  // 23: virsh.SlaveVirshService.GetCPUXML:output_type -> virsh.CPUXMLResponse
+	9,  // 24: virsh.SlaveVirshService.GetVMCPUXml:output_type -> virsh.CPUXMLResponse
+	4,  // 25: virsh.SlaveVirshService.UpdateVMCPUXml:output_type -> virsh.OkResponse
+	4,  // 26: virsh.SlaveVirshService.CreateVm:output_type -> virsh.OkResponse
+	4,  // 27: virsh.SlaveVirshService.MigrateVM:output_type -> virsh.OkResponse
+	4,  // 28: virsh.SlaveVirshService.ShutdownVM:output_type -> virsh.OkResponse
+	4,  // 29: virsh.SlaveVirshService.ForceShutdownVM:output_type -> virsh.OkResponse
+	4,  // 30: virsh.SlaveVirshService.StartVM:output_type -> virsh.OkResponse
+	4,  // 31: virsh.SlaveVirshService.RemoveVM:output_type -> virsh.OkResponse
+	4,  // 32: virsh.SlaveVirshService.RestartVM:output_type -> virsh.OkResponse
+	4,  // 33: virsh.SlaveVirshService.PauseVM:output_type -> virsh.OkResponse
+	4,  // 34: virsh.SlaveVirshService.ResumeVM:output_type -> virsh.OkResponse
+	7,  // 35: virsh.SlaveVirshService.GetAllVms:output_type -> virsh.GetAllVmsResponse
+	5,  // 36: virsh.SlaveVirshService.GetVmByName:output_type -> virsh.Vm
+	4,  // 37: virsh.SlaveVirshService.RemoveIsoFromVm:output_type -> virsh.OkResponse
+	4,  // 38: virsh.SlaveVirshService.EditVmResources:output_type -> virsh.OkResponse
+	4,  // 39: virsh.SlaveVirshService.ColdMigrateVm:output_type -> virsh.OkResponse
+	4,  // 40: virsh.SlaveVirshService.FreezeDisk:output_type -> virsh.OkResponse
+	4,  // 41: virsh.SlaveVirshService.UnFreezeDisk:output_type -> virsh.OkResponse
+	22, // [22:42] is the sub-list for method output_type
+	2,  // [2:22] is the sub-list for method input_type
 	2,  // [2:2] is the sub-list for extension type_name
 	2,  // [2:2] is the sub-list for extension extendee
 	0,  // [0:2] is the sub-list for field type_name

@@ -37,6 +37,8 @@ const (
 	SlaveVirshService_RemoveIsoFromVm_FullMethodName = "/virsh.SlaveVirshService/RemoveIsoFromVm"
 	SlaveVirshService_EditVmResources_FullMethodName = "/virsh.SlaveVirshService/EditVmResources"
 	SlaveVirshService_ColdMigrateVm_FullMethodName   = "/virsh.SlaveVirshService/ColdMigrateVm"
+	SlaveVirshService_FreezeDisk_FullMethodName      = "/virsh.SlaveVirshService/FreezeDisk"
+	SlaveVirshService_UnFreezeDisk_FullMethodName    = "/virsh.SlaveVirshService/UnFreezeDisk"
 )
 
 // SlaveVirshServiceClient is the client API for SlaveVirshService service.
@@ -65,6 +67,8 @@ type SlaveVirshServiceClient interface {
 	// cpuCount and memoryMB are the new values to set
 	EditVmResources(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
 	ColdMigrateVm(ctx context.Context, in *ColdMigrationRequest, opts ...grpc.CallOption) (*OkResponse, error)
+	FreezeDisk(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
+	UnFreezeDisk(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
 }
 
 type slaveVirshServiceClient struct {
@@ -255,6 +259,26 @@ func (c *slaveVirshServiceClient) ColdMigrateVm(ctx context.Context, in *ColdMig
 	return out, nil
 }
 
+func (c *slaveVirshServiceClient) FreezeDisk(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OkResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_FreezeDisk_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) UnFreezeDisk(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OkResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_UnFreezeDisk_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SlaveVirshServiceServer is the server API for SlaveVirshService service.
 // All implementations must embed UnimplementedSlaveVirshServiceServer
 // for forward compatibility.
@@ -281,6 +305,8 @@ type SlaveVirshServiceServer interface {
 	// cpuCount and memoryMB are the new values to set
 	EditVmResources(context.Context, *Vm) (*OkResponse, error)
 	ColdMigrateVm(context.Context, *ColdMigrationRequest) (*OkResponse, error)
+	FreezeDisk(context.Context, *Vm) (*OkResponse, error)
+	UnFreezeDisk(context.Context, *Vm) (*OkResponse, error)
 	mustEmbedUnimplementedSlaveVirshServiceServer()
 }
 
@@ -344,6 +370,12 @@ func (UnimplementedSlaveVirshServiceServer) EditVmResources(context.Context, *Vm
 }
 func (UnimplementedSlaveVirshServiceServer) ColdMigrateVm(context.Context, *ColdMigrationRequest) (*OkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ColdMigrateVm not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) FreezeDisk(context.Context, *Vm) (*OkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FreezeDisk not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) UnFreezeDisk(context.Context, *Vm) (*OkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UnFreezeDisk not implemented")
 }
 func (UnimplementedSlaveVirshServiceServer) mustEmbedUnimplementedSlaveVirshServiceServer() {}
 func (UnimplementedSlaveVirshServiceServer) testEmbeddedByValue()                           {}
@@ -690,6 +722,42 @@ func _SlaveVirshService_ColdMigrateVm_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SlaveVirshService_FreezeDisk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Vm)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).FreezeDisk(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_FreezeDisk_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).FreezeDisk(ctx, req.(*Vm))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_UnFreezeDisk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Vm)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).UnFreezeDisk(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_UnFreezeDisk_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).UnFreezeDisk(ctx, req.(*Vm))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SlaveVirshService_ServiceDesc is the grpc.ServiceDesc for SlaveVirshService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -768,6 +836,14 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ColdMigrateVm",
 			Handler:    _SlaveVirshService_ColdMigrateVm_Handler,
+		},
+		{
+			MethodName: "FreezeDisk",
+			Handler:    _SlaveVirshService_FreezeDisk_Handler,
+		},
+		{
+			MethodName: "UnFreezeDisk",
+			Handler:    _SlaveVirshService_UnFreezeDisk_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

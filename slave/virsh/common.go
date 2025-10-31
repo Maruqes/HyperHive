@@ -318,6 +318,38 @@ func diskPathFromDomainXML(xmlData string) (string, error) {
 	return "", nil
 }
 
+func vncPortFromDomainXML(xmlData string) (int, error) {
+	type graphics struct {
+		Type string `xml:"type,attr"`
+		Port string `xml:"port,attr"`
+	}
+	type devices struct {
+		Graphics []graphics `xml:"graphics"`
+	}
+	type domain struct {
+		Devices devices `xml:"devices"`
+	}
+
+	var d domain
+	if err := xml.Unmarshal([]byte(xmlData), &d); err != nil {
+		return 0, fmt.Errorf("parse domain xml: %w", err)
+	}
+	for _, g := range d.Devices.Graphics {
+		if strings.EqualFold(strings.TrimSpace(g.Type), "vnc") {
+			portStr := strings.TrimSpace(g.Port)
+			if portStr == "" {
+				return 0, nil
+			}
+			port, err := strconv.Atoi(portStr)
+			if err != nil {
+				return 0, fmt.Errorf("convert vnc port %q: %w", portStr, err)
+			}
+			return port, nil
+		}
+	}
+	return 0, nil
+}
+
 func RestartLibvirt() error {
 	cmd := exec.Command("systemctl", "restart", "libvirtd")
 	out, err := cmd.CombinedOutput()
@@ -684,13 +716,9 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 	if err != nil {
 		return nil, fmt.Errorf("xml: %w", err)
 	}
-
-	port := 0
-	if strings.Contains(xmlDesc, "graphics type='vnc'") {
-		start := strings.Index(xmlDesc, "port='")
-		if start != -1 {
-			fmt.Sscanf(xmlDesc[start:], "port='%d'", &port)
-		}
+	port, err := vncPortFromDomainXML(xmlDesc)
+	if err != nil {
+		return nil, fmt.Errorf("vnc port: %w", err)
 	}
 
 	var usedMemMB int32
@@ -802,10 +830,11 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 		}
 
 		port := 0
-		if xmlDesc != "" && strings.Contains(xmlDesc, "graphics type='vnc'") {
-			start := strings.Index(xmlDesc, "port='")
-			if start != -1 {
-				fmt.Sscanf(xmlDesc[start:], "port='%d'", &port)
+		if xmlDesc != "" {
+			if p, err := vncPortFromDomainXML(xmlDesc); err != nil {
+				warnings = append(warnings, fmt.Sprintf("%s: parse vnc port: %v", name, err))
+			} else {
+				port = p
 			}
 		}
 
@@ -1336,4 +1365,95 @@ func GetVmCPUXML(name string) (string, error) {
 
 	cpuxml := extractCPUXML(xmlDesc)
 	return cpuxml, nil
+}
+
+func FreezeDisk(vmName string) error {
+	vmName = strings.TrimSpace(vmName)
+	if vmName == "" {
+		return fmt.Errorf("vm name is empty")
+	}
+
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	dom, err := conn.LookupDomainByName(vmName)
+	if err != nil {
+		return fmt.Errorf("lookup: %w", err)
+	}
+	defer dom.Free()
+
+	state, _, err := dom.GetState()
+	if err != nil {
+		return fmt.Errorf("state: %w", err)
+	}
+	switch state {
+	case libvirt.DOMAIN_RUNNING, libvirt.DOMAIN_BLOCKED:
+		// proceed
+	case libvirt.DOMAIN_PAUSED:
+		return fmt.Errorf("vm %s: freeze requires the guest to be running (current state: %s)", vmName, domainStateToString(state).String())
+	default:
+		// If the domain is shut off or in another non-running state, there is nothing to freeze.
+		return nil
+	}
+
+	if err := dom.FSFreeze(nil, 0); err != nil {
+		var lerr libvirt.Error
+		if errors.As(err, &lerr) {
+			switch lerr.Code {
+			case libvirt.ERR_AGENT_UNRESPONSIVE, libvirt.ERR_OPERATION_INVALID, libvirt.ERR_AGENT_UNSYNCED, libvirt.ERR_AGENT_COMMAND_FAILED, libvirt.ERR_AGENT_COMMAND_TIMEOUT:
+				return fmt.Errorf("vm %s: guest agent not available for fsfreeze: %w", vmName, err)
+			}
+		}
+		return fmt.Errorf("vm %s: fsfreeze failed: %w", vmName, err)
+	}
+
+	return nil
+}
+
+func UnFreezeDisk(vmName string) error {
+	vmName = strings.TrimSpace(vmName)
+	if vmName == "" {
+		return fmt.Errorf("vm name is empty")
+	}
+
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	dom, err := conn.LookupDomainByName(vmName)
+	if err != nil {
+		return fmt.Errorf("lookup: %w", err)
+	}
+	defer dom.Free()
+
+	state, _, err := dom.GetState()
+	if err != nil {
+		return fmt.Errorf("state: %w", err)
+	}
+	switch state {
+	case libvirt.DOMAIN_RUNNING, libvirt.DOMAIN_BLOCKED:
+		// proceed
+	case libvirt.DOMAIN_PAUSED:
+		return fmt.Errorf("vm %s: cannot unfreeze while paused (resume the guest first)", vmName)
+	default:
+		return nil
+	}
+
+	if err := dom.FSThaw(nil, 0); err != nil {
+		var lerr libvirt.Error
+		if errors.As(err, &lerr) {
+			switch lerr.Code {
+			case libvirt.ERR_AGENT_UNRESPONSIVE, libvirt.ERR_OPERATION_INVALID, libvirt.ERR_AGENT_UNSYNCED, libvirt.ERR_AGENT_COMMAND_FAILED, libvirt.ERR_AGENT_COMMAND_TIMEOUT:
+				return fmt.Errorf("vm %s: guest agent not available for fsthaw: %w", vmName, err)
+			}
+		}
+		return fmt.Errorf("vm %s: fsthaw failed: %w", vmName, err)
+	}
+
+	return nil
 }

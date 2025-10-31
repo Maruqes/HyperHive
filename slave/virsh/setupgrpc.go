@@ -181,3 +181,17 @@ func (s *SlaveVirshService) ResumeVM(ctx context.Context, req *grpcVirsh.Vm) (*g
 	}
 	return &grpcVirsh.OkResponse{Ok: true}, nil
 }
+
+func (s *SlaveVirshService) FreezeDisk(ctx context.Context, req *grpcVirsh.Vm) (*grpcVirsh.OkResponse, error) {
+	if err := FreezeDisk(req.Name); err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{Ok: true}, nil
+}
+
+func (s *SlaveVirshService) UnFreezeDisk(ctx context.Context, req *grpcVirsh.Vm) (*grpcVirsh.OkResponse, error) {
+	if err := UnFreezeDisk(req.Name); err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{Ok: true}, nil
+}

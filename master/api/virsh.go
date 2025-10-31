@@ -835,6 +835,168 @@ func autoStart(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func createAutoBak(w http.ResponseWriter, r *http.Request) {
+	type Req struct {
+		VmName           string   `json:"vm_name"`
+		FrequencyDays    int      `json:"frequency_days"`
+		MinTime          db.Clock `json:"min_time"`
+		MaxTime          db.Clock `json:"max_time"`
+		NfsMountId       int      `json:"nfs_mount_id"`
+		MaxBackupsRetain int      `json:"max_backups_retain"`
+	}
+
+	var req Req
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err := virshServices.CreateAutoBak(db.AutomaticBackup{
+		VmName:           req.VmName,
+		FrequencyDays:    req.FrequencyDays,
+		MaxTime:          req.MaxTime,
+		MinTime:          req.MinTime,
+		NfsMountId:       req.NfsMountId,
+		MaxBackupsRetain: req.MaxBackupsRetain,
+		Enabled:          true,
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+func getAutoBak(w http.ResponseWriter, r *http.Request) {
+	baks, err := db.GetAllAutomaticBackups()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(baks)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
+}
+func updateAutoBak(w http.ResponseWriter, r *http.Request) {
+	autoBakId := chi.URLParam(r, "id")
+	if autoBakId == "" {
+		http.Error(w, "autoBakId is required", http.StatusBadRequest)
+		return
+	}
+
+	type Req struct {
+		VmName           string   `json:"vm_name"`
+		FrequencyDays    int      `json:"frequency_days"`
+		MinTime          db.Clock `json:"min_time"`
+		MaxTime          db.Clock `json:"max_time"`
+		NfsMountId       int      `json:"nfs_mount_id"`
+		MaxBackupsRetain int      `json:"max_backups_retain"`
+	}
+
+	var req Req
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	autoBakIdInt, err := strconv.Atoi(autoBakId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err = virshServices.UpdateAutoBak(autoBakIdInt, db.AutomaticBackup{
+		VmName:           req.VmName,
+		FrequencyDays:    req.FrequencyDays,
+		MaxTime:          req.MaxTime,
+		MinTime:          req.MinTime,
+		NfsMountId:       req.NfsMountId,
+		MaxBackupsRetain: req.MaxBackupsRetain,
+		Enabled:          true,
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+func deleteAutoBak(w http.ResponseWriter, r *http.Request) {
+	autoBakId := chi.URLParam(r, "id")
+	if autoBakId == "" {
+		http.Error(w, "autoBakId is required", http.StatusBadRequest)
+		return
+	}
+
+	autoBakIdInt, err := strconv.Atoi(autoBakId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err = virshServices.DeleteAutoBak(autoBakIdInt)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+func enableAutoBak(w http.ResponseWriter, r *http.Request) {
+	autoBakId := chi.URLParam(r, "id")
+	if autoBakId == "" {
+		http.Error(w, "autoBakId is required", http.StatusBadRequest)
+		return
+	}
+
+	autoBakIdInt, err := strconv.Atoi(autoBakId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err = virshServices.EnableAutoBak(autoBakIdInt)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+func disableAutoBak(w http.ResponseWriter, r *http.Request) {
+	autoBakId := chi.URLParam(r, "id")
+	if autoBakId == "" {
+		http.Error(w, "autoBakId is required", http.StatusBadRequest)
+		return
+	}
+
+	autoBakIdInt, err := strconv.Atoi(autoBakId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err = virshServices.DisableAutoBak(autoBakIdInt)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 // LEMBRETE VM CREATION TEM DE CRIAR A PROPRIA PASTA, INDEPENDENTEMENTE SE É IMPORT LIVE NORMAL
 /*
 apis que criam vms
@@ -887,5 +1049,13 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Delete("/deleteBackup/{backup_id}", deleteBackup)
 
 		r.Post("/autostart/{vm_name}", autoStart)
+
+		//automatic backups
+		r.Post("/autobak", createAutoBak)
+		r.Get("/autobak", getAutoBak)
+		r.Put("/autobak", updateAutoBak)
+		r.Delete("/autobak/{id}", deleteAutoBak)
+		r.Patch("/autopak/enable/{id}", enableAutoBak)
+		r.Patch("/autopak/disable/{id}", disableAutoBak)
 	})
 }

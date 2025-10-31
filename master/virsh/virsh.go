@@ -201,3 +201,21 @@ func ResumeVM(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
 	}
 	return nil
 }
+
+func FreezeDisk(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.FreezeDisk(context.Background(), req)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func UnFreezeDisk(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.UnFreezeDisk(context.Background(), req)
+	if err != nil {
+		return err
+	}
+	return nil
+}

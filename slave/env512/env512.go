@@ -39,12 +39,17 @@ func Setup() error {
 	VNC_MAX_PORT, _ = strconv.Atoi(os.Getenv("VNC_MAX_PORT"))
 
 	if PingInterval == 0 {
-		PingInterval = 15 //default 15 seconds
+		PingInterval = 15 // default 15 seconds
 	}
 
 	if MasterIP == "" || SlaveIP == "" {
-		panic("Master and Slave IPs must be set")
+		panic("MASTER_IP and SLAVE_IP must be set")
 	}
+
+	if Qemu_UID == "" || Qemu_GID == "" {
+		panic("QEMU_UID and QEMU_GID must be set")
+	}
+
 	if Mode != "dev" {
 		Mode = "prod"
 	}

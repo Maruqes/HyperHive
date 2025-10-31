@@ -346,6 +346,9 @@ func (v *VirshService) MigrateVm(ctx context.Context, originMachine string, dest
 	if err != nil || vm == nil {
 		return fmt.Errorf("VM %s not found on origin machine %s", vmName, originMachine)
 	}
+	if vm == nil {
+		return fmt.Errorf("vm does not exist")
+	}
 
 	//check if vm is running on origin machine
 	if vm.MachineName != originMachine {
@@ -844,15 +847,12 @@ func copyFile(origin, dest, vmName string) error {
 	return nil
 }
 
+// Virtual machine needs to have "qemu-guest-agent" for live
 func (v *VirshService) BackupVM(vmName string, nfsID int) error {
 	//check if vmName exists and is turned off, check if nfsID exists
 	vm, err := v.GetVmByName(vmName)
 	if err != nil || vm == nil {
 		return fmt.Errorf("problem getting vm it may not exist")
-	}
-
-	if vm.State != grpcVirsh.VmState_SHUTOFF {
-		return fmt.Errorf("vm may be shutdown")
 	}
 
 	nfsShare, err := db.GetNFSShareByID(nfsID)
@@ -896,9 +896,39 @@ func (v *VirshService) BackupVM(vmName string, nfsID int) error {
 		NfsId: nfsID,
 	}
 
-	err = copyFile(vm.DiskPath, backup.Path, vmName)
-	if err != nil {
-		return err
+	if vm.State != grpcVirsh.VmState_SHUTOFF {
+
+		conn := protocol.GetConnectionByMachineName(vm.MachineName)
+		if conn == nil || conn.Connection == nil {
+			return fmt.Errorf("conn of vm is nill shuld not hapen")
+		}
+
+		logger.Info("Frezzing")
+		err := virsh.FreezeDisk(conn.Connection, vm)
+		if err != nil {
+			return err
+		}
+
+		defer func() {
+			logger.Info("UnFrezzing")
+			err = virsh.UnFreezeDisk(conn.Connection, vm)
+			if err != nil {
+				logger.Error("Cannot unfreeze machine " + vm.Name)
+			}
+		}()
+
+		logger.Info("Copying")
+		err = copyFile(vm.DiskPath, backup.Path, vmName)
+		if err != nil {
+			return err
+		}
+
+	} else {
+		err = copyFile(vm.DiskPath, backup.Path, vmName)
+		if err != nil {
+			return err
+		}
+
 	}
 
 	err = db.InsertVirshBackup(backup)
@@ -924,6 +954,11 @@ func (v *VirshService) DeleteBackup(bakId int) error {
 		return fmt.Errorf("refusing to remove unsafe directory: %q", dir)
 	}
 
+	err = db.DeleteVirshBackupById(bakId)
+	if err != nil {
+		return err
+	}
+
 	err = os.Remove(bakup.Path)
 	if err != nil {
 		return err
@@ -934,10 +969,6 @@ func (v *VirshService) DeleteBackup(bakId int) error {
 		return fmt.Errorf("failed to remove backup folder %s: %v", dir, err)
 	}
 
-	err = db.DeleteVirshBackupById(bakId)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -1094,5 +1125,45 @@ func (v *VirshService) StartAutoStartVms(machineName string) error {
 			continue
 		}
 	}
+	return nil
+}
+
+func (v *VirshService) CreateAutoBak(bak db.AutomaticBackup) error {
+	//check vmName
+	//check max/min time
+	//check nfs mount
+
+	exists, err := virsh.DoesVMExist(bak.VmName)
+	if err != nil {
+		return fmt.Errorf("error checking if VM exists: %v", err)
+	}
+
+	if !exists {
+		return fmt.Errorf("vm does not exist")
+	}
+
+	nfsShare, err := db.GetNFSShareByID(bak.NfsMountId)
+	if err != nil {
+		return fmt.Errorf("failed to get NFS share by ID: %v", err)
+	}
+	if nfsShare == nil {
+		return fmt.Errorf("%s", "NFS share not found with ID"+strconv.Itoa(bak.NfsMountId))
+	}
+	return nil
+}
+
+func (v *VirshService) UpdateAutoBak(id int, bak db.AutomaticBackup) error {
+	return nil
+}
+
+func (v *VirshService) DeleteAutoBak(id int) error {
+	return nil
+}
+
+func (v *VirshService) EnableAutoBak(id int) error {
+	return nil
+}
+
+func (v *VirshService) DisableAutoBak(id int) error {
 	return nil
 }

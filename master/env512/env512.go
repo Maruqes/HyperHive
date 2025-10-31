@@ -22,6 +22,13 @@ func Setup() error {
 	Qemu_UID = os.Getenv("QEMU_UID")
 	Qemu_GID = os.Getenv("QEMU_GID")
 
+	if Qemu_GID == ""{
+		panic("needs qemu gid")
+	}
+	if Qemu_UID == ""{
+		panic("needs qemu uid")
+	}
+
 	if PingInterval == 0 {
 		PingInterval = 15 //default 15 seconds
 	}

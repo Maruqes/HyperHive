@@ -125,4 +125,7 @@ service SlaveVirshService {
   rpc EditVmResources(Vm) returns (OkResponse);
 
   rpc ColdMigrateVm(ColdMigrationRequest) returns (OkResponse);
+
+  rpc FreezeDisk(Vm)returns(OkResponse);
+  rpc UnFreezeDisk(Vm)returns(OkResponse);
 }
