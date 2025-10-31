@@ -142,6 +142,11 @@ func main() {
 		log.Fatalf("create backups table: %v", err)
 	}
 
+	err = db.CreateTableAutoStart()
+	if err != nil {
+		log.Fatalf("create autostart table: %v", err)
+	}
+
 	//listen and connects to gRPC
 	logger.SetCallBack(logs512.LoggerCallBack)
 	go protocol.PingAllSlavesLoop()
