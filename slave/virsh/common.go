@@ -718,9 +718,6 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 
 	ips, _ := ipsForDomain(dom)
 
-	autoStart, _ := GetVMAutoStart(name)
-	
-
 	info := &grpcVirsh.Vm{
 		MachineName:          env512.MachineName,
 		Name:                 name,
@@ -733,7 +730,6 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		DiskSizeGB:           int32(diskInfo.SizeGB),
 		DiskPath:             diskInfo.Path,
 		Ip:                   ips,
-		AutoStart:            autoStart,
 	}
 	return info, nil
 }
@@ -825,9 +821,6 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 
 		ips, _ := ipsForDomain(&dom)
 
-		autoStart, _ := GetVMAutoStart(info.Name)
-		
-
 		info.NovncPort = strconv.Itoa(port)
 		info.CpuCount = vcpuCount
 		info.MemoryMB = totalMemMB
@@ -836,7 +829,6 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 		info.DiskSizeGB = diskSizeGB
 		info.DiskPath = diskInfoPath
 		info.Ip = ips
-		info.AutoStart = autoStart
 
 		vms = append(vms, info)
 		dom.Free()
@@ -1344,49 +1336,4 @@ func GetVmCPUXML(name string) (string, error) {
 
 	cpuxml := extractCPUXML(xmlDesc)
 	return cpuxml, nil
-}
-
-func SetAutoStartVM(vmName string, autoStart bool) error {
-	vmName = strings.TrimSpace(vmName)
-	if vmName == "" {
-		return fmt.Errorf("vm name is empty")
-	}
-
-	conn, err := libvirt.NewConnect("qemu:///system")
-	if err != nil {
-		return fmt.Errorf("connect: %w", err)
-	}
-	defer conn.Close()
-
-	dom, err := conn.LookupDomainByName(vmName)
-	if err != nil {
-		return fmt.Errorf("lookup: %w", err)
-	}
-	defer dom.Free()
-
-	if err := dom.SetAutostart(autoStart); err != nil {
-		return fmt.Errorf("set autostart: %w", err)
-	}
-	return nil
-}
-
-func GetVMAutoStart(vmName string) (bool, error) {
-	vmName = strings.TrimSpace(vmName)
-	if vmName == "" {
-		return false, fmt.Errorf("vm name is empty")
-	}
-
-	conn, err := libvirt.NewConnect("qemu:///system")
-	if err != nil {
-		return false, fmt.Errorf("connect: %w", err)
-	}
-	defer conn.Close()
-
-	dom, err := conn.LookupDomainByName(vmName)
-	if err != nil {
-		return false, fmt.Errorf("lookup: %w", err)
-	}
-	defer dom.Free()
-
-	return dom.GetAutostart()
 }

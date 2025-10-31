@@ -49,7 +49,6 @@ func CreateVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder
 		VncPassword: VNCPassword,
 		CpuXml:      cpuXML,
 		Raw:         raw,
-		AutoStart:   autoStart,
 	})
 	if err != nil {
 		return err

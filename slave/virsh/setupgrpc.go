@@ -55,10 +55,6 @@ func (s *SlaveVirshService) CreateVm(ctx context.Context, req *grpcVirsh.CreateV
 		return nil, err
 	}
 
-	if req.AutoStart {
-		SetAutoStartVM(req.Name, true)
-	}
-
 	return &grpcVirsh.OkResponse{Ok: true}, nil
 }
 

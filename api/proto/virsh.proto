@@ -25,7 +25,6 @@ message CreateVmRequest{
   string vnc_password = 9;
   string cpuXml = 10;
   bool raw = 11;
-  bool autoStart = 12;
 }
 
 message OkResponse {
@@ -57,7 +56,6 @@ message Vm{
   int32 diskSizeGB = 9;
   string diskPath = 10;
   repeated string ip = 12;
-  bool autoStart = 13;
 }
 
 message GetVmByNameRequest {

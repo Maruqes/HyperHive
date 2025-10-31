@@ -169,7 +169,7 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		vmMap["isLive"] = vm.IsLive
-		vmMap["autoStart"] = vm.AutoStart
+		vmMap["autoStart"] = autoStart
 		payload = append(payload, vmMap)
 	}
 
