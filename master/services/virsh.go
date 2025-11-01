@@ -11,20 +11,20 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 
 	"github.com/Maruqes/512SvMan/logger"
-	"github.com/google/uuid"
 	"libvirt.org/go/libvirt"
 )
 
 type VirshService struct {
+	backupLoopRunning atomic.Bool
 }
 
 func ClusterSafeFeatures(all [][]string) []string {
@@ -445,6 +445,11 @@ func (v *VirshService) DeleteVM(name string) error {
 				}
 			}
 
+			// remove automatic backup schedule for this VM, if present
+			if err := db.RemoveAutomaticBackup(name); err != nil {
+				return fmt.Errorf("failed to remove automatic backup for VM %s: %v", name, err)
+			}
+
 			return nil
 		}
 	}
@@ -847,207 +852,6 @@ func copyFile(origin, dest, vmName string) error {
 	return nil
 }
 
-// Virtual machine needs to have "qemu-guest-agent" for live
-func (v *VirshService) BackupVM(vmName string, nfsID int) error {
-	//check if vmName exists and is turned off, check if nfsID exists
-	vm, err := v.GetVmByName(vmName)
-	if err != nil || vm == nil {
-		return fmt.Errorf("problem getting vm it may not exist")
-	}
-
-	nfsShare, err := db.GetNFSShareByID(nfsID)
-	if err != nil {
-		return fmt.Errorf("failed to get NFS share by ID: %v", err)
-	}
-	if nfsShare == nil {
-		return fmt.Errorf("%s", "NFS share not found with ID"+strconv.Itoa(nfsID))
-	}
-
-	// nfsShare.Target + "/backUpFolder" + uuid.string
-	//generate uuid
-	bakUUID := uuid.New()
-
-	if nfsShare.Target[len(nfsShare.Target)-1] == '/' {
-		nfsShare.Target = nfsShare.Target[:len(nfsShare.Target)-1]
-	}
-
-	//creating actual backUpFolder folder
-	backUpFolder := nfsShare.Target + "/" + "backup-" + bakUUID.String()
-
-	//if backUpFolder folder already exists
-	_, err = os.Stat(backUpFolder)
-	if err != nil {
-		//check if err is already exists
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("the uuid existed?!?!?! 0 in a quadrillion chance")
-		}
-	}
-
-	//create folder
-	err = os.Mkdir(backUpFolder, 0o777)
-	if err != nil {
-		return fmt.Errorf("could not create the backUpFolder folder")
-	}
-
-	//create struct with already qcow2 file path
-	backup := &db.VirshBackup{
-		Name:  vmName,
-		Path:  backUpFolder + "/" + vmName + ".qcow2",
-		NfsId: nfsID,
-	}
-
-	if vm.State != grpcVirsh.VmState_SHUTOFF {
-
-		conn := protocol.GetConnectionByMachineName(vm.MachineName)
-		if conn == nil || conn.Connection == nil {
-			return fmt.Errorf("conn of vm is nill shuld not hapen")
-		}
-
-		logger.Info("Frezzing")
-		err := virsh.FreezeDisk(conn.Connection, vm)
-		if err != nil {
-			return err
-		}
-
-		defer func() {
-			logger.Info("UnFrezzing")
-			err = virsh.UnFreezeDisk(conn.Connection, vm)
-			if err != nil {
-				logger.Error("Cannot unfreeze machine " + vm.Name)
-			}
-		}()
-
-		logger.Info("Copying")
-		err = copyFile(vm.DiskPath, backup.Path, vmName)
-		if err != nil {
-			return err
-		}
-
-	} else {
-		err = copyFile(vm.DiskPath, backup.Path, vmName)
-		if err != nil {
-			return err
-		}
-
-	}
-
-	err = db.InsertVirshBackup(backup)
-	if err != nil {
-		return fmt.Errorf("problems writing to db backup: %v", err)
-	}
-
-	return nil
-}
-
-func (v *VirshService) DeleteBackup(bakId int) error {
-	bakup, err := db.GetVirshBackupById(bakId)
-	if err != nil {
-		return nil
-	}
-
-	if bakup == nil {
-		return fmt.Errorf("backupId not found")
-	}
-
-	dir := filepath.Dir(bakup.Path)
-	if dir == "" || dir == "/" || dir == "." {
-		return fmt.Errorf("refusing to remove unsafe directory: %q", dir)
-	}
-
-	err = db.DeleteVirshBackupById(bakId)
-	if err != nil {
-		return err
-	}
-
-	err = os.Remove(bakup.Path)
-	if err != nil {
-		return err
-	}
-
-	// remove the folder that contained the backup
-	if err := os.RemoveAll(dir); err != nil {
-		return fmt.Errorf("failed to remove backup folder %s: %v", dir, err)
-	}
-
-	return nil
-}
-
-// clonar bak para uma nova pasta e defenir
-func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName string, nfsId int, coldReq *grpcVirsh.ColdMigrationRequest) error {
-	originConn := protocol.GetConnectionByMachineName(slaveName)
-	if originConn == nil {
-		return fmt.Errorf("origin machine %s not found", slaveName)
-	}
-
-	backup, err := db.GetVirshBackupById(bakID)
-	if err != nil {
-		return fmt.Errorf("failed to get backup by ID: %v", err)
-	}
-	if backup == nil {
-		return fmt.Errorf("backup with ID %d not found", bakID)
-	}
-
-	exists, err := virsh.DoesVMExist(coldReq.VmName)
-	if err != nil {
-		return fmt.Errorf("error checking if VM exists: %v", err)
-	}
-	if exists {
-		return fmt.Errorf("a VM with the name %s already exists", coldReq.VmName)
-	}
-
-	// Get NFS share
-	nfsShare, err := db.GetNFSShareByID(nfsId)
-	if err != nil {
-		return fmt.Errorf("failed to get NFS share by ID: %v", err)
-	}
-	if nfsShare == nil {
-		return fmt.Errorf("NFS share with ID %d not found", nfsId)
-	}
-
-	// Create new folder for the VM
-	var newFolder string
-	if nfsShare.Target[len(nfsShare.Target)-1] != '/' {
-		newFolder = nfsShare.Target + "/" + coldReq.VmName
-	} else {
-		newFolder = nfsShare.Target + coldReq.VmName
-	}
-
-	// Check if folder exists
-	_, err = os.Stat(newFolder)
-	if err == nil {
-		return fmt.Errorf("folder %s already exists", newFolder)
-	}
-
-	// Create folder
-	err = os.MkdirAll(newFolder, 0777)
-	if err != nil {
-		return fmt.Errorf("failed to create folder %s: %v", newFolder, err)
-	}
-
-	// Copy backup to new location
-	newDiskPath := newFolder + "/" + coldReq.VmName + ".qcow2"
-	err = copyFile(backup.Path, newDiskPath, coldReq.VmName)
-	if err != nil {
-		os.RemoveAll(newFolder)
-		return fmt.Errorf("failed to copy backup file: %v", err)
-	}
-
-	coldReq.DiskPath = newDiskPath
-
-	//fazer cold migration
-	err = v.ColdMigrateVm(
-		ctx,
-		slaveName,
-		coldReq,
-	)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (v *VirshService) AutoStart(vmName string, autoStart bool) error {
 	vm, err := v.GetVmByName(vmName)
 	if err != nil {
@@ -1125,45 +929,5 @@ func (v *VirshService) StartAutoStartVms(machineName string) error {
 			continue
 		}
 	}
-	return nil
-}
-
-func (v *VirshService) CreateAutoBak(bak db.AutomaticBackup) error {
-	//check vmName
-	//check max/min time
-	//check nfs mount
-
-	exists, err := virsh.DoesVMExist(bak.VmName)
-	if err != nil {
-		return fmt.Errorf("error checking if VM exists: %v", err)
-	}
-
-	if !exists {
-		return fmt.Errorf("vm does not exist")
-	}
-
-	nfsShare, err := db.GetNFSShareByID(bak.NfsMountId)
-	if err != nil {
-		return fmt.Errorf("failed to get NFS share by ID: %v", err)
-	}
-	if nfsShare == nil {
-		return fmt.Errorf("%s", "NFS share not found with ID"+strconv.Itoa(bak.NfsMountId))
-	}
-	return nil
-}
-
-func (v *VirshService) UpdateAutoBak(id int, bak db.AutomaticBackup) error {
-	return nil
-}
-
-func (v *VirshService) DeleteAutoBak(id int) error {
-	return nil
-}
-
-func (v *VirshService) EnableAutoBak(id int) error {
-	return nil
-}
-
-func (v *VirshService) DisableAutoBak(id int) error {
 	return nil
 }

@@ -157,6 +157,9 @@ func main() {
 	go protocol.PingAllSlavesLoop()
 	protocol.ListenGRPC(newSlave)
 
+	virshService := services.VirshService{}
+	virshService.LoopAutomaticBaks()
+
 	api.StartApi()
 
 	select {}

@@ -669,7 +669,7 @@ func backupVM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = virshServices.BackupVM(vmName, nfsIdInt)
+	err = virshServices.BackupVM(vmName, nfsIdInt, false)
 	if err != nil {
 		http.Error(w, "was not possible to backup your vm err: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -1053,7 +1053,7 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		//automatic backups
 		r.Post("/autobak", createAutoBak)
 		r.Get("/autobak", getAutoBak)
-		r.Put("/autobak", updateAutoBak)
+		r.Put("/autobak/{id}", updateAutoBak)
 		r.Delete("/autobak/{id}", deleteAutoBak)
 		r.Patch("/autopak/enable/{id}", enableAutoBak)
 		r.Patch("/autopak/disable/{id}", disableAutoBak)
