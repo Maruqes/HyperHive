@@ -18,6 +18,8 @@ import (
 )
 
 // Virtual machine needs to have "qemu-guest-agent" for live
+// Virtual machine needs to have "qemu-guest-agent" for live
+// Virtual machine needs to have "qemu-guest-agent" for live
 func (v *VirshService) BackupVM(vmName string, nfsID int, automatic bool) error {
 	//check if vmName exists and is turned off, check if nfsID exists
 	vm, err := v.GetVmByName(vmName)
@@ -453,7 +455,7 @@ func (v *VirshService) LoopAutomaticBaks() {
 		return
 	}
 
-	timeDiff := 2
+	timeDiff := 20
 	go func() {
 		defer v.backupLoopRunning.Store(false)
 		defer func() {
