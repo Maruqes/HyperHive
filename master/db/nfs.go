@@ -139,6 +139,32 @@ func GetNFSharesByMachineName(machineName string) ([]NFSShare, error) {
 	return shares, nil
 }
 
+func GetNFSShareByMachineAndFolder(machineName, folderPath string) (*NFSShare, error) {
+	const query = `
+	SELECT id, machine_name, folder_path, source, target, name, host_normal_mount
+	FROM nfs_shares
+	WHERE machine_name = ? AND folder_path = ?;
+	`
+
+	var share NFSShare
+	err := DB.QueryRow(query, machineName, folderPath).Scan(
+		&share.Id,
+		&share.MachineName,
+		&share.FolderPath,
+		&share.Source,
+		&share.Target,
+		&share.Name,
+		&share.HostNormalMount,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &share, nil
+}
+
 func GetNFSShareByID(id int) (*NFSShare, error) {
 	const query = `
 	SELECT id, machine_name, folder_path, source, target, name, host_normal_mount

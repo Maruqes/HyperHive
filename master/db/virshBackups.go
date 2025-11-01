@@ -63,6 +63,31 @@ func GetAllVirshBackups() ([]VirshBackup, error) {
 	return backups, nil
 }
 
+func GetVirshBackupsByNfsMountID(nfsMountID int) ([]VirshBackup, error) {
+	const query = `
+	SELECT id, name, path, nfsmount_id, created_at, automatic
+	FROM virsh_backups
+	WHERE nfsmount_id = ?;
+	`
+
+	rows, err := DB.Query(query, nfsMountID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query backups by NFS mount: %v", err)
+	}
+	defer rows.Close()
+
+	var backups []VirshBackup
+	for rows.Next() {
+		var b VirshBackup
+		if err := rows.Scan(&b.Id, &b.Name, &b.Path, &b.NfsId, &b.CreatedAt, &b.Automatic); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %v", err)
+		}
+		backups = append(backups, b)
+	}
+
+	return backups, nil
+}
+
 func GetVirshBackupById(id int) (*VirshBackup, error) {
 	query := `SELECT id, name, path, nfsmount_id, created_at, automatic FROM virsh_backups WHERE id = ?`
 	row := DB.QueryRow(query, id)
@@ -306,6 +331,35 @@ func GetAllAutomaticBackups() ([]AutomaticBackup, error) {
 	FROM automatic_backup;
 	`
 	rows, err := DB.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var backups []AutomaticBackup
+	for rows.Next() {
+		var ab AutomaticBackup
+		var minTimeStr, maxTimeStr string
+		if err := rows.Scan(&ab.Id, &ab.VmName, &ab.FrequencyDays, &minTimeStr, &maxTimeStr,
+			&ab.NfsMountId, &ab.MaxBackupsRetain, &ab.Enabled, &ab.LastBackupTime); err != nil {
+			return nil, err
+		}
+		ab.MinTime, _ = ParseClock(minTimeStr)
+		ab.MaxTime, _ = ParseClock(maxTimeStr)
+		backups = append(backups, ab)
+	}
+	return backups, nil
+}
+
+func GetAutomaticBackupsByNfsMountID(nfsMountID int) ([]AutomaticBackup, error) {
+	const query = `
+	SELECT id, vm_name, frequency_days, min_time, max_time, nfsmount_id, 
+	       max_backups_retain, enabled, last_backup_time
+	FROM automatic_backup
+	WHERE nfsmount_id = ?;
+	`
+
+	rows, err := DB.Query(query, nfsMountID)
 	if err != nil {
 		return nil, err
 	}

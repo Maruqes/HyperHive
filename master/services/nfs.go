@@ -259,6 +259,38 @@ func (s *NFSService) DeleteSharePoint(force bool) error {
 		}
 	}
 
+	nfsShare, err := db.GetNFSShareByMachineAndFolder(mount.MachineName, mount.FolderPath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve NFS share: %v", err)
+	}
+	if nfsShare == nil {
+		return fmt.Errorf("cannot resolve NFS share for deletion")
+	}
+
+	backups, err := db.GetVirshBackupsByNfsMountID(nfsShare.Id)
+	if err != nil {
+		return fmt.Errorf("failed to query backups using NFS share: %v", err)
+	}
+	if len(backups) > 0 {
+		backupNames := make([]string, 0, len(backups))
+		for _, bak := range backups {
+			backupNames = append(backupNames, bak.Name)
+		}
+		return fmt.Errorf("cannot delete NFS share, there are backups using it: %v", backupNames)
+	}
+
+	autoBackups, err := db.GetAutomaticBackupsByNfsMountID(nfsShare.Id)
+	if err != nil {
+		return fmt.Errorf("failed to query automatic backups using NFS share: %v", err)
+	}
+	if len(autoBackups) > 0 {
+		vmNames := make([]string, 0, len(autoBackups))
+		for _, bak := range autoBackups {
+			vmNames = append(vmNames, bak.VmName)
+		}
+		return fmt.Errorf("cannot delete NFS share, there are automatic backups using it: %v", vmNames)
+	}
+
 	if err := nfs.RemoveSharedFolder(conn.Connection, mount); err != nil {
 		return fmt.Errorf("failed to remove shared folder: %v", err)
 	}
