@@ -193,17 +193,30 @@ ip link show "${WAN_IF}" >/dev/null 2>&1 || fatal "WAN '${WAN_IF}' não existe."
 # --- NAT via firewalld (preferido) ou iptables (fallback) --------------------
 apply_firewalld(){
   command -v firewall-cmd >/dev/null 2>&1 || return 1
-  local default_zone; default_zone=$(firewall-cmd --get-default-zone)
+  local default_zone
+  default_zone=$(firewall-cmd --get-default-zone) || { warn "firewalld: não foi possível obter a zona por defeito."; return 1; }
   info "A configurar firewalld (zona por defeito=${default_zone}, LAN=${NETWORK_NAME})"
 
   firewall-cmd --permanent --zone="${default_zone}" --remove-interface="${NETWORK_NAME}" >/dev/null 2>&1 || true
-  firewall-cmd --permanent --zone=trusted --add-interface="${NETWORK_NAME}" >/dev/null
-  firewall-cmd --permanent --zone="${default_zone}" --add-masquerade >/dev/null
+  if firewall-cmd --permanent --zone=trusted --add-interface="${NETWORK_NAME}" >/dev/null 2>&1; then
+    firewall-cmd --zone=trusted --add-interface="${NETWORK_NAME}" >/dev/null 2>&1 || warn "firewalld: interface runtime '${NETWORK_NAME}' na zona trusted falhou."
+  else
+    warn "firewalld: não conseguiu associar interface '${NETWORK_NAME}' à zona trusted; a usar fallback por subnet."
+    firewall-cmd --permanent --zone=trusted --add-source="${SUBNET_NETWORK}" >/dev/null || warn "firewalld: fallback --permanent --add-source falhou."
+    firewall-cmd --zone=trusted --add-source="${SUBNET_NETWORK}" >/dev/null 2>&1 || warn "firewalld: fallback runtime --add-source falhou."
+  fi
+  if ! firewall-cmd --permanent --zone="${default_zone}" --add-masquerade >/dev/null 2>&1; then
+    warn "firewalld: não conseguiu ativar masquerade na zona ${default_zone}."
+    return 1
+  fi
+  firewall-cmd --zone="${default_zone}" --add-masquerade >/dev/null 2>&1 || warn "firewalld: masquerade runtime na zona ${default_zone} falhou."
 
-  firewall-cmd --permanent --zone=trusted --add-service=dhcp >/dev/null 2>&1 || true
-  firewall-cmd --permanent --zone=trusted --add-service=dns  >/dev/null 2>&1 || true
+  firewall-cmd --permanent --zone=trusted --add-service=dhcp >/dev/null 2>&1 || warn "firewalld: não conseguiu adicionar serviço DHCP (permanent)."
+  firewall-cmd --permanent --zone=trusted --add-service=dns  >/dev/null 2>&1 || warn "firewalld: não conseguiu adicionar serviço DNS (permanent)."
+  firewall-cmd --zone=trusted --add-service=dhcp >/dev/null 2>&1 || true
+  firewall-cmd --zone=trusted --add-service=dns  >/dev/null 2>&1 || true
 
-  firewall-cmd --reload >/dev/null
+  firewall-cmd --reload >/dev/null 2>&1 || { warn "firewalld: reload falhou."; return 1; }
 }
 
 apply_iptables(){
