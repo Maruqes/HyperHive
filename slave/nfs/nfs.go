@@ -537,6 +537,11 @@ fi
 		return err
 	}
 
+	// Remove the original folder so stale directories are not left behind.
+	if err := runCommand("remove share directory", "sudo", "rm", "-rf", path); err != nil {
+		return err
+	}
+
 	logger.Info("NFS share removed:", path)
 	return nil
 }
