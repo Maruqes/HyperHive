@@ -21,12 +21,10 @@ read -p "Enter your choice (0 or 1): " choice
 
 case $choice in
     0)
-        COMPONENT="master"
-        SERVICE="hyperhive-master"
+        UPDATE_MODE="master"
         ;;
     1)
-        COMPONENT="slave"
-        SERVICE="hyperhive-slave"
+        UPDATE_MODE="slave"
         ;;
     *)
         echo -e "${RED}Invalid choice. Please enter 0 for Master or 1 for Slave.${NC}"
@@ -35,7 +33,7 @@ case $choice in
 esac
 
 echo ""
-echo -e "${GREEN}Updating ${COMPONENT}...${NC}"
+echo -e "${GREEN}Updating ${UPDATE_MODE}...${NC}"
 echo ""
 
 # Step 1: Git pull
@@ -49,24 +47,74 @@ else
 fi
 echo ""
 
-# Step 2: Build Go application
-echo -e "${YELLOW}[2/3] Building ${COMPONENT}...${NC}"
-cd "$HYPERHIVE_DIR/$COMPONENT" || exit 1
-if go build; then
-    echo -e "${GREEN}✓ Build successful${NC}"
+# Step 2: Build Go application(s)
+if [ "$UPDATE_MODE" = "master" ]; then
+    # Build both master and slave
+    echo -e "${YELLOW}[2/3] Building master and slave...${NC}"
+    
+    # Build master
+    echo -e "  Building master..."
+    cd "$HYPERHIVE_DIR/master" || exit 1
+    if go build; then
+        echo -e "${GREEN}  ✓ Master build successful${NC}"
+    else
+        echo -e "${RED}  ✗ Master build failed${NC}"
+        exit 1
+    fi
+    
+    # Build slave
+    echo -e "  Building slave..."
+    cd "$HYPERHIVE_DIR/slave" || exit 1
+    if go build; then
+        echo -e "${GREEN}  ✓ Slave build successful${NC}"
+    else
+        echo -e "${RED}  ✗ Slave build failed${NC}"
+        exit 1
+    fi
 else
-    echo -e "${RED}✗ Build failed${NC}"
-    exit 1
+    # Build only slave
+    echo -e "${YELLOW}[2/3] Building slave...${NC}"
+    cd "$HYPERHIVE_DIR/slave" || exit 1
+    if go build; then
+        echo -e "${GREEN}✓ Slave build successful${NC}"
+    else
+        echo -e "${RED}✗ Slave build failed${NC}"
+        exit 1
+    fi
 fi
 echo ""
 
-# Step 3: Restart PM2 service
-echo -e "${YELLOW}[3/3] Restarting PM2 service: ${SERVICE}...${NC}"
-if sudo pm2 restart "$SERVICE"; then
-    echo -e "${GREEN}✓ Service restarted successfully${NC}"
+# Step 3: Restart PM2 service(s)
+if [ "$UPDATE_MODE" = "master" ]; then
+    # Restart both master and slave
+    echo -e "${YELLOW}[3/3] Restarting PM2 services...${NC}"
+    
+    # Restart master
+    echo -e "  Restarting hyperhive-master..."
+    if sudo pm2 restart hyperhive-master; then
+        echo -e "${GREEN}  ✓ Master service restarted successfully${NC}"
+    else
+        echo -e "${RED}  ✗ Failed to restart master service${NC}"
+        exit 1
+    fi
+    
+    # Restart slave
+    echo -e "  Restarting hyperhive-slave..."
+    if sudo pm2 restart hyperhive-slave; then
+        echo -e "${GREEN}  ✓ Slave service restarted successfully${NC}"
+    else
+        echo -e "${RED}  ✗ Failed to restart slave service${NC}"
+        exit 1
+    fi
 else
-    echo -e "${RED}✗ Failed to restart service${NC}"
-    exit 1
+    # Restart only slave
+    echo -e "${YELLOW}[3/3] Restarting PM2 service: hyperhive-slave...${NC}"
+    if sudo pm2 restart hyperhive-slave; then
+        echo -e "${GREEN}✓ Slave service restarted successfully${NC}"
+    else
+        echo -e "${RED}✗ Failed to restart slave service${NC}"
+        exit 1
+    fi
 fi
 echo ""
 
