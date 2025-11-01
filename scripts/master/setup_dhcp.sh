@@ -150,6 +150,38 @@ cleanup_for_network(){
 }
 cleanup_for_network
 
+kill_conflicting_dns(){
+  command -v ss >/dev/null 2>&1 || { warn "Sem utilitário 'ss' para detetar conflitos de portas."; return; }
+  local ports=(53 67)
+  for port in "${ports[@]}"; do
+    while IFS=' ' read -r pid exe addr; do
+      [[ -z "${pid}" ]] && continue
+      case "${exe}" in
+        dnsmasq)
+          info "A terminar dnsmasq pré-existente (PID ${pid}) que ocupava ${addr}"
+          kill "${pid}" >/dev/null 2>&1 || true
+          sleep 0.5
+          kill -9 "${pid}" >/dev/null 2>&1 || true
+          ;;
+        *)
+          fatal "Porta ${port}/${addr} ocupada por PID ${pid} (${exe}). Liberta-a antes de continuar."
+          ;;
+      esac
+    done < <(ss -H -lunp "sport = :${port}" 2>/dev/null | awk -v ip="${GATEWAY_IP}" -v p="${port}" '
+      {
+        local_addr=$5
+        match(local_addr, /:([0-9]+)$/, mport)
+        if (!mport[1] || mport[1] != p) next
+        if (local_addr ~ ("^"ip":") || (p == 53 && local_addr ~ "^0\\.0\\.0\\.0:")) {
+          if (match($0, /pid=([0-9]+)/, m) && match($0, /\"([^\"]+)\"/, c)) {
+            printf "%s %s %s\n", m[1], c[1], local_addr
+          }
+        }
+      }')
+  done
+}
+kill_conflicting_dns
+
 # --- dnsmasq dedicado (só lê o ficheiro deste network) -----------------------
 DNSMASQ_CONF="${DNSMASQ_CONF_DIR}/${NETWORK_NAME}.conf"
 info "A escrever ${DNSMASQ_CONF}"
