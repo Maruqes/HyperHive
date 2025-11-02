@@ -137,18 +137,18 @@ cleanup_for_network(){
   info "A limpar artefactos antigos para ${NETWORK_NAME}"
 
   install -d -m 755 "${DNSMASQ_CONF_DIR}"
-  install -d -m 775 "${DNSMASQ_LEASE_DIR}"
-  chown "${DNSMASQ_RUN_USER}:${DNSMASQ_RUN_GROUP}" "${DNSMASQ_LEASE_DIR}" || warn "Não foi possível ajustar owner de ${DNSMASQ_LEASE_DIR}"
-  chmod 775 "${DNSMASQ_LEASE_DIR}" || warn "Não foi possível ajustar permissões de ${DNSMASQ_LEASE_DIR}"
+  install -d -m 775 -o "${DNSMASQ_RUN_USER}" -g "${DNSMASQ_RUN_GROUP}" "${DNSMASQ_LEASE_DIR}"
   if command -v restorecon >/dev/null 2>&1; then
     restorecon -R "${DNSMASQ_LEASE_DIR}" >/dev/null 2>&1 || warn "restorecon falhou para ${DNSMASQ_LEASE_DIR}"
   fi
   rm -f "${DNSMASQ_CONF_DIR}/${NETWORK_NAME}.conf"
   local lease_file="${DNSMASQ_LEASE_DIR}/${NETWORK_NAME}.leases"
   rm -f "${lease_file}"
-  touch "${lease_file}"
-  chown "${DNSMASQ_RUN_USER}:${DNSMASQ_RUN_GROUP}" "${lease_file}" || warn "Não foi possível ajustar owner de ${lease_file}"
-  chmod 664 "${lease_file}" || warn "Não foi possível ajustar permissões de ${lease_file}"
+  install -m 664 -o "${DNSMASQ_RUN_USER}" -g "${DNSMASQ_RUN_GROUP}" /dev/null "${lease_file}" 2>/dev/null || {
+    touch "${lease_file}"
+    chown "${DNSMASQ_RUN_USER}:${DNSMASQ_RUN_GROUP}" "${lease_file}" || warn "Não foi possível ajustar owner de ${lease_file}"
+    chmod 664 "${lease_file}" || warn "Não foi possível ajustar permissões de ${lease_file}"
+  }
 
   systemctl disable --now "${DEDICATED_UNIT}" >/dev/null 2>&1 || true
 
