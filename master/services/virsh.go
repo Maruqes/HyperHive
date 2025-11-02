@@ -923,6 +923,7 @@ func (v *VirshService) StartAutoStartVms(machineName string) error {
 			continue
 		}
 
+		logger.Info("start vm: " + vm.Name)
 		err = virsh.StartVm(conn.Connection, vm)
 		if err != nil {
 			logger.Error("cannot start vm auto start: " + vm.Name + " err: " + err.Error())

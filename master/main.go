@@ -21,6 +21,7 @@ import (
 
 func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 
+	logger.Info("Mounting all NFS")
 	nfsService := services.NFSService{}
 	err := nfsService.UpdateNFSShit()
 	if err != nil {
@@ -28,6 +29,7 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 		return err
 	}
 
+	logger.Info("Auto starting vms")
 	virshServices := services.VirshService{}
 	virshServices.StartAutoStartVms(machineName)
 
