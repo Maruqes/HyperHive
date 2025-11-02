@@ -51,6 +51,9 @@ RESOLV_CONF="${RESOLV_CONF:-/etc/resolv.conf}"
 DNSMASQ_CONF_DIR="${DNSMASQ_CONF_DIR:-/etc/dnsmasq.d}"
 DNSMASQ_LEASE_DIR="${DNSMASQ_LEASE_DIR:-/var/lib/dnsmasq}"
 
+DNSMASQ_RUN_USER="${DNSMASQ_RUN_USER:-}"
+DNSMASQ_RUN_GROUP="${DNSMASQ_RUN_GROUP:-}"
+
 SYSCTL_CONF="/etc/sysctl.d/99-${NETWORK_NAME}-ipfwd-rpf.conf"
 DEDICATED_UNIT="dnsmasq-${NETWORK_NAME}.service"
 NAT_UNIT="${NETWORK_NAME}-nat.service"
@@ -59,6 +62,25 @@ MACVTAP_PERSIST="${MACVTAP_PERSIST:-1}"
 command -v ip >/dev/null || fatal 'Falta iproute2.'
 command -v dnsmasq >/dev/null || fatal 'Falta dnsmasq.'
 command -v nmcli >/dev/null 2>&1 || warn 'nmcli ausente (persistência NM limitada).'
+
+if [[ -z ${DNSMASQ_RUN_USER} ]]; then
+  if getent passwd dnsmasq >/dev/null; then
+    DNSMASQ_RUN_USER="dnsmasq"
+  else
+    DNSMASQ_RUN_USER="nobody"
+  fi
+fi
+if [[ -z ${DNSMASQ_RUN_GROUP} ]]; then
+  if getent group "${DNSMASQ_RUN_USER}" >/dev/null; then
+    DNSMASQ_RUN_GROUP="${DNSMASQ_RUN_USER}"
+  elif getent group dnsmasq >/dev/null; then
+    DNSMASQ_RUN_GROUP="dnsmasq"
+  elif getent group nogroup >/dev/null; then
+    DNSMASQ_RUN_GROUP="nogroup"
+  else
+    DNSMASQ_RUN_GROUP="nobody"
+  fi
+fi
 
 # --- Helpers CIDR -------------------------------------------------------------
 cidr_prefix=${SUBNET_CIDR#*/}; network_base=${SUBNET_CIDR%/*}
@@ -114,8 +136,14 @@ ip link show "${NETWORK_NAME}" >/dev/null 2>&1 || fatal "Interface '${NETWORK_NA
 cleanup_for_network(){
   info "A limpar artefactos antigos para ${NETWORK_NAME}"
 
-  install -d -m 755 "${DNSMASQ_CONF_DIR}" "${DNSMASQ_LEASE_DIR}"
-  rm -f "${DNSMASQ_CONF_DIR}/${NETWORK_NAME}.conf" "${DNSMASQ_LEASE_DIR}/${NETWORK_NAME}.leases"
+  install -d -m 755 "${DNSMASQ_CONF_DIR}"
+  install -d -m 775 -o "${DNSMASQ_RUN_USER}" -g "${DNSMASQ_RUN_GROUP}" "${DNSMASQ_LEASE_DIR}"
+  rm -f "${DNSMASQ_CONF_DIR}/${NETWORK_NAME}.conf"
+  local lease_file="${DNSMASQ_LEASE_DIR}/${NETWORK_NAME}.leases"
+  rm -f "${lease_file}"
+  touch "${lease_file}"
+  chown "${DNSMASQ_RUN_USER}:${DNSMASQ_RUN_GROUP}" "${lease_file}" || warn "Não foi possível ajustar owner de ${lease_file}"
+  chmod 664 "${lease_file}" || warn "Não foi possível ajustar permissões de ${lease_file}"
 
   systemctl disable --now "${DEDICATED_UNIT}" >/dev/null 2>&1 || true
 
@@ -355,7 +383,7 @@ After=macvtap-${NETWORK_NAME}.service network-online.target NetworkManager-wait-
 Type=simple
 # Espera até a interface ter IPv4
 ExecStartPre=/bin/bash -c 'for i in {1..20}; do ip -4 addr show ${NETWORK_NAME} | grep -q "inet " && exit 0; sleep 1; done; echo "${NETWORK_NAME} sem IPv4"; exit 1'
-ExecStart=/usr/sbin/dnsmasq -k --conf-file=${DNSMASQ_CONF} --bind-interfaces
+ExecStart=/usr/sbin/dnsmasq -k --conf-file=${DNSMASQ_CONF} --bind-interfaces --user=${DNSMASQ_RUN_USER} --group=${DNSMASQ_RUN_GROUP}
 Restart=on-failure
 RestartSec=2
 # Endurecer um pouco
