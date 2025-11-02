@@ -173,6 +173,19 @@ cleanup_for_network(){
       info "NM: a remover perfil '${name}' do device ${NETWORK_NAME}"
       nmcli connection delete uuid "${uuid}" >/dev/null 2>&1 || true
     done < <(nmcli -t -f UUID,NAME,DEVICE connection show | awk -F: -v dev="${NETWORK_NAME}" '$3==dev{print $1" "$2}')
+
+    while read -r uuid name; do
+      [[ -z ${uuid} ]] && continue
+      local current_method
+      current_method=$(nmcli -g ipv4.method connection show "${uuid}" 2>/dev/null || echo "")
+      if [[ "${current_method}" != "disabled" ]]; then
+        info "NM: a desativar IPv4 no parent (${LAN_PARENT_IF}) via perfil '${name}'"
+        nmcli connection modify "${uuid}" ipv4.method disabled ipv4.addresses "" ipv4.gateway "" ipv4.never-default yes >/dev/null 2>&1 || warn "NM: falhou a definir IPv4 disabled para '${name}'"
+        nmcli connection modify "${uuid}" ipv6.method ignore >/dev/null 2>&1 || true
+        nmcli connection down "${uuid}" >/dev/null 2>&1 || true
+        nmcli connection up "${uuid}" >/dev/null 2>&1 || true
+      fi
+    done < <(nmcli -t -f UUID,NAME,DEVICE connection show | awk -F: -v dev="${LAN_PARENT_IF}" '$3==dev{print $1" "$2}')
   fi
 
   # Força estado e IPv4 do child

@@ -30,6 +30,34 @@ fatal(){ printf '[ERROR] %s\n' "$*" >&2; exit 1; }
 warn(){  printf '[WARN] %s\n' "$*" >&2; }
 info(){  printf '[INFO] %s\n' "$*"; }
 
+ip_to_int(){ local IFS=.; read -r a b c d <<<"$1"; printf '%u' $(( (a<<24)|(b<<16)|(c<<8)|d )); }
+
+remove_conflicting_ipv4(){
+  local parent=$1 ip_cidr=$2
+  [[ -z "${ip_cidr}" ]] && return
+  local cidr_prefix=${ip_cidr#*/}
+  local base_ip=${ip_cidr%/*}
+  [[ ${cidr_prefix} =~ ^[0-9]+$ ]] || return
+  local prefix=$((10#${cidr_prefix}))
+  (( prefix>=0 && prefix<=32 )) || return
+  local mask=$(( prefix==0 ? 0 : 0xffffffff ^ ((1<<(32-prefix))-1) ))
+  local network=$(( $(ip_to_int "${base_ip}") & mask ))
+
+  local addr
+  local -a addrs=()
+  mapfile -t addrs < <(ip -4 -o addr show dev "${parent}" 2>/dev/null | awk '{print $4}' || true)
+  (( ${#addrs[@]} == 0 )) && return
+  for addr in "${addrs[@]}"; do
+    [[ -z "${addr:-}" ]] && continue
+    local candidate_ip=${addr%/*}
+    local candidate_int=$(ip_to_int "${candidate_ip}")
+    if (( (candidate_int & mask) == network )); then
+      ip -4 addr del "${addr}" dev "${parent}" || true
+      warn "Removido IPv4 ${addr} de ${parent} por conflito com ${ip_cidr}"
+    fi
+  done
+}
+
 install_persistence() {
   local parent=$1 child=$2 ipv4=${3:-}
   local helper="/usr/local/sbin/macvtap-${child}.sh"
@@ -58,6 +86,31 @@ for i in {1..20}; do
   sleep 1
 done
 ip link show ${parent} >/dev/null 2>&1 || exit 1
+
+# Remove IPv4 conflitantes no parent
+remove_conflicting_ipv4(){
+  local parent=\$1 ip_cidr=\$2
+  [[ -z "\${ip_cidr}" ]] && return
+  IFS=/ read -r base prefix <<<"\${ip_cidr}"
+  [[ \${prefix} =~ ^[0-9]+$ ]] || return
+  prefix=\$((10#\${prefix}))
+  (( prefix>=0 && prefix<=32 )) || return
+  ip_to_int(){ local IFS=.; read -r a b c d <<<"\$1"; printf '%u' \$(( (a<<24)|(b<<16)|(c<<8)|d )); }
+  local mask=\$(( prefix==0 ? 0 : 0xffffffff ^ ((1<<(32-prefix))-1) ))
+  local network=\$(( \$(ip_to_int "\${base}") & mask ))
+  local -a addrs=()
+  mapfile -t addrs < <(ip -4 -o addr show "\${parent}" 2>/dev/null | awk '{print \$4}' || true)
+  (( \${#addrs[@]} == 0 )) && return
+  for addr in "\${addrs[@]}"; do
+    [[ -z "\${addr:-}" ]] && continue
+    local cand_ip=\${addr%/*}
+    local cand_int=\$(ip_to_int "\${cand_ip}")
+    if (( (cand_int & mask) == network )); then
+      ip -4 addr del "\${addr}" dev "\${parent}" || true
+    fi
+  done
+}
+remove_conflicting_ipv4 ${parent} "${ipv4}"
 
 # Garante promisc no parent
 ip link set ${parent} promisc on || true
@@ -132,6 +185,8 @@ fi
 
 info "Parent ${PARENT_IF} -> promisc on"
 ip link set "$PARENT_IF" promisc on || true
+
+remove_conflicting_ipv4 "$PARENT_IF" "$IPV4_CIDR"
 
 info "A criar macvtap '${MACVTAP_IF}' (mode=bridge)"
 ip link add link "$PARENT_IF" name "$MACVTAP_IF" type macvtap mode bridge
