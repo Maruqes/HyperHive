@@ -228,16 +228,6 @@ CFG
 
 dnsmasq --test -C "${DNSMASQ_CONF}" >/dev/null || fatal "Teste de configuração falhou: ${DNSMASQ_CONF}"
 
-# --- ip_forward + rp_filter relaxado -----------------------------------------
-info "A ativar ip_forward e a relaxar rp_filter"
-cat >"${SYSCTL_CONF}" <<SYSCTL
-net.ipv4.ip_forward = 1
-net.ipv4.conf.all.rp_filter = 0
-net.ipv4.conf.default.rp_filter = 0
-net.ipv4.conf.${NETWORK_NAME}.rp_filter = 0
-SYSCTL
-sysctl --system >/dev/null
-
 # --- WAN detection ------------------------------------------------------------
 find_wan_iface(){ ip route show default 0.0.0.0/0 | awk '/default/ {print $5; exit}'; }
 WAN_IF_INPUT="${CLI_WAN_IF:-${WAN_IF:-}}"
@@ -246,12 +236,41 @@ WAN_IF="${WAN_IF_INPUT:-$(find_wan_iface)}"
 [[ "${WAN_IF}" != "${NETWORK_NAME}" ]] || fatal 'WAN não pode ser a mesma que a interface DHCP.'
 ip link show "${WAN_IF}" >/dev/null 2>&1 || fatal "WAN '${WAN_IF}' não existe."
 
+# --- ip_forward + rp_filter relaxado -----------------------------------------
+info "A ativar ip_forward e a relaxar rp_filter"
+cat >"${SYSCTL_CONF}" <<SYSCTL
+net.ipv4.ip_forward = 1
+net.ipv4.conf.all.rp_filter = 0
+net.ipv4.conf.default.rp_filter = 0
+net.ipv4.conf.${NETWORK_NAME}.rp_filter = 0
+net.ipv4.conf.${LAN_PARENT_IF}.rp_filter = 0
+SYSCTL
+if [[ "${LAN_PARENT_IF}" != "${WAN_IF}" && "${WAN_IF}" != "${NETWORK_NAME}" ]]; then
+  cat >>"${SYSCTL_CONF}" <<SYSCTL
+net.ipv4.conf.${WAN_IF}.rp_filter = 0
+SYSCTL
+fi
+sysctl --system >/dev/null
+
 # --- NAT via firewalld (preferido) ou iptables (fallback) --------------------
 apply_firewalld(){
   command -v firewall-cmd >/dev/null 2>&1 || return 1
-  local default_zone
+  local default_zone wan_zone
   default_zone=$(firewall-cmd --get-default-zone) || { warn "firewalld: não foi possível obter a zona por defeito."; return 1; }
-  info "A configurar firewalld (zona por defeito=${default_zone}, LAN=${NETWORK_NAME})"
+  wan_zone=$(firewall-cmd --get-active-zones 2>/dev/null | awk -v iface="${WAN_IF}" '
+    /^[[:space:]]*$/ {next}
+    /^[^[:space:]]/ {zone=$1; next}
+    $1 == "interfaces:" {
+      for (i=2; i<=NF; ++i) {
+        gsub(/,/, "", $i)
+        if ($i == iface) {print zone; exit}
+      }
+    }')
+  if [[ -z ${wan_zone} ]]; then
+    warn "firewalld: não encontrou zona ativa para ${WAN_IF}; a assumir ${default_zone}."
+    wan_zone="${default_zone}"
+  fi
+  info "A configurar firewalld (zona WAN=${wan_zone}, zona por defeito=${default_zone}, LAN=${NETWORK_NAME})"
 
   firewall-cmd --permanent --zone="${default_zone}" --remove-interface="${NETWORK_NAME}" >/dev/null 2>&1 || true
   if firewall-cmd --permanent --zone=trusted --add-interface="${NETWORK_NAME}" >/dev/null 2>&1; then
@@ -261,16 +280,22 @@ apply_firewalld(){
     firewall-cmd --permanent --zone=trusted --add-source="${SUBNET_NETWORK}" >/dev/null || warn "firewalld: fallback --permanent --add-source falhou."
     firewall-cmd --zone=trusted --add-source="${SUBNET_NETWORK}" >/dev/null 2>&1 || warn "firewalld: fallback runtime --add-source falhou."
   fi
-  if ! firewall-cmd --permanent --zone="${default_zone}" --add-masquerade >/dev/null 2>&1; then
-    warn "firewalld: não conseguiu ativar masquerade na zona ${default_zone}."
+  firewall-cmd --permanent --zone="${wan_zone}" --add-interface="${WAN_IF}" >/dev/null 2>&1 || warn "firewalld: não conseguiu associar '${WAN_IF}' de forma permanente à zona ${wan_zone}."
+  firewall-cmd --zone="${wan_zone}" --add-interface="${WAN_IF}" >/dev/null 2>&1 || true
+  if ! firewall-cmd --permanent --zone="${wan_zone}" --add-masquerade >/dev/null 2>&1; then
+    warn "firewalld: não conseguiu ativar masquerade na zona ${wan_zone}."
     return 1
   fi
-  firewall-cmd --zone="${default_zone}" --add-masquerade >/dev/null 2>&1 || warn "firewalld: masquerade runtime na zona ${default_zone} falhou."
+  firewall-cmd --zone="${wan_zone}" --add-masquerade >/dev/null 2>&1 || warn "firewalld: masquerade runtime na zona ${wan_zone} falhou."
 
   firewall-cmd --permanent --zone=trusted --add-service=dhcp >/dev/null 2>&1 || warn "firewalld: não conseguiu adicionar serviço DHCP (permanent)."
   firewall-cmd --permanent --zone=trusted --add-service=dns  >/dev/null 2>&1 || warn "firewalld: não conseguiu adicionar serviço DNS (permanent)."
   firewall-cmd --zone=trusted --add-service=dhcp >/dev/null 2>&1 || true
   firewall-cmd --zone=trusted --add-service=dns  >/dev/null 2>&1 || true
+  firewall-cmd --permanent --zone=trusted --add-forward >/dev/null 2>&1 || warn "firewalld: não conseguiu permitir forward na zona trusted (permanent)."
+  firewall-cmd --zone=trusted --add-forward >/dev/null 2>&1 || true
+  firewall-cmd --permanent --zone="${wan_zone}" --add-forward >/dev/null 2>&1 || warn "firewalld: não conseguiu permitir forward na zona ${wan_zone} (permanent)."
+  firewall-cmd --zone="${wan_zone}" --add-forward >/dev/null 2>&1 || true
 
   firewall-cmd --reload >/dev/null 2>&1 || { warn "firewalld: reload falhou."; return 1; }
 }
