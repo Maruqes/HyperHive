@@ -30,6 +30,34 @@ if [[ "${ID,,}" != "fedora" && ! ${ID_LIKE:-} =~ fedora ]]; then
   fatal 'Este script foi feito para Fedora-like.'
 fi
 
+# --- SELinux: força modo permissive ------------------------------------------
+if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled; then
+  if command -v setenforce >/dev/null 2>&1; then
+    if ! setenforce 0 2>/dev/null; then
+      warn "Falhou setenforce 0 (SELinux poderá bloquear dnsmasq)."
+    else
+      info "SELinux colocado em modo permissive (runtime)."
+    fi
+  else
+    warn "setenforce indisponível; não foi possível alterar modo runtime de SELinux."
+  fi
+else
+  warn "SELinux não está ativo ou selinuxenabled indisponível; a continuar."
+fi
+
+if [[ -w /etc/selinux/config ]]; then
+  if grep -q '^SELINUX=enforcing' /etc/selinux/config; then
+    if sed -i 's/^SELINUX=.*/SELINUX=permissive/' /etc/selinux/config; then
+      info "Atualizado /etc/selinux/config para SELINUX=permissive."
+    else
+      warn "Não foi possível atualizar /etc/selinux/config (ver permissões)."
+    fi
+  fi
+else
+  warn "Sem permissões para editar /etc/selinux/config; modo persistente não alterado."
+fi
+
+
 case "${1:-}" in -h|--help) usage;; esac
 CLI_WAN_IF="${1:-}"
 
