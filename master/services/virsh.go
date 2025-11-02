@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
@@ -482,7 +483,25 @@ func (v *VirshService) StartVM(name string) error {
 	for _, conn := range con {
 		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: name})
 		if err == nil && vm != nil {
-			//found the vm
+			// check if disk path is accessible, retry for up to 30 minutes
+			found := false
+			maxRetries := 60 // 30 minutes / 30 seconds = 60 retries
+			for i := 0; i < maxRetries; i++ {
+				found, err = nfs.CanFindFileOrDir(conn, vm.DiskPath)
+				if err == nil && found {
+					break
+				}
+				if i < maxRetries-1 {
+					logger.Warn(fmt.Sprintf("Disk path %s not found for VM %s, retrying in 30 seconds (%d/%d)", vm.DiskPath, name, i+1, maxRetries))
+					time.Sleep(30 * time.Second)
+				}
+			}
+
+			if !found {
+				return fmt.Errorf("disk path %s not accessible after 30 minutes for VM %s", vm.DiskPath, name)
+			}
+
+			// found the vm and disk is accessible
 			err = virsh.StartVm(conn, vm)
 			if err != nil {
 				return fmt.Errorf("failed to start VM %s: %v", name, err)
