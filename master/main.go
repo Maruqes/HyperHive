@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	logger "github.com/Maruqes/512SvMan/logger"
 	"google.golang.org/grpc"
@@ -28,6 +29,8 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 		logger.Error("UpdateNFS failed: %v", err)
 		return err
 	}
+
+	time.Sleep(time.Second * 15)
 
 	logger.Info("Auto starting vms")
 	virshServices := services.VirshService{}
