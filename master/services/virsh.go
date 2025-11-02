@@ -218,7 +218,14 @@ func (v *VirshService) CreateVM(machine_name string, name string, memory int32, 
 		diskFolder = nfsShare.Target + name
 	}
 
-	return virsh.CreateVM(slaveMachine.Connection, name, memory, vcpu, diskFolder, qcowFile, diskSizeGB, isoPath, network, VNCPassword, cpuXML, raw, autoStart)
+	if err := virsh.CreateVM(slaveMachine.Connection, name, memory, vcpu, diskFolder, qcowFile, diskSizeGB, isoPath, network, VNCPassword, cpuXML, raw, autoStart); err != nil {
+		return err
+	}
+
+	if err := v.AutoStart(name, autoStart); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXml string, raw bool, autoStart bool) error {
@@ -448,6 +455,11 @@ func (v *VirshService) DeleteVM(name string) error {
 			// remove automatic backup schedule for this VM, if present
 			if err := db.RemoveAutomaticBackup(name); err != nil {
 				return fmt.Errorf("failed to remove automatic backup for VM %s: %v", name, err)
+			}
+
+			// remove autostart entry for this VM, if present
+			if err := db.RemoveAutoStart(name); err != nil {
+				return fmt.Errorf("failed to remove autostart for VM %s: %v", name, err)
 			}
 
 			return nil

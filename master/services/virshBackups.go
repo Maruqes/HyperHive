@@ -115,7 +115,7 @@ func (v *VirshService) BackupVM(vmName string, nfsID int, automatic bool) error 
 func (v *VirshService) DeleteBackup(bakId int) error {
 	bakup, err := db.GetVirshBackupById(bakId)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	if bakup == nil {
@@ -133,7 +133,7 @@ func (v *VirshService) DeleteBackup(bakId int) error {
 	}
 
 	err = os.Remove(bakup.Path)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 
@@ -532,7 +532,6 @@ func (v *VirshService) LoopAutomaticBaks() {
 					}
 				}
 			}
-
 			time.Sleep(time.Minute * time.Duration(timeDiff))
 		}
 	}()

@@ -5,7 +5,9 @@ import (
 	"512SvMan/services"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/Maruqes/512SvMan/logger"
@@ -123,8 +125,24 @@ func removeISOByID(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	err = db.RemoveISOByID(id)
+	iso, err := db.GetIsoByID(id)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "ISO not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if iso == nil {
+		http.Error(w, "ISO not found", http.StatusNotFound)
+		return
+	}
+	if err := os.Remove(iso.FilePath); err != nil && !os.IsNotExist(err) {
+		http.Error(w, fmt.Sprintf("failed to remove ISO file: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if err := db.RemoveISOByID(id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

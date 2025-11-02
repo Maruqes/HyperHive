@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"os"
 	"strings"
 
 	proto "github.com/Maruqes/512SvMan/api/proto/nfs"
@@ -150,13 +151,66 @@ func forcedelete(s *NFSService) error {
 		return fmt.Errorf("NFS share does not exist")
 	}
 
-	//remove last slash
+	nfsShare, err := db.GetNFSShareByMachineAndFolder(s.SharePoint.MachineName, s.SharePoint.FolderPath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve NFS share: %v", err)
+	}
+	if nfsShare == nil {
+		return fmt.Errorf("cannot resolve NFS share for deletion")
+	}
+
 	mount := &proto.FolderMount{
-		MachineName:     s.SharePoint.MachineName,
-		FolderPath:      s.SharePoint.FolderPath,
-		Source:          "",
-		Target:          "/mnt/512SvMan/shared/" + s.SharePoint.MachineName + "_" + getFolderName(s.SharePoint.FolderPath),
-		HostNormalMount: s.SharePoint.HostNormalMount,
+		MachineName:     nfsShare.MachineName,
+		FolderPath:      nfsShare.FolderPath,
+		Source:          nfsShare.Source,
+		Target:          nfsShare.Target,
+		HostNormalMount: nfsShare.HostNormalMount,
+	}
+
+	virshService := VirshService{}
+	vms, err := virshService.GetAllVmsByOnNfsShare(mount.Target)
+	if err != nil {
+		return fmt.Errorf("failed to get VMs on NFS share: %v", err)
+	}
+	for _, vm := range vms {
+		if err := virshService.DeleteVM(vm.Name); err != nil {
+			return fmt.Errorf("failed to delete VM %s on NFS share: %v", vm.Name, err)
+		}
+	}
+
+	backups, err := db.GetVirshBackupsByNfsMountID(nfsShare.Id)
+	if err != nil {
+		return fmt.Errorf("failed to query backups using NFS share: %v", err)
+	}
+	for _, bak := range backups {
+		if err := virshService.DeleteBackup(bak.Id); err != nil {
+			return fmt.Errorf("failed to delete backup %d for VM %s: %v", bak.Id, bak.Name, err)
+		}
+	}
+
+	autoBackups, err := db.GetAutomaticBackupsByNfsMountID(nfsShare.Id)
+	if err != nil {
+		return fmt.Errorf("failed to query automatic backups using NFS share: %v", err)
+	}
+	for _, bak := range autoBackups {
+		if err := virshService.DeleteAutoBak(bak.Id); err != nil {
+			return fmt.Errorf("failed to remove automatic backup %d for VM %s: %v", bak.Id, bak.VmName, err)
+		}
+	}
+
+	isos, err := db.GetAllISOs()
+	if err != nil {
+		return fmt.Errorf("failed to get ISOs: %v", err)
+	}
+	for _, iso := range isos {
+		if strings.HasPrefix(iso.FilePath, mount.Target) {
+			if err := os.Remove(iso.FilePath); err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("failed to remove ISO file %s: %v", iso.FilePath, err)
+			}
+			if err := db.RemoveISOByID(iso.Id); err != nil {
+				return fmt.Errorf("failed to remove ISO %s on NFS share: %v", iso.Name, err)
+			}
+		}
 	}
 
 	conns := protocol.GetAllGRPCConnections()
@@ -167,40 +221,16 @@ func forcedelete(s *NFSService) error {
 		}
 		if err := nfs.UnmountSharedFolder(c, mount); err != nil {
 			logger.Error("UnmountSharedFolder failed: %v", err)
-			continue
 		}
 	}
 
-	//remove all VMs and ISOs on this nfs share
-	virshService := VirshService{}
-	vms, err := virshService.GetAllVmsByOnNfsShare(mount.Target)
-	if err != nil {
-		return fmt.Errorf("failed to get VMs on NFS share: %v", err)
-	}
-	for _, vm := range vms {
-		err := virshService.DeleteVM(vm.Name)
-		if err != nil {
-			logger.Error("failed to delete VM %s on NFS share: %v", vm.Name, err)
-			continue
+	if conn := protocol.GetConnectionByMachineName(mount.MachineName); conn != nil && conn.Connection != nil {
+		if err := nfs.RemoveSharedFolder(conn.Connection, mount); err != nil {
+			logger.Error("RemoveSharedFolder failed: %v", err)
 		}
 	}
 
-	isos, err := db.GetAllISOs()
-	if err != nil {
-		return fmt.Errorf("failed to get ISOs: %v", err)
-	}
-	for _, iso := range isos {
-		if strings.HasPrefix(iso.FilePath, mount.Target) {
-			err := db.RemoveISOByID(iso.Id)
-			if err != nil {
-				logger.Error("failed to remove ISO %s on NFS share: %v", iso.Name, err)
-				continue
-			}
-		}
-	}
-
-	err = db.RemoveNFSShare(mount.MachineName, mount.FolderPath)
-	if err != nil {
+	if err := db.RemoveNFSShare(mount.MachineName, mount.FolderPath); err != nil {
 		return fmt.Errorf("failed to remove NFS share from database: %v", err)
 	}
 
