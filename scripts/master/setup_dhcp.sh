@@ -159,7 +159,7 @@ stop_conflicting_dnsmasq_units(){
     info "A parar unidade '${unit}' que usa dnsmasq"
     systemctl stop "${unit}" >/dev/null 2>&1 || true
     systemctl disable "${unit}" >/dev/null 2>&1 || true
-  done < <(systemctl list-units --all 'dnsmasq*.service' --no-legend 2>/dev/null | awk '{print $1}' | sort -u)
+  done < <(systemctl list-units --all 'dnsmasq*.service' --plain --no-legend 2>/dev/null | awk '{print $1}' | sort -u)
 }
 stop_conflicting_dnsmasq_units
 
@@ -197,8 +197,8 @@ kill_conflicting_dns(){
         }
         if (portnum != p) next
         if (addr == "" || addr == "*" || addr == "0.0.0.0" || addr == "::" || addr == ip) {
-          if (match($0, /pid=([0-9]+)/, m) && match($0, /\"([^\"]+)\"/, c)) {
-            printf "%s %s %s:%s %s\n", m[1], c[1], (addr==""?\"*\":addr), portnum, proto
+          if (match($0, /pid=([0-9]+)/, m) && match($0, /"([^"]+)"/, c)) {
+            printf "%s %s %s:%s %s\n", m[1], c[1], (addr==""?"*":addr), portnum, proto
           }
         }
       }')
@@ -212,6 +212,8 @@ info "A escrever ${DNSMASQ_CONF}"
 cat >"${DNSMASQ_CONF}" <<CFG
 # Auto-gerado para ${NETWORK_NAME} — NÃO EDITAR À MÃO
 interface=${NETWORK_NAME}
+listen-address=${GATEWAY_IP}
+except-interface=lo
 bind-interfaces
 domain-needed
 bogus-priv
