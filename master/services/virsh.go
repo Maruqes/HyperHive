@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
@@ -936,13 +937,30 @@ func (v *VirshService) StartAutoStartVms(machineName string) error {
 			continue
 		}
 
-		logger.Info("start vm: " + vm.Name)
-		if err := v.StartVM(context.Background(), vm.Name); err != nil {
-			logger.Error("cannot start vm auto start: " + vm.Name + " err: " + err.Error())
-			continue
-		}
+		tries := 0
+		for {
+			tries++
+			if tries == 10 {
+				logger.Error("Tried to start vm " + vm.Name + " 10 times not successfully")
+				break
+			}
+			//start vm, if after 10 secs is not start again for 30 mins
+			logger.Info("start vm: " + vm.Name)
+			if err := v.StartVM(context.Background(), vm.Name); err != nil {
+				logger.Error("cannot start vm auto start: " + vm.Name + " err: " + err.Error())
+				continue
+			}
 
-		//check if is up it, not running start again
+			vm, err = v.GetVmByName(auto.VmName)
+			if err != nil {
+				logger.Error("auto start vm does not exist: " + auto.VmName + " err: " + err.Error())
+				continue
+			}
+			time.Sleep(10 * time.Second)
+			if vm.State == grpcVirsh.VmState_RUNNING {
+				break
+			}
+		}
 	}
 	return nil
 }
