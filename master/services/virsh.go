@@ -937,17 +937,24 @@ func (v *VirshService) StartAutoStartVms(machineName string) error {
 			continue
 		}
 
+		//getting conn
+		conn := protocol.GetConnectionByMachineName(vm.MachineName)
+		if conn == nil || conn.Connection == nil {
+			logger.Error("wtf how is not conn and found vm autostart bug wtfwtf")
+			continue
+		}
+
 		tries := 0
 		for {
 			tries++
-			// 30*60(sec of min) = 1800    / 10(sleep time) =180, so this tries every 10 seconds for half an hour 
+			// 30*60(sec of min) = 1800    / 10(sleep time) =180, so this tries every 10 seconds for half an hour
 			if tries == 180 {
 				logger.Error("Tried to start vm " + vm.Name + " 10 times not successfully")
 				break
 			}
 			//start vm, if after 10 secs is not start again for 30 mins
 			logger.Info("start vm: " + vm.Name)
-			if err := v.StartVM(context.Background(), vm.Name); err != nil {
+			if err := virsh.StartVm(context.Background(), conn.Connection, vm); err != nil {
 				logger.Error("cannot start vm auto start: " + vm.Name + " err: " + err.Error())
 				continue
 			}
