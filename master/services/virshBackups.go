@@ -61,10 +61,15 @@ func (v *VirshService) BackupVM(vmName string, nfsID int, automatic bool) error 
 		return fmt.Errorf("could not create the backUpFolder folder")
 	}
 
-	//create struct with already qcow2 file path
+	extension := ".qcow2"
+	if vm.Raw {
+		extension = ".raw"
+	}
+
+	//create struct with already extension file path
 	backup := &db.VirshBackup{
 		Name:      vmName,
-		Path:      backUpFolder + "/" + vmName + ".qcow2",
+		Path:      backUpFolder + "/" + vmName + extension,
 		NfsId:     nfsID,
 		Automatic: automatic,
 	}
@@ -198,7 +203,7 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 	}
 
 	// Copy backup to new location
-	newDiskPath := newFolder + "/" + coldReq.VmName + ".qcow2"
+	newDiskPath := newFolder + "/" + coldReq.VmName + ".vm"
 	err = copyFile(backup.Path, newDiskPath, coldReq.VmName)
 	if err != nil {
 		os.RemoveAll(newFolder)

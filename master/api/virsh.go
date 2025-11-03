@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -480,7 +481,12 @@ func exportVM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Disposition", "attachment; filename=\""+vmName+".qcow2\"")
+	extension := ".qcow2\""
+	if vm.Raw {
+		extension = ".raw\""
+	}
+
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+vmName+extension)
 	w.Header().Set("Content-Type", "application/octet-stream")
 	http.ServeFile(w, r, vm.DiskPath)
 }
@@ -500,6 +506,7 @@ type VMRequestImport struct {
 	VNCPassword string `json:"VNC_password"`
 	CpuXML      string `json:"cpu_xml"`
 	Live        bool   `json:"live"`
+	Raw         bool   `json:"raw"`
 }
 
 func readVMRequest(r *http.Request) (*VMRequestImport, error) {
@@ -588,7 +595,7 @@ func importVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//checks if nfsShareId exists also and creates finalFile path
-	finalFile, err := virshService.ImportVmHelper(vmReq.NfsShareId, vmReq.VmName)
+	finalFile, err := virshService.ImportVmHelper(vmReq.NfsShareId, vmReq.VmName, vmReq.Raw)
 	if err != nil {
 		http.Error(w, "error preparing import: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -738,7 +745,8 @@ func downloadBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Disposition", "attachment; filename=\""+bak.Name+".qcow2\"")
+	filename := filepath.Base(bak.Path)
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+filename+"\"")
 	w.Header().Set("Content-Type", "application/octet-stream")
 	http.ServeFile(w, r, bak.Path)
 }

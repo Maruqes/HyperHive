@@ -746,6 +746,12 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 
 	ips, _ := ipsForDomain(dom)
 
+	//check if its raw or qcow2
+	isItRaw := false
+	if diskInfo != nil && strings.HasSuffix(strings.ToLower(diskInfo.Path), ".raw") {
+		isItRaw = true
+	}
+
 	info := &grpcVirsh.Vm{
 		MachineName:          env512.MachineName,
 		Name:                 name,
@@ -758,6 +764,7 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		DiskSizeGB:           int32(diskInfo.SizeGB),
 		DiskPath:             diskInfo.Path,
 		Ip:                   ips,
+		Raw:                  isItRaw,
 	}
 	return info, nil
 }
@@ -850,6 +857,13 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 
 		ips, _ := ipsForDomain(&dom)
 
+		//check if its raw or qcow2
+		isItRaw := false
+		diskInfo, _ := GetPrimaryDiskInfo(&dom)
+		if diskInfo != nil && strings.HasSuffix(strings.ToLower(diskInfo.Path), ".raw") {
+			isItRaw = true
+		}
+
 		info.NovncPort = strconv.Itoa(port)
 		info.CpuCount = vcpuCount
 		info.MemoryMB = totalMemMB
@@ -858,6 +872,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 		info.DiskSizeGB = diskSizeGB
 		info.DiskPath = diskInfoPath
 		info.Ip = ips
+		info.Raw = isItRaw
 
 		vms = append(vms, info)
 		dom.Free()

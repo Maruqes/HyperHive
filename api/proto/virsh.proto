@@ -56,6 +56,7 @@ message Vm{
   int32 diskSizeGB = 9;
   string diskPath = 10;
   repeated string ip = 12;
+  bool raw = 13;
 }
 
 message GetVmByNameRequest {

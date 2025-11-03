@@ -358,6 +358,7 @@ type Vm struct {
 	DiskSizeGB           int32                  `protobuf:"varint,9,opt,name=diskSizeGB,proto3" json:"diskSizeGB,omitempty"`
 	DiskPath             string                 `protobuf:"bytes,10,opt,name=diskPath,proto3" json:"diskPath,omitempty"`
 	Ip                   []string               `protobuf:"bytes,12,rep,name=ip,proto3" json:"ip,omitempty"`
+	Raw                  bool                   `protobuf:"varint,13,opt,name=raw,proto3" json:"raw,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -467,6 +468,13 @@ func (x *Vm) GetIp() []string {
 		return x.Ip
 	}
 	return nil
+}
+
+func (x *Vm) GetRaw() bool {
+	if x != nil {
+		return x.Raw
+	}
+	return false
 }
 
 type GetVmByNameRequest struct {
@@ -855,7 +863,7 @@ const file_virsh_proto_rawDesc = "" +
 	"\n" +
 	"OkResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\xe0\x02\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xf2\x02\n" +
 	"\x02Vm\x12 \n" +
 	"\vmachineName\x18\x01 \x01(\tR\vmachineName\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12$\n" +
@@ -870,7 +878,8 @@ const file_virsh_proto_rawDesc = "" +
 	"diskSizeGB\x12\x1a\n" +
 	"\bdiskPath\x18\n" +
 	" \x01(\tR\bdiskPath\x12\x0e\n" +
-	"\x02ip\x18\f \x03(\tR\x02ip\"(\n" +
+	"\x02ip\x18\f \x03(\tR\x02ip\x12\x10\n" +
+	"\x03raw\x18\r \x01(\bR\x03raw\"(\n" +
 	"\x12GetVmByNameRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"L\n" +
 	"\x11GetAllVmsResponse\x12\x1b\n" +

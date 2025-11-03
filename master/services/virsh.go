@@ -203,19 +203,17 @@ func (v *VirshService) CreateVM(machine_name string, name string, memory int32, 
 		fileExtension = ".raw"
 	}
 	if nfsShare.Target[len(nfsShare.Target)-1] != '/' {
-		// mnt/ nfs / vmname / vmname.qcow2
+		// mnt/ nfs / vmname / vmname.extension
 		qcowFile = nfsShare.Target + "/" + name + "/" + name + fileExtension
 	} else {
-		// mnt/ nfs / vmname / vmname.qcow2
 		qcowFile = nfsShare.Target + name + "/" + name + fileExtension
 	}
 
 	var diskFolder string
 	if nfsShare.Target[len(nfsShare.Target)-1] != '/' {
-		// mnt/ nfs / vmname / vmname.qcow2
+		// mnt/ nfs / vmname
 		diskFolder = nfsShare.Target + "/" + name
 	} else {
-		// mnt/ nfs / vmname / vmname.qcow2
 		diskFolder = nfsShare.Target + name
 	}
 
@@ -781,7 +779,7 @@ func (v *VirshService) ResumeVM(name string) error {
 }
 
 // returns file path or error
-func (v *VirshService) ImportVmHelper(nfsId int, filename string) (string, error) {
+func (v *VirshService) ImportVmHelper(nfsId int, filename string, raw bool) (string, error) {
 	//get nfs share
 	nfsShare, err := db.GetNFSShareByID(nfsId)
 	if err != nil {
@@ -793,10 +791,9 @@ func (v *VirshService) ImportVmHelper(nfsId int, filename string) (string, error
 
 	var folder string
 	if nfsShare.Target[len(nfsShare.Target)-1] != '/' {
-		// mnt/ nfs / vmname / vmname.qcow2
+		// mnt/ nfs / vmname / vmname.extension
 		folder = nfsShare.Target + "/" + filename
 	} else {
-		// mnt/ nfs / vmname / vmname.qcow2
 		folder = nfsShare.Target + filename
 	}
 
@@ -810,7 +807,13 @@ func (v *VirshService) ImportVmHelper(nfsId int, filename string) (string, error
 	if err != nil {
 		return "", fmt.Errorf("failed to create folder %s: %v", folder, err)
 	}
-	filePath := folder + "/" + filename + ".qcow2"
+
+	extenstion := ".qcow2"
+	if raw {
+		extenstion = ".raw"
+	}
+
+	filePath := folder + "/" + filename + extenstion
 
 	return filePath, nil
 }
