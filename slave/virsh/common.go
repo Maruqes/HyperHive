@@ -135,11 +135,13 @@ func EnsureDiskAndDetectFormat(path string, sizeGB int, raw bool) (string, error
 
 	// Choose format based on raw flag
 	createFmt := "qcow2"
+	args := []string{"create", "-f", createFmt}
 	if raw {
 		createFmt = "raw"
+		args = []string{"create", "-f", createFmt, "-o", "preallocation=full"}
 	}
-
-	args := []string{"create", "-f", createFmt, path, fmt.Sprintf("%dG", sizeGB)}
+	args = append(args, path, fmt.Sprintf("%dG", sizeGB))
+	
 	cmd := exec.Command("qemu-img", args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
