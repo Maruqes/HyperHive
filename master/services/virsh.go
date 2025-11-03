@@ -940,7 +940,8 @@ func (v *VirshService) StartAutoStartVms(machineName string) error {
 		tries := 0
 		for {
 			tries++
-			if tries == 10 {
+			// 30*60(sec of min) = 1800    / 10(sleep time) =180, so this tries every 10 seconds for half an hour 
+			if tries == 180 {
 				logger.Error("Tried to start vm " + vm.Name + " 10 times not successfully")
 				break
 			}
