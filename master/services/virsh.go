@@ -15,7 +15,6 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
-	"time"
 
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
@@ -488,26 +487,10 @@ func (v *VirshService) StartVM(ctx context.Context, name string) error {
 		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: name})
 		if err == nil && vm != nil {
 			//found the vm
-			maxRetries := 120 // 30 minutes / 15 seconds = 120 attempts
-			var lastErr error
-			for attempt := 0; attempt < maxRetries; attempt++ {
-				if err := ctx.Err(); err != nil {
-					return err
-				}
-				lastErr = virsh.StartVm(ctx, conn, vm)
-				if lastErr == nil {
-					return nil
-				}
-				if attempt < maxRetries-1 {
-					logger.Warn(fmt.Sprintf("failed to start VM %s (attempt %d/%d): %v, retrying in 15 seconds...", name, attempt+1, maxRetries, lastErr))
-					select {
-					case <-time.After(15 * time.Second):
-					case <-ctx.Done():
-						return ctx.Err()
-					}
-				}
+			err = virsh.StartVm(ctx, conn, vm)
+			if err == nil {
+				return nil
 			}
-			return fmt.Errorf("failed to start VM %s after %d attempts: %v", name, maxRetries, lastErr)
 		}
 	}
 	return fmt.Errorf("failed to find VM %s on any machine", name)
@@ -958,6 +941,8 @@ func (v *VirshService) StartAutoStartVms(machineName string) error {
 			logger.Error("cannot start vm auto start: " + vm.Name + " err: " + err.Error())
 			continue
 		}
+
+		//check if is up it, not running start again
 	}
 	return nil
 }
