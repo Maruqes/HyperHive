@@ -164,6 +164,7 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 	if backup == nil {
 		return fmt.Errorf("backup with ID %d not found", bakID)
 	}
+	extension := filepath.Ext(backup.Path)
 
 	exists, err := virsh.DoesVMExist(coldReq.VmName)
 	if err != nil {
@@ -202,8 +203,7 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 		return fmt.Errorf("failed to create folder %s: %v", newFolder, err)
 	}
 
-	// Copy backup to new location
-	newDiskPath := newFolder + "/" + coldReq.VmName + ".vm"
+	newDiskPath := newFolder + "/" + coldReq.VmName + extension
 	err = copyFile(backup.Path, newDiskPath, coldReq.VmName)
 	if err != nil {
 		os.RemoveAll(newFolder)
