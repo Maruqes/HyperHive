@@ -203,7 +203,13 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 		return fmt.Errorf("failed to create folder %s: %v", newFolder, err)
 	}
 
-	newDiskPath := newFolder + "/" + coldReq.VmName + extension
+	extensionFinal := ".qcow2"
+	if extension == ".raw" {
+		extensionFinal = ".raw"
+		coldReq.Raw = true
+	}
+
+	newDiskPath := newFolder + "/" + coldReq.VmName + extensionFinal
 	err = copyFile(backup.Path, newDiskPath, coldReq.VmName)
 	if err != nil {
 		os.RemoveAll(newFolder)

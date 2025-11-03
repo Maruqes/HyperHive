@@ -88,6 +88,7 @@ func (s *SlaveVirshService) ColdMigrateVm(ctx context.Context, e *grpcVirsh.Cold
 		VNCPassword: e.VncPassword,
 		CpuXML:      e.CpuXML,
 		Live:        e.Live,
+		Raw:         e.Raw,
 	}
 	err := MigrateColdWin(opts)
 	if err != nil {

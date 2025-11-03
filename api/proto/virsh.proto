@@ -95,6 +95,7 @@ message ColdMigrationRequest {
   string cpuXML = 6;
   string disk_path = 7;
   bool live = 8;
+  bool raw = 9;
 }
 
 //defines on slave
