@@ -121,9 +121,9 @@ func DoesVMExist(name string) (bool, error) {
 	return false, nil
 }
 
-func StartVm(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
+func StartVm(ctx context.Context, conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
-	_, err := client.StartVM(context.Background(), req)
+	_, err := client.StartVM(ctx, req)
 	if err != nil {
 		return err
 	}

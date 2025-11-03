@@ -207,7 +207,7 @@ func startVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshServices := services.VirshService{}
-	err := virshServices.StartVM(vmName)
+	err := virshServices.StartVM(r.Context(), vmName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

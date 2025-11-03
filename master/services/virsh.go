@@ -469,7 +469,10 @@ func (v *VirshService) DeleteVM(name string) error {
 	return fmt.Errorf("failed to find VM %s on any machine", name)
 }
 
-func (v *VirshService) StartVM(name string) error {
+func (v *VirshService) StartVM(ctx context.Context, name string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	//find vm by name
 	exists, err := virsh.DoesVMExist(name)
 	if err != nil {
@@ -481,24 +484,32 @@ func (v *VirshService) StartVM(name string) error {
 
 	con := protocol.GetAllGRPCConnections()
 	for _, conn := range con {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: name})
 		if err == nil && vm != nil {
 			//found the vm
 			maxRetries := 120 // 30 minutes / 15 seconds = 120 attempts
+			var lastErr error
 			for attempt := 0; attempt < maxRetries; attempt++ {
-				err = virsh.StartVm(conn, vm)
-				if err == nil {
-					break
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+				lastErr = virsh.StartVm(ctx, conn, vm)
+				if lastErr == nil {
+					return nil
 				}
 				if attempt < maxRetries-1 {
-					logger.Warn(fmt.Sprintf("failed to start VM %s (attempt %d/%d): %v, retrying in 15 seconds...", name, attempt+1, maxRetries, err))
-					time.Sleep(15 * time.Second)
+					logger.Warn(fmt.Sprintf("failed to start VM %s (attempt %d/%d): %v, retrying in 15 seconds...", name, attempt+1, maxRetries, lastErr))
+					select {
+					case <-time.After(15 * time.Second):
+					case <-ctx.Done():
+						return ctx.Err()
+					}
 				}
 			}
-			if err != nil {
-				return fmt.Errorf("failed to start VM %s after %d attempts: %v", name, maxRetries, err)
-			}
-			return nil
+			return fmt.Errorf("failed to start VM %s after %d attempts: %v", name, maxRetries, lastErr)
 		}
 	}
 	return fmt.Errorf("failed to find VM %s on any machine", name)
@@ -939,16 +950,8 @@ func (v *VirshService) StartAutoStartVms(machineName string) error {
 			continue
 		}
 
-		conn := protocol.GetConnectionByMachineName(vm.MachineName)
-
-		if conn == nil || conn.Connection == nil {
-			logger.Error("machine for auto start vm is not connected: " + vm.MachineName)
-			continue
-		}
-
 		logger.Info("start vm: " + vm.Name)
-		err = virsh.StartVm(conn.Connection, vm)
-		if err != nil {
+		if err := v.StartVM(context.Background(), vm.Name); err != nil {
 			logger.Error("cannot start vm auto start: " + vm.Name + " err: " + err.Error())
 			continue
 		}
