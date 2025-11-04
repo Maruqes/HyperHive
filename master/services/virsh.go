@@ -971,14 +971,9 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int) e
 	if err != nil {
 		return err
 	}
-	//remove vm
-	err = v.DeleteVM(vmName)
-	if err != nil {
-		return err
-	}
 
 	coldMigr := grpcVirsh.ColdMigrationRequest{
-		VmName:      savedName,
+		VmName:      savedName + "_cp",
 		DiskPath:    finalFile,
 		Memory:      savedMemory,
 		VCpus:       savedVCpus,
@@ -995,6 +990,12 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int) e
 		savedMachineName,
 		&coldMigr,
 	)
+	if err != nil {
+		return err
+	}
+
+	//remove vm
+	err = v.DeleteVM(vmName)
 	if err != nil {
 		return err
 	}
