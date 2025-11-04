@@ -1055,7 +1055,7 @@ func coldMigrate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshService := services.VirshService{}
-	err := virshService.ColdMigrate(vm_name, dest_machine_name)
+	err := virshService.ColdMigrate(r.Context(), vm_name, dest_machine_name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1102,7 +1102,7 @@ func cloneVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshService := services.VirshService{}
-	err = virshService.CloneVM(vm_name, newName, dest_machine_name, destNfs)
+	err = virshService.CloneVM(r.Context(), vm_name, newName, dest_machine_name, destNfs)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

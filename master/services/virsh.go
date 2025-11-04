@@ -920,6 +920,20 @@ func (v *VirshService) StartAutoStartVms() error {
 	return nil
 }
 
+func (v *VirshService) isVmLive(vmName string) (bool, error) {
+	// Check if it's a live VM before deleting
+	liveQuestion := false
+	_, err := db.GetVmLiveByName(vmName)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return false, err
+		}
+	} else {
+		liveQuestion = true
+	}
+	return liveQuestion, nil
+}
+
 func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, newName string) error {
 	//copy disk, undefine vm, define again with migrateColdVm
 	vm, err := v.GetVmByName(vmName)
@@ -942,14 +956,9 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 	}
 
 	// Check if it's a live VM before deleting
-	liveQuestion := false
-	_, err = db.GetVmLiveByName(vm.Name)
+	liveQuestion, err := v.isVmLive(vmName)
 	if err != nil {
-		if err != sql.ErrNoRows {
-			return err
-		}
-	} else {
-		liveQuestion = true
+		return err
 	}
 
 	//create folder for new vm
@@ -1002,11 +1011,72 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 	return nil
 }
 
-func (v *VirshService) ColdMigrate(vmName string, destinationMachine string) error {
+func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinationMachine string) error {
 	//undefine vm, define again with migrateCOldVM
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return err
+	}
+
+	if vm == nil {
+		return fmt.Errorf("vm %s does not exist", vmName)
+	}
+
+	if vm.State != grpcVirsh.VmState_SHUTOFF {
+		return fmt.Errorf("vm %s needs to be shutdown", vmName)
+	}
+
+	liveQuestion, err := v.isVmLive(vmName)
+	if err != nil {
+		return err
+	}
+
+	conn := protocol.GetConnectionByMachineName(vm.MachineName)
+	if conn == nil || conn.Connection == nil {
+		return fmt.Errorf("machine %s is not connected", vm.MachineName)
+	}
+
+	if vm.MachineName == destinationMachine {
+		return fmt.Errorf("destinationMachine can not be the same as origin machine")
+	}
+
+	coldMigr := grpcVirsh.ColdMigrationRequest{
+		VmName:      vmName,
+		DiskPath:    vm.DiskPath,
+		Memory:      vm.DefinedRam,
+		VCpus:       vm.DefinedCPUS,
+		Network:     vm.Network,
+		VncPassword: vm.VNCPassword,
+		CpuXML:      vm.CPUXML,
+		Live:        liveQuestion,
+	}
+
+	marshaler := protojson.MarshalOptions{EmitUnpopulated: true, Indent: "  "}
+	data, err := marshaler.Marshal(&coldMigr)
+	if err != nil {
+		logger.Debug("failed to marshal coldMigr: " + err.Error())
+	} else {
+		logger.Debug(string(data))
+	}
+
+	//define on newdisk
+	err = v.ColdMigrateVm(
+		ctx,
+		vm.MachineName,
+		&coldMigr,
+	)
+	if err != nil {
+		return err
+	}
+
+	err = virsh.UndefineVM(conn.Connection, vm)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
-func (v *VirshService) CloneVM(vmName string, newnName string, destinationMachine string, nfsId int) error {
+func (v *VirshService) CloneVM(ctx context.Context, vmName string, newnName string, destinationMachine string, nfsId int) error {
 	//copy disk, define
 	return nil
 }
