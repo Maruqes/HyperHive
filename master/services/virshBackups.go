@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
@@ -21,7 +22,12 @@ import (
 	"github.com/google/uuid"
 )
 
+var copyFileMu sync.Mutex
+
 func copyFile(origin, dest, vmName string) error {
+	copyFileMu.Lock()
+	defer copyFileMu.Unlock()
+
 	//actually write the file using buffered I/O with progress tracking
 	input, err := os.Open(origin)
 	if err != nil {
@@ -93,7 +99,7 @@ func copyFile(origin, dest, vmName string) error {
 }
 
 // returns file path or error
-//checks if nfsShareId exists also and creates finalFile path
+// checks if nfsShareId exists also and creates finalFile path
 func (v *VirshService) ImportVmHelper(nfsId int, filename string) (string, error) {
 	//get nfs share
 	nfsShare, err := db.GetNFSShareByID(nfsId)

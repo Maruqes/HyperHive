@@ -940,6 +940,26 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int) e
 		return fmt.Errorf("cannot move disk to same nfs")
 	}
 
+	// Save VM properties BEFORE deleting (can't copy the whole struct due to mutex in protobuf)
+	savedName := vm.Name
+	savedMachineName := vm.MachineName
+	savedMemory := vm.MemoryMB
+	savedVCpus := vm.CpuCount
+	savedNetwork := vm.Network
+	savedVNCPassword := vm.VNCPassword
+	savedCPUXML := vm.CPUXML
+
+	// Check if it's a live VM before deleting
+	liveQuestion := false
+	_, err = db.GetVmLiveByName(savedName)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+	} else {
+		liveQuestion = true
+	}
+
 	//create folder for new vm
 	//checks if nfsShareId exists also and creates finalFile path
 	finalFile, err := v.ImportVmHelper(nfsId, vmName)
@@ -957,32 +977,23 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int) e
 		return err
 	}
 
-	liveQuestion := false
-
-	_, err = db.GetVmLiveByName(vm.Name)
-	if err != nil {
-		if err == sql.ErrNoRows {
-		} else {
-			return err
-		}
-	} else {
-		liveQuestion = true
+	coldMigr := grpcVirsh.ColdMigrationRequest{
+		VmName:      savedName,
+		DiskPath:    finalFile,
+		Memory:      savedMemory,
+		VCpus:       savedVCpus,
+		Network:     savedNetwork,
+		VncPassword: savedVNCPassword,
+		CpuXML:      savedCPUXML,
+		Live:        liveQuestion,
 	}
+	logger.Debug(fmt.Sprintf("%+v", &coldMigr))
 
 	//define on newdisk
 	err = v.ColdMigrateVm(
 		ctx,
-		vm.MachineName,
-		&grpcVirsh.ColdMigrationRequest{
-			VmName:      vm.Name,
-			DiskPath:    finalFile,
-			Memory:      vm.MemoryMB,
-			VCpus:       vm.CpuCount,
-			Network:     vm.Network,
-			VncPassword: vm.VNCPassword,
-			CpuXML:      vm.CPUXML,
-			Live:        liveQuestion,
-		},
+		savedMachineName,
+		&coldMigr,
 	)
 	if err != nil {
 		return err
@@ -990,6 +1001,7 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int) e
 
 	return nil
 }
+
 func (v *VirshService) ColdMigrate(vmName string, destinationMachine string) error {
 	//undefine vm, define again with migrateCOldVM
 	return nil
