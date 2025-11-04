@@ -1012,14 +1012,27 @@ func moveDisk(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "dest_nfs is required", http.StatusBadRequest)
 		return
 	}
-	//convert dest_nfs to int
+
+	// parse optional new_name from JSON body
+	type MoveReq struct {
+		NewName string `json:"new_name"`
+	}
+	var mr MoveReq
+	if err := json.NewDecoder(r.Body).Decode(&mr); err != nil && err != io.EOF {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	newName := strings.TrimSpace(mr.NewName)
+
+	// convert dest_nfs to int
 	destNfs, err := strconv.Atoi(dest_nfs)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "invalid dest_nfs: "+err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	virshService := services.VirshService{}
-	err = virshService.MoveDisk(r.Context(),vm_name, destNfs)
+	err = virshService.MoveDisk(r.Context(), vm_name, destNfs, newName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

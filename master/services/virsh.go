@@ -920,7 +920,7 @@ func (v *VirshService) StartAutoStartVms() error {
 	return nil
 }
 
-func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int) error {
+func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, newName string) error {
 	//copy disk, undefine vm, define again with migrateColdVm
 	vm, err := v.GetVmByName(vmName)
 	if err != nil {
@@ -941,11 +941,9 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int) e
 		return fmt.Errorf("cannot move disk to same nfs")
 	}
 
-	savedName := vm.Name
-
 	// Check if it's a live VM before deleting
 	liveQuestion := false
-	_, err = db.GetVmLiveByName(savedName)
+	_, err = db.GetVmLiveByName(vm.Name)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
@@ -954,22 +952,20 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int) e
 		liveQuestion = true
 	}
 
-	savedName = savedName + "_cp"
-
 	//create folder for new vm
 	//checks if nfsShareId exists also and creates finalFile path
-	finalFile, err := v.ImportVmHelper(nfsId, savedName)
+	finalFile, err := v.ImportVmHelper(nfsId, newName)
 	if err != nil {
 		return err
 	}
 	//copy file into it
-	err = copyFile(vm.DiskPath, finalFile, savedName)
+	err = copyFile(vm.DiskPath, finalFile, newName)
 	if err != nil {
 		return err
 	}
 
 	coldMigr := grpcVirsh.ColdMigrationRequest{
-		VmName:      savedName,
+		VmName:      newName,
 		DiskPath:    finalFile,
 		Memory:      vm.DefinedRam,
 		VCpus:       vm.DefinedCPUS,
