@@ -48,7 +48,7 @@ type clientServer struct {
 
 // serve para ser pingado e ver se esta vivo
 func (s *clientServer) Notify(ctx context.Context, req *pb.NotifyRequest) (*pb.NotifyResponse, error) {
-	logger.Debug(req.Text)
+	// logger.Debug(req.Text)
 	return &pb.NotifyResponse{Ok: "OK do Cliente"}, nil
 }
 

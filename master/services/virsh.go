@@ -911,7 +911,7 @@ func (v *VirshService) AutoStart(vmName string, autoStart bool) error {
 	return nil
 }
 
-func (v *VirshService) StartAutoStartVms(machineName string) error {
+func (v *VirshService) StartAutoStartVms() error {
 	autoStart, err := db.GetAllAutoStart()
 	if err != nil {
 		return err
@@ -925,10 +925,6 @@ func (v *VirshService) StartAutoStartVms(machineName string) error {
 		}
 		if vm == nil {
 			logger.Error("auto start vm does not exist: " + auto.VmName)
-			continue
-		}
-
-		if vm.MachineName != machineName {
 			continue
 		}
 

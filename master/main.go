@@ -34,7 +34,7 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 
 	logger.Info("Auto starting vms")
 	virshServices := services.VirshService{}
-	err = virshServices.StartAutoStartVms(machineName)
+	err = virshServices.StartAutoStartVms()
 	if err != nil {
 		logger.Error("UpdateNFS failed: %v", err)
 		return err
