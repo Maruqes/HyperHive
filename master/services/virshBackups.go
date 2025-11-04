@@ -2,20 +2,133 @@ package services
 
 import (
 	"512SvMan/db"
+	"512SvMan/env512"
+	"512SvMan/extra"
 	"512SvMan/protocol"
 	"512SvMan/virsh"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"time"
 
+	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 	"github.com/Maruqes/512SvMan/logger"
 	"github.com/google/uuid"
 )
+
+func copyFile(origin, dest, vmName string) error {
+	//actually write the file using buffered I/O with progress tracking
+	input, err := os.Open(origin)
+	if err != nil {
+		return fmt.Errorf("cannot open source file during backup: %v", err)
+	}
+	defer input.Close()
+
+	output, err := os.Create(dest)
+	if err != nil {
+		return fmt.Errorf("cannot create destination file: %v", err)
+	}
+	defer output.Close()
+
+	// Get total file size for progress calculation
+	fileInfo, err := input.Stat()
+	if err != nil {
+		return fmt.Errorf("cannot stat source file: %v", err)
+	}
+	totalSize := fileInfo.Size()
+
+	// Progress tracking
+	var copied int64
+	buf := make([]byte, 32*1024*1024) // 32MB buffer
+
+	for {
+		n, err := input.Read(buf)
+		if n > 0 {
+			_, writeErr := output.Write(buf[:n])
+			if writeErr != nil {
+				return fmt.Errorf("error writing file: %v", writeErr)
+			}
+			copied += int64(n)
+
+			// Calculate and log progress
+			progress := float64(copied) / float64(totalSize) * 100
+			extra.SendWebsocketMessage(extraGrpc.WebSocketsMessageType_BackUpVM, fmt.Sprintf("Backup progress for %s: %.2f%%", vmName, progress))
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("error reading file: %v", err)
+		}
+	}
+
+	if err := output.Sync(); err != nil {
+		return fmt.Errorf("failed to flush destination file: %v", err)
+	}
+
+	qemuUID, err := strconv.Atoi(env512.Qemu_UID)
+	if err != nil {
+		return fmt.Errorf("invalid qemu uid %s: %v", env512.Qemu_UID, err)
+	}
+
+	qemuGID, err := strconv.Atoi(env512.Qemu_GID)
+	if err != nil {
+		return fmt.Errorf("invalid qemu gid %s: %v", env512.Qemu_GID, err)
+	}
+
+	if err := output.Chown(qemuUID, qemuGID); err != nil {
+		return fmt.Errorf("failed to set qemu ownership: %v", err)
+	}
+
+	if err := output.Chmod(0o777); err != nil {
+		return fmt.Errorf("failed to set destination permissions: %v", err)
+	}
+
+	return nil
+}
+
+// returns file path or error
+//checks if nfsShareId exists also and creates finalFile path
+func (v *VirshService) ImportVmHelper(nfsId int, filename string) (string, error) {
+	//get nfs share
+	nfsShare, err := db.GetNFSShareByID(nfsId)
+	if err != nil {
+		return "", fmt.Errorf("failed to get NFS share by ID: %v", err)
+	}
+	if nfsShare == nil {
+		return "", fmt.Errorf("NFS share with ID %d not found", nfsId)
+	}
+
+	var folder string
+	if nfsShare.Target[len(nfsShare.Target)-1] != '/' {
+		// mnt/ nfs / vmname / vmname.extension
+		folder = nfsShare.Target + "/" + filename
+	} else {
+		folder = nfsShare.Target + filename
+	}
+
+	//if folder exists return err else create it
+	exists, err := os.Stat(folder)
+	if err == nil && exists.IsDir() {
+		return "", fmt.Errorf("folder %s already exists", folder)
+	}
+
+	err = os.MkdirAll(folder, 0777)
+	if err != nil {
+		return "", fmt.Errorf("failed to create folder %s: %v", folder, err)
+	}
+
+	extenstion := ".qcow2"
+
+	filePath := folder + "/" + filename + extenstion
+
+	return filePath, nil
+}
 
 // Virtual machine needs to have "qemu-guest-agent" for live
 // Virtual machine needs to have "qemu-guest-agent" for live
@@ -159,7 +272,7 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 	if backup == nil {
 		return fmt.Errorf("backup with ID %d not found", bakID)
 	}
-	
+
 	exists, err := virsh.DoesVMExist(coldReq.VmName)
 	if err != nil {
 		return fmt.Errorf("error checking if VM exists: %v", err)

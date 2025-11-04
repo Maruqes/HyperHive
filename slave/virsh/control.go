@@ -172,8 +172,40 @@ func RemoveVM(name string) error {
 		if err := os.RemoveAll(xmlDir); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("remove directory %s: %w", xmlDir, err)
 		}
-	}else{
+	} else {
 		return fmt.Errorf("err getting diskPath RemoveVm Slave")
+	}
+
+	return nil
+}
+
+func UndefineVm(name string) error {
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	dom, err := conn.LookupDomainByName(name)
+	if err != nil {
+		return fmt.Errorf("lookup: %w", err)
+	}
+	defer dom.Free()
+
+	state, _, err := dom.GetState()
+	if err != nil {
+		return fmt.Errorf("state: %w", err)
+	}
+
+	if state == libvirt.DOMAIN_RUNNING || state == libvirt.DOMAIN_PAUSED || state == libvirt.DOMAIN_BLOCKED {
+		if err := dom.Destroy(); err != nil {
+			return fmt.Errorf("destroy: %w", err)
+		}
+	}
+
+	// Undefine without flags so storage/disk is not removed
+	if err := dom.UndefineFlags(0); err != nil {
+		return fmt.Errorf("undefine: %w", err)
 	}
 
 	return nil

@@ -1000,6 +1000,104 @@ func disableAutoBak(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func moveDisk(w http.ResponseWriter, r *http.Request) {
+	vm_name := chi.URLParam(r, "vm_name")
+	if vm_name == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	dest_nfs := chi.URLParam(r, "dest_nfs")
+	if dest_nfs == "" {
+		http.Error(w, "dest_nfs is required", http.StatusBadRequest)
+		return
+	}
+	//convert dest_nfs to int
+	destNfs, err := strconv.Atoi(dest_nfs)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	virshService := services.VirshService{}
+	err = virshService.MoveDisk(r.Context(),vm_name, destNfs)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func coldMigrate(w http.ResponseWriter, r *http.Request) {
+	vm_name := chi.URLParam(r, "vm_name")
+	if vm_name == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	dest_machine_name := chi.URLParam(r, "dest_machine_name")
+	if dest_machine_name == "" {
+		http.Error(w, "dest_machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshService := services.VirshService{}
+	err := virshService.ColdMigrate(vm_name, dest_machine_name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func cloneVM(w http.ResponseWriter, r *http.Request) {
+	vm_name := chi.URLParam(r, "vm_name")
+	if vm_name == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	dest_machine_name := chi.URLParam(r, "dest_machine_name")
+	if dest_machine_name == "" {
+		http.Error(w, "dest_machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	dest_nfs := chi.URLParam(r, "dest_nfs")
+	if dest_nfs == "" {
+		http.Error(w, "dest_nfs is required", http.StatusBadRequest)
+		return
+	}
+
+	// parse new name from JSON body
+	type CloneRequest struct {
+		NewName string `json:"new_name"`
+	}
+	var creq CloneRequest
+	if err := json.NewDecoder(r.Body).Decode(&creq); err != nil && err != io.EOF {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	newName := strings.TrimSpace(creq.NewName)
+
+	// convert dest_nfs to int
+	destNfs, err := strconv.Atoi(dest_nfs)
+	if err != nil {
+		http.Error(w, "invalid dest_nfs: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	virshService := services.VirshService{}
+	err = virshService.CloneVM(vm_name, newName, dest_machine_name, destNfs)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 // LEMBRETE VM CREATION TEM DE CRIAR A PROPRIA PASTA, INDEPENDENTEMENTE SE É IMPORT LIVE NORMAL
 /*
 apis que criam vms
@@ -1040,6 +1138,11 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Get("/getvmbyname/{vm_name}", getVmByName)
 		r.Post("/removeiso/{vm_name}", removeIso)
 
+		//move
+		r.Post("/moveDisk/{vm_name}/{dest_nfs}", moveDisk)
+		r.Post("/coldMigrate/{vm_name}/{dest_machine_name}", coldMigrate)
+		r.Post("/cloneVM/{vm_name}/{dest_nfs}/{dest_machine_name}", cloneVM)
+
 		//export/import
 		r.Get("/export/{vm_name}", exportVM)
 		r.Put("/import", importVM)
@@ -1062,3 +1165,78 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Patch("/autopak/disable/{id}", disableAutoBak)
 	})
 }
+
+/*
+VM STATE REFERENCE (libvirt / gRPC mapping)
+-------------------------------------------
+
+VmState_NOSTATE
+    → VM has no defined state (initial, unknown, or transitional).
+    → Usually seen after libvirt reconnects or before VM is defined.
+
+VmState_RUNNING
+    → VM is currently running and executing normally.
+    → Guest OS is active and CPUs are working.
+
+VmState_BLOCKED
+    → VM is running but blocked on I/O.
+    → Common during heavy disk or network operations.
+    → Not an error; usually temporary.
+
+VmState_PAUSED
+    → VM execution is paused (manually or by the hypervisor).
+    → CPU stopped, RAM kept in memory.
+    → Can be resumed instantly.
+
+VmState_SHUTDOWN
+    → VM is in the process of shutting down.
+    → Guest OS is still running, completing its power-off sequence.
+    → Temporary transition before SHUTOFF.
+
+VmState_SHUTOFF
+    → VM is completely powered off.
+    → No CPU, no memory, process fully stopped.
+    → Safe for migration, cloning, or deletion.
+
+VmState_CRASHED
+    → VM crashed unexpectedly (e.g., kernel panic or QEMU failure).
+    → Process exited abnormally, requires manual restart.
+
+VmState_PMSUSPENDED
+    → VM is suspended/hibernated via power management.
+    → CPU paused, memory contents saved (to disk or RAM snapshot).
+    → Can be resumed later to same state.
+
+VmState_UNKNOWN (if defined in your enum)
+    → State could not be determined (e.g., communication failure).
+    → Should be treated carefully — recheck or skip operations.
+
+-------------------------------------------
+Typical usage examples:
+
+// 1. Check if VM is safe for cold migration
+if vm.State != VmState_SHUTOFF {
+    return fmt.Errorf("VM must be powered off before migration")
+}
+
+// 2. Allow off or suspended as safe states
+if vm.State != VmState_SHUTOFF && vm.State != VmState_PMSUSPENDED {
+    return fmt.Errorf("VM must be off or suspended")
+}
+
+// 3. Detect if VM crashed
+if vm.State == VmState_CRASHED {
+    log.Warnf("VM %s crashed unexpectedly", vm.Name)
+}
+
+-------------------------------------------
+Notes:
+    • NOSTATE      → undefined / unknown
+    • RUNNING      → active, executing
+    • BLOCKED      → waiting on I/O
+    • PAUSED       → stopped temporarily
+    • SHUTDOWN     → shutting down (transitional)
+    • SHUTOFF      → fully off
+    • CRASHED      → aborted unexpectedly
+    • PMSUSPENDED  → hibernated (can resume)
+*/

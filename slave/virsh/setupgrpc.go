@@ -139,6 +139,14 @@ func (s *SlaveVirshService) RemoveVM(ctx context.Context, req *grpcVirsh.Vm) (*g
 	return &grpcVirsh.OkResponse{Ok: true}, nil
 }
 
+func (s *SlaveVirshService) UndefineVM(ctx context.Context, req *grpcVirsh.Vm) (*grpcVirsh.OkResponse, error) {
+	if err := UndefineVm(req.Name); err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{Ok: true}, nil
+}
+
+
 func (s *SlaveVirshService) ForceShutdownVM(ctx context.Context, req *grpcVirsh.Vm) (*grpcVirsh.OkResponse, error) {
 	if err := ForceShutdownVM(req.Name); err != nil {
 		return nil, err

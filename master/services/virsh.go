@@ -3,13 +3,12 @@ package services
 import (
 	"512SvMan/db"
 	"512SvMan/env512"
-	"512SvMan/extra"
 	"512SvMan/nfs"
 	"512SvMan/protocol"
 	"512SvMan/virsh"
 	"context"
+	"database/sql"
 	"fmt"
-	"io"
 	"os"
 	"sort"
 	"strconv"
@@ -17,7 +16,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 
 	"github.com/Maruqes/512SvMan/logger"
@@ -651,6 +649,67 @@ func (v *VirshService) GetAllVmsByOnNfsShare(nfsSharePathTarget string) ([]VmTyp
 	return vmsOnShare, nil
 }
 
+func (v *VirshService) GetNfsByVM(vmName string) (int, error) {
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return 0, err
+	}
+	if vm == nil {
+		return 0, fmt.Errorf("vm %s not found", vmName)
+	}
+
+	diskPath := strings.TrimSpace(vm.DiskPath)
+	if diskPath == "" {
+		return 0, fmt.Errorf("vm %s has no disk path", vmName)
+	}
+
+	shares, err := db.GetAllNFShares()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get NFS shares: %v", err)
+	}
+
+	var (
+		matchedID  int
+		longestLen int
+		found      bool
+	)
+
+	for _, share := range shares {
+		if share.MachineName != vm.MachineName {
+			continue
+		}
+
+		target := strings.TrimSpace(share.Target)
+		if target == "" {
+			continue
+		}
+		target = strings.TrimRight(target, "/")
+		if target == "" {
+			target = "/"
+		}
+
+		if !strings.HasPrefix(diskPath, target) {
+			continue
+		}
+
+		if len(diskPath) > len(target) && diskPath[len(target)] != '/' {
+			continue
+		}
+
+		if !found || len(target) > longestLen {
+			matchedID = share.Id
+			longestLen = len(target)
+			found = true
+		}
+	}
+
+	if !found {
+		return 0, fmt.Errorf("failed to resolve NFS share for VM %s", vmName)
+	}
+
+	return matchedID, nil
+}
+
 func (v *VirshService) EditVM(name string, cpuCount, memory int, diskSizeGB int) error {
 	//find vm by name
 	exists, err := virsh.DoesVMExist(name)
@@ -760,114 +819,6 @@ func (v *VirshService) ResumeVM(name string) error {
 	return fmt.Errorf("failed to find VM %s on any machine", name)
 }
 
-// returns file path or error
-func (v *VirshService) ImportVmHelper(nfsId int, filename string) (string, error) {
-	//get nfs share
-	nfsShare, err := db.GetNFSShareByID(nfsId)
-	if err != nil {
-		return "", fmt.Errorf("failed to get NFS share by ID: %v", err)
-	}
-	if nfsShare == nil {
-		return "", fmt.Errorf("NFS share with ID %d not found", nfsId)
-	}
-
-	var folder string
-	if nfsShare.Target[len(nfsShare.Target)-1] != '/' {
-		// mnt/ nfs / vmname / vmname.extension
-		folder = nfsShare.Target + "/" + filename
-	} else {
-		folder = nfsShare.Target + filename
-	}
-
-	//if folder exists return err else create it
-	exists, err := os.Stat(folder)
-	if err == nil && exists.IsDir() {
-		return "", fmt.Errorf("folder %s already exists", folder)
-	}
-
-	err = os.MkdirAll(folder, 0777)
-	if err != nil {
-		return "", fmt.Errorf("failed to create folder %s: %v", folder, err)
-	}
-
-	extenstion := ".qcow2"
-
-	filePath := folder + "/" + filename + extenstion
-
-	return filePath, nil
-}
-
-func copyFile(origin, dest, vmName string) error {
-	//actually write the file using buffered I/O with progress tracking
-	input, err := os.Open(origin)
-	if err != nil {
-		return fmt.Errorf("cannot open source file during backup: %v", err)
-	}
-	defer input.Close()
-
-	output, err := os.Create(dest)
-	if err != nil {
-		return fmt.Errorf("cannot create destination file: %v", err)
-	}
-	defer output.Close()
-
-	// Get total file size for progress calculation
-	fileInfo, err := input.Stat()
-	if err != nil {
-		return fmt.Errorf("cannot stat source file: %v", err)
-	}
-	totalSize := fileInfo.Size()
-
-	// Progress tracking
-	var copied int64
-	buf := make([]byte, 32*1024*1024) // 32MB buffer
-
-	for {
-		n, err := input.Read(buf)
-		if n > 0 {
-			_, writeErr := output.Write(buf[:n])
-			if writeErr != nil {
-				return fmt.Errorf("error writing file: %v", writeErr)
-			}
-			copied += int64(n)
-
-			// Calculate and log progress
-			progress := float64(copied) / float64(totalSize) * 100
-			extra.SendWebsocketMessage(extraGrpc.WebSocketsMessageType_BackUpVM, fmt.Sprintf("Backup progress for %s: %.2f%%", vmName, progress))
-		}
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("error reading file: %v", err)
-		}
-	}
-
-	if err := output.Sync(); err != nil {
-		return fmt.Errorf("failed to flush destination file: %v", err)
-	}
-
-	qemuUID, err := strconv.Atoi(env512.Qemu_UID)
-	if err != nil {
-		return fmt.Errorf("invalid qemu uid %s: %v", env512.Qemu_UID, err)
-	}
-
-	qemuGID, err := strconv.Atoi(env512.Qemu_GID)
-	if err != nil {
-		return fmt.Errorf("invalid qemu gid %s: %v", env512.Qemu_GID, err)
-	}
-
-	if err := output.Chown(qemuUID, qemuGID); err != nil {
-		return fmt.Errorf("failed to set qemu ownership: %v", err)
-	}
-
-	if err := output.Chmod(0o777); err != nil {
-		return fmt.Errorf("failed to set destination permissions: %v", err)
-	}
-
-	return nil
-}
-
 func (v *VirshService) AutoStart(vmName string, autoStart bool) error {
 	vm, err := v.GetVmByName(vmName)
 	if err != nil {
@@ -965,5 +916,85 @@ func (v *VirshService) StartAutoStartVms() error {
 			}
 		}
 	}
+	return nil
+}
+
+func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int) error {
+	//copy disk, undefine vm, define again with migrateColdVm
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return err
+	}
+	if vm == nil {
+		return fmt.Errorf("vm %s does not exist", vmName)
+	}
+
+	if vm.State != grpcVirsh.VmState_SHUTOFF {
+		return fmt.Errorf("vm %s needs to be shutdown", vmName)
+	}
+	vmNfs, err := v.GetNfsByVM(vmName)
+	if err != nil {
+		return err
+	}
+	if vmNfs == nfsId {
+		return fmt.Errorf("cannot move disk to same nfs")
+	}
+
+	//create folder for new vm
+	//checks if nfsShareId exists also and creates finalFile path
+	finalFile, err := v.ImportVmHelper(nfsId, vmName)
+	if err != nil {
+		return err
+	}
+	//copy file into it
+	err = copyFile(vm.DiskPath, finalFile, vmName)
+	if err != nil {
+		return err
+	}
+	//remove vm
+	err = v.DeleteVM(vmName)
+	if err != nil {
+		return err
+	}
+
+	liveQuestion := false
+
+	_, err = db.GetVmLiveByName(vm.Name)
+	if err != nil {
+		if err == sql.ErrNoRows {
+		} else {
+			return err
+		}
+	} else {
+		liveQuestion = true
+	}
+
+	//define on newdisk
+	err = v.ColdMigrateVm(
+		ctx,
+		vm.MachineName,
+		&grpcVirsh.ColdMigrationRequest{
+			VmName:      vm.Name,
+			DiskPath:    finalFile,
+			Memory:      vm.MemoryMB,
+			VCpus:       vm.CpuCount,
+			Network:     vm.Network,
+			VncPassword: vm.VNCPassword,
+			CpuXML:      vm.CPUXML,
+			Live:        liveQuestion,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+func (v *VirshService) ColdMigrate(vmName string, destinationMachine string) error {
+	//undefine vm, define again with migrateCOldVM
+	return nil
+}
+func (v *VirshService) CloneVM(vmName string, newnName string, destinationMachine string, nfsId int) error {
+	//copy disk, define
 	return nil
 }

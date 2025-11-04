@@ -156,6 +156,15 @@ func RemoveVM(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
 	return nil
 }
 
+func UndefineVM(conn *grpc.ClientConn, req *grpcVirsh.Vm)error{
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.UndefineVM(context.Background(), req)
+	if err != nil {
+		return err
+	}
+	return nil 
+}
+
 func RestartVM(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.RestartVM(context.Background(), req)

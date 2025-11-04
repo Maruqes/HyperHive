@@ -137,7 +137,7 @@ func EnsureDiskAndDetectFormat(path string, sizeGB int) (string, error) {
 	createFmt := "qcow2"
 	args := []string{"create", "-f", createFmt}
 	args = append(args, path, fmt.Sprintf("%dG", sizeGB))
-	
+
 	cmd := exec.Command("qemu-img", args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -346,6 +346,81 @@ func vncPortFromDomainXML(xmlData string) (int, error) {
 		}
 	}
 	return 0, nil
+}
+
+func vncPasswordFromDomainXML(xmlData string) (string, error) {
+	type graphics struct {
+		Type   string `xml:"type,attr"`
+		Passwd string `xml:"passwd,attr"`
+	}
+	type devices struct {
+		Graphics []graphics `xml:"graphics"`
+	}
+	type domain struct {
+		Devices devices `xml:"devices"`
+	}
+
+	var d domain
+	if err := xml.Unmarshal([]byte(xmlData), &d); err != nil {
+		return "", fmt.Errorf("parse domain xml: %w", err)
+	}
+	for _, g := range d.Devices.Graphics {
+		if strings.EqualFold(strings.TrimSpace(g.Type), "vnc") {
+			return strings.TrimSpace(g.Passwd), nil
+		}
+	}
+	return "", nil
+}
+
+func networkFromDomainXML(xmlData string) (string, error) {
+	type ifaceSource struct {
+		Network string `xml:"network,attr"`
+		Bridge  string `xml:"bridge,attr"`
+		Dev     string `xml:"dev,attr"`
+	}
+	type iface struct {
+		Type   string      `xml:"type,attr"`
+		Source ifaceSource `xml:"source"`
+	}
+	type devices struct {
+		Interfaces []iface `xml:"interface"`
+	}
+	type domain struct {
+		Devices devices `xml:"devices"`
+	}
+
+	var d domain
+	if err := xml.Unmarshal([]byte(xmlData), &d); err != nil {
+		return "", fmt.Errorf("parse domain xml: %w", err)
+	}
+	for _, iface := range d.Devices.Interfaces {
+		ifaceType := strings.ToLower(strings.TrimSpace(iface.Type))
+		switch ifaceType {
+		case "network":
+			if v := strings.TrimSpace(iface.Source.Network); v != "" {
+				return v, nil
+			}
+		case "bridge":
+			if v := strings.TrimSpace(iface.Source.Bridge); v != "" {
+				return v, nil
+			}
+		case "direct":
+			if v := strings.TrimSpace(iface.Source.Dev); v != "" {
+				return v, nil
+			}
+		default:
+			if v := strings.TrimSpace(iface.Source.Network); v != "" {
+				return v, nil
+			}
+			if v := strings.TrimSpace(iface.Source.Bridge); v != "" {
+				return v, nil
+			}
+			if v := strings.TrimSpace(iface.Source.Dev); v != "" {
+				return v, nil
+			}
+		}
+	}
+	return "", nil
 }
 
 func RestartLibvirt() error {
@@ -718,6 +793,22 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 	if err != nil {
 		return nil, fmt.Errorf("vnc port: %w", err)
 	}
+	var (
+		networkName string
+		vncPassword string
+	)
+	if xmlDesc != "" {
+		if netName, err := networkFromDomainXML(xmlDesc); err != nil {
+			return nil, fmt.Errorf("network: %w", err)
+		} else {
+			networkName = netName
+		}
+		if pwd, err := vncPasswordFromDomainXML(xmlDesc); err != nil {
+			return nil, fmt.Errorf("vnc password: %w", err)
+		} else {
+			vncPassword = pwd
+		}
+	}
 
 	var usedMemMB int32
 	var cpuPct int32
@@ -744,6 +835,14 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 
 	ips, _ := ipsForDomain(dom)
 
+	cpuXML, err := GetVmCPUXML(name)
+	if err != nil {
+		if fallback := extractCPUXML(xmlDesc); fallback != "" {
+			cpuXML = fallback
+		} else {
+			return nil, fmt.Errorf("cpu xml: %w", err)
+		}
+	}
 
 	info := &grpcVirsh.Vm{
 		MachineName:          env512.MachineName,
@@ -757,6 +856,9 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		DiskSizeGB:           int32(diskInfo.SizeGB),
 		DiskPath:             diskInfo.Path,
 		Ip:                   ips,
+		Network:              networkName,
+		VNCPassword:          vncPassword,
+		CPUXML:               cpuXML,
 	}
 	return info, nil
 }
@@ -829,12 +931,26 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 		}
 
 		port := 0
+		networkName := ""
+		vncPassword := ""
+		cpuXML := ""
 		if xmlDesc != "" {
 			if p, err := vncPortFromDomainXML(xmlDesc); err != nil {
 				warnings = append(warnings, fmt.Sprintf("%s: parse vnc port: %v", name, err))
 			} else {
 				port = p
 			}
+			if netName, err := networkFromDomainXML(xmlDesc); err != nil {
+				warnings = append(warnings, fmt.Sprintf("%s: parse network: %v", name, err))
+			} else {
+				networkName = netName
+			}
+			if pwd, err := vncPasswordFromDomainXML(xmlDesc); err != nil {
+				warnings = append(warnings, fmt.Sprintf("%s: parse vnc password: %v", name, err))
+			} else {
+				vncPassword = pwd
+			}
+			cpuXML = extractCPUXML(xmlDesc)
 		}
 
 		diskInfoPath := ""
@@ -849,8 +965,6 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 
 		ips, _ := ipsForDomain(&dom)
 
-	
-
 		info.NovncPort = strconv.Itoa(port)
 		info.CpuCount = vcpuCount
 		info.MemoryMB = totalMemMB
@@ -859,6 +973,9 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 		info.DiskSizeGB = diskSizeGB
 		info.DiskPath = diskInfoPath
 		info.Ip = ips
+		info.Network = networkName
+		info.VNCPassword = vncPassword
+		info.CPUXML = cpuXML
 
 		vms = append(vms, info)
 		dom.Free()
