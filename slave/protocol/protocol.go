@@ -149,7 +149,8 @@ func PingMaster(conn *grpc.ClientConn) {
 				logger.Debug("Connection state: %s, continuing...", state)
 			}
 		} else {
-			logger.Debug("Ping to master successful")
+			//ping to master ok
+			// logger.Debug("Ping to master successful")
 		}
 		<-ticker.C
 	}
