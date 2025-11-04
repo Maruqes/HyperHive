@@ -941,14 +941,7 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int) e
 		return fmt.Errorf("cannot move disk to same nfs")
 	}
 
-	// Save VM properties BEFORE deleting (can't copy the whole struct due to mutex in protobuf)
 	savedName := vm.Name
-	savedMachineName := vm.MachineName
-	savedMemory := vm.DefinedRam
-	savedVCpus := vm.DefinedCPUS
-	savedNetwork := vm.Network
-	savedVNCPassword := vm.VNCPassword
-	savedCPUXML := vm.CPUXML
 
 	// Check if it's a live VM before deleting
 	liveQuestion := false
@@ -961,26 +954,28 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int) e
 		liveQuestion = true
 	}
 
+	savedName = savedName + "_cp"
+
 	//create folder for new vm
 	//checks if nfsShareId exists also and creates finalFile path
-	finalFile, err := v.ImportVmHelper(nfsId, vmName)
+	finalFile, err := v.ImportVmHelper(nfsId, savedName)
 	if err != nil {
 		return err
 	}
 	//copy file into it
-	err = copyFile(vm.DiskPath, finalFile, vmName)
+	err = copyFile(vm.DiskPath, finalFile, savedName)
 	if err != nil {
 		return err
 	}
 
 	coldMigr := grpcVirsh.ColdMigrationRequest{
-		VmName:      savedName + "_cp",
+		VmName:      savedName,
 		DiskPath:    finalFile,
-		Memory:      savedMemory,
-		VCpus:       savedVCpus,
-		Network:     savedNetwork,
-		VncPassword: savedVNCPassword,
-		CpuXML:      savedCPUXML,
+		Memory:      vm.DefinedRam,
+		VCpus:       vm.DefinedCPUS,
+		Network:     vm.Network,
+		VncPassword: vm.VNCPassword,
+		CpuXML:      vm.CPUXML,
 		Live:        liveQuestion,
 	}
 
@@ -995,7 +990,7 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int) e
 	//define on newdisk
 	err = v.ColdMigrateVm(
 		ctx,
-		savedMachineName,
+		vm.MachineName,
 		&coldMigr,
 	)
 	if err != nil {
