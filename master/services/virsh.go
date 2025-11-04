@@ -935,6 +935,10 @@ func (v *VirshService) StartAutoStartVms() error {
 			continue
 		}
 
+		if vm.State == grpcVirsh.VmState_RUNNING {
+			continue
+		}
+
 		tries := 0
 		for {
 			tries++
