@@ -65,7 +65,6 @@ type CreateVMCustomCPUOptions struct {
 	GraphicsListen    string
 	VNCPassword       string
 	CPUXml            string
-	Raw               bool
 }
 
 func isValidVMName(vmName string) error {
@@ -124,7 +123,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 
 	if !opts.DiskAlreadyExists {
 		// detect/create disk & get its format
-		if _, err := EnsureDiskAndDetectFormat(disk, opts.DiskSizeGB, opts.Raw); err != nil {
+		if _, err := EnsureDiskAndDetectFormat(disk, opts.DiskSizeGB); err != nil {
 			return "", fmt.Errorf("disk: %w", err)
 		}
 	}
@@ -211,11 +210,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	</interface>`, opts.Network)
 	}
 
-	// choose driver type depending on raw flag
 	driverType := "qcow2"
-	if opts.Raw {
-		driverType = "raw"
-	}
 
 	virtioSerialControllerXML := `
   <controller type='virtio-serial' index='0'/>`

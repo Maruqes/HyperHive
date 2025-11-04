@@ -57,7 +57,6 @@ func createVM(w http.ResponseWriter, r *http.Request) {
 		VNCPassword string `json:"VNC_password"`
 		CpuXml      string `json:"cpu_xml"`
 		Live        bool   `json:"live"`
-		Raw         bool   `json:"raw"`
 		AutoStart   bool   `json:"auto_start"`
 	}
 
@@ -70,14 +69,14 @@ func createVM(w http.ResponseWriter, r *http.Request) {
 
 	virshServices := services.VirshService{}
 	if vmReq.Live {
-		err = virshServices.CreateLiveVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml, vmReq.Raw, vmReq.AutoStart)
+		err = virshServices.CreateLiveVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml, vmReq.AutoStart)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 	} else {
-		err = virshServices.CreateVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, "", vmReq.Raw, vmReq.AutoStart)
+		err = virshServices.CreateVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, "", vmReq.AutoStart)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -482,9 +481,6 @@ func exportVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	extension := ".qcow2\""
-	if vm.Raw {
-		extension = ".raw\""
-	}
 
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+vmName+extension)
 	w.Header().Set("Content-Type", "application/octet-stream")
@@ -506,7 +502,6 @@ type VMRequestImport struct {
 	VNCPassword string `json:"VNC_password"`
 	CpuXML      string `json:"cpu_xml"`
 	Live        bool   `json:"live"`
-	Raw         bool   `json:"raw"`
 }
 
 func readVMRequest(r *http.Request) (*VMRequestImport, error) {
@@ -595,7 +590,7 @@ func importVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//checks if nfsShareId exists also and creates finalFile path
-	finalFile, err := virshService.ImportVmHelper(vmReq.NfsShareId, vmReq.VmName, vmReq.Raw)
+	finalFile, err := virshService.ImportVmHelper(vmReq.NfsShareId, vmReq.VmName)
 	if err != nil {
 		http.Error(w, "error preparing import: "+err.Error(), http.StatusInternalServerError)
 		return

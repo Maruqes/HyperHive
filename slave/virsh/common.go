@@ -104,7 +104,7 @@ func DetectDiskFormat(path string) (string, error) {
 
 // EnsureDiskAndDetectFormat creates the disk if missing (using detected format)
 // and returns the resulting format (e.g. "qcow2" or "raw").
-func EnsureDiskAndDetectFormat(path string, sizeGB int, raw bool) (string, error) {
+func EnsureDiskAndDetectFormat(path string, sizeGB int) (string, error) {
 	if strings.TrimSpace(path) == "" {
 		return "", fmt.Errorf("disk path is empty")
 	}
@@ -136,10 +136,6 @@ func EnsureDiskAndDetectFormat(path string, sizeGB int, raw bool) (string, error
 	// Choose format based on raw flag
 	createFmt := "qcow2"
 	args := []string{"create", "-f", createFmt}
-	if raw {
-		createFmt = "raw"
-		args = []string{"create", "-f", createFmt, "-o", "preallocation=full"}
-	}
 	args = append(args, path, fmt.Sprintf("%dG", sizeGB))
 	
 	cmd := exec.Command("qemu-img", args...)
@@ -748,11 +744,6 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 
 	ips, _ := ipsForDomain(dom)
 
-	//check if its raw or qcow2
-	isItRaw := false
-	if diskInfo != nil && strings.HasSuffix(strings.ToLower(diskInfo.Path), ".raw") {
-		isItRaw = true
-	}
 
 	info := &grpcVirsh.Vm{
 		MachineName:          env512.MachineName,
@@ -766,7 +757,6 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		DiskSizeGB:           int32(diskInfo.SizeGB),
 		DiskPath:             diskInfo.Path,
 		Ip:                   ips,
-		Raw:                  isItRaw,
 	}
 	return info, nil
 }
@@ -859,12 +849,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 
 		ips, _ := ipsForDomain(&dom)
 
-		//check if its raw or qcow2
-		isItRaw := false
-		diskInfo, _ := GetPrimaryDiskInfo(&dom)
-		if diskInfo != nil && strings.HasSuffix(strings.ToLower(diskInfo.Path), ".raw") {
-			isItRaw = true
-		}
+	
 
 		info.NovncPort = strconv.Itoa(port)
 		info.CpuCount = vcpuCount
@@ -874,7 +859,6 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 		info.DiskSizeGB = diskSizeGB
 		info.DiskPath = diskInfoPath
 		info.Ip = ips
-		info.Raw = isItRaw
 
 		vms = append(vms, info)
 		dom.Free()

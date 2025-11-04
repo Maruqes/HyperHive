@@ -61,15 +61,10 @@ func (v *VirshService) BackupVM(vmName string, nfsID int, automatic bool) error 
 		return fmt.Errorf("could not create the backUpFolder folder")
 	}
 
-	extension := ".qcow2"
-	if vm.Raw {
-		extension = ".raw"
-	}
-
 	//create struct with already extension file path
 	backup := &db.VirshBackup{
 		Name:      vmName,
-		Path:      backUpFolder + "/" + vmName + extension,
+		Path:      backUpFolder + "/" + vmName + ".qcow2",
 		NfsId:     nfsID,
 		Automatic: automatic,
 	}
@@ -164,8 +159,7 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 	if backup == nil {
 		return fmt.Errorf("backup with ID %d not found", bakID)
 	}
-	extension := filepath.Ext(backup.Path)
-
+	
 	exists, err := virsh.DoesVMExist(coldReq.VmName)
 	if err != nil {
 		return fmt.Errorf("error checking if VM exists: %v", err)
@@ -203,13 +197,7 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 		return fmt.Errorf("failed to create folder %s: %v", newFolder, err)
 	}
 
-	extensionFinal := ".qcow2"
-	if extension == ".raw" {
-		extensionFinal = ".raw"
-		coldReq.Raw = true
-	}
-
-	newDiskPath := newFolder + "/" + coldReq.VmName + extensionFinal
+	newDiskPath := newFolder + "/" + coldReq.VmName + ".qcow2"
 	err = copyFile(backup.Path, newDiskPath, coldReq.VmName)
 	if err != nil {
 		os.RemoveAll(newFolder)

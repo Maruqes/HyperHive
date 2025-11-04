@@ -154,7 +154,6 @@ type ColdMigrationInfo struct {
 	CpuXML      string
 	DiskPath    string //qcow file
 	Live        bool
-	Raw         bool
 }
 
 // returns qcow2file path, cpuXML
@@ -216,7 +215,6 @@ func MigrateColdWin(coldFile ColdMigrationInfo) error {
 		GraphicsListen:    "0.0.0.0",
 		VNCPassword:       coldFile.VNCPassword,
 		CPUXml:            coldFile.CpuXML,
-		Raw:               coldFile.Raw,
 	}
 
 	_, err = CreateVMCustomCPU(params)

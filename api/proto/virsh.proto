@@ -24,7 +24,6 @@ message CreateVmRequest{
   string network = 8;
   string vnc_password = 9;
   string cpuXml = 10;
-  bool raw = 11;
 }
 
 message OkResponse {
@@ -56,7 +55,6 @@ message Vm{
   int32 diskSizeGB = 9;
   string diskPath = 10;
   repeated string ip = 12;
-  bool raw = 13;
 }
 
 message GetVmByNameRequest {
@@ -95,7 +93,6 @@ message ColdMigrationRequest {
   string cpuXML = 6;
   string disk_path = 7;
   bool live = 8;
-  bool raw = 9;
 }
 
 //defines on slave

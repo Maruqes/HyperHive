@@ -48,7 +48,6 @@ func (s *SlaveVirshService) CreateVm(ctx context.Context, req *grpcVirsh.CreateV
 		GraphicsListen: "0.0.0.0",
 		VNCPassword:    req.VncPassword,
 		CPUXml:         req.CpuXml,
-		Raw:            req.Raw,
 	}
 	_, err := CreateVMCustomCPU(params)
 	if err != nil {
@@ -88,7 +87,6 @@ func (s *SlaveVirshService) ColdMigrateVm(ctx context.Context, e *grpcVirsh.Cold
 		VNCPassword: e.VncPassword,
 		CpuXML:      e.CpuXML,
 		Live:        e.Live,
-		Raw:         e.Raw,
 	}
 	err := MigrateColdWin(opts)
 	if err != nil {
