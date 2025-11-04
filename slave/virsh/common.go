@@ -764,6 +764,79 @@ func ipsForDomain(dom *libvirt.Domain) ([]string, []string) {
 	return ips, warns
 }
 
+func definedResourcesFromDomainXML(xmlDesc string) (int32, int32, error) {
+	xmlDesc = strings.TrimSpace(xmlDesc)
+	if xmlDesc == "" {
+		return 0, 0, fmt.Errorf("domain xml is empty")
+	}
+
+	type domainResources struct {
+		Memory struct {
+			Unit  string `xml:"unit,attr"`
+			Value string `xml:",chardata"`
+		} `xml:"memory"`
+		VCPU struct {
+			Value string `xml:",chardata"`
+		} `xml:"vcpu"`
+	}
+
+	var dom domainResources
+	if err := xml.Unmarshal([]byte(xmlDesc), &dom); err != nil {
+		return 0, 0, fmt.Errorf("unmarshal domain xml: %w", err)
+	}
+
+	var definedCPUs int32
+	if cpuStr := strings.TrimSpace(dom.VCPU.Value); cpuStr != "" {
+		parsed, err := strconv.ParseInt(cpuStr, 10, 32)
+		if err != nil {
+			return 0, 0, fmt.Errorf("parse vcpu value %q: %w", cpuStr, err)
+		}
+		definedCPUs = int32(parsed)
+	}
+
+	var definedMemMB int32
+	if memStr := strings.TrimSpace(dom.Memory.Value); memStr != "" {
+		memValue, err := strconv.ParseInt(memStr, 10, 64)
+		if err != nil {
+			return definedCPUs, 0, fmt.Errorf("parse memory value %q: %w", memStr, err)
+		}
+		unit := strings.ToLower(strings.TrimSpace(dom.Memory.Unit))
+		if unit == "" {
+			unit = "kib"
+		}
+
+		var memInMB int64
+		switch unit {
+		case "kib", "kb", "k":
+			memInMB = memValue / 1024
+		case "mib", "mb", "m":
+			memInMB = memValue
+		case "gib", "gb", "g":
+			memInMB = memValue * 1024
+		case "tib", "tb", "t":
+			memInMB = memValue * 1024 * 1024
+		default:
+			return definedCPUs, 0, fmt.Errorf("unsupported memory unit %q", dom.Memory.Unit)
+		}
+
+		definedMemMB = clampToInt32(memInMB)
+	}
+
+	return definedCPUs, definedMemMB, nil
+}
+
+func clampToInt32(val int64) int32 {
+	const maxInt32 = int64(1<<31 - 1)
+	const minInt32 = -1 << 31
+	if val > maxInt32 {
+		return int32(maxInt32)
+	}
+	if val < minInt32 {
+		return int32(minInt32)
+	}
+	return int32(val)
+}
+
 func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 	connURI := "qemu:///system"
 	conn, err := libvirt.NewConnect(connURI)
@@ -844,6 +917,15 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		}
 	}
 
+	var definedCPUs int32
+	var definedMemMB int32
+	if parsedCPUs, parsedMemMB, err := definedResourcesFromDomainXML(xmlDesc); err != nil {
+		logger.Error(fmt.Sprintf("%s: parse defined resources: %v", name, err))
+	} else {
+		definedCPUs = parsedCPUs
+		definedMemMB = parsedMemMB
+	}
+
 	info := &grpcVirsh.Vm{
 		MachineName:          env512.MachineName,
 		Name:                 name,
@@ -859,6 +941,8 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		Network:              networkName,
 		VNCPassword:          vncPassword,
 		CPUXML:               cpuXML,
+		DefinedCPUS:          definedCPUs,
+		DefinedRam:           definedMemMB,
 	}
 	return info, nil
 }
@@ -898,7 +982,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 		state := libvirt.DOMAIN_NOSTATE
 		stateKnown := false
 		if s, _, err := dom.GetState(); err != nil {
-			warnings = append(warnings, fmt.Sprintf("%s: state: %w", name, err))
+			warnings = append(warnings, fmt.Sprintf("%s: state: %v", name, err))
 		} else {
 			state = s
 			stateKnown = true
@@ -925,7 +1009,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 
 		xmlDesc := ""
 		if xml, err := dom.GetXMLDesc(0); err != nil {
-			warnings = append(warnings, fmt.Sprintf("%s: xml: %w", name, err))
+			warnings = append(warnings, fmt.Sprintf("%s: xml: %v", name, err))
 		} else {
 			xmlDesc = xml
 		}
@@ -951,12 +1035,18 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 				vncPassword = pwd
 			}
 			cpuXML = extractCPUXML(xmlDesc)
+			if parsedCPUs, parsedMemMB, err := definedResourcesFromDomainXML(xmlDesc); err != nil {
+				warnings = append(warnings, fmt.Sprintf("%s: defined resources: %v", name, err))
+			} else {
+				info.DefinedCPUS = parsedCPUs
+				info.DefinedRam = parsedMemMB
+			}
 		}
 
 		diskInfoPath := ""
 		diskSizeGB := int32(0)
 		if diskInfo, err := GetPrimaryDiskInfo(&dom); err != nil {
-			warnings = append(warnings, fmt.Sprintf("%s: get disk info: %w", name, err))
+			warnings = append(warnings, fmt.Sprintf("%s: get disk info: %v", name, err))
 			logger.Error("failed to get diskInfo err: " + err.Error())
 		} else if diskInfo != nil {
 			diskInfoPath = diskInfo.Path

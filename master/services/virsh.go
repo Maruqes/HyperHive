@@ -17,6 +17,7 @@ import (
 	"time"
 
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/Maruqes/512SvMan/logger"
 	"libvirt.org/go/libvirt"
@@ -943,8 +944,8 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int) e
 	// Save VM properties BEFORE deleting (can't copy the whole struct due to mutex in protobuf)
 	savedName := vm.Name
 	savedMachineName := vm.MachineName
-	savedMemory := vm.MemoryMB
-	savedVCpus := vm.CpuCount
+	savedMemory := vm.DefinedRam
+	savedVCpus := vm.DefinedCPUS
 	savedNetwork := vm.Network
 	savedVNCPassword := vm.VNCPassword
 	savedCPUXML := vm.CPUXML
@@ -982,7 +983,14 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int) e
 		CpuXML:      savedCPUXML,
 		Live:        liveQuestion,
 	}
-	logger.Debug(fmt.Sprintf("%+v", &coldMigr))
+
+	marshaler := protojson.MarshalOptions{EmitUnpopulated: true, Indent: "  "}
+	data, err := marshaler.Marshal(&coldMigr)
+	if err != nil {
+		logger.Debug("failed to marshal coldMigr: " + err.Error())
+	} else {
+		logger.Debug(string(data))
+	}
 
 	//define on newdisk
 	err = v.ColdMigrateVm(
