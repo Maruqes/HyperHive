@@ -1040,6 +1040,8 @@ func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinati
 		return fmt.Errorf("destinationMachine can not be the same as origin machine")
 	}
 
+	//check if it exists
+
 	coldMigr := grpcVirsh.ColdMigrationRequest{
 		VmName:      vmName,
 		DiskPath:    vm.DiskPath,
@@ -1062,7 +1064,7 @@ func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinati
 	//define on newdisk
 	err = v.ColdMigrateVm(
 		ctx,
-		vm.MachineName,
+		destinationMachine,
 		&coldMigr,
 	)
 	if err != nil {
