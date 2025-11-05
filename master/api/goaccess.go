@@ -1,15 +1,14 @@
 package api
 
 import (
-	"bytes"
-	"context"
-	"fmt"
-	"io"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -20,84 +19,78 @@ const (
 	goAccessRefreshSecond = 5
 )
 
-func goAccessHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), goAccessTimeout)
-	defer cancel()
+var goaOnce sync.Once
 
-	workDir, err := os.Getwd()
-	if err != nil {
-		http.Error(w, "failed to resolve working directory", http.StatusInternalServerError)
-		return
-	}
-
+func startGoAccessRealtime(workDir string) error {
 	logDir := filepath.Join(workDir, "npm-data", "logs")
-	if stat, err := os.Stat(logDir); err != nil || !stat.IsDir() {
-		http.Error(w, "logs directory not found", http.StatusNotFound)
-		return
-	}
-
-	pattern := filepath.Join(logDir, "proxy-host-*_access.log")
-	files, err := filepath.Glob(pattern)
-	if err != nil {
-		http.Error(w, "failed to enumerate log files", http.StatusInternalServerError)
-		return
-	}
-	if len(files) == 0 {
-		http.Error(w, "no proxy access logs found", http.StatusNotFound)
-		return
-	}
-
 	statsDir := filepath.Join(workDir, "npm-data", "stats")
-	if err := os.MkdirAll(statsDir, 0o755); err != nil {
-		http.Error(w, "failed to prepare stats directory", http.StatusInternalServerError)
-		return
-	}
+	_ = os.MkdirAll(statsDir, 0o755)
 
-	outputPath := filepath.Join(statsDir, "goaccess.html")
+	htmlOut := filepath.Join(statsDir, "goaccess.html")
 
 	logFormat := `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] [Gzip %^] [Sent-to %^] "%u" "%R"`
 
-	args := append([]string{}, files...)
-	args = append(args,
+	// ⚠️ WS local a 7891; o HTML vai apontar para wss://<teu-dominio>/goa-ws
+	args := []string{
+		filepath.Join(logDir, "proxy-host-*_access.log"),
 		"--no-global-config",
 		"--date-format=%d/%b/%Y",
 		"--time-format=%T",
-		fmt.Sprintf("--html-refresh=%d", goAccessRefreshSecond),
-		"--log-format="+logFormat,
-		"-o", outputPath,
-	)
+		"--log-format=" + logFormat,
+		"--real-time-html",
+		"--daemonize",
+		"--port=7891", // porta WS interna
+		"--ws-url=wss://hyperhive.maruqes.com/goa-ws",
+		"-o", htmlOut,
+	}
 
-	cmd := exec.CommandContext(ctx, "goaccess", args...)
-	cmd.Dir = logDir
+	// usa /bin/sh para expandir o wildcard *.log
+	cmd := exec.Command("/bin/sh", "-lc", "goaccess "+strings.Join(args, " "))
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
 
-	var stderr bytes.Buffer
-	cmd.Stdout = io.Discard
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
-			http.Error(w, "goaccess timed out while generating report", http.StatusGatewayTimeout)
+func EnsureGoAccess() error {
+	var err error
+	goaOnce.Do(func() {
+		wd, e := os.Getwd()
+		if e != nil {
+			err = e
 			return
 		}
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			msg = err.Error()
+		err = startGoAccessRealtime(wd)
+	})
+	return err
+}
+
+func goAccessHandler(w http.ResponseWriter, r *http.Request) {
+	if err := EnsureGoAccess(); err != nil {
+		http.Error(w, "failed to start goaccess: "+err.Error(), 500)
+		return
+	}
+	wd, _ := os.Getwd()
+	html := filepath.Join(wd, "npm-data", "stats", "goaccess.html")
+	http.ServeFile(w, r, html)
+}
+
+func wsProxyHandler(target string) http.HandlerFunc {
+	u, _ := url.Parse(target) // "http://127.0.0.1:7891"
+	rp := httputil.NewSingleHostReverseProxy(u)
+	// garantir cabeçalhos de upgrade
+	rp.Director = func(req *http.Request) {
+		req.URL.Scheme = u.Scheme
+		req.URL.Host = u.Host
+		req.Host = u.Host
+		if strings.Contains(strings.ToLower(req.Header.Get("Connection")), "upgrade") {
+			req.Header.Set("Connection", "upgrade")
+			req.Header.Set("Upgrade", "websocket")
 		}
-		http.Error(w, fmt.Sprintf("failed to generate goaccess report: %s", msg), http.StatusInternalServerError)
-		return
 	}
-
-	data, err := os.ReadFile(outputPath)
-	if err != nil {
-		http.Error(w, "failed to read generated report", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(data)
+	return rp.ServeHTTP
 }
 
 func setupGoAccessAPI(r chi.Router) {
 	r.Get("/goaccess", goAccessHandler)
+	r.HandleFunc("/goa-ws", wsProxyHandler("http://127.0.0.1:7891"))
 }

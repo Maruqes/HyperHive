@@ -102,7 +102,7 @@ func GoAccess() error {
 	} else {
 		fmt.Println("GoAccess already installed, ensuring configuration is up to date.")
 	}
-
+	
 	return nil
 }
 
