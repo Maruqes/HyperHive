@@ -1,8 +1,10 @@
-// Package api - GoAccess real-time via Chi (com WS fix)
+// Package api - GoAccess real-time dashboard (Chi) com WS e gestão de Origin
 package api
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -10,8 +12,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -19,21 +23,30 @@ import (
 
 const (
 	goAccessHTMLName     = "goaccess.html"
+	goAccessPIDName      = "goaccess.pid"
 	goAccessWSListenHost = "127.0.0.1"
 	goAccessWSListenPort = 7891
 	goAccessHTMLRefresh  = 5
 	goAccessDateFormat   = "%d/%b/%Y"
 	goAccessTimeFormat   = "%T"
-	// Formato que bate com os teus logs NPM:
+	// Formato para os teus logs NPM (HTTP):
+	// [05/Nov/2025:21:27:53 +0000] - 200 200 - DELETE https host "/path" [Client ip] [Length 0] ...
 	goAccessLogFormat = `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] [Gzip %^] [Sent-to %^] "%u" "%R"`
 )
 
-var goaMu sync.Mutex
+var (
+	goaMu           sync.Mutex
+	currentOrigin   string
+	currentWSURL    string
+	workedDirectory string
+)
+
+// --- utils ---
 
 func wsAddr() string { return fmt.Sprintf("%s:%d", goAccessWSListenHost, goAccessWSListenPort) }
 
 func isGoAccessUp() bool {
-	c, err := net.DialTimeout("tcp", wsAddr(), 500*time.Millisecond)
+	c, err := net.DialTimeout("tcp", wsAddr(), 350*time.Millisecond)
 	if err != nil {
 		return false
 	}
@@ -41,130 +54,64 @@ func isGoAccessUp() bool {
 	return true
 }
 
-func wsURLFromRequest(r *http.Request) (wsURL, origin string) {
-	reqScheme := originalScheme(r)
+func wsURLAndOriginFromRequest(r *http.Request) (wsURL, origin string) {
+	// ws-url que o HTML vai usar
 	scheme := "ws"
-	if reqScheme == "https" {
+	if r != nil && r.TLS != nil {
 		scheme = "wss"
 	}
-	host := originalHost(r)
+	host := "localhost"
+	if r != nil && r.Host != "" {
+		host = r.Host
+	}
 	wsURL = scheme + "://" + host + "/goa-ws"
-	origin = reqScheme + "://" + host
+
+	// origin aceites pelo servidor WS
+	if r != nil && r.TLS != nil {
+		origin = "https://" + host
+	} else {
+		origin = "http://" + host
+	}
 	return wsURL, origin
 }
 
-func originalScheme(r *http.Request) string {
-	if r == nil {
-		return "http"
+func readPID(pidFile string) (int, error) {
+	b, err := os.ReadFile(pidFile)
+	if err != nil {
+		return 0, err
 	}
-
-	if forwarded := r.Header.Get("X-Forwarded-Proto"); forwarded != "" {
-		if idx := strings.Index(forwarded, ","); idx != -1 {
-			forwarded = forwarded[:idx]
-		}
-		if proto := strings.TrimSpace(forwarded); proto != "" {
-			return strings.ToLower(proto)
-		}
+	s := strings.TrimSpace(string(b))
+	p, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, err
 	}
-
-	if forwarded := r.Header.Get("X-Forwarded-Scheme"); forwarded != "" {
-		if idx := strings.Index(forwarded, ","); idx != -1 {
-			forwarded = forwarded[:idx]
-		}
-		if proto := strings.TrimSpace(forwarded); proto != "" {
-			return strings.ToLower(proto)
-		}
-	}
-
-	if forwarded := r.Header.Get("Forwarded"); forwarded != "" {
-		for _, entry := range strings.Split(forwarded, ",") {
-			entry = strings.TrimSpace(entry)
-			for _, part := range strings.Split(entry, ";") {
-				part = strings.TrimSpace(part)
-				lower := strings.ToLower(part)
-				if idx := strings.Index(lower, "proto="); idx != -1 {
-					proto := strings.TrimSpace(part[idx+6:])
-					proto = strings.Trim(proto, `"`)
-					if proto != "" {
-						return strings.ToLower(proto)
-					}
-				}
-			}
-		}
-	}
-
-	if r.TLS != nil {
-		return "https"
-	}
-
-	if r.URL != nil && r.URL.Scheme != "" {
-		return strings.ToLower(r.URL.Scheme)
-	}
-
-	return "http"
+	return p, nil
 }
 
-func originalHost(r *http.Request) string {
-	if r == nil {
-		return "localhost"
+func killPID(pid int) error {
+	// SIGTERM e aguardar
+	if err := syscall.Kill(pid, syscall.SIGTERM); err != nil && !errors.Is(err, os.ErrProcessDone) {
+		return err
 	}
-
-	if host := firstHeaderValue(r.Header.Get("X-Forwarded-Host")); host != "" {
-		return host
-	}
-
-	if forwarded := r.Header.Get("Forwarded"); forwarded != "" {
-		for _, entry := range strings.Split(forwarded, ",") {
-			entry = strings.TrimSpace(entry)
-			for _, part := range strings.Split(entry, ";") {
-				part = strings.TrimSpace(part)
-				lower := strings.ToLower(part)
-				if idx := strings.Index(lower, "host="); idx != -1 {
-					host := strings.TrimSpace(part[idx+5:])
-					host = strings.Trim(host, `"`)
-					if host != "" {
-						return host
-					}
-				}
-			}
+	// esperar (máx 2s)
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if err := syscall.Kill(pid, 0); err != nil {
+			// já morreu
+			return nil
 		}
+		time.Sleep(100 * time.Millisecond)
 	}
-
-	if host := r.Header.Get("X-Original-Host"); host != "" {
-		return strings.TrimSpace(host)
-	}
-
-	if r.Host != "" {
-		return r.Host
-	}
-
-	if r.URL != nil && r.URL.Host != "" {
-		return r.URL.Host
-	}
-
-	return "localhost"
+	// força SIGKILL
+	_ = syscall.Kill(pid, syscall.SIGKILL)
+	return nil
 }
 
-func firstHeaderValue(header string) string {
-	if header == "" {
-		return ""
-	}
-	values := strings.Split(header, ",")
-	for _, v := range values {
-		v = strings.TrimSpace(v)
-		if v != "" {
-			return v
-		}
-	}
-	return ""
-}
+// --- core ---
 
 func startGoAccessRealtime(workDir, wsURL, origin string) error {
 	if _, err := exec.LookPath("goaccess"); err != nil {
 		return fmt.Errorf("goaccess not found in PATH: %w", err)
-	}
-	if isGoAccessUp() {
-		return nil
 	}
 
 	logDir := filepath.Join(workDir, "npm-data", "logs")
@@ -173,12 +120,15 @@ func startGoAccessRealtime(workDir, wsURL, origin string) error {
 		return fmt.Errorf("mkdir stats: %w", err)
 	}
 
+	// só access logs dos hosts
 	files, err := filepath.Glob(filepath.Join(logDir, "proxy-host-*_access.log"))
 	if err != nil || len(files) == 0 {
 		return fmt.Errorf("no access logs found in %s", logDir)
 	}
 
 	htmlOut := filepath.Join(statsDir, goAccessHTMLName)
+	pidFile := filepath.Join(statsDir, goAccessPIDName)
+
 	args := []string{
 		"--no-global-config",
 		"--date-format=" + goAccessDateFormat,
@@ -187,49 +137,96 @@ func startGoAccessRealtime(workDir, wsURL, origin string) error {
 		"--real-time-html",
 		"--daemonize",
 		"--html-refresh=" + fmt.Sprint(goAccessHTMLRefresh),
-		"--port=" + fmt.Sprint(goAccessWSListenPort),
-		"--ws-url=" + wsURL,
-		"--origin=" + origin, // <— importante quando há proxy/HTTPS
+		"--port=" + fmt.Sprint(goAccessWSListenPort), // WS listen interno
+		"--ws-url=" + wsURL,                          // URL público para o HTML
+		"--origin=" + origin,                         // validação do Origin
+		"--pid-file=" + pidFile,                      // para podermos reiniciar
 		"-o", htmlOut,
 	}
 	args = append(args, files...)
 
 	cmd := exec.Command("goaccess", args...)
+	// Opcional: herdar stdout/stderr para ver logs de arranque do goaccess
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	return cmd.Run()
+
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	currentOrigin = origin
+	currentWSURL = wsURL
+	return nil
 }
 
+func stopGoAccess(workDir string) error {
+	statsDir := filepath.Join(workDir, "npm-data", "stats")
+	pidFile := filepath.Join(statsDir, goAccessPIDName)
+	pid, err := readPID(pidFile)
+	if err != nil {
+		// se não existir, tenta matar por porta
+		if !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+		return nil
+	}
+	if pid > 0 {
+		_ = killPID(pid)
+	}
+	_ = os.Remove(pidFile)
+	return nil
+}
+
+// se o Origin/WS URL solicitado mudou, reinicia o goaccess com as novas flags
 func ensureGoAccess(r *http.Request) error {
 	goaMu.Lock()
 	defer goaMu.Unlock()
-	if isGoAccessUp() {
+
+	// resolve base dir uma única vez
+	if workedDirectory == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		workedDirectory = wd
+	}
+
+	wsURL, origin := wsURLAndOriginFromRequest(r)
+
+	// Se já está a ouvir e o origin/URL coincidem, não faz nada
+	if isGoAccessUp() && origin == currentOrigin && wsURL == currentWSURL {
 		return nil
 	}
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
+
+	// Se está a ouvir mas o origin mudou, reinicia
+	if isGoAccessUp() && (origin != currentOrigin || wsURL != currentWSURL) {
+		_ = stopGoAccess(workedDirectory)
+		// pequena pausa para libertar a porta
+		time.Sleep(200 * time.Millisecond)
 	}
-	wsURL, origin := wsURLFromRequest(r)
-	return startGoAccessRealtime(wd, wsURL, origin)
+
+	return startGoAccessRealtime(workedDirectory, wsURL, origin)
 }
+
+// --- HTTP handlers ---
 
 func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 	if err := ensureGoAccess(r); err != nil {
 		http.Error(w, "failed to start goaccess: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	wd, _ := os.Getwd()
-	http.ServeFile(w, r, filepath.Join(wd, "npm-data", "stats", goAccessHTMLName))
+	html := filepath.Join(workedDirectory, "npm-data", "stats", goAccessHTMLName)
+	http.ServeFile(w, r, html)
 }
 
 func wsProxyHandler(target string) http.HandlerFunc {
-	u, _ := url.Parse(target)
+	u, _ := url.Parse(target) // http://127.0.0.1:7891
 	rp := httputil.NewSingleHostReverseProxy(u)
-	origDirector := rp.Director
+	// Não vamos reescrever o path — preserva tokens/query do WS
+	// Apenas garantimos Host correta para upstream
+	orig := rp.Director
 	rp.Director = func(req *http.Request) {
-		origDirector(req)
-		req.URL.Path = "/"
+		orig(req)
 		req.Host = u.Host
 	}
 	rp.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
@@ -238,7 +235,7 @@ func wsProxyHandler(target string) http.HandlerFunc {
 	return rp.ServeHTTP
 }
 
-func setupGoAccessAPI(r chi.Router) {
+func SetupGoAccessAPI(r chi.Router) {
 	r.Get("/goaccess", goAccessHandler)
 	r.HandleFunc("/goa-ws", wsProxyHandler("http://"+wsAddr()))
 }
