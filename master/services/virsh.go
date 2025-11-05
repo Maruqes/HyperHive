@@ -20,6 +20,8 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/Maruqes/512SvMan/logger"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"libvirt.org/go/libvirt"
 )
 
@@ -263,6 +265,14 @@ func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, mach
 	originConn := protocol.GetConnectionByMachineName(slaveName)
 	if originConn == nil {
 		return fmt.Errorf("origin machine %s not found", slaveName)
+	}
+
+	existing, err := virsh.GetVmByName(originConn.Connection, &grpcVirsh.GetVmByNameRequest{Name: machine.VmName})
+	if err == nil && existing != nil {
+		return fmt.Errorf("vm with name \"%s\" already exists on machine %s", machine.VmName, slaveName)
+	}
+	if err != nil && status.Code(err) != codes.NotFound {
+		return fmt.Errorf("error checking if VM exists on %s: %v", slaveName, err)
 	}
 
 	// chmod 777 and give qemu ownership with machine.DiskPath
@@ -944,6 +954,22 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 		return fmt.Errorf("vm %s does not exist", vmName)
 	}
 
+	newName = strings.TrimSpace(newName)
+	if newName == "" {
+		return fmt.Errorf("new VM name is required")
+	}
+	if newName == vmName {
+		return fmt.Errorf("new VM name must differ from the source VM name")
+	}
+
+	exists, err := virsh.DoesVMExist(newName)
+	if err != nil {
+		return fmt.Errorf("error checking if VM exists: %v", err)
+	}
+	if exists {
+		return fmt.Errorf("a VM with the name %s already exists", newName)
+	}
+
 	if vm.State != grpcVirsh.VmState_SHUTOFF {
 		return fmt.Errorf("vm %s needs to be shutdown", vmName)
 	}
@@ -1078,7 +1104,107 @@ func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinati
 
 	return nil
 }
-func (v *VirshService) CloneVM(ctx context.Context, vmName string, newnName string, destinationMachine string, nfsId int) error {
+func (v *VirshService) CloneVM(ctx context.Context, vmName string, newName string, destinationMachine string, nfsId int) error {
 	//copy disk, define
+
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return err
+	}
+
+	if vm == nil {
+		return fmt.Errorf("vm %s does not exist", vmName)
+	}
+
+	newName = strings.TrimSpace(newName)
+	if newName == "" {
+		return fmt.Errorf("new VM name is required")
+	}
+	if newName == vmName {
+		return fmt.Errorf("new VM name must differ from the source VM name")
+	}
+
+	exists, err := virsh.DoesVMExist(newName)
+	if err != nil {
+		return fmt.Errorf("error checking if VM exists: %v", err)
+	}
+	if exists {
+		return fmt.Errorf("a VM with the name %s already exists", newName)
+	}
+
+	liveQuestion, err := v.isVmLive(vmName)
+	if err != nil {
+		return err
+	}
+
+	//create folder for new vm
+	//checks if nfsShareId exists also and creates finalFile path
+	finalFile, err := v.ImportVmHelper(nfsId, newName)
+	if err != nil {
+		return err
+	}
+
+	if vm.State != grpcVirsh.VmState_SHUTOFF {
+
+		conn := protocol.GetConnectionByMachineName(vm.MachineName)
+		if conn == nil || conn.Connection == nil {
+			return fmt.Errorf("conn of vm is nill shuld not hapen")
+		}
+
+		logger.Info("Frezzing")
+		err := virsh.FreezeDisk(conn.Connection, vm)
+		if err != nil {
+			return err
+		}
+
+		defer func() {
+			logger.Info("UnFrezzing")
+			err = virsh.UnFreezeDisk(conn.Connection, vm)
+			if err != nil {
+				logger.Error("Cannot unfreeze machine " + vm.Name)
+			}
+		}()
+
+		logger.Info("Copying")
+		err = copyFile(vm.DiskPath, finalFile, vmName)
+		if err != nil {
+			return err
+		}
+
+	} else {
+		err = copyFile(vm.DiskPath, finalFile, vmName)
+		if err != nil {
+			return err
+		}
+	}
+
+	coldMigr := grpcVirsh.ColdMigrationRequest{
+		VmName:      newName,
+		DiskPath:    finalFile,
+		Memory:      vm.DefinedRam,
+		VCpus:       vm.DefinedCPUS,
+		Network:     vm.Network,
+		VncPassword: vm.VNCPassword,
+		CpuXML:      vm.CPUXML,
+		Live:        liveQuestion,
+	}
+
+	marshaler := protojson.MarshalOptions{EmitUnpopulated: true, Indent: "  "}
+	data, err := marshaler.Marshal(&coldMigr)
+	if err != nil {
+		logger.Debug("failed to marshal coldMigr: " + err.Error())
+	} else {
+		logger.Debug(string(data))
+	}
+
+	//define on newdisk
+	err = v.ColdMigrateVm(
+		ctx,
+		destinationMachine,
+		&coldMigr,
+	)
+	if err != nil {
+		return err
+	}
 	return nil
 }

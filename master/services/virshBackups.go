@@ -220,7 +220,6 @@ func (v *VirshService) BackupVM(vmName string, nfsID int, automatic bool) error 
 		if err != nil {
 			return err
 		}
-
 	}
 
 	err = db.InsertVirshBackup(backup)
