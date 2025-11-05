@@ -80,22 +80,22 @@ func portAvailable(port int) bool {
 }
 
 func handleConnection(client net.Conn, ipPort string) {
-	log.Printf("Nova ligação de %s", client.RemoteAddr())
+	log.Printf("New connection from %s", client.RemoteAddr())
 	defer client.Close()
 
-	// Liga ao backend (o slave)
+	// Connect to the backend (the slave)
 	serverConn, err := net.DialTimeout("tcp", ipPort, 5*time.Second)
 	if err != nil {
-		log.Printf("erro a ligar ao backend %s: %v", ipPort, err)
+		log.Printf("failed to connect to backend %s: %v", ipPort, err)
 		return
 	}
 	defer serverConn.Close()
 
-	// Copia dados em ambos os sentidos simultaneamente
+	// Copy data in both directions concurrently
 	go io.Copy(serverConn, client)
 	io.Copy(client, serverConn)
 
-	log.Printf("Ligação fechada %s", client.RemoteAddr())
+	log.Printf("Connection closed for %s", client.RemoteAddr())
 }
 
 func streamSprite(ipPort string, listenPort int, horasAberto int) {
@@ -105,25 +105,25 @@ func streamSprite(ipPort string, listenPort int, horasAberto int) {
 
 		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", listenPort))
 		if err != nil {
-			log.Fatalf("erro a iniciar listener: %v", err)
+			log.Fatalf("failed to start listener: %v", err)
 		}
 		defer ln.Close()
 
 		go func() {
 			<-ctx.Done()
-			log.Printf("timeout: a fechar listener %d", listenPort)
+			log.Printf("timeout: closing listener %d", listenPort)
 			ln.Close()
 		}()
 
 		for {
 			clientConn, err := ln.Accept()
 			if err != nil {
-				// se o context morreu, sai
+				// if the context is done, exit
 				select {
 				case <-ctx.Done():
 					return
 				default:
-					log.Printf("erro em Accept(): %v", err)
+					log.Printf("error in Accept(): %v", err)
 					continue
 				}
 			}
@@ -211,11 +211,11 @@ func serveSprite(w http.ResponseWriter, r *http.Request) {
 type=spice
 host=%s
 port=%d
-delete-this-file=0
+delete-this-file=1
 fullscreen=0
-title=HyperHive VM
+title=HyperHive VM - %s
 secure-attention=0
-`, env512.MASTER_INTERNET_IP, listenPort)
+`, env512.MASTER_INTERNET_IP, listenPort, vmName)
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
