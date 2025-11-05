@@ -1,13 +1,15 @@
+// Package api - GoAccess real-time dashboard behind Chi
 package api
 
 import (
+	"fmt"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -15,82 +17,129 @@ import (
 )
 
 const (
-	goAccessTimeout       = 2 * time.Minute
-	goAccessRefreshSecond = 5
+	goAccessHTMLName     = "goaccess.html"
+	goAccessWSListenHost = "127.0.0.1"
+	goAccessWSListenPort = 7891 // porta interna do WS do GoAccess
+	goAccessHTMLRefresh  = 5    // fallback sem WS
+	goAccessDateFormat   = "%d/%b/%Y"
+	goAccessTimeFormat   = "%T"
+	// Formato que corresponde às tuas linhas do NPM:
+	// [05/Nov/2025:21:27:53 +0000] - 200 200 - DELETE https host "/path" [Client ip] [Length 0] ...
+	goAccessLogFormat = `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] [Gzip %^] [Sent-to %^] "%u" "%R"`
 )
 
-var goaOnce sync.Once
+var (
+	goaMu sync.Mutex // garante arranque único / restart seguro
+)
 
-func startGoAccessRealtime(workDir string) error {
-	logDir := filepath.Join(workDir, "npm-data", "logs")
-	statsDir := filepath.Join(workDir, "npm-data", "stats")
-	_ = os.MkdirAll(statsDir, 0o755)
+// --- util ---
 
-	htmlOut := filepath.Join(statsDir, "goaccess.html")
+func wsAddr() string { return fmt.Sprintf("%s:%d", goAccessWSListenHost, goAccessWSListenPort) }
 
-	logFormat := `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] [Gzip %^] [Sent-to %^] "%u" "%R"`
+func isGoAccessUp() bool {
+	c, err := net.DialTimeout("tcp", wsAddr(), 500*time.Millisecond)
+	if err != nil {
+		return false
+	}
+	_ = c.Close()
+	return true
+}
 
-	// ⚠️ WS local a 7891; o HTML vai apontar para wss://<teu-dominio>/goa-ws
-	args := []string{
-		filepath.Join(logDir, "proxy-host-*_access.log"),
-		"--no-global-config",
-		"--date-format=%d/%b/%Y",
-		"--time-format=%T",
-		"--log-format=" + logFormat,
-		"--real-time-html",
-		"--daemonize",
-		"--port=7891", // porta WS interna
-		"--ws-url=wss://hyperhive.maruqes.com/goa-ws",
-		"-o", htmlOut,
+func wsURLFromRequest(r *http.Request) string {
+	scheme := "ws"
+	if r != nil && r.TLS != nil {
+		scheme = "wss"
+	}
+	host := "localhost"
+	if r != nil && r.Host != "" {
+		host = r.Host
+	}
+	return scheme + "://" + host + "/goa-ws"
+}
+
+func startGoAccessRealtime(workDir string, wsURL string) error {
+	if _, err := exec.LookPath("goaccess"); err != nil {
+		return fmt.Errorf("goaccess not found in PATH: %w", err)
+	}
+	if isGoAccessUp() {
+		return nil
 	}
 
-	// usa /bin/sh para expandir o wildcard *.log
-	cmd := exec.Command("/bin/sh", "-lc", "goaccess "+strings.Join(args, " "))
+	logDir := filepath.Join(workDir, "npm-data", "logs")
+	statsDir := filepath.Join(workDir, "npm-data", "stats")
+	if err := os.MkdirAll(statsDir, 0o755); err != nil {
+		return fmt.Errorf("mkdir stats: %w", err)
+	}
+
+	// escolhe só access logs
+	files, err := filepath.Glob(filepath.Join(logDir, "proxy-host-*_access.log"))
+	if err != nil {
+		return fmt.Errorf("glob logs: %w", err)
+	}
+	if len(files) == 0 {
+		return fmt.Errorf("no access logs found in %s", logDir)
+	}
+
+	htmlOut := filepath.Join(statsDir, goAccessHTMLName)
+
+	// Flags do GoAccess
+	args := []string{
+		"--no-global-config",
+		"--date-format=" + goAccessDateFormat,
+		"--time-format=" + goAccessTimeFormat,
+		"--log-format=" + goAccessLogFormat,
+		"--real-time-html",
+		"--daemonize",
+		"--html-refresh=" + fmt.Sprint(goAccessHTMLRefresh),
+		"--port=" + fmt.Sprint(goAccessWSListenPort),
+		"--ws-url=" + wsURL,
+		"-o", htmlOut,
+	}
+	args = append(args, files...)
+
+	cmd := exec.Command("goaccess", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+
 	return cmd.Run()
 }
 
-func EnsureGoAccess() error {
-	var err error
-	goaOnce.Do(func() {
-		wd, e := os.Getwd()
-		if e != nil {
-			err = e
-			return
-		}
-		err = startGoAccessRealtime(wd)
-	})
-	return err
+func ensureGoAccess(r *http.Request) error {
+	goaMu.Lock()
+	defer goaMu.Unlock()
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	if isGoAccessUp() {
+		return nil
+	}
+	return startGoAccessRealtime(wd, wsURLFromRequest(r))
 }
 
 func goAccessHandler(w http.ResponseWriter, r *http.Request) {
-	if err := EnsureGoAccess(); err != nil {
-		http.Error(w, "failed to start goaccess: "+err.Error(), 500)
+	if err := ensureGoAccess(r); err != nil {
+		http.Error(w, "failed to start goaccess: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	wd, _ := os.Getwd()
-	html := filepath.Join(wd, "npm-data", "stats", "goaccess.html")
+	html := filepath.Join(wd, "npm-data", "stats", goAccessHTMLName)
 	http.ServeFile(w, r, html)
 }
 
 func wsProxyHandler(target string) http.HandlerFunc {
-	u, _ := url.Parse(target) // "http://127.0.0.1:7891"
+	u, _ := url.Parse(target) // ex.: "http://127.0.0.1:7891"
 	rp := httputil.NewSingleHostReverseProxy(u)
-	// garantir cabeçalhos de upgrade
-	rp.Director = func(req *http.Request) {
-		req.URL.Scheme = u.Scheme
-		req.URL.Host = u.Host
-		req.Host = u.Host
-		if strings.Contains(strings.ToLower(req.Header.Get("Connection")), "upgrade") {
-			req.Header.Set("Connection", "upgrade")
-			req.Header.Set("Upgrade", "websocket")
-		}
+
+	rp.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+		http.Error(w, "goaccess websocket upstream unavailable", http.StatusBadGateway)
 	}
 	return rp.ServeHTTP
 }
 
+// SetupGoAccessAPI regista as rotas do dashboard e do WS proxy.
 func setupGoAccessAPI(r chi.Router) {
 	r.Get("/goaccess", goAccessHandler)
-	r.HandleFunc("/goa-ws", wsProxyHandler("http://127.0.0.1:7891"))
+	r.HandleFunc("/goa-ws", wsProxyHandler("http://"+wsAddr()))
 }
