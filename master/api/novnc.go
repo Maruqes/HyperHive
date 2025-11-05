@@ -12,7 +12,6 @@ import (
 	"net"
 	"net/http"
 	"os/exec"
-	"strconv"
 	"time"
 
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
@@ -104,7 +103,7 @@ func streamSprite(ipPort string, listenPort int, horasAberto int) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(horasAberto)*time.Hour)
 		defer cancel()
 
-		ln, err := net.Listen("tcp", strconv.Itoa(listenPort))
+		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", listenPort))
 		if err != nil {
 			log.Fatalf("erro a iniciar listener: %v", err)
 		}
@@ -137,21 +136,27 @@ func streamSprite(ipPort string, listenPort int, horasAberto int) {
 func serveSprite(w http.ResponseWriter, r *http.Request) {
 	vmName := chi.URLParam(r, "vm_name")
 	if vmName == "" {
+		logger.Warn("novnc: sprite request missing vm_name from %s", r.RemoteAddr)
 		http.Error(w, "vm_name is required", http.StatusBadRequest)
 		return
 	}
 
+	logger.Info("novnc: sprite request received for VM %s from %s", vmName, r.RemoteAddr)
+
 	virshService := services.VirshService{}
 	vm, err := virshService.GetVmByName(vmName)
 	if err != nil {
+		logger.Error("novnc: failed to fetch VM %s: %v", vmName, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if vm == nil {
+		logger.Warn("novnc: VM %s not found", vmName)
 		http.Error(w, "vm not found", http.StatusInternalServerError)
 		return
 	}
 	if vm.SpritePort == "0" {
+		logger.Warn("novnc: VM %s sprite port not configured", vmName)
 		http.Error(w, "vm sprite port is not configured", http.StatusBadRequest)
 		return
 	}
@@ -162,22 +167,27 @@ func serveSprite(w http.ResponseWriter, r *http.Request) {
 		if portAvailable(port) {
 			listenPort = port
 			found = true
+			logger.Info("novnc: selected listen port %d for VM %s sprite proxy", listenPort, vmName)
 			break
 		}
 	}
 	if !found {
+		logger.Error("novnc: no available port between %d and %d for VM %s", env512.SPRITE_MIN, env512.SPRITE_MAX, vmName)
 		http.Error(w, "no port available for the server", http.StatusInternalServerError)
 		return
 	}
 
 	conn := protocol.GetConnectionByMachineName(vm.MachineName)
 	if conn == nil || conn.Connection == nil {
+		logger.Error("novnc: machine %s connection unavailable for sprite proxy", vm.MachineName)
 		http.Error(w, "machine connection is not available", http.StatusInternalServerError)
 		return
 	}
 
 	ipPort := conn.Addr + ":" + vm.SpritePort
 	const horasAberto = 1
+
+	logger.Info("novnc: preparing sprite tunnel for VM %s (%s) on local port %d for %d hour(s)", vmName, ipPort, listenPort, horasAberto)
 
 	cmd := exec.Command(
 		"sudo",
@@ -190,9 +200,12 @@ func serveSprite(w http.ResponseWriter, r *http.Request) {
 		logger.Error("novnc: failed to open firewall port: %v, output: %s", err, string(output))
 		http.Error(w, "failed to configure firewall", http.StatusInternalServerError)
 		return
+	} else {
+		logger.Info("novnc: firewall port %d opened for sprite tunnel", listenPort)
 	}
 
 	streamSprite(ipPort, listenPort, horasAberto)
+	logger.Info("novnc: sprite tunnel ready for VM %s on port %d", vmName, listenPort)
 
 	config := fmt.Sprintf(`[virt-viewer]
 type=spice
