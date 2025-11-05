@@ -187,29 +187,30 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	vncGraphicsXML := fmt.Sprintf("<graphics type='vnc' autoport='yes' port='-1'%s/>", vncAttrs.String())
 
 	spiceGraphicsXML := `
-	<graphics type='spice' autoport='yes' port='-1' listen='0.0.0.0'>
-		<listen type='address' address='0.0.0.0'/>
+	<graphics type="spice" autoport="yes" port="-1" listen="0.0.0.0">
+		<listen type="address" address="0.0.0.0"/>
 
-		<!-- Balanced quality/performance -->
-		<image compression='auto_glz'/>       <!-- good balance; avoids blur -->
-		<jpeg  compression='never'/>          <!-- prevents JPEG artifacting -->
-		<zlib  compression='auto'/>           <!-- keeps things smooth -->
-		<playback compression='on'/>          <!-- keeps audio crackle-free -->
-		<streaming mode='filter'/>            <!-- smoother motion, less spike -->
+		<!-- Turn images into raw blits so streaming handles motion -->
+		<image compression="off"/>
+		<jpeg  compression="never"/>
+		<zlib  compression="never"/>
 
-		<!-- Interaction -->
-		<clipboard copypaste='yes'/>
-		<filetransfer enable='yes'/>
-		<mouse mode='server'/>
+		<!-- Audio OK, but turn compression off to avoid jitter; enable if needed -->
+		<playback compression="off"/>
 
-		<!-- Good defaults -->
-		<rendernode/>
+		<!-- Let SPICE treat changing regions as video -->
+		<streaming mode="all"/>
+		<clipboard copypaste="yes"/>
+		<filetransfer enable="yes"/>
+		
+		<!-- Server mode + agent gives absolute mouse, feels snappier -->
+		<mouse mode="server"/>
 	</graphics>
 	`
 
 	videoXML := `
 	<video>
-	  <model type='virtio' heads='1'/>
+	  <model type="virtio" heads="1" accel3d="yes"/>
 	</video>`
 
 	cputuneXML, err := buildCPUTuneXML(opts.VCPUs)
