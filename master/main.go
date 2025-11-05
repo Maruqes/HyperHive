@@ -103,10 +103,6 @@ func GoAccess() error {
 		fmt.Println("GoAccess already installed, ensuring configuration is up to date.")
 	}
 
-	if _, _, err := services.EnsureGoAccessAssets(); err != nil {
-		return err
-	}
-
 	return nil
 }
 

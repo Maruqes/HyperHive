@@ -75,7 +75,6 @@ func StartApi() {
 		r.Get("/protected", protectedRoutes)
 
 		r.Get("/ws", wsHandler)
-		r.Get("/goaccess", goAccessHandler)
 
 		npmapi.SetupProxyAPI(r)
 		npmapi.Setup404API(r)
