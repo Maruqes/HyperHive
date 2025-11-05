@@ -186,26 +186,22 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	}
 	vncGraphicsXML := fmt.Sprintf("<graphics type='vnc' autoport='yes' port='-1'%s/>", vncAttrs.String())
 
-	spicePasswordAttr := ""
-	if opts.VNCPassword != "" {
-		spicePasswordAttr = fmt.Sprintf(" passwd='%s'", opts.VNCPassword)
-	}
-	spiceGraphicsXML := fmt.Sprintf(`
-	<graphics type='spice' autoport='yes' port='-1' listen='%s'%s>
-	  <listen type='address' address='%s'/>
-	  <image compression='auto_glz'/>
-	  <jpeg compression='auto'/>
-	  <zlib compression='auto'/>
-	  <playback compression='on'/>
-	  <streaming mode='all'/>
+	spiceGraphicsXML := `
+	<graphics type='spice' autoport='yes' port='-1' listen='0.0.0.0'>
+	  <listen type='address' address='0.0.0.0'/>
+	  <image compression='off'/>
+	  <jpeg compression='never'/>
+	  <zlib compression='never'/>
+	  <playback compression='off'/>
+	  <streaming mode='filter'/>
 	  <clipboard copypaste='yes'/>
-	  <mouse mode='client'/>
 	  <filetransfer enable='yes'/>
-	</graphics>`, listenAddr, spicePasswordAttr, listenAddr)
+	  <mouse mode='server'/>
+	</graphics>`
 
 	videoXML := `
 	<video>
-	  <model type='qxl' ram='65536' vram='65536' vgamem='16384' heads='1' primary='yes'/>
+	  <model type='virtio' heads='1'/>
 	</video>`
 
 	cputuneXML, err := buildCPUTuneXML(opts.VCPUs)
