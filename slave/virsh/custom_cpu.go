@@ -186,31 +186,22 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	}
 	vncGraphicsXML := fmt.Sprintf("<graphics type='vnc' autoport='yes' port='-1'%s/>", vncAttrs.String())
 
-	spiceGraphicsXML := `
-	<graphics type="spice" autoport="yes" port="-1" listen="0.0.0.0">
-		<listen type="address" address="0.0.0.0"/>
-
-		<!-- Turn images into raw blits so streaming handles motion -->
-		<image compression="off"/>
-		<jpeg  compression="never"/>
-		<zlib  compression="never"/>
-
-		<!-- Audio OK, but turn compression off to avoid jitter; enable if needed -->
-		<playback compression="off"/>
-
-		<!-- Let SPICE treat changing regions as video -->
-		<streaming mode="all"/>
-		<clipboard copypaste="yes"/>
-		<filetransfer enable="yes"/>
-		
-		<!-- Server mode + agent gives absolute mouse, feels snappier -->
-		<mouse mode="server"/>
-	</graphics>
-	`
+	spiceGraphicsXML := fmt.Sprintf(`
+	<graphics type='spice' autoport='yes' port='-1' listen='%s'>
+	  <listen type='address' address='%s'/>
+	  <image compression='auto_glz'/>
+	  <jpeg compression='auto'/>
+	  <zlib compression='auto'/>
+	  <playback compression='on'/>
+	  <streaming mode='all'/>
+	  <clipboard copypaste='yes'/>
+	  <filetransfer enable='yes'/>
+	  <mouse mode='client'/>
+	</graphics>`, listenAddr, listenAddr)
 
 	videoXML := `
 	<video>
-	  <model type="virtio" heads="1" accel3d="yes"/>
+	  <model type='virtio' heads='1' ram='65536' vram='65536'/>
 	</video>`
 
 	cputuneXML, err := buildCPUTuneXML(opts.VCPUs)
