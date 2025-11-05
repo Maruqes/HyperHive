@@ -54,6 +54,7 @@ message Vm{
   int32 currentMemoryUsageMB = 8;
   int32 diskSizeGB = 9;
   string diskPath = 10;
+  string spritePort = 11;
   repeated string ip = 12;
   string network = 13;
   string VNCPassword = 14;

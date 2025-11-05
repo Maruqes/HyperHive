@@ -2,6 +2,7 @@ package api
 
 import (
 	"512SvMan/protocol"
+	"512SvMan/services"
 	"512SvMan/virsh"
 	"net/http"
 
@@ -60,9 +61,31 @@ func serveNoVNC(w http.ResponseWriter, r *http.Request) {
 	http.StripPrefix("/novnc", http.FileServer(http.Dir("./novnc"))).ServeHTTP(w, r)
 }
 
+func serveSprite(w http.ResponseWriter, r *http.Request) {
+	//abrir firewalld 1 hora-> sudo firewall-cmd --zone=FedoraServer --add-port=25565/tcp --timeout=3600
+	//criar servidor 1h na porta
+	vm_name := chi.URLParam(r, "vm_name")
+	if vm_name == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+	virshService := services.VirshService{}
+	vm, err := virshService.GetVmByName(vm_name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if vm == nil {
+		http.Error(w, "vm not found", http.StatusInternalServerError)
+		return
+	}
+}
+
 func setupNoVNCAPI(r chi.Router) chi.Router {
 	return r.Route("/novnc", func(r chi.Router) {
 		r.Get("/ws", serveNoVNCWebSocket)
+		r.Get("/sprite/{vm_name}", serveSprite)
 		r.Get("/*", serveNoVNC)
 	})
 }

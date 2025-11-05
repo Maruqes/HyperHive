@@ -372,6 +372,38 @@ func vncPasswordFromDomainXML(xmlData string) (string, error) {
 	return "", nil
 }
 
+func spicePortFromDomainXML(xmlData string) (int, error) {
+	type graphics struct {
+		Type string `xml:"type,attr"`
+		Port string `xml:"port,attr"`
+	}
+	type devices struct {
+		Graphics []graphics `xml:"graphics"`
+	}
+	type domain struct {
+		Devices devices `xml:"devices"`
+	}
+
+	var d domain
+	if err := xml.Unmarshal([]byte(xmlData), &d); err != nil {
+		return 0, fmt.Errorf("parse domain xml: %w", err)
+	}
+	for _, g := range d.Devices.Graphics {
+		if strings.EqualFold(strings.TrimSpace(g.Type), "spice") {
+			portStr := strings.TrimSpace(g.Port)
+			if portStr == "" || portStr == "-1" {
+				return 0, nil
+			}
+			port, err := strconv.Atoi(portStr)
+			if err != nil {
+				return 0, fmt.Errorf("convert spice port %q: %w", portStr, err)
+			}
+			return port, nil
+		}
+	}
+	return 0, nil
+}
+
 func networkFromDomainXML(xmlData string) (string, error) {
 	type ifaceSource struct {
 		Network string `xml:"network,attr"`
@@ -866,6 +898,10 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 	if err != nil {
 		return nil, fmt.Errorf("vnc port: %w", err)
 	}
+	spicePort, err := spicePortFromDomainXML(xmlDesc)
+	if err != nil {
+		return nil, fmt.Errorf("spice port: %w", err)
+	}
 	var (
 		networkName string
 		vncPassword string
@@ -943,6 +979,7 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		CPUXML:               cpuXML,
 		DefinedCPUS:          definedCPUs,
 		DefinedRam:           definedMemMB,
+		SpritePort:           strconv.Itoa(spicePort),
 	}
 	return info, nil
 }
@@ -1015,6 +1052,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 		}
 
 		port := 0
+		spicePort := 0
 		networkName := ""
 		vncPassword := ""
 		cpuXML := ""
@@ -1023,6 +1061,11 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 				warnings = append(warnings, fmt.Sprintf("%s: parse vnc port: %v", name, err))
 			} else {
 				port = p
+			}
+			if spice, err := spicePortFromDomainXML(xmlDesc); err != nil {
+				warnings = append(warnings, fmt.Sprintf("%s: parse spice port: %v", name, err))
+			} else {
+				spicePort = spice
 			}
 			if netName, err := networkFromDomainXML(xmlDesc); err != nil {
 				warnings = append(warnings, fmt.Sprintf("%s: parse network: %v", name, err))
@@ -1066,6 +1109,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 		info.Network = networkName
 		info.VNCPassword = vncPassword
 		info.CPUXML = cpuXML
+		info.SpritePort = strconv.Itoa(spicePort)
 
 		vms = append(vms, info)
 		dom.Free()
