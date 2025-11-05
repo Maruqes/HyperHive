@@ -87,31 +87,16 @@ func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-		data, err := os.ReadFile(outputPath)
-		if err != nil {
-			http.Error(w, "failed to read generated report", http.StatusInternalServerError)
-			return
-		}
-
-		lower := strings.ToLower(string(data))
-		if !strings.Contains(lower, "http-equiv=\"refresh\"") {
-			if headIdx := strings.Index(lower, "</head>"); headIdx != -1 {
-				meta := fmt.Sprintf(`<meta http-equiv="refresh" content="%d">`, goAccessRefreshSecond)
-				var buf bytes.Buffer
-				buf.Grow(len(data) + len(meta) + 1)
-				buf.Write(data[:headIdx])
-				buf.WriteString(meta)
-				buf.WriteByte('\n')
-				buf.Write(data[headIdx:])
-				data = buf.Bytes()
-			}
-		}
-
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-store")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(data)
+	data, err := os.ReadFile(outputPath)
+	if err != nil {
+		http.Error(w, "failed to read generated report", http.StatusInternalServerError)
+		return
 	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(data)
+}
 
 func setupGoAccessAPI(r chi.Router) {
 	r.Get("/goaccess", goAccessHandler)
