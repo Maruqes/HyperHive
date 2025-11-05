@@ -202,7 +202,7 @@ delete-this-file=0
 fullscreen=0
 title=HyperHive VM
 secure-attention=0
-`, env512.MASTER_IP, listenPort)
+`, env512.MASTER_INTERNET_IP, listenPort)
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)

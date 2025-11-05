@@ -9,13 +9,13 @@ import (
 )
 
 var (
-	PingInterval int
-	Mode         string
-	Qemu_UID     string
-	Qemu_GID     string
-	MASTER_IP    string
-	SPRITE_MIN   int
-	SPRITE_MAX   int
+	PingInterval       int
+	Mode               string
+	Qemu_UID           string
+	Qemu_GID           string
+	MASTER_INTERNET_IP string
+	SPRITE_MIN         int
+	SPRITE_MAX         int
 )
 
 func Setup() error {
@@ -25,7 +25,7 @@ func Setup() error {
 	Mode = os.Getenv("MODE")
 	Qemu_UID = os.Getenv("QEMU_UID")
 	Qemu_GID = os.Getenv("QEMU_GID")
-	MASTER_IP = os.Getenv("MASTER_IP")
+	MASTER_INTERNET_IP = os.Getenv("MASTER_INTERNET_IP")
 
 	sMin := os.Getenv("SPRITE_MIN")
 	sMax := os.Getenv("SPRITE_MAX")
@@ -34,8 +34,8 @@ func Setup() error {
 		return fmt.Errorf("QEMU_UID and QEMU_GID must be set")
 	}
 
-	if MASTER_IP == "" {
-		return fmt.Errorf("MASTER_IP must be set")
+	if MASTER_INTERNET_IP == "" {
+		return fmt.Errorf("MASTER_INTERNET_IP must be set")
 	}
 
 	if sMin == "" && sMax == "" {
