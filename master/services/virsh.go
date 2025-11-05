@@ -20,8 +20,6 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/Maruqes/512SvMan/logger"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"libvirt.org/go/libvirt"
 )
 
@@ -265,14 +263,6 @@ func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, mach
 	originConn := protocol.GetConnectionByMachineName(slaveName)
 	if originConn == nil {
 		return fmt.Errorf("origin machine %s not found", slaveName)
-	}
-
-	existing, err := virsh.GetVmByName(originConn.Connection, &grpcVirsh.GetVmByNameRequest{Name: machine.VmName})
-	if err == nil && existing != nil {
-		return fmt.Errorf("vm with name \"%s\" already exists on machine %s", machine.VmName, slaveName)
-	}
-	if err != nil && status.Code(err) != codes.NotFound {
-		return fmt.Errorf("error checking if VM exists on %s: %v", slaveName, err)
 	}
 
 	// chmod 777 and give qemu ownership with machine.DiskPath
