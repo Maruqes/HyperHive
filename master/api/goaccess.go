@@ -42,16 +42,14 @@ func isGoAccessUp() bool {
 }
 
 func wsURLFromRequest(r *http.Request) (wsURL, origin string) {
+	reqScheme := originalScheme(r)
 	scheme := "ws"
-	if reqScheme := originalScheme(r); reqScheme == "https" {
+	if reqScheme == "https" {
 		scheme = "wss"
 	}
-	host := "localhost"
-	if r != nil && r.Host != "" {
-		host = r.Host
-	}
+	host := originalHost(r)
 	wsURL = scheme + "://" + host + "/goa-ws"
-	origin = originalScheme(r) + "://" + host
+	origin = reqScheme + "://" + host
 	return wsURL, origin
 }
 
@@ -65,7 +63,7 @@ func originalScheme(r *http.Request) string {
 			forwarded = forwarded[:idx]
 		}
 		if proto := strings.TrimSpace(forwarded); proto != "" {
-			return proto
+			return strings.ToLower(proto)
 		}
 	}
 
@@ -74,7 +72,7 @@ func originalScheme(r *http.Request) string {
 			forwarded = forwarded[:idx]
 		}
 		if proto := strings.TrimSpace(forwarded); proto != "" {
-			return proto
+			return strings.ToLower(proto)
 		}
 	}
 
@@ -83,11 +81,12 @@ func originalScheme(r *http.Request) string {
 			entry = strings.TrimSpace(entry)
 			for _, part := range strings.Split(entry, ";") {
 				part = strings.TrimSpace(part)
-				if idx := strings.Index(part, "proto="); idx != -1 {
+				lower := strings.ToLower(part)
+				if idx := strings.Index(lower, "proto="); idx != -1 {
 					proto := strings.TrimSpace(part[idx+6:])
 					proto = strings.Trim(proto, `"`)
 					if proto != "" {
-						return proto
+						return strings.ToLower(proto)
 					}
 				}
 			}
@@ -99,10 +98,65 @@ func originalScheme(r *http.Request) string {
 	}
 
 	if r.URL != nil && r.URL.Scheme != "" {
-		return r.URL.Scheme
+		return strings.ToLower(r.URL.Scheme)
 	}
 
 	return "http"
+}
+
+func originalHost(r *http.Request) string {
+	if r == nil {
+		return "localhost"
+	}
+
+	if host := firstHeaderValue(r.Header.Get("X-Forwarded-Host")); host != "" {
+		return host
+	}
+
+	if forwarded := r.Header.Get("Forwarded"); forwarded != "" {
+		for _, entry := range strings.Split(forwarded, ",") {
+			entry = strings.TrimSpace(entry)
+			for _, part := range strings.Split(entry, ";") {
+				part = strings.TrimSpace(part)
+				lower := strings.ToLower(part)
+				if idx := strings.Index(lower, "host="); idx != -1 {
+					host := strings.TrimSpace(part[idx+5:])
+					host = strings.Trim(host, `"`)
+					if host != "" {
+						return host
+					}
+				}
+			}
+		}
+	}
+
+	if host := r.Header.Get("X-Original-Host"); host != "" {
+		return strings.TrimSpace(host)
+	}
+
+	if r.Host != "" {
+		return r.Host
+	}
+
+	if r.URL != nil && r.URL.Host != "" {
+		return r.URL.Host
+	}
+
+	return "localhost"
+}
+
+func firstHeaderValue(header string) string {
+	if header == "" {
+		return ""
+	}
+	values := strings.Split(header, ",")
+	for _, v := range values {
+		v = strings.TrimSpace(v)
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func startGoAccessRealtime(workDir, wsURL, origin string) error {
