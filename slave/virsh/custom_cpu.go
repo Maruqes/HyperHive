@@ -191,9 +191,17 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 		spicePasswordAttr = fmt.Sprintf(" passwd='%s'", opts.VNCPassword)
 	}
 	spiceGraphicsXML := fmt.Sprintf(`
-	<graphics type='spice' autoport='yes' port='-1' listen='%s' resize-guest='true' image-compression='auto_glz' jpeg-wan-compression='auto' zlib-glz-wan-compression='auto' playback-compression='on' streaming-mode='all' clipboard='yes' mouse-mode='client'%s>
+	<graphics type='spice' autoport='yes' port='-1' listen='%s'%s>
 	  <listen type='address' address='%s'/>
+	  <image compression='auto_glz'/>
+	  <jpeg compression='auto'/>
+	  <zlib compression='auto'/>
+	  <playback compression='on'/>
+	  <streaming mode='all'/>
+	  <clipboard copypaste='yes'/>
+	  <mouse mode='client'/>
 	  <filetransfer enable='yes'/>
+	  <gl enable='yes'/>
 	</graphics>`, listenAddr, spicePasswordAttr, listenAddr)
 
 	videoXML := `
@@ -240,6 +248,10 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	<target type='virtio' name='com.redhat.spice.0'/>
   </channel>`
 
+	inputDevicesXML := `
+	<input type='tablet' bus='usb'/>
+	<input type='mouse' bus='ps2'/>`
+
 	domainXML := fmt.Sprintf(`
 <domain type='kvm'>
   <seclabel type='none'/>
@@ -262,13 +274,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	  <driver name='qemu' type='%s' cache='none' io='native'/>
 	  <source file='%s'/>
 	  <target dev='vda' bus='virtio'/>
-	</disk>%s
-	%s
-		%s
-		%s
-	%s
-	%s
-	%s
+	</disk>%s%s%s%s%s%s%s%s
 	<sound model='ich9'/>
 	%s
   </devices>
@@ -277,7 +283,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 		cputuneXML,
 		machineAttr,
 		bootDev,
-		cpuXML, driverType, disk, cdromXML, networkXML, virtioSerialControllerXML, guestAgentChannelXML, spiceChannelXML, vncGraphicsXML, spiceGraphicsXML, videoXML,
+		cpuXML, driverType, disk, cdromXML, networkXML, virtioSerialControllerXML, guestAgentChannelXML, spiceChannelXML, inputDevicesXML, vncGraphicsXML, spiceGraphicsXML, videoXML,
 	)
 
 	xmlPath, err := WriteDomainXMLToDisk(opts.Name, domainXML, disk)
