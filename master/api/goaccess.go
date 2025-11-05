@@ -235,7 +235,7 @@ func wsProxyHandler(target string) http.HandlerFunc {
 	return rp.ServeHTTP
 }
 
-func SetupGoAccessAPI(r chi.Router) {
+func setupGoAccessAPI(r chi.Router) {
 	r.Get("/goaccess", goAccessHandler)
 	r.HandleFunc("/goa-ws", wsProxyHandler("http://"+wsAddr()))
 }
