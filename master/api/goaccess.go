@@ -1,4 +1,4 @@
-// Package api - GoAccess real-time dashboard behind Chi
+// Package api - GoAccess real-time via Chi (com WS fix)
 package api
 
 import (
@@ -19,20 +19,15 @@ import (
 const (
 	goAccessHTMLName     = "goaccess.html"
 	goAccessWSListenHost = "127.0.0.1"
-	goAccessWSListenPort = 7891 // porta interna do WS do GoAccess
-	goAccessHTMLRefresh  = 5    // fallback sem WS
+	goAccessWSListenPort = 7891
+	goAccessHTMLRefresh  = 5
 	goAccessDateFormat   = "%d/%b/%Y"
 	goAccessTimeFormat   = "%T"
-	// Formato que corresponde às tuas linhas do NPM:
-	// [05/Nov/2025:21:27:53 +0000] - 200 200 - DELETE https host "/path" [Client ip] [Length 0] ...
+	// Formato que bate com os teus logs NPM:
 	goAccessLogFormat = `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] [Gzip %^] [Sent-to %^] "%u" "%R"`
 )
 
-var (
-	goaMu sync.Mutex // garante arranque único / restart seguro
-)
-
-// --- util ---
+var goaMu sync.Mutex
 
 func wsAddr() string { return fmt.Sprintf("%s:%d", goAccessWSListenHost, goAccessWSListenPort) }
 
@@ -45,7 +40,7 @@ func isGoAccessUp() bool {
 	return true
 }
 
-func wsURLFromRequest(r *http.Request) string {
+func wsURLFromRequest(r *http.Request) (wsURL, origin string) {
 	scheme := "ws"
 	if r != nil && r.TLS != nil {
 		scheme = "wss"
@@ -54,10 +49,17 @@ func wsURLFromRequest(r *http.Request) string {
 	if r != nil && r.Host != "" {
 		host = r.Host
 	}
-	return scheme + "://" + host + "/goa-ws"
+	wsURL = scheme + "://" + host + "/goa-ws"
+	origin = scheme + "s://" + host // wss -> https, ws -> http (mais simples: força https se r.TLS != nil)
+	if r != nil && r.TLS != nil {
+		origin = "https://" + host
+	} else {
+		origin = "http://" + host
+	}
+	return wsURL, origin
 }
 
-func startGoAccessRealtime(workDir string, wsURL string) error {
+func startGoAccessRealtime(workDir, wsURL, origin string) error {
 	if _, err := exec.LookPath("goaccess"); err != nil {
 		return fmt.Errorf("goaccess not found in PATH: %w", err)
 	}
@@ -71,18 +73,12 @@ func startGoAccessRealtime(workDir string, wsURL string) error {
 		return fmt.Errorf("mkdir stats: %w", err)
 	}
 
-	// escolhe só access logs
 	files, err := filepath.Glob(filepath.Join(logDir, "proxy-host-*_access.log"))
-	if err != nil {
-		return fmt.Errorf("glob logs: %w", err)
-	}
-	if len(files) == 0 {
+	if err != nil || len(files) == 0 {
 		return fmt.Errorf("no access logs found in %s", logDir)
 	}
 
 	htmlOut := filepath.Join(statsDir, goAccessHTMLName)
-
-	// Flags do GoAccess
 	args := []string{
 		"--no-global-config",
 		"--date-format=" + goAccessDateFormat,
@@ -93,6 +89,7 @@ func startGoAccessRealtime(workDir string, wsURL string) error {
 		"--html-refresh=" + fmt.Sprint(goAccessHTMLRefresh),
 		"--port=" + fmt.Sprint(goAccessWSListenPort),
 		"--ws-url=" + wsURL,
+		"--origin=" + origin, // <— importante quando há proxy/HTTPS
 		"-o", htmlOut,
 	}
 	args = append(args, files...)
@@ -100,22 +97,21 @@ func startGoAccessRealtime(workDir string, wsURL string) error {
 	cmd := exec.Command("goaccess", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
 	return cmd.Run()
 }
 
 func ensureGoAccess(r *http.Request) error {
 	goaMu.Lock()
 	defer goaMu.Unlock()
-
+	if isGoAccessUp() {
+		return nil
+	}
 	wd, err := os.Getwd()
 	if err != nil {
 		return err
 	}
-	if isGoAccessUp() {
-		return nil
-	}
-	return startGoAccessRealtime(wd, wsURLFromRequest(r))
+	wsURL, origin := wsURLFromRequest(r)
+	return startGoAccessRealtime(wd, wsURL, origin)
 }
 
 func goAccessHandler(w http.ResponseWriter, r *http.Request) {
@@ -124,21 +120,24 @@ func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	wd, _ := os.Getwd()
-	html := filepath.Join(wd, "npm-data", "stats", goAccessHTMLName)
-	http.ServeFile(w, r, html)
+	http.ServeFile(w, r, filepath.Join(wd, "npm-data", "stats", goAccessHTMLName))
 }
 
 func wsProxyHandler(target string) http.HandlerFunc {
-	u, _ := url.Parse(target) // ex.: "http://127.0.0.1:7891"
+	u, _ := url.Parse(target)
 	rp := httputil.NewSingleHostReverseProxy(u)
-
+	origDirector := rp.Director
+	rp.Director = func(req *http.Request) {
+		origDirector(req)
+		req.URL.Path = "/"
+		req.Host = u.Host
+	}
 	rp.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		http.Error(w, "goaccess websocket upstream unavailable", http.StatusBadGateway)
 	}
 	return rp.ServeHTTP
 }
 
-// SetupGoAccessAPI regista as rotas do dashboard e do WS proxy.
 func setupGoAccessAPI(r chi.Router) {
 	r.Get("/goaccess", goAccessHandler)
 	r.HandleFunc("/goa-ws", wsProxyHandler("http://"+wsAddr()))
