@@ -191,7 +191,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 		spicePasswordAttr = fmt.Sprintf(" passwd='%s'", opts.VNCPassword)
 	}
 	spiceGraphicsXML := fmt.Sprintf(`
-	<graphics type='spice' autoport='yes' port='-1' listen='%s' image-compression='auto_glz' jpeg-wan-compression='auto' zlib-glz-wan-compression='auto' playback-compression='on' streaming-mode='all' clipboard='yes' mouse-mode='client'%s>
+	<graphics type='spice' autoport='yes' port='-1' listen='%s' resize-guest='true' image-compression='auto_glz' jpeg-wan-compression='auto' zlib-glz-wan-compression='auto' playback-compression='on' streaming-mode='all' clipboard='yes' mouse-mode='client'%s>
 	  <listen type='address' address='%s'/>
 	  <filetransfer enable='yes'/>
 	</graphics>`, listenAddr, spicePasswordAttr, listenAddr)
