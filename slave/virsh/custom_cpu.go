@@ -174,16 +174,32 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	</disk>`, isoTrim)
 	}
 
-	graphicsAttrs := ""
-	if opts.GraphicsListen != "" {
-		graphicsAttrs += fmt.Sprintf(" listen='%s'", opts.GraphicsListen)
+	listenAddr := strings.TrimSpace(opts.GraphicsListen)
+	if listenAddr == "" {
+		listenAddr = "127.0.0.1"
 	}
+
+	var vncAttrs strings.Builder
+	fmt.Fprintf(&vncAttrs, " listen='%s'", listenAddr)
 	if opts.VNCPassword != "" {
-		graphicsAttrs += fmt.Sprintf(" passwd='%s'", opts.VNCPassword)
+		fmt.Fprintf(&vncAttrs, " passwd='%s'", opts.VNCPassword)
 	}
-	if graphicsAttrs == "" {
-		graphicsAttrs = " listen='127.0.0.1'"
+	vncGraphicsXML := fmt.Sprintf("<graphics type='vnc' autoport='yes' port='-1'%s/>", vncAttrs.String())
+
+	spicePasswordAttr := ""
+	if opts.VNCPassword != "" {
+		spicePasswordAttr = fmt.Sprintf(" passwd='%s'", opts.VNCPassword)
 	}
+	spiceGraphicsXML := fmt.Sprintf(`
+	<graphics type='spice' autoport='yes' port='-1' tlsPort='-1' listen='%s' defaultMode='secure' image-compression='auto_glz' jpeg-wan-compression='auto' zlib-glz-wan-compression='auto' playback-compression='on' streaming-mode='all' clipboard='yes' mouse-mode='client'%s>
+	  <listen type='address' address='%s'/>
+	  <filetransfer enable='yes'/>
+	</graphics>`, listenAddr, spicePasswordAttr, listenAddr)
+
+	videoXML := `
+	<video>
+	  <model type='qxl' ram='65536' vram='65536' vgamem='16384' heads='1' primary='yes'/>
+	</video>`
 
 	cputuneXML, err := buildCPUTuneXML(opts.VCPUs)
 	if err != nil {
@@ -251,17 +267,17 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 		%s
 		%s
 	%s
-	<graphics type='vnc' autoport='yes' port='-1'%s/>
-	<graphics type='spice' autoport='yes' port='-1'%s/>
+	%s
+	%s
 	<sound model='ich9'/>
-	<video><model type='virtio'/></video>
+	%s
   </devices>
 </domain>`,
 		opts.Name, opts.MemoryMB, opts.VCPUs,
 		cputuneXML,
 		machineAttr,
 		bootDev,
-		cpuXML, driverType, disk, cdromXML, networkXML, virtioSerialControllerXML, guestAgentChannelXML, spiceChannelXML, graphicsAttrs, graphicsAttrs,
+		cpuXML, driverType, disk, cdromXML, networkXML, virtioSerialControllerXML, guestAgentChannelXML, spiceChannelXML, vncGraphicsXML, spiceGraphicsXML, videoXML,
 	)
 
 	xmlPath, err := WriteDomainXMLToDisk(opts.Name, domainXML, disk)
