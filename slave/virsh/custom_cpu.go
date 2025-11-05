@@ -188,16 +188,24 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 
 	spiceGraphicsXML := `
 	<graphics type='spice' autoport='yes' port='-1' listen='0.0.0.0'>
-	  <listen type='address' address='0.0.0.0'/>
-	  <image compression='off'/>
-	  <jpeg compression='never'/>
-	  <zlib compression='never'/>
-	  <playback compression='off'/>
-	  <streaming mode='filter'/>
-	  <clipboard copypaste='yes'/>
-	  <filetransfer enable='yes'/>
-	  <mouse mode='server'/>
-	</graphics>`
+		<listen type='address' address='0.0.0.0'/>
+
+		<!-- Balanced quality/performance -->
+		<image compression='auto_glz'/>       <!-- good balance; avoids blur -->
+		<jpeg  compression='never'/>          <!-- prevents JPEG artifacting -->
+		<zlib  compression='auto'/>           <!-- keeps things smooth -->
+		<playback compression='on'/>          <!-- keeps audio crackle-free -->
+		<streaming mode='filter'/>            <!-- smoother motion, less spike -->
+
+		<!-- Interaction -->
+		<clipboard copypaste='yes'/>
+		<filetransfer enable='yes'/>
+		<mouse mode='server'/>
+
+		<!-- Good defaults -->
+		<rendernode/>
+	</graphics>
+	`
 
 	videoXML := `
 	<video>
