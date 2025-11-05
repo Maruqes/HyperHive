@@ -89,6 +89,7 @@ func StartApi() {
 		setupISOAPI(r)
 		setupExtraAPI(r)
 		setupInfoAPI(r)
+		setupGoAccessAPI(r)
 	})
 
 	http.ListenAndServe(":9595", r)
