@@ -201,7 +201,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 
 	videoXML := `
 	<video>
-	  <model type='virtio' heads='1' ram='65536' vram='65536'/>
+	  <model type='virtio' heads='1'/>
 	</video>`
 
 	cputuneXML, err := buildCPUTuneXML(opts.VCPUs)
