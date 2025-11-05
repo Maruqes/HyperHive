@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -42,7 +43,7 @@ func isGoAccessUp() bool {
 
 func wsURLFromRequest(r *http.Request) (wsURL, origin string) {
 	scheme := "ws"
-	if r != nil && r.TLS != nil {
+	if reqScheme := originalScheme(r); reqScheme == "https" {
 		scheme = "wss"
 	}
 	host := "localhost"
@@ -50,13 +51,58 @@ func wsURLFromRequest(r *http.Request) (wsURL, origin string) {
 		host = r.Host
 	}
 	wsURL = scheme + "://" + host + "/goa-ws"
-	origin = scheme + "s://" + host // wss -> https, ws -> http (mais simples: força https se r.TLS != nil)
-	if r != nil && r.TLS != nil {
-		origin = "https://" + host
-	} else {
-		origin = "http://" + host
-	}
+	origin = originalScheme(r) + "://" + host
 	return wsURL, origin
+}
+
+func originalScheme(r *http.Request) string {
+	if r == nil {
+		return "http"
+	}
+
+	if forwarded := r.Header.Get("X-Forwarded-Proto"); forwarded != "" {
+		if idx := strings.Index(forwarded, ","); idx != -1 {
+			forwarded = forwarded[:idx]
+		}
+		if proto := strings.TrimSpace(forwarded); proto != "" {
+			return proto
+		}
+	}
+
+	if forwarded := r.Header.Get("X-Forwarded-Scheme"); forwarded != "" {
+		if idx := strings.Index(forwarded, ","); idx != -1 {
+			forwarded = forwarded[:idx]
+		}
+		if proto := strings.TrimSpace(forwarded); proto != "" {
+			return proto
+		}
+	}
+
+	if forwarded := r.Header.Get("Forwarded"); forwarded != "" {
+		for _, entry := range strings.Split(forwarded, ",") {
+			entry = strings.TrimSpace(entry)
+			for _, part := range strings.Split(entry, ";") {
+				part = strings.TrimSpace(part)
+				if idx := strings.Index(part, "proto="); idx != -1 {
+					proto := strings.TrimSpace(part[idx+6:])
+					proto = strings.Trim(proto, `"`)
+					if proto != "" {
+						return proto
+					}
+				}
+			}
+		}
+	}
+
+	if r.TLS != nil {
+		return "https"
+	}
+
+	if r.URL != nil && r.URL.Scheme != "" {
+		return r.URL.Scheme
+	}
+
+	return "http"
 }
 
 func startGoAccessRealtime(workDir, wsURL, origin string) error {
