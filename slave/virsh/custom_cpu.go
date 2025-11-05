@@ -213,11 +213,15 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	driverType := "qcow2"
 
 	virtioSerialControllerXML := `
-  <controller type='virtio-serial' index='0'/>`
+ <controller type='virtio-serial' index='0'/>`
 	guestAgentChannelXML := `
   <channel type='unix'>
 	<source mode='bind'/>
 	<target type='virtio' name='org.qemu.guest_agent.0'/>
+  </channel>`
+	spiceChannelXML := `
+  <channel type='spicevmc'>
+	<target type='virtio' name='com.redhat.spice.0'/>
   </channel>`
 
 	domainXML := fmt.Sprintf(`
@@ -244,9 +248,12 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	  <target dev='vda' bus='virtio'/>
 	</disk>%s
 	%s
-	%s
+		%s
+		%s
 	%s
 	<graphics type='vnc' autoport='yes' port='-1'%s/>
+	<graphics type='spice' autoport='yes' port='-1'%s/>
+	<sound model='ich9'/>
 	<video><model type='virtio'/></video>
   </devices>
 </domain>`,
@@ -254,7 +261,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 		cputuneXML,
 		machineAttr,
 		bootDev,
-		cpuXML, driverType, disk, cdromXML, networkXML, virtioSerialControllerXML, guestAgentChannelXML, graphicsAttrs,
+		cpuXML, driverType, disk, cdromXML, networkXML, virtioSerialControllerXML, guestAgentChannelXML, spiceChannelXML, graphicsAttrs, graphicsAttrs,
 	)
 
 	xmlPath, err := WriteDomainXMLToDisk(opts.Name, domainXML, disk)
