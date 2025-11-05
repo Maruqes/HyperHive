@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	goAccessTimeout = 2 * time.Minute
+	goAccessTimeout       = 2 * time.Minute
+	goAccessRefreshSecond = 5
 )
 
 func goAccessHandler(w http.ResponseWriter, r *http.Request) {
@@ -61,6 +62,7 @@ func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 		"--no-global-config",
 		"--date-format=%d/%b/%Y",
 		"--time-format=%T",
+		fmt.Sprintf("--html-refresh=%d", goAccessRefreshSecond),
 		"--log-format="+logFormat,
 		"-o", outputPath,
 	)
