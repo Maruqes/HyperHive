@@ -113,16 +113,13 @@ func PullImage() error {
 	if _, err := os.Stat(composeFile); err == nil {
 		// file exists, don't overwrite
 	} else if os.IsNotExist(err) {
+		// Use host networking so the container can bind all host ports it needs
 		composeContent := fmt.Sprintf(`version: "3"
 services:
   app:
 	image: %s
 	restart: unless-stopped
 	network_mode: "host"
-	ports:
-	  - "80:80"
-	  - "443:443"
-	  - "81:81"
 	volumes:
 	  - %s:/data
 	  - %s:/etc/letsencrypt

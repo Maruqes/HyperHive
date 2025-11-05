@@ -1,10 +1,19 @@
 package api
 
 import (
+	"512SvMan/env512"
 	"512SvMan/protocol"
 	"512SvMan/services"
 	"512SvMan/virsh"
+	"context"
+	"fmt"
+	"io"
+	"log"
+	"net"
 	"net/http"
+	"os/exec"
+	"strconv"
+	"time"
 
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 	"github.com/Maruqes/512SvMan/logger"
@@ -61,6 +70,70 @@ func serveNoVNC(w http.ResponseWriter, r *http.Request) {
 	http.StripPrefix("/novnc", http.FileServer(http.Dir("./novnc"))).ServeHTTP(w, r)
 }
 
+func portAvailable(port int) bool {
+	addr := fmt.Sprintf(":%d", port)
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		return false
+	}
+	l.Close()
+	return true
+}
+
+func handleConnection(client net.Conn, ipPort string) {
+	log.Printf("Nova ligação de %s", client.RemoteAddr())
+	defer client.Close()
+
+	// Liga ao backend (o slave)
+	serverConn, err := net.DialTimeout("tcp", ipPort, 5*time.Second)
+	if err != nil {
+		log.Printf("erro a ligar ao backend %s: %v", ipPort, err)
+		return
+	}
+	defer serverConn.Close()
+
+	// Copia dados em ambos os sentidos simultaneamente
+	go io.Copy(serverConn, client)
+	io.Copy(client, serverConn)
+
+	log.Printf("Ligação fechada %s", client.RemoteAddr())
+}
+
+func streamSprite(ipPort string, listenPort int, horasAberto int) {
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(horasAberto)*time.Hour)
+		defer cancel()
+
+		ln, err := net.Listen("tcp", strconv.Itoa(listenPort))
+		if err != nil {
+			log.Fatalf("erro a iniciar listener: %v", err)
+		}
+		defer ln.Close()
+
+		go func() {
+			<-ctx.Done()
+			log.Printf("timeout: a fechar listener %d", listenPort)
+			ln.Close()
+		}()
+
+		for {
+			clientConn, err := ln.Accept()
+			if err != nil {
+				// se o context morreu, sai
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					log.Printf("erro em Accept(): %v", err)
+					continue
+				}
+			}
+
+			go handleConnection(clientConn, ipPort)
+		}
+	}()
+}
+
 func serveSprite(w http.ResponseWriter, r *http.Request) {
 	//abrir firewalld 1 hora-> sudo firewall-cmd --zone=FedoraServer --add-port=25565/tcp --timeout=3600
 	//criar servidor 1h na porta
@@ -80,6 +153,42 @@ func serveSprite(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "vm not found", http.StatusInternalServerError)
 		return
 	}
+
+	listenPort := 0
+	for listenPort = env512.SPRITE_MIN; listenPort <= env512.SPRITE_MAX; listenPort++ {
+		if portAvailable(listenPort) {
+			break
+		}
+	}
+	if listenPort == 0 {
+		http.Error(w, "no port avalable found for the server", http.StatusInternalServerError)
+		return
+	}
+
+	conn := protocol.GetConnectionByMachineName(vm.MachineName)
+	if conn == nil || conn.Connection == nil {
+		http.Error(w, "machine conneciton is not available", http.StatusInternalServerError)
+		return
+	}
+
+	ipPort := conn.Addr + ":" + vm.SpritePort
+	horasAberto := 1
+
+	cmd := exec.Command(
+		"sudo",
+		"firewall-cmd",
+		"--zone=FedoraServer",
+		fmt.Sprintf("--add-port=%d/tcp", listenPort),
+		fmt.Sprintf("--timeout=%d", horasAberto*3600),
+	)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		logger.Error("novnc: failed to open firewall port: %v, output: %s", err, string(output))
+		http.Error(w, "failed to configure firewall", http.StatusInternalServerError)
+		return
+	}
+
+	streamSprite(ipPort, listenPort, horasAberto)
+	w.WriteHeader(http.StatusOK)
 }
 
 func setupNoVNCAPI(r chi.Router) chi.Router {
