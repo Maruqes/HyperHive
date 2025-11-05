@@ -201,7 +201,6 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	  <clipboard copypaste='yes'/>
 	  <mouse mode='client'/>
 	  <filetransfer enable='yes'/>
-	  <gl enable='yes'/>
 	</graphics>`, listenAddr, spicePasswordAttr, listenAddr)
 
 	videoXML := `
