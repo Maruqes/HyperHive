@@ -135,44 +135,49 @@ func streamSprite(ipPort string, listenPort int, horasAberto int) {
 }
 
 func serveSprite(w http.ResponseWriter, r *http.Request) {
-	//abrir firewalld 1 hora-> sudo firewall-cmd --zone=FedoraServer --add-port=25565/tcp --timeout=3600
-	//criar servidor 1h na porta
-	vm_name := chi.URLParam(r, "vm_name")
-	if vm_name == "" {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
 		http.Error(w, "vm_name is required", http.StatusBadRequest)
 		return
 	}
+
 	virshService := services.VirshService{}
-	vm, err := virshService.GetVmByName(vm_name)
+	vm, err := virshService.GetVmByName(vmName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	if vm == nil {
 		http.Error(w, "vm not found", http.StatusInternalServerError)
 		return
 	}
+	if vm.SpritePort == "0" {
+		http.Error(w, "vm sprite port is not configured", http.StatusBadRequest)
+		return
+	}
 
 	listenPort := 0
-	for listenPort = env512.SPRITE_MIN; listenPort <= env512.SPRITE_MAX; listenPort++ {
-		if portAvailable(listenPort) {
+	found := false
+	for port := env512.SPRITE_MIN; port <= env512.SPRITE_MAX; port++ {
+		if portAvailable(port) {
+			listenPort = port
+			found = true
 			break
 		}
 	}
-	if listenPort == 0 {
-		http.Error(w, "no port avalable found for the server", http.StatusInternalServerError)
+	if !found {
+		http.Error(w, "no port available for the server", http.StatusInternalServerError)
 		return
 	}
 
 	conn := protocol.GetConnectionByMachineName(vm.MachineName)
 	if conn == nil || conn.Connection == nil {
-		http.Error(w, "machine conneciton is not available", http.StatusInternalServerError)
+		http.Error(w, "machine connection is not available", http.StatusInternalServerError)
 		return
 	}
 
 	ipPort := conn.Addr + ":" + vm.SpritePort
-	horasAberto := 1
+	const horasAberto = 1
 
 	cmd := exec.Command(
 		"sudo",
@@ -188,7 +193,20 @@ func serveSprite(w http.ResponseWriter, r *http.Request) {
 	}
 
 	streamSprite(ipPort, listenPort, horasAberto)
+
+	config := fmt.Sprintf(`[virt-viewer]
+type=spice
+host=%s
+port=%d
+delete-this-file=0
+fullscreen=0
+title=HyperHive VM
+secure-attention=0
+`, env512.MASTER_IP, listenPort)
+
+	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(config))
 }
 
 func setupNoVNCAPI(r chi.Router) chi.Router {
