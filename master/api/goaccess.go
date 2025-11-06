@@ -23,10 +23,14 @@ import (
 const (
 	goAccessTimeout       = 2 * time.Minute
 	goAccessRefreshSecond = 5
-	goAccessWSAddr        = "127.0.0.1:7891" // GoAccess local WS
-	goAccessPublicWSPath  = "/goaccess/ws"   // public WS path
+	goAccessWSAddr        = "127.0.0.1:7891" // listener WS interno do GoAccess
+	goAccessPublicWSPath  = "/goaccess/ws"   // caminho público do WS
 )
 
+// export DEBUG_GOACCESS=1 para arrancar em foreground com --debug-file
+var debugGoAccess = os.Getenv("DEBUG_GOACCESS") == "1"
+
+// Lista completa de painéis; usa como default se não vier nada do env512
 var goAccessAllPanels = []string{
 	"VISITORS",
 	"REQUESTS",
@@ -48,6 +52,8 @@ var goAccessAllPanels = []string{
 	"TLS_TYPE",
 }
 
+// -------------- utils --------------
+
 func isPortListening(addr string) bool {
 	c, err := net.DialTimeout("tcp", addr, 500*time.Millisecond)
 	if err != nil {
@@ -62,41 +68,32 @@ func fileExists(p string) bool {
 	return err == nil && !st.IsDir()
 }
 
-// buildPublicWSURL builds the final ws/wss URL from MAIN_LINK and the WS path.
-// - If MAIN_LINK uses https -> use wss
-// - If MAIN_LINK uses http -> use ws
-// - Removes/avoids duplicate slashes
+// Constrói a URL ws/wss final a partir do MAIN_LINK e do path do WS.
 func buildPublicWSURL(base, wsPath string) (string, error) {
 	base = strings.TrimSpace(base)
 	if base == "" {
 		return "", errors.New("MAIN_LINK is empty")
 	}
 	if !strings.Contains(base, "://") {
-		base = "http://" + base // default if the scheme is missing
+		base = "http://" + base
 	}
-
 	u, err := url.Parse(base)
 	if err != nil {
 		return "", fmt.Errorf("invalid MAIN_LINK: %w", err)
 	}
 	if u.Host == "" && u.Path != "" {
-		// Handles cases where something like "hyperhive.maruqes.com" ends up in Path
 		reparse := "http://" + u.Path
 		u, err = url.Parse(reparse)
 		if err != nil {
 			return "", fmt.Errorf("invalid MAIN_LINK (host): %w", err)
 		}
 	}
-
 	switch strings.ToLower(u.Scheme) {
 	case "https":
 		u.Scheme = "wss"
 	default:
-		// any other scheme (http, empty, etc.) uses ws
 		u.Scheme = "ws"
 	}
-
-	// Normalize path: preserve any prefix and append /goaccess/ws
 	basePath := strings.TrimRight(u.Path, "/")
 	if !strings.HasPrefix(wsPath, "/") {
 		wsPath = "/" + wsPath
@@ -107,10 +104,10 @@ func buildPublicWSURL(base, wsPath string) (string, error) {
 	return u.String(), nil
 }
 
-// --- GoAccess realtime ---
+// -------------- GoAccess realtime --------------
 
 func ensureGoAccessDaemon() error {
-	// Check/install goaccess if necessary (Fedora/RHEL via dnf)
+	// Instalar goaccess se faltar (Fedora/RHEL via dnf)
 	if _, err := exec.LookPath("goaccess"); err != nil {
 		if _, derr := exec.LookPath("dnf"); derr != nil {
 			return fmt.Errorf("goaccess not found and dnf not found either: %w", err)
@@ -132,7 +129,6 @@ func ensureGoAccessDaemon() error {
 	}
 	outputPath := filepath.Join(statsDir, "goaccess.html")
 
-	// Adjust the glob pattern to your logs
 	pattern := filepath.Join(logDir, "proxy-host-*_access.log")
 	files, err := filepath.Glob(pattern)
 	if err != nil {
@@ -142,16 +138,22 @@ func ensureGoAccessDaemon() error {
 		return fmt.Errorf("no logs found in %s", pattern)
 	}
 
-	// Nginx Proxy Manager log format
+	// Formato de log do Nginx Proxy Manager
 	logFormat := `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] [Gzip %^] [Sent-to %^] "%u" "%R"`
 
-	// Build the public WebSocket URL from MAIN_LINK
-	publicWSURL, err := buildPublicWSURL(env512.MAIN_LINK, goAccessPublicWSPath)
+	// MAIN_LINK do teu pacote env512; fallback se vier vazio
+	base := strings.TrimSpace(env512.MAIN_LINK)
+	if base == "" {
+		base = "http://localhost"
+	}
+
+	publicWSURL, err := buildPublicWSURL(base, goAccessPublicWSPath)
 	if err != nil {
 		return err
 	}
+	fmt.Println("[GoAccess] ws-url =", publicWSURL)
 
-	// If it is already running and HTML exists, do not start another instance
+	// Se já está a escutar e o HTML existe, não arrancar outro
 	if isPortListening(goAccessWSAddr) && fileExists(outputPath) {
 		return nil
 	}
@@ -165,7 +167,6 @@ func ensureGoAccessDaemon() error {
 		"--log-format="+logFormat,
 
 		"--real-time-html",
-		"--daemonize",
 		"--persist",
 		"--restore",
 
@@ -177,17 +178,25 @@ func ensureGoAccessDaemon() error {
 		"--ws-url="+publicWSURL,
 	)
 
+	// Painéis
 	enablePanels := env512.GoAccessEnablePanels
 	disablePanels := env512.GoAccessDisablePanels
 	if len(enablePanels) == 0 && len(disablePanels) == 0 {
 		enablePanels = goAccessAllPanels
 	}
-
 	for _, panel := range enablePanels {
 		args = append(args, "--enable-panel="+panel)
 	}
 	for _, panel := range disablePanels {
 		args = append(args, "--ignore-panel="+panel)
+	}
+
+	// Debug/foreground opcional
+	if debugGoAccess {
+		args = append(args, "--debug-file=/tmp/goaccess-debug.log")
+		fmt.Println("[GoAccess] args:", strings.Join(args, " "))
+	} else {
+		args = append(args, "--daemonize")
 	}
 
 	cmd := exec.Command("goaccess", args...)
@@ -201,10 +210,13 @@ func ensureGoAccessDaemon() error {
 		if msg == "" {
 			msg = err.Error()
 		}
+		if strings.Contains(msg, "Unknown option") && strings.Contains(msg, "ws-url") {
+			return fmt.Errorf("your goaccess doesn't support --ws-url. Upgrade to >= 1.7. Error: %s", msg)
+		}
 		return fmt.Errorf("starting GoAccess realtime: %s", msg)
 	}
 
-	// Short wait for the WS/HTML to be ready
+	// Espera curta pelo WS/HTML
 	for i := 0; i < 20; i++ {
 		if isPortListening(goAccessWSAddr) && fileExists(outputPath) {
 			return nil
@@ -214,9 +226,10 @@ func ensureGoAccessDaemon() error {
 	return errors.New("GoAccess started but WS/HTML are not ready")
 }
 
-// --- WS proxy and page ---
+// -------------- WS proxy e página --------------
 
 func newGoAccessWSProxy() http.Handler {
+	// Backend do WS do GoAccess é raiz "/"
 	u := &url.URL{Scheme: "http", Host: goAccessWSAddr}
 	p := httputil.NewSingleHostReverseProxy(u)
 
@@ -225,9 +238,9 @@ func newGoAccessWSProxy() http.Handler {
 		origDirector(r)
 		r.URL.Scheme = "http"
 		r.URL.Host = goAccessWSAddr
-		r.URL.Path = "/" // GoAccess expects the root path
+		r.URL.Path = "/" // GoAccess espera WS em "/"
 		r.Host = goAccessWSAddr
-		// ReverseProxy keeps the upgrade headers
+		// ReverseProxy do Go trata dos headers de Upgrade/Connection
 	}
 
 	p.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
@@ -260,8 +273,8 @@ func goAccessPageHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func setupGoAccessAPI(r chi.Router) {
-	// HTML page
+	// Página HTML
 	r.Get("/goaccess", goAccessPageHandler)
-	// Public WebSocket -> proxy to 127.0.0.1:7891
+	// WebSocket público → proxy para 127.0.0.1:7891/
 	r.Handle(goAccessPublicWSPath, newGoAccessWSProxy())
 }
