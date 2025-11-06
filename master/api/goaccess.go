@@ -1,7 +1,6 @@
 package api
 
 import (
-	"512SvMan/env512"
 	"bytes"
 	"context"
 	"errors"
@@ -9,7 +8,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,7 +21,7 @@ import (
 const (
 	goAccessTimeout = 2 * time.Minute
 
-	// WS interno do GoAccess (proxy pelo NPM no /goaccess-ws)
+	// GoAccess WS interno (o NPM faz proxy em /goaccess-ws).
 	goAccessWSListen = "127.0.0.1"
 	goAccessWSPort   = 7891
 )
@@ -33,31 +31,7 @@ var (
 	goaccessCmd *exec.Cmd
 )
 
-// ---------- util ----------
-
-func mainLink() string {
-	base := strings.TrimSpace(env512.MAIN_LINK)
-	if base == "" {
-		base = "http://127.0.0.1:9595"
-	}
-	return strings.TrimRight(base, "/")
-}
-
-// Origin/WS públicos SEM porta (vais usar só 443/80 no NPM)
-func computeOriginAndWS() (origin string, wsURL string, _ error) {
-	u, err := url.Parse(mainLink())
-	if err != nil || u.Scheme == "" || u.Host == "" {
-		return "", "", fmt.Errorf("MAIN_LINK inválido")
-	}
-	host := u.Hostname() // sem :port
-	origin = u.Scheme + "://" + host
-	wsScheme := "ws"
-	if strings.EqualFold(u.Scheme, "https") {
-		wsScheme = "wss"
-	}
-	wsURL = fmt.Sprintf("%s://%s/goaccess-ws", wsScheme, host)
-	return origin, wsURL, nil
-}
+// --- util ---
 
 func portBusy(addr string) bool {
 	conn, err := net.DialTimeout("tcp", addr, 300*time.Millisecond)
@@ -68,22 +42,43 @@ func portBusy(addr string) bool {
 	return false
 }
 
-// ---------- GoAccess RT ----------
+// Extrai scheme/host públicos do pedido (SEM porta) e constrói origin/ws-url.
+func publicOriginAndWS(r *http.Request) (origin, wsURL string) {
+	// Host público (sem porta)
+	host := r.Host
+	if i := strings.IndexByte(host, ':'); i > 0 {
+		host = host[:i]
+	}
 
-func ensureGoAccessRunning(ctx context.Context, logDir string, logFiles []string, outputPath string, logFormat string) error {
+	// Proto a partir de X-Forwarded-Proto ou TLS
+	proto := r.Header.Get("X-Forwarded-Proto")
+	if proto == "" {
+		if r.TLS != nil {
+			proto = "https"
+		} else {
+			proto = "http"
+		}
+	}
+
+	origin = proto + "://" + host
+	wss := "ws"
+	if proto == "https" {
+		wss = "wss"
+	}
+	wsURL = wss + "://" + host + "/goaccess-ws" // SEM porta pública
+	return
+}
+
+// --- GoAccess RT manager ---
+
+func ensureGoAccessRunning(ctx context.Context, logDir string, logFiles []string, outputPath string, logFormat string, origin, wsURL string) error {
 	goaccessMu.Lock()
 	defer goaccessMu.Unlock()
 
-	origin, wsURL, err := computeOriginAndWS()
-	if err != nil {
-		return err
-	}
-
 	addr := fmt.Sprintf("%s:%d", goAccessWSListen, goAccessWSPort)
 
-	// Se já está a correr, não arranca outro
+	// Arranca processo RT se não estiver vivo/porta não ocupada
 	if goaccessCmd == nil || goaccessCmd.Process == nil || goaccessCmd.ProcessState != nil {
-		// Se a porta não está ocupada, arrancar o WS
 		if !portBusy(addr) {
 			args := append([]string{}, logFiles...)
 			args = append(args,
@@ -94,9 +89,9 @@ func ensureGoAccessRunning(ctx context.Context, logDir string, logFiles []string
 				"--log-format="+logFormat,
 				"--addr="+goAccessWSListen,
 				fmt.Sprintf("--port=%d", goAccessWSPort),
-				"--ws-url="+wsURL,  // público, sem :port
-				"--origin="+origin, // público, sem :port
-				"-o", outputPath,   // HTML inicial escrito por este processo
+				"--origin="+origin, // ex.: https://hyperhive.maruqes.com
+				"--ws-url="+wsURL,  // ex.: wss://hyperhive.maruqes.com/goaccess-ws (SEM porta)
+				"-o", outputPath,   // o próprio processo RT escreve o HTML
 			)
 
 			cmd := exec.CommandContext(ctx, "goaccess", args...)
@@ -115,7 +110,7 @@ func ensureGoAccessRunning(ctx context.Context, logDir string, logFiles []string
 			}
 			goaccessCmd = cmd
 
-			// Espera breve para socket abrir
+			// Espera a porta abrir
 			deadline := time.Now().Add(3 * time.Second)
 			for time.Now().Before(deadline) && !portBusy(addr) {
 				select {
@@ -127,7 +122,7 @@ func ensureGoAccessRunning(ctx context.Context, logDir string, logFiles []string
 		}
 	}
 
-	// Espera o HTML aparecer (o processo RT escreve-o)
+	// Espera o HTML ficar disponível (é o RT que o escreve)
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
 		if st, err := os.Stat(outputPath); err == nil && st.Size() > 0 {
@@ -139,11 +134,10 @@ func ensureGoAccessRunning(ctx context.Context, logDir string, logFiles []string
 		case <-time.After(120 * time.Millisecond):
 		}
 	}
-
 	return errors.New("goaccess em execução mas o HTML ainda não foi gerado")
 }
 
-// ---------- HTTP handlers ----------
+// --- HTTP handlers ---
 
 func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), goAccessTimeout)
@@ -161,7 +155,7 @@ func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Descobrir logs do NPM
+	// Logs do NPM
 	pattern := filepath.Join(logDir, "proxy-host-*_access.log")
 	files, err := filepath.Glob(pattern)
 	if err != nil {
@@ -178,13 +172,14 @@ func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to prepare stats directory", http.StatusInternalServerError)
 		return
 	}
-
 	outputPath := filepath.Join(statsDir, "goaccess.html")
 
-	// Formato típico dos access logs do NPM (ajusta se necessário)
+	// Formato (ajusta se o teu NPM divergir)
 	logFormat := `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] [Gzip %^] [Sent-to %^] "%u" "%R"`
 
-	if err := ensureGoAccessRunning(ctx, logDir, files, outputPath, logFormat); err != nil {
+	origin, wsURL := publicOriginAndWS(r)
+
+	if err := ensureGoAccessRunning(ctx, logDir, files, outputPath, logFormat, origin, wsURL); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			http.Error(w, "goaccess timeout", http.StatusGatewayTimeout)
 			return
@@ -199,9 +194,9 @@ func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Evitar cache do HTML
+	// Sem cache para não ficar com HTML antigo que aponta para :7891
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expires", "0")
 	w.WriteHeader(http.StatusOK)
