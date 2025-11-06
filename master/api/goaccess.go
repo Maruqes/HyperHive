@@ -23,8 +23,8 @@ import (
 
 const (
 	goAccessTimeout      = 2 * time.Minute
-	goAccessWSAddr       = "127.0.0.1:7891" // WS interno do GoAccess
-	goAccessPublicWSPath = "/goaccess/ws"   // WS público (browser liga aqui)
+	goAccessWSAddr       = "127.0.0.1:7891" // porta interna do WS do GoAccess
+	goAccessPublicWSPath = "/goaccess/ws"   // caminho público do WS
 )
 
 var debugGoAccess = os.Getenv("DEBUG_GOACCESS") == "1"
@@ -134,106 +134,6 @@ func stopGoAccessIfRunning(pidFile string) {
 	}
 }
 
-// ---------------- deteção de formato ----------------
-
-type fmtCand struct {
-	Name      string
-	DateFmt   string
-	TimeFmt   string
-	LogFormat string
-}
-
-// formatos comuns de NPM/NGINX
-var candidates = []fmtCand{
-	{
-		Name:    "npm-verbose-tags",
-		DateFmt: "%d/%b/%Y", TimeFmt: "%T",
-		// ... "%U" [Client %h] [Length %b] ... "%u" "%R"
-		LogFormat: `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] %^ "%u" "%R"`,
-	},
-	{
-		Name:    "nginx-vhost-combined",
-		DateFmt: "%d/%b/%Y", TimeFmt: "%T",
-		// vhost primeiro
-		LogFormat: `%v %h %^[%d:%t %^] "%r" %s %b "%R" "%u"`,
-	},
-	{
-		Name:    "nginx-vhost-combined-extra",
-		DateFmt: "%d/%b/%Y", TimeFmt: "%T",
-		LogFormat: `%v %h %^[%d:%t %^] "%r" %s %b "%R" "%u" %^`,
-	},
-	{
-		Name:    "nginx-combined",
-		DateFmt: "%d/%b/%Y", TimeFmt: "%T",
-		// IP primeiro
-		LogFormat: `%h %^[%d:%t %^] "%r" %s %b "%R" "%u"`,
-	},
-	{
-		Name:    "nginx-combined-extra",
-		DateFmt: "%d/%b/%Y", TimeFmt: "%T",
-		LogFormat: `%h %^[%d:%t %^] "%r" %s %b "%R" "%u" %^`,
-	},
-}
-
-// tenta verificar um formato com --verify-format
-func verifyFormat(sampleFile, dateFmt, timeFmt, logFmt string) error {
-	args := []string{
-		"--no-global-config",
-		"--date-format=" + dateFmt,
-		"--time-format=" + timeFmt,
-		"--log-format=" + logFmt,
-		"--verify-format",
-		"-f", sampleFile,
-	}
-	cmd := exec.Command("goaccess", args...)
-	cmd.Stdout = io.Discard
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf(strings.TrimSpace(stderr.String()))
-	}
-	return nil
-}
-
-func firstNonEmptyLine(p string) string {
-	f, err := os.Open(p)
-	if err != nil {
-		return ""
-	}
-	defer f.Close()
-	buf := make([]byte, 4096)
-	n, _ := f.Read(buf)
-	s := strings.Split(string(buf[:n]), "\n")
-	for _, ln := range s {
-		ln = strings.TrimSpace(ln)
-		if ln != "" {
-			return ln
-		}
-	}
-	return ""
-}
-
-func detectLogFormat(files []string) (dateFmt, timeFmt, logFmt string, chosen string, err error) {
-	var sample string
-	for _, f := range files {
-		if fi, e := os.Stat(f); e == nil && fi.Size() > 0 {
-			sample = f
-			break
-		}
-	}
-	if sample == "" {
-		return "", "", "", "", errors.New("no non-empty log file to verify format")
-	}
-	for _, c := range candidates {
-		if e := verifyFormat(sample, c.DateFmt, c.TimeFmt, c.LogFormat); e == nil {
-			return c.DateFmt, c.TimeFmt, c.LogFormat, c.Name, nil
-		}
-	}
-	fmt.Println("[GoAccess] sample file:", sample)
-	fmt.Println("[GoAccess] sample line:", firstNonEmptyLine(sample))
-	return "", "", "", "", fmt.Errorf("none of the candidate log formats matched %s", sample)
-}
-
 // ---------------- GoAccess realtime ----------------
 
 func ensureGoAccessDaemon() error {
@@ -261,38 +161,19 @@ func ensureGoAccessDaemon() error {
 	outputPath := filepath.Join(statsDir, "goaccess.html")
 	pidFile := filepath.Join(statsDir, "goaccess.pid")
 
-	// 3) logs NPM: proxy-host + default-host
-	var files []string
-	globs := []string{
-		filepath.Join(logDir, "proxy-host-*_access.log"),
-		filepath.Join(logDir, "default-host*_access.log"),
-	}
-	seen := map[string]struct{}{}
-	for _, g := range globs {
-		m, _ := filepath.Glob(g)
-		for _, f := range m {
-			if _, ok := seen[f]; !ok {
-				seen[f] = struct{}{}
-				files = append(files, f)
-			}
-		}
+	// 3) logs NPM
+	pattern := filepath.Join(logDir, "proxy-host-*_access.log")
+	files, err := filepath.Glob(pattern)
+	if err != nil {
+		return fmt.Errorf("listing logs: %w", err)
 	}
 	if len(files) == 0 {
-		return fmt.Errorf("no logs found in %s", logDir)
+		return fmt.Errorf("no logs found in %s", pattern)
 	}
 
-	// 4) detectar formato
-	dateFmt, timeFmt, logFmt, chosen, derr := detectLogFormat(files)
-	if derr != nil {
-		fmt.Println("[GoAccess] WARN format detect failed:", derr.Error())
-		dateFmt = "%d/%b/%Y"
-		timeFmt = "%T"
-		logFmt = `%h %^[%d:%t %^] "%r" %s %b "%R" "%u"`
-		chosen = "fallback-combined"
-	}
-	fmt.Printf("[GoAccess] using format: %s\n", chosen)
+	// 4) flags
+	logFormat := `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] [Gzip %^] [Sent-to %^] "%u" "%R"`
 
-	// 5) base + ws/origin
 	base := strings.TrimSpace(env512.MAIN_LINK)
 	if base == "" {
 		base = "http://localhost"
@@ -310,27 +191,26 @@ func ensureGoAccessDaemon() error {
 	fmt.Println("[GoAccess] ws-url =", publicWSURL)
 	fmt.Println("[GoAccess] origin =", origin)
 
-	// 6) reiniciar se ws-url mudou no HTML
+	// 5) se já está a correr mas o HTML não tem o ws-url atual → reinicia
 	if isPortListening(goAccessWSAddr) && fileExists(outputPath) && !fileContains(outputPath, publicWSURL) {
 		stopGoAccessIfRunning(pidFile)
 	}
-	// 7) se já está ok, sai
+
+	// 6) se continua a correr e HTML existe → ok
 	if isPortListening(goAccessWSAddr) && fileExists(outputPath) {
 		return nil
 	}
 
-	// 8) args
 	args := append([]string{}, files...)
 	args = append(args,
 		"--no-global-config",
-		"--date-format="+dateFmt,
-		"--time-format="+timeFmt,
-		"--log-format="+logFmt,
+		"--date-format=%d/%b/%Y",
+		"--time-format=%T",
+		"--log-format="+logFormat,
 		"--real-time-html",
 		"--persist",
 		"--restore",
 		"--pid-file="+pidFile,
-		"--unknowns-log=/tmp/goaccess-unknowns.log",
 		"-o", outputPath,
 		"--addr=127.0.0.1",
 		"--port="+strings.Split(goAccessWSAddr, ":")[1],
@@ -338,7 +218,6 @@ func ensureGoAccessDaemon() error {
 		"--origin="+origin,
 	)
 
-	// painéis
 	enablePanels := env512.GoAccessEnablePanels
 	disablePanels := env512.GoAccessDisablePanels
 	if len(enablePanels) == 0 && len(disablePanels) == 0 {
@@ -351,7 +230,6 @@ func ensureGoAccessDaemon() error {
 		args = append(args, "--ignore-panel="+p)
 	}
 
-	// debug / daemonize
 	if debugGoAccess {
 		args = append(args, "--debug-file=/tmp/goaccess-debug.log")
 		fmt.Println("[GoAccess] args:", strings.Join(args, " "))
@@ -359,12 +237,12 @@ func ensureGoAccessDaemon() error {
 		args = append(args, "--daemonize")
 	}
 
-	// 9) run
 	cmd := exec.Command("goaccess", args...)
 	cmd.Dir = logDir
 	var stderr bytes.Buffer
 	cmd.Stdout = io.Discard
 	cmd.Stderr = &stderr
+
 	if err := cmd.Run(); err != nil {
 		msg := strings.TrimSpace(stderr.String())
 		if msg == "" {
@@ -376,7 +254,7 @@ func ensureGoAccessDaemon() error {
 		return fmt.Errorf("starting GoAccess realtime: %s", msg)
 	}
 
-	// 10) espera
+	// 7) espera pelo WS/HTML
 	for i := 0; i < 20; i++ {
 		if isPortListening(goAccessWSAddr) && fileExists(outputPath) {
 			return nil
@@ -388,36 +266,45 @@ func ensureGoAccessDaemon() error {
 
 // ---------------- WS túnel e página ----------------
 
-// Túnel WS manual (hijack).
+// Túnel WS manual: evita problemas do ReverseProxy com Upgrade.
 func wsTunnelToGoAccess(w http.ResponseWriter, r *http.Request) {
-	// browsers costumam mandar "keep-alive, Upgrade"
-	if !strings.Contains(strings.ToLower(r.Header.Get("Connection")), "upgrade") ||
+	// só aceitamos Upgrade: websocket
+	if !strings.EqualFold(r.Header.Get("Connection"), "Upgrade") ||
 		!strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
 		http.Error(w, "upgrade required", http.StatusBadRequest)
 		return
 	}
 
+	// liga ao backend WS do GoAccess
 	back, err := net.DialTimeout("tcp", goAccessWSAddr, 5*time.Second)
 	if err != nil {
 		http.Error(w, "backend ws unavailable", http.StatusBadGateway)
 		return
 	}
 
-	// pedido ao backend, preservando query (?p=...)
+	// cria um pedido novo para o backend, preserva a query (?p=...)
 	req := r.Clone(context.Background())
-	req.URL = &url.URL{Scheme: "http", Host: goAccessWSAddr, Path: "/", RawQuery: r.URL.RawQuery}
+	req.URL = &url.URL{
+		Scheme:   "http",
+		Host:     goAccessWSAddr,
+		Path:     "/",
+		RawQuery: r.URL.RawQuery,
+	}
 	req.Host = goAccessWSAddr
-	req.RequestURI = ""
+	req.RequestURI = "" // obrigatório para clientes http
+	// reforça cabeçalhos de upgrade
 	req.Header = r.Header.Clone()
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", "websocket")
 
+	// envia o handshake para o backend
 	if err := req.Write(back); err != nil {
 		_ = back.Close()
 		http.Error(w, "failed to write backend handshake", http.StatusBadGateway)
 		return
 	}
 
+	// hijack do cliente para tunnel raw
 	hj, ok := w.(http.Hijacker)
 	if !ok {
 		_ = back.Close()
@@ -431,10 +318,19 @@ func wsTunnelToGoAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// pump nos dois sentidos
 	errCh := make(chan struct{}, 2)
-	go func() { _, _ = io.Copy(back, clientConn); _ = back.Close(); errCh <- struct{}{} }()
-	go func() { _, _ = io.Copy(clientConn, back); _ = clientConn.Close(); errCh <- struct{}{} }()
-	<-errCh
+	go func() {
+		_, _ = io.Copy(back, clientConn)
+		_ = back.Close()
+		errCh <- struct{}{}
+	}()
+	go func() {
+		_, _ = io.Copy(clientConn, back)
+		_ = clientConn.Close()
+		errCh <- struct{}{}
+	}()
+	<-errCh // fecha quando uma das direções termina
 }
 
 func goAccessPageHandler(w http.ResponseWriter, r *http.Request) {
@@ -455,6 +351,7 @@ func goAccessPageHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// desativar cache do HTML no cliente e proxies
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expires", "0")
@@ -467,5 +364,7 @@ func goAccessPageHandler(w http.ResponseWriter, r *http.Request) {
 
 func setupGoAccessAPI(r chi.Router) {
 	r.Get("/goaccess", goAccessPageHandler)
+	// WebSocket público → túnel raw para 127.0.0.1:7891/
 	r.HandleFunc(goAccessPublicWSPath, wsTunnelToGoAccess)
 }
+	
