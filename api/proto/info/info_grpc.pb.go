@@ -23,6 +23,10 @@ const (
 	Info_GetMemSummary_FullMethodName     = "/info.Info/GetMemSummary"
 	Info_GetDiskSummary_FullMethodName    = "/info.Info/GetDiskSummary"
 	Info_GetNetworkSummary_FullMethodName = "/info.Info/GetNetworkSummary"
+	Info_GetProcesses_FullMethodName      = "/info.Info/GetProcesses"
+	Info_GetProcessByPID_FullMethodName   = "/info.Info/GetProcessByPID"
+	Info_KillProcess_FullMethodName       = "/info.Info/KillProcess"
+	Info_TerminateProcess_FullMethodName  = "/info.Info/TerminateProcess"
 	Info_StressCPU_FullMethodName         = "/info.Info/StressCPU"
 	Info_TestRamMEM_FullMethodName        = "/info.Info/TestRamMEM"
 )
@@ -35,6 +39,10 @@ type InfoClient interface {
 	GetMemSummary(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*MemSummary, error)
 	GetDiskSummary(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*DiskSummary, error)
 	GetNetworkSummary(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NetworkSummary, error)
+	GetProcesses(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ProcessList, error)
+	GetProcessByPID(ctx context.Context, in *ProcessPIDRequest, opts ...grpc.CallOption) (*ProcessStruct, error)
+	KillProcess(ctx context.Context, in *ProcessPIDRequest, opts ...grpc.CallOption) (*Ok, error)
+	TerminateProcess(ctx context.Context, in *ProcessPIDRequest, opts ...grpc.CallOption) (*Ok, error)
 	StressCPU(ctx context.Context, in *StressCPUParams, opts ...grpc.CallOption) (*Empty, error)
 	TestRamMEM(ctx context.Context, in *TestRamMEMParams, opts ...grpc.CallOption) (*Ok, error)
 }
@@ -87,6 +95,46 @@ func (c *infoClient) GetNetworkSummary(ctx context.Context, in *Empty, opts ...g
 	return out, nil
 }
 
+func (c *infoClient) GetProcesses(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ProcessList, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ProcessList)
+	err := c.cc.Invoke(ctx, Info_GetProcesses_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *infoClient) GetProcessByPID(ctx context.Context, in *ProcessPIDRequest, opts ...grpc.CallOption) (*ProcessStruct, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ProcessStruct)
+	err := c.cc.Invoke(ctx, Info_GetProcessByPID_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *infoClient) KillProcess(ctx context.Context, in *ProcessPIDRequest, opts ...grpc.CallOption) (*Ok, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Ok)
+	err := c.cc.Invoke(ctx, Info_KillProcess_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *infoClient) TerminateProcess(ctx context.Context, in *ProcessPIDRequest, opts ...grpc.CallOption) (*Ok, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Ok)
+	err := c.cc.Invoke(ctx, Info_TerminateProcess_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *infoClient) StressCPU(ctx context.Context, in *StressCPUParams, opts ...grpc.CallOption) (*Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(Empty)
@@ -115,6 +163,10 @@ type InfoServer interface {
 	GetMemSummary(context.Context, *Empty) (*MemSummary, error)
 	GetDiskSummary(context.Context, *Empty) (*DiskSummary, error)
 	GetNetworkSummary(context.Context, *Empty) (*NetworkSummary, error)
+	GetProcesses(context.Context, *Empty) (*ProcessList, error)
+	GetProcessByPID(context.Context, *ProcessPIDRequest) (*ProcessStruct, error)
+	KillProcess(context.Context, *ProcessPIDRequest) (*Ok, error)
+	TerminateProcess(context.Context, *ProcessPIDRequest) (*Ok, error)
 	StressCPU(context.Context, *StressCPUParams) (*Empty, error)
 	TestRamMEM(context.Context, *TestRamMEMParams) (*Ok, error)
 	mustEmbedUnimplementedInfoServer()
@@ -135,6 +187,18 @@ func (UnimplementedInfoServer) GetDiskSummary(context.Context, *Empty) (*DiskSum
 }
 func (UnimplementedInfoServer) GetNetworkSummary(context.Context, *Empty) (*NetworkSummary, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetNetworkSummary not implemented")
+}
+func (UnimplementedInfoServer) GetProcesses(context.Context, *Empty) (*ProcessList, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProcesses not implemented")
+}
+func (UnimplementedInfoServer) GetProcessByPID(context.Context, *ProcessPIDRequest) (*ProcessStruct, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProcessByPID not implemented")
+}
+func (UnimplementedInfoServer) KillProcess(context.Context, *ProcessPIDRequest) (*Ok, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method KillProcess not implemented")
+}
+func (UnimplementedInfoServer) TerminateProcess(context.Context, *ProcessPIDRequest) (*Ok, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TerminateProcess not implemented")
 }
 func (UnimplementedInfoServer) StressCPU(context.Context, *StressCPUParams) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StressCPU not implemented")
@@ -227,6 +291,78 @@ func _Info_GetNetworkSummary_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Info_GetProcesses_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InfoServer).GetProcesses(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Info_GetProcesses_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InfoServer).GetProcesses(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Info_GetProcessByPID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProcessPIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InfoServer).GetProcessByPID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Info_GetProcessByPID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InfoServer).GetProcessByPID(ctx, req.(*ProcessPIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Info_KillProcess_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProcessPIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InfoServer).KillProcess(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Info_KillProcess_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InfoServer).KillProcess(ctx, req.(*ProcessPIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Info_TerminateProcess_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProcessPIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InfoServer).TerminateProcess(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Info_TerminateProcess_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InfoServer).TerminateProcess(ctx, req.(*ProcessPIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Info_StressCPU_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(StressCPUParams)
 	if err := dec(in); err != nil {
@@ -285,6 +421,22 @@ var Info_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetNetworkSummary",
 			Handler:    _Info_GetNetworkSummary_Handler,
+		},
+		{
+			MethodName: "GetProcesses",
+			Handler:    _Info_GetProcesses_Handler,
+		},
+		{
+			MethodName: "GetProcessByPID",
+			Handler:    _Info_GetProcessByPID_Handler,
+		},
+		{
+			MethodName: "KillProcess",
+			Handler:    _Info_KillProcess_Handler,
+		},
+		{
+			MethodName: "TerminateProcess",
+			Handler:    _Info_TerminateProcess_Handler,
 		},
 		{
 			MethodName: "StressCPU",

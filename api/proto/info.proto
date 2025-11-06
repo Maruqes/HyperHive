@@ -92,6 +92,41 @@ message NetworkSummary {
 	map<string, uint64> usage = 3;
 }
 
+message ProcessStruct {
+	int32 pid = 1;
+	string name = 2;
+	string status = 3;
+	string username = 4;
+	double cpu_percent = 5;
+	float memory_percent = 6;
+	uint64 memory_rss = 7;
+	uint64 memory_vms = 8;
+	int32 num_threads = 9;
+	int32 num_fds = 10;
+	int64 create_time = 11;
+	uint64 read_bytes = 12;
+	uint64 write_bytes = 13;
+	uint64 read_count = 14;
+	uint64 write_count = 15;
+	uint64 net_bytes_sent = 16;
+	uint64 net_bytes_recv = 17;
+	uint64 net_packets_sent = 18;
+	uint64 net_packets_recv = 19;
+	int32 net_connections = 20;
+	string cmd_line = 21;
+	string cwd = 22;
+	int32 nice = 23;
+	int64 num_ctx_switches = 24;
+}
+
+message ProcessList {
+	repeated ProcessStruct processes = 1;
+}
+
+message ProcessPIDRequest {
+	int32 pid = 1;
+}
+
 
 message StressCPUParams{
 	int32 numVCPU = 1;
@@ -108,9 +143,12 @@ service Info {
 	rpc GetMemSummary(Empty)returns(MemSummary);
 	rpc GetDiskSummary(Empty)returns(DiskSummary);
 	rpc GetNetworkSummary(Empty)returns(NetworkSummary);
+	rpc GetProcesses(Empty)returns(ProcessList);
+	rpc GetProcessByPID(ProcessPIDRequest)returns(ProcessStruct);
+	rpc KillProcess(ProcessPIDRequest)returns(Ok);
+	rpc TerminateProcess(ProcessPIDRequest)returns(Ok);
 
 	rpc StressCPU(StressCPUParams)returns(Empty);
 	rpc TestRamMEM(TestRamMEMParams)returns(Ok);
 }
-
 

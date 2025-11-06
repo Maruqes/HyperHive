@@ -1,6 +1,8 @@
 package api
 
 import (
+	"512SvMan/db"
+	"512SvMan/protocol"
 	"512SvMan/services"
 	"encoding/json"
 	"errors"
@@ -12,104 +14,12 @@ import (
 
 	infoGrpc "github.com/Maruqes/512SvMan/api/proto/info"
 	"github.com/go-chi/chi/v5"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
-//no futuro enviar as infos por socket e atualizar no momento :D
-
-func getCpuInfo(w http.ResponseWriter, r *http.Request) {
-	machineName := chi.URLParam(r, "machine_name")
-	if machineName == "" {
-		http.Error(w, "machine_name is required", http.StatusBadRequest)
-		return
-	}
-
-	infoService := &services.InfoService{}
-
-	info, err := infoService.GetCPUInfo(machineName)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	data, err := json.Marshal(info)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Write(data)
-}
-
-func getMemSummary(w http.ResponseWriter, r *http.Request) {
-	machineName := chi.URLParam(r, "machine_name")
-	if machineName == "" {
-		http.Error(w, "machine_name is required", http.StatusBadRequest)
-		return
-	}
-
-	infoService := &services.InfoService{}
-
-	info, err := infoService.GetMemSummary(machineName)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	data, err := json.Marshal(info)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Write(data)
-}
-
-func getDiskSummary(w http.ResponseWriter, r *http.Request) {
-	machineName := chi.URLParam(r, "machine_name")
-	if machineName == "" {
-		http.Error(w, "machine_name is required", http.StatusBadRequest)
-		return
-	}
-
-	infoService := &services.InfoService{}
-
-	info, err := infoService.GetDiskSummary(machineName)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	data, err := json.Marshal(info)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Write(data)
-}
-
-func getNetworkSummary(w http.ResponseWriter, r *http.Request) {
-	machineName := chi.URLParam(r, "machine_name")
-	if machineName == "" {
-		http.Error(w, "machine_name is required", http.StatusBadRequest)
-		return
-	}
-
-	infoService := &services.InfoService{}
-
-	info, err := infoService.GetNetworkSummary(machineName)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	data, err := json.Marshal(info)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Write(data)
+var protoJSONMarshaler = protojson.MarshalOptions{
+	EmitUnpopulated: true,
 }
 
 type historyRequest struct {
@@ -117,6 +27,87 @@ type historyRequest struct {
 	Days   *int `json:"days"`
 	Weeks  *int `json:"weeks"`
 	Months *int `json:"months"`
+}
+
+type snapshotResponse struct {
+	ID          int             `json:"id"`
+	MachineName string          `json:"machine_name"`
+	CapturedAt  time.Time       `json:"captured_at"`
+	Info        json.RawMessage `json:"info"`
+}
+
+func writeJSON(w http.ResponseWriter, data any) bool {
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return false
+	}
+	return true
+}
+
+func protoToRaw(msg proto.Message) (json.RawMessage, error) {
+	if msg == nil {
+		return json.RawMessage("null"), nil
+	}
+	bytes, err := protoJSONMarshaler.Marshal(msg)
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(bytes), nil
+}
+
+func writeProto(w http.ResponseWriter, msg proto.Message) bool {
+	raw, err := protoToRaw(msg)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return false
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if _, err := w.Write(raw); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return false
+	}
+	return true
+}
+
+func collectProtoMap(machines []string, fetch func(string) (proto.Message, error)) (map[string]json.RawMessage, error) {
+	result := make(map[string]json.RawMessage, len(machines))
+	for _, name := range machines {
+		msg, err := fetch(name)
+		if err != nil {
+			continue
+		}
+		raw, err := protoToRaw(msg)
+		if err != nil {
+			return nil, err
+		}
+		result[name] = raw
+	}
+	return result, nil
+}
+
+func convertSnapshots(snaps []snapshotCarrier) ([]snapshotResponse, error) {
+	out := make([]snapshotResponse, 0, len(snaps))
+	for _, snap := range snaps {
+		raw, err := protoToRaw(snap.info)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, snapshotResponse{
+			ID:          snap.id,
+			MachineName: snap.machine,
+			CapturedAt:  snap.capturedAt,
+			Info:        raw,
+		})
+	}
+	return out, nil
+}
+
+type snapshotCarrier struct {
+	id         int
+	machine    string
+	capturedAt time.Time
+	info       proto.Message
 }
 
 func parseRelativeDuration(value *int, unit time.Duration) time.Duration {
@@ -184,26 +175,232 @@ func parseHistoryDuration(r *http.Request) (time.Duration, error) {
 	return body.duration(), nil
 }
 
-func respondHistory[T any](machineName string, duration time.Duration, fetch func(string, time.Duration) ([]T, error), w http.ResponseWriter) {
+// summary handlers
+
+func getCpuInfo(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	infoService := &services.InfoService{}
+
 	if machineName == "" {
-		http.Error(w, "machine_name is required", http.StatusBadRequest)
-		return
-	}
-	if duration <= 0 {
-		http.Error(w, "duration must be provided either via query param or body (hours/days/weeks/months)", http.StatusBadRequest)
+		machines := protocol.GetAllMachineNames()
+		response, err := collectProtoMap(machines, func(name string) (proto.Message, error) {
+			return infoService.GetCPUInfo(name)
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if len(response) == 0 {
+			http.Error(w, "no machine data available", http.StatusNotFound)
+			return
+		}
+		writeJSON(w, response)
 		return
 	}
 
-	data, err := fetch(machineName, duration)
+	info, err := infoService.GetCPUInfo(machineName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(data); err != nil {
+	writeProto(w, info)
+}
+
+func getMemSummary(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	infoService := &services.InfoService{}
+
+	if machineName == "" {
+		machines := protocol.GetAllMachineNames()
+		response, err := collectProtoMap(machines, func(name string) (proto.Message, error) {
+			return infoService.GetMemSummary(name)
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if len(response) == 0 {
+			http.Error(w, "no machine data available", http.StatusNotFound)
+			return
+		}
+		writeJSON(w, response)
+		return
+	}
+
+	info, err := infoService.GetMemSummary(machineName)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	writeProto(w, info)
+}
+
+func getDiskSummary(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	infoService := &services.InfoService{}
+
+	if machineName == "" {
+		machines := protocol.GetAllMachineNames()
+		response, err := collectProtoMap(machines, func(name string) (proto.Message, error) {
+			return infoService.GetDiskSummary(name)
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if len(response) == 0 {
+			http.Error(w, "no machine data available", http.StatusNotFound)
+			return
+		}
+		writeJSON(w, response)
+		return
+	}
+
+	info, err := infoService.GetDiskSummary(machineName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeProto(w, info)
+}
+
+func getNetworkSummary(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	infoService := &services.InfoService{}
+
+	if machineName == "" {
+		machines := protocol.GetAllMachineNames()
+		response, err := collectProtoMap(machines, func(name string) (proto.Message, error) {
+			return infoService.GetNetworkSummary(name)
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if len(response) == 0 {
+			http.Error(w, "no machine data available", http.StatusNotFound)
+			return
+		}
+		writeJSON(w, response)
+		return
+	}
+
+	info, err := infoService.GetNetworkSummary(machineName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeProto(w, info)
+}
+
+func getProcesses(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	infoService := &services.InfoService{}
+	processes, err := infoService.GetProcesses(machineName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeProto(w, processes)
+}
+
+func getProcessByPID(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	pidParam := chi.URLParam(r, "pid")
+	if pidParam == "" {
+		http.Error(w, "pid is required", http.StatusBadRequest)
+		return
+	}
+
+	pid64, err := strconv.ParseInt(pidParam, 10, 32)
+	if err != nil {
+		http.Error(w, "invalid pid", http.StatusBadRequest)
+		return
+	}
+
+	infoService := &services.InfoService{}
+	process, err := infoService.GetProcessByPID(machineName, int32(pid64))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeProto(w, process)
+}
+
+func killProcess(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	pidParam := chi.URLParam(r, "pid")
+	if pidParam == "" {
+		http.Error(w, "pid is required", http.StatusBadRequest)
+		return
+	}
+
+	pid64, err := strconv.ParseInt(pidParam, 10, 32)
+	if err != nil {
+		http.Error(w, "invalid pid", http.StatusBadRequest)
+		return
+	}
+
+	infoService := &services.InfoService{}
+	resp, err := infoService.KillProcess(machineName, int32(pid64))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeProto(w, resp)
+}
+
+func terminateProcess(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	pidParam := chi.URLParam(r, "pid")
+	if pidParam == "" {
+		http.Error(w, "pid is required", http.StatusBadRequest)
+		return
+	}
+
+	pid64, err := strconv.ParseInt(pidParam, 10, 32)
+	if err != nil {
+		http.Error(w, "invalid pid", http.StatusBadRequest)
+		return
+	}
+
+	infoService := &services.InfoService{}
+	resp, err := infoService.TerminateProcess(machineName, int32(pid64))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeProto(w, resp)
+}
+
+// history handlers
+
+func buildSnapshotCarriers[T any](snaps []T, accessor func(T) snapshotCarrier) []snapshotCarrier {
+	res := make([]snapshotCarrier, 0, len(snaps))
+	for _, snap := range snaps {
+		res = append(res, accessor(snap))
+	}
+	return res
 }
 
 func getCPUHistory(w http.ResponseWriter, r *http.Request) {
@@ -213,8 +410,63 @@ func getCPUHistory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid duration: "+err.Error(), http.StatusBadRequest)
 		return
 	}
+	if duration <= 0 {
+		http.Error(w, "duration must be provided either via query param or body (hours/days/weeks/months)", http.StatusBadRequest)
+		return
+	}
+
 	infoService := &services.InfoService{}
-	respondHistory(machineName, duration, infoService.GetCPUHistory, w)
+
+	if machineName == "" {
+		machines := protocol.GetAllMachineNames()
+		response := make(map[string][]snapshotResponse)
+		for _, name := range machines {
+			snaps, err := infoService.GetCPUHistory(name, duration)
+			if err != nil {
+				continue
+			}
+			carriers := buildSnapshotCarriers(snaps, func(s db.CPUSnapshot) snapshotCarrier {
+				return snapshotCarrier{
+					id:         s.ID,
+					machine:    s.MachineName,
+					capturedAt: s.CapturedAt,
+					info:       s.Info,
+				}
+			})
+			converted, err := convertSnapshots(carriers)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			response[name] = converted
+		}
+		if len(response) == 0 {
+			http.Error(w, "no machine data available", http.StatusNotFound)
+			return
+		}
+		writeJSON(w, response)
+		return
+	}
+
+	snaps, err := infoService.GetCPUHistory(machineName, duration)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	carriers := buildSnapshotCarriers(snaps, func(s db.CPUSnapshot) snapshotCarrier {
+		return snapshotCarrier{
+			id:         s.ID,
+			machine:    s.MachineName,
+			capturedAt: s.CapturedAt,
+			info:       s.Info,
+		}
+	})
+	converted, err := convertSnapshots(carriers)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, converted)
 }
 
 func getMemHistory(w http.ResponseWriter, r *http.Request) {
@@ -224,8 +476,63 @@ func getMemHistory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid duration: "+err.Error(), http.StatusBadRequest)
 		return
 	}
+	if duration <= 0 {
+		http.Error(w, "duration must be provided either via query param or body (hours/days/weeks/months)", http.StatusBadRequest)
+		return
+	}
+
 	infoService := &services.InfoService{}
-	respondHistory(machineName, duration, infoService.GetMemHistory, w)
+
+	if machineName == "" {
+		machines := protocol.GetAllMachineNames()
+		response := make(map[string][]snapshotResponse)
+		for _, name := range machines {
+			snaps, err := infoService.GetMemHistory(name, duration)
+			if err != nil {
+				continue
+			}
+			carriers := buildSnapshotCarriers(snaps, func(s db.MemSnapshot) snapshotCarrier {
+				return snapshotCarrier{
+					id:         s.ID,
+					machine:    s.MachineName,
+					capturedAt: s.CapturedAt,
+					info:       s.Info,
+				}
+			})
+			converted, err := convertSnapshots(carriers)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			response[name] = converted
+		}
+		if len(response) == 0 {
+			http.Error(w, "no machine data available", http.StatusNotFound)
+			return
+		}
+		writeJSON(w, response)
+		return
+	}
+
+	snaps, err := infoService.GetMemHistory(machineName, duration)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	carriers := buildSnapshotCarriers(snaps, func(s db.MemSnapshot) snapshotCarrier {
+		return snapshotCarrier{
+			id:         s.ID,
+			machine:    s.MachineName,
+			capturedAt: s.CapturedAt,
+			info:       s.Info,
+		}
+	})
+	converted, err := convertSnapshots(carriers)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, converted)
 }
 
 func getDiskHistory(w http.ResponseWriter, r *http.Request) {
@@ -235,8 +542,63 @@ func getDiskHistory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid duration: "+err.Error(), http.StatusBadRequest)
 		return
 	}
+	if duration <= 0 {
+		http.Error(w, "duration must be provided either via query param or body (hours/days/weeks/months)", http.StatusBadRequest)
+		return
+	}
+
 	infoService := &services.InfoService{}
-	respondHistory(machineName, duration, infoService.GetDiskHistory, w)
+
+	if machineName == "" {
+		machines := protocol.GetAllMachineNames()
+		response := make(map[string][]snapshotResponse)
+		for _, name := range machines {
+			snaps, err := infoService.GetDiskHistory(name, duration)
+			if err != nil {
+				continue
+			}
+			carriers := buildSnapshotCarriers(snaps, func(s db.DiskSnapshot) snapshotCarrier {
+				return snapshotCarrier{
+					id:         s.ID,
+					machine:    s.MachineName,
+					capturedAt: s.CapturedAt,
+					info:       s.Info,
+				}
+			})
+			converted, err := convertSnapshots(carriers)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			response[name] = converted
+		}
+		if len(response) == 0 {
+			http.Error(w, "no machine data available", http.StatusNotFound)
+			return
+		}
+		writeJSON(w, response)
+		return
+	}
+
+	snaps, err := infoService.GetDiskHistory(machineName, duration)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	carriers := buildSnapshotCarriers(snaps, func(s db.DiskSnapshot) snapshotCarrier {
+		return snapshotCarrier{
+			id:         s.ID,
+			machine:    s.MachineName,
+			capturedAt: s.CapturedAt,
+			info:       s.Info,
+		}
+	})
+	converted, err := convertSnapshots(carriers)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, converted)
 }
 
 func getNetworkHistory(w http.ResponseWriter, r *http.Request) {
@@ -246,8 +608,63 @@ func getNetworkHistory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid duration: "+err.Error(), http.StatusBadRequest)
 		return
 	}
+	if duration <= 0 {
+		http.Error(w, "duration must be provided either via query param or body (hours/days/weeks/months)", http.StatusBadRequest)
+		return
+	}
+
 	infoService := &services.InfoService{}
-	respondHistory(machineName, duration, infoService.GetNetworkHistory, w)
+
+	if machineName == "" {
+		machines := protocol.GetAllMachineNames()
+		response := make(map[string][]snapshotResponse)
+		for _, name := range machines {
+			snaps, err := infoService.GetNetworkHistory(name, duration)
+			if err != nil {
+				continue
+			}
+			carriers := buildSnapshotCarriers(snaps, func(s db.NetworkSnapshot) snapshotCarrier {
+				return snapshotCarrier{
+					id:         s.ID,
+					machine:    s.MachineName,
+					capturedAt: s.CapturedAt,
+					info:       s.Info,
+				}
+			})
+			converted, err := convertSnapshots(carriers)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			response[name] = converted
+		}
+		if len(response) == 0 {
+			http.Error(w, "no machine data available", http.StatusNotFound)
+			return
+		}
+		writeJSON(w, response)
+		return
+	}
+
+	snaps, err := infoService.GetNetworkHistory(machineName, duration)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	carriers := buildSnapshotCarriers(snaps, func(s db.NetworkSnapshot) snapshotCarrier {
+		return snapshotCarrier{
+			id:         s.ID,
+			machine:    s.MachineName,
+			capturedAt: s.CapturedAt,
+			info:       s.Info,
+		}
+	})
+	converted, err := convertSnapshots(carriers)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, converted)
 }
 
 func stressCPU(w http.ResponseWriter, r *http.Request) {
@@ -309,13 +726,7 @@ func testRamMEM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	data, err := json.Marshal(result)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Write(data)
+	writeJSON(w, map[string]string{"message": result})
 }
 
 func setupInfoAPI(r chi.Router) chi.Router {
@@ -324,6 +735,10 @@ func setupInfoAPI(r chi.Router) chi.Router {
 		r.Get("/mem/{machine_name}", getMemSummary)
 		r.Get("/disk/{machine_name}", getDiskSummary)
 		r.Get("/network/{machine_name}", getNetworkSummary)
+		r.Get("/processes/{machine_name}", getProcesses)
+		r.Get("/processes/{machine_name}/{pid}", getProcessByPID)
+		r.Post("/processes/{machine_name}/{pid}/kill", killProcess)
+		r.Post("/processes/{machine_name}/{pid}/terminate", terminateProcess)
 		r.Get("/history/cpu/{machine_name}", getCPUHistory)
 		r.Get("/history/mem/{machine_name}", getMemHistory)
 		r.Get("/history/disk/{machine_name}", getDiskHistory)

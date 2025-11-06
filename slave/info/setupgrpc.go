@@ -10,6 +10,39 @@ type INFOService struct {
 	infoGrpc.UnimplementedInfoServer
 }
 
+func processStructToProto(proc *ProcessStruct) *infoGrpc.ProcessStruct {
+	if proc == nil {
+		return nil
+	}
+
+	return &infoGrpc.ProcessStruct{
+		Pid:            proc.PID,
+		Name:           proc.Name,
+		Status:         proc.Status,
+		Username:       proc.Username,
+		CpuPercent:     proc.CPUPercent,
+		MemoryPercent:  proc.MemoryPercent,
+		MemoryRss:      proc.MemoryRSS,
+		MemoryVms:      proc.MemoryVMS,
+		NumThreads:     proc.NumThreads,
+		NumFds:         proc.NumFDs,
+		CreateTime:     proc.CreateTime,
+		ReadBytes:      proc.ReadBytes,
+		WriteBytes:     proc.WriteBytes,
+		ReadCount:      proc.ReadCount,
+		WriteCount:     proc.WriteCount,
+		NetBytesSent:   proc.NetBytesSent,
+		NetBytesRecv:   proc.NetBytesRecv,
+		NetPacketsSent: proc.NetPacketsSent,
+		NetPacketsRecv: proc.NetPacketsRecv,
+		NetConnections: proc.NetConnections,
+		CmdLine:        proc.CmdLine,
+		Cwd:            proc.Cwd,
+		Nice:           proc.Nice,
+		NumCtxSwitches: proc.NumCtxSwitches,
+	}
+}
+
 func (s *INFOService) GetCPUInfo(ctx context.Context, req *infoGrpc.Empty) (*infoGrpc.CPUCoreInfo, error) {
 	info, err := CPUInfo.GetCPUInfo()
 	if err != nil {
@@ -122,6 +155,45 @@ func (s *INFOService) GetNetworkSummary(ctx context.Context, req *infoGrpc.Empty
 		Stats:      stats,
 		Usage:      info.Usage,
 	}, nil
+}
+
+func (s *INFOService) GetProcesses(ctx context.Context, req *infoGrpc.Empty) (*infoGrpc.ProcessList, error) {
+	processes, err := ProcessInfo.GetProcesses()
+	if err != nil {
+		return nil, err
+	}
+
+	protoProcesses := make([]*infoGrpc.ProcessStruct, 0, len(processes))
+	for i := range processes {
+		protoProcesses = append(protoProcesses, processStructToProto(&processes[i]))
+	}
+
+	return &infoGrpc.ProcessList{Processes: protoProcesses}, nil
+}
+
+func (s *INFOService) GetProcessByPID(ctx context.Context, req *infoGrpc.ProcessPIDRequest) (*infoGrpc.ProcessStruct, error) {
+	proc, err := ProcessInfo.GetProcessByPID(req.GetPid())
+	if err != nil {
+		return nil, err
+	}
+
+	return processStructToProto(proc), nil
+}
+
+func (s *INFOService) KillProcess(ctx context.Context, req *infoGrpc.ProcessPIDRequest) (*infoGrpc.Ok, error) {
+	if err := ProcessInfo.KillProcess(req.GetPid()); err != nil {
+		return nil, err
+	}
+
+	return &infoGrpc.Ok{Resp: "OK"}, nil
+}
+
+func (s *INFOService) TerminateProcess(ctx context.Context, req *infoGrpc.ProcessPIDRequest) (*infoGrpc.Ok, error) {
+	if err := ProcessInfo.TerminateProcess(req.GetPid()); err != nil {
+		return nil, err
+	}
+
+	return &infoGrpc.Ok{Resp: "OK"}, nil
 }
 
 func (s *INFOService) StressCPU(ctx context.Context, req *infoGrpc.StressCPUParams) (*infoGrpc.Empty, error) {

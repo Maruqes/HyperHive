@@ -27,6 +27,26 @@ func GetNetworkSummary(conn *grpc.ClientConn, empty *infoGrpc.Empty) (*infoGrpc.
 	return client.GetNetworkSummary(context.Background(), empty)
 }
 
+func GetProcesses(conn *grpc.ClientConn, empty *infoGrpc.Empty) (*infoGrpc.ProcessList, error) {
+	client := infoGrpc.NewInfoClient(conn)
+	return client.GetProcesses(context.Background(), empty)
+}
+
+func GetProcessByPID(conn *grpc.ClientConn, req *infoGrpc.ProcessPIDRequest) (*infoGrpc.ProcessStruct, error) {
+	client := infoGrpc.NewInfoClient(conn)
+	return client.GetProcessByPID(context.Background(), req)
+}
+
+func KillProcess(conn *grpc.ClientConn, req *infoGrpc.ProcessPIDRequest) (*infoGrpc.Ok, error) {
+	client := infoGrpc.NewInfoClient(conn)
+	return client.KillProcess(context.Background(), req)
+}
+
+func TerminateProcess(conn *grpc.ClientConn, req *infoGrpc.ProcessPIDRequest) (*infoGrpc.Ok, error) {
+	client := infoGrpc.NewInfoClient(conn)
+	return client.TerminateProcess(context.Background(), req)
+}
+
 func StressCPU(ctx context.Context, conn *grpc.ClientConn, params *infoGrpc.StressCPUParams) (*infoGrpc.Empty, error) {
 	client := infoGrpc.NewInfoClient(conn)
 	return client.StressCPU(ctx, params)

@@ -50,6 +50,42 @@ func (s *InfoService) GetNetworkSummary(machineName string) (*infoGrpc.NetworkSu
 	return info.GetNetworkSummary(conStruct.Connection, &infoGrpc.Empty{})
 }
 
+func (s *InfoService) GetProcesses(machineName string) (*infoGrpc.ProcessList, error) {
+	conStruct := protocol.GetConnectionByMachineName(machineName)
+	if conStruct == nil || conStruct.Connection == nil {
+		return nil, fmt.Errorf("slave %s not found or not connected", machineName)
+	}
+
+	return info.GetProcesses(conStruct.Connection, &infoGrpc.Empty{})
+}
+
+func (s *InfoService) GetProcessByPID(machineName string, pid int32) (*infoGrpc.ProcessStruct, error) {
+	conStruct := protocol.GetConnectionByMachineName(machineName)
+	if conStruct == nil || conStruct.Connection == nil {
+		return nil, fmt.Errorf("slave %s not found or not connected", machineName)
+	}
+
+	return info.GetProcessByPID(conStruct.Connection, &infoGrpc.ProcessPIDRequest{Pid: pid})
+}
+
+func (s *InfoService) KillProcess(machineName string, pid int32) (*infoGrpc.Ok, error) {
+	conStruct := protocol.GetConnectionByMachineName(machineName)
+	if conStruct == nil || conStruct.Connection == nil {
+		return nil, fmt.Errorf("slave %s not found or not connected", machineName)
+	}
+
+	return info.KillProcess(conStruct.Connection, &infoGrpc.ProcessPIDRequest{Pid: pid})
+}
+
+func (s *InfoService) TerminateProcess(machineName string, pid int32) (*infoGrpc.Ok, error) {
+	conStruct := protocol.GetConnectionByMachineName(machineName)
+	if conStruct == nil || conStruct.Connection == nil {
+		return nil, fmt.Errorf("slave %s not found or not connected", machineName)
+	}
+
+	return info.TerminateProcess(conStruct.Connection, &infoGrpc.ProcessPIDRequest{Pid: pid})
+}
+
 func historySinceDuration(duration time.Duration) time.Time {
 	if duration <= 0 {
 		return time.Time{}

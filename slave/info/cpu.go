@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Maruqes/512SvMan/logger"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/sensors"
 )
@@ -96,6 +97,7 @@ func (c *CPUInfoStruct) GetCPUInfo() (*CPUCoreInfo, error) {
 
 	temps, tempErr := c.GetCpuTemps()
 	if tempErr != nil {
+		logger.Debug(fmt.Sprintf("GetCPUInfo: unable to read temperature sensors: %v", tempErr))
 		temps = nil // Keep going with usage info even if temp sensors fail
 	}
 
@@ -142,7 +144,7 @@ func (c *CPUInfoStruct) GetCPUInfo() (*CPUCoreInfo, error) {
 		cores[i] = core
 	}
 
-	return &CPUCoreInfo{Cores: cores}, tempErr
+	return &CPUCoreInfo{Cores: cores}, nil
 }
 
 type StressTestCpuStruct struct{}
