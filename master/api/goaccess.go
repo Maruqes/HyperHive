@@ -63,20 +63,22 @@ func isTCPListening(addr string) bool {
 }
 
 func mainOriginAndWS(mainLink string) (origin string, wsURL string, err error) {
-	if strings.TrimSpace(mainLink) == "" {
-		return "", "", errors.New("MAIN_LINK vazio")
-	}
-	u, err := url.Parse(mainLink)
+	u, err := url.Parse(strings.TrimSpace(mainLink))
 	if err != nil || u.Scheme == "" || u.Host == "" {
 		return "", "", fmt.Errorf("MAIN_LINK inválido: %q", mainLink)
 	}
-	origin = u.Scheme + "://" + u.Host
+	host := u.Host
 	wsScheme := "ws"
+
+	// Para HTTPS, força host sem porto (TLS no reverse proxy) e wss://
 	if u.Scheme == "https" {
+		host = u.Hostname() // remove :porto
 		wsScheme = "wss"
 	}
-	// cliente vai ligar a <origin>/goaccess/ws e o proxy deve encaminhar para 127.0.0.1:7891
-	wsURL = fmt.Sprintf("%s://%s/goaccess/ws", wsScheme, u.Host)
+
+	origin = u.Scheme + "://" + host            // sem :porto em https
+	wsURL = fmt.Sprintf("%s://%s/goaccess/ws", wsScheme, host)
+
 	return origin, wsURL, nil
 }
 
