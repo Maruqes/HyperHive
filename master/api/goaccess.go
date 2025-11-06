@@ -146,22 +146,32 @@ type fmtCand struct {
 // formatos comuns de NPM/NGINX
 var candidates = []fmtCand{
 	{
-		Name:    "npm-verbose",
+		Name:    "npm-verbose-tags",
 		DateFmt: "%d/%b/%Y", TimeFmt: "%T",
-		// alguns templates do NPM com [Client ...] etc.
-		LogFormat: `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] %^ "%u" "%R"`,
+		// ... "%U" [Client %h] [Length %b] ... "%u" "%R"
+		LogFormat: `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] %^ "%u" "%R"`,
+	},
+	{
+		Name:    "nginx-vhost-combined",
+		DateFmt: "%d/%b/%Y", TimeFmt: "%T",
+		// vhost primeiro
+		LogFormat: `%v %h %^[%d:%t %^] "%r" %s %b "%R" "%u"`,
+	},
+	{
+		Name:    "nginx-vhost-combined-extra",
+		DateFmt: "%d/%b/%Y", TimeFmt: "%T",
+		LogFormat: `%v %h %^[%d:%t %^] "%r" %s %b "%R" "%u" %^`,
 	},
 	{
 		Name:    "nginx-combined",
 		DateFmt: "%d/%b/%Y", TimeFmt: "%T",
-		// 127.0.0.1 - - [06/Nov/2025:19:27:39 +0000] "GET /path HTTP/1.1" 200 123 "-" "UA"
+		// IP primeiro
 		LogFormat: `%h %^[%d:%t %^] "%r" %s %b "%R" "%u"`,
 	},
 	{
-		Name:    "nginx-vhost",
+		Name:    "nginx-combined-extra",
 		DateFmt: "%d/%b/%Y", TimeFmt: "%T",
-		// vhost na frente
-		LogFormat: `%v %h %^[%d:%t %^] "%r" %s %b "%R" "%u"`,
+		LogFormat: `%h %^[%d:%t %^] "%r" %s %b "%R" "%u" %^`,
 	},
 }
 
@@ -185,8 +195,25 @@ func verifyFormat(sampleFile, dateFmt, timeFmt, logFmt string) error {
 	return nil
 }
 
+func firstNonEmptyLine(p string) string {
+	f, err := os.Open(p)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	buf := make([]byte, 4096)
+	n, _ := f.Read(buf)
+	s := strings.Split(string(buf[:n]), "\n")
+	for _, ln := range s {
+		ln = strings.TrimSpace(ln)
+		if ln != "" {
+			return ln
+		}
+	}
+	return ""
+}
+
 func detectLogFormat(files []string) (dateFmt, timeFmt, logFmt string, chosen string, err error) {
-	// escolhe um ficheiro com linhas
 	var sample string
 	for _, f := range files {
 		if fi, e := os.Stat(f); e == nil && fi.Size() > 0 {
@@ -202,6 +229,8 @@ func detectLogFormat(files []string) (dateFmt, timeFmt, logFmt string, chosen st
 			return c.DateFmt, c.TimeFmt, c.LogFormat, c.Name, nil
 		}
 	}
+	fmt.Println("[GoAccess] sample file:", sample)
+	fmt.Println("[GoAccess] sample line:", firstNonEmptyLine(sample))
 	return "", "", "", "", fmt.Errorf("none of the candidate log formats matched %s", sample)
 }
 
@@ -255,7 +284,6 @@ func ensureGoAccessDaemon() error {
 	// 4) detectar formato
 	dateFmt, timeFmt, logFmt, chosen, derr := detectLogFormat(files)
 	if derr != nil {
-		// usa fallback combinado, mas loga o erro
 		fmt.Println("[GoAccess] WARN format detect failed:", derr.Error())
 		dateFmt = "%d/%b/%Y"
 		timeFmt = "%T"
@@ -302,6 +330,7 @@ func ensureGoAccessDaemon() error {
 		"--persist",
 		"--restore",
 		"--pid-file="+pidFile,
+		"--unknowns-log=/tmp/goaccess-unknowns.log",
 		"-o", outputPath,
 		"--addr=127.0.0.1",
 		"--port="+strings.Split(goAccessWSAddr, ":")[1],
@@ -332,7 +361,6 @@ func ensureGoAccessDaemon() error {
 
 	// 9) run
 	cmd := exec.Command("goaccess", args...)
-	// directory onde estão os logs (para paths relativos do goaccess, se algum)
 	cmd.Dir = logDir
 	var stderr bytes.Buffer
 	cmd.Stdout = io.Discard
@@ -362,6 +390,7 @@ func ensureGoAccessDaemon() error {
 
 // Túnel WS manual (hijack).
 func wsTunnelToGoAccess(w http.ResponseWriter, r *http.Request) {
+	// browsers costumam mandar "keep-alive, Upgrade"
 	if !strings.Contains(strings.ToLower(r.Header.Get("Connection")), "upgrade") ||
 		!strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
 		http.Error(w, "upgrade required", http.StatusBadRequest)
@@ -374,6 +403,7 @@ func wsTunnelToGoAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// pedido ao backend, preservando query (?p=...)
 	req := r.Clone(context.Background())
 	req.URL = &url.URL{Scheme: "http", Host: goAccessWSAddr, Path: "/", RawQuery: r.URL.RawQuery}
 	req.Host = goAccessWSAddr
