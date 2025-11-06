@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -212,8 +213,9 @@ func ensureGoAccessDaemon(logDir, outputPath string, args []string) error {
 }
 
 // ---------- Helpers: URLs públicos ----------
+
 func derivePublicURLs(r *http.Request) (origin string, wsURL string) {
-	// 1) Esquema preferindo X-Forwarded-Proto
+	// 1) esquema preferindo X-Forwarded-Proto
 	scheme := "http"
 	if r.TLS != nil {
 		scheme = "https"
@@ -222,12 +224,10 @@ func derivePublicURLs(r *http.Request) (origin string, wsURL string) {
 		scheme = strings.ToLower(strings.TrimSpace(strings.Split(xf, ",")[0]))
 	}
 
-	// 2) Host público: MAIN_LINK > X-Forwarded-Host > Host, sempre SEM porta
+	// 2) host público SEM porta: MAIN_LINK > X-Forwarded-Host > Host
 	host := ""
-	base := strings.TrimSpace(env512.MAIN_LINK)
-	if base != "" {
+	if base := strings.TrimSpace(env512.MAIN_LINK); base != "" {
 		if u, err := url.Parse(base); err == nil && u.Host != "" {
-			// Se MAIN_LINK tiver esquema, respeita-o
 			if u.Scheme != "" {
 				scheme = u.Scheme
 			}
@@ -237,27 +237,27 @@ func derivePublicURLs(r *http.Request) (origin string, wsURL string) {
 	if host == "" {
 		if xfh := r.Header.Get("X-Forwarded-Host"); xfh != "" {
 			xfh = strings.TrimSpace(strings.Split(xfh, ",")[0])
-			if u, err := url.Parse("http://" + xfh); err == nil { // prefixo dummy só para parse
-				host = u.Hostname() // SEM porta
+			if u, err := url.Parse("http://" + xfh); err == nil {
+				host = u.Hostname()
 			}
 		}
 	}
 	if host == "" {
 		if u, err := url.Parse("http://" + r.Host); err == nil {
-			host = u.Hostname() // SEM porta
+			host = u.Hostname()
 		}
 	}
 
-	// 3) Path público do WS
+	// 3) path público do WS
 	publicWSPath := "/ws-goaccess"
 
-	// 4) Construção final sem porta
+	// 4) origin SEM porta e wsURL COM porta canónica
 	origin = scheme + "://" + host
-	wsScheme := "ws"
 	if scheme == "https" {
-		wsScheme = "wss"
+		wsURL = (&url.URL{Scheme: "wss", Host: net.JoinHostPort(host, "443"), Path: publicWSPath}).String()
+	} else {
+		wsURL = (&url.URL{Scheme: "ws", Host: net.JoinHostPort(host, "80"), Path: publicWSPath}).String()
 	}
-	wsURL = wsScheme + "://" + host + publicWSPath
 	return
 }
 
