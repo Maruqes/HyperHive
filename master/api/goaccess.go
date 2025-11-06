@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,11 +23,85 @@ import (
 )
 
 const (
-	goAccessTimeout       = 2 * time.Minute
-	goAccessRefreshSecond = 5
-	goAccessGeoIPDir      = "geoipdb"
-	goAccessGeoIPMaxAge   = 7 * 24 * time.Hour
+	goAccessTimeout                = 2 * time.Minute
+	goAccessRefreshSecond          = 5
+	goAccessGeoIPDir               = "geoipdb"
+	goAccessGeoIPMaxAge            = 7 * 24 * time.Hour
+	goAccessReportPath             = "/goaccess"
+	goAccessLivePagePath           = "/goaccess/live"
+	goAccessLiveDefaultRefreshSecs = goAccessRefreshSecond
+	goAccessLiveMinRefreshSecs     = 1
+	goAccessLiveMaxRefreshSecs     = 300
 )
+
+const goAccessLivePageTemplate = `<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>GoAccess Live Report</title>
+	<style>
+		html, body {
+			margin: 0;
+			padding: 0;
+			height: 100%;
+			background-color: #11121a;
+			color: #f0f3f9;
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+		}
+		main {
+			display: flex;
+			flex-direction: column;
+			height: 100%;
+		}
+		header {
+			padding: 1rem;
+			background: #1b1d2b;
+			border-bottom: 1px solid rgba(255,255,255,0.08);
+		}
+		header h1 {
+			margin: 0;
+			font-size: 1.2rem;
+			font-weight: 600;
+		}
+		header p {
+			margin: 0.3rem 0 0;
+			font-size: 0.9rem;
+			color: rgba(255,255,255,0.7);
+		}
+		iframe {
+			flex: 1;
+			border: 0;
+			width: 100%;
+			background: #0b0c12;
+		}
+	</style>
+</head>
+<body>
+	<main>
+		<header>
+			<h1>GoAccess Live Report</h1>
+			<p>Auto-refreshes every %[2]d seconds.</p>
+		</header>
+		<iframe id="goaccess-frame" title="GoAccess report" loading="lazy" src="about:blank" data-base="%[1]s"></iframe>
+	</main>
+	<script>
+	(() => {
+		const refreshMs = %[3]d;
+		const frame = document.getElementById('goaccess-frame');
+		const basePath = frame.dataset.base;
+
+		function refreshFrame() {
+			const sep = basePath.includes('?') ? '&' : '?';
+			frame.src = basePath + sep + 'ts=' + Date.now();
+		}
+
+		refreshFrame();
+		setInterval(refreshFrame, refreshMs);
+	})();
+	</script>
+</body>
+</html>`
 
 var errGeoIPNotFound = errors.New("geoip database not found")
 
@@ -127,8 +202,30 @@ func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
+func goAccessLivePageHandler(w http.ResponseWriter, r *http.Request) {
+	refreshSeconds := goAccessLiveDefaultRefreshSecs
+
+	if raw := strings.TrimSpace(r.URL.Query().Get("interval")); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil {
+			if parsed < goAccessLiveMinRefreshSecs {
+				parsed = goAccessLiveMinRefreshSecs
+			}
+			if parsed > goAccessLiveMaxRefreshSecs {
+				parsed = goAccessLiveMaxRefreshSecs
+			}
+			refreshSeconds = parsed
+		}
+	}
+
+	page := fmt.Sprintf(goAccessLivePageTemplate, goAccessReportPath, refreshSeconds, refreshSeconds*1000)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(page))
+}
+
 func setupGoAccessAPI(r chi.Router) {
-	r.Get("/goaccess", goAccessHandler)
+	r.Get(goAccessReportPath, goAccessHandler)
+	r.Get(goAccessLivePagePath, goAccessLivePageHandler)
 }
 
 func ensureGeoIPDatabase(ctx context.Context, workDir string) (string, error) {
