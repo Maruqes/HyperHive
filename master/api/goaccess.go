@@ -192,12 +192,20 @@ func ensureGoAccessDaemon() error {
 	fmt.Println("[GoAccess] origin =", origin)
 
 	// 5) se já está a correr mas o HTML não tem o ws-url atual → reinicia
-	if isPortListening(goAccessWSAddr) && fileExists(outputPath) && !fileContains(outputPath, publicWSURL) {
-		stopGoAccessIfRunning(pidFile)
+	if isPortListening(goAccessWSAddr) && fileExists(outputPath) {
+		if !fileContains(outputPath, publicWSURL) {
+			fmt.Printf("[GoAccess] HTML exists but doesn't contain expected ws-url %s, restarting...\n", publicWSURL)
+			stopGoAccessIfRunning(pidFile)
+		} else if debugGoAccess {
+			fmt.Println("[GoAccess] HTML already has correct ws-url, checking if daemon is responsive...")
+		}
 	}
 
 	// 6) se continua a correr e HTML existe → ok
-	if isPortListening(goAccessWSAddr) && fileExists(outputPath) {
+	if isPortListening(goAccessWSAddr) && fileExists(outputPath) && fileContains(outputPath, publicWSURL) {
+		if debugGoAccess {
+			fmt.Println("[GoAccess] Daemon already running with correct configuration")
+		}
 		return nil
 	}
 
@@ -216,6 +224,11 @@ func ensureGoAccessDaemon() error {
 		"--port="+strings.Split(goAccessWSAddr, ":")[1],
 		"--ws-url="+publicWSURL,
 		"--origin="+origin,
+		"--real-os",          // mostra OS real em vez de categorias
+		"--double-decode",    // decode URL encoding
+		"--all-static-files", // track all static files
+		"--http-protocol=no", // não precisamos do protocolo HTTP
+		"--no-strict-status", // aceita códigos de status não-standard
 	)
 
 	enablePanels := env512.GoAccessEnablePanels
@@ -232,11 +245,12 @@ func ensureGoAccessDaemon() error {
 
 	if debugGoAccess {
 		args = append(args, "--debug-file=/tmp/goaccess-debug.log")
-		fmt.Println("[GoAccess] args:", strings.Join(args, " "))
+		fmt.Println("[GoAccess] Starting with args:", strings.Join(args, " "))
 	} else {
 		args = append(args, "--daemonize")
 	}
 
+	fmt.Printf("[GoAccess] Starting daemon with %d log files...\n", len(files))
 	cmd := exec.Command("goaccess", args...)
 	cmd.Dir = logDir
 	var stderr bytes.Buffer
@@ -257,7 +271,16 @@ func ensureGoAccessDaemon() error {
 	// 7) espera pelo WS/HTML
 	for i := 0; i < 20; i++ {
 		if isPortListening(goAccessWSAddr) && fileExists(outputPath) {
-			return nil
+			// Verifica se o HTML tem o ws-url correto
+			if !fileContains(outputPath, publicWSURL) {
+				fmt.Printf("[GoAccess] Warning: HTML exists but doesn't contain ws-url %s (attempt %d/20)\n", publicWSURL, i+1)
+				if i == 19 {
+					return fmt.Errorf("GoAccess HTML doesn't contain expected ws-url after 20 attempts")
+				}
+			} else {
+				fmt.Println("[GoAccess] Daemon started successfully and HTML contains correct ws-url")
+				return nil
+			}
 		}
 		time.Sleep(150 * time.Millisecond)
 	}
@@ -268,9 +291,17 @@ func ensureGoAccessDaemon() error {
 
 // Túnel WS manual: evita problemas do ReverseProxy com Upgrade.
 func wsTunnelToGoAccess(w http.ResponseWriter, r *http.Request) {
+	if debugGoAccess {
+		fmt.Printf("[GoAccess WS] Connection attempt from %s, Upgrade=%s, Connection=%s, Query=%s\n",
+			r.RemoteAddr, r.Header.Get("Upgrade"), r.Header.Get("Connection"), r.URL.RawQuery)
+	}
+
 	// só aceitamos Upgrade: websocket
 	if !strings.EqualFold(r.Header.Get("Connection"), "Upgrade") ||
 		!strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+		if debugGoAccess {
+			fmt.Println("[GoAccess WS] Rejected: not a websocket upgrade request")
+		}
 		http.Error(w, "upgrade required", http.StatusBadRequest)
 		return
 	}
@@ -278,8 +309,15 @@ func wsTunnelToGoAccess(w http.ResponseWriter, r *http.Request) {
 	// liga ao backend WS do GoAccess
 	back, err := net.DialTimeout("tcp", goAccessWSAddr, 5*time.Second)
 	if err != nil {
+		if debugGoAccess {
+			fmt.Printf("[GoAccess WS] Failed to connect to backend %s: %v\n", goAccessWSAddr, err)
+		}
 		http.Error(w, "backend ws unavailable", http.StatusBadGateway)
 		return
+	}
+
+	if debugGoAccess {
+		fmt.Printf("[GoAccess WS] Connected to backend %s successfully\n", goAccessWSAddr)
 	}
 
 	// cria um pedido novo para o backend, preserva a query (?p=...)
@@ -300,6 +338,9 @@ func wsTunnelToGoAccess(w http.ResponseWriter, r *http.Request) {
 	// envia o handshake para o backend
 	if err := req.Write(back); err != nil {
 		_ = back.Close()
+		if debugGoAccess {
+			fmt.Printf("[GoAccess WS] Failed to write backend handshake: %v\n", err)
+		}
 		http.Error(w, "failed to write backend handshake", http.StatusBadGateway)
 		return
 	}
@@ -308,14 +349,24 @@ func wsTunnelToGoAccess(w http.ResponseWriter, r *http.Request) {
 	hj, ok := w.(http.Hijacker)
 	if !ok {
 		_ = back.Close()
+		if debugGoAccess {
+			fmt.Println("[GoAccess WS] Hijacking not supported")
+		}
 		http.Error(w, "hijacking not supported", http.StatusInternalServerError)
 		return
 	}
 	clientConn, _, err := hj.Hijack()
 	if err != nil {
 		_ = back.Close()
+		if debugGoAccess {
+			fmt.Printf("[GoAccess WS] Hijack failed: %v\n", err)
+		}
 		http.Error(w, "hijack failed", http.StatusInternalServerError)
 		return
+	}
+
+	if debugGoAccess {
+		fmt.Println("[GoAccess WS] Tunnel established, pumping data...")
 	}
 
 	// pump nos dois sentidos
@@ -331,6 +382,10 @@ func wsTunnelToGoAccess(w http.ResponseWriter, r *http.Request) {
 		errCh <- struct{}{}
 	}()
 	<-errCh // fecha quando uma das direções termina
+
+	if debugGoAccess {
+		fmt.Println("[GoAccess WS] Tunnel closed")
+	}
 }
 
 func goAccessPageHandler(w http.ResponseWriter, r *http.Request) {
@@ -359,6 +414,18 @@ func goAccessPageHandler(w http.ResponseWriter, r *http.Request) {
 
 	workDir, _ := os.Getwd()
 	html := filepath.Join(workDir, "npm-data", "stats", "goaccess.html")
+
+	// Log para debug
+	if debugGoAccess {
+		base := strings.TrimSpace(env512.MAIN_LINK)
+		if base == "" {
+			base = "http://localhost"
+		}
+		wsURL, _ := buildPublicWSURL(base, goAccessPublicWSPath)
+		fmt.Printf("[GoAccess] Serving page, expected ws-url in HTML: %s\n", wsURL)
+		fmt.Printf("[GoAccess] WS backend listening: %v\n", isPortListening(goAccessWSAddr))
+	}
+
 	http.ServeFile(w, r, html)
 }
 
@@ -366,4 +433,32 @@ func setupGoAccessAPI(r chi.Router) {
 	r.Get("/goaccess", goAccessPageHandler)
 	// WebSocket público → túnel raw para 127.0.0.1:7891/
 	r.HandleFunc(goAccessPublicWSPath, wsTunnelToGoAccess)
+
+	// Debug: força restart do GoAccess
+	r.Get("/goaccess/restart", func(w http.ResponseWriter, r *http.Request) {
+		workDir, _ := os.Getwd()
+		statsDir := filepath.Join(workDir, "npm-data", "stats")
+		pidFile := filepath.Join(statsDir, "goaccess.pid")
+
+		fmt.Println("[GoAccess] Manual restart requested")
+		stopGoAccessIfRunning(pidFile)
+
+		// Remove HTML antigo para forçar regeneração
+		outputPath := filepath.Join(statsDir, "goaccess.html")
+		_ = os.Remove(outputPath)
+
+		// Remove DB persistente para forçar rescan
+		dbPath := filepath.Join(statsDir, "goaccess.db")
+		_ = os.Remove(dbPath)
+
+		time.Sleep(500 * time.Millisecond)
+
+		if err := ensureGoAccessDaemon(); err != nil {
+			http.Error(w, "Failed to restart: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/plain")
+		fmt.Fprintf(w, "GoAccess restarted successfully!\nVisit /goaccess to see the updated stats.\n")
+	})
 }
