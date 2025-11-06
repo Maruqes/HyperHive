@@ -367,4 +367,3 @@ func setupGoAccessAPI(r chi.Router) {
 	// WebSocket público → túnel raw para 127.0.0.1:7891/
 	r.HandleFunc(goAccessPublicWSPath, wsTunnelToGoAccess)
 }
-	
