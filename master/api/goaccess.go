@@ -20,303 +20,240 @@ import (
 	"512SvMan/env512"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/gorilla/websocket"
 )
 
 const (
 	goAccessTimeout       = 2 * time.Minute
 	goAccessRefreshSecond = 5
-	goAccessGeoIPDir      = "geoipdb"
-	goAccessGeoIPMaxAge   = 7 * 24 * time.Hour
+
+	// Servidor WS interno do GoAccess (atrás do NPM)
+	goAccessWSAddr = "127.0.0.1:7891"
+
+	// Diretório/ficheiro
+	goAccessGeoIPDir    = "geoipdb"
+	goAccessGeoIPMaxAge = 7 * 24 * time.Hour
 )
 
 var (
 	errGeoIPNotFound = errors.New("geoip database not found")
 
-	// Estado global simples para coordenação de rebuilds e difusão WS.
-	wsUpgrader = websocket.Upgrader{
-		// Mesma origem/host: como servimos WS no mesmo domínio/porta, isto é seguro.
-		CheckOrigin: func(r *http.Request) bool {
-			// Se quiseres restringir mais, compara r.Header.Get("Origin") com r.Host.
-			return true
-		},
-	}
-
-	wsConnsMu sync.Mutex
-	wsConns   = map[*websocket.Conn]struct{}{}
-
-	lastBuildMu       sync.Mutex
-	lastBuildAt       time.Time
-	lastLogsModTime   time.Time
-	lastGoAccessError error
+	// Guarda o processo do GoAccess em modo realtime
+	goRTMu       sync.Mutex
+	goRTCmd      *exec.Cmd
+	goRTReport   string
+	goRTLogDir   string
+	goRTArgsHash string
 )
 
-// ------- Handlers HTTP/WS -------
+// ---------- HTTP / Router ----------
 
 func setupGoAccessAPI(r chi.Router) {
-	// Página “casca” que contém o iframe e o JS do WebSocket.
-	r.Get("/goaccess", goAccessPageHandler)
-	// Conteúdo do relatório (HTML gerado pelo goaccess).
-	r.Get("/goaccess/content", goAccessContentHandler)
-	// WebSocket no MESMO host/porta – sem abrir nada novo.
-	r.Get("/goaccess-ws", goAccessWSHandler)
+	r.Get("/goaccess", goAccessRealtimeHandler)
 }
 
-// Página wrapper com iframe + WS para auto-refresh
-func goAccessPageHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	// Carregamos o relatório numa iframe. Ao receber mensagens no WS, recarregamos a src (com cache-buster).
-	io.WriteString(w, `<!doctype html>
-<html lang="pt-PT">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GoAccess (HyperHive)</title>
-<style>
-html,body{margin:0;padding:0;height:100%} #frame{border:0;width:100%;height:100vh}
-</style>
-</head>
-<body>
-<iframe id="frame" src="/goaccess/content"></iframe>
-<script>
-(function(){
-  function openWS(){
-    var proto = (location.protocol === 'https:') ? 'wss://' : 'ws://';
-    var ws = new WebSocket(proto + location.host + '/goaccess-ws');
-    ws.onmessage = function(){
-      var f = document.getElementById('frame');
-      // cache-buster para evitar qualquer caching do browser/proxy
-      f.src = '/goaccess/content?ts=' + Date.now();
-    };
-    ws.onclose = function(){
-      // tenta reconectar de forma simples
-      setTimeout(openWS, 2000);
-    };
-  }
-  openWS();
-})();
-</script>
-</body>
-</html>`)
-}
-
-// Serve o HTML gerado pelo GoAccess. Garante rebuild se necessário.
-func goAccessContentHandler(w http.ResponseWriter, r *http.Request) {
+// Serve o HTML em realtime e garante que o daemon do GoAccess está a correr
+func goAccessRealtimeHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), goAccessTimeout)
 	defer cancel()
 
-	outputPath, err := ensureGoAccessBuilt(ctx)
-	if err != nil {
-		http.Error(w, "falha a gerar relatório GoAccess: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	data, err := os.ReadFile(outputPath)
-	if err != nil {
-		http.Error(w, "falha a ler relatório gerado", http.StatusInternalServerError)
-		return
-	}
-
-	// Nota: o relatório do GoAccess já traz o seu <html> completo: servimos tal-qual.
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	// Evita caching (para load imediato quando recarregamos a iframe).
-	w.Header().Set("Cache-Control", "no-store, max-age=0")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(data)
-}
-
-// WebSocket: em cada ligação, corre um ticker que verifica alterações e aciona rebuilds.
-// Quando há rebuild (ou 1º load), envia uma mensagem (qualquer payload) para forçar refresh do iframe.
-func goAccessWSHandler(w http.ResponseWriter, r *http.Request) {
-	c, err := wsUpgrader.Upgrade(w, r, nil)
-	if err != nil {
-		http.Error(w, "upgrade WebSocket falhou", http.StatusBadRequest)
-		return
-	}
-	registerWS(c)
-	defer unregisterWS(c)
-
-	// Refresh imediato para o cliente carregar a versão atual
-	_ = c.WriteMessage(websocket.TextMessage, []byte("refresh"))
-
-	ticker := time.NewTicker(time.Duration(goAccessRefreshSecond) * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-r.Context().Done():
-			return
-		case <-ticker.C:
-			ctx, cancel := context.WithTimeout(r.Context(), goAccessTimeout)
-			changed, buildErr := maybeRebuildGoAccess(ctx)
-			cancel()
-
-			// Guarda último erro (podes expor em /health, se quiseres)
-			lastBuildMu.Lock()
-			lastGoAccessError = buildErr
-			lastBuildMu.Unlock()
-
-			if buildErr != nil {
-				// Não fecha o WS; apenas regista. Cliente continua a mostrar a última versão válida.
-				continue
-			}
-			if changed {
-				// Diz ao cliente para recarregar a iframe
-				if err := c.WriteMessage(websocket.TextMessage, []byte("refresh")); err != nil {
-					return
-				}
-			}
-		default:
-			// Lê control frames (pings/close) sem bloquear indefinidamente.
-			_ = c.SetReadDeadline(time.Now().Add(30 * time.Second))
-			if _, _, err := c.ReadMessage(); err != nil {
-				// Qualquer erro de leitura/timeout encerra a ligação do lado do servidor.
-				return
-			}
-		}
-	}
-}
-
-func registerWS(c *websocket.Conn) {
-	wsConnsMu.Lock()
-	wsConns[c] = struct{}{}
-	wsConnsMu.Unlock()
-}
-
-func unregisterWS(c *websocket.Conn) {
-	wsConnsMu.Lock()
-	delete(wsConns, c)
-	wsConnsMu.Unlock()
-	_ = c.Close()
-}
-
-// ------- Build / Rebuild do relatório -------
-
-func ensureGoAccessBuilt(ctx context.Context) (string, error) {
-	changed, err := maybeRebuildGoAccess(ctx)
-	if err != nil {
-		return "", err
-	}
-	_ = changed
 	workDir, err := os.Getwd()
 	if err != nil {
-		return "", fmt.Errorf("resolve working directory: %w", err)
-	}
-	return filepath.Join(workDir, "npm-data", "stats", "goaccess.html"), nil
-}
-
-func maybeRebuildGoAccess(ctx context.Context) (bool, error) {
-	workDir, err := os.Getwd()
-	if err != nil {
-		return false, fmt.Errorf("resolve working directory: %w", err)
+		http.Error(w, "failed to resolve working directory", http.StatusInternalServerError)
+		return
 	}
 
 	logDir := filepath.Join(workDir, "npm-data", "logs")
 	if stat, err := os.Stat(logDir); err != nil || !stat.IsDir() {
-		return false, fmt.Errorf("logs directory not found")
+		http.Error(w, "logs directory not found", http.StatusNotFound)
+		return
 	}
+
+	// Colhemos os logs do NPM (proxy-host-*_access.log)
 	pattern := filepath.Join(logDir, "proxy-host-*_access.log")
 	files, err := filepath.Glob(pattern)
 	if err != nil {
-		return false, fmt.Errorf("enumerate log files: %w", err)
+		http.Error(w, "failed to enumerate log files", http.StatusInternalServerError)
+		return
 	}
 	if len(files) == 0 {
-		return false, fmt.Errorf("no proxy access logs found")
+		http.Error(w, "no proxy access logs found", http.StatusNotFound)
+		return
 	}
 
-	// MTime mais recente dos logs
-	currentMTime := time.Time{}
-	for _, f := range files {
-		if st, err := os.Stat(f); err == nil {
-			if st.ModTime().After(currentMTime) {
-				currentMTime = st.ModTime()
-			}
-		}
-	}
-
-	// Debounce: só reconstruímos se os logs mudaram desde a última build,
-	// ou se já passou o intervalo de refresh.
-	lastBuildMu.Lock()
-	shouldBuild := currentMTime.After(lastLogsModTime) || time.Since(lastBuildAt) >= time.Duration(goAccessRefreshSecond)*time.Second
-	lastBuildMu.Unlock()
-
-	if !shouldBuild {
-		return false, nil
-	}
-
-	// Lock para que apenas um build ocorra de cada vez.
-	lastBuildMu.Lock()
-	defer lastBuildMu.Unlock()
-
-	// Reavalia dentro do lock para evitar rebuild duplicado.
-	if currentMTime.After(lastLogsModTime) || time.Since(lastBuildAt) >= time.Duration(goAccessRefreshSecond)*time.Second {
-		if err := runGoAccessOnce(ctx, workDir, files); err != nil {
-			return false, err
-		}
-		lastLogsModTime = currentMTime
-		lastBuildAt = time.Now()
-		return true, nil
-	}
-
-	return false, nil
-}
-
-func runGoAccessOnce(ctx context.Context, workDir string, files []string) error {
+	// Diretório dos relatórios
 	statsDir := filepath.Join(workDir, "npm-data", "stats")
 	if err := os.MkdirAll(statsDir, 0o755); err != nil {
-		return fmt.Errorf("prepare stats directory: %w", err)
+		http.Error(w, "failed to prepare stats directory", http.StatusInternalServerError)
+		return
 	}
 	outputPath := filepath.Join(statsDir, "goaccess.html")
 
-	// Formato compatível com NPM proxy-host-*_access.log
+	// Deriva base e ws-url públicos
+	baseURL, wsURL := derivePublicURLs(r)
+
+	// Prepara GeoIP
+	geoIPDBPath, err := ensureGeoIPDatabase(ctx, workDir)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Formato do NPM (custom). Se preferires COMBINED, troca por "--log-format=COMBINED"
 	logFormat := `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] [Gzip %^] [Sent-to %^] "%u" "%R"`
 
-	args := append([]string{}, files...)
-	args = append(args,
+	// Args do GoAccess realtime
+	args := []string{
 		"--no-global-config",
+		"--real-time-html",
+		"--restore",
+		"--persist",
+		"--addr=127.0.0.1",
+		"--port=7891",
+		"--origin=" + baseURL, // segurança de origem
+		"--ws-url=" + wsURL,   // URL público do WS (sem porta)
 		"--date-format=%d/%b/%Y",
 		"--time-format=%T",
-		// Não usamos o servidor WS do GoAccess: geramos ficheiro estático e
-		// fazemos auto-refresh via o nosso WS.
-		"--log-format="+logFormat,
+		"--log-format=" + logFormat,
 		"-o", outputPath,
-	)
+		"--geoip-database=" + geoIPDBPath,
+	}
 
-	// painéis enable/disable vindos do env512
+	// painéis (enable/disable)
 	addPanelArgs := func(flag string, values []string) {
 		for _, p := range values {
-			if s := strings.TrimSpace(p); s != "" {
-				args = append(args, fmt.Sprintf("--%s=%s", flag, s))
+			p = strings.TrimSpace(p)
+			if p != "" {
+				args = append(args, fmt.Sprintf("--%s=%s", flag, p))
 			}
 		}
 	}
 	addPanelArgs("enable-panel", env512.GoAccessEnablePanels)
 	addPanelArgs("disable-panel", env512.GoAccessDisablePanels)
 
-	// GeoIP
-	geoIPDBPath, err := ensureGeoIPDatabase(ctx, workDir)
-	if err == nil && strings.TrimSpace(geoIPDBPath) != "" {
-		args = append(args, "--geoip-database="+geoIPDBPath)
+	// logs (-f por cada ficheiro)
+	for _, f := range files {
+		args = append(args, "-f", f)
 	}
 
-	cmd := exec.CommandContext(ctx, "goaccess", args...)
-	cmd.Dir = filepath.Join(workDir, "npm-data", "logs")
+	// Arranca (ou mantém) o daemon do GoAccess realtime
+	if err := ensureGoAccessDaemon(logDir, outputPath, args); err != nil {
+		http.Error(w, "failed to start goaccess realtime: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
+	// Pequena espera inicial para o HTML aparecer na 1ª execução
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		if st, err := os.Stat(outputPath); err == nil && st.Size() > 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(120 * time.Millisecond)
+	}
+
+	// Serve o HTML (o JS lá dentro liga ao WS público)
+	data, err := os.ReadFile(outputPath)
+	if err != nil {
+		http.Error(w, "failed to read generated report", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(data)
+}
+
+// ---------- GoAccess realtime daemon management ----------
+
+func ensureGoAccessDaemon(logDir, outputPath string, args []string) error {
+	goRTMu.Lock()
+	defer goRTMu.Unlock()
+
+	hash := strings.Join(args, "\x00") + "|dir=" + logDir
+	if goRTCmd != nil && goRTArgsHash == hash && goRTReport == outputPath && goRTLogDir == logDir {
+		// Já está a correr com os mesmos args
+		return nil
+	}
+
+	// Se existir um processo antigo, tenta terminar
+	if goRTCmd != nil && goRTCmd.Process != nil {
+		_ = goRTCmd.Process.Kill()
+		_, _ = goRTCmd.Process.Wait()
+	}
+	goRTCmd = nil
+
+	cmd := exec.Command("goaccess", args...)
+	cmd.Dir = logDir
 	var stderr bytes.Buffer
 	cmd.Stdout = io.Discard
 	cmd.Stderr = &stderr
 
-	if err := cmd.Run(); err != nil {
+	if err := cmd.Start(); err != nil {
 		msg := strings.TrimSpace(stderr.String())
 		if msg == "" {
 			msg = err.Error()
 		}
-		return fmt.Errorf("goaccess: %s", msg)
+		return fmt.Errorf("start goaccess: %s", msg)
 	}
+
+	// Guarda estado
+	goRTCmd = cmd
+	goRTReport = outputPath
+	goRTLogDir = logDir
+	goRTArgsHash = hash
+
+	// Observa término em background
+	go func(c *exec.Cmd) {
+		_ = c.Wait()
+	}(cmd)
+
 	return nil
 }
 
-// ------- GeoIP helpers (iguais à tua versão, com pequenos ajustes) -------
+// ---------- Helpers: URLs públicos ----------
+
+func derivePublicURLs(r *http.Request) (origin string, wsURL string) {
+	// 1) Se MAIN_LINK estiver definido, usa-o
+	base := strings.TrimSpace(env512.MAIN_LINK)
+
+	var baseU *url.URL
+	if base != "" {
+		if u, err := url.Parse(base); err == nil && u.Scheme != "" && u.Host != "" {
+			u.Path = "" // base pura
+			baseU = u
+		}
+	}
+	// 2) Senão, deriva do pedido/NPM
+	if baseU == nil {
+		scheme := "http"
+		if r.TLS != nil {
+			scheme = "https"
+		}
+		if xf := r.Header.Get("X-Forwarded-Proto"); xf != "" {
+			// típico em NPM
+			scheme = strings.ToLower(strings.TrimSpace(strings.Split(xf, ",")[0]))
+		}
+		baseU = &url.URL{Scheme: scheme, Host: r.Host}
+	}
+
+	// Path público do WS
+	publicWSPath := "/ws-goaccess"
+
+	// origin = https://dominio
+	origin = (&url.URL{Scheme: baseU.Scheme, Host: baseU.Host}).String()
+
+	// wsURL = wss://dominio/ws-goaccess  (ou ws:// em http)
+	wsScheme := "ws"
+	if baseU.Scheme == "https" || baseU.Scheme == "wss" {
+		wsScheme = "wss"
+	}
+	wsURL = (&url.URL{Scheme: wsScheme, Host: baseU.Host, Path: publicWSPath}).String()
+
+	return origin, wsURL
+}
+
+// ---------- GeoIP (igual ao teu, com pequenos ajustes) ----------
 
 func ensureGeoIPDatabase(ctx context.Context, workDir string) (string, error) {
 	cached, err := findCachedGeoIP(workDir)
@@ -361,6 +298,7 @@ func findCachedGeoIP(workDir string) (string, error) {
 		"GeoIP2-City.mmdb",
 		"GeoIP2-Country.mmdb",
 	}
+
 	for _, name := range preferred {
 		candidate := filepath.Join(dir, name)
 		if stat, err := os.Stat(candidate); err == nil && !stat.IsDir() {
@@ -433,6 +371,7 @@ func downloadGeoIPDatabase(ctx context.Context, workDir string) (string, error) 
 			}
 			return "", fmt.Errorf("read GeoIP archive: %w", err)
 		}
+
 		if header.FileInfo().IsDir() {
 			continue
 		}
@@ -445,6 +384,7 @@ func downloadGeoIPDatabase(ctx context.Context, workDir string) (string, error) 
 		if err != nil {
 			return "", fmt.Errorf("create temp GeoIP file: %w", err)
 		}
+
 		if _, err := io.Copy(tmp, tr); err != nil {
 			tmp.Close()
 			os.Remove(tmp.Name())
@@ -466,5 +406,6 @@ func downloadGeoIPDatabase(ctx context.Context, workDir string) (string, error) 
 	if extracted == "" {
 		return "", fmt.Errorf("downloaded GeoIP archive but no .mmdb file was found")
 	}
+
 	return extracted, nil
 }
