@@ -14,10 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
-	"sync"
-	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -51,11 +48,6 @@ var goAccessAllPanels = []string{
 	"TLS_TYPE",
 }
 
-var goAccessState struct {
-	sync.Mutex
-	currentWSURL string
-}
-
 func isPortListening(addr string) bool {
 	c, err := net.DialTimeout("tcp", addr, 500*time.Millisecond)
 	if err != nil {
@@ -70,35 +62,6 @@ func fileExists(p string) bool {
 	return err == nil && !st.IsDir()
 }
 
-func requestBaseURL(r *http.Request) string {
-	proto := r.Header.Get("X-Forwarded-Proto")
-	if proto == "" {
-		if r.TLS != nil {
-			proto = "https"
-		} else {
-			proto = "http"
-		}
-	}
-
-	host := r.Header.Get("X-Forwarded-Host")
-	if host == "" {
-		host = r.Host
-	}
-	if host == "" {
-		return ""
-	}
-
-	basePath := ""
-	if u, err := url.Parse(env512.MAIN_LINK); err == nil {
-		basePath = strings.TrimRight(u.Path, "/")
-		if basePath == "/" {
-			basePath = ""
-		}
-	}
-
-	return fmt.Sprintf("%s://%s%s", proto, host, basePath)
-}
-
 // buildPublicWSURL builds the final ws/wss URL from MAIN_LINK and the WS path.
 // - If MAIN_LINK uses https -> use wss
 // - If MAIN_LINK uses http -> use ws
@@ -106,7 +69,7 @@ func requestBaseURL(r *http.Request) string {
 func buildPublicWSURL(base, wsPath string) (string, error) {
 	base = strings.TrimSpace(base)
 	if base == "" {
-		return "", errors.New("base URL is empty")
+		return "", errors.New("MAIN_LINK is empty")
 	}
 	if !strings.Contains(base, "://") {
 		base = "http://" + base // default if the scheme is missing
@@ -144,60 +107,9 @@ func buildPublicWSURL(base, wsPath string) (string, error) {
 	return u.String(), nil
 }
 
-func readStoredWSURL(path string) string {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(data))
-}
-
-func stopGoAccessDaemon(pidPath string) error {
-	data, err := os.ReadFile(pidPath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		return err
-	}
-	pidStr := strings.TrimSpace(string(data))
-	if pidStr == "" {
-		return nil
-	}
-	pid, err := strconv.Atoi(pidStr)
-	if err != nil {
-		return fmt.Errorf("invalid goaccess pid: %w", err)
-	}
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		return fmt.Errorf("find goaccess process: %w", err)
-	}
-	if err := proc.Signal(syscall.SIGTERM); err != nil && !errors.Is(err, os.ErrProcessDone) {
-		return fmt.Errorf("terminate goaccess: %w", err)
-	}
-	for i := 0; i < 40; i++ {
-		if !isPortListening(goAccessWSAddr) {
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	if err := os.Remove(pidPath); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	return nil
-}
-
 // --- GoAccess realtime ---
 
-func ensureGoAccessDaemon(publicWSURL string) error {
-	publicWSURL = strings.TrimSpace(publicWSURL)
-	if publicWSURL == "" {
-		return errors.New("public WS URL is empty")
-	}
-
-	goAccessState.Lock()
-	defer goAccessState.Unlock()
-
+func ensureGoAccessDaemon() error {
 	// Check/install goaccess if necessary (Fedora/RHEL via dnf)
 	if _, err := exec.LookPath("goaccess"); err != nil {
 		if _, derr := exec.LookPath("dnf"); derr != nil {
@@ -219,12 +131,6 @@ func ensureGoAccessDaemon(publicWSURL string) error {
 		return fmt.Errorf("stats dir: %w", err)
 	}
 	outputPath := filepath.Join(statsDir, "goaccess.html")
-	pidPath := filepath.Join(statsDir, "goaccess.pid")
-	wsURLPath := filepath.Join(statsDir, "goaccess.ws_url")
-
-	if goAccessState.currentWSURL == "" {
-		goAccessState.currentWSURL = readStoredWSURL(wsURLPath)
-	}
 
 	// Adjust the glob pattern to your logs
 	pattern := filepath.Join(logDir, "proxy-host-*_access.log")
@@ -239,23 +145,16 @@ func ensureGoAccessDaemon(publicWSURL string) error {
 	// Nginx Proxy Manager log format
 	logFormat := `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] [Gzip %^] [Sent-to %^] "%u" "%R"`
 
-	sameConfig := goAccessState.currentWSURL != "" && goAccessState.currentWSURL == publicWSURL
-
-	// If configuration changed, stop existing daemon so we can restart with the new settings
-	if !sameConfig && isPortListening(goAccessWSAddr) {
-		if err := stopGoAccessDaemon(pidPath); err != nil {
-			return fmt.Errorf("stop goaccess: %w", err)
-		}
-		goAccessState.currentWSURL = ""
-		_ = os.Remove(wsURLPath)
+	// Build the public WebSocket URL from MAIN_LINK
+	publicWSURL, err := buildPublicWSURL(env512.MAIN_LINK, goAccessPublicWSPath)
+	if err != nil {
+		return err
 	}
 
-	// If it is already running with the same configuration and HTML exists, nothing to do
-	if sameConfig && isPortListening(goAccessWSAddr) && fileExists(outputPath) {
+	// If it is already running and HTML exists, do not start another instance
+	if isPortListening(goAccessWSAddr) && fileExists(outputPath) {
 		return nil
 	}
-
-	_ = os.Remove(pidPath)
 
 	args := []string{}
 	args = append(args, files...)
@@ -274,7 +173,6 @@ func ensureGoAccessDaemon(publicWSURL string) error {
 
 		"--addr=127.0.0.1",
 		"--port=7891",
-		"--pid-file="+pidPath,
 
 		"--ws-url="+publicWSURL,
 	)
@@ -305,9 +203,6 @@ func ensureGoAccessDaemon(publicWSURL string) error {
 		}
 		return fmt.Errorf("starting GoAccess realtime: %s", msg)
 	}
-
-	goAccessState.currentWSURL = publicWSURL
-	_ = os.WriteFile(wsURLPath, []byte(publicWSURL), 0o644)
 
 	// Short wait for the WS/HTML to be ready
 	for i := 0; i < 20; i++ {
@@ -345,18 +240,8 @@ func goAccessPageHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), goAccessTimeout)
 	defer cancel()
 
-	publicBase := requestBaseURL(r)
-	publicWSURL, err := buildPublicWSURL(publicBase, goAccessPublicWSPath)
-	if err != nil {
-		publicWSURL, err = buildPublicWSURL(env512.MAIN_LINK, goAccessPublicWSPath)
-		if err != nil {
-			http.Error(w, "GoAccess public URL invalid: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
 	done := make(chan error, 1)
-	go func() { done <- ensureGoAccessDaemon(publicWSURL) }()
+	go func() { done <- ensureGoAccessDaemon() }()
 
 	select {
 	case <-ctx.Done():
