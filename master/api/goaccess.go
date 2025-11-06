@@ -132,22 +132,6 @@ func setupGoAccessAPI(r chi.Router) {
 }
 
 func ensureGeoIPDatabase(ctx context.Context, workDir string) (string, error) {
-	configured := strings.TrimSpace(env512.GoAccessGeoIPDB)
-	if configured != "" {
-		path := configured
-		if !filepath.IsAbs(path) {
-			path = filepath.Join(workDir, path)
-		}
-		stat, err := os.Stat(path)
-		if err != nil {
-			return "", fmt.Errorf("configured GeoIP database %q is not accessible: %w", path, err)
-		}
-		if stat.IsDir() {
-			return "", fmt.Errorf("configured GeoIP database path %q is a directory", path)
-		}
-		return path, nil
-	}
-
 	cached, err := findCachedGeoIP(workDir)
 	if errors.Is(err, errGeoIPNotFound) {
 		return downloadGeoIPDatabase(ctx, workDir)

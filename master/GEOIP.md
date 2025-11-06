@@ -27,7 +27,7 @@ GOACCESS_GEOIP_LICENSE_KEY=put_your_key_here
 GOACCESS_GEOIP_EDITION=GeoLite2-City
 ```
 
-The license key is mandatory for the built-in downloader. Only set `GOACCESS_GEOIP_DB` if you host the `.mmdb` yourself (for example, on a private mirror); otherwise leave it blank so the downloader manages everything.
+The license key is mandatory for the built-in downloader; `./geoipdb/` is the single source of truth for cached databases.
 
 ### 5. Where Files Are Stored
 - The service automatically creates `./geoipdb/` (already in `.gitignore`) and caches the downloaded `.mmdb` there.
@@ -35,9 +35,8 @@ The license key is mandatory for the built-in downloader. Only set `GOACCESS_GEO
 
 ### 6. Automatic Downloads in Action
 With the key in place, start the binary normally (`go run main.go` or however you run the service). When the GoAccess report is requested it:
-1. Uses `GOACCESS_GEOIP_DB` if you explicitly pointed to a file.
-2. Otherwise, looks for a cached `.mmdb` inside `./geoipdb/`.
-3. If nothing is cached yet—or if the cached file is older than seven days—it contacts the MaxMind API with your license key, downloads the configured edition, and stores it under `./geoipdb/` for future runs.
+1. Looks for a cached `.mmdb` inside `./geoipdb/`.
+2. If nothing is cached yet—or if the cached file is older than seven days—it contacts the MaxMind API with your license key, downloads the configured edition, and stores it under `./geoipdb/` for future runs.
 
 ### 7. Verifying Everything Works
 - Hit `GET /goaccess` (or the equivalent UI flow) to regenerate the report.
