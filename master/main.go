@@ -90,19 +90,37 @@ func downloadNoVNC() error {
 }
 
 func GoAccess() error {
-	if _, err := exec.LookPath("goaccess"); err != nil {
+	const requiredVersion = "1.9.3"
+
+	install := func() error {
 		if _, err := exec.LookPath("dnf"); err != nil {
 			return fmt.Errorf("dnf package manager not found: %w", err)
 		}
-
-		fmt.Println("Installing GoAccess via dnf...")
-		if err := execCommand("dnf", "-y", "install", "goaccess"); err != nil {
-			return fmt.Errorf("install GoAccess: %w", err)
+		fmt.Printf("Installing GoAccess %s via dnf...\n", requiredVersion)
+		if err := execCommand("dnf", "-y", "install", fmt.Sprintf("goaccess-%s", requiredVersion)); err != nil {
+			return fmt.Errorf("install GoAccess %s: %w", requiredVersion, err)
 		}
-	} else {
-		fmt.Println("GoAccess already installed, ensuring configuration is up to date.")
+		return nil
 	}
 
+	if _, err := exec.LookPath("goaccess"); err != nil {
+		return install()
+	}
+
+	var out bytes.Buffer
+	cmd := exec.Command("goaccess", "-V")
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("check GoAccess version: %w", err)
+	}
+
+	if !strings.Contains(out.String(), requiredVersion) {
+		fmt.Printf("Current GoAccess version mismatch, forcing %s...\n", requiredVersion)
+		return install()
+	}
+
+	fmt.Printf("GoAccess %s already installed.\n", requiredVersion)
 	return nil
 }
 
