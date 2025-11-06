@@ -1,11 +1,15 @@
 package api
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,7 +25,10 @@ const (
 	goAccessTimeout       = 2 * time.Minute
 	goAccessRefreshSecond = 5
 	goAccessGeoIPDir      = "geoipdb"
+	goAccessGeoIPMaxAge   = 7 * 24 * time.Hour
 )
+
+var errGeoIPNotFound = errors.New("geoip database not found")
 
 func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), goAccessTimeout)
@@ -82,7 +89,7 @@ func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 	addPanelArgs("enable-panel", env512.GoAccessEnablePanels)
 	addPanelArgs("disable-panel", env512.GoAccessDisablePanels)
 
-	geoIPDBPath, err := resolveGeoIPDatabase(workDir)
+	geoIPDBPath, err := ensureGeoIPDatabase(ctx, workDir)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -124,7 +131,7 @@ func setupGoAccessAPI(r chi.Router) {
 	r.Get("/goaccess", goAccessHandler)
 }
 
-func resolveGeoIPDatabase(workDir string) (string, error) {
+func ensureGeoIPDatabase(ctx context.Context, workDir string) (string, error) {
 	configured := strings.TrimSpace(env512.GoAccessGeoIPDB)
 	if configured != "" {
 		path := configured
@@ -141,6 +148,37 @@ func resolveGeoIPDatabase(workDir string) (string, error) {
 		return path, nil
 	}
 
+	cached, err := findCachedGeoIP(workDir)
+	if errors.Is(err, errGeoIPNotFound) {
+		return downloadGeoIPDatabase(ctx, workDir)
+	}
+	if err != nil {
+		return "", err
+	}
+
+	info, err := os.Stat(cached)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return downloadGeoIPDatabase(ctx, workDir)
+		}
+		return "", fmt.Errorf("inspect cached GeoIP database: %w", err)
+	}
+
+	if time.Since(info.ModTime()) > goAccessGeoIPMaxAge {
+		if strings.TrimSpace(env512.GoAccessGeoIPLicenseKey) == "" {
+			return cached, nil
+		}
+		freshPath, err := downloadGeoIPDatabase(ctx, workDir)
+		if err != nil {
+			return "", fmt.Errorf("refresh GeoIP database: %w", err)
+		}
+		return freshPath, nil
+	}
+
+	return cached, nil
+}
+
+func findCachedGeoIP(workDir string) (string, error) {
 	dir := filepath.Join(workDir, goAccessGeoIPDir)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("unable to prepare GeoIP directory %q: %w", dir, err)
@@ -165,7 +203,101 @@ func resolveGeoIPDatabase(workDir string) (string, error) {
 		return "", fmt.Errorf("scan GeoIP directory %q: %w", dir, err)
 	}
 	if len(files) == 0 {
-		return "", fmt.Errorf("GeoIP database not found in %s. Download GeoLite2 (or equivalent) and place the .mmdb file there or set GOACCESS_GEOIP_DB", dir)
+		return "", fmt.Errorf("%w: %s", errGeoIPNotFound, dir)
 	}
 	return files[0], nil
+}
+
+func downloadGeoIPDatabase(ctx context.Context, workDir string) (string, error) {
+	key := strings.TrimSpace(env512.GoAccessGeoIPLicenseKey)
+	if key == "" {
+		return "", fmt.Errorf("GOACCESS_GEOIP_LICENSE_KEY must be set to download GeoIP databases automatically")
+	}
+
+	edition := env512.GoAccessGeoIPEdition
+	if edition == "" {
+		edition = "GeoLite2-City"
+	}
+
+	dir := filepath.Join(workDir, goAccessGeoIPDir)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("unable to prepare GeoIP directory %q: %w", dir, err)
+	}
+
+	downloadURL := fmt.Sprintf(
+		"https://download.maxmind.com/app/geoip_download?edition_id=%s&license_key=%s&suffix=tar.gz",
+		url.QueryEscape(edition),
+		url.QueryEscape(key),
+	)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("construct GeoIP download request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("download GeoIP database: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<10))
+		return "", fmt.Errorf("download GeoIP database: %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+
+	gz, err := gzip.NewReader(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("decompress GeoIP archive: %w", err)
+	}
+	defer gz.Close()
+
+	tr := tar.NewReader(gz)
+	var extracted string
+
+	for {
+		header, err := tr.Next()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return "", fmt.Errorf("read GeoIP archive: %w", err)
+		}
+
+		if header.FileInfo().IsDir() {
+			continue
+		}
+		if !strings.HasSuffix(strings.ToLower(header.Name), ".mmdb") {
+			continue
+		}
+
+		base := filepath.Base(header.Name)
+		tmp, err := os.CreateTemp(dir, "geoip-*.mmdb")
+		if err != nil {
+			return "", fmt.Errorf("create temp GeoIP file: %w", err)
+		}
+
+		if _, err := io.Copy(tmp, tr); err != nil {
+			tmp.Close()
+			os.Remove(tmp.Name())
+			return "", fmt.Errorf("write GeoIP database: %w", err)
+		}
+		tmp.Close()
+
+		dest := filepath.Join(dir, base)
+		_ = os.Remove(dest)
+		if err := os.Rename(tmp.Name(), dest); err != nil {
+			os.Remove(tmp.Name())
+			return "", fmt.Errorf("place GeoIP database: %w", err)
+		}
+
+		extracted = dest
+		break
+	}
+
+	if extracted == "" {
+		return "", fmt.Errorf("downloaded GeoIP archive but no .mmdb file was found")
+	}
+
+	return extracted, nil
 }

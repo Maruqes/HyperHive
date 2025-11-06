@@ -10,17 +10,19 @@ import (
 )
 
 var (
-	PingInterval          int
-	Mode                  string
-	Qemu_UID              string
-	Qemu_GID              string
-	MASTER_INTERNET_IP    string
-	SPRITE_MIN            int
-	SPRITE_MAX            int
-	MAIN_LINK             string
-	GoAccessEnablePanels  []string
-	GoAccessDisablePanels []string
-	GoAccessGeoIPDB       string
+	PingInterval            int
+	Mode                    string
+	Qemu_UID                string
+	Qemu_GID                string
+	MASTER_INTERNET_IP      string
+	SPRITE_MIN              int
+	SPRITE_MAX              int
+	MAIN_LINK               string
+	GoAccessEnablePanels    []string
+	GoAccessDisablePanels   []string
+	GoAccessGeoIPDB         string
+	GoAccessGeoIPLicenseKey string
+	GoAccessGeoIPEdition    string
 )
 
 func Setup() error {
@@ -38,6 +40,11 @@ func Setup() error {
 	GoAccessEnablePanels = splitAndTrimCSV(os.Getenv("GOACCESS_ENABLE_PANELS"))
 	GoAccessDisablePanels = splitAndTrimCSV(os.Getenv("GOACCESS_DISABLE_PANELS"))
 	GoAccessGeoIPDB = strings.TrimSpace(os.Getenv("GOACCESS_GEOIP_DB"))
+	GoAccessGeoIPLicenseKey = strings.TrimSpace(os.Getenv("GOACCESS_GEOIP_LICENSE_KEY"))
+	GoAccessGeoIPEdition = strings.TrimSpace(os.Getenv("GOACCESS_GEOIP_EDITION"))
+	if GoAccessGeoIPEdition == "" {
+		GoAccessGeoIPEdition = "GeoLite2-City"
+	}
 
 	if MAIN_LINK == "" {
 		panic("needs MAIN_LINK")
