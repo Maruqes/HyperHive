@@ -212,45 +212,53 @@ func ensureGoAccessDaemon(logDir, outputPath string, args []string) error {
 }
 
 // ---------- Helpers: URLs públicos ----------
-
 func derivePublicURLs(r *http.Request) (origin string, wsURL string) {
-	// 1) Se MAIN_LINK estiver definido, usa-o
+	// 1) Esquema preferindo X-Forwarded-Proto
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	if xf := r.Header.Get("X-Forwarded-Proto"); xf != "" {
+		scheme = strings.ToLower(strings.TrimSpace(strings.Split(xf, ",")[0]))
+	}
+
+	// 2) Host público: MAIN_LINK > X-Forwarded-Host > Host, sempre SEM porta
+	host := ""
 	base := strings.TrimSpace(env512.MAIN_LINK)
-
-	var baseU *url.URL
 	if base != "" {
-		if u, err := url.Parse(base); err == nil && u.Scheme != "" && u.Host != "" {
-			u.Path = "" // base pura
-			baseU = u
+		if u, err := url.Parse(base); err == nil && u.Host != "" {
+			// Se MAIN_LINK tiver esquema, respeita-o
+			if u.Scheme != "" {
+				scheme = u.Scheme
+			}
+			host = u.Hostname() // SEM porta
 		}
 	}
-	// 2) Senão, deriva do pedido/NPM
-	if baseU == nil {
-		scheme := "http"
-		if r.TLS != nil {
-			scheme = "https"
+	if host == "" {
+		if xfh := r.Header.Get("X-Forwarded-Host"); xfh != "" {
+			xfh = strings.TrimSpace(strings.Split(xfh, ",")[0])
+			if u, err := url.Parse("http://" + xfh); err == nil { // prefixo dummy só para parse
+				host = u.Hostname() // SEM porta
+			}
 		}
-		if xf := r.Header.Get("X-Forwarded-Proto"); xf != "" {
-			// típico em NPM
-			scheme = strings.ToLower(strings.TrimSpace(strings.Split(xf, ",")[0]))
+	}
+	if host == "" {
+		if u, err := url.Parse("http://" + r.Host); err == nil {
+			host = u.Hostname() // SEM porta
 		}
-		baseU = &url.URL{Scheme: scheme, Host: r.Host}
 	}
 
-	// Path público do WS
+	// 3) Path público do WS
 	publicWSPath := "/ws-goaccess"
 
-	// origin = https://dominio
-	origin = (&url.URL{Scheme: baseU.Scheme, Host: baseU.Host}).String()
-
-	// wsURL = wss://dominio/ws-goaccess  (ou ws:// em http)
+	// 4) Construção final sem porta
+	origin = scheme + "://" + host
 	wsScheme := "ws"
-	if baseU.Scheme == "https" || baseU.Scheme == "wss" {
+	if scheme == "https" {
 		wsScheme = "wss"
 	}
-	wsURL = (&url.URL{Scheme: wsScheme, Host: baseU.Host, Path: publicWSPath}).String()
-
-	return origin, wsURL
+	wsURL = wsScheme + "://" + host + publicWSPath
+	return
 }
 
 // ---------- GeoIP (igual ao teu, com pequenos ajustes) ----------
