@@ -25,9 +25,11 @@ const (
 	goAccessTimeout      = 2 * time.Minute
 	goAccessWSAddr       = "127.0.0.1:7891" // porta interna do WS do GoAccess
 	goAccessPublicWSPath = "/goaccess/ws"   // caminho público do WS
+	goAccessRefreshInt   = 30 * time.Second // intervalo para refresh dos dados
 )
 
 var debugGoAccess = os.Getenv("DEBUG_GOACCESS") == "1"
+var goAccessRefreshTicker *time.Ticker
 
 var goAccessAllPanels = []string{
 	"VISITORS", "REQUESTS", "REQUESTS_STATIC", "NOT_FOUND", "HOSTS", "OS",
@@ -134,6 +136,56 @@ func stopGoAccessIfRunning(pidFile string) {
 	}
 }
 
+// Envia SIGUSR1 para forçar refresh do GoAccess
+func refreshGoAccess(pidFile string) error {
+	b, err := os.ReadFile(pidFile)
+	if err != nil {
+		return fmt.Errorf("read pid: %w", err)
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
+	if err != nil || pid <= 0 {
+		return fmt.Errorf("invalid pid: %v", err)
+	}
+
+	// Tenta SIGUSR1 primeiro (pode não funcionar em todas as versões)
+	if err := syscall.Kill(pid, syscall.SIGUSR1); err == nil {
+		if debugGoAccess {
+			fmt.Printf("[GoAccess] Sent SIGUSR1 to PID %d to trigger refresh\n", pid)
+		}
+		return nil
+	}
+
+	// Se SIGUSR1 não funcionar, mata e deixa reiniciar automaticamente
+	if debugGoAccess {
+		fmt.Printf("[GoAccess] SIGUSR1 failed, killing process to force restart\n")
+	}
+	stopGoAccessIfRunning(pidFile)
+	return fmt.Errorf("killed for restart")
+}
+
+// Inicia goroutine que força refresh periódico
+func startGoAccessRefreshLoop(pidFile string) {
+	if goAccessRefreshTicker != nil {
+		goAccessRefreshTicker.Stop()
+	}
+
+	goAccessRefreshTicker = time.NewTicker(goAccessRefreshInt)
+	go func() {
+		for range goAccessRefreshTicker.C {
+			if err := refreshGoAccess(pidFile); err != nil {
+				if debugGoAccess {
+					fmt.Printf("[GoAccess] Refresh triggered restart: %v\n", err)
+				}
+				// Daemon vai reiniciar no próximo pedido HTTP
+			}
+		}
+	}()
+
+	if debugGoAccess {
+		fmt.Printf("[GoAccess] Started refresh loop (every %v)\n", goAccessRefreshInt)
+	}
+}
+
 // ---------------- GoAccess realtime ----------------
 
 func ensureGoAccessDaemon() error {
@@ -171,7 +223,8 @@ func ensureGoAccessDaemon() error {
 		return fmt.Errorf("no logs found in %s", pattern)
 	}
 
-	// 4) flags
+	// 4) flags - IMPORTANTE: não passar ficheiros como args quando usamos daemon+real-time
+	// O GoAccess vai ler via stdin ou precisa que especifiquemos com --log-file
 	logFormat := `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] [Gzip %^] [Sent-to %^] "%u" "%R"`
 
 	base := strings.TrimSpace(env512.MAIN_LINK)
@@ -201,14 +254,19 @@ func ensureGoAccessDaemon() error {
 		}
 	}
 
-	// 6) se continua a correr e HTML existe → ok
+	// 6) se continua a correr e HTML existe → ok (já está em loop de refresh)
 	if isPortListening(goAccessWSAddr) && fileExists(outputPath) && fileContains(outputPath, publicWSURL) {
 		if debugGoAccess {
 			fmt.Println("[GoAccess] Daemon already running with correct configuration")
 		}
+		// Garante que o refresh loop está a correr
+		if goAccessRefreshTicker == nil {
+			startGoAccessRefreshLoop(pidFile)
+		}
 		return nil
 	}
 
+	// 7) Argumentos do GoAccess - usa os ficheiros diretamente
 	args := append([]string{}, files...)
 	args = append(args,
 		"--no-global-config",
@@ -216,8 +274,7 @@ func ensureGoAccessDaemon() error {
 		"--time-format=%T",
 		"--log-format="+logFormat,
 		"--real-time-html",
-		"--persist",
-		"--restore",
+		// NOTA: sem --persist/--restore para que re-scans sejam mais efetivos
 		"--pid-file="+pidFile,
 		"-o", outputPath,
 		"--addr=127.0.0.1",
@@ -251,6 +308,7 @@ func ensureGoAccessDaemon() error {
 	}
 
 	fmt.Printf("[GoAccess] Starting daemon with %d log files...\n", len(files))
+
 	cmd := exec.Command("goaccess", args...)
 	cmd.Dir = logDir
 	var stderr bytes.Buffer
@@ -279,6 +337,10 @@ func ensureGoAccessDaemon() error {
 				}
 			} else {
 				fmt.Println("[GoAccess] Daemon started successfully and HTML contains correct ws-url")
+
+				// Inicia loop de refresh periódico
+				startGoAccessRefreshLoop(pidFile)
+
 				return nil
 			}
 		}
