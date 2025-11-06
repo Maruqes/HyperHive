@@ -60,6 +60,89 @@ func fileContains(p, needle string) bool {
 	return strings.Contains(string(b), needle)
 }
 
+func requestPublicBaseURL(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+
+	var proto string
+	var host string
+
+	if fwd := r.Header.Get("Forwarded"); fwd != "" {
+		first := strings.Split(fwd, ",")[0]
+		for _, token := range strings.Split(first, ";") {
+			token = strings.TrimSpace(token)
+			if token == "" {
+				continue
+			}
+			lower := strings.ToLower(token)
+			switch {
+			case strings.HasPrefix(lower, "proto=") && proto == "":
+				proto = strings.Trim(strings.TrimPrefix(token, "proto="), `"`)
+			case strings.HasPrefix(lower, "host=") && host == "":
+				host = strings.Trim(strings.TrimPrefix(token, "host="), `"`)
+			}
+		}
+	}
+
+	if host == "" {
+		if h := r.Header.Get("X-Forwarded-Host"); h != "" {
+			host = strings.TrimSpace(strings.Split(h, ",")[0])
+		}
+	}
+	if host == "" {
+		host = strings.TrimSpace(r.Host)
+	}
+
+	if proto == "" {
+		proto = strings.TrimSpace(r.Header.Get("X-Forwarded-Proto"))
+	}
+	if proto == "" {
+		proto = strings.TrimSpace(r.Header.Get("X-Forwarded-Protocol"))
+	}
+	if proto == "" {
+		proto = strings.TrimSpace(r.Header.Get("X-Forwarded-Scheme"))
+	}
+	if proto == "" && strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Forwarded-Ssl")), "on") {
+		proto = "https"
+	}
+	if proto == "" && strings.EqualFold(strings.TrimSpace(r.Header.Get("Front-End-Https")), "on") {
+		proto = "https"
+	}
+	if proto == "" {
+		if r.TLS != nil {
+			proto = "https"
+		} else {
+			proto = "http"
+		}
+	}
+	proto = strings.ToLower(proto)
+	if proto != "https" {
+		proto = "http"
+	}
+
+	if host == "" {
+		return ""
+	}
+
+	if !strings.Contains(host, ":") {
+		if port := strings.TrimSpace(r.Header.Get("X-Forwarded-Port")); port != "" {
+			if !(proto == "http" && port == "80") && !(proto == "https" && port == "443") {
+				host = net.JoinHostPort(host, port)
+			}
+		}
+	}
+
+	basePath := ""
+	if mainLink := strings.TrimSpace(env512.MAIN_LINK); mainLink != "" {
+		if u, err := url.Parse(mainLink); err == nil && u.Path != "" && u.Path != "/" {
+			basePath = strings.TrimRight(u.Path, "/")
+		}
+	}
+
+	return fmt.Sprintf("%s://%s%s", proto, host, basePath)
+}
+
 // ws:// ou wss:// a partir do MAIN_LINK
 func buildPublicWSURL(base, wsPath string) (string, error) {
 	base = strings.TrimSpace(base)
@@ -115,28 +198,82 @@ func originFromBase(base string) (string, error) {
 	return u.Scheme + "://" + u.Host, nil
 }
 
-// mata o daemon antigo via pid-file
-func stopGoAccessIfRunning(pidFile string) {
-	b, err := os.ReadFile(pidFile)
-	if err != nil {
-		return
-	}
-	pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
-	if err != nil || pid <= 0 {
-		return
-	}
-	_ = syscall.Kill(pid, syscall.SIGTERM)
-	for i := 0; i < 20; i++ {
-		if !isPortListening(goAccessWSAddr) {
-			break
+// mata o daemon antigo via pid-file ou comando
+func stopGoAccessIfRunning(pidFile, logDir string) {
+	killed := false
+
+	if b, err := os.ReadFile(pidFile); err == nil {
+		if pid, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil && pid > 0 {
+			if err := syscall.Kill(pid, syscall.SIGTERM); err == nil {
+				killed = true
+			}
 		}
-		time.Sleep(150 * time.Millisecond)
 	}
+
+	if !killed && logDir != "" {
+		if terminateGoAccessByLogDir(logDir) {
+			killed = true
+		}
+	}
+
+	if killed {
+		for i := 0; i < 20; i++ {
+			if !isPortListening(goAccessWSAddr) {
+				break
+			}
+			time.Sleep(150 * time.Millisecond)
+		}
+		_ = os.Remove(pidFile)
+	}
+}
+
+func terminateGoAccessByLogDir(logDir string) bool {
+	dir := filepath.Clean(logDir)
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return false
+	}
+	terminated := false
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		pid, err := strconv.Atoi(entry.Name())
+		if err != nil || pid <= 0 {
+			continue
+		}
+		cmdlinePath := filepath.Join("/proc", entry.Name(), "cmdline")
+		data, err := os.ReadFile(cmdlinePath)
+		if err != nil || len(data) == 0 {
+			continue
+		}
+		parts := strings.Split(string(data), "\x00")
+		if len(parts) == 0 || parts[0] != "goaccess" {
+			continue
+		}
+		found := false
+		for _, part := range parts[1:] {
+			if part == "" {
+				continue
+			}
+			if strings.HasPrefix(part, dir) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			continue
+		}
+		if err := syscall.Kill(pid, syscall.SIGTERM); err == nil {
+			terminated = true
+		}
+	}
+	return terminated
 }
 
 // ---------------- GoAccess realtime ----------------
 
-func ensureGoAccessDaemon() error {
+func ensureGoAccessDaemon(requestBase string) error {
 	// 1) binário
 	if _, err := exec.LookPath("goaccess"); err != nil {
 		if _, derr := exec.LookPath("dnf"); derr != nil {
@@ -174,9 +311,15 @@ func ensureGoAccessDaemon() error {
 	// 4) flags
 	logFormat := `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] [Gzip %^] [Sent-to %^] "%u" "%R"`
 
-	base := strings.TrimSpace(env512.MAIN_LINK)
+	base := strings.TrimSpace(requestBase)
+	if base == "" {
+		base = strings.TrimSpace(env512.MAIN_LINK)
+	}
 	if base == "" {
 		base = "http://localhost"
+	}
+	if !strings.Contains(base, "://") {
+		base = "http://" + base
 	}
 
 	publicWSURL, err := buildPublicWSURL(base, goAccessPublicWSPath)
@@ -188,12 +331,14 @@ func ensureGoAccessDaemon() error {
 		return err
 	}
 
-	fmt.Println("[GoAccess] ws-url =", publicWSURL)
-	fmt.Println("[GoAccess] origin =", origin)
+	if debugGoAccess {
+		fmt.Println("[GoAccess] ws-url =", publicWSURL)
+		fmt.Println("[GoAccess] origin =", origin)
+	}
 
 	// 5) se já está a correr mas o HTML não tem o ws-url atual → reinicia
 	if isPortListening(goAccessWSAddr) && fileExists(outputPath) && !fileContains(outputPath, publicWSURL) {
-		stopGoAccessIfRunning(pidFile)
+		stopGoAccessIfRunning(pidFile, logDir)
 	}
 
 	// 6) se continua a correr e HTML existe → ok
@@ -337,8 +482,10 @@ func goAccessPageHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), goAccessTimeout)
 	defer cancel()
 
+	publicBase := requestPublicBaseURL(r)
+
 	done := make(chan error, 1)
-	go func() { done <- ensureGoAccessDaemon() }()
+	go func() { done <- ensureGoAccessDaemon(publicBase) }()
 
 	select {
 	case <-ctx.Done():
