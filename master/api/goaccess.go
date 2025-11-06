@@ -23,8 +23,8 @@ import (
 
 const (
 	goAccessTimeout      = 2 * time.Minute
-	goAccessWSAddr       = "127.0.0.1:7891" // porta interna do WS do GoAccess
-	goAccessPublicWSPath = "/goaccess/ws"   // caminho público do WS
+	goAccessWSAddr       = "127.0.0.1:7891" // WS interno do GoAccess
+	goAccessPublicWSPath = "/goaccess/ws"   // WS público (browser liga aqui)
 )
 
 var debugGoAccess = os.Getenv("DEBUG_GOACCESS") == "1"
@@ -58,89 +58,6 @@ func fileContains(p, needle string) bool {
 		return false
 	}
 	return strings.Contains(string(b), needle)
-}
-
-func requestPublicBaseURL(r *http.Request) string {
-	if r == nil {
-		return ""
-	}
-
-	var proto string
-	var host string
-
-	if fwd := r.Header.Get("Forwarded"); fwd != "" {
-		first := strings.Split(fwd, ",")[0]
-		for _, token := range strings.Split(first, ";") {
-			token = strings.TrimSpace(token)
-			if token == "" {
-				continue
-			}
-			lower := strings.ToLower(token)
-			switch {
-			case strings.HasPrefix(lower, "proto=") && proto == "":
-				proto = strings.Trim(strings.TrimPrefix(token, "proto="), `"`)
-			case strings.HasPrefix(lower, "host=") && host == "":
-				host = strings.Trim(strings.TrimPrefix(token, "host="), `"`)
-			}
-		}
-	}
-
-	if host == "" {
-		if h := r.Header.Get("X-Forwarded-Host"); h != "" {
-			host = strings.TrimSpace(strings.Split(h, ",")[0])
-		}
-	}
-	if host == "" {
-		host = strings.TrimSpace(r.Host)
-	}
-
-	if proto == "" {
-		proto = strings.TrimSpace(r.Header.Get("X-Forwarded-Proto"))
-	}
-	if proto == "" {
-		proto = strings.TrimSpace(r.Header.Get("X-Forwarded-Protocol"))
-	}
-	if proto == "" {
-		proto = strings.TrimSpace(r.Header.Get("X-Forwarded-Scheme"))
-	}
-	if proto == "" && strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Forwarded-Ssl")), "on") {
-		proto = "https"
-	}
-	if proto == "" && strings.EqualFold(strings.TrimSpace(r.Header.Get("Front-End-Https")), "on") {
-		proto = "https"
-	}
-	if proto == "" {
-		if r.TLS != nil {
-			proto = "https"
-		} else {
-			proto = "http"
-		}
-	}
-	proto = strings.ToLower(proto)
-	if proto != "https" {
-		proto = "http"
-	}
-
-	if host == "" {
-		return ""
-	}
-
-	if !strings.Contains(host, ":") {
-		if port := strings.TrimSpace(r.Header.Get("X-Forwarded-Port")); port != "" {
-			if !(proto == "http" && port == "80") && !(proto == "https" && port == "443") {
-				host = net.JoinHostPort(host, port)
-			}
-		}
-	}
-
-	basePath := ""
-	if mainLink := strings.TrimSpace(env512.MAIN_LINK); mainLink != "" {
-		if u, err := url.Parse(mainLink); err == nil && u.Path != "" && u.Path != "/" {
-			basePath = strings.TrimRight(u.Path, "/")
-		}
-	}
-
-	return fmt.Sprintf("%s://%s%s", proto, host, basePath)
 }
 
 // ws:// ou wss:// a partir do MAIN_LINK
@@ -198,82 +115,99 @@ func originFromBase(base string) (string, error) {
 	return u.Scheme + "://" + u.Host, nil
 }
 
-// mata o daemon antigo via pid-file ou comando
-func stopGoAccessIfRunning(pidFile, logDir string) {
-	killed := false
-
-	if b, err := os.ReadFile(pidFile); err == nil {
-		if pid, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil && pid > 0 {
-			if err := syscall.Kill(pid, syscall.SIGTERM); err == nil {
-				killed = true
-			}
-		}
+// mata o daemon antigo via pid-file
+func stopGoAccessIfRunning(pidFile string) {
+	b, err := os.ReadFile(pidFile)
+	if err != nil {
+		return
 	}
-
-	if !killed && logDir != "" {
-		if terminateGoAccessByLogDir(logDir) {
-			killed = true
-		}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
+	if err != nil || pid <= 0 {
+		return
 	}
-
-	if killed {
-		for i := 0; i < 20; i++ {
-			if !isPortListening(goAccessWSAddr) {
-				break
-			}
-			time.Sleep(150 * time.Millisecond)
+	_ = syscall.Kill(pid, syscall.SIGTERM)
+	for i := 0; i < 20; i++ {
+		if !isPortListening(goAccessWSAddr) {
+			break
 		}
-		_ = os.Remove(pidFile)
+		time.Sleep(150 * time.Millisecond)
 	}
 }
 
-func terminateGoAccessByLogDir(logDir string) bool {
-	dir := filepath.Clean(logDir)
-	entries, err := os.ReadDir("/proc")
-	if err != nil {
-		return false
+// ---------------- deteção de formato ----------------
+
+type fmtCand struct {
+	Name      string
+	DateFmt   string
+	TimeFmt   string
+	LogFormat string
+}
+
+// formatos comuns de NPM/NGINX
+var candidates = []fmtCand{
+	{
+		Name:    "npm-verbose",
+		DateFmt: "%d/%b/%Y", TimeFmt: "%T",
+		// alguns templates do NPM com [Client ...] etc.
+		LogFormat: `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] %^ "%u" "%R"`,
+	},
+	{
+		Name:    "nginx-combined",
+		DateFmt: "%d/%b/%Y", TimeFmt: "%T",
+		// 127.0.0.1 - - [06/Nov/2025:19:27:39 +0000] "GET /path HTTP/1.1" 200 123 "-" "UA"
+		LogFormat: `%h %^[%d:%t %^] "%r" %s %b "%R" "%u"`,
+	},
+	{
+		Name:    "nginx-vhost",
+		DateFmt: "%d/%b/%Y", TimeFmt: "%T",
+		// vhost na frente
+		LogFormat: `%v %h %^[%d:%t %^] "%r" %s %b "%R" "%u"`,
+	},
+}
+
+// tenta verificar um formato com --verify-format
+func verifyFormat(sampleFile, dateFmt, timeFmt, logFmt string) error {
+	args := []string{
+		"--no-global-config",
+		"--date-format=" + dateFmt,
+		"--time-format=" + timeFmt,
+		"--log-format=" + logFmt,
+		"--verify-format",
+		"-f", sampleFile,
 	}
-	terminated := false
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		pid, err := strconv.Atoi(entry.Name())
-		if err != nil || pid <= 0 {
-			continue
-		}
-		cmdlinePath := filepath.Join("/proc", entry.Name(), "cmdline")
-		data, err := os.ReadFile(cmdlinePath)
-		if err != nil || len(data) == 0 {
-			continue
-		}
-		parts := strings.Split(string(data), "\x00")
-		if len(parts) == 0 || parts[0] != "goaccess" {
-			continue
-		}
-		found := false
-		for _, part := range parts[1:] {
-			if part == "" {
-				continue
-			}
-			if strings.HasPrefix(part, dir) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			continue
-		}
-		if err := syscall.Kill(pid, syscall.SIGTERM); err == nil {
-			terminated = true
+	cmd := exec.Command("goaccess", args...)
+	cmd.Stdout = io.Discard
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf(strings.TrimSpace(stderr.String()))
+	}
+	return nil
+}
+
+func detectLogFormat(files []string) (dateFmt, timeFmt, logFmt string, chosen string, err error) {
+	// escolhe um ficheiro com linhas
+	var sample string
+	for _, f := range files {
+		if fi, e := os.Stat(f); e == nil && fi.Size() > 0 {
+			sample = f
+			break
 		}
 	}
-	return terminated
+	if sample == "" {
+		return "", "", "", "", errors.New("no non-empty log file to verify format")
+	}
+	for _, c := range candidates {
+		if e := verifyFormat(sample, c.DateFmt, c.TimeFmt, c.LogFormat); e == nil {
+			return c.DateFmt, c.TimeFmt, c.LogFormat, c.Name, nil
+		}
+	}
+	return "", "", "", "", fmt.Errorf("none of the candidate log formats matched %s", sample)
 }
 
 // ---------------- GoAccess realtime ----------------
 
-func ensureGoAccessDaemon(requestBase string) error {
+func ensureGoAccessDaemon() error {
 	// 1) binário
 	if _, err := exec.LookPath("goaccess"); err != nil {
 		if _, derr := exec.LookPath("dnf"); derr != nil {
@@ -298,28 +232,42 @@ func ensureGoAccessDaemon(requestBase string) error {
 	outputPath := filepath.Join(statsDir, "goaccess.html")
 	pidFile := filepath.Join(statsDir, "goaccess.pid")
 
-	// 3) logs NPM
-	pattern := filepath.Join(logDir, "proxy-host-*_access.log")
-	files, err := filepath.Glob(pattern)
-	if err != nil {
-		return fmt.Errorf("listing logs: %w", err)
+	// 3) logs NPM: proxy-host + default-host
+	var files []string
+	globs := []string{
+		filepath.Join(logDir, "proxy-host-*_access.log"),
+		filepath.Join(logDir, "default-host*_access.log"),
+	}
+	seen := map[string]struct{}{}
+	for _, g := range globs {
+		m, _ := filepath.Glob(g)
+		for _, f := range m {
+			if _, ok := seen[f]; !ok {
+				seen[f] = struct{}{}
+				files = append(files, f)
+			}
+		}
 	}
 	if len(files) == 0 {
-		return fmt.Errorf("no logs found in %s", pattern)
+		return fmt.Errorf("no logs found in %s", logDir)
 	}
 
-	// 4) flags
-	logFormat := `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] [Gzip %^] [Sent-to %^] "%u" "%R"`
-
-	base := strings.TrimSpace(requestBase)
-	if base == "" {
-		base = strings.TrimSpace(env512.MAIN_LINK)
+	// 4) detectar formato
+	dateFmt, timeFmt, logFmt, chosen, derr := detectLogFormat(files)
+	if derr != nil {
+		// usa fallback combinado, mas loga o erro
+		fmt.Println("[GoAccess] WARN format detect failed:", derr.Error())
+		dateFmt = "%d/%b/%Y"
+		timeFmt = "%T"
+		logFmt = `%h %^[%d:%t %^] "%r" %s %b "%R" "%u"`
+		chosen = "fallback-combined"
 	}
+	fmt.Printf("[GoAccess] using format: %s\n", chosen)
+
+	// 5) base + ws/origin
+	base := strings.TrimSpace(env512.MAIN_LINK)
 	if base == "" {
 		base = "http://localhost"
-	}
-	if !strings.Contains(base, "://") {
-		base = "http://" + base
 	}
 
 	publicWSURL, err := buildPublicWSURL(base, goAccessPublicWSPath)
@@ -331,27 +279,25 @@ func ensureGoAccessDaemon(requestBase string) error {
 		return err
 	}
 
-	if debugGoAccess {
-		fmt.Println("[GoAccess] ws-url =", publicWSURL)
-		fmt.Println("[GoAccess] origin =", origin)
-	}
+	fmt.Println("[GoAccess] ws-url =", publicWSURL)
+	fmt.Println("[GoAccess] origin =", origin)
 
-	// 5) se já está a correr mas o HTML não tem o ws-url atual → reinicia
+	// 6) reiniciar se ws-url mudou no HTML
 	if isPortListening(goAccessWSAddr) && fileExists(outputPath) && !fileContains(outputPath, publicWSURL) {
-		stopGoAccessIfRunning(pidFile, logDir)
+		stopGoAccessIfRunning(pidFile)
 	}
-
-	// 6) se continua a correr e HTML existe → ok
+	// 7) se já está ok, sai
 	if isPortListening(goAccessWSAddr) && fileExists(outputPath) {
 		return nil
 	}
 
+	// 8) args
 	args := append([]string{}, files...)
 	args = append(args,
 		"--no-global-config",
-		"--date-format=%d/%b/%Y",
-		"--time-format=%T",
-		"--log-format="+logFormat,
+		"--date-format="+dateFmt,
+		"--time-format="+timeFmt,
+		"--log-format="+logFmt,
 		"--real-time-html",
 		"--persist",
 		"--restore",
@@ -363,6 +309,7 @@ func ensureGoAccessDaemon(requestBase string) error {
 		"--origin="+origin,
 	)
 
+	// painéis
 	enablePanels := env512.GoAccessEnablePanels
 	disablePanels := env512.GoAccessDisablePanels
 	if len(enablePanels) == 0 && len(disablePanels) == 0 {
@@ -375,6 +322,7 @@ func ensureGoAccessDaemon(requestBase string) error {
 		args = append(args, "--ignore-panel="+p)
 	}
 
+	// debug / daemonize
 	if debugGoAccess {
 		args = append(args, "--debug-file=/tmp/goaccess-debug.log")
 		fmt.Println("[GoAccess] args:", strings.Join(args, " "))
@@ -382,12 +330,13 @@ func ensureGoAccessDaemon(requestBase string) error {
 		args = append(args, "--daemonize")
 	}
 
+	// 9) run
 	cmd := exec.Command("goaccess", args...)
+	// directory onde estão os logs (para paths relativos do goaccess, se algum)
 	cmd.Dir = logDir
 	var stderr bytes.Buffer
 	cmd.Stdout = io.Discard
 	cmd.Stderr = &stderr
-
 	if err := cmd.Run(); err != nil {
 		msg := strings.TrimSpace(stderr.String())
 		if msg == "" {
@@ -399,7 +348,7 @@ func ensureGoAccessDaemon(requestBase string) error {
 		return fmt.Errorf("starting GoAccess realtime: %s", msg)
 	}
 
-	// 7) espera pelo WS/HTML
+	// 10) espera
 	for i := 0; i < 20; i++ {
 		if isPortListening(goAccessWSAddr) && fileExists(outputPath) {
 			return nil
@@ -411,45 +360,34 @@ func ensureGoAccessDaemon(requestBase string) error {
 
 // ---------------- WS túnel e página ----------------
 
-// Túnel WS manual: evita problemas do ReverseProxy com Upgrade.
+// Túnel WS manual (hijack).
 func wsTunnelToGoAccess(w http.ResponseWriter, r *http.Request) {
-	// só aceitamos Upgrade: websocket
-	if !strings.EqualFold(r.Header.Get("Connection"), "Upgrade") ||
+	if !strings.Contains(strings.ToLower(r.Header.Get("Connection")), "upgrade") ||
 		!strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
 		http.Error(w, "upgrade required", http.StatusBadRequest)
 		return
 	}
 
-	// liga ao backend WS do GoAccess
 	back, err := net.DialTimeout("tcp", goAccessWSAddr, 5*time.Second)
 	if err != nil {
 		http.Error(w, "backend ws unavailable", http.StatusBadGateway)
 		return
 	}
 
-	// cria um pedido novo para o backend, preserva a query (?p=...)
 	req := r.Clone(context.Background())
-	req.URL = &url.URL{
-		Scheme:   "http",
-		Host:     goAccessWSAddr,
-		Path:     "/",
-		RawQuery: r.URL.RawQuery,
-	}
+	req.URL = &url.URL{Scheme: "http", Host: goAccessWSAddr, Path: "/", RawQuery: r.URL.RawQuery}
 	req.Host = goAccessWSAddr
-	req.RequestURI = "" // obrigatório para clientes http
-	// reforça cabeçalhos de upgrade
+	req.RequestURI = ""
 	req.Header = r.Header.Clone()
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", "websocket")
 
-	// envia o handshake para o backend
 	if err := req.Write(back); err != nil {
 		_ = back.Close()
 		http.Error(w, "failed to write backend handshake", http.StatusBadGateway)
 		return
 	}
 
-	// hijack do cliente para tunnel raw
 	hj, ok := w.(http.Hijacker)
 	if !ok {
 		_ = back.Close()
@@ -463,29 +401,18 @@ func wsTunnelToGoAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// pump nos dois sentidos
 	errCh := make(chan struct{}, 2)
-	go func() {
-		_, _ = io.Copy(back, clientConn)
-		_ = back.Close()
-		errCh <- struct{}{}
-	}()
-	go func() {
-		_, _ = io.Copy(clientConn, back)
-		_ = clientConn.Close()
-		errCh <- struct{}{}
-	}()
-	<-errCh // fecha quando uma das direções termina
+	go func() { _, _ = io.Copy(back, clientConn); _ = back.Close(); errCh <- struct{}{} }()
+	go func() { _, _ = io.Copy(clientConn, back); _ = clientConn.Close(); errCh <- struct{}{} }()
+	<-errCh
 }
 
 func goAccessPageHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), goAccessTimeout)
 	defer cancel()
 
-	publicBase := requestPublicBaseURL(r)
-
 	done := make(chan error, 1)
-	go func() { done <- ensureGoAccessDaemon(publicBase) }()
+	go func() { done <- ensureGoAccessDaemon() }()
 
 	select {
 	case <-ctx.Done():
@@ -498,7 +425,6 @@ func goAccessPageHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// desativar cache do HTML no cliente e proxies
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expires", "0")
@@ -511,6 +437,5 @@ func goAccessPageHandler(w http.ResponseWriter, r *http.Request) {
 
 func setupGoAccessAPI(r chi.Router) {
 	r.Get("/goaccess", goAccessPageHandler)
-	// WebSocket público → túnel raw para 127.0.0.1:7891/
 	r.HandleFunc(goAccessPublicWSPath, wsTunnelToGoAccess)
 }
