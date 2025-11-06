@@ -263,5 +263,5 @@ func goAccessRestartHandler(w http.ResponseWriter, r *http.Request) {
 
 func setupGoAccessAPI(r chi.Router) {
 	r.Get("/goaccess", goAccessHandler)
-	r.Post("/goaccess/restart", goAccessRestartHandler)
+	r.Get("/goaccess/restart", goAccessRestartHandler)
 }
