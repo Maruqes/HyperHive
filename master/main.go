@@ -102,7 +102,7 @@ func GoAccess() error {
 	} else {
 		fmt.Println("GoAccess already installed, ensuring configuration is up to date.")
 	}
-	
+
 	return nil
 }
 
@@ -167,6 +167,29 @@ func main() {
 	if err != nil {
 		log.Fatalf("create ISO table: %v", err)
 	}
+
+	err = db.CreateCPUSnapshotsTable()
+	if err != nil {
+		log.Fatalf("create cpu snapshots table: %v", err)
+	}
+
+	err = db.CreateMemSnapshotsTable()
+	if err != nil {
+		log.Fatalf("create mem snapshots table: %v", err)
+	}
+
+	err = db.CreateDiskSnapshotsTable()
+	if err != nil {
+		log.Fatalf("create disk snapshots table: %v", err)
+	}
+
+	err = db.CreateNetworkSnapshotsTable()
+	if err != nil {
+		log.Fatalf("create network snapshots table: %v", err)
+	}
+
+	infoCollector := &services.InfoService{}
+	go infoCollector.GetSlaveData()
 
 	err = db.CreateTableBackups()
 	if err != nil {
