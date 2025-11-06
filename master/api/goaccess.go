@@ -21,22 +21,16 @@ import (
 )
 
 const (
-	goAccessTimeout       = 2 * time.Minute
-	goAccessRefreshSecond = 5
+	goAccessTimeout = 2 * time.Minute
 
-	// WS interno do GoAccess (o NPM faz proxy disto em /goaccess-ws)
-	goAccessWSAddr   = "127.0.0.1:7891"
+	// WS interno do GoAccess (proxy pelo NPM no /goaccess-ws)
 	goAccessWSListen = "127.0.0.1"
 	goAccessWSPort   = 7891
-
-	// Caminho público (no teu NPM) para o WS
-	publicWSPath = "/goaccess-ws"
 )
 
 var (
-	goaccessMu   sync.Mutex
-	goaccessCmd  *exec.Cmd
-	goaccessHTML string
+	goaccessMu  sync.Mutex
+	goaccessCmd *exec.Cmd
 )
 
 // ---------- util ----------
@@ -49,26 +43,19 @@ func mainLink() string {
 	return strings.TrimRight(base, "/")
 }
 
-// Gera origin e ws-url SEM porta pública, mesmo que MAIN_LINK tenha :port
+// Origin/WS públicos SEM porta (vais usar só 443/80 no NPM)
 func computeOriginAndWS() (origin string, wsURL string, _ error) {
-	base := mainLink()
-	u, err := url.Parse(base)
+	u, err := url.Parse(mainLink())
 	if err != nil || u.Scheme == "" || u.Host == "" {
-		return "", "", fmt.Errorf("MAIN_LINK inválido: %q", base)
+		return "", "", fmt.Errorf("MAIN_LINK inválido")
 	}
-
-	// Remover a porta do host público
-	hostNoPort := u.Hostname()
-
-	// origin = esquema + host sem porta (ex.: https://hyperhive.maruqes.com)
-	origin = u.Scheme + "://" + hostNoPort
-
-	// Se MAIN_LINK for https → wss, senão ws. SEM porta pública.
+	host := u.Hostname() // sem :port
+	origin = u.Scheme + "://" + host
 	wsScheme := "ws"
 	if strings.EqualFold(u.Scheme, "https") {
 		wsScheme = "wss"
 	}
-	wsURL = fmt.Sprintf("%s://%s%s", wsScheme, hostNoPort, publicWSPath)
+	wsURL = fmt.Sprintf("%s://%s/goaccess-ws", wsScheme, host)
 	return origin, wsURL, nil
 }
 
@@ -81,9 +68,9 @@ func portBusy(addr string) bool {
 	return false
 }
 
-// ---------- GoAccess manager ----------
+// ---------- GoAccess RT ----------
 
-func ensureGoAccessRunning(ctx context.Context, logDir string, files []string, outputPath string) error {
+func ensureGoAccessRunning(ctx context.Context, logDir string, logFiles []string, outputPath string, logFormat string) error {
 	goaccessMu.Lock()
 	defer goaccessMu.Unlock()
 
@@ -92,84 +79,68 @@ func ensureGoAccessRunning(ctx context.Context, logDir string, files []string, o
 		return err
 	}
 
-	// Se já temos um processo vivo, mantém.
-	if goaccessCmd != nil && goaccessCmd.Process != nil && goaccessCmd.ProcessState == nil {
-		// Ainda assim, atualizamos o HTML num shot abaixo.
-	} else if !portBusy(goAccessWSAddr) {
-		// Arrancar o WS do GoAccess
-		args := append([]string{}, files...)
-		args = append(args,
-			"--no-global-config",
-			"--date-format=%d/%b/%Y",
-			"--time-format=%T",
-			"--real-time-html",
-			fmt.Sprintf("--html-refresh=%d", goAccessRefreshSecond),
-			"--addr="+goAccessWSListen,
-			fmt.Sprintf("--port=%d", goAccessWSPort),
-			"--ws-url="+wsURL,  // público sem porta
-			"--origin="+origin, // público sem porta
-			"-o", outputPath,
-		)
+	addr := fmt.Sprintf("%s:%d", goAccessWSListen, goAccessWSPort)
 
-		cmd := exec.CommandContext(ctx, "goaccess", args...)
-		cmd.Dir = logDir
+	// Se já está a correr, não arranca outro
+	if goaccessCmd == nil || goaccessCmd.Process == nil || goaccessCmd.ProcessState != nil {
+		// Se a porta não está ocupada, arrancar o WS
+		if !portBusy(addr) {
+			args := append([]string{}, logFiles...)
+			args = append(args,
+				"--no-global-config",
+				"--date-format=%d/%b/%Y",
+				"--time-format=%T",
+				"--real-time-html",
+				"--log-format="+logFormat,
+				"--addr="+goAccessWSListen,
+				fmt.Sprintf("--port=%d", goAccessWSPort),
+				"--ws-url="+wsURL,  // público, sem :port
+				"--origin="+origin, // público, sem :port
+				"-o", outputPath,   // HTML inicial escrito por este processo
+			)
 
-		var stderr bytes.Buffer
-		cmd.Stdout = io.Discard
-		cmd.Stderr = &stderr
+			cmd := exec.CommandContext(ctx, "goaccess", args...)
+			cmd.Dir = logDir
 
-		if err := cmd.Start(); err != nil {
-			msg := strings.TrimSpace(stderr.String())
-			if msg == "" {
-				msg = err.Error()
+			var stderr bytes.Buffer
+			cmd.Stdout = io.Discard
+			cmd.Stderr = &stderr
+
+			if err := cmd.Start(); err != nil {
+				msg := strings.TrimSpace(stderr.String())
+				if msg == "" {
+					msg = err.Error()
+				}
+				return fmt.Errorf("falha ao iniciar goaccess: %s", msg)
 			}
-			return fmt.Errorf("falha a iniciar goaccess: %s", msg)
-		}
-		goaccessCmd = cmd
+			goaccessCmd = cmd
 
-		// Espera curta pelo socket
-		deadline := time.Now().Add(2 * time.Second)
-		for time.Now().Before(deadline) && !portBusy(goAccessWSAddr) {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(120 * time.Millisecond):
+			// Espera breve para socket abrir
+			deadline := time.Now().Add(3 * time.Second)
+			for time.Now().Before(deadline) && !portBusy(addr) {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(120 * time.Millisecond):
+				}
 			}
-		}
-	}
-
-	// Um shot para regenerar HTML (sem abrir outro WS)
-	{
-		args := append([]string{}, files...)
-		args = append(args,
-			"--no-global-config",
-			"--date-format=%d/%b/%Y",
-			"--time-format=%T",
-			fmt.Sprintf("--html-refresh=%d", goAccessRefreshSecond),
-			"--ws-url="+wsURL,
-			"--origin="+origin,
-			"-o", outputPath,
-		)
-
-		gen := exec.CommandContext(ctx, "goaccess", args...)
-		gen.Dir = logDir
-		var stderr bytes.Buffer
-		gen.Stdout = io.Discard
-		gen.Stderr = &stderr
-
-		if err := gen.Run(); err != nil {
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				return context.DeadlineExceeded
-			}
-			msg := strings.TrimSpace(stderr.String())
-			if msg == "" {
-				msg = err.Error()
-			}
-			return fmt.Errorf("falha a gerar HTML do goaccess: %s", msg)
 		}
 	}
 
-	return nil
+	// Espera o HTML aparecer (o processo RT escreve-o)
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if st, err := os.Stat(outputPath); err == nil && st.Size() > 0 {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(120 * time.Millisecond):
+		}
+	}
+
+	return errors.New("goaccess em execução mas o HTML ainda não foi gerado")
 }
 
 // ---------- HTTP handlers ----------
@@ -185,11 +156,12 @@ func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logDir := filepath.Join(workDir, "npm-data", "logs")
-	if stat, err := os.Stat(logDir); err != nil || !stat.IsDir() {
+	if st, err := os.Stat(logDir); err != nil || !st.IsDir() {
 		http.Error(w, "logs directory not found", http.StatusNotFound)
 		return
 	}
 
+	// Descobrir logs do NPM
 	pattern := filepath.Join(logDir, "proxy-host-*_access.log")
 	files, err := filepath.Glob(pattern)
 	if err != nil {
@@ -208,17 +180,13 @@ func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	outputPath := filepath.Join(statsDir, "goaccess.html")
-	goaccessHTML = outputPath
 
-	// Formato NPM (ajusta se necessário)
+	// Formato típico dos access logs do NPM (ajusta se necessário)
 	logFormat := `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] [Gzip %^] [Sent-to %^] "%u" "%R"`
 
-	args := append([]string{}, files...)
-	args = append(args, "--log-format="+logFormat)
-
-	if err := ensureGoAccessRunning(ctx, logDir, args, outputPath); err != nil {
+	if err := ensureGoAccessRunning(ctx, logDir, files, outputPath, logFormat); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "goaccess timed out while generating report", http.StatusGatewayTimeout)
+			http.Error(w, "goaccess timeout", http.StatusGatewayTimeout)
 			return
 		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -231,7 +199,11 @@ func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Evitar cache do HTML
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(data)
 }
@@ -239,7 +211,6 @@ func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 func goAccessRestartHandler(w http.ResponseWriter, r *http.Request) {
 	goaccessMu.Lock()
 	defer goaccessMu.Unlock()
-
 	if goaccessCmd != nil && goaccessCmd.Process != nil {
 		_ = goaccessCmd.Process.Kill()
 		goaccessCmd = nil
