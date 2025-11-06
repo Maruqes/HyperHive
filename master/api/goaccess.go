@@ -61,24 +61,22 @@ func isTCPListening(addr string) bool {
 	return true
 }
 
-func mainOriginAndWS(mainLink string) (origin string, wsURL string, err error) {
+func mainOriginAndWS(mainLink string) (origin, wsURL string, err error) {
 	u, err := url.Parse(strings.TrimSpace(mainLink))
 	if err != nil || u.Scheme == "" || u.Host == "" {
 		return "", "", fmt.Errorf("MAIN_LINK inválido: %q", mainLink)
 	}
-	host := u.Host
+	host := u.Hostname()
 	wsScheme := "ws"
-
-	// Para HTTPS, força host sem porto (TLS no reverse proxy) e wss://
 	if u.Scheme == "https" {
-		host = u.Hostname() // remove :porto
 		wsScheme = "wss"
 	}
-
-	origin = u.Scheme + "://" + host // sem :porto em https
-	wsURL = fmt.Sprintf("%s://%s/goaccess", wsScheme, host)
-	return origin, wsURL, nil
+	origin = u.Scheme + "://" + host
+	// WS público no /goaccess-ws (o NPM reescreve para /goaccess no upstream)
+	wsURL  = fmt.Sprintf("%s://%s/goaccess-ws", wsScheme, host)
+	return
 }
+
 
 func findGeoDB(workDir string) (string, bool) {
 	paths := []string{
