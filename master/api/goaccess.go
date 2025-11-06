@@ -12,12 +12,15 @@ import (
 	"strings"
 	"time"
 
+	"512SvMan/env512"
+
 	"github.com/go-chi/chi/v5"
 )
 
 const (
 	goAccessTimeout       = 2 * time.Minute
 	goAccessRefreshSecond = 5
+	goAccessGeoIPDir      = "geoipdb"
 )
 
 func goAccessHandler(w http.ResponseWriter, r *http.Request) {
@@ -67,6 +70,25 @@ func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 		"-o", outputPath,
 	)
 
+	addPanelArgs := func(flag string, values []string) {
+		for _, panel := range values {
+			panel = strings.TrimSpace(panel)
+			if panel == "" {
+				continue
+			}
+			args = append(args, fmt.Sprintf("--%s=%s", flag, panel))
+		}
+	}
+	addPanelArgs("enable-panel", env512.GoAccessEnablePanels)
+	addPanelArgs("disable-panel", env512.GoAccessDisablePanels)
+
+	geoIPDBPath, err := resolveGeoIPDatabase(workDir)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	args = append(args, "--geoip-database="+geoIPDBPath)
+
 	cmd := exec.CommandContext(ctx, "goaccess", args...)
 	cmd.Dir = logDir
 
@@ -100,4 +122,50 @@ func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 
 func setupGoAccessAPI(r chi.Router) {
 	r.Get("/goaccess", goAccessHandler)
+}
+
+func resolveGeoIPDatabase(workDir string) (string, error) {
+	configured := strings.TrimSpace(env512.GoAccessGeoIPDB)
+	if configured != "" {
+		path := configured
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(workDir, path)
+		}
+		stat, err := os.Stat(path)
+		if err != nil {
+			return "", fmt.Errorf("configured GeoIP database %q is not accessible: %w", path, err)
+		}
+		if stat.IsDir() {
+			return "", fmt.Errorf("configured GeoIP database path %q is a directory", path)
+		}
+		return path, nil
+	}
+
+	dir := filepath.Join(workDir, goAccessGeoIPDir)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("unable to prepare GeoIP directory %q: %w", dir, err)
+	}
+
+	preferred := []string{
+		"GeoLite2-City.mmdb",
+		"GeoLite2-Country.mmdb",
+		"GeoIP2-City.mmdb",
+		"GeoIP2-Country.mmdb",
+	}
+
+	for _, name := range preferred {
+		candidate := filepath.Join(dir, name)
+		if stat, err := os.Stat(candidate); err == nil && !stat.IsDir() {
+			return candidate, nil
+		}
+	}
+
+	files, err := filepath.Glob(filepath.Join(dir, "*.mmdb"))
+	if err != nil {
+		return "", fmt.Errorf("scan GeoIP directory %q: %w", dir, err)
+	}
+	if len(files) == 0 {
+		return "", fmt.Errorf("GeoIP database not found in %s. Download GeoLite2 (or equivalent) and place the .mmdb file there or set GOACCESS_GEOIP_DB", dir)
+	}
+	return files[0], nil
 }

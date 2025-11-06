@@ -20,6 +20,7 @@ var (
 	MAIN_LINK             string
 	GoAccessEnablePanels  []string
 	GoAccessDisablePanels []string
+	GoAccessGeoIPDB       string
 )
 
 func Setup() error {
@@ -36,6 +37,7 @@ func Setup() error {
 	MAIN_LINK = os.Getenv("MAIN_LINK")
 	GoAccessEnablePanels = splitAndTrimCSV(os.Getenv("GOACCESS_ENABLE_PANELS"))
 	GoAccessDisablePanels = splitAndTrimCSV(os.Getenv("GOACCESS_DISABLE_PANELS"))
+	GoAccessGeoIPDB = strings.TrimSpace(os.Getenv("GOACCESS_GEOIP_DB"))
 
 	if MAIN_LINK == "" {
 		panic("needs MAIN_LINK")

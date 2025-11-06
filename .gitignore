@@ -44,6 +44,7 @@ npm-data/
 npm-ssl/
 master/npm-data/
 master/npm-ssl/
+master/geoipdb/
 
 data.db
 novnc
