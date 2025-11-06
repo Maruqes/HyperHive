@@ -4,6 +4,7 @@ import (
 	"512SvMan/env512"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -13,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -21,79 +23,165 @@ import (
 const (
 	goAccessTimeout       = 2 * time.Minute
 	goAccessRefreshSecond = 5
-	goAccessWSAddr        = "127.0.0.1:7891" // onde o goaccess vai escutar WS localmente
+
+	// WS interno do GoAccess (o NPM faz proxy disto em /goaccess-ws)
+	goAccessWSAddr   = "127.0.0.1:7891"
+	goAccessWSListen = "127.0.0.1"
+	goAccessWSPort   = 7891
+
+	// Caminho público (no teu NPM) para o WS
+	publicWSPath = "/goaccess-ws"
 )
 
-// ---- utils ----
+var (
+	goaccessMu   sync.Mutex
+	goaccessCmd  *exec.Cmd
+	goaccessHTML string
+)
 
-func parsePanels(s string) []string {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return nil
-	}
-	sep := func(r rune) bool { return r == ',' || r == ';' || r == ' ' || r == '\t' || r == '|' }
-	raw := strings.FieldsFunc(s, sep)
+// ---------- util ----------
 
-	out := make([]string, 0, len(raw))
-	seen := make(map[string]struct{}, len(raw))
-	for _, p := range raw {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-		key := strings.ToUpper(p)
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		out = append(out, key)
+func mainLink() string {
+	base := strings.TrimSpace(env512.MAIN_LINK)
+	if base == "" {
+		base = "http://127.0.0.1:9595"
 	}
-	return out
+	return strings.TrimRight(base, "/")
 }
 
-func isTCPListening(addr string) bool {
-	d := net.Dialer{Timeout: 300 * time.Millisecond}
-	c, err := d.Dial("tcp", addr)
-	if err != nil {
-		return false
-	}
-	_ = c.Close()
-	return true
-}
-
-func mainOriginAndWS(mainLink string) (origin, wsURL string, err error) {
-	u, err := url.Parse(strings.TrimSpace(mainLink))
+func computeOriginAndWS() (origin string, wsURL string, _ error) {
+	base := mainLink()
+	u, err := url.Parse(base)
 	if err != nil || u.Scheme == "" || u.Host == "" {
-		return "", "", fmt.Errorf("MAIN_LINK inválido: %q", mainLink)
+		return "", "", fmt.Errorf("MAIN_LINK inválido: %q", base)
 	}
-	host := u.Hostname()
+	origin = u.Scheme + "://" + u.Host
+	// Se MAIN_LINK for https, usa wss; caso contrário, ws.
 	wsScheme := "ws"
-	if u.Scheme == "https" {
+	if strings.EqualFold(u.Scheme, "https") {
 		wsScheme = "wss"
 	}
-	origin = u.Scheme + "://" + host
-	// WS público no /goaccess-ws (o NPM reescreve para /goaccess no upstream)
-	wsURL  = fmt.Sprintf("%s://%s/goaccess-ws", wsScheme, host)
-	return
+	wsURL = fmt.Sprintf("%s://%s%s", wsScheme, u.Host, publicWSPath)
+	return origin, wsURL, nil
 }
 
-
-func findGeoDB(workDir string) (string, bool) {
-	paths := []string{
-		filepath.Join(workDir, "npm-data", "geo", "GeoLite2-City.mmdb"),
-		filepath.Join(workDir, "npm-data", "geo", "GeoLite2-Country.mmdb"),
-		"/usr/share/GeoIP/GeoLite2-City.mmdb",
-		"/usr/share/GeoIP/GeoLite2-Country.mmdb",
+func portBusy(addr string) bool {
+	conn, err := net.DialTimeout("tcp", addr, 300*time.Millisecond)
+	if err == nil {
+		_ = conn.Close()
+		return true
 	}
-	for _, p := range paths {
-		if st, err := os.Stat(p); err == nil && !st.IsDir() {
-			return p, true
+	return false
+}
+
+// ---------- GoAccess manager ----------
+
+func ensureGoAccessRunning(ctx context.Context, logDir string, files []string, outputPath string) error {
+	goaccessMu.Lock()
+	defer goaccessMu.Unlock()
+
+	origin, wsURL, err := computeOriginAndWS()
+	if err != nil {
+		return err
+	}
+
+	// Se já temos um processo vivo, não mexer.
+	if goaccessCmd != nil && goaccessCmd.Process != nil {
+		if goaccessCmd.ProcessState == nil {
+			return nil
 		}
 	}
-	return "", false
+
+	// Se a porta já está ocupada por outro processo, assumimos que o WS está vivo.
+	// Mesmo assim (re)geramos o HTML.
+	if !portBusy(goAccessWSAddr) {
+		// Arrancar o WS do GoAccess
+		// NOTA: --real-time-html mantém o processo em execução a emitir updates.
+		args := append([]string{}, files...)
+		args = append(args,
+			"--no-global-config",
+			"--date-format=%d/%b/%Y",
+			"--time-format=%T",
+			"--real-time-html",
+			fmt.Sprintf("--html-refresh=%d", goAccessRefreshSecond),
+			"--addr="+goAccessWSListen,
+			fmt.Sprintf("--port=%d", goAccessWSPort),
+			"--ws-url="+wsURL,
+			"--origin="+origin,
+			// Se preferires que o HTML seja sempre escrito em ficheiro:
+			"-o", outputPath,
+		)
+
+		cmd := exec.CommandContext(ctx, "goaccess", args...)
+		cmd.Dir = logDir
+
+		// stdout não interessa; guardamos stderr para debug
+		var stderr bytes.Buffer
+		cmd.Stdout = io.Discard
+		cmd.Stderr = &stderr
+
+		// Usamos Start() (não Run) porque isto é um daemon long-running.
+		if err := cmd.Start(); err != nil {
+			msg := strings.TrimSpace(stderr.String())
+			if msg == "" {
+				msg = err.Error()
+			}
+			return fmt.Errorf("falha a iniciar goaccess: %s", msg)
+		}
+		goaccessCmd = cmd
+
+		// Espera curta para o WS subir.
+		deadline := time.Now().Add(2 * time.Second)
+		for time.Now().Before(deadline) {
+			if portBusy(goAccessWSAddr) {
+				break
+			}
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(100 * time.Millisecond):
+			}
+		}
+	}
+
+	// Gerar/atualizar o HTML inicial (um shot imediato).
+	// Usa os MESMOS argumentos mas sem --real-time-html para não abrir outro WS.
+	{
+		args := append([]string{}, files...)
+		args = append(args,
+			"--no-global-config",
+			"--date-format=%d/%b/%Y",
+			"--time-format=%T",
+			fmt.Sprintf("--html-refresh=%d", goAccessRefreshSecond),
+			"--ws-url="+wsURL,
+			"--origin="+origin,
+			"-o", outputPath,
+		)
+
+		gen := exec.CommandContext(ctx, "goaccess", args...)
+		gen.Dir = logDir
+		var stderr bytes.Buffer
+		gen.Stdout = io.Discard
+		gen.Stderr = &stderr
+
+		if err := gen.Run(); err != nil {
+			// Se for timeout do contexto, devolve 504 a quem chamou.
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				return context.DeadlineExceeded
+			}
+			msg := strings.TrimSpace(stderr.String())
+			if msg == "" {
+				msg = err.Error()
+			}
+			// Não matamos o WS; apenas reportamos a falha do HTML.
+			return fmt.Errorf("falha a gerar HTML do goaccess: %s", msg)
+		}
+	}
+
+	return nil
 }
 
-// ---- handler ----
+// ---------- HTTP handlers ----------
 
 func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), goAccessTimeout)
@@ -111,7 +199,7 @@ func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// recolha de logs do NPM
+	// Descobrir logs do NPM
 	pattern := filepath.Join(logDir, "proxy-host-*_access.log")
 	files, err := filepath.Glob(pattern)
 	if err != nil {
@@ -130,132 +218,30 @@ func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	outputPath := filepath.Join(statsDir, "goaccess.html")
+	goaccessHTML = outputPath
 
-	// formato compatível com Nginx Proxy Manager (access.log padrão do NPM)
+	// Formato compatível com NPM access log (ajusta se necessário)
 	logFormat := `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] [Gzip %^] [Sent-to %^] "%u" "%R"`
 
-	// origem e ws-url baseados em MAIN_LINK
-	origin, wsURL, err := mainOriginAndWS(env512.MAIN_LINK)
-	if err != nil {
-		http.Error(w, "MAIN_LINK inválido/configura MAIN_LINK (ex.: https://hyperhive.maruqes.com)", http.StatusInternalServerError)
+	// Acrescentar flags e arrancar/assegurar WS + gerar HTML
+	args := append([]string{}, files...)
+	args = append(args,
+		"--log-format="+logFormat,
+	)
+	if err := ensureGoAccessRunning(ctx, logDir, args, outputPath); err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "goaccess timed out while generating report", http.StatusGatewayTimeout)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// montar argumentos do goaccess
-	args := append([]string{}, files...)
-	args = append(args,
-		"--no-global-config",
-		"--date-format=%d/%b/%Y",
-		"--time-format=%T",
-		fmt.Sprintf("--html-refresh=%d", goAccessRefreshSecond),
-		"--log-format="+logFormat,
-		"-o", outputPath,
-
-		// realtime + servidor WS embutido
-		"--real-time-html",
-		"--origin="+origin,
-		"--ws-url="+wsURL,
-		"--addr=127.0.0.1",
-		"--port=7891",
-	)
-
-	// GeoIP se existir DB
-	if geoDB, ok := findGeoDB(workDir); ok {
-		args = append(args, "--geoip-database="+geoDB)
-	}
-
-	// painéis (se ambos vazios -> não passar flags -> todos os painéis por defeito)
-	enable := env512.GoAccessEnablePanels
-	disable := env512.GoAccessDisablePanels
-	for _, p := range enable {
-		args = append(args, "--enable-panel="+p)
-	}
-	for _, p := range disable {
-		args = append(args, "--ignore-panel="+p)
-	}
-
-	// garantir que o servidor WS do goaccess está a correr; se não, arrancar em background
-	startNew := !isTCPListening(goAccessWSAddr)
-	if startNew {
-		cmd := exec.CommandContext(ctx, "goaccess", args...)
-		cmd.Dir = logDir
-		// redirecionar stdout/stderr para ficheiros para debugging
-		stdoutFile := filepath.Join(statsDir, "goaccess.stdout.log")
-		stderrFile := filepath.Join(statsDir, "goaccess.stderr.log")
-		stdout, _ := os.OpenFile(stdoutFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
-		stderr, _ := os.OpenFile(stderrFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
-		cmd.Stdout = stdout
-		cmd.Stderr = stderr
-
-		// iniciar sem bloquear o handler
-		if err := cmd.Start(); err != nil {
-			http.Error(w, "failed to start goaccess realtime server: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		// dar um pequeno tempo para o servidor abrir o porto
-		deadline := time.Now().Add(2 * time.Second)
-		for time.Now().Before(deadline) {
-			if isTCPListening(goAccessWSAddr) {
-				break
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
-	}
-
-	// garantir que o HTML existe (a 1ª geração pode demorar um instante)
-	waitHTML := time.Now().Add(2 * time.Second)
-	for {
-		if _, err := os.Stat(outputPath); err == nil {
-			break
-		}
-		if time.Now().After(waitHTML) {
-			// se ainda não existe, forçar uma geração "rápida" numa execução síncrona (sem realtime) só para entregar algo
-			genArgs := append([]string{}, files...)
-			genArgs = append(genArgs,
-				"--no-global-config",
-				"--date-format=%d/%b/%Y",
-				"--time-format=%T",
-				fmt.Sprintf("--html-refresh=%d", goAccessRefreshSecond),
-				"--log-format="+logFormat,
-				"-o", outputPath,
-			)
-			// aplicar geoip/painéis também nesta geração
-			if geoDB, ok := findGeoDB(workDir); ok {
-				genArgs = append(genArgs, "--geoip-database="+geoDB)
-			}
-			for _, p := range enable {
-				genArgs = append(genArgs, "--enable-panel="+p)
-			}
-			for _, p := range disable {
-				genArgs = append(genArgs, "--ignore-panel="+p)
-			}
-
-			var stderr bytes.Buffer
-			cmd := exec.CommandContext(ctx, "goaccess", genArgs...)
-			cmd.Dir = logDir
-			cmd.Stdout = io.Discard
-			cmd.Stderr = &stderr
-			_ = cmd.Run() // melhor esforço
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	// servir o HTML
+	// Ler e devolver HTML atual
 	data, err := os.ReadFile(outputPath)
 	if err != nil {
 		http.Error(w, "failed to read generated report", http.StatusInternalServerError)
 		return
-	}
-	// Injeta uma pequena nota (não obrigatória) com a origem e ws detectados (útil para debug visual)
-	// Nota: se não quiseres nada disto, remove o bloco abaixo.
-	dataStr := string(data)
-	if !strings.Contains(dataStr, "data-origin-note") {
-		inject := fmt.Sprintf(`<!-- data-origin-note --><div style="position:fixed;right:8px;bottom:8px;opacity:.35;font:12px/1.2 monospace;padding:4px 6px;background:#000;color:#fff;border-radius:6px;z-index:2147483647">origin=%s<br>ws=%s</div>`, origin, wsURL)
-		// tentar inserir antes do fechamento do body
-		dataStr = strings.Replace(dataStr, "</body>", inject+"</body>", 1)
-		data = []byte(dataStr)
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -263,6 +249,19 @@ func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
+// Opcional: endpoint para reiniciar o processo do GoAccess
+func goAccessRestartHandler(w http.ResponseWriter, r *http.Request) {
+	goaccessMu.Lock()
+	defer goaccessMu.Unlock()
+
+	if goaccessCmd != nil && goaccessCmd.Process != nil {
+		_ = goaccessCmd.Process.Kill()
+		goaccessCmd = nil
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func setupGoAccessAPI(r chi.Router) {
 	r.Get("/goaccess", goAccessHandler)
+	r.Post("/goaccess/restart", goAccessRestartHandler)
 }
