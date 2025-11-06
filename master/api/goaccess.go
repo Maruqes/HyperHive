@@ -9,7 +9,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"os"
 	"os/exec"
@@ -24,7 +23,7 @@ import (
 
 const (
 	goAccessTimeout      = 2 * time.Minute
-	goAccessWSAddr       = "127.0.0.1:7891" // porta interna do WS do GoAccess (podes trocar p/ 7890)
+	goAccessWSAddr       = "127.0.0.1:7891" // porta interna do WS do GoAccess
 	goAccessPublicWSPath = "/goaccess/ws"   // caminho público do WS
 )
 
@@ -265,25 +264,73 @@ func ensureGoAccessDaemon() error {
 	return errors.New("GoAccess started but WS/HTML are not ready")
 }
 
-// ---------------- WS proxy e página ----------------
+// ---------------- WS túnel e página ----------------
 
-func newGoAccessWSProxy() http.Handler {
-	u := &url.URL{Scheme: "http", Host: goAccessWSAddr}
-	p := httputil.NewSingleHostReverseProxy(u)
+// Túnel WS manual: evita problemas do ReverseProxy com Upgrade.
+func wsTunnelToGoAccess(w http.ResponseWriter, r *http.Request) {
+	// só aceitamos Upgrade: websocket
+	if !strings.EqualFold(r.Header.Get("Connection"), "Upgrade") ||
+		!strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+		http.Error(w, "upgrade required", http.StatusBadRequest)
+		return
+	}
 
-	orig := p.Director
-	p.Director = func(r *http.Request) {
-		orig(r)
-		r.URL.Scheme = "http"
-		r.URL.Host = goAccessWSAddr
-		r.URL.Path = "/" // GoAccess WS está em "/"
-		// mantém RawQuery (precisa do token p=... do HTML)
-		r.Host = goAccessWSAddr
+	// liga ao backend WS do GoAccess
+	back, err := net.DialTimeout("tcp", goAccessWSAddr, 5*time.Second)
+	if err != nil {
+		http.Error(w, "backend ws unavailable", http.StatusBadGateway)
+		return
 	}
-	p.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-		http.Error(w, "websocket proxy error: "+err.Error(), http.StatusBadGateway)
+
+	// cria um pedido novo para o backend, preserva a query (?p=...)
+	req := r.Clone(context.Background())
+	req.URL = &url.URL{
+		Scheme:   "http",
+		Host:     goAccessWSAddr,
+		Path:     "/",
+		RawQuery: r.URL.RawQuery,
 	}
-	return p
+	req.Host = goAccessWSAddr
+	req.RequestURI = "" // obrigatório para clientes http
+	// reforça cabeçalhos de upgrade
+	req.Header = r.Header.Clone()
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Upgrade", "websocket")
+
+	// envia o handshake para o backend
+	if err := req.Write(back); err != nil {
+		_ = back.Close()
+		http.Error(w, "failed to write backend handshake", http.StatusBadGateway)
+		return
+	}
+
+	// hijack do cliente para tunnel raw
+	hj, ok := w.(http.Hijacker)
+	if !ok {
+		_ = back.Close()
+		http.Error(w, "hijacking not supported", http.StatusInternalServerError)
+		return
+	}
+	clientConn, _, err := hj.Hijack()
+	if err != nil {
+		_ = back.Close()
+		http.Error(w, "hijack failed", http.StatusInternalServerError)
+		return
+	}
+
+	// pump nos dois sentidos
+	errCh := make(chan struct{}, 2)
+	go func() {
+		_, _ = io.Copy(back, clientConn)
+		_ = back.Close()
+		errCh <- struct{}{}
+	}()
+	go func() {
+		_, _ = io.Copy(clientConn, back)
+		_ = clientConn.Close()
+		errCh <- struct{}{}
+	}()
+	<-errCh // fecha quando uma das direções termina
 }
 
 func goAccessPageHandler(w http.ResponseWriter, r *http.Request) {
@@ -317,5 +364,6 @@ func goAccessPageHandler(w http.ResponseWriter, r *http.Request) {
 
 func setupGoAccessAPI(r chi.Router) {
 	r.Get("/goaccess", goAccessPageHandler)
-	r.Handle(goAccessPublicWSPath, newGoAccessWSProxy())
+	// WebSocket público → túnel raw para 127.0.0.1:7891/
+	r.HandleFunc(goAccessPublicWSPath, wsTunnelToGoAccess)
 }
