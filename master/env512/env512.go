@@ -4,18 +4,22 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
 
 var (
-	PingInterval       int
-	Mode               string
-	Qemu_UID           string
-	Qemu_GID           string
-	MASTER_INTERNET_IP string
-	SPRITE_MIN         int
-	SPRITE_MAX         int
+	PingInterval          int
+	Mode                  string
+	Qemu_UID              string
+	Qemu_GID              string
+	MASTER_INTERNET_IP    string
+	SPRITE_MIN            int
+	SPRITE_MAX            int
+	MAIN_LINK             string
+	GoAccessEnablePanels  []string
+	GoAccessDisablePanels []string
 )
 
 func Setup() error {
@@ -29,6 +33,13 @@ func Setup() error {
 
 	sMin := os.Getenv("SPRITE_MIN")
 	sMax := os.Getenv("SPRITE_MAX")
+	MAIN_LINK = os.Getenv("MAIN_LINK")
+	GoAccessEnablePanels = splitAndTrimCSV(os.Getenv("GOACCESS_ENABLE_PANELS"))
+	GoAccessDisablePanels = splitAndTrimCSV(os.Getenv("GOACCESS_DISABLE_PANELS"))
+
+	if MAIN_LINK == "" {
+		panic("needs MAIN_LINK")
+	}
 
 	if Qemu_GID == "" || Qemu_UID == "" {
 		return fmt.Errorf("QEMU_UID and QEMU_GID must be set")
@@ -68,4 +79,19 @@ func Setup() error {
 		Mode = "prod" //default prod
 	}
 	return nil
+}
+
+func splitAndTrimCSV(val string) []string {
+	if val == "" {
+		return nil
+	}
+	parts := strings.Split(val, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
 }
