@@ -96,6 +96,10 @@ func GoAccess() error {
 		if _, err := exec.LookPath("dnf"); err != nil {
 			return fmt.Errorf("dnf package manager not found: %w", err)
 		}
+		fmt.Println("Installing libmaxminddb dependencies via dnf...")
+		if err := execCommand("dnf", "-y", "install", "libmaxminddb", "libmaxminddb-devel"); err != nil {
+			return fmt.Errorf("install libmaxminddb dependencies: %w", err)
+		}
 		fmt.Printf("Installing GoAccess %s via dnf...\n", requiredVersion)
 		if err := execCommand("dnf", "-y", "install", fmt.Sprintf("goaccess-%s", requiredVersion)); err != nil {
 			return fmt.Errorf("install GoAccess %s: %w", requiredVersion, err)
