@@ -304,6 +304,12 @@ func goAccessPageHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// desativar cache do HTML no cliente e proxies
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
 	workDir, _ := os.Getwd()
 	html := filepath.Join(workDir, "npm-data", "stats", "goaccess.html")
 	http.ServeFile(w, r, html)
