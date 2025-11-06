@@ -4,7 +4,6 @@ import (
 	"512SvMan/env512"
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -76,9 +75,8 @@ func mainOriginAndWS(mainLink string) (origin string, wsURL string, err error) {
 		wsScheme = "wss"
 	}
 
-	origin = u.Scheme + "://" + host            // sem :porto em https
-	wsURL = fmt.Sprintf("%s://%s/goaccess/ws", wsScheme, host)
-
+	origin = u.Scheme + "://" + host // sem :porto em https
+	wsURL = fmt.Sprintf("%s://%s/goaccess", wsScheme, host)
 	return origin, wsURL, nil
 }
 
