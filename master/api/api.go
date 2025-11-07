@@ -94,7 +94,5 @@ func StartApi() {
 		setupStreamInfo(r)
 	})
 
-	services.StartStreamOpenTracker()
-
 	http.ListenAndServe(":9595", r)
 }
