@@ -327,7 +327,57 @@
 		async function loadData() { if (isLoadingData) return; isLoadingData = true; try { const params = getDateParams(); const flowParams = params ? (params + '&limit=50') : '?limit=50'; const [dateInfo, summary, flow, daily, hourly, topCountries, topPorts, topTalkers, protocol, upstream] = await Promise.all([fetch('/streamInfo/daterange' + params).then(r => r.json()), fetch('/streamInfo/summary' + params).then(r => r.json()), fetch('/streamInfo/flow' + flowParams).then(r => r.json()), fetch('/streamInfo/stats/daily' + params).then(r => r.json()), fetch('/streamInfo/stats/hourly' + params).then(r => r.json()), fetch('/streamInfo/top/countries' + params).then(r => r.json()), fetch('/streamInfo/top/ports' + params).then(r => r.json()), fetch('/streamInfo/top/talkers' + params).then(r => r.json()), fetch('/streamInfo/traffic/by-protocol' + params).then(r => r.json()), fetch('/streamInfo/upstream' + params).then(r => r.json())]); updateDateInfo(dateInfo); updateSummaryCards(summary); updateSankeyChart(flow); updateDailyChart(daily); updateHourlyChart(hourly); updateCountriesChart(topCountries); updatePortsChart(topPorts); updateTopTalkersTable(topTalkers); updateProtocolTable(protocol); updateUpstreamTable(upstream); document.getElementById('loading').classList.add('hidden'); document.getElementById('dashboard').classList.remove('hidden'); document.getElementById('lastUpdate').textContent = 'Last updated: ' + new Date().toLocaleTimeString() } catch (e) { console.error('Error loading data:', e); alert('Failed to load data. Please try again.') } finally { isLoadingData = false } }
 		function updateDateInfo(d) { document.getElementById('datasetDays').textContent = d.total_days || '-'; document.getElementById('datasetRange').textContent = (d.min_date && d.max_date) ? (d.min_date + ' to ' + d.max_date) : '-'; document.getElementById('datasetTotal').textContent = (d.total_entries || 0).toLocaleString() }
 		function updateSummaryCards(d) { document.getElementById('totalConns').textContent = d.total_connections.toLocaleString(); document.getElementById('uniqueIPs').textContent = d.unique_ips.toLocaleString(); document.getElementById('uniqueCountries').textContent = d.unique_countries; document.getElementById('totalBytes').textContent = formatBytes(d.total_bytes); document.getElementById('avgSession').textContent = d.avg_session_time_seconds.toFixed(2); document.getElementById('failedConns').textContent = d.failed_connections.toLocaleString(); document.getElementById('dateRange').textContent = d.date_range; const sr = ((d.successful_connections / d.total_connections) * 100).toFixed(1); document.getElementById('successRate').textContent = sr + '%' }
-		function updateSankeyChart(data) { const container = document.getElementById('sankeyChart'); container.innerHTML = ''; if (!data || data.length === 0) { container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af">No flow data available</div>'; return } document.getElementById('flowCount').textContent = data.length; const margin = { top: 10, right: 10, bottom: 10, left: 10 }; const width = container.offsetWidth - margin.left - margin.right; const height = 600 - margin.top - margin.bottom; const svg = d3.select('#sankeyChart').append('svg').attr('width', width + margin.left + margin.right).attr('height', height + margin.top + margin.bottom).append('g').attr('transform', `translate(${margin.left},${margin.top})`); const nodes = []; const nodeMap = new Map(); data.forEach(d => { if (!nodeMap.has(d.source)) { nodeMap.set(d.source, nodes.length); nodes.push({ name: d.source, type: 'source' }) } if (!nodeMap.has(d.destination)) { nodeMap.set(d.destination, nodes.length); nodes.push({ name: d.destination, type: 'dest' }) } }); const links = data.map(d => ({ source: nodeMap.get(d.source), target: nodeMap.get(d.destination), value: d.connections, bytes: d.total_bytes })); const sankey = d3.sankey().nodeWidth(15).nodePadding(10).extent([[1, 1], [width - 1, height - 6]]); const { nodes: sankeyNodes, links: sankeyLinks } = sankey({ nodes: nodes.map(d => Object.assign({}, d)), links: links.map(d => Object.assign({}, d)) }); const colorScale = d3.scaleOrdinal(d3.schemeCategory10); svg.append('g').selectAll('rect').data(sankeyNodes).join('rect').attr('x', d => d.x0).attr('y', d => d.y0).attr('height', d => d.y1 - d.y0).attr('width', d => d.x1 - d.x0).attr('fill', d => colorScale(d.name)).attr('opacity', 0.8).append('title').text(d => `${d.name}\n${d.value} connections`); const link = svg.append('g').attr('fill', 'none').selectAll('g').data(sankeyLinks).join('g').attr('stroke', d => colorScale(sankeyNodes[d.source.index].name)).attr('opacity', 0.5); link.append('path').attr('d', d3.sankeyLinkHorizontal()).attr('stroke-width', d => Math.max(1, d.width)).on('mouseover', function () { d3.select(this).attr('opacity', 0.8) }).on('mouseout', function () { d3.select(this).attr('opacity', 0.5) }); link.append('title').text(d => `${sankeyNodes[d.source.index].name} → ${sankeyNodes[d.target.index].name}\n${d.value} connections\n${formatBytes(d.bytes)}`); svg.append('g').selectAll('text').data(sankeyNodes).join('text').attr('x', d => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6).attr('y', d => (d.y1 + d.y0) / 2).attr('dy', '0.35em').attr('text-anchor', d => d.x0 < width / 2 ? 'start' : 'end').attr('fill', '#e5e7eb').attr('font-size', '12px').text(d => d.name) }
+		function updateSankeyChart(data) {
+			const container = document.getElementById('sankeyChart');
+			container.innerHTML = '';
+			console.log('Sankey data:', data);
+			if (!data || data.length === 0) {
+				container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af">No flow data available</div>';
+				return
+			}
+			try {
+				document.getElementById('flowCount').textContent = data.length;
+				const margin = { top: 10, right: 10, bottom: 10, left: 10 };
+				const width = container.offsetWidth - margin.left - margin.right;
+				const height = 600 - margin.top - margin.bottom;
+				const svg = d3.select('#sankeyChart').append('svg').attr('width', width + margin.left + margin.right).attr('height', height + margin.top + margin.bottom).append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+				const nodes = [];
+				const nodeMap = new Map();
+				data.forEach(d => {
+					if (!nodeMap.has(d.source)) {
+						nodeMap.set(d.source, nodes.length);
+						nodes.push({ name: d.source, type: 'source' })
+					}
+					if (!nodeMap.has(d.destination)) {
+						nodeMap.set(d.destination, nodes.length);
+						nodes.push({ name: d.destination, type: 'dest' })
+					}
+				});
+				const links = data.map(d => ({
+					source: nodeMap.get(d.source),
+					target: nodeMap.get(d.destination),
+					value: d.connections,
+					bytes: d.total_bytes
+				}));
+				console.log('Sankey nodes:', nodes);
+				console.log('Sankey links:', links);
+				const sankey = d3.sankey().nodeWidth(15).nodePadding(10).extent([[1, 1], [width - 1, height - 6]]);
+				const graph = sankey({
+					nodes: nodes.map(d => Object.assign({}, d)),
+					links: links.map(d => Object.assign({}, d))
+				});
+				const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+				svg.append('g').selectAll('rect').data(graph.nodes).join('rect').attr('x', d => d.x0).attr('y', d => d.y0).attr('height', d => d.y1 - d.y0).attr('width', d => d.x1 - d.x0).attr('fill', d => colorScale(d.name)).attr('opacity', 0.8).append('title').text(d => `${d.name}\n${d.value || 0} connections`);
+				const link = svg.append('g').attr('fill', 'none').selectAll('g').data(graph.links).join('g').attr('stroke', d => colorScale(graph.nodes[d.source.index].name)).attr('opacity', 0.5);
+				link.append('path').attr('d', d3.sankeyLinkHorizontal()).attr('stroke-width', d => Math.max(1, d.width)).on('mouseover', function () { d3.select(this).attr('opacity', 0.8) }).on('mouseout', function () { d3.select(this).attr('opacity', 0.5) });
+				link.append('title').text(d => `${graph.nodes[d.source.index].name} → ${graph.nodes[d.target.index].name}\n${d.value} connections\n${formatBytes(d.bytes)}`);
+				svg.append('g').selectAll('text').data(graph.nodes).join('text').attr('x', d => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6).attr('y', d => (d.y1 + d.y0) / 2).attr('dy', '0.35em').attr('text-anchor', d => d.x0 < width / 2 ? 'start' : 'end').attr('fill', '#e5e7eb').attr('font-size', '12px').text(d => d.name);
+				console.log('Sankey chart created successfully');
+			} catch (e) {
+				console.error('Sankey error:', e);
+				container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ef4444">Error creating visualization: ' + e.message + '</div>';
+			}
+		}
 		function updateDailyChart(d) { destroyChart('daily'); const ctx = document.getElementById('dailyChart').getContext('2d'); charts.daily = new Chart(ctx, { type: 'line', data: { labels: d.map(x => x.date), datasets: [{ label: 'Connections', data: d.map(x => x.connections), borderColor: 'rgb(59,130,246)', backgroundColor: 'rgba(59,130,246,0.1)', tension: 0.4, fill: true }, { label: 'Unique IPs', data: d.map(x => x.unique_ips), borderColor: 'rgb(34,197,94)', backgroundColor: 'rgba(34,197,94,0.1)', tension: 0.4, fill: true }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: '#e5e7eb' } } }, scales: { y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } } }) }
 		function updateHourlyChart(d) { destroyChart('hourly'); const ctx = document.getElementById('hourlyChart').getContext('2d'); charts.hourly = new Chart(ctx, { type: 'bar', data: { labels: d.map(x => x.hour + ':00'), datasets: [{ label: 'Connections', data: d.map(x => x.connections), backgroundColor: 'rgba(147,51,234,0.6)', borderColor: 'rgb(147,51,234)', borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } } }) }
 		function updateCountriesChart(d) { destroyChart('countries'); const ctx = document.getElementById('countriesChart').getContext('2d'); charts.countries = new Chart(ctx, { type: 'doughnut', data: { labels: d.map(x => x.country), datasets: [{ data: d.map(x => x.total_bytes), backgroundColor: ['rgba(59,130,246,0.8)', 'rgba(34,197,94,0.8)', 'rgba(251,146,60,0.8)', 'rgba(239,68,68,0.8)', 'rgba(147,51,234,0.8)', 'rgba(236,72,153,0.8)', 'rgba(14,165,233,0.8)', 'rgba(132,204,22,0.8)', 'rgba(250,204,21,0.8)', 'rgba(168,85,247,0.8)'], borderColor: '#1e293b', borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#e5e7eb', padding: 10 } }, tooltip: { callbacks: { label: function (c) { return c.label + ': ' + formatBytes(c.parsed) } } } } } }) }
