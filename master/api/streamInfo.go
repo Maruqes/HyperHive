@@ -1178,6 +1178,173 @@ func getTopPorts(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(result)
 }
 
+// ConnectionFlow represents the flow from source to destination
+type connectionFlow struct {
+	Source      string `json:"source"`
+	Destination string `json:"destination"`
+	Connections int    `json:"connections"`
+	TotalBytes  int64  `json:"total_bytes"`
+}
+
+// getConnectionFlow returns connection flow data for visualization (Country -> Port)
+func getConnectionFlow(w http.ResponseWriter, r *http.Request) {
+	entries, geoIPDB, err := loadEntriesWithGeoIP()
+	if geoIPDB != nil {
+		defer geoIPDB.Close()
+	}
+	if err != nil {
+		respondJSONError(w, http.StatusInternalServerError, "failed to load entries")
+		return
+	}
+
+	// Parse query parameters for date filtering
+	startDate := r.URL.Query().Get("start")
+	endDate := r.URL.Query().Get("end")
+	limitStr := r.URL.Query().Get("limit")
+
+	var startTime, endTime time.Time
+	if startDate != "" {
+		if t, err := time.Parse("2006-01-02", startDate); err == nil {
+			startTime = t
+		}
+	}
+	if endDate != "" {
+		if t, err := time.Parse("2006-01-02", endDate); err == nil {
+			endTime = t.Add(24 * time.Hour) // Include the entire end date
+		}
+	}
+
+	limit := 100 // Default limit
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	type flowKey struct {
+		source string
+		dest   string
+	}
+
+	flowMap := make(map[flowKey]*connectionFlow)
+
+	for _, entry := range entries {
+		// Apply date filter
+		if !startTime.IsZero() && entry.Time.Before(startTime) {
+			continue
+		}
+		if !endTime.IsZero() && entry.Time.After(endTime) {
+			continue
+		}
+
+		source := entry.Country
+		if source == "" {
+			source = "Unknown"
+		}
+
+		port := extractPort(entry.UpstreamAddr)
+		dest := "Port " + port
+
+		key := flowKey{source: source, dest: dest}
+
+		flow, exists := flowMap[key]
+		if !exists {
+			flow = &connectionFlow{
+				Source:      source,
+				Destination: dest,
+			}
+			flowMap[key] = flow
+		}
+
+		flow.Connections++
+		flow.TotalBytes += entry.BytesSent + entry.BytesReceived
+	}
+
+	// Convert to slice
+	result := make([]connectionFlow, 0, len(flowMap))
+	for _, flow := range flowMap {
+		result = append(result, *flow)
+	}
+
+	// Sort by connections descending
+	for i := 0; i < len(result)-1; i++ {
+		for j := i + 1; j < len(result); j++ {
+			if result[j].Connections > result[i].Connections {
+				result[i], result[j] = result[j], result[i]
+			}
+		}
+	}
+
+	// Apply limit
+	if len(result) > limit {
+		result = result[:limit]
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(result)
+}
+
+// DateRange info for the dataset
+type dateRangeInfo struct {
+	MinDate      string `json:"min_date"`
+	MaxDate      string `json:"max_date"`
+	TotalDays    int    `json:"total_days"`
+	TotalEntries int    `json:"total_entries"`
+	AvgPerDay    int    `json:"avg_per_day"`
+}
+
+// getDateRange returns the date range of available data
+func getDateRange(w http.ResponseWriter, r *http.Request) {
+	entries, geoIPDB, err := loadEntriesWithGeoIP()
+	if geoIPDB != nil {
+		defer geoIPDB.Close()
+	}
+	if err != nil {
+		respondJSONError(w, http.StatusInternalServerError, "failed to load entries")
+		return
+	}
+
+	if len(entries) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(dateRangeInfo{})
+		return
+	}
+
+	var minTime, maxTime time.Time
+	for _, entry := range entries {
+		if entry.Time.IsZero() {
+			continue
+		}
+		if minTime.IsZero() || entry.Time.Before(minTime) {
+			minTime = entry.Time
+		}
+		if maxTime.IsZero() || entry.Time.After(maxTime) {
+			maxTime = entry.Time
+		}
+	}
+
+	totalDays := 1
+	if !minTime.IsZero() && !maxTime.IsZero() {
+		totalDays = int(maxTime.Sub(minTime).Hours()/24) + 1
+	}
+
+	avgPerDay := 0
+	if totalDays > 0 {
+		avgPerDay = len(entries) / totalDays
+	}
+
+	info := dateRangeInfo{
+		MinDate:      minTime.Format("2006-01-02"),
+		MaxDate:      maxTime.Format("2006-01-02"),
+		TotalDays:    totalDays,
+		TotalEntries: len(entries),
+		AvgPerDay:    avgPerDay,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(info)
+}
+
 func setupStreamInfo(r chi.Router) chi.Router {
 	return r.Route("/streamInfo", func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -1210,5 +1377,9 @@ func setupStreamInfo(r chi.Router) chi.Router {
 		// Upstream and failed connections
 		r.Get("/upstream", getUpstreamStats)
 		r.Get("/failed", getFailedConnections)
+
+		// Advanced analytics
+		r.Get("/flow", getConnectionFlow)
+		r.Get("/daterange", getDateRange)
 	})
 }

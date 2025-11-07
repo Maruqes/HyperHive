@@ -1,317 +1,171 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
-
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Stream Analytics Dashboard</title>
-	<script src="https://cdn.tailwindcss.com"></script>
-	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-	<script>
-		tailwind.config = {
-			darkMode: 'class',
-			theme: {
-				extend: {
-					colors: {
-						dark: {
-							bg: '#0f172a',
-							card: '#1e293b',
-							border: '#334155'
-						}
-					}
-				}
-			}
-		}
-	</script>
-	<style>
-		.stat-card {
-			transition: transform 0.2s, box-shadow 0.2s;
-		}
-
-		.stat-card:hover {
-			transform: translateY(-2px);
-			box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-		}
-
-		.loader {
-			border-top-color: #3b82f6;
-			animation: spinner 1s linear infinite;
-		}
-
-		@keyframes spinner {
-			0% {
-				transform: rotate(0deg);
-			}
-
-			100% {
-				transform: rotate(360deg);
-			}
-		}
-
-		.table-row:hover {
-			background-color: rgba(51, 65, 85, 0.5);
-		}
-
-		body {
-			background-color: #0f172a;
-		}
-	</style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stream Analytics Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12"></script>
+<script>
+tailwind.config={darkMode:'class',theme:{extend:{colors:{dark:{bg:'#0f172a',card:'#1e293b',border:'#334155'}}}}};
+</script>
+<style>
+.stat-card{transition:transform 0.2s,box-shadow 0.2s}
+.stat-card:hover{transform:translateY(-2px);box-shadow:0 20px 25px -5px rgba(0,0,0,0.5)}
+.loader{border-top-color:#3b82f6;animation:spinner 1s linear infinite}
+@keyframes spinner{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.table-row:hover{background-color:rgba(51,65,85,0.5)}
+body{background-color:#0f172a}
+.sankey-link{fill:none;stroke-opacity:0.5}
+.sankey-link:hover{stroke-opacity:0.8}
+.sankey-node rect{cursor:move;fill-opacity:0.9;shape-rendering:crispEdges}
+.sankey-node text{pointer-events:none;text-shadow:0 1px 0 #000}
+</style>
 </head>
-
 <body class="bg-slate-900 text-gray-100">
-	<header class="bg-slate-800 shadow-lg border-b border-slate-700">
-		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-			<div class="flex justify-between items-center">
-				<div>
-					<h1 class="text-3xl font-bold text-white">Stream Analytics</h1>
-					<p class="text-sm text-gray-400 mt-1">Real-time traffic monitoring and analysis</p>
-				</div>
-				<div class="flex items-center space-x-4">
-					<button onclick="refreshData()"
-						class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition shadow-lg">
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-							</path>
-						</svg>
-						<span>Refresh</span>
-					</button>
-					<span id="lastUpdate" class="text-sm text-gray-400"></span>
-				</div>
-			</div>
-		</div>
-	</header>
-	<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-		<div id="loading" class="flex justify-center items-center py-20">
-			<div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-700 h-12 w-12"></div>
-		</div>
-		<div id="dashboard" class="hidden space-y-6">
-			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-				<div class="stat-card bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-					<div class="flex items-center justify-between">
-						<div>
-							<p class="text-sm font-medium text-gray-400">Total Connections</p>
-							<p id="totalConns" class="text-3xl font-bold text-white mt-2">-</p>
-						</div>
-						<div class="bg-blue-900 p-3 rounded-full">
-							<svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-									d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-							</svg>
-						</div>
-					</div>
-					<p class="text-xs text-gray-400 mt-3">
-						<span id="successRate" class="text-green-400 font-semibold">-</span> success rate
-					</p>
-				</div>
-				<div class="stat-card bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-					<div class="flex items-center justify-between">
-						<div>
-							<p class="text-sm font-medium text-gray-400">Unique IPs</p>
-							<p id="uniqueIPs" class="text-3xl font-bold text-white mt-2">-</p>
-						</div>
-						<div class="bg-green-900 p-3 rounded-full">
-							<svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-									d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
-								</path>
-							</svg>
-						</div>
-					</div>
-					<p class="text-xs text-gray-400 mt-3">
-						From <span id="uniqueCountries" class="font-semibold text-gray-200">-</span> countries
-					</p>
-				</div>
-				<div class="stat-card bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-					<div class="flex items-center justify-between">
-						<div>
-							<p class="text-sm font-medium text-gray-400">Total Traffic</p>
-							<p id="totalBytes" class="text-3xl font-bold text-white mt-2">-</p>
-						</div>
-						<div class="bg-purple-900 p-3 rounded-full">
-							<svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-									d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12">
-								</path>
-							</svg>
-						</div>
-					</div>
-					<p class="text-xs text-gray-400 mt-3">
-						<span id="avgSession" class="font-semibold text-gray-200">-</span>s avg session
-					</p>
-				</div>
-				<div class="stat-card bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-					<div class="flex items-center justify-between">
-						<div>
-							<p class="text-sm font-medium text-gray-400">Failed Connections</p>
-							<p id="failedConns" class="text-3xl font-bold text-red-400 mt-2">-</p>
-						</div>
-						<div class="bg-red-900 p-3 rounded-full">
-							<svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-									d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
-								</path>
-							</svg>
-						</div>
-					</div>
-					<p id="dateRange" class="text-xs text-gray-400 mt-3">-</p>
-				</div>
-			</div>
-			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-					<h3 class="text-lg font-semibold text-white mb-4">Daily Activity</h3>
-					<div style="position: relative; height: 250px;">
-						<canvas id="dailyChart"></canvas>
-					</div>
-				</div>
-				<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-					<h3 class="text-lg font-semibold text-white mb-4">Hourly Distribution (24h)</h3>
-					<div style="position: relative; height: 250px;">
-						<canvas id="hourlyChart"></canvas>
-					</div>
-				</div>
-			</div>
-			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-					<h3 class="text-lg font-semibold text-white mb-4">Top Countries by Traffic</h3>
-					<div style="position: relative; height: 250px;">
-						<canvas id="countriesChart"></canvas>
-					</div>
-				</div>
-				<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-					<h3 class="text-lg font-semibold text-white mb-4">Top Ports by Connections</h3>
-					<div style="position: relative; height: 250px;">
-						<canvas id="portsChart"></canvas>
-					</div>
-				</div>
-			</div>
-			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
-					<div class="px-6 py-4 border-b border-slate-700">
-						<h3 class="text-lg font-semibold text-white">Top Talkers</h3>
-						<p class="text-sm text-gray-400">IPs with highest traffic volume</p>
-					</div>
-					<div class="overflow-x-auto">
-						<table class="min-w-full divide-y divide-slate-700">
-							<thead class="bg-slate-900">
-								<tr>
-									<th
-										class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-										IP Address</th>
-									<th
-										class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-										Country</th>
-									<th
-										class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-										Traffic</th>
-									<th
-										class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-										Conns</th>
-								</tr>
-							</thead>
-							<tbody id="topTalkersTable" class="divide-y divide-slate-700"></tbody>
-						</table>
-					</div>
-				</div>
-				<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
-					<div class="px-6 py-4 border-b border-slate-700">
-						<h3 class="text-lg font-semibold text-white">Traffic by Protocol</h3>
-						<p class="text-sm text-gray-400">Protocol distribution</p>
-					</div>
-					<div class="overflow-x-auto">
-						<table class="min-w-full divide-y divide-slate-700">
-							<thead class="bg-slate-900">
-								<tr>
-									<th
-										class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-										Protocol</th>
-									<th
-										class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-										Connections</th>
-									<th
-										class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-										Unique IPs</th>
-									<th
-										class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-										Total Traffic</th>
-								</tr>
-							</thead>
-							<tbody id="protocolTable" class="divide-y divide-slate-700"></tbody>
-						</table>
-					</div>
-				</div>
-			</div>
-			<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
-				<div class="px-6 py-4 border-b border-slate-700">
-					<h3 class="text-lg font-semibold text-white">Upstream Servers</h3>
-					<p class="text-sm text-gray-400">Backend server statistics</p>
-				</div>
-				<div class="overflow-x-auto">
-					<table class="min-w-full divide-y divide-slate-700">
-						<thead class="bg-slate-900">
-							<tr>
-								<th
-									class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Server</th>
-								<th
-									class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Connections</th>
-								<th
-									class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Unique IPs</th>
-								<th
-									class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Traffic</th>
-								<th
-									class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Avg Session</th>
-								<th
-									class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Failed</th>
-							</tr>
-						</thead>
-						<tbody id="upstreamTable" class="divide-y divide-slate-700"></tbody>
-					</table>
-				</div>
-			</div>
-			<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
-				<div class="px-6 py-4 border-b border-slate-700">
-					<h3 class="text-lg font-semibold text-white">Failed Connections</h3>
-					<p class="text-sm text-gray-400">Connection attempts that failed</p>
-				</div>
-				<div class="overflow-x-auto">
-					<table class="min-w-full divide-y divide-slate-700">
-						<thead class="bg-slate-900">
-							<tr>
-								<th
-									class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Timestamp</th>
-								<th
-									class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Client IP</th>
-								<th
-									class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Country</th>
-								<th
-									class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Protocol</th>
-								<th
-									class="px-6 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Status</th>
-								<th
-									class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Upstream</th>
-							</tr>
-						</thead>
-						<tbody id="failedTable" class="divide-y divide-slate-700"></tbody>
-					</table>
-				</div>
-			</div>
-		</div>
-	</main>
-	<script>
-		let charts = {}; let isLoadingData = false; Chart.defaults.color = '#9ca3af'; Chart.defaults.borderColor = '#374151'; function formatBytes(b) { if (b === 0) return '0 B'; const k = 1024, s = ['B', 'KB', 'MB', 'GB', 'TB'], i = Math.floor(Math.log(b) / Math.log(k)); return parseFloat((b / Math.pow(k, i)).toFixed(2)) + ' ' + s[i] } function formatTime(t) { return new Date(t).toLocaleString() } function destroyChart(n) { if (charts[n]) { charts[n].destroy(); charts[n] = null } } async function loadData() { if (isLoadingData) return; isLoadingData = true; try { const [summary, daily, hourly, topCountries, topPorts, topTalkers, protocol, upstream, failed] = await Promise.all([fetch('/streamInfo/summary').then(r => r.json()), fetch('/streamInfo/stats/daily').then(r => r.json()), fetch('/streamInfo/stats/hourly').then(r => r.json()), fetch('/streamInfo/top/countries').then(r => r.json()), fetch('/streamInfo/top/ports').then(r => r.json()), fetch('/streamInfo/top/talkers').then(r => r.json()), fetch('/streamInfo/traffic/by-protocol').then(r => r.json()), fetch('/streamInfo/upstream').then(r => r.json()), fetch('/streamInfo/failed').then(r => r.json())]); updateSummaryCards(summary); updateDailyChart(daily); updateHourlyChart(hourly); updateCountriesChart(topCountries); updatePortsChart(topPorts); updateTopTalkersTable(topTalkers); updateProtocolTable(protocol); updateUpstreamTable(upstream); updateFailedTable(failed); document.getElementById('loading').classList.add('hidden'); document.getElementById('dashboard').classList.remove('hidden'); document.getElementById('lastUpdate').textContent = 'Last updated: ' + new Date().toLocaleTimeString() } catch (e) { console.error('Error loading data:', e); alert('Failed to load data. Please try again.') } finally { isLoadingData = false } } function updateSummaryCards(d) { document.getElementById('totalConns').textContent = d.total_connections.toLocaleString(); document.getElementById('uniqueIPs').textContent = d.unique_ips.toLocaleString(); document.getElementById('uniqueCountries').textContent = d.unique_countries; document.getElementById('totalBytes').textContent = formatBytes(d.total_bytes); document.getElementById('avgSession').textContent = d.avg_session_time_seconds.toFixed(2); document.getElementById('failedConns').textContent = d.failed_connections.toLocaleString(); document.getElementById('dateRange').textContent = d.date_range; const sr = ((d.successful_connections / d.total_connections) * 100).toFixed(1); document.getElementById('successRate').textContent = sr + '%' } function updateDailyChart(d) { destroyChart('daily'); const ctx = document.getElementById('dailyChart').getContext('2d'); charts.daily = new Chart(ctx, { type: 'line', data: { labels: d.map(x => x.date), datasets: [{ label: 'Connections', data: d.map(x => x.connections), borderColor: 'rgb(59,130,246)', backgroundColor: 'rgba(59,130,246,0.1)', tension: 0.4, fill: true }, { label: 'Unique IPs', data: d.map(x => x.unique_ips), borderColor: 'rgb(34,197,94)', backgroundColor: 'rgba(34,197,94,0.1)', tension: 0.4, fill: true }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: '#e5e7eb' } } }, scales: { y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } } }) } function updateHourlyChart(d) { destroyChart('hourly'); const ctx = document.getElementById('hourlyChart').getContext('2d'); charts.hourly = new Chart(ctx, { type: 'bar', data: { labels: d.map(x => x.hour + ':00'), datasets: [{ label: 'Connections', data: d.map(x => x.connections), backgroundColor: 'rgba(147,51,234,0.6)', borderColor: 'rgb(147,51,234)', borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } } }) } function updateCountriesChart(d) { destroyChart('countries'); const ctx = document.getElementById('countriesChart').getContext('2d'); charts.countries = new Chart(ctx, { type: 'doughnut', data: { labels: d.map(x => x.country), datasets: [{ data: d.map(x => x.total_bytes), backgroundColor: ['rgba(59,130,246,0.8)', 'rgba(34,197,94,0.8)', 'rgba(251,146,60,0.8)', 'rgba(239,68,68,0.8)', 'rgba(147,51,234,0.8)', 'rgba(236,72,153,0.8)', 'rgba(14,165,233,0.8)', 'rgba(132,204,22,0.8)', 'rgba(250,204,21,0.8)', 'rgba(168,85,247,0.8)'], borderColor: '#1e293b', borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#e5e7eb', padding: 10 } }, tooltip: { callbacks: { label: function (c) { return c.label + ': ' + formatBytes(c.parsed) } } } } } }) } function updatePortsChart(d) { destroyChart('ports'); const ctx = document.getElementById('portsChart').getContext('2d'); charts.ports = new Chart(ctx, { type: 'bar', data: { labels: d.map(x => 'Port ' + x.port), datasets: [{ label: 'Connections', data: d.map(x => x.connections), backgroundColor: 'rgba(34,197,94,0.6)', borderColor: 'rgb(34,197,94)', borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, y: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } } }) } function updateTopTalkersTable(d) { document.getElementById('topTalkersTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.ip + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">' + (i.country || 'Unknown') + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right font-semibold">' + formatBytes(i.total_bytes) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.connections + '</td></tr>').join('') } function updateProtocolTable(d) { document.getElementById('protocolTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-200">' + i.protocol + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td></tr>').join('') } function updateUpstreamTable(d) { document.getElementById('upstreamTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.upstream_addr + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.avg_session_time_seconds.toFixed(2) + 's</td><td class="px-6 py-4 whitespace-nowrap text-sm ' + (i.failed_connections > 0 ? 'text-red-400' : 'text-gray-400') + ' text-right">' + i.failed_connections + '</td></tr>').join('') } function updateFailedTable(d) { const t = document.getElementById('failedTable'); if (d.length === 0) { t.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-sm text-gray-400">No failed connections found</td></tr>'; return } t.innerHTML = d.slice(0, 50).map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">' + formatTime(i.timestamp) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.client_ip + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">' + (i.country || 'Unknown') + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">' + i.protocol + '</td><td class="px-6 py-4 whitespace-nowrap text-center"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-900 text-red-200">' + i.status + '</span></td><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-400">' + i.upstream_addr + '</td></tr>').join('') } function refreshData() { if (isLoadingData) return; document.getElementById('loading').classList.remove('hidden'); document.getElementById('dashboard').classList.add('hidden'); loadData() } window.addEventListener('DOMContentLoaded', loadData); setInterval(refreshData, 30000);
-	</script>
+<header class="bg-slate-800 shadow-lg border-b border-slate-700">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+<div class="flex justify-between items-center flex-wrap gap-4">
+<div>
+<h1 class="text-3xl font-bold text-white">Stream Analytics</h1>
+<p class="text-sm text-gray-400 mt-1">Real-time traffic monitoring and analysis</p>
+</div>
+<div class="flex items-center space-x-4 flex-wrap gap-2">
+<div class="flex items-center space-x-2">
+<label class="text-sm text-gray-400">From:</label>
+<input type="date" id="startDate" class="bg-slate-700 text-white px-3 py-1 rounded text-sm border border-slate-600">
+</div>
+<div class="flex items-center space-x-2">
+<label class="text-sm text-gray-400">To:</label>
+<input type="date" id="endDate" class="bg-slate-700 text-white px-3 py-1 rounded text-sm border border-slate-600">
+</div>
+<button onclick="refreshData()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition shadow-lg">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+<span>Refresh</span>
+</button>
+<span id="lastUpdate" class="text-sm text-gray-400"></span>
+</div>
+</div>
+</div>
+</header>
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div id="loading" class="flex justify-center items-center py-20">
+<div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-700 h-12 w-12"></div>
+</div>
+<div id="dashboard" class="hidden space-y-6">
+<div id="dateInfo" class="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg shadow-xl p-4 border border-blue-700">
+<div class="flex justify-between items-center">
+<div>
+<h3 class="text-lg font-semibold text-white">Dataset Information</h3>
+<p class="text-sm text-gray-300 mt-1">Viewing <span id="datasetDays" class="font-bold">-</span> days of data</p>
+</div>
+<div class="text-right">
+<p class="text-sm text-gray-300"><span id="datasetRange" class="font-mono">-</span></p>
+<p class="text-xs text-gray-400"><span id="datasetTotal" class="font-bold">-</span> total entries</p>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+<div class="stat-card bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
+<div class="flex items-center justify-between">
+<div><p class="text-sm font-medium text-gray-400">Total Connections</p><p id="totalConns" class="text-3xl font-bold text-white mt-2">-</p></div>
+<div class="bg-blue-900 p-3 rounded-full"><svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg></div>
+</div>
+<p class="text-xs text-gray-400 mt-3"><span id="successRate" class="text-green-400 font-semibold">-</span> success rate</p>
+</div>
+<div class="stat-card bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
+<div class="flex items-center justify-between">
+<div><p class="text-sm font-medium text-gray-400">Unique IPs</p><p id="uniqueIPs" class="text-3xl font-bold text-white mt-2">-</p></div>
+<div class="bg-green-900 p-3 rounded-full"><svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg></div>
+</div>
+<p class="text-xs text-gray-400 mt-3">From <span id="uniqueCountries" class="font-semibold text-gray-200">-</span> countries</p>
+</div>
+<div class="stat-card bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
+<div class="flex items-center justify-between">
+<div><p class="text-sm font-medium text-gray-400">Total Traffic</p><p id="totalBytes" class="text-3xl font-bold text-white mt-2">-</p></div>
+<div class="bg-purple-900 p-3 rounded-full"><svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg></div>
+</div>
+<p class="text-xs text-gray-400 mt-3"><span id="avgSession" class="font-semibold text-gray-200">-</span>s avg session</p>
+</div>
+<div class="stat-card bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
+<div class="flex items-center justify-between">
+<div><p class="text-sm font-medium text-gray-400">Failed Connections</p><p id="failedConns" class="text-3xl font-bold text-red-400 mt-2">-</p></div>
+<div class="bg-red-900 p-3 rounded-full"><svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg></div>
+</div>
+<p id="dateRange" class="text-xs text-gray-400 mt-3">-</p>
+</div>
+</div>
+<div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg shadow-2xl p-6 border-2 border-purple-500">
+<div class="flex justify-between items-center mb-4">
+<div>
+<h3 class="text-2xl font-bold text-white flex items-center"><svg class="w-8 h-8 mr-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>Connection Flow Analysis</h3>
+<p class="text-sm text-gray-400 mt-1">Visualizing traffic flow from countries to destination ports</p>
+</div>
+<div class="text-right">
+<p class="text-sm text-gray-400">Showing top <span id="flowCount" class="font-bold text-purple-400">-</span> flows</p>
+<p class="text-xs text-gray-500">Hover over flows for details</p>
+</div>
+</div>
+<div id="sankeyChart" style="width:100%;height:600px;background:rgba(15,23,42,0.5);border-radius:8px;overflow:hidden"></div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
+<h3 class="text-lg font-semibold text-white mb-4">Daily Activity</h3>
+<div style="position:relative;height:250px"><canvas id="dailyChart"></canvas></div>
+</div>
+<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
+<h3 class="text-lg font-semibold text-white mb-4">Hourly Distribution (24h)</h3>
+<div style="position:relative;height:250px"><canvas id="hourlyChart"></canvas></div>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
+<h3 class="text-lg font-semibold text-white mb-4">Top Countries by Traffic</h3>
+<div style="position:relative;height:250px"><canvas id="countriesChart"></canvas></div>
+</div>
+<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
+<h3 class="text-lg font-semibold text-white mb-4">Top Ports by Connections</h3>
+<div style="position:relative;height:250px"><canvas id="portsChart"></canvas></div>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
+<div class="px-6 py-4 border-b border-slate-700"><h3 class="text-lg font-semibold text-white">Top Talkers</h3><p class="text-sm text-gray-400">IPs with highest traffic volume</p></div>
+<div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-700"><thead class="bg-slate-900"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">IP Address</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Country</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Traffic</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Conns</th></tr></thead><tbody id="topTalkersTable" class="divide-y divide-slate-700"></tbody></table></div>
+</div>
+<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
+<div class="px-6 py-4 border-b border-slate-700"><h3 class="text-lg font-semibold text-white">Traffic by Protocol</h3><p class="text-sm text-gray-400">Protocol distribution</p></div>
+<div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-700"><thead class="bg-slate-900"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Protocol</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Connections</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Unique IPs</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Total Traffic</th></tr></thead><tbody id="protocolTable" class="divide-y divide-slate-700"></tbody></table></div>
+</div>
+</div>
+<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
+<div class="px-6 py-4 border-b border-slate-700"><h3 class="text-lg font-semibold text-white">Upstream Servers</h3><p class="text-sm text-gray-400">Backend server statistics</p></div>
+<div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-700"><thead class="bg-slate-900"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Server</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Connections</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Unique IPs</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Traffic</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Avg Session</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Failed</th></tr></thead><tbody id="upstreamTable" class="divide-y divide-slate-700"></tbody></table></div>
+</div>
+</div>
+</main>
+<script>
+let charts={};let isLoadingData=false;Chart.defaults.color='#9ca3af';Chart.defaults.borderColor='#374151';
+function formatBytes(b){if(b===0)return '0 B';const k=1024,s=['B','KB','MB','GB','TB'],i=Math.floor(Math.log(b)/Math.log(k));return parseFloat((b/Math.pow(k,i)).toFixed(2))+' '+s[i]}
+function formatTime(t){return new Date(t).toLocaleString()}
+function destroyChart(n){if(charts[n]){charts[n].destroy();charts[n]=null}}
+function getDateParams(){const start=document.getElementById('startDate').value;const end=document.getElementById('endDate').value;let params='';if(start)params+='?start='+start;if(end)params+=(params?'&':'?')+'end='+end;return params}
+async function loadData(){if(isLoadingData)return;isLoadingData=true;try{const params=getDateParams();const[dateInfo,summary,flow,daily,hourly,topCountries,topPorts,topTalkers,protocol,upstream]=await Promise.all([fetch('/streamInfo/daterange'+params).then(r=>r.json()),fetch('/streamInfo/summary'+params).then(r=>r.json()),fetch('/streamInfo/flow'+params+'&limit=50').then(r=>r.json()),fetch('/streamInfo/stats/daily'+params).then(r=>r.json()),fetch('/streamInfo/stats/hourly'+params).then(r=>r.json()),fetch('/streamInfo/top/countries'+params).then(r=>r.json()),fetch('/streamInfo/top/ports'+params).then(r=>r.json()),fetch('/streamInfo/top/talkers'+params).then(r=>r.json()),fetch('/streamInfo/traffic/by-protocol'+params).then(r=>r.json()),fetch('/streamInfo/upstream'+params).then(r=>r.json())]);updateDateInfo(dateInfo);updateSummaryCards(summary);updateSankeyChart(flow);updateDailyChart(daily);updateHourlyChart(hourly);updateCountriesChart(topCountries);updatePortsChart(topPorts);updateTopTalkersTable(topTalkers);updateProtocolTable(protocol);updateUpstreamTable(upstream);document.getElementById('loading').classList.add('hidden');document.getElementById('dashboard').classList.remove('hidden');document.getElementById('lastUpdate').textContent='Last updated: '+new Date().toLocaleTimeString()}catch(e){console.error('Error loading data:',e);alert('Failed to load data. Please try again.')}finally{isLoadingData=false}}
+function updateDateInfo(d){document.getElementById('datasetDays').textContent=d.total_days||'-';document.getElementById('datasetRange').textContent=(d.min_date&&d.max_date)?(d.min_date+' to '+d.max_date):'-';document.getElementById('datasetTotal').textContent=(d.total_entries||0).toLocaleString()}
+function updateSummaryCards(d){document.getElementById('totalConns').textContent=d.total_connections.toLocaleString();document.getElementById('uniqueIPs').textContent=d.unique_ips.toLocaleString();document.getElementById('uniqueCountries').textContent=d.unique_countries;document.getElementById('totalBytes').textContent=formatBytes(d.total_bytes);document.getElementById('avgSession').textContent=d.avg_session_time_seconds.toFixed(2);document.getElementById('failedConns').textContent=d.failed_connections.toLocaleString();document.getElementById('dateRange').textContent=d.date_range;const sr=((d.successful_connections/d.total_connections)*100).toFixed(1);document.getElementById('successRate').textContent=sr+'%'}
+function updateSankeyChart(data){const container=document.getElementById('sankeyChart');container.innerHTML='';if(!data||data.length===0){container.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af">No flow data available</div>';return}document.getElementById('flowCount').textContent=data.length;const margin={top:10,right:10,bottom:10,left:10};const width=container.offsetWidth-margin.left-margin.right;const height=600-margin.top-margin.bottom;const svg=d3.select('#sankeyChart').append('svg').attr('width',width+margin.left+margin.right).attr('height',height+margin.top+margin.bottom).append('g').attr('transform',`translate(${margin.left},${margin.top})`);const nodes=[];const nodeMap=new Map();data.forEach(d=>{if(!nodeMap.has(d.source)){nodeMap.set(d.source,nodes.length);nodes.push({name:d.source,type:'source'})}if(!nodeMap.has(d.destination)){nodeMap.set(d.destination,nodes.length);nodes.push({name:d.destination,type:'dest'})}});const links=data.map(d=>({source:nodeMap.get(d.source),target:nodeMap.get(d.destination),value:d.connections,bytes:d.total_bytes}));const sankey=d3.sankey().nodeWidth(15).nodePadding(10).extent([[1,1],[width-1,height-6]]);const{nodes:sankeyNodes,links:sankeyLinks}=sankey({nodes:nodes.map(d=>Object.assign({},d)),links:links.map(d=>Object.assign({},d))});const colorScale=d3.scaleOrdinal(d3.schemeCategory10);svg.append('g').selectAll('rect').data(sankeyNodes).join('rect').attr('x',d=>d.x0).attr('y',d=>d.y0).attr('height',d=>d.y1-d.y0).attr('width',d=>d.x1-d.x0).attr('fill',d=>colorScale(d.name)).attr('opacity',0.8).append('title').text(d=>`${d.name}\n${d.value} connections`);const link=svg.append('g').attr('fill','none').selectAll('g').data(sankeyLinks).join('g').attr('stroke',d=>colorScale(sankeyNodes[d.source.index].name)).attr('opacity',0.5);link.append('path').attr('d',d3.sankeyLinkHorizontal()).attr('stroke-width',d=>Math.max(1,d.width)).on('mouseover',function(){d3.select(this).attr('opacity',0.8)}).on('mouseout',function(){d3.select(this).attr('opacity',0.5)});link.append('title').text(d=>`${sankeyNodes[d.source.index].name} → ${sankeyNodes[d.target.index].name}\n${d.value} connections\n${formatBytes(d.bytes)}`);svg.append('g').selectAll('text').data(sankeyNodes).join('text').attr('x',d=>d.x0<width/2?d.x1+6:d.x0-6).attr('y',d=>(d.y1+d.y0)/2).attr('dy','0.35em').attr('text-anchor',d=>d.x0<width/2?'start':'end').attr('fill','#e5e7eb').attr('font-size','12px').text(d=>d.name)}
+function updateDailyChart(d){destroyChart('daily');const ctx=document.getElementById('dailyChart').getContext('2d');charts.daily=new Chart(ctx,{type:'line',data:{labels:d.map(x=>x.date),datasets:[{label:'Connections',data:d.map(x=>x.connections),borderColor:'rgb(59,130,246)',backgroundColor:'rgba(59,130,246,0.1)',tension:0.4,fill:true},{label:'Unique IPs',data:d.map(x=>x.unique_ips),borderColor:'rgb(34,197,94)',backgroundColor:'rgba(34,197,94,0.1)',tension:0.4,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{color:'#e5e7eb'}}},scales:{y:{beginAtZero:true,ticks:{color:'#9ca3af'},grid:{color:'#374151'}},x:{ticks:{color:'#9ca3af'},grid:{color:'#374151'}}}}})}
+function updateHourlyChart(d){destroyChart('hourly');const ctx=document.getElementById('hourlyChart').getContext('2d');charts.hourly=new Chart(ctx,{type:'bar',data:{labels:d.map(x=>x.hour+':00'),datasets:[{label:'Connections',data:d.map(x=>x.connections),backgroundColor:'rgba(147,51,234,0.6)',borderColor:'rgb(147,51,234)',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{color:'#9ca3af'},grid:{color:'#374151'}},x:{ticks:{color:'#9ca3af'},grid:{color:'#374151'}}}}})}
+function updateCountriesChart(d){destroyChart('countries');const ctx=document.getElementById('countriesChart').getContext('2d');charts.countries=new Chart(ctx,{type:'doughnut',data:{labels:d.map(x=>x.country),datasets:[{data:d.map(x=>x.total_bytes),backgroundColor:['rgba(59,130,246,0.8)','rgba(34,197,94,0.8)','rgba(251,146,60,0.8)','rgba(239,68,68,0.8)','rgba(147,51,234,0.8)','rgba(236,72,153,0.8)','rgba(14,165,233,0.8)','rgba(132,204,22,0.8)','rgba(250,204,21,0.8)','rgba(168,85,247,0.8)'],borderColor:'#1e293b',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#e5e7eb',padding:10}},tooltip:{callbacks:{label:function(c){return c.label+': '+formatBytes(c.parsed)}}}}}})}
+function updatePortsChart(d){destroyChart('ports');const ctx=document.getElementById('portsChart').getContext('2d');charts.ports=new Chart(ctx,{type:'bar',data:{labels:d.map(x=>'Port '+x.port),datasets:[{label:'Connections',data:d.map(x=>x.connections),backgroundColor:'rgba(34,197,94,0.6)',borderColor:'rgb(34,197,94)',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{color:'#9ca3af'},grid:{color:'#374151'}},y:{ticks:{color:'#9ca3af'},grid:{color:'#374151'}}}}})}
+function updateTopTalkersTable(d){document.getElementById('topTalkersTable').innerHTML=d.map(i=>'<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">'+i.ip+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">'+(i.country||'Unknown')+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right font-semibold">'+formatBytes(i.total_bytes)+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">'+i.connections+'</td></tr>').join('')}
+function updateProtocolTable(d){document.getElementById('protocolTable').innerHTML=d.map(i=>'<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-200">'+i.protocol+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">'+i.connections.toLocaleString()+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">'+i.unique_ips+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">'+formatBytes(i.total_bytes)+'</td></tr>').join('')}
+function updateUpstreamTable(d){document.getElementById('upstreamTable').innerHTML=d.map(i=>'<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">'+i.upstream_addr+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">'+i.connections.toLocaleString()+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">'+i.unique_ips+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">'+formatBytes(i.total_bytes)+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">'+i.avg_session_time_seconds.toFixed(2)+'s</td><td class="px-6 py-4 whitespace-nowrap text-sm '+(i.failed_connections>0?'text-red-400':'text-gray-400')+' text-right">'+i.failed_connections+'</td></tr>').join('')}
+function refreshData(){if(isLoadingData)return;document.getElementById('loading').classList.remove('hidden');document.getElementById('dashboard').classList.add('hidden');loadData()}
+async function initializeDateRange(){try{const dateInfo=await fetch('/streamInfo/daterange').then(r=>r.json());if(dateInfo.min_date&&dateInfo.max_date){document.getElementById('startDate').value=dateInfo.min_date;document.getElementById('endDate').value=dateInfo.max_date}}catch(e){console.error('Error loading date range:',e)}}
+window.addEventListener('DOMContentLoaded',()=>{initializeDateRange();loadData()});setInterval(refreshData,60000);
+</script>
 </body>
-
 </html>
