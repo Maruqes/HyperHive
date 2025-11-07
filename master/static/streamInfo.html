@@ -553,10 +553,82 @@
 				container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ef4444">Error: ' + e.message + '</div>';
 			}
 		}
-		function updateDailyChart(d) { destroyChart('daily'); const ctx = document.getElementById('dailyChart').getContext('2d'); charts.daily = new Chart(ctx, { type: 'line', data: { labels: d.map(x => x.date), datasets: [{ label: 'Connections', data: d.map(x => x.connections), borderColor: 'rgb(59,130,246)', backgroundColor: 'rgba(59,130,246,0.1)', tension: 0.4, fill: true }, { label: 'Unique IPs', data: d.map(x => x.unique_ips), borderColor: 'rgb(34,197,94)', backgroundColor: 'rgba(34,197,94,0.1)', tension: 0.4, fill: true }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: '#e5e7eb' } } }, scales: { y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } } }) }
-		function updateHourlyChart(d) { destroyChart('hourly'); const ctx = document.getElementById('hourlyChart').getContext('2d'); charts.hourly = new Chart(ctx, { type: 'bar', data: { labels: d.map(x => x.hour + ':00'), datasets: [{ label: 'Connections', data: d.map(x => x.connections), backgroundColor: 'rgba(147,51,234,0.6)', borderColor: 'rgb(147,51,234)', borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } } }) }
-		function updateCountriesChart(d) { destroyChart('countries'); const ctx = document.getElementById('countriesChart').getContext('2d'); charts.countries = new Chart(ctx, { type: 'doughnut', data: { labels: d.map(x => x.country), datasets: [{ data: d.map(x => x.total_bytes), backgroundColor: ['rgba(59,130,246,0.8)', 'rgba(34,197,94,0.8)', 'rgba(251,146,60,0.8)', 'rgba(239,68,68,0.8)', 'rgba(147,51,234,0.8)', 'rgba(236,72,153,0.8)', 'rgba(14,165,233,0.8)', 'rgba(132,204,22,0.8)', 'rgba(250,204,21,0.8)', 'rgba(168,85,247,0.8)'], borderColor: '#1e293b', borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#e5e7eb', padding: 10 } }, tooltip: { callbacks: { label: function (c) { return c.label + ': ' + formatBytes(c.parsed) } } } } } }) }
-		function updatePortsChart(d) { destroyChart('ports'); const ctx = document.getElementById('portsChart').getContext('2d'); charts.ports = new Chart(ctx, { type: 'bar', data: { labels: d.map(x => 'Port ' + x.port), datasets: [{ label: 'Connections', data: d.map(x => x.connections), backgroundColor: 'rgba(34,197,94,0.6)', borderColor: 'rgb(34,197,94)', borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, y: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } } }) }
+			function updateDailyChart(d) {
+				const labels = d.map(x => x.date);
+				const connections = d.map(x => x.connections);
+				const uniqueIPs = d.map(x => x.unique_ips);
+				if (!charts.daily) {
+					const ctx = document.getElementById('dailyChart').getContext('2d');
+					charts.daily = new Chart(ctx, {
+						type: 'line',
+						data: {
+							labels,
+							datasets: [
+								{ label: 'Connections', data: connections, borderColor: 'rgb(59,130,246)', backgroundColor: 'rgba(59,130,246,0.1)', tension: 0.4, fill: true },
+								{ label: 'Unique IPs', data: uniqueIPs, borderColor: 'rgb(34,197,94)', backgroundColor: 'rgba(34,197,94,0.1)', tension: 0.4, fill: true }
+							]
+						},
+						options: { responsive: true, maintainAspectRatio: false, animation: { duration: 700 }, plugins: { legend: { position: 'top', labels: { color: '#e5e7eb' } } }, scales: { y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } }
+					});
+				} else {
+					const chart = charts.daily;
+					chart.data.labels = labels;
+					chart.data.datasets[0].data = connections;
+					chart.data.datasets[1].data = uniqueIPs;
+					chart.update();
+				}
+			}
+			function updateHourlyChart(d) {
+				const labels = d.map(x => x.hour + ':00');
+				const connections = d.map(x => x.connections);
+				if (!charts.hourly) {
+					const ctx = document.getElementById('hourlyChart').getContext('2d');
+					charts.hourly = new Chart(ctx, {
+						type: 'bar',
+						data: { labels, datasets: [{ label: 'Connections', data: connections, backgroundColor: 'rgba(147,51,234,0.6)', borderColor: 'rgb(147,51,234)', borderWidth: 1 }] },
+						options: { responsive: true, maintainAspectRatio: false, animation: { duration: 700 }, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } }
+					});
+				} else {
+					const chart = charts.hourly;
+					chart.data.labels = labels;
+					chart.data.datasets[0].data = connections;
+					chart.update();
+				}
+			}
+			function updateCountriesChart(d) {
+				const labels = d.map(x => x.country);
+				const totals = d.map(x => x.total_bytes);
+				if (!charts.countries) {
+					const ctx = document.getElementById('countriesChart').getContext('2d');
+					charts.countries = new Chart(ctx, {
+						type: 'doughnut',
+						data: { labels, datasets: [{ data: totals, backgroundColor: ['rgba(59,130,246,0.8)', 'rgba(34,197,94,0.8)', 'rgba(251,146,60,0.8)', 'rgba(239,68,68,0.8)', 'rgba(147,51,234,0.8)', 'rgba(236,72,153,0.8)', 'rgba(14,165,233,0.8)', 'rgba(132,204,22,0.8)', 'rgba(250,204,21,0.8)', 'rgba(168,85,247,0.8)'], borderColor: '#1e293b', borderWidth: 2 }] },
+						options: { responsive: true, maintainAspectRatio: false, animation: { duration: 700 }, plugins: { legend: { position: 'right', labels: { color: '#e5e7eb', padding: 10 } }, tooltip: { callbacks: { label: function (c) { return c.label + ': ' + formatBytes(c.parsed) } } } } }
+					});
+				} else {
+					const chart = charts.countries;
+					chart.data.labels = labels;
+					chart.data.datasets[0].data = totals;
+					chart.update();
+				}
+			}
+			function updatePortsChart(d) {
+				const labels = d.map(x => 'Port ' + x.port);
+				const connections = d.map(x => x.connections);
+				if (!charts.ports) {
+					const ctx = document.getElementById('portsChart').getContext('2d');
+					charts.ports = new Chart(ctx, {
+						type: 'bar',
+						data: { labels, datasets: [{ label: 'Connections', data: connections, backgroundColor: 'rgba(34,197,94,0.6)', borderColor: 'rgb(34,197,94)', borderWidth: 1 }] },
+						options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', animation: { duration: 700 }, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, y: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } }
+					});
+				} else {
+					const chart = charts.ports;
+					chart.data.labels = labels;
+					chart.data.datasets[0].data = connections;
+					chart.update();
+				}
+			}
 		function updateTopTalkersTable(d) { document.getElementById('topTalkersTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.ip + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">' + (i.country || 'Unknown') + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right font-semibold">' + formatBytes(i.total_bytes) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.connections + '</td></tr>').join('') }
 		function updateProtocolTable(d) { document.getElementById('protocolTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-200">' + i.protocol + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td></tr>').join('') }
 		function updateUpstreamTable(d) { document.getElementById('upstreamTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.upstream_addr + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.avg_session_time_seconds.toFixed(2) + 's</td><td class="px-6 py-4 whitespace-nowrap text-sm ' + (i.failed_connections > 0 ? 'text-red-400' : 'text-gray-400') + ' text-right">' + i.failed_connections + '</td></tr>').join('') }
