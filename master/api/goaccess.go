@@ -24,8 +24,6 @@ import (
 )
 
 const (
-	goAccessTimeout        = 2 * time.Minute
-	goAccessRefreshSecond  = 5
 	goAccessGeoIPDir       = "geoipdb"
 	goAccessGeoIPMaxAge    = 7 * 24 * time.Hour
 	goAccessWSPort         = "7890"         // GoAccess WebSocket port (internal)
