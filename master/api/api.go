@@ -90,6 +90,7 @@ func StartApi() {
 		setupExtraAPI(r)
 		setupInfoAPI(r)
 		setupGoAccessAPI(r)
+		setupStreamInfo(r)
 	})
 
 	http.ListenAndServe(":9595", r)
