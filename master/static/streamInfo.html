@@ -565,7 +565,7 @@
 			loadData({ silent: true, ...options });
 		}
 		async function initializeDateRange() { try { const dateInfo = await fetch('/streamInfo/daterange').then(r => r.json()); if (dateInfo.min_date && dateInfo.max_date) { document.getElementById('startDate').value = dateInfo.min_date; document.getElementById('endDate').value = dateInfo.max_date } } catch (e) { console.error('Error loading date range:', e) } }
-		window.addEventListener('DOMContentLoaded', () => { initializeDateRange(); loadData() }); setInterval(refreshData, 60000);
+		window.addEventListener('DOMContentLoaded', () => { initializeDateRange(); loadData() }); setInterval(refreshData, 10000);
 	</script>
 </body>
 
