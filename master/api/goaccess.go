@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -43,9 +44,11 @@ var (
 	}
 
 	// GoAccess process management
-	goAccessCmd     *exec.Cmd
-	goAccessMu      sync.Mutex
-	goAccessRunning bool
+	goAccessCmd       *exec.Cmd
+	goAccessMu        sync.Mutex
+	goAccessRunning   bool
+	goAccessLogFiles  []string      // Track current log files
+	goAccessWatchStop chan struct{} // Signal to stop file watcher
 )
 
 // goAccessHandler serves the HTML page with WebSocket connection
@@ -218,18 +221,18 @@ func ensureGoAccessRunning(ctx context.Context, workDir string) error {
 	wsURL := buildWebSocketURL()
 
 	// Build GoAccess arguments for WebSocket mode
-	args := append([]string{}, files...)
-	args = append(args,
+	args := []string{
 		"--no-global-config",
 		"--date-format=%d/%b/%Y",
 		"--time-format=%T",
-		"--real-time-html",       // Enable real-time WebSocket mode
-		"--ws-url="+wsURL,        // WebSocket URL for clients (uses MAIN_LINK + /ws_goaccess)
-		"--port="+goAccessWSPort, // Internal WebSocket port for GoAccess
-		"--log-format="+logFormat,
-		"--geoip-database="+geoIPDBPath,
+		"--real-time-html",         // Enable real-time WebSocket mode
+		"--ws-url=" + wsURL,        // WebSocket URL for clients (uses MAIN_LINK + /ws_goaccess)
+		"--port=" + goAccessWSPort, // Internal WebSocket port for GoAccess
+		"--log-format=" + logFormat,
+		"--geoip-database=" + geoIPDBPath,
 		"-o", outputPath,
-	)
+	}
+	args = append(args, files...)
 
 	addPanelArgs := func(flag string, values []string) {
 		for _, panel := range values {
@@ -246,16 +249,37 @@ func ensureGoAccessRunning(ctx context.Context, workDir string) error {
 	goAccessCmd = exec.Command("goaccess", args...)
 	goAccessCmd.Dir = logDir
 
+	// Capture stdout and stderr for debugging
+	logFile := filepath.Join(statsDir, "goaccess.log")
+	logWriter, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err == nil {
+		goAccessCmd.Stdout = logWriter
+		goAccessCmd.Stderr = logWriter
+	}
+
 	// Start the process
 	if err := goAccessCmd.Start(); err != nil {
+		if logWriter != nil {
+			logWriter.Close()
+		}
 		return fmt.Errorf("failed to start GoAccess: %w", err)
 	}
 
 	goAccessRunning = true
+	goAccessLogFiles = files // Track current log files
+
+	// Start file watcher if not already running
+	if goAccessWatchStop == nil {
+		goAccessWatchStop = make(chan struct{})
+		go watchLogFiles(workDir)
+	}
 
 	// Monitor the process in background
 	go func() {
 		goAccessCmd.Wait()
+		if logWriter != nil {
+			logWriter.Close()
+		}
 		goAccessMu.Lock()
 		goAccessRunning = false
 		goAccessMu.Unlock()
@@ -265,8 +289,8 @@ func ensureGoAccessRunning(ctx context.Context, workDir string) error {
 		ensureGoAccessRunning(context.Background(), workDir)
 	}()
 
-	// Wait a bit for GoAccess to initialize
-	time.Sleep(1 * time.Second)
+	// Wait a bit for GoAccess to initialize and start WebSocket server
+	time.Sleep(2 * time.Second)
 
 	return nil
 }
@@ -276,11 +300,134 @@ func StopGoAccess() {
 	goAccessMu.Lock()
 	defer goAccessMu.Unlock()
 
+	// Stop file watcher
+	if goAccessWatchStop != nil {
+		close(goAccessWatchStop)
+		goAccessWatchStop = nil
+	}
+
 	if goAccessCmd != nil && goAccessCmd.Process != nil {
 		goAccessCmd.Process.Kill()
 		goAccessCmd = nil
 		goAccessRunning = false
 	}
+}
+
+// watchLogFiles monitors the log directory for new files and restarts GoAccess
+func watchLogFiles(workDir string) {
+	logDir := filepath.Join(workDir, "npm-data", "logs")
+	pattern := filepath.Join(logDir, "proxy-host-*_access.log")
+	ticker := time.NewTicker(10 * time.Second) // Check every 10 seconds
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-goAccessWatchStop:
+			return
+		case <-ticker.C:
+			// Get current log files
+			currentFiles, err := filepath.Glob(pattern)
+			if err != nil {
+				continue
+			}
+
+			goAccessMu.Lock()
+			previousFiles := goAccessLogFiles
+			goAccessMu.Unlock()
+
+			// Check if files have changed
+			if !stringSliceEqual(previousFiles, currentFiles) {
+				// Log the change
+				fmt.Printf("[GoAccess] Log files changed: %d -> %d files\n", len(previousFiles), len(currentFiles))
+
+				// Files changed, restart GoAccess
+				goAccessMu.Lock()
+				goAccessLogFiles = currentFiles
+				needsRestart := goAccessRunning
+				goAccessMu.Unlock()
+
+				if needsRestart {
+					fmt.Println("[GoAccess] Restarting due to log file changes...")
+					restartGoAccess(workDir)
+				}
+			}
+		}
+	}
+}
+
+// restartGoAccess stops and restarts the GoAccess process
+func restartGoAccess(workDir string) {
+	goAccessMu.Lock()
+
+	// Stop current process
+	if goAccessCmd != nil && goAccessCmd.Process != nil {
+		goAccessCmd.Process.Kill()
+		goAccessCmd = nil
+	}
+	goAccessRunning = false
+
+	goAccessMu.Unlock()
+
+	// Wait a moment before restarting
+	time.Sleep(1 * time.Second)
+
+	// Start new process
+	ensureGoAccessRunning(context.Background(), workDir)
+}
+
+// stringSliceEqual checks if two string slices are equal
+func stringSliceEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// goAccessStatusHandler provides debug information about GoAccess status
+func goAccessStatusHandler(w http.ResponseWriter, r *http.Request) {
+	goAccessMu.Lock()
+	defer goAccessMu.Unlock()
+
+	status := map[string]interface{}{
+		"running":       goAccessRunning,
+		"ws_url":        buildWebSocketURL(),
+		"ws_port":       goAccessWSPort,
+		"file_watcher":  goAccessWatchStop != nil,
+		"tracked_files": len(goAccessLogFiles),
+		"log_file_list": goAccessLogFiles,
+	}
+
+	if goAccessCmd != nil && goAccessCmd.Process != nil {
+		status["pid"] = goAccessCmd.Process.Pid
+	}
+
+	// Check if GoAccess WebSocket is responding
+	testURL := fmt.Sprintf("ws://localhost:%s", goAccessWSPort)
+	conn, _, err := websocket.DefaultDialer.Dial(testURL, nil)
+	if err != nil {
+		status["ws_reachable"] = false
+		status["ws_error"] = err.Error()
+	} else {
+		conn.Close()
+		status["ws_reachable"] = true
+	}
+
+	// Check log file
+	workDir, _ := os.Getwd()
+	logFile := filepath.Join(workDir, "npm-data", "stats", "goaccess.log")
+	if info, err := os.Stat(logFile); err == nil {
+		status["log_file"] = logFile
+		status["log_size"] = info.Size()
+		status["log_modified"] = info.ModTime()
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(status)
 }
 
 func ensureGeoIPDatabase(ctx context.Context, workDir string) (string, error) {
@@ -441,4 +588,5 @@ func downloadGeoIPDatabase(ctx context.Context, workDir string) (string, error) 
 func setupGoAccessAPI(r chi.Router) {
 	r.Get("/goaccess", goAccessHandler)
 	r.Get(goAccessWSRoute, goAccessWebSocketHandler) // WebSocket endpoint for real-time updates
+	r.Get("/goaccess/status", goAccessStatusHandler) // Debug endpoint
 }
