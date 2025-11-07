@@ -667,29 +667,16 @@ func (g *geoResolver) Lookup(ip string) (*locationInfo, bool) {
 		g.cache[ip] = nil
 		return nil, false
 	}
-	record, err := g.reader.City(parsedIP)
-	if err != nil {
-		g.cache[ip] = nil
-		return nil, false
+	if loc, err := g.lookupCity(parsedIP); err == nil {
+		g.cache[ip] = loc
+		return loc, true
 	}
-	loc := &locationInfo{
-		Country:    record.Country.Names["en"],
-		CountryISO: record.Country.IsoCode,
-		City:       record.City.Names["en"],
-		Latitude:   record.Location.Latitude,
-		Longitude:  record.Location.Longitude,
+	if loc, err := g.lookupCountry(parsedIP); err == nil {
+		g.cache[ip] = loc
+		return loc, true
 	}
-	if loc.Country == "" && record.Country.IsoCode != "" {
-		loc.Country = record.Country.IsoCode
-	}
-	if loc.Country == "" {
-		loc.Country = "Unknown"
-	}
-	if loc.CountryISO == "" {
-		loc.CountryISO = "??"
-	}
-	g.cache[ip] = loc
-	return loc, true
+	g.cache[ip] = nil
+	return nil, false
 }
 
 func newGeoResolver() *geoResolver {
@@ -730,6 +717,56 @@ func findGeoIPDatabase() (string, error) {
 	}
 	sort.Strings(candidates)
 	return candidates[0], nil
+}
+
+func (g *geoResolver) lookupCity(ip net.IP) (*locationInfo, error) {
+	if g.reader == nil {
+		return nil, errors.New("geoip reader not initialized")
+	}
+	record, err := g.reader.City(ip)
+	if err != nil {
+		return nil, err
+	}
+	loc := &locationInfo{
+		Country:    record.Country.Names["en"],
+		CountryISO: record.Country.IsoCode,
+		City:       record.City.Names["en"],
+		Latitude:   record.Location.Latitude,
+		Longitude:  record.Location.Longitude,
+	}
+	if loc.Country == "" && record.Country.IsoCode != "" {
+		loc.Country = record.Country.IsoCode
+	}
+	normalizeLocation(loc)
+	return loc, nil
+}
+
+func (g *geoResolver) lookupCountry(ip net.IP) (*locationInfo, error) {
+	if g.reader == nil {
+		return nil, errors.New("geoip reader not initialized")
+	}
+	record, err := g.reader.Country(ip)
+	if err != nil {
+		return nil, err
+	}
+	loc := &locationInfo{
+		Country:    record.Country.Names["en"],
+		CountryISO: record.Country.IsoCode,
+	}
+	if loc.Country == "" && record.Country.IsoCode != "" {
+		loc.Country = record.Country.IsoCode
+	}
+	normalizeLocation(loc)
+	return loc, nil
+}
+
+func normalizeLocation(loc *locationInfo) {
+	if loc.Country == "" {
+		loc.Country = "Unknown"
+	}
+	if loc.CountryISO == "" {
+		loc.CountryISO = "??"
+	}
 }
 
 func setupStreamInfo(r chi.Router) chi.Router {
