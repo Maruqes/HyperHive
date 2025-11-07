@@ -139,14 +139,37 @@ func buildWebSocketURL() string {
 	// Remove trailing slash from MAIN_LINK
 	mainLink = strings.TrimRight(mainLink, "/")
 
-	// Determine protocol (ws:// or wss://)
-	wsProtocol := "ws://"
+	// Determine protocol (ws:// or wss://) and default port
+	var wsProtocol string
+	var defaultPort string
+
 	if strings.HasPrefix(mainLink, "https://") {
 		wsProtocol = "wss://"
+		defaultPort = "443"
 		mainLink = strings.TrimPrefix(mainLink, "https://")
 	} else if strings.HasPrefix(mainLink, "http://") {
 		wsProtocol = "ws://"
+		defaultPort = "80"
 		mainLink = strings.TrimPrefix(mainLink, "http://")
+	} else {
+		// No protocol specified, assume HTTPS
+		wsProtocol = "wss://"
+		defaultPort = "443"
+	}
+
+	// Check if port is already specified
+	hasPort := strings.Contains(mainLink, ":")
+
+	// Add default port if none specified
+	if !hasPort {
+		// Check if there's a path in the URL
+		if idx := strings.Index(mainLink, "/"); idx != -1 {
+			// Insert port before the path
+			mainLink = mainLink[:idx] + ":" + defaultPort + mainLink[idx:]
+		} else {
+			// No path, just append port
+			mainLink = mainLink + ":" + defaultPort
+		}
 	}
 
 	// Build full WebSocket URL
