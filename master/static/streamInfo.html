@@ -337,45 +337,125 @@
 			}
 			try {
 				document.getElementById('flowCount').textContent = data.length;
-				const margin = { top: 10, right: 10, bottom: 10, left: 10 };
+
+				// Check if d3.sankey is available
+				if (typeof d3.sankey !== 'function') {
+					console.error('d3.sankey is not available!');
+					// Fallback to simple bar chart visualization
+					container.innerHTML = '<div style="padding:20px;color:#9ca3af;text-align:center">Loading Sankey library...</div>';
+					setTimeout(() => updateSankeyChart(data), 1000);
+					return;
+				}
+
+				const margin = { top: 20, right: 150, bottom: 20, left: 150 };
 				const width = container.offsetWidth - margin.left - margin.right;
 				const height = 600 - margin.top - margin.bottom;
-				const svg = d3.select('#sankeyChart').append('svg').attr('width', width + margin.left + margin.right).attr('height', height + margin.top + margin.bottom).append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+				const svg = d3.select('#sankeyChart')
+					.append('svg')
+					.attr('width', width + margin.left + margin.right)
+					.attr('height', height + margin.top + margin.bottom)
+					.append('g')
+					.attr('transform', `translate(${margin.left},${margin.top})`);
+
+				// Build nodes and links
 				const nodes = [];
 				const nodeMap = new Map();
+
 				data.forEach(d => {
 					if (!nodeMap.has(d.source)) {
 						nodeMap.set(d.source, nodes.length);
-						nodes.push({ name: d.source, type: 'source' })
+						nodes.push({ name: d.source });
 					}
 					if (!nodeMap.has(d.destination)) {
 						nodeMap.set(d.destination, nodes.length);
-						nodes.push({ name: d.destination, type: 'dest' })
+						nodes.push({ name: d.destination });
 					}
 				});
+
 				const links = data.map(d => ({
 					source: nodeMap.get(d.source),
 					target: nodeMap.get(d.destination),
 					value: d.connections,
 					bytes: d.total_bytes
 				}));
-				console.log('Sankey nodes:', nodes);
-				console.log('Sankey links:', links);
-				const sankey = d3.sankey().nodeWidth(15).nodePadding(10).extent([[1, 1], [width - 1, height - 6]]);
-				const graph = sankey({
+
+				console.log('Creating sankey with nodes:', nodes.length, 'links:', links.length);
+
+				// Create sankey generator
+				const sankeyGenerator = d3.sankey()
+					.nodeWidth(20)
+					.nodePadding(20)
+					.extent([[0, 0], [width, height]]);
+
+				// Generate the sankey diagram
+				const graph = sankeyGenerator({
 					nodes: nodes.map(d => Object.assign({}, d)),
 					links: links.map(d => Object.assign({}, d))
 				});
-				const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
-				svg.append('g').selectAll('rect').data(graph.nodes).join('rect').attr('x', d => d.x0).attr('y', d => d.y0).attr('height', d => d.y1 - d.y0).attr('width', d => d.x1 - d.x0).attr('fill', d => colorScale(d.name)).attr('opacity', 0.8).append('title').text(d => `${d.name}\n${d.value || 0} connections`);
-				const link = svg.append('g').attr('fill', 'none').selectAll('g').data(graph.links).join('g').attr('stroke', d => colorScale(graph.nodes[d.source.index].name)).attr('opacity', 0.5);
-				link.append('path').attr('d', d3.sankeyLinkHorizontal()).attr('stroke-width', d => Math.max(1, d.width)).on('mouseover', function () { d3.select(this).attr('opacity', 0.8) }).on('mouseout', function () { d3.select(this).attr('opacity', 0.5) });
-				link.append('title').text(d => `${graph.nodes[d.source.index].name} → ${graph.nodes[d.target.index].name}\n${d.value} connections\n${formatBytes(d.bytes)}`);
-				svg.append('g').selectAll('text').data(graph.nodes).join('text').attr('x', d => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6).attr('y', d => (d.y1 + d.y0) / 2).attr('dy', '0.35em').attr('text-anchor', d => d.x0 < width / 2 ? 'start' : 'end').attr('fill', '#e5e7eb').attr('font-size', '12px').text(d => d.name);
+
+				console.log('Sankey graph generated:', graph);
+
+				// Color scale
+				const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+				// Draw links
+				const link = svg.append('g')
+					.selectAll('.link')
+					.data(graph.links)
+					.join('path')
+					.attr('class', 'link')
+					.attr('d', d3.sankeyLinkHorizontal())
+					.attr('stroke', d => color(graph.nodes[d.source.index].name))
+					.attr('stroke-width', d => Math.max(1, d.width))
+					.attr('fill', 'none')
+					.attr('opacity', 0.5)
+					.on('mouseover', function () {
+						d3.select(this).attr('opacity', 0.8);
+					})
+					.on('mouseout', function () {
+						d3.select(this).attr('opacity', 0.5);
+					});
+
+				// Add link titles
+				link.append('title')
+					.text(d => `${graph.nodes[d.source.index].name} → ${graph.nodes[d.target.index].name}\n${d.value} connections\n${formatBytes(d.bytes)}`);
+
+				// Draw nodes
+				const node = svg.append('g')
+					.selectAll('.node')
+					.data(graph.nodes)
+					.join('g')
+					.attr('class', 'node');
+
+				node.append('rect')
+					.attr('x', d => d.x0)
+					.attr('y', d => d.y0)
+					.attr('height', d => d.y1 - d.y0)
+					.attr('width', d => d.x1 - d.x0)
+					.attr('fill', d => color(d.name))
+					.attr('opacity', 0.8)
+					.attr('stroke', '#000')
+					.attr('stroke-width', 1);
+
+				node.append('title')
+					.text(d => `${d.name}\n${d.value || 0} connections`);
+
+				// Add node labels
+				node.append('text')
+					.attr('x', d => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6)
+					.attr('y', d => (d.y1 + d.y0) / 2)
+					.attr('dy', '0.35em')
+					.attr('text-anchor', d => d.x0 < width / 2 ? 'start' : 'end')
+					.attr('fill', '#e5e7eb')
+					.attr('font-size', '14px')
+					.attr('font-weight', 'bold')
+					.text(d => d.name);
+
 				console.log('Sankey chart created successfully');
 			} catch (e) {
 				console.error('Sankey error:', e);
-				container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ef4444">Error creating visualization: ' + e.message + '</div>';
+				container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ef4444">Error: ' + e.message + '</div>';
 			}
 		}
 		function updateDailyChart(d) { destroyChart('daily'); const ctx = document.getElementById('dailyChart').getContext('2d'); charts.daily = new Chart(ctx, { type: 'line', data: { labels: d.map(x => x.date), datasets: [{ label: 'Connections', data: d.map(x => x.connections), borderColor: 'rgb(59,130,246)', backgroundColor: 'rgba(59,130,246,0.1)', tension: 0.4, fill: true }, { label: 'Unique IPs', data: d.map(x => x.unique_ips), borderColor: 'rgb(34,197,94)', backgroundColor: 'rgba(34,197,94,0.1)', tension: 0.4, fill: true }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: '#e5e7eb' } } }, scales: { y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } } }) }
