@@ -1,19 +1,14 @@
 package api
 
 import (
-	"512SvMan/db"
 	"bufio"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"log"
-	"math"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -43,6 +38,7 @@ var (
 
 type streamLogEntry struct {
 	ClientIP      string    `json:"client_ip"`
+	Country       string    `json:"country,omitempty"`
 	Timestamp     string    `json:"timestamp"`
 	Protocol      string    `json:"protocol"`
 	Status        int       `json:"status"`
@@ -57,99 +53,6 @@ type streamLogEntry struct {
 type streamLogResponse struct {
 	Count   int              `json:"count"`
 	Entries []streamLogEntry `json:"entries"`
-}
-
-type streamSummaryResponse struct {
-	TotalConnections      int                   `json:"total_connections"`
-	UniqueClients         int                   `json:"unique_clients"`
-	TotalBytesSent        int64                 `json:"total_bytes_sent"`
-	TotalBytesReceived    int64                 `json:"total_bytes_received"`
-	AvgSessionSeconds     float64               `json:"avg_session_seconds"`
-	ConnectionsPerMinute  float64               `json:"connections_per_minute"`
-	Window                analyticsWindow       `json:"window"`
-	TopTalkers            []talkerStat          `json:"top_talkers"`
-	TopCountries          []db.CountryBreakdown `json:"top_countries"`
-	TopCountryVisitors    int                   `json:"top_country_visitors"`
-	TotalTrackedCountries int                   `json:"total_tracked_countries"`
-}
-
-type analyticsWindow struct {
-	Start time.Time `json:"start"`
-	End   time.Time `json:"end"`
-}
-
-type talkerStat struct {
-	ClientIP      string        `json:"client_ip"`
-	Connections   int           `json:"connections"`
-	BytesSent     int64         `json:"bytes_sent"`
-	BytesReceived int64         `json:"bytes_received"`
-	Location      *locationInfo `json:"location,omitempty"`
-}
-
-type locationInfo struct {
-	Country    string  `json:"country"`
-	CountryISO string  `json:"country_iso"`
-	City       string  `json:"city,omitempty"`
-	Latitude   float64 `json:"latitude,omitempty"`
-	Longitude  float64 `json:"longitude,omitempty"`
-}
-
-type dailyVisitorsResponse struct {
-	Day               string                `json:"day"`
-	UniqueVisitors    int                   `json:"unique_visitors"`
-	TotalConnections  int                   `json:"total_connections"`
-	BytesSent         int64                 `json:"bytes_sent"`
-	BytesReceived     int64                 `json:"bytes_received"`
-	AvgSessionSeconds float64               `json:"avg_session_seconds"`
-	CountryBreakdown  []db.CountryBreakdown `json:"country_breakdown"`
-	Change            dailyChangeStats      `json:"change_vs_previous"`
-}
-
-type dailyChangeStats struct {
-	UniqueVisitorsPct float64 `json:"unique_visitors_pct"`
-	BytesSentPct      float64 `json:"bytes_sent_pct"`
-	BytesRecvPct      float64 `json:"bytes_received_pct"`
-}
-
-// dayAccumulator keeps track of per-day stats before rendering.
-type dayAccumulator struct {
-	UniqueIPs        map[string]struct{}
-	TotalConnections int
-	BytesSent        int64
-	BytesReceived    int64
-	SessionSeconds   float64
-}
-
-type ipAggregate struct {
-	Connections    int
-	BytesSent      int64
-	BytesReceived  int64
-	SessionSeconds float64
-	Location       *locationInfo
-}
-
-type streamAggregator struct {
-	resolver         *geoResolver
-	totalConnections int
-	totalBytesSent   int64
-	totalBytesRecv   int64
-	totalSession     float64
-	windowStart      time.Time
-	windowEnd        time.Time
-	uniqueIPs        map[string]struct{}
-	ipTotals         map[string]*ipAggregate
-	dailyStats       map[string]*dayAccumulator
-}
-
-type geoResolver struct {
-	reader *geoip2.Reader
-	cache  map[string]*locationInfo
-}
-
-type countryAggregate struct {
-	Country string
-	ISO     string
-	Count   int
 }
 
 //exmample of streams.log
@@ -176,381 +79,27 @@ func getData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Try to open GeoIP database
+	var geoIPDB *geoip2.Reader
+	if dbPath, err := findGeoIPDatabase(); err == nil {
+		if db, err := geoip2.Open(dbPath); err == nil {
+			geoIPDB = db
+			defer db.Close()
+		}
+	}
+
+	// Add country information to entries
+	for i := range entries {
+		if geoIPDB != nil {
+			entries[i].Country = getCountryFromIP(geoIPDB, entries[i].ClientIP)
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(streamLogResponse{
 		Count:   len(entries),
 		Entries: entries,
 	})
-}
-
-func getStreamSummary(w http.ResponseWriter, r *http.Request) {
-	summary, _, err := prepareStreamAnalytics()
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			respondJSONError(w, http.StatusNotFound, "stream-proxy.log not found")
-			return
-		}
-		respondJSONError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(summary)
-}
-
-func getDailyVisitorStats(w http.ResponseWriter, r *http.Request) {
-	_, daily, err := prepareStreamAnalytics()
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			respondJSONError(w, http.StatusNotFound, "stream-proxy.log not found")
-			return
-		}
-		respondJSONError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(daily)
-}
-
-func prepareStreamAnalytics() (streamSummaryResponse, []dailyVisitorsResponse, error) {
-	entries, err := readStreamLogEntries()
-	if err != nil {
-		return streamSummaryResponse{}, nil, err
-	}
-	return computeStreamAnalytics(entries)
-}
-
-func computeStreamAnalytics(entries []streamLogEntry) (streamSummaryResponse, []dailyVisitorsResponse, error) {
-	aggregator := newStreamAggregator()
-	for _, entry := range entries {
-		aggregator.absorb(entry)
-	}
-	summary := aggregator.summary()
-	daily := aggregator.dailyResponses()
-	persistDailyMetrics(daily)
-	return summary, daily, nil
-}
-
-func persistDailyMetrics(daily []dailyVisitorsResponse) {
-	if len(daily) == 0 {
-		return
-	}
-	payload := make([]db.DailyStreamMetric, 0, len(daily))
-	for _, day := range daily {
-		payload = append(payload, db.DailyStreamMetric{
-			Day:               day.Day,
-			UniqueVisitors:    day.UniqueVisitors,
-			TotalConnections:  day.TotalConnections,
-			BytesSent:         day.BytesSent,
-			BytesReceived:     day.BytesReceived,
-			AvgSessionSeconds: day.AvgSessionSeconds,
-			CountryBreakdown:  day.CountryBreakdown,
-		})
-	}
-	if err := db.UpsertStreamDailyMetrics(payload); err != nil {
-		log.Printf("stream analytics: persist daily metrics: %v", err)
-	}
-}
-
-func newStreamAggregator() *streamAggregator {
-	return &streamAggregator{
-		resolver:   newGeoResolver(),
-		uniqueIPs:  make(map[string]struct{}),
-		ipTotals:   make(map[string]*ipAggregate),
-		dailyStats: make(map[string]*dayAccumulator),
-	}
-}
-
-func (a *streamAggregator) absorb(entry streamLogEntry) {
-	a.totalConnections++
-	a.totalBytesSent += entry.BytesSent
-	a.totalBytesRecv += entry.BytesReceived
-	a.totalSession += entry.SessionTime
-
-	ipAgg, ok := a.ipTotals[entry.ClientIP]
-	if !ok {
-		ipAgg = &ipAggregate{}
-		a.ipTotals[entry.ClientIP] = ipAgg
-	}
-	ipAgg.Connections++
-	ipAgg.BytesSent += entry.BytesSent
-	ipAgg.BytesReceived += entry.BytesReceived
-	ipAgg.SessionSeconds += entry.SessionTime
-
-	if ipAgg.Location == nil {
-		if loc, ok := a.resolver.Lookup(entry.ClientIP); ok {
-			ipAgg.Location = loc
-		}
-	}
-
-	a.uniqueIPs[entry.ClientIP] = struct{}{}
-
-	if !entry.Time.IsZero() {
-		if a.windowStart.IsZero() || entry.Time.Before(a.windowStart) {
-			a.windowStart = entry.Time
-		}
-		if entry.Time.After(a.windowEnd) {
-			a.windowEnd = entry.Time
-		}
-
-		dayKey := entry.Time.UTC().Format("2006-01-02")
-		day := a.dailyStats[dayKey]
-		if day == nil {
-			day = &dayAccumulator{
-				UniqueIPs: make(map[string]struct{}),
-			}
-			a.dailyStats[dayKey] = day
-		}
-		day.TotalConnections++
-		day.BytesSent += entry.BytesSent
-		day.BytesReceived += entry.BytesReceived
-		day.SessionSeconds += entry.SessionTime
-		day.UniqueIPs[entry.ClientIP] = struct{}{}
-	}
-}
-
-func (a *streamAggregator) summary() streamSummaryResponse {
-	summary := streamSummaryResponse{
-		TotalConnections:      a.totalConnections,
-		UniqueClients:         len(a.uniqueIPs),
-		TotalBytesSent:        a.totalBytesSent,
-		TotalBytesReceived:    a.totalBytesRecv,
-		TopTalkers:            []talkerStat{},
-		TopCountries:          []db.CountryBreakdown{},
-		TopCountryVisitors:    0,
-		TotalTrackedCountries: 0,
-		Window: analyticsWindow{
-			Start: a.windowStart,
-			End:   a.windowEnd,
-		},
-	}
-
-	if a.totalConnections > 0 {
-		summary.AvgSessionSeconds = roundFloat(a.totalSession / float64(a.totalConnections))
-	}
-	summary.ConnectionsPerMinute = calcRatePerMinute(a.totalConnections, a.windowStart, a.windowEnd)
-	summary.TopTalkers = buildTopTalkers(a.ipTotals)
-
-	countries, totalVisitors, countryCount := buildCountryBreakdown(a.ipTotals, a.uniqueIPs)
-	summary.TopCountries = countries
-	summary.TopCountryVisitors = totalVisitors
-	summary.TotalTrackedCountries = countryCount
-
-	return summary
-}
-
-func (a *streamAggregator) dailyResponses() []dailyVisitorsResponse {
-	if len(a.dailyStats) == 0 {
-		return []dailyVisitorsResponse{}
-	}
-	days := make([]string, 0, len(a.dailyStats))
-	for day := range a.dailyStats {
-		days = append(days, day)
-	}
-	sort.Strings(days)
-
-	results := make([]dailyVisitorsResponse, 0, len(days))
-	var prev *dailyVisitorsResponse
-
-	for _, day := range days {
-		stats := a.dailyStats[day]
-		resp := dailyVisitorsResponse{
-			Day:              day,
-			UniqueVisitors:   len(stats.UniqueIPs),
-			TotalConnections: stats.TotalConnections,
-			BytesSent:        stats.BytesSent,
-			BytesReceived:    stats.BytesReceived,
-		}
-		if stats.TotalConnections > 0 {
-			resp.AvgSessionSeconds = roundFloat(stats.SessionSeconds / float64(stats.TotalConnections))
-		}
-		resp.CountryBreakdown = buildCountryBreakdownForIPs(stats.UniqueIPs, a.ipTotals)
-		if prev != nil {
-			resp.Change = calcDailyChange(resp, *prev)
-		}
-		results = append(results, resp)
-		prev = &results[len(results)-1]
-	}
-
-	return reverseDailyVisitors(results)
-}
-
-func buildTopTalkers(totals map[string]*ipAggregate) []talkerStat {
-	if len(totals) == 0 {
-		return []talkerStat{}
-	}
-	items := make([]talkerStat, 0, len(totals))
-	for ip, agg := range totals {
-		items = append(items, talkerStat{
-			ClientIP:      ip,
-			Connections:   agg.Connections,
-			BytesSent:     agg.BytesSent,
-			BytesReceived: agg.BytesReceived,
-			Location:      agg.Location,
-		})
-	}
-	sort.Slice(items, func(i, j int) bool {
-		left := items[i].BytesSent + items[i].BytesReceived
-		right := items[j].BytesSent + items[j].BytesReceived
-		if left == right {
-			return items[i].Connections > items[j].Connections
-		}
-		return left > right
-	})
-	if len(items) > topTalkersLimit {
-		items = items[:topTalkersLimit]
-	}
-	return items
-}
-
-func buildCountryBreakdown(totals map[string]*ipAggregate, uniqueIPs map[string]struct{}) ([]db.CountryBreakdown, int, int) {
-	totalVisitors := len(uniqueIPs)
-	if totalVisitors == 0 {
-		return []db.CountryBreakdown{}, 0, 0
-	}
-
-	counter := make(map[string]*countryAggregate)
-	for ip := range uniqueIPs {
-		agg := totals[ip]
-		country, iso := "Unknown", "??"
-		if agg != nil && agg.Location != nil {
-			if agg.Location.Country != "" {
-				country = agg.Location.Country
-			}
-			if agg.Location.CountryISO != "" {
-				iso = agg.Location.CountryISO
-			}
-		}
-		key := iso + "::" + country
-		item := counter[key]
-		if item == nil {
-			item = &countryAggregate{Country: country, ISO: iso}
-			counter[key] = item
-		}
-		item.Count++
-	}
-
-	result := make([]db.CountryBreakdown, 0, len(counter))
-	for _, item := range counter {
-		result = append(result, db.CountryBreakdown{
-			Country:    item.Country,
-			ISOCode:    item.ISO,
-			Visitors:   item.Count,
-			Percentage: percentFloat(item.Count, totalVisitors),
-		})
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		if result[i].Visitors == result[j].Visitors {
-			return result[i].Country < result[j].Country
-		}
-		return result[i].Visitors > result[j].Visitors
-	})
-
-	totalCountries := len(result)
-	if len(result) > topCountryEntries {
-		result = result[:topCountryEntries]
-	}
-
-	return result, totalVisitors, totalCountries
-}
-
-func buildCountryBreakdownForIPs(ips map[string]struct{}, totals map[string]*ipAggregate) []db.CountryBreakdown {
-	if len(ips) == 0 {
-		return []db.CountryBreakdown{}
-	}
-	counter := make(map[string]*countryAggregate)
-	for ip := range ips {
-		agg := totals[ip]
-		country, iso := "Unknown", "??"
-		if agg != nil && agg.Location != nil {
-			if agg.Location.Country != "" {
-				country = agg.Location.Country
-			}
-			if agg.Location.CountryISO != "" {
-				iso = agg.Location.CountryISO
-			}
-		}
-		key := iso + "::" + country
-		item := counter[key]
-		if item == nil {
-			item = &countryAggregate{Country: country, ISO: iso}
-			counter[key] = item
-		}
-		item.Count++
-	}
-
-	result := make([]db.CountryBreakdown, 0, len(counter))
-	totalVisitors := len(ips)
-	for _, item := range counter {
-		result = append(result, db.CountryBreakdown{
-			Country:    item.Country,
-			ISOCode:    item.ISO,
-			Visitors:   item.Count,
-			Percentage: percentFloat(item.Count, totalVisitors),
-		})
-	}
-	sort.Slice(result, func(i, j int) bool {
-		if result[i].Visitors == result[j].Visitors {
-			return result[i].Country < result[j].Country
-		}
-		return result[i].Visitors > result[j].Visitors
-	})
-	if len(result) > topCountryEntries {
-		result = result[:topCountryEntries]
-	}
-	return result
-}
-
-func calcRatePerMinute(total int, start, end time.Time) float64 {
-	if total == 0 || start.IsZero() || end.IsZero() {
-		return 0
-	}
-	diff := end.Sub(start).Minutes()
-	if diff <= 0 {
-		return float64(total)
-	}
-	return roundFloat(float64(total) / diff)
-}
-
-func calcDailyChange(current, prev dailyVisitorsResponse) dailyChangeStats {
-	return dailyChangeStats{
-		UniqueVisitorsPct: percentageDelta(current.UniqueVisitors, prev.UniqueVisitors),
-		BytesSentPct:      percentageDeltaFloat(float64(current.BytesSent), float64(prev.BytesSent)),
-		BytesRecvPct:      percentageDeltaFloat(float64(current.BytesReceived), float64(prev.BytesReceived)),
-	}
-}
-
-func reverseDailyVisitors(items []dailyVisitorsResponse) []dailyVisitorsResponse {
-	for i, j := 0, len(items)-1; i < j; i, j = i+1, j-1 {
-		items[i], items[j] = items[j], items[i]
-	}
-	return items
-}
-
-func roundFloat(value float64) float64 {
-	return math.Round(value*100) / 100
-}
-
-func percentFloat(value, total int) float64 {
-	if total == 0 {
-		return 0
-	}
-	return roundFloat(float64(value) / float64(total) * 100)
-}
-
-func percentageDelta(current, previous int) float64 {
-	return percentageDeltaFloat(float64(current), float64(previous))
-}
-
-func percentageDeltaFloat(current, previous float64) float64 {
-	if previous == 0 {
-		if current == 0 {
-			return 0
-		}
-		return 100
-	}
-	return roundFloat((current - previous) / previous * 100)
 }
 
 func readStreamLogEntries() ([]streamLogEntry, error) {
@@ -643,158 +192,59 @@ func parseFloatField(value string) (float64, error) {
 	return strconv.ParseFloat(value, 64)
 }
 
+// findGeoIPDatabase looks for a GeoIP database file in the geoIPDirectory
+func findGeoIPDatabase() (string, error) {
+	if err := os.MkdirAll(geoIPDirectory, 0o755); err != nil {
+		return "", err
+	}
+
+	// Try preferred databases first
+	for _, name := range preferredGeoIPDB {
+		candidate := filepath.Join(geoIPDirectory, name)
+		if stat, err := os.Stat(candidate); err == nil && !stat.IsDir() {
+			return candidate, nil
+		}
+	}
+
+	// Fall back to any .mmdb file
+	files, err := filepath.Glob(filepath.Join(geoIPDirectory, "*.mmdb"))
+	if err != nil {
+		return "", err
+	}
+	if len(files) == 0 {
+		return "", errGeoIPUnavailable
+	}
+	return files[0], nil
+}
+
+// getCountryFromIP returns the country name for a given IP address
+func getCountryFromIP(db *geoip2.Reader, ipStr string) string {
+	if db == nil {
+		return ""
+	}
+
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return ""
+	}
+
+	// Try City database first (it has more detailed info)
+	if record, err := db.City(ip); err == nil && record.Country.Names["en"] != "" {
+		return record.Country.Names["en"]
+	}
+
+	// Fall back to Country database
+	if record, err := db.Country(ip); err == nil && record.Country.Names["en"] != "" {
+		return record.Country.Names["en"]
+	}
+
+	return ""
+}
+
 func respondJSONError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
-}
-
-func (g *geoResolver) Lookup(ip string) (*locationInfo, bool) {
-	if g == nil {
-		return nil, false
-	}
-	if loc, ok := g.cache[ip]; ok {
-		if loc == nil {
-			return nil, false
-		}
-		return loc, true
-	}
-	if g.reader == nil {
-		g.cache[ip] = nil
-		return nil, false
-	}
-	parsedIP := net.ParseIP(ip)
-	if parsedIP == nil {
-		g.cache[ip] = nil
-		return nil, false
-	}
-	if loc, err := g.lookupCity(parsedIP); err == nil {
-		g.cache[ip] = loc
-		return loc, true
-	}
-	if loc, err := g.lookupCountry(parsedIP); err == nil {
-		g.cache[ip] = loc
-		return loc, true
-	}
-	g.cache[ip] = nil
-	return nil, false
-}
-
-func newGeoResolver() *geoResolver {
-	path, err := findGeoIPDatabase()
-	if err != nil {
-		if !errors.Is(err, errGeoIPUnavailable) {
-			log.Printf("geoip: %v", err)
-		}
-		return &geoResolver{cache: make(map[string]*locationInfo)}
-	}
-	reader, err := geoip2.Open(path)
-	if err != nil {
-		log.Printf("geoip: open %s failed: %v", path, err)
-		return &geoResolver{cache: make(map[string]*locationInfo)}
-	}
-	return &geoResolver{
-		reader: reader,
-		cache:  make(map[string]*locationInfo),
-	}
-}
-
-func findGeoIPDatabase() (string, error) {
-	dir := filepath.Clean(geoIPDirectory)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", err
-	}
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return "", fmt.Errorf("scan geoip directory %q: %w", dir, err)
-	}
-
-	var (
-		preferredPath string
-		allMMDBs      []string
-	)
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if !strings.EqualFold(filepath.Ext(name), ".mmdb") {
-			continue
-		}
-		fullPath := filepath.Join(dir, name)
-		allMMDBs = append(allMMDBs, fullPath)
-
-		if preferredPath == "" {
-			for _, preferred := range preferredGeoIPDB {
-				if strings.EqualFold(name, preferred) {
-					preferredPath = fullPath
-					break
-				}
-			}
-		}
-	}
-
-	if preferredPath != "" {
-		return preferredPath, nil
-	}
-	if len(allMMDBs) == 0 {
-		return "", fmt.Errorf("%w: %s", errGeoIPUnavailable, dir)
-	}
-
-	sort.Strings(allMMDBs)
-	return allMMDBs[0], nil
-}
-
-func (g *geoResolver) lookupCity(ip net.IP) (*locationInfo, error) {
-	if g.reader == nil {
-		return nil, errors.New("geoip reader not initialized")
-	}
-	record, err := g.reader.City(ip)
-	if err != nil {
-		return nil, err
-	}
-	loc := &locationInfo{
-		Country:    record.Country.Names["en"],
-		CountryISO: record.Country.IsoCode,
-		City:       record.City.Names["en"],
-		Latitude:   record.Location.Latitude,
-		Longitude:  record.Location.Longitude,
-	}
-	if loc.Country == "" && record.Country.IsoCode != "" {
-		loc.Country = record.Country.IsoCode
-	}
-	normalizeLocation(loc)
-	return loc, nil
-}
-
-func (g *geoResolver) lookupCountry(ip net.IP) (*locationInfo, error) {
-	if g.reader == nil {
-		return nil, errors.New("geoip reader not initialized")
-	}
-	record, err := g.reader.Country(ip)
-	if err != nil {
-		return nil, err
-	}
-	loc := &locationInfo{
-		Country:    record.Country.Names["en"],
-		CountryISO: record.Country.IsoCode,
-	}
-	if loc.Country == "" && record.Country.IsoCode != "" {
-		loc.Country = record.Country.IsoCode
-	}
-	normalizeLocation(loc)
-	return loc, nil
-}
-
-func normalizeLocation(loc *locationInfo) {
-	if loc.Country == "" {
-		loc.Country = "Unknown"
-	}
-	if loc.CountryISO == "" {
-		loc.CountryISO = "??"
-	}
 }
 
 func setupStreamInfo(r chi.Router) chi.Router {
@@ -803,7 +253,5 @@ func setupStreamInfo(r chi.Router) chi.Router {
 			http.ServeFile(w, r, "static/streamInfo.html")
 		})
 		r.Get("/data", getData)
-		r.Get("/summary", getStreamSummary)
-		r.Get("/visitors", getDailyVisitorStats)
 	})
 }
