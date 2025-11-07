@@ -13,7 +13,9 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	logger "github.com/Maruqes/512SvMan/logger"
@@ -91,17 +93,48 @@ func downloadNoVNC() error {
 
 func GoAccess() error {
 	const requiredVersion = "1.9.3"
+	const downloadURL = "https://tar.goaccess.io/goaccess-1.9.3.tar.gz"
 
 	install := func() error {
-		if _, err := exec.LookPath("dnf"); err != nil {
-			return fmt.Errorf("dnf package manager not found: %w", err)
+		tmpDir, err := os.MkdirTemp("", "goaccess-build-")
+		if err != nil {
+			return fmt.Errorf("create temp dir: %w", err)
 		}
-		fmt.Println("Installing libmaxminddb dependencies via dnf...")
-		if err := execCommand("dnf", "-y", "install", "libmaxminddb", "libmaxminddb-devel"); err != nil {
-			return fmt.Errorf("install libmaxminddb dependencies: %w", err)
+		defer os.RemoveAll(tmpDir)
+
+		archive := fmt.Sprintf("%s/goaccess-%s.tar.gz", tmpDir, requiredVersion)
+		if err := execCommand("curl", "-L", "-o", archive, downloadURL); err != nil {
+			return fmt.Errorf("download GoAccess %s: %w", requiredVersion, err)
 		}
-		fmt.Printf("Installing GoAccess %s via dnf...\n", requiredVersion)
-		if err := execCommand("dnf", "-y", "install", fmt.Sprintf("goaccess-%s", requiredVersion)); err != nil {
+
+		if err := execCommand("tar", "-xzf", archive, "-C", tmpDir); err != nil {
+			return fmt.Errorf("extract GoAccess %s: %w", requiredVersion, err)
+		}
+
+		sourceDir := fmt.Sprintf("%s/goaccess-%s", tmpDir, requiredVersion)
+		runInDir := func(dir, name string, args ...string) error {
+			cmd := exec.Command(name, args...)
+			cmd.Dir = dir
+			var stderr bytes.Buffer
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
+			if err := cmd.Run(); err != nil {
+				msg := strings.TrimSpace(stderr.String())
+				if msg != "" {
+					return fmt.Errorf("%w: %s", err, msg)
+				}
+				return err
+			}
+			return nil
+		}
+
+		if err := runInDir(sourceDir, "./configure", "--enable-utf8", "--enable-geoip=mmdb"); err != nil {
+			return fmt.Errorf("configure GoAccess %s: %w", requiredVersion, err)
+		}
+		if err := runInDir(sourceDir, "make"); err != nil {
+			return fmt.Errorf("build GoAccess %s: %w", requiredVersion, err)
+		}
+		if err := runInDir(sourceDir, "make", "install"); err != nil {
 			return fmt.Errorf("install GoAccess %s: %w", requiredVersion, err)
 		}
 		return nil
@@ -238,5 +271,20 @@ func main() {
 
 	api.StartApi()
 
-	select {}
+	// Setup graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	logger.Info("Application started. Press Ctrl+C to shutdown gracefully.")
+
+	// Wait for interrupt signal
+	<-sigChan
+
+	logger.Info("Shutting down gracefully...")
+
+	// Stop GoAccess background process
+	api.StopGoAccess()
+
+	logger.Info("Cleanup complete. Goodbye!")
+	os.Exit(0)
 }

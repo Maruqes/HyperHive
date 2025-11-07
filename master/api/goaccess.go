@@ -2,13 +2,11 @@ package api
 
 import (
 	"archive/tar"
-	"bytes"
 	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -21,247 +19,217 @@ import (
 	"512SvMan/env512"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/gorilla/websocket"
 )
 
 const (
-	goAccessTimeout       = 2 * time.Minute
-	goAccessRefreshSecond = 5
-
-	// Servidor WS interno do GoAccess (atrás do NPM)
-	goAccessWSAddr = "127.0.0.1:7891"
-
-	// Diretório/ficheiro
-	goAccessGeoIPDir    = "geoipdb"
-	goAccessGeoIPMaxAge = 7 * 24 * time.Hour
+	goAccessTimeout        = 2 * time.Minute
+	goAccessRefreshSecond  = 5
+	goAccessGeoIPDir       = "geoipdb"
+	goAccessGeoIPMaxAge    = 7 * 24 * time.Hour
+	goAccessWSPort         = "7890" // GoAccess WebSocket port
+	goAccessReconnectDelay = 5 * time.Second
 )
 
 var (
 	errGeoIPNotFound = errors.New("geoip database not found")
 
-	// Guarda o processo do GoAccess em modo realtime
-	goRTMu       sync.Mutex
-	goRTCmd      *exec.Cmd
-	goRTReport   string
-	goRTLogDir   string
-	goRTArgsHash string
+	// WebSocket upgrader for client connections
+	wsUpgrader = websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return true // Allow all origins, adjust for production
+		},
+	}
+
+	// GoAccess process management
+	goAccessCmd     *exec.Cmd
+	goAccessMu      sync.Mutex
+	goAccessRunning bool
 )
 
-// ---------- HTTP / Router ----------
-
-func setupGoAccessAPI(r chi.Router) {
-	r.Get("/goaccess", goAccessRealtimeHandler)
-}
-
-// Serve o HTML em realtime e garante que o daemon do GoAccess está a correr
-func goAccessRealtimeHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), goAccessTimeout)
-	defer cancel()
-
+// goAccessHandler serves the HTML page with WebSocket connection
+func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 	workDir, err := os.Getwd()
 	if err != nil {
 		http.Error(w, "failed to resolve working directory", http.StatusInternalServerError)
 		return
 	}
 
-	logDir := filepath.Join(workDir, "npm-data", "logs")
-	if stat, err := os.Stat(logDir); err != nil || !stat.IsDir() {
-		http.Error(w, "logs directory not found", http.StatusNotFound)
+	// Ensure GoAccess is running
+	if err := ensureGoAccessRunning(r.Context(), workDir); err != nil {
+		http.Error(w, fmt.Sprintf("failed to start GoAccess: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Colhemos os logs do NPM (proxy-host-*_access.log)
-	pattern := filepath.Join(logDir, "proxy-host-*_access.log")
-	files, err := filepath.Glob(pattern)
-	if err != nil {
-		http.Error(w, "failed to enumerate log files", http.StatusInternalServerError)
-		return
-	}
-	if len(files) == 0 {
-		http.Error(w, "no proxy access logs found", http.StatusNotFound)
-		return
-	}
-
-	// Diretório dos relatórios
 	statsDir := filepath.Join(workDir, "npm-data", "stats")
-	if err := os.MkdirAll(statsDir, 0o755); err != nil {
-		http.Error(w, "failed to prepare stats directory", http.StatusInternalServerError)
-		return
-	}
 	outputPath := filepath.Join(statsDir, "goaccess.html")
 
-	// Deriva base e ws-url públicos
-	baseURL, wsURL := derivePublicURLs(r)
-
-	// Prepara GeoIP
-	geoIPDBPath, err := ensureGeoIPDatabase(ctx, workDir)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Formato do NPM (custom). Se preferires COMBINED, troca por "--log-format=COMBINED"
-	logFormat := `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] [Gzip %^] [Sent-to %^] "%u" "%R"`
-
-	// Args do GoAccess realtime
-	args := []string{
-		"--no-global-config",
-		"--real-time-html",
-		"--restore",
-		"--persist",
-		"--addr=127.0.0.1",
-		"--port=7891",
-		"--origin=" + baseURL, // segurança de origem
-		"--ws-url=" + wsURL,   // URL público do WS (sem porta)
-		"--date-format=%d/%b/%Y",
-		"--time-format=%T",
-		"--log-format=" + logFormat,
-		"-o", outputPath,
-		"--geoip-database=" + geoIPDBPath,
-	}
-
-	// painéis (enable/disable)
-	addPanelArgs := func(flag string, values []string) {
-		for _, p := range values {
-			p = strings.TrimSpace(p)
-			if p != "" {
-				args = append(args, fmt.Sprintf("--%s=%s", flag, p))
-			}
-		}
-	}
-	addPanelArgs("enable-panel", env512.GoAccessEnablePanels)
-	addPanelArgs("disable-panel", env512.GoAccessDisablePanels)
-
-	// logs (-f por cada ficheiro)
-	for _, f := range files {
-		args = append(args, "-f", f)
-	}
-
-	// Arranca (ou mantém) o daemon do GoAccess realtime
-	if err := ensureGoAccessDaemon(logDir, outputPath, args); err != nil {
-		http.Error(w, "failed to start goaccess realtime: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Pequena espera inicial para o HTML aparecer na 1ª execução
-	deadline := time.Now().Add(3 * time.Second)
-	for {
-		if st, err := os.Stat(outputPath); err == nil && st.Size() > 0 {
-			break
-		}
-		if time.Now().After(deadline) {
-			break
-		}
-		time.Sleep(120 * time.Millisecond)
-	}
-
-	// Serve o HTML (o JS lá dentro liga ao WS público)
 	data, err := os.ReadFile(outputPath)
 	if err != nil {
 		http.Error(w, "failed to read generated report", http.StatusInternalServerError)
 		return
 	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(data)
 }
 
-// ---------- GoAccess realtime daemon management ----------
+// goAccessWebSocketHandler proxies WebSocket connections to GoAccess
+func goAccessWebSocketHandler(w http.ResponseWriter, r *http.Request) {
+	// Upgrade client connection to WebSocket
+	clientConn, err := wsUpgrader.Upgrade(w, r, nil)
+	if err != nil {
+		http.Error(w, "failed to upgrade connection", http.StatusInternalServerError)
+		return
+	}
+	defer clientConn.Close()
 
-func ensureGoAccessDaemon(logDir, outputPath string, args []string) error {
-	goRTMu.Lock()
-	defer goRTMu.Unlock()
+	// Connect to GoAccess WebSocket server
+	goAccessURL := fmt.Sprintf("ws://localhost:%s", goAccessWSPort)
+	goAccessConn, _, err := websocket.DefaultDialer.Dial(goAccessURL, nil)
+	if err != nil {
+		clientConn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Error connecting to GoAccess: %v", err)))
+		return
+	}
+	defer goAccessConn.Close()
 
-	hash := strings.Join(args, "\x00") + "|dir=" + logDir
-	if goRTCmd != nil && goRTArgsHash == hash && goRTReport == outputPath && goRTLogDir == logDir {
-		// Já está a correr com os mesmos args
+	// Channel to signal completion
+	done := make(chan struct{})
+
+	// Forward messages from GoAccess to client
+	go func() {
+		defer close(done)
+		for {
+			messageType, message, err := goAccessConn.ReadMessage()
+			if err != nil {
+				return
+			}
+			if err := clientConn.WriteMessage(messageType, message); err != nil {
+				return
+			}
+		}
+	}()
+
+	// Forward messages from client to GoAccess (for interactivity)
+	go func() {
+		for {
+			messageType, message, err := clientConn.ReadMessage()
+			if err != nil {
+				return
+			}
+			if err := goAccessConn.WriteMessage(messageType, message); err != nil {
+				return
+			}
+		}
+	}()
+
+	<-done
+}
+
+// ensureGoAccessRunning starts GoAccess in background if not already running
+func ensureGoAccessRunning(ctx context.Context, workDir string) error {
+	goAccessMu.Lock()
+	defer goAccessMu.Unlock()
+
+	if goAccessRunning && goAccessCmd != nil && goAccessCmd.Process != nil {
 		return nil
 	}
 
-	// Se existir um processo antigo, tenta terminar
-	if goRTCmd != nil && goRTCmd.Process != nil {
-		_ = goRTCmd.Process.Kill()
-		_, _ = goRTCmd.Process.Wait()
+	logDir := filepath.Join(workDir, "npm-data", "logs")
+	if stat, err := os.Stat(logDir); err != nil || !stat.IsDir() {
+		return fmt.Errorf("logs directory not found")
 	}
-	goRTCmd = nil
 
-	cmd := exec.Command("goaccess", args...)
-	cmd.Dir = logDir
-	var stderr bytes.Buffer
-	cmd.Stdout = io.Discard
-	cmd.Stderr = &stderr
+	pattern := filepath.Join(logDir, "proxy-host-*_access.log")
+	files, err := filepath.Glob(pattern)
+	if err != nil {
+		return fmt.Errorf("failed to enumerate log files: %w", err)
+	}
+	if len(files) == 0 {
+		return fmt.Errorf("no proxy access logs found")
+	}
 
-	if err := cmd.Start(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			msg = err.Error()
+	statsDir := filepath.Join(workDir, "npm-data", "stats")
+	if err := os.MkdirAll(statsDir, 0o755); err != nil {
+		return fmt.Errorf("failed to prepare stats directory: %w", err)
+	}
+
+	outputPath := filepath.Join(statsDir, "goaccess.html")
+
+	logFormat := `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] [Gzip %^] [Sent-to %^] "%u" "%R"`
+
+	// Get GeoIP database
+	geoIPDBPath, err := ensureGeoIPDatabase(ctx, workDir)
+	if err != nil {
+		return fmt.Errorf("failed to get GeoIP database: %w", err)
+	}
+
+	// Build GoAccess arguments for WebSocket mode
+	args := append([]string{}, files...)
+	args = append(args,
+		"--no-global-config",
+		"--date-format=%d/%b/%Y",
+		"--time-format=%T",
+		"--real-time-html",                        // Enable real-time WebSocket mode
+		"--ws-url=ws://localhost:"+goAccessWSPort, // WebSocket URL
+		"--port="+goAccessWSPort,                  // WebSocket port
+		"--log-format="+logFormat,
+		"--geoip-database="+geoIPDBPath,
+		"-o", outputPath,
+	)
+
+	addPanelArgs := func(flag string, values []string) {
+		for _, panel := range values {
+			panel = strings.TrimSpace(panel)
+			if panel == "" {
+				continue
+			}
+			args = append(args, fmt.Sprintf("--%s=%s", flag, panel))
 		}
-		return fmt.Errorf("start goaccess: %s", msg)
+	}
+	addPanelArgs("enable-panel", env512.GoAccessEnablePanels)
+	addPanelArgs("disable-panel", env512.GoAccessDisablePanels)
+
+	goAccessCmd = exec.Command("goaccess", args...)
+	goAccessCmd.Dir = logDir
+
+	// Start the process
+	if err := goAccessCmd.Start(); err != nil {
+		return fmt.Errorf("failed to start GoAccess: %w", err)
 	}
 
-	// Guarda estado
-	goRTCmd = cmd
-	goRTReport = outputPath
-	goRTLogDir = logDir
-	goRTArgsHash = hash
+	goAccessRunning = true
 
-	// Observa término em background
-	go func(c *exec.Cmd) {
-		_ = c.Wait()
-	}(cmd)
+	// Monitor the process in background
+	go func() {
+		goAccessCmd.Wait()
+		goAccessMu.Lock()
+		goAccessRunning = false
+		goAccessMu.Unlock()
+
+		// Auto-restart after delay
+		time.Sleep(goAccessReconnectDelay)
+		ensureGoAccessRunning(context.Background(), workDir)
+	}()
+
+	// Wait a bit for GoAccess to initialize
+	time.Sleep(1 * time.Second)
 
 	return nil
 }
 
-// ---------- Helpers: URLs públicos ----------
+// StopGoAccess gracefully stops the GoAccess process
+func StopGoAccess() {
+	goAccessMu.Lock()
+	defer goAccessMu.Unlock()
 
-func derivePublicURLs(r *http.Request) (origin string, wsURL string) {
-	// 1) esquema preferindo X-Forwarded-Proto
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
+	if goAccessCmd != nil && goAccessCmd.Process != nil {
+		goAccessCmd.Process.Kill()
+		goAccessCmd = nil
+		goAccessRunning = false
 	}
-	if xf := r.Header.Get("X-Forwarded-Proto"); xf != "" {
-		scheme = strings.ToLower(strings.TrimSpace(strings.Split(xf, ",")[0]))
-	}
-
-	// 2) host público SEM porta: MAIN_LINK > X-Forwarded-Host > Host
-	host := ""
-	if base := strings.TrimSpace(env512.MAIN_LINK); base != "" {
-		if u, err := url.Parse(base); err == nil && u.Host != "" {
-			if u.Scheme != "" {
-				scheme = u.Scheme
-			}
-			host = u.Hostname() // SEM porta
-		}
-	}
-	if host == "" {
-		if xfh := r.Header.Get("X-Forwarded-Host"); xfh != "" {
-			xfh = strings.TrimSpace(strings.Split(xfh, ",")[0])
-			if u, err := url.Parse("http://" + xfh); err == nil {
-				host = u.Hostname()
-			}
-		}
-	}
-	if host == "" {
-		if u, err := url.Parse("http://" + r.Host); err == nil {
-			host = u.Hostname()
-		}
-	}
-
-	// 3) path público do WS
-	publicWSPath := "/ws-goaccess"
-
-	// 4) origin SEM porta e wsURL COM porta canónica
-	origin = scheme + "://" + host
-	if scheme == "https" {
-		wsURL = (&url.URL{Scheme: "wss", Host: net.JoinHostPort(host, "443"), Path: publicWSPath}).String()
-	} else {
-		wsURL = (&url.URL{Scheme: "ws", Host: net.JoinHostPort(host, "80"), Path: publicWSPath}).String()
-	}
-	return
 }
-
-// ---------- GeoIP (igual ao teu, com pequenos ajustes) ----------
 
 func ensureGeoIPDatabase(ctx context.Context, workDir string) (string, error) {
 	cached, err := findCachedGeoIP(workDir)
@@ -416,4 +384,9 @@ func downloadGeoIPDatabase(ctx context.Context, workDir string) (string, error) 
 	}
 
 	return extracted, nil
+}
+
+func setupGoAccessAPI(r chi.Router) {
+	r.Get("/goaccess", goAccessHandler)
+	r.Get("/goaccess/ws", goAccessWebSocketHandler) // WebSocket endpoint for real-time updates
 }
