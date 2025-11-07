@@ -319,18 +319,31 @@
 		</div>
 	</main>
 	<script>
-		let charts = {}; let isLoadingData = false; Chart.defaults.color = '#9ca3af'; Chart.defaults.borderColor = '#374151';
+		let charts = {};
+		let isLoadingData = false;
+		let hasLoadedOnce = false;
+		Chart.defaults.color = '#9ca3af';
+		Chart.defaults.borderColor = '#374151';
 		function formatBytes(b) { if (b === 0) return '0 B'; const k = 1024, s = ['B', 'KB', 'MB', 'GB', 'TB'], i = Math.floor(Math.log(b) / Math.log(k)); return parseFloat((b / Math.pow(k, i)).toFixed(2)) + ' ' + s[i] }
 		function formatTime(t) { return new Date(t).toLocaleString() }
 		function destroyChart(n) { if (charts[n]) { charts[n].destroy(); charts[n] = null } }
 		function getDateParams() { const start = document.getElementById('startDate').value; const end = document.getElementById('endDate').value; let params = []; if (start) params.push('start=' + start); if (end) params.push('end=' + end); return params.length > 0 ? '?' + params.join('&') : '' }
-		async function loadData() {
+		async function loadData(options = {}) {
 			if (isLoadingData) return;
 			isLoadingData = true;
 
+			const { silent = hasLoadedOnce } = options;
 			const loadingEl = document.getElementById('loading');
 			const dashboardEl = document.getElementById('dashboard');
 			const lastUpdateEl = document.getElementById('lastUpdate');
+			const showFullLoader = !silent;
+
+			if (showFullLoader) {
+				loadingEl.classList.remove('hidden');
+				dashboardEl.classList.add('hidden');
+			} else if (lastUpdateEl) {
+				lastUpdateEl.textContent = 'Refreshing data…';
+			}
 
 			try {
 				const params = getDateParams();
@@ -349,6 +362,10 @@
 				]);
 
 				const renderCharts = () => {
+					if (showFullLoader) {
+						loadingEl.classList.add('hidden');
+						dashboardEl.classList.remove('hidden');
+					}
 					updateDateInfo(dateInfo);
 					updateSummaryCards(summary);
 					updateSankeyChart(flow);
@@ -359,11 +376,11 @@
 					updateTopTalkersTable(topTalkers);
 					updateProtocolTable(protocol);
 					updateUpstreamTable(upstream);
-					lastUpdateEl.textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+					hasLoadedOnce = true;
+					if (lastUpdateEl) {
+						lastUpdateEl.textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+					}
 				};
-
-				loadingEl.classList.add('hidden');
-				dashboardEl.classList.remove('hidden');
 
 				if (typeof requestAnimationFrame === 'function') {
 					requestAnimationFrame(renderCharts);
@@ -372,8 +389,16 @@
 				}
 			} catch (e) {
 				console.error('Error loading data:', e);
-				alert('Failed to load data. Please try again.');
+				if (showFullLoader) {
+					alert('Failed to load data. Please try again.');
+				} else if (lastUpdateEl) {
+					lastUpdateEl.textContent = 'Refresh failed at ' + new Date().toLocaleTimeString();
+				}
 			} finally {
+				if (showFullLoader) {
+					loadingEl.classList.add('hidden');
+					dashboardEl.classList.remove('hidden');
+				}
 				isLoadingData = false;
 			}
 		}
@@ -535,7 +560,10 @@
 		function updateTopTalkersTable(d) { document.getElementById('topTalkersTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.ip + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">' + (i.country || 'Unknown') + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right font-semibold">' + formatBytes(i.total_bytes) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.connections + '</td></tr>').join('') }
 		function updateProtocolTable(d) { document.getElementById('protocolTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-200">' + i.protocol + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td></tr>').join('') }
 		function updateUpstreamTable(d) { document.getElementById('upstreamTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.upstream_addr + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.avg_session_time_seconds.toFixed(2) + 's</td><td class="px-6 py-4 whitespace-nowrap text-sm ' + (i.failed_connections > 0 ? 'text-red-400' : 'text-gray-400') + ' text-right">' + i.failed_connections + '</td></tr>').join('') }
-		function refreshData() { if (isLoadingData) return; document.getElementById('loading').classList.remove('hidden'); document.getElementById('dashboard').classList.add('hidden'); loadData() }
+		function refreshData(options = {}) {
+			if (isLoadingData) return;
+			loadData({ silent: true, ...options });
+		}
 		async function initializeDateRange() { try { const dateInfo = await fetch('/streamInfo/daterange').then(r => r.json()); if (dateInfo.min_date && dateInfo.max_date) { document.getElementById('startDate').value = dateInfo.min_date; document.getElementById('endDate').value = dateInfo.max_date } } catch (e) { console.error('Error loading date range:', e) } }
 		window.addEventListener('DOMContentLoaded', () => { initializeDateRange(); loadData() }); setInterval(refreshData, 60000);
 	</script>
