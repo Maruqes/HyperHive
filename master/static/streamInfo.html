@@ -1,625 +1,1535 @@
 <!DOCTYPE html>
+<!DOCTYPE html>
+
+<html lang="en" class="dark">
 <html lang="en">
 
+
+
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Stream Analytics Dashboard</title>
-	<script src="https://cdn.tailwindcss.com"></script>
-	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-	<style>
-		.stat-card {
-			transition: transform 0.2s, box-shadow 0.2s;
+
+	<head>
+
+		<meta charset="UTF-8">
+		<meta charset="UTF-8">
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+		<title>Stream Analytics Dashboard</title>
+		<title>Stream Analytics Dashboard</title>
+
+		<script src="https://cdn.tailwindcss.com"></script>
+		<script src="https://cdn.tailwindcss.com"></script>
+
+		<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+		<script>	<style>
+
+				tailwind.config = {		.stat - card {
+
+					darkMode: 'class',			transition: transform 0.2s, box-shadow 0.2s;
+
+				theme: { }
+
+				extend: {
+
+					colors: {		.stat - card:hover {
+
+					dark: {transform: translateY(-2px);
+
+				bg: '#0f172a',			box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+
+							card: '#1e293b',		}
+
+				border: '#334155'
+
+						}		.loader {
+
+				}			border-top-color: #3b82f6;
+
+				}			animation: spinner 1s linear infinite;
+
+			}		}
+
 		}
 
-		.stat-card:hover {
-			transform: translateY(-2px);
-			box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-		}
+		</script> @keyframes spinner {
 
-		.loader {
-			border-top-color: #3b82f6;
-			animation: spinner 1s linear infinite;
-		}
-
-		@keyframes spinner {
+		<style>
 			0% {
-				transform: rotate(0deg);
+
+				.stat-card {
+					transform: rotate(0deg);
+
+					transition: transform 0.2s, box-shadow 0.2s;
+				}
+
 			}
 
 			100% {
-				transform: rotate(360deg);
-			}
-		}
 
-		.table-row:hover {
-			background-color: #f3f4f6;
+				.stat-card:hover {
+					transform: rotate(360deg);
+
+					transform: translateY(-2px);
+				}
+
+				box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+			}
+
+			}
+
+			.table-row:hover {
+
+				.loader {
+					background-color: #f3f4f6;
+
+					border-top-color: #3b82f6;
+				}
+
+				animation: spinner 1s linear infinite;
+		</style>
+
 		}
-	</style>
-</head>
+	</head>
+
+
+
+	@keyframes spinner {
 
 <body class="bg-gray-50">
-	<!-- Header -->
-	<header class="bg-white shadow-sm border-b border-gray-200">
-		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+
+	0% { <!-- Header -->
+
+	transform: rotate(0deg); <header class="bg-white shadow-sm border-b border-gray-200">
+
+		} <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+
 			<div class="flex justify-between items-center">
-				<div>
-					<h1 class="text-3xl font-bold text-gray-900">Stream Analytics</h1>
-					<p class="text-sm text-gray-500 mt-1">Real-time traffic monitoring and analysis</p>
-				</div>
+
+				100% { <div>
+
+					transform: rotate(360deg); <h1 class="text-3xl font-bold text-gray-900">Stream Analytics</h1>
+
+					} <p class="text-sm text-gray-500 mt-1">Real-time traffic monitoring and analysis</p>
+
+					} </div>
+
 				<div class="flex items-center space-x-4">
-					<button onclick="refreshData()"
+
+					.table-row:hover { <button onclick="refreshData()" background-color: rgba(51, 65, 85, 0.5);
 						class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition">
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+
+						} <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" body {
 								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-							</path>
+
+								background-color: #0f172a; </path>
+
+							}
 						</svg>
-						<span>Refresh</span>
-					</button>
+
+						</style> <span>Refresh</span>
+
+						</head> </button>
+
 					<span id="lastUpdate" class="text-sm text-gray-500"></span>
+
+					<body class="bg-slate-900 text-gray-100">
 				</div>
+
+				<!-- Header -->
 			</div>
+
+			<header class="bg-slate-800 shadow-lg border-b border-slate-700">
 		</div>
+
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
 	</header>
 
-	<!-- Main Content -->
-	<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-		<!-- Loading Indicator -->
+	<div class="flex justify-between items-center">
+
+		<div> <!-- Main Content -->
+
+			<h1 class="text-3xl font-bold text-white">Stream Analytics</h1>
+			<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+				<p class="text-sm text-gray-400 mt-1">Real-time traffic monitoring and analysis</p>
+				<!-- Loading Indicator -->
+
+		</div>
 		<div id="loading" class="flex justify-center items-center py-20">
-			<div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div>
+
+			<div class="flex items-center space-x-4">
+				<div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div>
+
+				<button onclick="refreshData()" </div>
+
+					class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2
+					transition shadow-lg">
+
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<!-- Dashboard Content -->
+
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" <div id="dashboard"
+							class="hidden space-y-6">
+
+							d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0
+							01-15.357-2m15.357 2H15"> <!-- Summary Stats Grid -->
+
+						</path>
+						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+					</svg>
+					<div class="stat-card bg-white rounded-lg shadow p-6 border border-gray-200">
+
+						<span>Refresh</span>
+						<div class="flex items-center justify-between">
+
+				</button>
+				<div>
+
+					<span id="lastUpdate" class="text-sm text-gray-400"></span>
+					<p class="text-sm font-medium text-gray-500">Total Connections</p>
+
+				</div>
+				<p id="totalConns" class="text-3xl font-bold text-gray-900 mt-2">-</p>
+
+			</div>
 		</div>
 
-		<!-- Dashboard Content -->
-		<div id="dashboard" class="hidden space-y-6">
-			<!-- Summary Stats Grid -->
+	</div>
+	<div class="bg-blue-100 p-3 rounded-full">
+
+		</header> <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" <!-- Main Content --> d="M13 10V3L4
+				14h7v7l9-11h-7z"></path>
+
+			<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+		</svg>
+
+		<!-- Loading Indicator --> </div>
+
+	<div id="loading" class="flex justify-center items-center py-20"> </div>
+
+	<div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-700 h-12 w-12"></div>
+	<p class="text-xs text-gray-500 mt-3">
+
+		</div> <span id="successRate" class="text-green-600 font-semibold">-</span> success rate
+
+	</p>
+
+	<!-- Dashboard Content --> </div>
+
+	<div id="dashboard" class="hidden space-y-6">
+
+		<!-- Summary Stats Grid -->
+		<div class="stat-card bg-white rounded-lg shadow p-6 border border-gray-200">
+
 			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-				<div class="stat-card bg-white rounded-lg shadow p-6 border border-gray-200">
-					<div class="flex items-center justify-between">
+				<div class="flex items-center justify-between">
+
+					<div class="stat-card bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
 						<div>
-							<p class="text-sm font-medium text-gray-500">Total Connections</p>
-							<p id="totalConns" class="text-3xl font-bold text-gray-900 mt-2">-</p>
-						</div>
-						<div class="bg-blue-100 p-3 rounded-full">
-							<svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-									d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-							</svg>
+
+							<div class="flex items-center justify-between">
+								<p class="text-sm font-medium text-gray-500">Unique IPs</p>
+
+								<div>
+									<p id="uniqueIPs" class="text-3xl font-bold text-gray-900 mt-2">-</p>
+
+									<p class="text-sm font-medium text-gray-400">Total Connections</p>
+								</div>
+
+								<p id="totalConns" class="text-3xl font-bold text-white mt-2">-</p>
+								<div class="bg-green-100 p-3 rounded-full">
+
+								</div> <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor"
+									viewBox="0 0 24 24">
+
+									<div class="bg-blue-900 p-3 rounded-full">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" <svg
+											class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor"
+											viewBox="0 0 24 24"> d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10
+											0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7
+											20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6
+											0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014
+											0z">
+
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+												</path>
+
+												d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+								</svg>
+
+								</svg>
+							</div>
+
 						</div>
 					</div>
-					<p class="text-xs text-gray-500 mt-3">
-						<span id="successRate" class="text-green-600 font-semibold">-</span> success rate
-					</p>
-				</div>
 
-				<div class="stat-card bg-white rounded-lg shadow p-6 border border-gray-200">
+				</div>
+				<p class="text-xs text-gray-500 mt-3">
+
+				<p class="text-xs text-gray-400 mt-3"> From <span id="uniqueCountries" class="font-semibold">-</span>
+					countries
+
+					<span id="successRate" class="text-green-400 font-semibold">-</span> success rate
+				</p>
+
+				</p>
+			</div>
+
+		</div>
+
+		<div class="stat-card bg-white rounded-lg shadow p-6 border border-gray-200">
+
+			<div class="stat-card bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
+				<div class="flex items-center justify-between">
+
 					<div class="flex items-center justify-between">
 						<div>
-							<p class="text-sm font-medium text-gray-500">Unique IPs</p>
-							<p id="uniqueIPs" class="text-3xl font-bold text-gray-900 mt-2">-</p>
-						</div>
-						<div class="bg-green-100 p-3 rounded-full">
-							<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-									d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
-								</path>
-							</svg>
-						</div>
-					</div>
-					<p class="text-xs text-gray-500 mt-3">
-						From <span id="uniqueCountries" class="font-semibold">-</span> countries
-					</p>
-				</div>
 
-				<div class="stat-card bg-white rounded-lg shadow p-6 border border-gray-200">
-					<div class="flex items-center justify-between">
-						<div>
-							<p class="text-sm font-medium text-gray-500">Total Traffic</p>
-							<p id="totalBytes" class="text-3xl font-bold text-gray-900 mt-2">-</p>
+							<div>
+								<p class="text-sm font-medium text-gray-500">Total Traffic</p>
+
+								<p class="text-sm font-medium text-gray-400">Unique IPs</p>
+								<p id="totalBytes" class="text-3xl font-bold text-gray-900 mt-2">-</p>
+
+								<p id="uniqueIPs" class="text-3xl font-bold text-white mt-2">-</p>
+							</div>
+
 						</div>
 						<div class="bg-purple-100 p-3 rounded-full">
-							<svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-									d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12">
-								</path>
-							</svg>
+
+							<div class="bg-green-900 p-3 rounded-full"> <svg class="w-6 h-6 text-purple-600" fill="none"
+									stroke="currentColor" viewBox="0 0 24 24">
+
+									<svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor"
+										viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" <path
+											stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+											d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12">
+
+											d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10
+											0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7
+											20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6
+											0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014
+											0z"> </path>
+
+										</path>
+									</svg>
+
+								</svg> </div>
+
 						</div>
 					</div>
-					<p class="text-xs text-gray-500 mt-3">
-						<span id="avgSession" class="font-semibold">-</span>s avg session
-					</p>
-				</div>
 
-				<div class="stat-card bg-white rounded-lg shadow p-6 border border-gray-200">
+				</div>
+				<p class="text-xs text-gray-500 mt-3">
+
+				<p class="text-xs text-gray-400 mt-3"> <span id="avgSession" class="font-semibold">-</span>s avg session
+
+					From <span id="uniqueCountries" class="font-semibold text-gray-200">-</span> countries </p>
+
+				</p>
+			</div>
+
+		</div>
+
+		<div class="stat-card bg-white rounded-lg shadow p-6 border border-gray-200">
+
+			<div class="stat-card bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
+				<div class="flex items-center justify-between">
+
 					<div class="flex items-center justify-between">
 						<div>
-							<p class="text-sm font-medium text-gray-500">Failed Connections</p>
-							<p id="failedConns" class="text-3xl font-bold text-red-600 mt-2">-</p>
+
+							<div>
+								<p class="text-sm font-medium text-gray-500">Failed Connections</p>
+
+								<p class="text-sm font-medium text-gray-400">Total Traffic</p>
+								<p id="failedConns" class="text-3xl font-bold text-red-600 mt-2">-</p>
+
+								<p id="totalBytes" class="text-3xl font-bold text-white mt-2">-</p>
+							</div>
+
 						</div>
 						<div class="bg-red-100 p-3 rounded-full">
-							<svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-									d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
-								</path>
-							</svg>
+
+							<div class="bg-purple-900 p-3 rounded-full"> <svg class="w-6 h-6 text-red-600" fill="none"
+									stroke="currentColor" viewBox="0 0 24 24">
+
+									<svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor"
+										viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" <path
+											stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+											d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+
+											d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0
+											0l-3 3m3-3v12"> </path>
+
+										</path>
+									</svg>
+
+								</svg> </div>
+
 						</div>
 					</div>
-					<p id="dateRange" class="text-xs text-gray-500 mt-3">-</p>
+
 				</div>
+				<p id="dateRange" class="text-xs text-gray-500 mt-3">-</p>
+
+				<p class="text-xs text-gray-400 mt-3">
 			</div>
 
-			<!-- Charts Row 1 -->
-			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				<!-- Daily Activity Chart -->
+			<span id="avgSession" class="font-semibold text-gray-200">-</span>s avg session
+		</div>
+
+		</p>
+
+	</div> <!-- Charts Row 1 -->
+
+	<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+		<div class="stat-card bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
+			<!-- Daily Activity Chart -->
+
+			<div class="flex items-center justify-between">
 				<div class="bg-white rounded-lg shadow p-6 border border-gray-200">
-					<h3 class="text-lg font-semibold text-gray-900 mb-4">Daily Activity</h3>
-					<canvas id="dailyChart" height="250"></canvas>
+
+					<div>
+						<h3 class="text-lg font-semibold text-gray-900 mb-4">Daily Activity</h3>
+
+						<p class="text-sm font-medium text-gray-400">Failed Connections</p> <canvas id="dailyChart"
+							height="250"></canvas>
+
+						<p id="failedConns" class="text-3xl font-bold text-red-400 mt-2">-</p>
+					</div>
+
 				</div>
 
-				<!-- Hourly Distribution Chart -->
-				<div class="bg-white rounded-lg shadow p-6 border border-gray-200">
-					<h3 class="text-lg font-semibold text-gray-900 mb-4">Hourly Distribution (24h)</h3>
-					<canvas id="hourlyChart" height="250"></canvas>
+				<div class="bg-red-900 p-3 rounded-full"> <!-- Hourly Distribution Chart -->
+
+					<svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" <h3
+								class="text-lg font-semibold text-gray-900 mb-4">Hourly Distribution (24h)</h3>
+
+								d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732
+								4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"> <canvas
+									id="hourlyChart" height="250"></canvas>
+
+							</path>
+						</div>
+
+					</svg>
 				</div>
+
 			</div>
 
-			<!-- Charts Row 2 -->
-			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				<!-- Top Countries Chart -->
-				<div class="bg-white rounded-lg shadow p-6 border border-gray-200">
-					<h3 class="text-lg font-semibold text-gray-900 mb-4">Top Countries by Traffic</h3>
-					<canvas id="countriesChart" height="250"></canvas>
-				</div>
+		</div> <!-- Charts Row 2 -->
 
-				<!-- Top Ports Chart -->
-				<div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+		<p id="dateRange" class="text-xs text-gray-400 mt-3">-</p>
+		<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+		</div> <!-- Top Countries Chart -->
+
+	</div>
+	<div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+
+		<h3 class="text-lg font-semibold text-gray-900 mb-4">Top Countries by Traffic</h3>
+
+		<!-- Charts Row 1 --> <canvas id="countriesChart" height="250"></canvas>
+
+		<div class="grid grid-cols-1 lg:grid-cols-2 gap-6"> </div>
+
+		<!-- Daily Activity Chart -->
+
+		<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700"> <!-- Top Ports Chart -->
+
+			<h3 class="text-lg font-semibold text-white mb-4">Daily Activity</h3>
+			<div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+
+				<div style="position: relative; height: 250px;">
 					<h3 class="text-lg font-semibold text-gray-900 mb-4">Top Ports by Connections</h3>
-					<canvas id="portsChart" height="250"></canvas>
+
+					<canvas id="dailyChart"></canvas> <canvas id="portsChart" height="250"></canvas>
+
 				</div>
 			</div>
 
-			<!-- Tables Grid -->
-			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				<!-- Top Talkers Table -->
+		</div>
+	</div>
+
+
+
+	<!-- Hourly Distribution Chart --> <!-- Tables Grid -->
+
+	<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
+		<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+			<h3 class="text-lg font-semibold text-white mb-4">Hourly Distribution (24h)</h3> <!-- Top Talkers Table -->
+
+			<div style="position: relative; height: 250px;">
 				<div class="bg-white rounded-lg shadow border border-gray-200">
+
+					<canvas id="hourlyChart"></canvas>
 					<div class="px-6 py-4 border-b border-gray-200">
-						<h3 class="text-lg font-semibold text-gray-900">Top Talkers</h3>
-						<p class="text-sm text-gray-500">IPs with highest traffic volume</p>
-					</div>
-					<div class="overflow-x-auto">
-						<table class="min-w-full divide-y divide-gray-200">
-							<thead class="bg-gray-50">
-								<tr>
-									<th
-										class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-										IP Address</th>
-									<th
-										class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-										Country</th>
-									<th
-										class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-										Traffic</th>
-									<th
-										class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-										Conns</th>
-								</tr>
-							</thead>
-							<tbody id="topTalkersTable" class="bg-white divide-y divide-gray-200">
-							</tbody>
-						</table>
-					</div>
-				</div>
 
-				<!-- Traffic by Protocol Table -->
-				<div class="bg-white rounded-lg shadow border border-gray-200">
-					<div class="px-6 py-4 border-b border-gray-200">
-						<h3 class="text-lg font-semibold text-gray-900">Traffic by Protocol</h3>
-						<p class="text-sm text-gray-500">Protocol distribution</p>
 					</div>
-					<div class="overflow-x-auto">
-						<table class="min-w-full divide-y divide-gray-200">
-							<thead class="bg-gray-50">
-								<tr>
-									<th
-										class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-										Protocol</th>
-									<th
-										class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-										Connections</th>
-									<th
-										class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-										Unique IPs</th>
-									<th
-										class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-										Total Traffic</th>
-								</tr>
-							</thead>
-							<tbody id="protocolTable" class="bg-white divide-y divide-gray-200">
-							</tbody>
-						</table>
-					</div>
-				</div>
-			</div>
+					<h3 class="text-lg font-semibold text-gray-900">Top Talkers</h3>
 
-			<!-- Upstream Servers Table -->
-			<div class="bg-white rounded-lg shadow border border-gray-200">
-				<div class="px-6 py-4 border-b border-gray-200">
-					<h3 class="text-lg font-semibold text-gray-900">Upstream Servers</h3>
-					<p class="text-sm text-gray-500">Backend server statistics</p>
 				</div>
-				<div class="overflow-x-auto">
-					<table class="min-w-full divide-y divide-gray-200">
-						<thead class="bg-gray-50">
-							<tr>
-								<th
-									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-									Server</th>
-								<th
-									class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-									Connections</th>
-								<th
-									class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-									Unique IPs</th>
-								<th
-									class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-									Traffic</th>
-								<th
-									class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-									Avg Session</th>
-								<th
-									class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-									Failed</th>
-							</tr>
-						</thead>
-						<tbody id="upstreamTable" class="bg-white divide-y divide-gray-200">
-						</tbody>
-					</table>
-				</div>
-			</div>
+				<p class="text-sm text-gray-500">IPs with highest traffic volume</p>
 
-			<!-- Failed Connections -->
-			<div class="bg-white rounded-lg shadow border border-gray-200">
-				<div class="px-6 py-4 border-b border-gray-200">
-					<h3 class="text-lg font-semibold text-gray-900">Failed Connections</h3>
-					<p class="text-sm text-gray-500">Connection attempts that failed</p>
-				</div>
-				<div class="overflow-x-auto">
-					<table class="min-w-full divide-y divide-gray-200">
-						<thead class="bg-gray-50">
-							<tr>
-								<th
-									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-									Timestamp</th>
-								<th
-									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-									Client IP</th>
-								<th
-									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-									Country</th>
-								<th
-									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-									Protocol</th>
-								<th
-									class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-									Status</th>
-								<th
-									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-									Upstream</th>
-							</tr>
-						</thead>
-						<tbody id="failedTable" class="bg-white divide-y divide-gray-200">
-						</tbody>
-					</table>
-				</div>
 			</div>
 		</div>
-	</main>
 
-	<script>
-		let charts = {};
+		<div class="overflow-x-auto">
 
-		// Utility function to format bytes
-		function formatBytes(bytes) {
-			if (bytes === 0) return '0 B';
-			const k = 1024;
-			const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-			const i = Math.floor(Math.log(bytes) / Math.log(k));
-			return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+			<!-- Charts Row 2 -->
+			<table class="min-w-full divide-y divide-gray-200">
+
+				<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+					<thead class="bg-gray-50">
+
+						<!-- Top Countries Chart -->
+						<tr>
+
+							<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
+								<th <h3 class="text-lg font-semibold text-white mb-4">Top Countries by Traffic</h3>
+									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase
+									tracking-wider">
+
+									<div style="position: relative; height: 250px;"> IP Address
+								</th>
+
+								<canvas id="countriesChart"></canvas>
+								<th </div> class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase
+									tracking-wider">
+
+							</div> Country</th>
+
+							<th <!-- Top Ports Chart --> class="px-6 py-3 text-right text-xs font-medium text-gray-500
+								uppercase tracking-wider">
+
+								<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700"> Traffic
+							</th>
+
+							<h3 class="text-lg font-semibold text-white mb-4">Top Ports by Connections</h3>
+							<th <div style="position: relative; height: 250px;"> class="px-6 py-3 text-right text-xs
+								font-medium text-gray-500 uppercase tracking-wider">
+
+								<canvas id="portsChart"></canvas> Conns
+							</th>
+
+				</div>
+				</tr>
+
+		</div>
+		</thead>
+
+	</div>
+	<tbody id="topTalkersTable" class="bg-white divide-y divide-gray-200">
+
+	</tbody>
+
+	<!-- Tables Grid --> </table>
+
+	<div class="grid grid-cols-1 lg:grid-cols-2 gap-6"> </div>
+
+	<!-- Top Talkers Table --> </div>
+
+	<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
+
+		<div class="px-6 py-4 border-b border-slate-700"> <!-- Traffic by Protocol Table -->
+
+			<h3 class="text-lg font-semibold text-white">Top Talkers</h3>
+			<div class="bg-white rounded-lg shadow border border-gray-200">
+
+				<p class="text-sm text-gray-400">IPs with highest traffic volume</p>
+				<div class="px-6 py-4 border-b border-gray-200">
+
+				</div>
+				<h3 class="text-lg font-semibold text-gray-900">Traffic by Protocol</h3>
+
+				<div class="overflow-x-auto">
+					<p class="text-sm text-gray-500">Protocol distribution</p>
+
+					<table class="min-w-full divide-y divide-slate-700">
+				</div>
+
+				<thead class="bg-slate-900">
+					<div class="overflow-x-auto">
+
+						<tr>
+							<table class="min-w-full divide-y divide-gray-200">
+
+								<th <thead class="bg-gray-50">
+
+									class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase
+									tracking-wider"> <tr>
+
+										IP Address</th>
+								<th <th
+									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+
+									class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase
+									tracking-wider"> Protocol</th>
+
+								Country</th>
+								<th <th
+									class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+
+									class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase
+									tracking-wider"> Connections</th>
+
+								Traffic</th>
+								<th <th
+									class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+
+									class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase
+									tracking-wider"> Unique IPs</th>
+
+								Conns</th>
+								<th </tr> class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase
+									tracking-wider">
+
+				</thead> Total Traffic</th>
+
+				<tbody id="topTalkersTable" class="divide-y divide-slate-700">
+					</tr>
+
+				</tbody>
+				</thead>
+
+				</table>
+				<tbody id="protocolTable" class="bg-white divide-y divide-gray-200">
+
+			</div>
+			</tbody>
+
+		</div>
+		</table>
+
+	</div>
+
+	<!-- Traffic by Protocol Table --> </div>
+
+	<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700"> </div>
+
+	<div class="px-6 py-4 border-b border-slate-700">
+
+		<h3 class="text-lg font-semibold text-white">Traffic by Protocol</h3> <!-- Upstream Servers Table -->
+
+		<p class="text-sm text-gray-400">Protocol distribution</p>
+		<div class="bg-white rounded-lg shadow border border-gray-200">
+
+		</div>
+		<div class="px-6 py-4 border-b border-gray-200">
+
+			<div class="overflow-x-auto">
+				<h3 class="text-lg font-semibold text-gray-900">Upstream Servers</h3>
+
+				<table class="min-w-full divide-y divide-slate-700">
+					<p class="text-sm text-gray-500">Backend server statistics</p>
+
+					<thead class="bg-slate-900">
+			</div>
+
+			<tr>
+				<div class="overflow-x-auto">
+
+					<th <table class="min-w-full divide-y divide-gray-200">
+
+						class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider"> <thead
+							class="bg-gray-50">
+
+							Protocol</th>
+			<tr>
+
+				<th <th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+					class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+
+					Connections</th> Server</th>
+
+				<th <th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+					class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+
+					Unique IPs</th> Connections</th>
+
+				<th <th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+					class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+
+					Total Traffic</th> Unique IPs</th>
+
+			</tr>
+			<th </thead> class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+
+				<tbody id="protocolTable" class="divide-y divide-slate-700"> Traffic
+			</th>
+
+			</tbody>
+			<th </table> class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+
+		</div> Avg Session</th>
+
+	</div>
+	<th </div> class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+
+		Failed</th>
+
+	<!-- Upstream Servers Table --> </tr>
+
+	<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
+		</thead>
+
+		<div class="px-6 py-4 border-b border-slate-700">
+			<tbody id="upstreamTable" class="bg-white divide-y divide-gray-200">
+
+				<h3 class="text-lg font-semibold text-white">Upstream Servers</h3>
+			</tbody>
+
+			<p class="text-sm text-gray-400">Backend server statistics</p>
+			</table>
+
+		</div>
+	</div>
+
+	<div class="overflow-x-auto"> </div>
+
+	<table class="min-w-full divide-y divide-slate-700">
+
+		<thead class="bg-slate-900"> <!-- Failed Connections -->
+
+			<tr>
+				<div class="bg-white rounded-lg shadow border border-gray-200">
+
+					<th <div class="px-6 py-4 border-b border-gray-200">
+
+						class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider"> <h3
+							class="text-lg font-semibold text-gray-900">Failed Connections</h3>
+
+						Server</th>
+					<p class="text-sm text-gray-500">Connection attempts that failed</p>
+
+					<th </div>
+
+						class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider"> <div
+							class="overflow-x-auto">
+
+							Connections</th>
+					<table class="min-w-full divide-y divide-gray-200">
+
+						<th <thead class="bg-gray-50">
+
+							class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+							<tr>
+
+								Unique IPs</th>
+						<th <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+
+							class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+							Timestamp</th>
+
+						Traffic</th>
+						<th <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+
+							class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+							Client IP</th>
+
+						Avg Session</th>
+						<th <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+
+							class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+							Country</th>
+
+						Failed</th>
+						<th </tr> class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase
+							tracking-wider">
+
+		</thead> Protocol</th>
+
+		<tbody id="upstreamTable" class="divide-y divide-slate-700">
+			<th </tbody> class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+
+	</table> Status</th>
+
+	</div>
+	<th </div> class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+
+		Upstream</th>
+
+	<!-- Failed Connections --> </tr>
+
+	<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
+		</thead>
+
+		<div class="px-6 py-4 border-b border-slate-700">
+			<tbody id="failedTable" class="bg-white divide-y divide-gray-200">
+
+				<h3 class="text-lg font-semibold text-white">Failed Connections</h3>
+			</tbody>
+
+			<p class="text-sm text-gray-400">Connection attempts that failed</p>
+			</table>
+
+		</div>
+	</div>
+
+	<div class="overflow-x-auto"> </div>
+
+	<table class="min-w-full divide-y divide-slate-700">
+		</div>
+
+		<thead class="bg-slate-900">
+			</main>
+
+			<tr>
+
+				<th <script>
+
+					class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider"> let charts =
+					{};
+
+					Timestamp</th>
+
+				<th // Utility function to format bytes
+					class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider"> function
+					formatBytes(bytes) {
+
+					Client IP</th> if (bytes === 0) return '0 B';
+
+				<th const k=1024;
+					class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider"> const sizes
+					= ['B', 'KB', 'MB', 'GB', 'TB'];
+
+					Country</th> const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+				<th return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+					class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider"> }
+
+					Protocol</th>
+
+				<th // Utility function to format time
+					class="px-6 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider"> function
+					formatTime(timestamp) {
+
+					Status</th> const date = new Date(timestamp);
+
+				<th return date.toLocaleString();
+					class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider"> }
+
+					Upstream</th>
+
+			</tr> // Load all data
+
+		</thead> async function loadData() {
+
+		<tbody id="failedTable" class="divide-y divide-slate-700"> try {
+
+		</tbody> const [summary, daily, hourly, topCountries, topPorts, topTalkers, protocol, upstream, failed] = await
+		Promise.all([
+
+	</table> fetch('/streamInfo/summary').then(r => r.json()),
+
+	</div> fetch('/streamInfo/stats/daily').then(r => r.json()),
+
+	</div> fetch('/streamInfo/stats/hourly').then(r => r.json()),
+
+	</div> fetch('/streamInfo/top/countries').then(r => r.json()),
+
+	</main> fetch('/streamInfo/top/ports').then(r => r.json()),
+
+	fetch('/streamInfo/top/talkers').then(r => r.json()),
+
+	<script>					fetch('/streamInfo/traffic/by-protocol').then(r => r.json()),
+
+					let charts = { };					fetch('/streamInfo/upstream').then(r => r.json()),
+
+		let isLoadingData = false;					fetch('/streamInfo/failed').then(r => r.json())
+
+					]);
+
+					// Chart.js default colors for dark mode
+
+					Chart.defaults.color = '#9ca3af';				updateSummaryCards(summary);
+
+					Chart.defaults.borderColor = '#374151';				updateDailyChart(daily);
+
+					updateHourlyChart(hourly);
+
+					// Utility function to format bytes				updateCountriesChart(topCountries);
+
+					function formatBytes(bytes) {updatePortsChart(topPorts);
+
+					if (bytes === 0) return '0 B';				updateTopTalkersTable(topTalkers);
+
+					const k = 1024;				updateProtocolTable(protocol);
+
+					const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];				updateUpstreamTable(upstream);
+
+					const i = Math.floor(Math.log(bytes) / Math.log(k));				updateFailedTable(failed);
+
+					return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+
+		}				document.getElementById('loading').classList.add('hidden');
+
+					document.getElementById('dashboard').classList.remove('hidden');
+
+					// Utility function to format time				document.getElementById('lastUpdate').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+
+					function formatTime(timestamp) { } catch (error) {
+
+			const date = new Date(timestamp);				console.error('Error loading data:', error);
+
+					return date.toLocaleString();				alert('Failed to load data. Please try again.');
+
+		}			}
+
 		}
 
-		// Utility function to format time
-		function formatTime(timestamp) {
-			const date = new Date(timestamp);
-			return date.toLocaleString();
-		}
+					// Destroy chart if exists
 
-		// Load all data
-		async function loadData() {
-			try {
-				const [summary, daily, hourly, topCountries, topPorts, topTalkers, protocol, upstream, failed] = await Promise.all([
-					fetch('/streamInfo/summary').then(r => r.json()),
-					fetch('/streamInfo/stats/daily').then(r => r.json()),
-					fetch('/streamInfo/stats/hourly').then(r => r.json()),
+					function destroyChart(chartName) {		// Update summary cards
+
+			if (charts[chartName]) {function updateSummaryCards(data) {
+
+						charts[chartName].destroy(); document.getElementById('totalConns').textContent = data.total_connections.toLocaleString();
+
+						charts[chartName] = null; document.getElementById('uniqueIPs').textContent = data.unique_ips.toLocaleString();
+
+					}			document.getElementById('uniqueCountries').textContent = data.unique_countries;
+
+		}			document.getElementById('totalBytes').textContent = formatBytes(data.total_bytes);
+
+					document.getElementById('avgSession').textContent = data.avg_session_time_seconds.toFixed(2);
+
+					// Load all data			document.getElementById('failedConns').textContent = data.failed_connections.toLocaleString();
+
+					async function loadData() {document.getElementById('dateRange').textContent = data.date_range;
+
+					if (isLoadingData) return;
+
+					isLoadingData = true;			const successRate = ((data.successful_connections / data.total_connections) * 100).toFixed(1);
+
+					document.getElementById('successRate').textContent = successRate + '%';
+
+					try { }
+
+					const [summary, daily, hourly, topCountries, topPorts, topTalkers, protocol, upstream, failed] = await Promise.all([
+
+					fetch('/streamInfo/summary').then(r => r.json()),		// Update daily chart
+
+					fetch('/streamInfo/stats/daily').then(r => r.json()),		function updateDailyChart(data) {
+
+						fetch('/streamInfo/stats/hourly').then(r => r.json()),			const ctx = document.getElementById('dailyChart').getContext('2d');
+
 					fetch('/streamInfo/top/countries').then(r => r.json()),
-					fetch('/streamInfo/top/ports').then(r => r.json()),
+
+					fetch('/streamInfo/top/ports').then(r => r.json()),			if (charts.daily) charts.daily.destroy();
+
 					fetch('/streamInfo/top/talkers').then(r => r.json()),
-					fetch('/streamInfo/traffic/by-protocol').then(r => r.json()),
-					fetch('/streamInfo/upstream').then(r => r.json()),
-					fetch('/streamInfo/failed').then(r => r.json())
-				]);
 
-				updateSummaryCards(summary);
-				updateDailyChart(daily);
-				updateHourlyChart(hourly);
-				updateCountriesChart(topCountries);
-				updatePortsChart(topPorts);
-				updateTopTalkersTable(topTalkers);
-				updateProtocolTable(protocol);
-				updateUpstreamTable(upstream);
-				updateFailedTable(failed);
+					fetch('/streamInfo/traffic/by-protocol').then(r => r.json()),			charts.daily = new Chart(ctx, {
 
-				document.getElementById('loading').classList.add('hidden');
-				document.getElementById('dashboard').classList.remove('hidden');
-				document.getElementById('lastUpdate').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
-			} catch (error) {
-				console.error('Error loading data:', error);
-				alert('Failed to load data. Please try again.');
-			}
-		}
+						fetch('/streamInfo/upstream').then(r => r.json()), type: 'line',
 
-		// Update summary cards
-		function updateSummaryCards(data) {
-			document.getElementById('totalConns').textContent = data.total_connections.toLocaleString();
-			document.getElementById('uniqueIPs').textContent = data.unique_ips.toLocaleString();
-			document.getElementById('uniqueCountries').textContent = data.unique_countries;
-			document.getElementById('totalBytes').textContent = formatBytes(data.total_bytes);
-			document.getElementById('avgSession').textContent = data.avg_session_time_seconds.toFixed(2);
-			document.getElementById('failedConns').textContent = data.failed_connections.toLocaleString();
-			document.getElementById('dateRange').textContent = data.date_range;
+					fetch('/streamInfo/failed').then(r => r.json())				data: {
 
-			const successRate = ((data.successful_connections / data.total_connections) * 100).toFixed(1);
-			document.getElementById('successRate').textContent = successRate + '%';
-		}
+				]);					labels: data.map(d => d.date),
 
-		// Update daily chart
-		function updateDailyChart(data) {
-			const ctx = document.getElementById('dailyChart').getContext('2d');
-
-			if (charts.daily) charts.daily.destroy();
-
-			charts.daily = new Chart(ctx, {
-				type: 'line',
-				data: {
-					labels: data.map(d => d.date),
 					datasets: [
+
+					updateSummaryCards(summary);						{
+
+						updateDailyChart(daily);							label: 'Connections',
+
+				updateHourlyChart(hourly);							data: data.map(d => d.connections),
+
+					updateCountriesChart(topCountries);							borderColor: 'rgb(59, 130, 246)',
+
+					updatePortsChart(topPorts);							backgroundColor: 'rgba(59, 130, 246, 0.1)',
+
+					updateTopTalkersTable(topTalkers);							tension: 0.4,
+
+					updateProtocolTable(protocol);							fill: true
+
+				updateUpstreamTable(upstream);						},
+
+					updateFailedTable(failed);						{
+
+						label: 'Unique IPs',
+
+				document.getElementById('loading').classList.add('hidden');							data: data.map(d => d.unique_ips),
+
+					document.getElementById('dashboard').classList.remove('hidden');							borderColor: 'rgb(34, 197, 94)',
+
+					document.getElementById('lastUpdate').textContent = 'Last updated: ' + new Date().toLocaleTimeString();							backgroundColor: 'rgba(34, 197, 94, 0.1)',
+
+			} catch (error) {tension: 0.4,
+
+					console.error('Error loading data:', error);							fill: true
+
+				alert('Failed to load data. Please try again.');						}
+
+			} finally {					]
+
+				isLoadingData = false;				},
+
+			}				options: {
+
+					}					responsive: true,
+
+					maintainAspectRatio: false,
+
+		// Update summary cards					plugins: {
+
+						function updateSummaryCards(data) {
+							legend: {
+
+								document.getElementById('totalConns').textContent = data.total_connections.toLocaleString(); position: 'top',
+
+									document.getElementById('uniqueIPs').textContent = data.unique_ips.toLocaleString();
+							}
+
+							document.getElementById('uniqueCountries').textContent = data.unique_countries;
+						},
+
+						document.getElementById('totalBytes').textContent = formatBytes(data.total_bytes);					scales: {
+
+						document.getElementById('avgSession').textContent = data.avg_session_time_seconds.toFixed(2);						y: {
+
+						document.getElementById('failedConns').textContent = data.failed_connections.toLocaleString();							beginAtZero: true
+
+			document.getElementById('dateRange').textContent = data.date_range;						}
+
+					}
+
+			const successRate = ((data.successful_connections / data.total_connections) * 100).toFixed(1);				}
+
+			document.getElementById('successRate').textContent = successRate + '%';			});
+
+		}		}
+
+
+
+					// Update daily chart		// Update hourly chart
+
+					function updateDailyChart(data) {function updateHourlyChart(data) {
+
+						destroyChart('daily'); const ctx = document.getElementById('hourlyChart').getContext('2d');
+
+
+
+						const ctx = document.getElementById('dailyChart').getContext('2d'); if (charts.hourly) charts.hourly.destroy();
+
+
+
+						charts.daily = new Chart(ctx, {
+							charts.hourly = new Chart(ctx, {
+
+								type: 'line', type: 'bar',
+
+								data: {
+									data: {
+
+										labels: data.map(d => d.date), labels: data.map(d => d.hour + ':00'),
+
+										datasets: [datasets: [{
+
 						{
 							label: 'Connections',
-							data: data.map(d => d.connections),
-							borderColor: 'rgb(59, 130, 246)',
-							backgroundColor: 'rgba(59, 130, 246, 0.1)',
+
+							label: 'Connections', data: data.map(d => d.connections),
+
+							data: data.map(d => d.connections), backgroundColor: 'rgba(147, 51, 234, 0.6)',
+
+							borderColor: 'rgb(59, 130, 246)', borderColor: 'rgb(147, 51, 234)',
+
+							backgroundColor: 'rgba(59, 130, 246, 0.1)', borderWidth: 1
+
 							tension: 0.4,
-							fill: true
-						},
+						}]
+
+							fill: true				},
+
+						},				options: {
+
 						{
-							label: 'Unique IPs',
-							data: data.map(d => d.unique_ips),
-							borderColor: 'rgb(34, 197, 94)',
-							backgroundColor: 'rgba(34, 197, 94, 0.1)',
+							responsive: true,
+
+							label: 'Unique IPs', maintainAspectRatio: false,
+
+							data: data.map(d => d.unique_ips), plugins: {
+
+								borderColor: 'rgb(34, 197, 94)', legend: {
+
+									backgroundColor: 'rgba(34, 197, 94, 0.1)', display: false
+
 							tension: 0.4,
-							fill: true
-						}
-					]
-				},
-				options: {
-					responsive: true,
-					maintainAspectRatio: false,
-					plugins: {
-						legend: {
-							position: 'top',
-						}
-					},
-					scales: {
-						y: {
-							beginAtZero: true
-						}
-					}
-				}
-			});
-		}
-
-		// Update hourly chart
-		function updateHourlyChart(data) {
-			const ctx = document.getElementById('hourlyChart').getContext('2d');
-
-			if (charts.hourly) charts.hourly.destroy();
-
-			charts.hourly = new Chart(ctx, {
-				type: 'bar',
-				data: {
-					labels: data.map(d => d.hour + ':00'),
-					datasets: [{
-						label: 'Connections',
-						data: data.map(d => d.connections),
-						backgroundColor: 'rgba(147, 51, 234, 0.6)',
-						borderColor: 'rgb(147, 51, 234)',
-						borderWidth: 1
-					}]
-				},
-				options: {
-					responsive: true,
-					maintainAspectRatio: false,
-					plugins: {
-						legend: {
-							display: false
-						}
-					},
-					scales: {
-						y: {
-							beginAtZero: true
-						}
-					}
-				}
-			});
-		}
-
-		// Update countries chart
-		function updateCountriesChart(data) {
-			const ctx = document.getElementById('countriesChart').getContext('2d');
-
-			if (charts.countries) charts.countries.destroy();
-
-			charts.countries = new Chart(ctx, {
-				type: 'doughnut',
-				data: {
-					labels: data.map(d => d.country),
-					datasets: [{
-						data: data.map(d => d.total_bytes),
-						backgroundColor: [
-							'rgba(59, 130, 246, 0.8)',
-							'rgba(34, 197, 94, 0.8)',
-							'rgba(251, 146, 60, 0.8)',
-							'rgba(239, 68, 68, 0.8)',
-							'rgba(147, 51, 234, 0.8)',
-							'rgba(236, 72, 153, 0.8)',
-							'rgba(14, 165, 233, 0.8)',
-							'rgba(132, 204, 22, 0.8)',
-							'rgba(250, 204, 21, 0.8)',
-							'rgba(168, 85, 247, 0.8)'
-						]
-					}]
-				},
-				options: {
-					responsive: true,
-					maintainAspectRatio: false,
-					plugins: {
-						legend: {
-							position: 'right',
-						},
-						tooltip: {
-							callbacks: {
-								label: function (context) {
-									return context.label + ': ' + formatBytes(context.parsed);
 								}
-							}
+
+							fill: true
+							},
+
+						}					scales: {
+
+					]						y: {
+
+					},							beginAtZero: true
+
+					options: { }
+
+					responsive: true,					}
+
+					maintainAspectRatio: false,				}
+
+					plugins: { });
+
+					legend: { }
+
+					position: 'top',
+
+					labels: {		// Update countries chart
+
+						color: '#e5e7eb'		function updateCountriesChart(data) {
+
+					}			const ctx = document.getElementById('countriesChart').getContext('2d');
+
 						}
-					}
-				}
-			});
-		}
 
-		// Update ports chart
-		function updatePortsChart(data) {
-			const ctx = document.getElementById('portsChart').getContext('2d');
+					},			if (charts.countries) charts.countries.destroy();
 
-			if (charts.ports) charts.ports.destroy();
-
-			charts.ports = new Chart(ctx, {
-				type: 'bar',
-				data: {
-					labels: data.map(d => 'Port ' + d.port),
-					datasets: [{
-						label: 'Connections',
-						data: data.map(d => d.connections),
-						backgroundColor: 'rgba(34, 197, 94, 0.6)',
-						borderColor: 'rgb(34, 197, 94)',
-						borderWidth: 1
-					}]
-				},
-				options: {
-					responsive: true,
-					maintainAspectRatio: false,
-					indexAxis: 'y',
-					plugins: {
-						legend: {
-							display: false
-						}
-					},
 					scales: {
-						x: {
-							beginAtZero: true
+
+						y: {charts.countries = new Chart(ctx, {
+
+							beginAtZero: true, type: 'doughnut',
+
+							ticks: {
+								data: {
+
+									color: '#9ca3af'					labels: data.map(d => d.country),
+
+								}, datasets: [{
+
+									grid: {
+										data: data.map(d => d.total_bytes),
+
+										color: '#374151'						backgroundColor: [
+
+							}							'rgba(59, 130, 246, 0.8)',
+
+								}, 'rgba(34, 197, 94, 0.8)',
+
+									x: {'rgba(251, 146, 60, 0.8)',
+
+										ticks: {'rgba(239, 68, 68, 0.8)',
+
+											color: '#9ca3af'							'rgba(147, 51, 234, 0.8)',
+
+							},							'rgba(236, 72, 153, 0.8)',
+
+					grid: {'rgba(14, 165, 233, 0.8)',
+
+						color: '#374151'							'rgba(132, 204, 22, 0.8)',
+
+							}							'rgba(250, 204, 21, 0.8)',
+
+						}							'rgba(168, 85, 247, 0.8)'
+
+					}						]
+
+				}					}]
+
+			});				},
+
+		}				options: {
+
+						responsive: true,
+
+					// Update hourly chart					maintainAspectRatio: false,
+
+					function updateHourlyChart(data) {plugins: {
+
+						destroyChart('hourly');						legend: {
+
+						position: 'right',
+
+			const ctx = document.getElementById('hourlyChart').getContext('2d');						},
+
+					tooltip: {
+
+						charts.hourly = new Chart(ctx, {
+							callbacks: {
+
+								type: 'bar', label: function (context) {
+
+									data: {
+										return context.label + ': ' + formatBytes(context.parsed);
+
+										labels: data.map(d => d.hour + ':00'),								}
+
+									datasets: [{}
+
+						label: 'Connections',						}
+
+						data: data.map(d => d.connections),					}
+
+						backgroundColor: 'rgba(147, 51, 234, 0.6)',				}
+
+						borderColor: 'rgb(147, 51, 234)',			});
+
+						borderWidth: 1		}
+
+					}]
+
+				},		// Update ports chart
+
+					options: {function updatePortsChart(data) {
+
+						responsive: true,			const ctx = document.getElementById('portsChart').getContext('2d');
+
+						maintainAspectRatio: false,
+
+							plugins: {			if (charts.ports) charts.ports.destroy();
+
+					legend: {
+
+						display: false			charts.ports = new Chart(ctx, {
+
+					}				type: 'bar',
+
+					},				data: {
+
+						scales: {labels: data.map(d => 'Port ' + d.port),
+
+					y: {datasets: [{
+
+						beginAtZero: true,						label: 'Connections',
+
+					ticks: {data: data.map(d => d.connections),
+
+					color: '#9ca3af'						backgroundColor: 'rgba(34, 197, 94, 0.6)',
+
+							},						borderColor: 'rgb(34, 197, 94)',
+
+					grid: {borderWidth: 1
+
+								color: '#374151'					}]
+
+							}				},
+
+						},				options: {
+
+						x: {responsive: true,
+
+					ticks: {maintainAspectRatio: false,
+
+					color: '#9ca3af'					indexAxis: 'y',
+
+							},					plugins: {
+
+						grid: {legend: {
+
+						color: '#374151'							display: false
+
+							}						}
+
+						}					},
+
+					}					scales: {
+
+					}						x: {
+
+					});							beginAtZero: true
+
+		}						}
+
+					}
+
+					// Update countries chart				}
+
+					function updateCountriesChart(data) { });
+
+			destroyChart('countries');		}
+
+
+
+					const ctx = document.getElementById('countriesChart').getContext('2d');		// Update top talkers table
+
+					function updateTopTalkersTable(data) {
+
+						charts.countries = new Chart(ctx, {
+							const tbody = document.getElementById('topTalkersTable');
+
+							type: 'doughnut', tbody.innerHTML = data.map(item => `
+
+				data: {                <tr class="table-row">
+
+					labels: data.map(d => d.country),                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">${item.ip}</td>
+
+					datasets: [{                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.country || 'Unknown'}</td>
+
+						data: data.map(d => d.total_bytes),                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-semibold">${formatBytes(item.total_bytes)}</td>
+
+						backgroundColor: [                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${item.connections}</td>
+
+							'rgba(59, 130, 246, 0.8)',                </tr>
+
+							'rgba(34, 197, 94, 0.8)',            `).join('');
+
+							'rgba(251, 146, 60, 0.8)',
+						}
+
+							'rgba(239, 68, 68, 0.8)',
+
+							'rgba(147, 51, 234, 0.8)',		// Update protocol table
+
+							'rgba(236, 72, 153, 0.8)', function updateProtocolTable(data) {
+
+								'rgba(14, 165, 233, 0.8)',			const tbody = document.getElementById('protocolTable');
+
+								'rgba(132, 204, 22, 0.8)', tbody.innerHTML = data.map(item => `
+
+							'rgba(250, 204, 21, 0.8)',                <tr class="table-row">
+
+							'rgba(168, 85, 247, 0.8)'                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">${item.protocol}</td>
+
+						],                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">${item.connections.toLocaleString()}</td>
+
+						borderColor: '#1e293b',                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${item.unique_ips}</td>
+
+						borderWidth: 2                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">${formatBytes(item.total_bytes)}</td>
+
+					}]                </tr>
+
+				},            `).join('');
+
+								options: { }
+
+								responsive: true,
+
+									maintainAspectRatio: false,		// Update upstream table
+
+					plugins: {function updateUpstreamTable(data) {
+
+						legend: {
+							const tbody = document.getElementById('upstreamTable');
+
+							position: 'right', tbody.innerHTML = data.map(item => `
+
+							labels: {                <tr class="table-row">
+
+								color: '#e5e7eb',                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">${item.upstream_addr}</td>
+
+								padding: 10                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">${item.connections.toLocaleString()}</td>
+
+							}                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${item.unique_ips}</td>
+
+						},                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">${formatBytes(item.total_bytes)}</td>
+
+						tooltip: {                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${item.avg_session_time_seconds.toFixed(2)}s</td>
+
+							callbacks: {                    <td class="px-6 py-4 whitespace-nowrap text-sm ${item.failed_connections > 0 ? 'text-red-600' : 'text-gray-500'} text-right">${item.failed_connections}</td>
+
+								label: function (context) {                </tr>
+
+									return context.label + ': ' + formatBytes(context.parsed);            `).join('');
+
 						}
 					}
-				}
-			});
-		}
 
-		// Update top talkers table
-		function updateTopTalkersTable(data) {
-			const tbody = document.getElementById('topTalkersTable');
-			tbody.innerHTML = data.map(item => `
-                <tr class="table-row">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">${item.ip}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.country || 'Unknown'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-semibold">${formatBytes(item.total_bytes)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${item.connections}</td>
-                </tr>
-            `).join('');
-		}
+					}
 
-		// Update protocol table
-		function updateProtocolTable(data) {
-			const tbody = document.getElementById('protocolTable');
-			tbody.innerHTML = data.map(item => `
-                <tr class="table-row">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">${item.protocol}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">${item.connections.toLocaleString()}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${item.unique_ips}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">${formatBytes(item.total_bytes)}</td>
-                </tr>
-            `).join('');
-		}
+						}		// Update failed table
 
-		// Update upstream table
-		function updateUpstreamTable(data) {
-			const tbody = document.getElementById('upstreamTable');
-			tbody.innerHTML = data.map(item => `
-                <tr class="table-row">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">${item.upstream_addr}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">${item.connections.toLocaleString()}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${item.unique_ips}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">${formatBytes(item.total_bytes)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${item.avg_session_time_seconds.toFixed(2)}s</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm ${item.failed_connections > 0 ? 'text-red-600' : 'text-gray-500'} text-right">${item.failed_connections}</td>
-                </tr>
-            `).join('');
-		}
+					}		function updateFailedTable(data) {
 
-		// Update failed table
-		function updateFailedTable(data) {
-			const tbody = document.getElementById('failedTable');
-			if (data.length === 0) {
-				tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-sm text-gray-500">No failed connections found</td></tr>';
-				return;
-			}
-			tbody.innerHTML = data.slice(0, 50).map(item => `
-                <tr class="table-row">
+					}			const tbody = document.getElementById('failedTable');
+
+			});			if (data.length === 0) {
+
+					}				tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-sm text-gray-500">No failed connections found</td></tr>';
+
+					return;
+
+					// Update ports chart			}
+
+					function updatePortsChart(data) {tbody.innerHTML = data.slice(0, 50).map(item => `
+
+			destroyChart('ports');                <tr class="table-row">
+
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatTime(item.timestamp)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">${item.client_ip}</td>
+
+			const ctx = document.getElementById('portsChart').getContext('2d');                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">${item.client_ip}</td>
+
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.country || 'Unknown'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.protocol}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-center">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                            ${item.status}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">${item.upstream_addr}</td>
-                </tr>
-            `).join('');
-		}
 
-		// Refresh data
-		function refreshData() {
-			document.getElementById('loading').classList.remove('hidden');
-			document.getElementById('dashboard').classList.add('hidden');
-			loadData();
-		}
+			charts.ports = new Chart(ctx, {                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.protocol}</td>
 
-		// Load data on page load
-		window.addEventListener('DOMContentLoaded', loadData);
+				type: 'bar',                    <td class="px-6 py-4 whitespace-nowrap text-center">
 
-		// Auto-refresh every 30 seconds
-		setInterval(refreshData, 30000);
-	</script>
+				data: {                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+
+					labels: data.map(d => 'Port ' + d.port),                            ${item.status}
+
+					datasets: [{                        </span>
+
+						label: 'Connections',                    </td>
+
+						data: data.map(d => d.connections),                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">${item.upstream_addr}</td>
+
+						backgroundColor: 'rgba(34, 197, 94, 0.6)',                </tr>
+
+						borderColor: 'rgb(34, 197, 94)',            `).join('');
+
+						borderWidth: 1		}
+
+					}]
+
+				},		// Refresh data
+
+					options: {function refreshData() {
+
+						responsive: true, document.getElementById('loading').classList.remove('hidden');
+
+						maintainAspectRatio: false, document.getElementById('dashboard').classList.add('hidden');
+
+						indexAxis: 'y', loadData();
+
+						plugins: { }
+
+						legend: {
+
+							display: false		// Load data on page load
+
+						} window.addEventListener('DOMContentLoaded', loadData);
+
+					},
+
+						scales: {		// Auto-refresh every 30 seconds
+
+						x: {setInterval(refreshData, 30000);
+
+					beginAtZero: true,	</script>
+
+	ticks: {
+</body>
+
+color: '#9ca3af'
+
+},
+
+</html>
+grid: {
+color: '#374151'
+}
+},
+y: {
+ticks: {
+color: '#9ca3af'
+},
+grid: {
+color: '#374151'
+}
+}
+}
+}
+});
+}
+
+// Update top talkers table
+function updateTopTalkersTable(data) {
+const tbody = document.getElementById('topTalkersTable');
+tbody.innerHTML = data.map(item => `
+<tr class="table-row">
+	<td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">${item.ip}</td>
+	<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${item.country || 'Unknown'}</td>
+	<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right font-semibold">
+		${formatBytes(item.total_bytes)}</td>
+	<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">${item.connections}</td>
+</tr>
+`).join('');
+}
+
+// Update protocol table
+function updateProtocolTable(data) {
+const tbody = document.getElementById('protocolTable');
+tbody.innerHTML = data.map(item => `
+<tr class="table-row">
+	<td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-200">${item.protocol}</td>
+	<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">${item.connections.toLocaleString()}</td>
+	<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">${item.unique_ips}</td>
+	<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">${formatBytes(item.total_bytes)}</td>
+</tr>
+`).join('');
+}
+
+// Update upstream table
+function updateUpstreamTable(data) {
+const tbody = document.getElementById('upstreamTable');
+tbody.innerHTML = data.map(item => `
+<tr class="table-row">
+	<td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">${item.upstream_addr}</td>
+	<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">${item.connections.toLocaleString()}</td>
+	<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">${item.unique_ips}</td>
+	<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">${formatBytes(item.total_bytes)}</td>
+	<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">
+		${item.avg_session_time_seconds.toFixed(2)}s</td>
+	<td
+		class="px-6 py-4 whitespace-nowrap text-sm ${item.failed_connections > 0 ? 'text-red-400' : 'text-gray-400'} text-right">
+		${item.failed_connections}</td>
+</tr>
+`).join('');
+}
+
+// Update failed table
+function updateFailedTable(data) {
+const tbody = document.getElementById('failedTable');
+if (data.length === 0) {
+tbody.innerHTML = '<tr>
+	<td colspan="6" class="px-6 py-8 text-center text-sm text-gray-400">No failed connections found</td>
+</tr>';
+return;
+}
+tbody.innerHTML = data.slice(0, 50).map(item => `
+<tr class="table-row">
+	<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${formatTime(item.timestamp)}</td>
+	<td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">${item.client_ip}</td>
+	<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${item.country || 'Unknown'}</td>
+	<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${item.protocol}</td>
+	<td class="px-6 py-4 whitespace-nowrap text-center">
+		<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-900 text-red-200">
+			${item.status}
+		</span>
+	</td>
+	<td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-400">${item.upstream_addr}</td>
+</tr>
+`).join('');
+}
+
+// Refresh data
+function refreshData() {
+if (isLoadingData) return;
+document.getElementById('loading').classList.remove('hidden');
+document.getElementById('dashboard').classList.add('hidden');
+loadData();
+}
+
+// Load data on page load
+window.addEventListener('DOMContentLoaded', loadData);
+
+// Auto-refresh every 30 seconds
+setInterval(refreshData, 30000);
+</script>
 </body>
 
 </html>
