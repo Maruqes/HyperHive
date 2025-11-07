@@ -27,8 +27,8 @@ const (
 	goAccessRefreshSecond  = 5
 	goAccessGeoIPDir       = "geoipdb"
 	goAccessGeoIPMaxAge    = 7 * 24 * time.Hour
-	goAccessWSPort         = "7890" // GoAccess WebSocket port
-	goAccessWSRoute        = "/goaccess/ws"
+	goAccessWSPort         = "7890"         // GoAccess WebSocket port (internal)
+	goAccessWSRoute        = "/ws_goaccess" // Public WebSocket route
 	goAccessReconnectDelay = 5 * time.Second
 )
 
@@ -128,6 +128,31 @@ func goAccessWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	<-done
 }
 
+// buildWebSocketURL constructs the WebSocket URL using MAIN_LINK
+func buildWebSocketURL() string {
+	mainLink := strings.TrimSpace(env512.MAIN_LINK)
+	if mainLink == "" {
+		// Fallback to relative URL if MAIN_LINK is not set
+		return goAccessWSRoute
+	}
+
+	// Remove trailing slash from MAIN_LINK
+	mainLink = strings.TrimRight(mainLink, "/")
+
+	// Determine protocol (ws:// or wss://)
+	wsProtocol := "ws://"
+	if strings.HasPrefix(mainLink, "https://") {
+		wsProtocol = "wss://"
+		mainLink = strings.TrimPrefix(mainLink, "https://")
+	} else if strings.HasPrefix(mainLink, "http://") {
+		wsProtocol = "ws://"
+		mainLink = strings.TrimPrefix(mainLink, "http://")
+	}
+
+	// Build full WebSocket URL
+	return wsProtocol + mainLink + goAccessWSRoute
+}
+
 // ensureGoAccessRunning starts GoAccess in background if not already running
 func ensureGoAccessRunning(ctx context.Context, workDir string) error {
 	goAccessMu.Lock()
@@ -166,15 +191,18 @@ func ensureGoAccessRunning(ctx context.Context, workDir string) error {
 		return fmt.Errorf("failed to get GeoIP database: %w", err)
 	}
 
+	// Build WebSocket URL for clients using MAIN_LINK
+	wsURL := buildWebSocketURL()
+
 	// Build GoAccess arguments for WebSocket mode
 	args := append([]string{}, files...)
 	args = append(args,
 		"--no-global-config",
 		"--date-format=%d/%b/%Y",
 		"--time-format=%T",
-		"--real-time-html",          // Enable real-time WebSocket mode
-		"--ws-url="+goAccessWSRoute, // WebSocket URL seen by clients (proxied)
-		"--port="+goAccessWSPort,    // WebSocket port
+		"--real-time-html",       // Enable real-time WebSocket mode
+		"--ws-url="+wsURL,        // WebSocket URL for clients (uses MAIN_LINK + /ws_goaccess)
+		"--port="+goAccessWSPort, // Internal WebSocket port for GoAccess
 		"--log-format="+logFormat,
 		"--geoip-database="+geoIPDBPath,
 		"-o", outputPath,
