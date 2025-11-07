@@ -243,6 +243,11 @@ func main() {
 		log.Fatalf("create network snapshots table: %v", err)
 	}
 
+	err = db.CreateStreamDailyMetricsTable()
+	if err != nil {
+		log.Fatalf("create stream metrics table: %v", err)
+	}
+
 	infoCollector := &services.InfoService{}
 	go infoCollector.GetSlaveData()
 
