@@ -324,10 +324,62 @@
 		function formatTime(t) { return new Date(t).toLocaleString() }
 		function destroyChart(n) { if (charts[n]) { charts[n].destroy(); charts[n] = null } }
 		function getDateParams() { const start = document.getElementById('startDate').value; const end = document.getElementById('endDate').value; let params = []; if (start) params.push('start=' + start); if (end) params.push('end=' + end); return params.length > 0 ? '?' + params.join('&') : '' }
-		async function loadData() { if (isLoadingData) return; isLoadingData = true; try { const params = getDateParams(); const flowParams = params ? (params + '&limit=50') : '?limit=50'; const [dateInfo, summary, flow, daily, hourly, topCountries, topPorts, topTalkers, protocol, upstream] = await Promise.all([fetch('/streamInfo/daterange' + params).then(r => r.json()), fetch('/streamInfo/summary' + params).then(r => r.json()), fetch('/streamInfo/flow' + flowParams).then(r => r.json()), fetch('/streamInfo/stats/daily' + params).then(r => r.json()), fetch('/streamInfo/stats/hourly' + params).then(r => r.json()), fetch('/streamInfo/top/countries' + params).then(r => r.json()), fetch('/streamInfo/top/ports' + params).then(r => r.json()), fetch('/streamInfo/top/talkers' + params).then(r => r.json()), fetch('/streamInfo/traffic/by-protocol' + params).then(r => r.json()), fetch('/streamInfo/upstream' + params).then(r => r.json())]); updateDateInfo(dateInfo); updateSummaryCards(summary); updateSankeyChart(flow); updateDailyChart(daily); updateHourlyChart(hourly); updateCountriesChart(topCountries); updatePortsChart(topPorts); updateTopTalkersTable(topTalkers); updateProtocolTable(protocol); updateUpstreamTable(upstream); document.getElementById('loading').classList.add('hidden'); document.getElementById('dashboard').classList.remove('hidden'); document.getElementById('lastUpdate').textContent = 'Last updated: ' + new Date().toLocaleTimeString() } catch (e) { console.error('Error loading data:', e); alert('Failed to load data. Please try again.') } finally { isLoadingData = false } }
+		async function loadData() {
+			if (isLoadingData) return;
+			isLoadingData = true;
+
+			const loadingEl = document.getElementById('loading');
+			const dashboardEl = document.getElementById('dashboard');
+			const lastUpdateEl = document.getElementById('lastUpdate');
+
+			try {
+				const params = getDateParams();
+				const flowParams = params ? (params + '&limit=50') : '?limit=50';
+				const [dateInfo, summary, flow, daily, hourly, topCountries, topPorts, topTalkers, protocol, upstream] = await Promise.all([
+					fetch('/streamInfo/daterange' + params).then(r => r.json()),
+					fetch('/streamInfo/summary' + params).then(r => r.json()),
+					fetch('/streamInfo/flow' + flowParams).then(r => r.json()),
+					fetch('/streamInfo/stats/daily' + params).then(r => r.json()),
+					fetch('/streamInfo/stats/hourly' + params).then(r => r.json()),
+					fetch('/streamInfo/top/countries' + params).then(r => r.json()),
+					fetch('/streamInfo/top/ports' + params).then(r => r.json()),
+					fetch('/streamInfo/top/talkers' + params).then(r => r.json()),
+					fetch('/streamInfo/traffic/by-protocol' + params).then(r => r.json()),
+					fetch('/streamInfo/upstream' + params).then(r => r.json())
+				]);
+
+				const renderCharts = () => {
+					updateDateInfo(dateInfo);
+					updateSummaryCards(summary);
+					updateSankeyChart(flow);
+					updateDailyChart(daily);
+					updateHourlyChart(hourly);
+					updateCountriesChart(topCountries);
+					updatePortsChart(topPorts);
+					updateTopTalkersTable(topTalkers);
+					updateProtocolTable(protocol);
+					updateUpstreamTable(upstream);
+					lastUpdateEl.textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+				};
+
+				loadingEl.classList.add('hidden');
+				dashboardEl.classList.remove('hidden');
+
+				if (typeof requestAnimationFrame === 'function') {
+					requestAnimationFrame(renderCharts);
+				} else {
+					setTimeout(renderCharts, 0);
+				}
+			} catch (e) {
+				console.error('Error loading data:', e);
+				alert('Failed to load data. Please try again.');
+			} finally {
+				isLoadingData = false;
+			}
+		}
 		function updateDateInfo(d) { document.getElementById('datasetDays').textContent = d.total_days || '-'; document.getElementById('datasetRange').textContent = (d.min_date && d.max_date) ? (d.min_date + ' to ' + d.max_date) : '-'; document.getElementById('datasetTotal').textContent = (d.total_entries || 0).toLocaleString() }
 		function updateSummaryCards(d) { document.getElementById('totalConns').textContent = d.total_connections.toLocaleString(); document.getElementById('uniqueIPs').textContent = d.unique_ips.toLocaleString(); document.getElementById('uniqueCountries').textContent = d.unique_countries; document.getElementById('totalBytes').textContent = formatBytes(d.total_bytes); document.getElementById('avgSession').textContent = d.avg_session_time_seconds.toFixed(2); document.getElementById('failedConns').textContent = d.failed_connections.toLocaleString(); document.getElementById('dateRange').textContent = d.date_range; const sr = ((d.successful_connections / d.total_connections) * 100).toFixed(1); document.getElementById('successRate').textContent = sr + '%' }
-		function updateSankeyChart(data) {
+		function updateSankeyChart(data, attempt = 0) {
 			const container = document.getElementById('sankeyChart');
 			container.innerHTML = '';
 			console.log('Sankey data:', data);
@@ -348,7 +400,25 @@
 				}
 
 				const margin = { top: 20, right: 150, bottom: 20, left: 150 };
-				const width = container.offsetWidth - margin.left - margin.right;
+				let availableWidth = container.offsetWidth;
+
+				if (availableWidth <= (margin.left + margin.right)) {
+					if (attempt < 5) {
+						const retry = () => updateSankeyChart(data, attempt + 1);
+						if (typeof requestAnimationFrame === 'function') {
+							requestAnimationFrame(retry);
+						} else {
+							setTimeout(retry, 50);
+						}
+						return;
+					}
+
+					const parentWidth = container.parentElement ? container.parentElement.offsetWidth : 0;
+					const dashboardWidth = document.getElementById('dashboard') ? document.getElementById('dashboard').offsetWidth : 0;
+					availableWidth = Math.max(parentWidth, dashboardWidth, window.innerWidth || 0, 600);
+				}
+
+				const width = Math.max(availableWidth - margin.left - margin.right, 200);
 				const height = 600 - margin.top - margin.bottom;
 
 				const svg = d3.select('#sankeyChart')
