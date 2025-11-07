@@ -720,11 +720,35 @@ func getDailyStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parse query parameters for date filtering
+	startDate := r.URL.Query().Get("start")
+	endDate := r.URL.Query().Get("end")
+
+	var startTime, endTime time.Time
+	if startDate != "" {
+		if t, err := time.Parse("2006-01-02", startDate); err == nil {
+			startTime = t
+		}
+	}
+	if endDate != "" {
+		if t, err := time.Parse("2006-01-02", endDate); err == nil {
+			endTime = t.Add(24 * time.Hour) // Include the entire end date
+		}
+	}
+
 	dailyMap := make(map[string]*dailyStats)
 	dailyIPMap := make(map[string]map[string]bool)
 
 	for _, entry := range entries {
 		if entry.Time.IsZero() {
+			continue
+		}
+
+		// Apply date filter
+		if !startTime.IsZero() && entry.Time.Before(startTime) {
+			continue
+		}
+		if !endTime.IsZero() && entry.Time.After(endTime) {
 			continue
 		}
 
@@ -772,6 +796,22 @@ func getHourlyStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parse query parameters for date filtering
+	startDate := r.URL.Query().Get("start")
+	endDate := r.URL.Query().Get("end")
+
+	var startTime, endTime time.Time
+	if startDate != "" {
+		if t, err := time.Parse("2006-01-02", startDate); err == nil {
+			startTime = t
+		}
+	}
+	if endDate != "" {
+		if t, err := time.Parse("2006-01-02", endDate); err == nil {
+			endTime = t.Add(24 * time.Hour) // Include the entire end date
+		}
+	}
+
 	hourlyMap := make(map[int]*hourlyStats)
 	hourlyIPMap := make(map[int]map[string]bool)
 
@@ -783,6 +823,14 @@ func getHourlyStats(w http.ResponseWriter, r *http.Request) {
 
 	for _, entry := range entries {
 		if entry.Time.IsZero() {
+			continue
+		}
+
+		// Apply date filter
+		if !startTime.IsZero() && entry.Time.Before(startTime) {
+			continue
+		}
+		if !endTime.IsZero() && entry.Time.After(endTime) {
 			continue
 		}
 
