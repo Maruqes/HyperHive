@@ -289,7 +289,6 @@ func main() {
 
 	// Stop GoAccess background process
 	api.StopGoAccess()
-	services.StopStreamOpenTracker()
 
 	logger.Info("Cleanup complete. Goodbye!")
 	os.Exit(0)
