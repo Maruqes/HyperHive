@@ -28,6 +28,7 @@ const (
 	goAccessGeoIPDir       = "geoipdb"
 	goAccessGeoIPMaxAge    = 7 * 24 * time.Hour
 	goAccessWSPort         = "7890" // GoAccess WebSocket port
+	goAccessWSRoute        = "/goaccess/ws"
 	goAccessReconnectDelay = 5 * time.Second
 )
 
@@ -171,9 +172,9 @@ func ensureGoAccessRunning(ctx context.Context, workDir string) error {
 		"--no-global-config",
 		"--date-format=%d/%b/%Y",
 		"--time-format=%T",
-		"--real-time-html",                        // Enable real-time WebSocket mode
-		"--ws-url=ws://localhost:"+goAccessWSPort, // WebSocket URL
-		"--port="+goAccessWSPort,                  // WebSocket port
+		"--real-time-html",          // Enable real-time WebSocket mode
+		"--ws-url="+goAccessWSRoute, // WebSocket URL seen by clients (proxied)
+		"--port="+goAccessWSPort,    // WebSocket port
 		"--log-format="+logFormat,
 		"--geoip-database="+geoIPDBPath,
 		"-o", outputPath,
@@ -388,5 +389,5 @@ func downloadGeoIPDatabase(ctx context.Context, workDir string) (string, error) 
 
 func setupGoAccessAPI(r chi.Router) {
 	r.Get("/goaccess", goAccessHandler)
-	r.Get("/goaccess/ws", goAccessWebSocketHandler) // WebSocket endpoint for real-time updates
+	r.Get(goAccessWSRoute, goAccessWebSocketHandler) // WebSocket endpoint for real-time updates
 }
