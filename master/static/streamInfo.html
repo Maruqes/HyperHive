@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Stream Analytics Dashboard</title>
+	<script src="https://cdn.tailwindcss.com"></script>
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+	<style>
+		.stat-card {
+			transition: transform 0.2s, box-shadow 0.2s;
+		}
+
+		.stat-card:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+		}
+
+		.loader {
+			border-top-color: #3b82f6;
+			animation: spinner 1s linear infinite;
+		}
+
+		@keyframes spinner {
+			0% {
+				transform: rotate(0deg);
+			}
+
+			100% {
+				transform: rotate(360deg);
+			}
+		}
+
+		.table-row:hover {
+			background-color: #f3f4f6;
+		}
+	</style>
+</head>
+
+<body class="bg-gray-50">
+	<!-- Header -->
+	<header class="bg-white shadow-sm border-b border-gray-200">
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+			<div class="flex justify-between items-center">
+				<div>
+					<h1 class="text-3xl font-bold text-gray-900">Stream Analytics</h1>
+					<p class="text-sm text-gray-500 mt-1">Real-time traffic monitoring and analysis</p>
+				</div>
+				<div class="flex items-center space-x-4">
+					<button onclick="refreshData()"
+						class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition">
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+							</path>
+						</svg>
+						<span>Refresh</span>
+					</button>
+					<span id="lastUpdate" class="text-sm text-gray-500"></span>
+				</div>
+			</div>
+		</div>
+	</header>
+
+	<!-- Main Content -->
+	<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+		<!-- Loading Indicator -->
+		<div id="loading" class="flex justify-center items-center py-20">
+			<div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div>
+		</div>
+
+		<!-- Dashboard Content -->
+		<div id="dashboard" class="hidden space-y-6">
+			<!-- Summary Stats Grid -->
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+				<div class="stat-card bg-white rounded-lg shadow p-6 border border-gray-200">
+					<div class="flex items-center justify-between">
+						<div>
+							<p class="text-sm font-medium text-gray-500">Total Connections</p>
+							<p id="totalConns" class="text-3xl font-bold text-gray-900 mt-2">-</p>
+						</div>
+						<div class="bg-blue-100 p-3 rounded-full">
+							<svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+									d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+							</svg>
+						</div>
+					</div>
+					<p class="text-xs text-gray-500 mt-3">
+						<span id="successRate" class="text-green-600 font-semibold">-</span> success rate
+					</p>
+				</div>
+
+				<div class="stat-card bg-white rounded-lg shadow p-6 border border-gray-200">
+					<div class="flex items-center justify-between">
+						<div>
+							<p class="text-sm font-medium text-gray-500">Unique IPs</p>
+							<p id="uniqueIPs" class="text-3xl font-bold text-gray-900 mt-2">-</p>
+						</div>
+						<div class="bg-green-100 p-3 rounded-full">
+							<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+									d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
+								</path>
+							</svg>
+						</div>
+					</div>
+					<p class="text-xs text-gray-500 mt-3">
+						From <span id="uniqueCountries" class="font-semibold">-</span> countries
+					</p>
+				</div>
+
+				<div class="stat-card bg-white rounded-lg shadow p-6 border border-gray-200">
+					<div class="flex items-center justify-between">
+						<div>
+							<p class="text-sm font-medium text-gray-500">Total Traffic</p>
+							<p id="totalBytes" class="text-3xl font-bold text-gray-900 mt-2">-</p>
+						</div>
+						<div class="bg-purple-100 p-3 rounded-full">
+							<svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+									d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12">
+								</path>
+							</svg>
+						</div>
+					</div>
+					<p class="text-xs text-gray-500 mt-3">
+						<span id="avgSession" class="font-semibold">-</span>s avg session
+					</p>
+				</div>
+
+				<div class="stat-card bg-white rounded-lg shadow p-6 border border-gray-200">
+					<div class="flex items-center justify-between">
+						<div>
+							<p class="text-sm font-medium text-gray-500">Failed Connections</p>
+							<p id="failedConns" class="text-3xl font-bold text-red-600 mt-2">-</p>
+						</div>
+						<div class="bg-red-100 p-3 rounded-full">
+							<svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+									d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+								</path>
+							</svg>
+						</div>
+					</div>
+					<p id="dateRange" class="text-xs text-gray-500 mt-3">-</p>
+				</div>
+			</div>
+
+			<!-- Charts Row 1 -->
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+				<!-- Daily Activity Chart -->
+				<div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+					<h3 class="text-lg font-semibold text-gray-900 mb-4">Daily Activity</h3>
+					<canvas id="dailyChart" height="250"></canvas>
+				</div>
+
+				<!-- Hourly Distribution Chart -->
+				<div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+					<h3 class="text-lg font-semibold text-gray-900 mb-4">Hourly Distribution (24h)</h3>
+					<canvas id="hourlyChart" height="250"></canvas>
+				</div>
+			</div>
+
+			<!-- Charts Row 2 -->
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+				<!-- Top Countries Chart -->
+				<div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+					<h3 class="text-lg font-semibold text-gray-900 mb-4">Top Countries by Traffic</h3>
+					<canvas id="countriesChart" height="250"></canvas>
+				</div>
+
+				<!-- Top Ports Chart -->
+				<div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+					<h3 class="text-lg font-semibold text-gray-900 mb-4">Top Ports by Connections</h3>
+					<canvas id="portsChart" height="250"></canvas>
+				</div>
+			</div>
+
+			<!-- Tables Grid -->
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+				<!-- Top Talkers Table -->
+				<div class="bg-white rounded-lg shadow border border-gray-200">
+					<div class="px-6 py-4 border-b border-gray-200">
+						<h3 class="text-lg font-semibold text-gray-900">Top Talkers</h3>
+						<p class="text-sm text-gray-500">IPs with highest traffic volume</p>
+					</div>
+					<div class="overflow-x-auto">
+						<table class="min-w-full divide-y divide-gray-200">
+							<thead class="bg-gray-50">
+								<tr>
+									<th
+										class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+										IP Address</th>
+									<th
+										class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+										Country</th>
+									<th
+										class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+										Traffic</th>
+									<th
+										class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+										Conns</th>
+								</tr>
+							</thead>
+							<tbody id="topTalkersTable" class="bg-white divide-y divide-gray-200">
+							</tbody>
+						</table>
+					</div>
+				</div>
+
+				<!-- Traffic by Protocol Table -->
+				<div class="bg-white rounded-lg shadow border border-gray-200">
+					<div class="px-6 py-4 border-b border-gray-200">
+						<h3 class="text-lg font-semibold text-gray-900">Traffic by Protocol</h3>
+						<p class="text-sm text-gray-500">Protocol distribution</p>
+					</div>
+					<div class="overflow-x-auto">
+						<table class="min-w-full divide-y divide-gray-200">
+							<thead class="bg-gray-50">
+								<tr>
+									<th
+										class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+										Protocol</th>
+									<th
+										class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+										Connections</th>
+									<th
+										class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+										Unique IPs</th>
+									<th
+										class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+										Total Traffic</th>
+								</tr>
+							</thead>
+							<tbody id="protocolTable" class="bg-white divide-y divide-gray-200">
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+
+			<!-- Upstream Servers Table -->
+			<div class="bg-white rounded-lg shadow border border-gray-200">
+				<div class="px-6 py-4 border-b border-gray-200">
+					<h3 class="text-lg font-semibold text-gray-900">Upstream Servers</h3>
+					<p class="text-sm text-gray-500">Backend server statistics</p>
+				</div>
+				<div class="overflow-x-auto">
+					<table class="min-w-full divide-y divide-gray-200">
+						<thead class="bg-gray-50">
+							<tr>
+								<th
+									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+									Server</th>
+								<th
+									class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+									Connections</th>
+								<th
+									class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+									Unique IPs</th>
+								<th
+									class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+									Traffic</th>
+								<th
+									class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+									Avg Session</th>
+								<th
+									class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+									Failed</th>
+							</tr>
+						</thead>
+						<tbody id="upstreamTable" class="bg-white divide-y divide-gray-200">
+						</tbody>
+					</table>
+				</div>
+			</div>
+
+			<!-- Failed Connections -->
+			<div class="bg-white rounded-lg shadow border border-gray-200">
+				<div class="px-6 py-4 border-b border-gray-200">
+					<h3 class="text-lg font-semibold text-gray-900">Failed Connections</h3>
+					<p class="text-sm text-gray-500">Connection attempts that failed</p>
+				</div>
+				<div class="overflow-x-auto">
+					<table class="min-w-full divide-y divide-gray-200">
+						<thead class="bg-gray-50">
+							<tr>
+								<th
+									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+									Timestamp</th>
+								<th
+									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+									Client IP</th>
+								<th
+									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+									Country</th>
+								<th
+									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+									Protocol</th>
+								<th
+									class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+									Status</th>
+								<th
+									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+									Upstream</th>
+							</tr>
+						</thead>
+						<tbody id="failedTable" class="bg-white divide-y divide-gray-200">
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</main>
+
+	<script>
+		let charts = {};
+
+		// Utility function to format bytes
+		function formatBytes(bytes) {
+			if (bytes === 0) return '0 B';
+			const k = 1024;
+			const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+			const i = Math.floor(Math.log(bytes) / Math.log(k));
+			return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+		}
+
+		// Utility function to format time
+		function formatTime(timestamp) {
+			const date = new Date(timestamp);
+			return date.toLocaleString();
+		}
+
+		// Load all data
+		async function loadData() {
+			try {
+				const [summary, daily, hourly, topCountries, topPorts, topTalkers, protocol, upstream, failed] = await Promise.all([
+					fetch('/streamInfo/summary').then(r => r.json()),
+					fetch('/streamInfo/stats/daily').then(r => r.json()),
+					fetch('/streamInfo/stats/hourly').then(r => r.json()),
+					fetch('/streamInfo/top/countries').then(r => r.json()),
+					fetch('/streamInfo/top/ports').then(r => r.json()),
+					fetch('/streamInfo/top/talkers').then(r => r.json()),
+					fetch('/streamInfo/traffic/by-protocol').then(r => r.json()),
+					fetch('/streamInfo/upstream').then(r => r.json()),
+					fetch('/streamInfo/failed').then(r => r.json())
+				]);
+
+				updateSummaryCards(summary);
+				updateDailyChart(daily);
+				updateHourlyChart(hourly);
+				updateCountriesChart(topCountries);
+				updatePortsChart(topPorts);
+				updateTopTalkersTable(topTalkers);
+				updateProtocolTable(protocol);
+				updateUpstreamTable(upstream);
+				updateFailedTable(failed);
+
+				document.getElementById('loading').classList.add('hidden');
+				document.getElementById('dashboard').classList.remove('hidden');
+				document.getElementById('lastUpdate').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+			} catch (error) {
+				console.error('Error loading data:', error);
+				alert('Failed to load data. Please try again.');
+			}
+		}
+
+		// Update summary cards
+		function updateSummaryCards(data) {
+			document.getElementById('totalConns').textContent = data.total_connections.toLocaleString();
+			document.getElementById('uniqueIPs').textContent = data.unique_ips.toLocaleString();
+			document.getElementById('uniqueCountries').textContent = data.unique_countries;
+			document.getElementById('totalBytes').textContent = formatBytes(data.total_bytes);
+			document.getElementById('avgSession').textContent = data.avg_session_time_seconds.toFixed(2);
+			document.getElementById('failedConns').textContent = data.failed_connections.toLocaleString();
+			document.getElementById('dateRange').textContent = data.date_range;
+
+			const successRate = ((data.successful_connections / data.total_connections) * 100).toFixed(1);
+			document.getElementById('successRate').textContent = successRate + '%';
+		}
+
+		// Update daily chart
+		function updateDailyChart(data) {
+			const ctx = document.getElementById('dailyChart').getContext('2d');
+
+			if (charts.daily) charts.daily.destroy();
+
+			charts.daily = new Chart(ctx, {
+				type: 'line',
+				data: {
+					labels: data.map(d => d.date),
+					datasets: [
+						{
+							label: 'Connections',
+							data: data.map(d => d.connections),
+							borderColor: 'rgb(59, 130, 246)',
+							backgroundColor: 'rgba(59, 130, 246, 0.1)',
+							tension: 0.4,
+							fill: true
+						},
+						{
+							label: 'Unique IPs',
+							data: data.map(d => d.unique_ips),
+							borderColor: 'rgb(34, 197, 94)',
+							backgroundColor: 'rgba(34, 197, 94, 0.1)',
+							tension: 0.4,
+							fill: true
+						}
+					]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: {
+						legend: {
+							position: 'top',
+						}
+					},
+					scales: {
+						y: {
+							beginAtZero: true
+						}
+					}
+				}
+			});
+		}
+
+		// Update hourly chart
+		function updateHourlyChart(data) {
+			const ctx = document.getElementById('hourlyChart').getContext('2d');
+
+			if (charts.hourly) charts.hourly.destroy();
+
+			charts.hourly = new Chart(ctx, {
+				type: 'bar',
+				data: {
+					labels: data.map(d => d.hour + ':00'),
+					datasets: [{
+						label: 'Connections',
+						data: data.map(d => d.connections),
+						backgroundColor: 'rgba(147, 51, 234, 0.6)',
+						borderColor: 'rgb(147, 51, 234)',
+						borderWidth: 1
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: {
+						legend: {
+							display: false
+						}
+					},
+					scales: {
+						y: {
+							beginAtZero: true
+						}
+					}
+				}
+			});
+		}
+
+		// Update countries chart
+		function updateCountriesChart(data) {
+			const ctx = document.getElementById('countriesChart').getContext('2d');
+
+			if (charts.countries) charts.countries.destroy();
+
+			charts.countries = new Chart(ctx, {
+				type: 'doughnut',
+				data: {
+					labels: data.map(d => d.country),
+					datasets: [{
+						data: data.map(d => d.total_bytes),
+						backgroundColor: [
+							'rgba(59, 130, 246, 0.8)',
+							'rgba(34, 197, 94, 0.8)',
+							'rgba(251, 146, 60, 0.8)',
+							'rgba(239, 68, 68, 0.8)',
+							'rgba(147, 51, 234, 0.8)',
+							'rgba(236, 72, 153, 0.8)',
+							'rgba(14, 165, 233, 0.8)',
+							'rgba(132, 204, 22, 0.8)',
+							'rgba(250, 204, 21, 0.8)',
+							'rgba(168, 85, 247, 0.8)'
+						]
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: {
+						legend: {
+							position: 'right',
+						},
+						tooltip: {
+							callbacks: {
+								label: function (context) {
+									return context.label + ': ' + formatBytes(context.parsed);
+								}
+							}
+						}
+					}
+				}
+			});
+		}
+
+		// Update ports chart
+		function updatePortsChart(data) {
+			const ctx = document.getElementById('portsChart').getContext('2d');
+
+			if (charts.ports) charts.ports.destroy();
+
+			charts.ports = new Chart(ctx, {
+				type: 'bar',
+				data: {
+					labels: data.map(d => 'Port ' + d.port),
+					datasets: [{
+						label: 'Connections',
+						data: data.map(d => d.connections),
+						backgroundColor: 'rgba(34, 197, 94, 0.6)',
+						borderColor: 'rgb(34, 197, 94)',
+						borderWidth: 1
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					indexAxis: 'y',
+					plugins: {
+						legend: {
+							display: false
+						}
+					},
+					scales: {
+						x: {
+							beginAtZero: true
+						}
+					}
+				}
+			});
+		}
+
+		// Update top talkers table
+		function updateTopTalkersTable(data) {
+			const tbody = document.getElementById('topTalkersTable');
+			tbody.innerHTML = data.map(item => `
+                <tr class="table-row">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">${item.ip}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.country || 'Unknown'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-semibold">${formatBytes(item.total_bytes)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${item.connections}</td>
+                </tr>
+            `).join('');
+		}
+
+		// Update protocol table
+		function updateProtocolTable(data) {
+			const tbody = document.getElementById('protocolTable');
+			tbody.innerHTML = data.map(item => `
+                <tr class="table-row">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">${item.protocol}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">${item.connections.toLocaleString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${item.unique_ips}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">${formatBytes(item.total_bytes)}</td>
+                </tr>
+            `).join('');
+		}
+
+		// Update upstream table
+		function updateUpstreamTable(data) {
+			const tbody = document.getElementById('upstreamTable');
+			tbody.innerHTML = data.map(item => `
+                <tr class="table-row">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">${item.upstream_addr}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">${item.connections.toLocaleString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${item.unique_ips}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">${formatBytes(item.total_bytes)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${item.avg_session_time_seconds.toFixed(2)}s</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm ${item.failed_connections > 0 ? 'text-red-600' : 'text-gray-500'} text-right">${item.failed_connections}</td>
+                </tr>
+            `).join('');
+		}
+
+		// Update failed table
+		function updateFailedTable(data) {
+			const tbody = document.getElementById('failedTable');
+			if (data.length === 0) {
+				tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-sm text-gray-500">No failed connections found</td></tr>';
+				return;
+			}
+			tbody.innerHTML = data.slice(0, 50).map(item => `
+                <tr class="table-row">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatTime(item.timestamp)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">${item.client_ip}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.country || 'Unknown'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.protocol}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                            ${item.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">${item.upstream_addr}</td>
+                </tr>
+            `).join('');
+		}
+
+		// Refresh data
+		function refreshData() {
+			document.getElementById('loading').classList.remove('hidden');
+			document.getElementById('dashboard').classList.add('hidden');
+			loadData();
+		}
+
+		// Load data on page load
+		window.addEventListener('DOMContentLoaded', loadData);
+
+		// Auto-refresh every 30 seconds
+		setInterval(refreshData, 30000);
+	</script>
+</body>
+
+</html>
