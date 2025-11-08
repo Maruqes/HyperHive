@@ -232,7 +232,7 @@
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
 			<div class="flex justify-between items-end flex-wrap gap-4">
 				<div>
-					<p class="nerd-chip">GoOption · stream telemetry</p>
+					<p class="nerd-chip">Stream telemetry</p>
 					<h1 class="text-3xl font-semibold text-cyan-200 tracking-tight mt-1">HyperHive Stream Board</h1>
 					<p class="text-xs text-slate-400 font-mono mt-1">Source: npm stream-proxy.log</p>
 				</div>
@@ -369,21 +369,42 @@
 					style="width:100%;height:600px;background:rgba(15,23,42,0.5);border-radius:8px;overflow:hidden">
 				</div>
 			</div>
-			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-					<h3 class="text-lg font-semibold text-white mb-4">Activity</h3>
-					<div style="position:relative;height:250px"><canvas id="dailyChart"></canvas></div>
-				</div>
+				<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+					<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
+						<h3 class="text-lg font-semibold text-white mb-4">Activity</h3>
+						<div style="position:relative;height:250px"><canvas id="dailyChart"></canvas></div>
+					</div>
 				<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
 					<h3 class="text-lg font-semibold text-white mb-4">Hourly Distribution</h3>
-					<div style="position:relative;height:250px"><canvas id="hourlyChart"></canvas></div>
+						<div style="position:relative;height:250px"><canvas id="hourlyChart"></canvas></div>
+					</div>
 				</div>
-			</div>
-			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-					<h3 class="text-lg font-semibold text-white mb-4">Top Countries by Traffic</h3>
-					<div style="position:relative;height:250px"><canvas id="countriesChart"></canvas></div>
+				<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+					<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700 lg:col-span-2">
+						<div class="px-6 py-4 border-b border-slate-700">
+							<h3 class="text-lg font-semibold text-white">Timeline Telemetry</h3>
+							<p id="timelineSummary" class="text-xs text-slate-400 font-mono">Connections + failure rate per hour.</p>
+						</div>
+						<div class="p-6">
+							<div style="position:relative;height:320px"><canvas id="timelineChart"></canvas></div>
+						</div>
+					</div>
+					<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
+						<div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+							<div>
+								<h3 class="text-lg font-semibold text-white">Signal Monitor</h3>
+								<p class="text-xs text-slate-400 font-mono">Auto-labeled anomalies in the timeline.</p>
+							</div>
+							<span id="anomalyCount" class="text-xs text-slate-400 font-mono">No signals</span>
+						</div>
+						<div id="anomalyList" class="p-6 space-y-4"></div>
+					</div>
 				</div>
+				<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+					<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
+						<h3 class="text-lg font-semibold text-white mb-4">Top Countries by Traffic</h3>
+						<div style="position:relative;height:250px"><canvas id="countriesChart"></canvas></div>
+					</div>
 				<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
 					<h3 class="text-lg font-semibold text-white mb-4">Top Ports by Connections</h3>
 					<div style="position:relative;height:250px"><canvas id="portsChart"></canvas></div>
@@ -537,6 +558,8 @@
 		Chart.defaults.borderColor = '#374151';
 		function formatBytes(b) { if (b === 0) return '0 B'; const k = 1024, s = ['B', 'KB', 'MB', 'GB', 'TB'], i = Math.floor(Math.log(b) / Math.log(k)); return parseFloat((b / Math.pow(k, i)).toFixed(2)) + ' ' + s[i] }
 		function formatTime(t) { return new Date(t).toLocaleString() }
+		function formatTimestamp(ts) { const d = new Date(ts); return isNaN(d.getTime()) ? ts : d.toLocaleString() }
+		function formatCompactTimestamp(ts) { const d = new Date(ts); if (isNaN(d.getTime())) return ts; return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit' }) }
 		function destroyChart(n) { if (charts[n]) { charts[n].destroy(); charts[n] = null } }
 		function getDateParams() { const start = document.getElementById('startDate').value; const end = document.getElementById('endDate').value; let params = []; if (start) params.push('start=' + start); if (end) params.push('end=' + end); return params.length > 0 ? '?' + params.join('&') : '' }
 		async function loadData(options = {}) {
@@ -559,7 +582,7 @@
 			try {
 				const params = getDateParams();
 				const flowParams = params ? (params + '&limit=50') : '?limit=50';
-				const [dateInfo, summary, flow, daily, hourly, topCountries, topPorts, topTalkers, protocol, upstream] = await Promise.all([
+				const [dateInfo, summary, flow, daily, hourly, topCountries, topPorts, topTalkers, protocol, upstream, timeline, anomalies] = await Promise.all([
 					fetch('/streamInfo/daterange' + params).then(r => r.json()),
 					fetch('/streamInfo/summary' + params).then(r => r.json()),
 					fetch('/streamInfo/flow' + flowParams).then(r => r.json()),
@@ -569,7 +592,9 @@
 					fetch('/streamInfo/top/ports' + params).then(r => r.json()),
 					fetch('/streamInfo/top/talkers' + params).then(r => r.json()),
 					fetch('/streamInfo/traffic/by-protocol' + params).then(r => r.json()),
-					fetch('/streamInfo/upstream' + params).then(r => r.json())
+					fetch('/streamInfo/upstream' + params).then(r => r.json()),
+					fetch('/streamInfo/timeline' + params).then(r => r.json()),
+					fetch('/streamInfo/anomalies' + params).then(r => r.json())
 				]);
 
 				const renderCharts = () => {
@@ -587,6 +612,8 @@
 					updateTopTalkersTable(topTalkers);
 					updateProtocolTable(protocol);
 					updateUpstreamTable(upstream);
+					updateTimelineChart(timeline);
+					updateAnomalyPanel(anomalies);
 					hasLoadedOnce = true;
 					if (lastUpdateEl) {
 						lastUpdateEl.textContent = 'Last updated: ' + new Date().toLocaleTimeString();
@@ -839,6 +866,135 @@
 				chart.data.datasets[0].data = connections;
 				chart.update();
 			}
+		}
+		function updateTimelineChart(d) {
+			const summaryEl = document.getElementById('timelineSummary');
+			if (!Array.isArray(d) || d.length === 0) {
+				if (summaryEl) {
+					summaryEl.textContent = 'No timeline data in selected window.';
+				}
+				if (charts.timeline) {
+					charts.timeline.destroy();
+					charts.timeline = null;
+				}
+				return;
+			}
+			const labels = d.map(point => formatCompactTimestamp(point.timestamp));
+			const connections = d.map(point => point.connections);
+			const failureRate = d.map(point => (point.failure_rate || 0) * 100);
+			const latest = d[d.length - 1];
+			if (summaryEl) {
+				const failText = ((latest.failure_rate || 0) * 100).toFixed(1) + '% fail';
+				summaryEl.textContent = formatTimestamp(latest.timestamp) + ' · ' + latest.connections.toLocaleString() + ' conns · ' + failText;
+			}
+			if (!charts.timeline) {
+				const ctx = document.getElementById('timelineChart').getContext('2d');
+				charts.timeline = new Chart(ctx, {
+					type: 'bar',
+					data: {
+						labels,
+						datasets: [
+							{
+								type: 'bar',
+								label: 'Connections',
+								data: connections,
+								backgroundColor: 'rgba(14,165,233,0.35)',
+								borderColor: 'rgba(14,165,233,0.9)',
+								borderWidth: 1,
+								yAxisID: 'y'
+							},
+							{
+								type: 'line',
+								label: 'Failure %',
+								data: failureRate,
+								borderColor: 'rgba(248,113,113,1)',
+								backgroundColor: 'rgba(248,113,113,0.15)',
+								yAxisID: 'y1',
+								tension: 0.35,
+								pointRadius: 2,
+								pointHoverRadius: 4,
+								fill: false
+							}
+						]
+					},
+					options: {
+						responsive: true,
+						maintainAspectRatio: false,
+						interaction: { mode: 'index', intersect: false },
+						scales: {
+							x: {
+								ticks: { maxRotation: 0, color: '#94a3b8' },
+								grid: { color: '#1f2937' }
+							},
+							y: {
+								beginAtZero: true,
+								position: 'left',
+								grid: { color: '#1f2937' },
+								ticks: {
+									color: '#94a3b8',
+									callback: value => Number(value).toLocaleString()
+								}
+							},
+							y1: {
+								beginAtZero: true,
+								position: 'right',
+								grid: { display: false },
+								ticks: {
+									color: '#fca5a5',
+									callback: value => value + '%'
+								}
+							}
+						},
+						plugins: {
+							legend: { labels: { color: '#cbd5f5' } },
+							tooltip: {
+								callbacks: {
+									label: context => {
+										const label = context.dataset.label || '';
+										const value = context.parsed.y !== undefined ? context.parsed.y : context.parsed;
+										if (context.dataset.label === 'Failure %') {
+											return label + ': ' + Number(value).toFixed(2) + '%';
+										}
+										return label + ': ' + Number(value).toLocaleString();
+									}
+								}
+							}
+						}
+					}
+				});
+			} else {
+				const chart = charts.timeline;
+				chart.data.labels = labels;
+				chart.data.datasets[0].data = connections;
+				chart.data.datasets[1].data = failureRate;
+				chart.update();
+			}
+		}
+		function updateAnomalyPanel(events) {
+			const container = document.getElementById('anomalyList');
+			const badge = document.getElementById('anomalyCount');
+			if (!container) return;
+			if (!Array.isArray(events) || events.length === 0) {
+				if (badge) {
+					badge.textContent = 'No signals';
+				}
+				container.innerHTML = '<div class="p-4 text-xs text-slate-500 font-mono">Timeline looks steady.</div>';
+				return;
+			}
+			if (badge) {
+				badge.textContent = events.length + ' signals';
+			}
+			container.innerHTML = events.map(event => {
+				const ts = formatTimestamp(event.timestamp);
+				const failPct = ((event.failure_rate || 0) * 100).toFixed(1);
+				const bytes = formatBytes(event.total_bytes || 0);
+				const signals = (event.signals && event.signals.length ? event.signals : ['Anomaly detected']).map(signal => '<li>' + signal + '</li>').join('');
+				return '<div class="border border-slate-700 rounded-lg p-3 bg-slate-900/40">' +
+					'<div class="flex justify-between text-[0.65rem] uppercase tracking-[0.2em] text-slate-500"><span>' + ts + '</span><span>score ' + (event.score || 0).toFixed(2) + '</span></div>' +
+					'<p class="text-sm text-slate-200 mt-2">' + Number(event.connections || 0).toLocaleString() + ' conns · ' + failPct + '% fail · ' + bytes + '</p>' +
+					'<ul class="list-disc ml-4 mt-2 text-xs text-slate-400 space-y-1">' + signals + '</ul>' +
+					'</div>';
+			}).join('');
 		}
 		function updateTopTalkersTable(d) { document.getElementById('topTalkersTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.ip + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">' + (i.country || 'Unknown') + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right font-semibold">' + formatBytes(i.total_bytes) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.connections + '</td></tr>').join('') }
 		function updateProtocolTable(d) { document.getElementById('protocolTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-200">' + i.protocol + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td></tr>').join('') }

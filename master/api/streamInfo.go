@@ -4,11 +4,14 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -190,6 +193,40 @@ type countryPortStats struct {
 	TotalBytes    int64  `json:"total_bytes"`
 }
 
+// Timeline telemetry
+type timelinePoint struct {
+	Timestamp       string  `json:"timestamp"`
+	Connections     int     `json:"connections"`
+	Failed          int     `json:"failed"`
+	FailureRate     float64 `json:"failure_rate"`
+	TotalBytes      int64   `json:"total_bytes"`
+	UniqueIPs       int     `json:"unique_ips"`
+	UniqueUpstreams int     `json:"unique_upstreams"`
+	AvgSession      float64 `json:"avg_session_seconds"`
+}
+
+type timelineAnomaly struct {
+	Timestamp       string   `json:"timestamp"`
+	Connections     int      `json:"connections"`
+	Failed          int      `json:"failed"`
+	FailureRate     float64  `json:"failure_rate"`
+	TotalBytes      int64    `json:"total_bytes"`
+	UniqueIPs       int      `json:"unique_ips"`
+	UniqueUpstreams int      `json:"unique_upstreams"`
+	Score           float64  `json:"score"`
+	Signals         []string `json:"signals"`
+}
+
+type timelineBucket struct {
+	Time            time.Time
+	Connections     int
+	Failed          int
+	TotalBytes      int64
+	SumSession      float64
+	UniqueIPs       int
+	UniqueUpstreams int
+}
+
 //exmample of streams.log
 /*
 192.168.1.69 [06/Nov/2025:13:58:36 +0000] TCP 200 130 33 0.337 [192.168.1.175:25565] -> 192.168.76.77:25565
@@ -325,6 +362,103 @@ func parseFloatField(value string) (float64, error) {
 		return 0, nil
 	}
 	return strconv.ParseFloat(value, 64)
+}
+
+func parseDateFilters(r *http.Request) (time.Time, time.Time) {
+	layout := "2006-01-02"
+	var startTime, endTime time.Time
+
+	if startStr := r.URL.Query().Get("start"); startStr != "" {
+		if t, err := time.Parse(layout, startStr); err == nil {
+			startTime = t
+		}
+	}
+
+	if endStr := r.URL.Query().Get("end"); endStr != "" {
+		if t, err := time.Parse(layout, endStr); err == nil {
+			endTime = t.Add(24 * time.Hour)
+		}
+	}
+
+	return startTime, endTime
+}
+
+func meanAndStd(values []float64) (float64, float64) {
+	if len(values) == 0 {
+		return 0, 0
+	}
+
+	var sum float64
+	for _, v := range values {
+		sum += v
+	}
+	mean := sum / float64(len(values))
+
+	varianceSum := 0.0
+	for _, v := range values {
+		diff := v - mean
+		varianceSum += diff * diff
+	}
+	variance := varianceSum / float64(len(values))
+
+	return mean, math.Sqrt(variance)
+}
+
+func buildTimelineBuckets(entries []streamLogEntry, startTime, endTime time.Time) []timelineBucket {
+	timelineMap := make(map[string]*timelineBucket)
+	ipSets := make(map[string]map[string]struct{})
+	upstreamSets := make(map[string]map[string]struct{})
+
+	for _, entry := range entries {
+		if entry.Time.IsZero() {
+			continue
+		}
+
+		if !startTime.IsZero() && entry.Time.Before(startTime) {
+			continue
+		}
+		if !endTime.IsZero() && entry.Time.After(endTime) {
+			continue
+		}
+
+		bucketTime := entry.Time.UTC().Truncate(time.Hour)
+		key := bucketTime.Format(time.RFC3339)
+
+		bucket, exists := timelineMap[key]
+		if !exists {
+			bucket = &timelineBucket{Time: bucketTime}
+			timelineMap[key] = bucket
+			ipSets[key] = make(map[string]struct{})
+			upstreamSets[key] = make(map[string]struct{})
+		}
+
+		bucket.Connections++
+		if entry.Status != 200 {
+			bucket.Failed++
+		}
+		bucket.TotalBytes += entry.BytesSent + entry.BytesReceived
+		bucket.SumSession += entry.SessionTime
+
+		if entry.ClientIP != "" {
+			ipSets[key][entry.ClientIP] = struct{}{}
+		}
+		if entry.UpstreamAddr != "" {
+			upstreamSets[key][entry.UpstreamAddr] = struct{}{}
+		}
+	}
+
+	buckets := make([]timelineBucket, 0, len(timelineMap))
+	for key, bucket := range timelineMap {
+		bucket.UniqueIPs = len(ipSets[key])
+		bucket.UniqueUpstreams = len(upstreamSets[key])
+		buckets = append(buckets, *bucket)
+	}
+
+	sort.Slice(buckets, func(i, j int) bool {
+		return buckets[i].Time.Before(buckets[j].Time)
+	})
+
+	return buckets
 }
 
 // findGeoIPDatabase looks for a GeoIP database file in the geoIPDirectory
@@ -854,6 +988,163 @@ func getHourlyStats(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(result)
+}
+
+// getTimeline returns chronological hourly buckets with richer telemetry
+func getTimeline(w http.ResponseWriter, r *http.Request) {
+	entries, geoIPDB, err := loadEntriesWithGeoIP()
+	if geoIPDB != nil {
+		defer geoIPDB.Close()
+	}
+	if err != nil {
+		respondJSONError(w, http.StatusInternalServerError, "failed to load entries")
+		return
+	}
+
+	startTime, endTime := parseDateFilters(r)
+	buckets := buildTimelineBuckets(entries, startTime, endTime)
+
+	points := make([]timelinePoint, len(buckets))
+	for i, bucket := range buckets {
+		avgSession := 0.0
+		if bucket.Connections > 0 {
+			avgSession = bucket.SumSession / float64(bucket.Connections)
+		}
+
+		failureRate := 0.0
+		if bucket.Connections > 0 {
+			failureRate = float64(bucket.Failed) / float64(bucket.Connections)
+		}
+
+		points[i] = timelinePoint{
+			Timestamp:       bucket.Time.Format(time.RFC3339),
+			Connections:     bucket.Connections,
+			Failed:          bucket.Failed,
+			FailureRate:     failureRate,
+			TotalBytes:      bucket.TotalBytes,
+			UniqueIPs:       bucket.UniqueIPs,
+			UniqueUpstreams: bucket.UniqueUpstreams,
+			AvgSession:      avgSession,
+		}
+	}
+
+	if len(points) > 240 {
+		points = points[len(points)-240:]
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(points)
+}
+
+// getTimelineAnomalies inspects timeline buckets for unusual activity
+func getTimelineAnomalies(w http.ResponseWriter, r *http.Request) {
+	entries, geoIPDB, err := loadEntriesWithGeoIP()
+	if geoIPDB != nil {
+		defer geoIPDB.Close()
+	}
+	if err != nil {
+		respondJSONError(w, http.StatusInternalServerError, "failed to load entries")
+		return
+	}
+
+	startTime, endTime := parseDateFilters(r)
+	buckets := buildTimelineBuckets(entries, startTime, endTime)
+
+	if len(buckets) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode([]timelineAnomaly{})
+		return
+	}
+
+	connValues := make([]float64, len(buckets))
+	failureValues := make([]float64, len(buckets))
+	byteValues := make([]float64, len(buckets))
+
+	for i, bucket := range buckets {
+		connValues[i] = float64(bucket.Connections)
+		failureRate := 0.0
+		if bucket.Connections > 0 {
+			failureRate = float64(bucket.Failed) / float64(bucket.Connections)
+		}
+		failureValues[i] = failureRate
+		byteValues[i] = float64(bucket.TotalBytes)
+	}
+
+	meanConn, stdConn := meanAndStd(connValues)
+	meanFail, stdFail := meanAndStd(failureValues)
+	meanBytes, stdBytes := meanAndStd(byteValues)
+
+	anomalies := make([]timelineAnomaly, 0)
+
+	for _, bucket := range buckets {
+		if bucket.Connections == 0 {
+			continue
+		}
+
+		failureRate := float64(bucket.Failed) / float64(bucket.Connections)
+		var signals []string
+		score := 0.0
+
+		if stdConn > 0 {
+			z := (float64(bucket.Connections) - meanConn) / stdConn
+			if math.Abs(z) >= 2 {
+				direction := "spike"
+				if z < 0 {
+					direction = "drop"
+				}
+				signals = append(signals, fmt.Sprintf("Connection %s (z=%.2f)", direction, z))
+				score = math.Max(score, math.Abs(z))
+			}
+		}
+
+		failThreshold := meanFail + math.Max(0.05, stdFail)
+		if failureRate > failThreshold && bucket.Connections >= 10 {
+			signals = append(signals, fmt.Sprintf("Failure rate %.1f%% (baseline %.1f%%)", failureRate*100, meanFail*100))
+			score = math.Max(score, (failureRate-failThreshold)*20)
+		}
+
+		if stdBytes > 0 {
+			z := (float64(bucket.TotalBytes) - meanBytes) / stdBytes
+			if math.Abs(z) >= 2.5 {
+				direction := "surge"
+				if z < 0 {
+					direction = "drop"
+				}
+				signals = append(signals, fmt.Sprintf("Traffic %s (z=%.2f)", direction, z))
+				score = math.Max(score, math.Abs(z))
+			}
+		}
+
+		if len(signals) == 0 {
+			continue
+		}
+
+		anomalies = append(anomalies, timelineAnomaly{
+			Timestamp:       bucket.Time.Format(time.RFC3339),
+			Connections:     bucket.Connections,
+			Failed:          bucket.Failed,
+			FailureRate:     failureRate,
+			TotalBytes:      bucket.TotalBytes,
+			UniqueIPs:       bucket.UniqueIPs,
+			UniqueUpstreams: bucket.UniqueUpstreams,
+			Score:           score,
+			Signals:         signals,
+		})
+	}
+
+	sort.Slice(anomalies, func(i, j int) bool {
+		if anomalies[i].Score == anomalies[j].Score {
+			return anomalies[i].Timestamp > anomalies[j].Timestamp
+		}
+		return anomalies[i].Score > anomalies[j].Score
+	})
+
+	if len(anomalies) > 12 {
+		anomalies = anomalies[:12]
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(anomalies)
 }
 
 // getFailedConnections returns all failed connection attempts
@@ -1416,6 +1707,7 @@ func setupStreamInfo(r chi.Router) chi.Router {
 		// Time-based statistics
 		r.Get("/stats/daily", getDailyStats)
 		r.Get("/stats/hourly", getHourlyStats)
+		r.Get("/timeline", getTimeline)
 
 		// Top lists
 		r.Get("/top/talkers", getTopTalkers)
@@ -1429,5 +1721,6 @@ func setupStreamInfo(r chi.Router) chi.Router {
 		// Advanced analytics
 		r.Get("/flow", getConnectionFlow)
 		r.Get("/daterange", getDateRange)
+		r.Get("/anomalies", getTimelineAnomalies)
 	})
 }
