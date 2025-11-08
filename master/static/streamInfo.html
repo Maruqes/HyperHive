@@ -806,7 +806,7 @@
 				<div>
 					<p class="nerd-chip">Upstream / detail</p>
 					<h2 id="modalServerName" class="font-semibold mt-2">-</h2>
-					<p class="text-xs text-slate-400 mt-2">IP breakdown pulled directly from stream-proxy log.</p>
+					<p id="serverModalContext" class="text-xs text-slate-400 mt-2">IP breakdown pulled directly from stream-proxy log.</p>
 				</div>
 				<button onclick="closeServerModal()" class="modal-close">ESC</button>
 			</div>
@@ -860,7 +860,7 @@
 		let geoMapGroup = null;
 		let geoMapZoom = null;
 		let countryDetailState = { name: null, controller: null };
-		let serverActivityState = { selected: null, controller: null, loadingServer: null };
+		let serverActivityState = { selected: null, controller: null, loadingServer: null, data: null };
 		Chart.defaults.color = '#9ca3af';
 		Chart.defaults.borderColor = '#374151';
 		function formatBytes(b) { if (b === 0) return '0 B'; const k = 1024, s = ['B', 'KB', 'MB', 'GB', 'TB'], i = Math.floor(Math.log(b) / Math.log(k)); return parseFloat((b / Math.pow(k, i)).toFixed(2)) + ' ' + s[i] }
@@ -1672,16 +1672,17 @@
 					'</div>';
 			}).join('');
 		}
-		function setServerActivityStatus(text) {
-			const statusEl = document.getElementById('serverActivityStatus');
-			if (statusEl) statusEl.textContent = text;
-		}
-		function destroyServerActivityCharts() {
-			if (charts.serverDaily) {
-				charts.serverDaily.destroy();
-				charts.serverDaily = null;
+			function setServerActivityStatus(text) {
+				const statusEl = document.getElementById('serverActivityStatus');
+				if (statusEl) statusEl.textContent = text;
 			}
-			if (charts.serverHourly) {
+			function destroyServerActivityCharts() {
+				serverActivityState.data = null;
+				if (charts.serverDaily) {
+					charts.serverDaily.destroy();
+					charts.serverDaily = null;
+				}
+				if (charts.serverHourly) {
 				charts.serverHourly.destroy();
 				charts.serverHourly = null;
 			}
@@ -1726,11 +1727,11 @@
 			}
 			loadServerActivity(server, { force });
 		}
-		function loadServerActivity(server, options = {}) {
-			const { force = false } = options;
-			if (!server || server.trim() === '') {
-				setServerActivityStatus('No server selected.');
-				destroyServerActivityCharts();
+			function loadServerActivity(server, options = {}) {
+				const { force = false } = options;
+				if (!server || server.trim() === '') {
+					setServerActivityStatus('No server selected.');
+					destroyServerActivityCharts();
 				return;
 			}
 			if (!force && serverActivityState.loadingServer === server) {
@@ -1775,17 +1776,18 @@
 					destroyServerActivityCharts();
 				});
 		}
-		function renderServerActivityCharts(data) {
-			if (!data || (!Array.isArray(data.daily) && !Array.isArray(data.hourly))) {
-				setServerActivityStatus('No data returned for this server.');
-				destroyServerActivityCharts();
-				return;
-			}
-			const server = data.upstream || serverActivityState.selected || 'server';
-			const statusText = 'Server ' + server + ': ' + (Array.isArray(data.daily) ? data.daily.length : 0) + ' days';
-			setServerActivityStatus(statusText);
-			const dailyLabels = (data.daily || []).map(item => item.date);
-			const dailyConnections = (data.daily || []).map(item => item.connections);
+			function renderServerActivityCharts(data) {
+				if (!data || (!Array.isArray(data.daily) && !Array.isArray(data.hourly))) {
+					setServerActivityStatus('No data returned for this server.');
+					destroyServerActivityCharts();
+					return;
+				}
+				serverActivityState.data = data;
+				const server = data.upstream || serverActivityState.selected || 'server';
+				const statusText = 'Server ' + server + ': ' + (Array.isArray(data.daily) ? data.daily.length : 0) + ' days';
+				setServerActivityStatus(statusText);
+				const dailyLabels = (data.daily || []).map(item => item.date);
+				const dailyConnections = (data.daily || []).map(item => item.connections);
 			if (!charts.serverDaily) {
 				const ctx = document.getElementById('serverDailyChart').getContext('2d');
 				charts.serverDaily = new Chart(ctx, {
@@ -1804,16 +1806,17 @@
 					options: {
 						responsive: true,
 						maintainAspectRatio: false,
-						scales: {
-							x: { ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } },
-							y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } }
-						},
-						plugins: { legend: { display: false } }
-					}
-				});
-			} else {
-				charts.serverDaily.data.labels = dailyLabels;
-				charts.serverDaily.data.datasets[0].data = dailyConnections;
+							scales: {
+								x: { ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } },
+								y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } }
+							},
+							plugins: { legend: { display: false } },
+							onClick: (evt, elements) => handleServerActivityPointClick('daily', elements)
+						}
+					});
+				} else {
+					charts.serverDaily.data.labels = dailyLabels;
+					charts.serverDaily.data.datasets[0].data = dailyConnections;
 				charts.serverDaily.update();
 			}
 			const hourlyLabels = (data.hourly || []).map(item => item.hour + ':00');
@@ -1835,19 +1838,46 @@
 					options: {
 						responsive: true,
 						maintainAspectRatio: false,
-						scales: {
-							x: { ticks: { color: '#94a3b8', maxRotation: 0 }, grid: { color: '#1f2937' } },
-							y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } }
-						},
-						plugins: { legend: { display: false } }
-					}
-				});
-			} else {
-				charts.serverHourly.data.labels = hourlyLabels;
-				charts.serverHourly.data.datasets[0].data = hourlyConnections;
-				charts.serverHourly.update();
+							scales: {
+								x: { ticks: { color: '#94a3b8', maxRotation: 0 }, grid: { color: '#1f2937' } },
+								y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } }
+							},
+							plugins: { legend: { display: false } },
+							onClick: (evt, elements) => handleServerActivityPointClick('hourly', elements)
+						}
+					});
+				} else {
+					charts.serverHourly.data.labels = hourlyLabels;
+					charts.serverHourly.data.datasets[0].data = hourlyConnections;
+					charts.serverHourly.update();
+				}
 			}
-		}
+			function handleServerActivityPointClick(type, elements) {
+				if (!elements || elements.length === 0) {
+					return;
+				}
+				const data = serverActivityState.data;
+				const server = serverActivityState.selected;
+				if (!data || !server) {
+					return;
+				}
+				const idx = elements[0].index;
+				if (type === 'daily') {
+					const bucket = data.daily && data.daily[idx];
+					if (!bucket || !bucket.date) return;
+					showServerDetails(server, {
+						context: 'IP breakdown for ' + bucket.date,
+						scope: { type: 'daily', day: bucket.date }
+					});
+				} else if (type === 'hourly') {
+					const bucket = data.hourly && data.hourly[idx];
+					if (!bucket) return;
+					showServerDetails(server, {
+						context: 'IP breakdown for hour ' + bucket.hour + ':00',
+						scope: { type: 'hourly', hour: bucket.hour }
+					});
+				}
+			}
 		function updateFailureHotspots(points) {
 			const table = document.getElementById('failureHotspotsTable');
 			if (!table) return;
@@ -1918,13 +1948,39 @@
 		function updateProtocolTable(d) { document.getElementById('protocolTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-200">' + i.protocol + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td></tr>').join('') }
 		function updateUpstreamTable(d) { document.getElementById('upstreamTable').innerHTML = d.map(i => '<tr class="table-row clickable" onclick="showServerDetails(\'' + i.upstream_addr.replace(/'/g, "\\'") + '\')"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.upstream_addr + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.avg_session_time_seconds.toFixed(2) + 's</td><td class="px-6 py-4 whitespace-nowrap text-sm ' + (i.failed_connections > 0 ? 'text-red-400' : 'text-gray-400') + ' text-right">' + i.failed_connections + '</td></tr>').join('') }
 
-		async function showServerDetails(server) {
+		function matchesServerEntryScope(entry, scope) {
+			if (!scope || !scope.type) {
+				return true;
+			}
+			if (!entry.timestamp) {
+				return false;
+			}
+			if (scope.type === 'daily' && scope.day) {
+				return entry.timestamp.slice(0, 10) === scope.day;
+			}
+			if (scope.type === 'hourly' && typeof scope.hour === 'number') {
+				const hourStr = entry.timestamp.slice(11, 13);
+				const hour = parseInt(hourStr, 10);
+				if (Number.isNaN(hour)) {
+					return false;
+				}
+				return hour === scope.hour;
+			}
+			return true;
+		}
+
+		async function showServerDetails(server, options = {}) {
 			const modal = document.getElementById('serverModal');
 			const modalServerName = document.getElementById('modalServerName');
 			const modalTotalIPs = document.getElementById('modalTotalIPs');
 			const modalTotalConnections = document.getElementById('modalTotalConnections');
 			const modalTotalTraffic = document.getElementById('modalTotalTraffic');
 			const modalIPTable = document.getElementById('modalIPTable');
+			const modalContext = document.getElementById('serverModalContext');
+			const contextText = options.context || 'IP breakdown pulled directly from stream-proxy log.';
+			if (modalContext) {
+				modalContext.textContent = contextText;
+			}
 
 			// Show modal with loading state
 			modalServerName.textContent = server;
@@ -1947,7 +2003,8 @@
 					: (Array.isArray(payload.entries) ? payload.entries : []);
 
 				// Filter entries for this specific server
-				const serverEntries = entries.filter(entry => entry.upstream_addr === server);
+				const scope = options.scope || null;
+				const serverEntries = entries.filter(entry => entry.upstream_addr === server && matchesServerEntryScope(entry, scope));
 
 				// Aggregate by IP
 				const ipStats = {};
@@ -1996,7 +2053,14 @@
 		}
 
 		function closeServerModal() {
-			document.getElementById('serverModal').classList.remove('active');
+			const modal = document.getElementById('serverModal');
+			if (modal) {
+				modal.classList.remove('active');
+			}
+			const modalContext = document.getElementById('serverModalContext');
+			if (modalContext) {
+				modalContext.textContent = 'IP breakdown pulled directly from stream-proxy log.';
+			}
 		}
 
 		// Close modal when clicking outside
