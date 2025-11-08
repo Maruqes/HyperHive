@@ -213,6 +213,12 @@ type countryIPDetail struct {
 	AvgSession  float64 `json:"avg_session_seconds"`
 }
 
+type serverActivityResponse struct {
+	Upstream string        `json:"upstream"`
+	Daily    []dailyStats  `json:"daily"`
+	Hourly   []hourlyStats `json:"hourly"`
+}
+
 // Timeline telemetry
 type timelinePoint struct {
 	Timestamp       string  `json:"timestamp"`
@@ -917,6 +923,104 @@ func getCountryDetail(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(detail)
+}
+
+func getServerActivity(w http.ResponseWriter, r *http.Request) {
+	entries, geoIPDB, err := loadEntriesWithGeoIP()
+	if geoIPDB != nil {
+		defer geoIPDB.Close()
+	}
+	if err != nil {
+		respondJSONError(w, http.StatusInternalServerError, "failed to load entries")
+		return
+	}
+
+	upstreamParam := strings.TrimSpace(chi.URLParam(r, "upstream"))
+	if upstreamParam == "" {
+		respondJSONError(w, http.StatusBadRequest, "upstream parameter is required")
+		return
+	}
+
+	startTime, endTime := parseDateFilters(r)
+	entries = filterEntriesByDate(entries, startTime, endTime)
+
+	target := upstreamParam
+	dailyMap := make(map[string]*dailyStats)
+	dailyIPMap := make(map[string]map[string]struct{})
+	hourlyMap := make(map[int]*hourlyStats)
+	hourlyIPMap := make(map[int]map[string]struct{})
+
+	for i := 0; i < 24; i++ {
+		hourlyMap[i] = &hourlyStats{Hour: i}
+		hourlyIPMap[i] = make(map[string]struct{})
+	}
+
+	totalMatches := 0
+	for _, entry := range entries {
+		if entry.UpstreamAddr != target {
+			continue
+		}
+		if entry.Time.IsZero() {
+			continue
+		}
+		totalMatches++
+		date := entry.Time.Format("2006-01-02")
+		if _, ok := dailyMap[date]; !ok {
+			dailyMap[date] = &dailyStats{Date: date}
+			dailyIPMap[date] = make(map[string]struct{})
+		}
+		stat := dailyMap[date]
+		stat.Connections++
+		stat.BytesSent += entry.BytesSent
+		stat.BytesReceived += entry.BytesReceived
+		stat.TotalBytes += entry.BytesSent + entry.BytesReceived
+		if entry.Status != 200 {
+			stat.FailedConns++
+		}
+		if entry.ClientIP != "" {
+			dailyIPMap[date][entry.ClientIP] = struct{}{}
+		}
+
+		hour := entry.Time.Hour()
+		hStat := hourlyMap[hour]
+		hStat.Connections++
+		hStat.BytesSent += entry.BytesSent
+		hStat.BytesReceived += entry.BytesReceived
+		hStat.TotalBytes += entry.BytesSent + entry.BytesReceived
+		if entry.ClientIP != "" {
+			hourlyIPMap[hour][entry.ClientIP] = struct{}{}
+		}
+	}
+
+	if totalMatches == 0 {
+		respondJSONError(w, http.StatusNotFound, "no telemetry for upstream")
+		return
+	}
+
+	daily := make([]dailyStats, 0, len(dailyMap))
+	for date, stat := range dailyMap {
+		stat.UniqueIPs = len(dailyIPMap[date])
+		daily = append(daily, *stat)
+	}
+	sort.Slice(daily, func(i, j int) bool {
+		return daily[i].Date < daily[j].Date
+	})
+
+	hourly := make([]hourlyStats, 24)
+	for i := 0; i < 24; i++ {
+		stat := hourlyMap[i]
+		stat.UniqueIPs = len(hourlyIPMap[i])
+		hourly[i] = *stat
+	}
+
+	resp := serverActivityResponse{
+		Upstream: target,
+		Daily:    daily,
+		Hourly:   hourly,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // getTrafficByPort returns traffic statistics grouped by port
@@ -1880,6 +1984,7 @@ func setupStreamInfo(r chi.Router) chi.Router {
 		r.Get("/traffic/by-ip-port", getTrafficByIPAndPort)
 		r.Get("/traffic/by-country-port", getTrafficByCountryAndPort)
 		r.Get("/country/{country}", getCountryDetail)
+		r.Get("/server/{upstream}/activity", getServerActivity)
 
 		// Time-based statistics
 		r.Get("/stats/daily", getDailyStats)

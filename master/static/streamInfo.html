@@ -531,6 +531,39 @@
 					<div id="anomalyList" class="p-6 space-y-4"></div>
 				</div>
 			</div>
+			<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
+				<div class="px-6 py-4 border-b border-slate-700 flex flex-wrap items-center justify-between gap-4">
+					<div>
+						<h3 class="text-lg font-semibold text-white">Server Activity</h3>
+						<p class="text-xs text-slate-400 font-mono">Per-server daily trend and hourly distribution.</p>
+					</div>
+					<div class="flex items-center gap-3 flex-wrap">
+						<select id="serverActivitySelect" onchange="handleServerActivityChange(this.value)"
+							class="bg-slate-900 border border-slate-700 text-sm text-white px-3 py-2 rounded focus:border-cyan-400 focus:outline-none" style="min-width: 180px;">
+							<option value="">No upstreams</option>
+						</select>
+						<button onclick="refreshServerActivity(true)"
+							class="text-xs uppercase tracking-[0.3em] text-slate-300 border border-slate-600 px-3 py-2 rounded hover:text-cyan-200 hover:border-cyan-400 transition">
+							Resample
+						</button>
+						<span id="serverActivityStatus" class="text-xs text-slate-500 font-mono">Select a server.</span>
+					</div>
+				</div>
+				<div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+					<div>
+						<p class="text-xs uppercase tracking-[0.3em] text-slate-500 mb-2">Daily Activity</p>
+						<div style="position:relative;height:280px">
+							<canvas id="serverDailyChart"></canvas>
+						</div>
+					</div>
+					<div>
+						<p class="text-xs uppercase tracking-[0.3em] text-slate-500 mb-2">Hourly Distribution</p>
+						<div style="position:relative;height:280px">
+							<canvas id="serverHourlyChart"></canvas>
+						</div>
+					</div>
+				</div>
+			</div>
 			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 				<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
 					<div class="px-6 py-4 border-b border-slate-700">
@@ -826,6 +859,7 @@
 		let geoMapGroup = null;
 		let geoMapZoom = null;
 		let countryDetailState = { name: null, controller: null };
+		let serverActivityState = { selected: null, controller: null, loadingServer: null };
 		Chart.defaults.color = '#9ca3af';
 		Chart.defaults.borderColor = '#374151';
 		function formatBytes(b) { if (b === 0) return '0 B'; const k = 1024, s = ['B', 'KB', 'MB', 'GB', 'TB'], i = Math.floor(Math.log(b) / Math.log(k)); return parseFloat((b / Math.pow(k, i)).toFixed(2)) + ' ' + s[i] }
@@ -904,6 +938,8 @@
 					updateFailureHotspots(timeline);
 					updateBurstDetector(timeline);
 					updateGeoHeatMap(countryHeat);
+					updateServerActivityOptions(upstream);
+					refreshServerActivity(true);
 					hasLoadedOnce = true;
 					if (lastUpdateEl) {
 						lastUpdateEl.textContent = 'Last updated: ' + new Date().toLocaleTimeString();
@@ -1624,7 +1660,7 @@
 			if (badge) {
 				badge.textContent = events.length + ' signals';
 			}
-			container.innerHTML = events.map(event => {
+				container.innerHTML = events.map(event => {
 				const ts = formatTimestamp(event.timestamp);
 				const failPct = ((event.failure_rate || 0) * 100).toFixed(1);
 				const bytes = formatBytes(event.total_bytes || 0);
@@ -1634,8 +1670,165 @@
 					'<p class="text-sm text-slate-200 mt-2">' + Number(event.connections || 0).toLocaleString() + ' conns · ' + failPct + '% fail · ' + bytes + '</p>' +
 					'<ul class="list-disc ml-4 mt-2 text-xs text-slate-400 space-y-1">' + signals + '</ul>' +
 					'</div>';
-			}).join('');
-		}
+				}).join('');
+			}
+			function setServerActivityStatus(text) {
+				const statusEl = document.getElementById('serverActivityStatus');
+				if (statusEl) statusEl.textContent = text;
+			}
+			function destroyServerActivityCharts() {
+				if (charts.serverDaily) {
+					charts.serverDaily.destroy();
+					charts.serverDaily = null;
+				}
+				if (charts.serverHourly) {
+					charts.serverHourly.destroy();
+					charts.serverHourly = null;
+				}
+			}
+			function updateServerActivityOptions(upstreams) {
+				const select = document.getElementById('serverActivitySelect');
+				if (!select) return;
+				const previous = serverActivityState.selected;
+				if (!Array.isArray(upstreams) || upstreams.length === 0) {
+					select.innerHTML = '<option value="">No upstreams</option>';
+					serverActivityState.selected = null;
+					setServerActivityStatus('No upstream telemetry available.');
+					destroyServerActivityCharts();
+					return;
+				}
+				select.innerHTML = upstreams.map(item => {
+					const value = item.upstream_addr || '';
+					return '<option value="' + value + '">' + value + '</option>';
+				}).join('');
+				if (previous && upstreams.some(item => item.upstream_addr === previous)) {
+					serverActivityState.selected = previous;
+				} else {
+					serverActivityState.selected = upstreams[0].upstream_addr;
+				}
+				select.value = serverActivityState.selected || '';
+			}
+			function handleServerActivityChange(value) {
+				serverActivityState.selected = value || null;
+				refreshServerActivity(true);
+			}
+			function refreshServerActivity(force = false) {
+				const server = serverActivityState.selected;
+				if (!server) {
+					setServerActivityStatus('Select a server.');
+					destroyServerActivityCharts();
+					return;
+				}
+				loadServerActivity(server, { force });
+			}
+			function loadServerActivity(server, options = {}) {
+				const { force = false } = options;
+				if (!force && serverActivityState.loadingServer === server) {
+					return;
+				}
+				if (serverActivityState.controller) {
+					serverActivityState.controller.abort();
+				}
+				serverActivityState.loadingServer = server;
+				const controller = new AbortController();
+				serverActivityState.controller = controller;
+				setServerActivityStatus('Loading telemetry for ' + server + ' …');
+				const params = getDateParams();
+				fetch('/streamInfo/server/' + encodeURIComponent(server) + '/activity' + (params || ''), { signal: controller.signal })
+					.then(response => {
+						if (!response.ok) {
+							throw new Error('Failed to load server activity');
+						}
+						return response.json();
+					})
+					.then(data => {
+						if (controller.signal.aborted) return;
+						serverActivityState.controller = null;
+						serverActivityState.loadingServer = null;
+						renderServerActivityCharts(data);
+					})
+					.catch(error => {
+						if (error.name === 'AbortError') return;
+						console.error('Server activity error:', error);
+						serverActivityState.controller = null;
+						serverActivityState.loadingServer = null;
+						setServerActivityStatus('Unable to load server telemetry.');
+						destroyServerActivityCharts();
+					});
+			}
+			function renderServerActivityCharts(data) {
+				if (!data || (!Array.isArray(data.daily) && !Array.isArray(data.hourly))) {
+					setServerActivityStatus('No data returned for this server.');
+					destroyServerActivityCharts();
+					return;
+				}
+				const server = data.upstream || serverActivityState.selected || 'server';
+				const statusText = 'Server ' + server + ': ' + (Array.isArray(data.daily) ? data.daily.length : 0) + ' days';
+				setServerActivityStatus(statusText);
+				const dailyLabels = (data.daily || []).map(item => item.date);
+				const dailyConnections = (data.daily || []).map(item => item.connections);
+				if (!charts.serverDaily) {
+					const ctx = document.getElementById('serverDailyChart').getContext('2d');
+					charts.serverDaily = new Chart(ctx, {
+						type: 'line',
+						data: {
+							labels: dailyLabels,
+							datasets: [{
+								label: 'Connections',
+								data: dailyConnections,
+								borderColor: 'rgba(129, 140, 248, 0.9)',
+								backgroundColor: 'rgba(129, 140, 248, 0.1)',
+								tension: 0.35,
+								fill: true
+							}]
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							scales: {
+								x: { ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } },
+								y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } }
+							},
+							plugins: { legend: { display: false } }
+						}
+					});
+				} else {
+					charts.serverDaily.data.labels = dailyLabels;
+					charts.serverDaily.data.datasets[0].data = dailyConnections;
+					charts.serverDaily.update();
+				}
+				const hourlyLabels = (data.hourly || []).map(item => item.hour + ':00');
+				const hourlyConnections = (data.hourly || []).map(item => item.connections);
+				if (!charts.serverHourly) {
+					const ctx = document.getElementById('serverHourlyChart').getContext('2d');
+					charts.serverHourly = new Chart(ctx, {
+						type: 'bar',
+						data: {
+							labels: hourlyLabels,
+							datasets: [{
+								label: 'Connections',
+								data: hourlyConnections,
+								backgroundColor: 'rgba(14,165,233,0.5)',
+								borderColor: 'rgba(14,165,233,0.9)',
+								borderWidth: 1
+							}]
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							scales: {
+								x: { ticks: { color: '#94a3b8', maxRotation: 0 }, grid: { color: '#1f2937' } },
+								y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } }
+							},
+							plugins: { legend: { display: false } }
+						}
+					});
+				} else {
+					charts.serverHourly.data.labels = hourlyLabels;
+					charts.serverHourly.data.datasets[0].data = hourlyConnections;
+					charts.serverHourly.update();
+				}
+			}
 		function updateFailureHotspots(points) {
 			const table = document.getElementById('failureHotspotsTable');
 			if (!table) return;
