@@ -3,9 +3,9 @@ package wireguard
 import (
 	"512SvMan/db"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -132,6 +132,13 @@ func getServerKeys() (privateKey, publicKey wgtypes.Key, err error) {
 
 	pubKeyData, err := os.ReadFile(pubKeyPath)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			publicKey = privateKey.PublicKey()
+			if err := os.WriteFile(pubKeyPath, []byte(publicKey.String()), 0644); err != nil {
+				return wgtypes.Key{}, wgtypes.Key{}, fmt.Errorf("write public key: %w", err)
+			}
+			return privateKey, publicKey, nil
+		}
 		return wgtypes.Key{}, wgtypes.Key{}, fmt.Errorf("read public key: %w", err)
 	}
 
@@ -140,6 +147,26 @@ func getServerKeys() (privateKey, publicKey wgtypes.Key, err error) {
 		return wgtypes.Key{}, wgtypes.Key{}, fmt.Errorf("parse public key: %w", err)
 	}
 
+	return privateKey, publicKey, nil
+}
+
+func ensureServerKeys() (wgtypes.Key, wgtypes.Key, error) {
+	privateKey, publicKey, err := getServerKeys()
+	if err == nil {
+		return privateKey, publicKey, nil
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return wgtypes.Key{}, wgtypes.Key{}, err
+	}
+
+	privateKey, err = wgtypes.GeneratePrivateKey()
+	if err != nil {
+		return wgtypes.Key{}, wgtypes.Key{}, fmt.Errorf("generate server private key: %w", err)
+	}
+	publicKey = privateKey.PublicKey()
+	if err := saveServerKeys(privateKey, publicKey); err != nil {
+		return wgtypes.Key{}, wgtypes.Key{}, err
+	}
 	return privateKey, publicKey, nil
 }
 
@@ -172,12 +199,15 @@ func doesInterfaceExists() (bool, error) {
 	return true, nil
 }
 
-func buildClientConfig(clientPriv wgtypes.Key, clientIPCIDR, endpoint string) string {
+func buildClientConfig(clientPriv wgtypes.Key, clientIPCIDR, endpoint string, keepaliveSec int) (string, error) {
+	if keepaliveSec <= 0 {
+		keepaliveSec = 25
+	}
 	_, serverPublic, err := getServerKeys()
 	if err != nil {
-		return ""
+		return "", fmt.Errorf("load server keys: %w", err)
 	}
-	return fmt.Sprintf(`[Interface]
+	cfg := fmt.Sprintf(`[Interface]
 PrivateKey = %s
 Address = %s
 DNS = 1.1.1.1
@@ -186,13 +216,16 @@ DNS = 1.1.1.1
 PublicKey = %s
 Endpoint = %s
 AllowedIPs = 0.0.0.0/0, ::/0
-PersistentKeepalive = 25
+PersistentKeepalive = %d
 `,
 		clientPriv.String(),
 		clientIPCIDR,
 		serverPublic.String(),
 		endpoint,
+		keepaliveSec,
 	)
+
+	return cfg, nil
 }
 
 func GeneratePeerAndGenerateConfig(clientIPCIDR, endpoint string, keepaliveSec int) (string, error) {
@@ -200,9 +233,94 @@ func GeneratePeerAndGenerateConfig(clientIPCIDR, endpoint string, keepaliveSec i
 	if err != nil {
 		return "", fmt.Errorf("generate client private key: %w", err)
 	}
-	cfg := buildClientConfig(clientPriv, clientIPCIDR, endpoint)
+	cfg, err := buildClientConfig(clientPriv, clientIPCIDR, endpoint, keepaliveSec)
+	if err != nil {
+		return "", err
+	}
+
+	if err := addPeerToDevice(clientPriv.PublicKey(), clientIPCIDR); err != nil {
+		return "", err
+	}
 
 	return cfg, nil
+}
+
+func addPeerToDevice(clientPublic wgtypes.Key, clientIPCIDR string) error {
+	_, network, err := net.ParseCIDR(clientIPCIDR)
+	if err != nil {
+		return fmt.Errorf("parse client cidr %q: %w", clientIPCIDR, err)
+	}
+
+	client, err := wgctrl.New()
+	if err != nil {
+		return fmt.Errorf("wgctrl.New: %w", err)
+	}
+	defer client.Close()
+
+	peerCfg := wgtypes.PeerConfig{
+		PublicKey:         clientPublic,
+		ReplaceAllowedIPs: true,
+		AllowedIPs:        []net.IPNet{*network},
+	}
+
+	if err := client.ConfigureDevice(iface, wgtypes.Config{
+		Peers: []wgtypes.PeerConfig{peerCfg},
+	}); err != nil {
+		return fmt.Errorf("ConfigureDevice(%s): %w", iface, err)
+	}
+	return nil
+}
+
+func RemovePeerByIP(clientIPCIDR string) error {
+	clientIPCIDR = strings.TrimSpace(clientIPCIDR)
+	if clientIPCIDR == "" {
+		return fmt.Errorf("client ip cidr is required")
+	}
+
+	client, err := wgctrl.New()
+	if err != nil {
+		return fmt.Errorf("wgctrl.New: %w", err)
+	}
+	defer client.Close()
+
+	dev, err := client.Device(iface)
+	if err != nil {
+		return fmt.Errorf("Device(%s): %w", iface, err)
+	}
+
+	var (
+		targetKey wgtypes.Key
+		found     bool
+	)
+	for i := range dev.Peers {
+		for _, allowed := range dev.Peers[i].AllowedIPs {
+			if allowed.String() == clientIPCIDR {
+				targetKey = dev.Peers[i].PublicKey
+				found = true
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+
+	if !found {
+		return nil
+	}
+
+	if err := client.ConfigureDevice(iface, wgtypes.Config{
+		Peers: []wgtypes.PeerConfig{
+			{
+				PublicKey: targetKey,
+				Remove:    true,
+			},
+		},
+	}); err != nil {
+		return fmt.Errorf("ConfigureDevice(%s): %w", iface, err)
+	}
+
+	return nil
 }
 
 func GetPeers() ([]wgtypes.Peer, error) {
@@ -223,51 +341,40 @@ func GetPeers() ([]wgtypes.Peer, error) {
 func SetupInterface() error {
 	exists, err := doesInterfaceExists()
 	if err != nil {
-		return nil
+		return fmt.Errorf("check interface %s: %w", iface, err)
 	}
 
 	if !exists {
-		err := createInterface()
-		if err != nil {
-			return nil
+		if err := createInterface(); err != nil {
+			return fmt.Errorf("create interface %s: %w", iface, err)
 		}
+	}
+
+	serverPriv, _, err := ensureServerKeys()
+	if err != nil {
+		return err
 	}
 
 	port := listenPort
 
-	serverPriv, err := wgtypes.GeneratePrivateKey()
-	if err != nil {
-		log.Fatalf("generate server private key: %v", err)
-	}
-	publicKey := serverPriv.PublicKey()
-
 	deviceCfg := wgtypes.Config{
-		PrivateKey:   &serverPriv,
-		ListenPort:   &port,
-		ReplacePeers: true,
-		Peers:        nil,
+		PrivateKey: &serverPriv,
+		ListenPort: &port,
 	}
 
 	client, err := wgctrl.New()
 	if err != nil {
-		log.Fatalf("wgctrl.New: %v", err)
+		return fmt.Errorf("wgctrl.New: %w", err)
 	}
 	defer client.Close()
 
 	if err := client.ConfigureDevice(iface, deviceCfg); err != nil {
-		log.Fatalf("ConfigureDevice(%s): %v", iface, err)
-	}
-
-	err = saveServerKeys(serverPriv, publicKey)
-	if err != nil {
-		return err
+		return fmt.Errorf("ConfigureDevice(%s): %w", iface, err)
 	}
 
 	return nil
 }
 
-// NextAvailableClientIP scans the current peer list and returns the first free IPv4
-// address in the ServerCIDR network, starting right after the server's address.
 func NextAvailableClientIP() (string, error) {
 	serverIP, network, err := net.ParseCIDR(ServerCIDR)
 	if err != nil {

@@ -241,13 +241,6 @@ func main() {
 		log.Fatalf("SetupInterface : %v", err)
 	}
 
-	cfg, err := wireguard.GeneratePeerAndGenerateConfig("10.128.0.3/32", "127.0.0.1:51512", 0)
-	if err != nil {
-		log.Fatalf("AddPeerAndGenerateConfig : %v", err)
-	}
-	fmt.Println(cfg)
-	return
-
 	db.InitDB()
 	//create all tables if not exists
 	err = db.CreateNFSTable()

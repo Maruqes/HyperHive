@@ -164,6 +164,11 @@ func deletePeer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := wireguard.RemovePeerByIP(peer.ClientIP); err != nil {
+		http.Error(w, fmt.Sprintf("remove peer from device: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	if err := db.DeleteWireguardPeer(id); err != nil {
 		http.Error(w, fmt.Sprintf("delete peer: %v", err), http.StatusInternalServerError)
 		return
