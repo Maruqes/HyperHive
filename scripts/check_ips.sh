@@ -7,7 +7,9 @@
 set -euo pipefail
 
 # default log dir (change if your logs are elsewhere)
-LOG_DIR="$../master/npm-data/logs"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+LOG_DIR="${LOG_DIR:-"$PROJECT_ROOT/master/npm-data/logs"}"
 LOG_GLOB="proxy-host-*_access.log*"
 
 IP="${1:-}"
