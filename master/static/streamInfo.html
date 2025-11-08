@@ -1183,6 +1183,11 @@
 					})
 					.on('mouseout', function () {
 						d3.select(this).attr('opacity', 0.5);
+					})
+					.on('click', function (event, d) {
+						const sourceName = graph.nodes[d.source.index].name;
+						const targetName = graph.nodes[d.target.index].name;
+						handleFlowClick({ source: sourceName, target: targetName });
 					});
 
 				// Add link titles
@@ -1204,7 +1209,11 @@
 					.attr('fill', d => color(d.name))
 					.attr('opacity', 0.8)
 					.attr('stroke', '#000')
-					.attr('stroke-width', 1);
+					.attr('stroke-width', 1)
+					.on('click', function (event, d) {
+						const name = d.name;
+						handleFlowClick({ node: name });
+					});
 
 				node.append('title')
 					.text(d => `${d.name}\n${d.value || 0} connections`);
@@ -1225,6 +1234,46 @@
 				console.error('Sankey error:', e);
 				container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ef4444">Error: ' + e.message + '</div>';
 			}
+		}
+		function handleFlowClick(selection) {
+			if (!selection) return;
+			const filters = [];
+			let title = 'Flow Details';
+			let context = 'IP breakdown for this flow';
+			if (selection.source && selection.target) {
+				title = selection.source + ' → ' + selection.target;
+				context = 'Flow from ' + selection.source + ' to ' + selection.target;
+				const targetPort = selection.target.replace('Port ', '');
+				filters.push(entry => entry.country === selection.source && extractUpstreamPort(entry.upstream_addr) === targetPort);
+			} else if (selection.source) {
+				title = 'Country ' + selection.source;
+				context = 'All flows originating from ' + selection.source;
+				filters.push(entry => entry.country === selection.source);
+			} else if (selection.target) {
+				const port = selection.target.replace('Port ', '');
+				title = 'Destination ' + selection.target;
+				context = 'All flows targeting ' + selection.target;
+				filters.push(entry => extractUpstreamPort(entry.upstream_addr) === port);
+			} else if (selection.node) {
+				if (selection.node.startsWith('Port ')) {
+					const port = selection.node.replace('Port ', '');
+					title = 'Destination ' + selection.node;
+					context = 'All flows targeting ' + selection.node;
+					filters.push(entry => extractUpstreamPort(entry.upstream_addr) === port);
+				} else {
+					title = 'Country ' + selection.node;
+					context = 'All flows originating from ' + selection.node;
+					filters.push(entry => entry.country === selection.node);
+				}
+			}
+			const filterFn = filters.length > 0
+				? entry => filters.every(fn => fn(entry))
+				: null;
+			showGlobalEntries({
+				title,
+				context,
+				filter: filterFn
+			});
 		}
 		function updateDailyChart(d) {
 			trendData.daily = Array.isArray(d) ? d.slice() : [];
@@ -2199,3 +2248,8 @@
 </body>
 
 </html>
+		function extractUpstreamPort(addr) {
+			if (typeof addr !== 'string') return '';
+			const parts = addr.split(':');
+			return parts.length > 1 ? parts[parts.length - 1] : '';
+		}
