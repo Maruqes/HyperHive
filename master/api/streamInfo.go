@@ -21,11 +21,12 @@ import (
 )
 
 const (
-	streamLogPath     = "npm-data/logs/stream-proxy.log"
-	streamTimeLayout  = "02/Jan/2006:15:04:05 -0700"
-	geoIPDirectory    = "geoipdb"
-	topTalkersLimit   = 5
-	topCountryEntries = 5
+	streamLogPath        = "npm-data/logs/stream-proxy.log"
+	streamTimeLayout     = "02/Jan/2006:15:04:05 -0700"
+	geoIPDirectory       = "geoipdb"
+	topTalkersLimit      = 5
+	topCountryEntries    = 5
+	countryIPDetailLimit = 20
 )
 
 var (
@@ -191,6 +192,25 @@ type countryPortStats struct {
 	BytesSent     int64  `json:"bytes_sent"`
 	BytesReceived int64  `json:"bytes_received"`
 	TotalBytes    int64  `json:"total_bytes"`
+}
+
+// Country drill-down
+type countryDetailResponse struct {
+	Country         string            `json:"country"`
+	Connections     int               `json:"connections"`
+	UniqueIPs       int               `json:"unique_ips"`
+	UniqueUpstreams int               `json:"unique_upstreams"`
+	TotalBytes      int64             `json:"total_bytes"`
+	AvgSession      float64           `json:"avg_session_time_seconds"`
+	MedianSession   float64           `json:"median_session_time_seconds"`
+	TopIPs          []countryIPDetail `json:"top_ips"`
+}
+
+type countryIPDetail struct {
+	IP          string  `json:"ip"`
+	Connections int     `json:"connections"`
+	TotalBytes  int64   `json:"total_bytes"`
+	AvgSession  float64 `json:"avg_session_seconds"`
 }
 
 // Timeline telemetry
@@ -402,6 +422,42 @@ func meanAndStd(values []float64) (float64, float64) {
 	variance := varianceSum / float64(len(values))
 
 	return mean, math.Sqrt(variance)
+}
+
+func filterEntriesByDate(entries []streamLogEntry, start, end time.Time) []streamLogEntry {
+	if start.IsZero() && end.IsZero() {
+		return entries
+	}
+	filtered := make([]streamLogEntry, 0, len(entries))
+	for _, entry := range entries {
+		if entry.Time.IsZero() {
+			continue
+		}
+		if !start.IsZero() && entry.Time.Before(start) {
+			continue
+		}
+		if !end.IsZero() && entry.Time.After(end) {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return filtered
+}
+
+func medianFloat64(values []float64) float64 {
+	switch len(values) {
+	case 0:
+		return 0
+	case 1:
+		return values[0]
+	}
+	sorted := append([]float64(nil), values...)
+	sort.Float64s(sorted)
+	mid := len(sorted) / 2
+	if len(sorted)%2 == 0 {
+		return (sorted[mid-1] + sorted[mid]) / 2
+	}
+	return sorted[mid]
 }
 
 func buildTimelineBuckets(entries []streamLogEntry, startTime, endTime time.Time) []timelineBucket {
@@ -703,6 +759,9 @@ func getTrafficByCountry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	startTime, endTime := parseDateFilters(r)
+	entries = filterEntriesByDate(entries, startTime, endTime)
+
 	countryMap := make(map[string]*countryTrafficStats)
 	countryIPMap := make(map[string]map[string]bool)
 
@@ -741,6 +800,123 @@ func getTrafficByCountry(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(result)
+}
+
+func getCountryDetail(w http.ResponseWriter, r *http.Request) {
+	entries, geoIPDB, err := loadEntriesWithGeoIP()
+	if geoIPDB != nil {
+		defer geoIPDB.Close()
+	}
+	if err != nil {
+		respondJSONError(w, http.StatusInternalServerError, "failed to load entries")
+		return
+	}
+
+	countryParam := strings.TrimSpace(chi.URLParam(r, "country"))
+	if countryParam == "" {
+		respondJSONError(w, http.StatusBadRequest, "country parameter is required")
+		return
+	}
+
+	startTime, endTime := parseDateFilters(r)
+	entries = filterEntriesByDate(entries, startTime, endTime)
+
+	target := strings.ToLower(countryParam)
+	if target == "" {
+		respondJSONError(w, http.StatusBadRequest, "country parameter is required")
+		return
+	}
+
+	detail := countryDetailResponse{Country: countryParam}
+	uniqueIPs := make(map[string]struct{})
+	uniqueUpstreams := make(map[string]struct{})
+	sessionValues := make([]float64, 0, len(entries))
+
+	type ipAccumulator struct {
+		IP          string
+		Connections int
+		TotalBytes  int64
+		SessionSum  float64
+	}
+
+	ipStats := make(map[string]*ipAccumulator)
+
+	var sessionSum float64
+	displayName := ""
+
+	for _, entry := range entries {
+		countryName := entry.Country
+		if countryName == "" {
+			countryName = "Unknown"
+		}
+
+		if strings.ToLower(countryName) != target {
+			continue
+		}
+
+		if displayName == "" {
+			displayName = countryName
+		}
+
+		detail.Connections++
+		bytes := entry.BytesSent + entry.BytesReceived
+		detail.TotalBytes += bytes
+		sessionSum += entry.SessionTime
+		sessionValues = append(sessionValues, entry.SessionTime)
+
+		if entry.ClientIP != "" {
+			uniqueIPs[entry.ClientIP] = struct{}{}
+		}
+		if entry.UpstreamAddr != "" {
+			uniqueUpstreams[entry.UpstreamAddr] = struct{}{}
+		}
+
+		if entry.ClientIP != "" {
+			stat, exists := ipStats[entry.ClientIP]
+			if !exists {
+				stat = &ipAccumulator{IP: entry.ClientIP}
+				ipStats[entry.ClientIP] = stat
+			}
+			stat.Connections++
+			stat.TotalBytes += bytes
+			stat.SessionSum += entry.SessionTime
+		}
+	}
+
+	if detail.Connections == 0 {
+		respondJSONError(w, http.StatusNotFound, "no telemetry for country")
+		return
+	}
+
+	detail.Country = displayName
+	detail.UniqueIPs = len(uniqueIPs)
+	detail.UniqueUpstreams = len(uniqueUpstreams)
+	detail.AvgSession = sessionSum / float64(detail.Connections)
+	detail.MedianSession = medianFloat64(sessionValues)
+
+	topIPs := make([]countryIPDetail, 0, len(ipStats))
+	for _, stat := range ipStats {
+		if stat.Connections == 0 {
+			continue
+		}
+		topIPs = append(topIPs, countryIPDetail{
+			IP:          stat.IP,
+			Connections: stat.Connections,
+			TotalBytes:  stat.TotalBytes,
+			AvgSession:  stat.SessionSum / float64(stat.Connections),
+		})
+	}
+
+	sort.Slice(topIPs, func(i, j int) bool {
+		return topIPs[i].TotalBytes > topIPs[j].TotalBytes
+	})
+	if len(topIPs) > countryIPDetailLimit {
+		topIPs = topIPs[:countryIPDetailLimit]
+	}
+	detail.TopIPs = topIPs
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(detail)
 }
 
 // getTrafficByPort returns traffic statistics grouped by port
@@ -1703,6 +1879,7 @@ func setupStreamInfo(r chi.Router) chi.Router {
 		r.Get("/traffic/by-protocol", getTrafficByProtocol)
 		r.Get("/traffic/by-ip-port", getTrafficByIPAndPort)
 		r.Get("/traffic/by-country-port", getTrafficByCountryAndPort)
+		r.Get("/country/{country}", getCountryDetail)
 
 		// Time-based statistics
 		r.Get("/stats/daily", getDailyStats)

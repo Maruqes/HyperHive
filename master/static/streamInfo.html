@@ -241,6 +241,21 @@
 			display: block;
 		}
 
+		.geo-map .country {
+			cursor: pointer;
+			transition: fill 0.2s ease, stroke 0.2s ease;
+		}
+
+		.geo-map .country:hover {
+			stroke: rgba(248, 250, 252, 0.8);
+			stroke-width: 0.9;
+		}
+
+		.geo-map .country.selected {
+			stroke: #fcd34d;
+			stroke-width: 1.2;
+		}
+
 		.geo-map-status {
 			position: absolute;
 			top: 50%;
@@ -488,11 +503,72 @@
 							<h3 class="text-lg font-semibold text-white">Geographic Heat Map</h3>
 							<p class="text-xs text-slate-400 font-mono">Traffic intensity per country (total bytes).</p>
 						</div>
-						<span id="geoMapSummary" class="text-xs text-slate-500 font-mono">Loading…</span>
+						<span id="geoMapSummary" class="text-xs text-slate-500 font-mono">Click a region</span>
 					</div>
 					<div class="p-6">
 						<div id="geoMap" class="geo-map">
 							<div id="geoMapStatus" class="geo-map-status">Loading map…</div>
+						</div>
+					</div>
+					<div class="border-t border-slate-700 px-6 py-5 bg-slate-900/40">
+						<div class="flex flex-wrap items-start justify-between gap-4">
+							<div>
+								<p class="nerd-chip">Country focus</p>
+								<h4 id="countryDetailName" class="text-xl text-cyan-200 mt-1">Select a country</h4>
+								<p id="countryDetailMeta" class="text-xs text-slate-400 font-mono mt-1">Click the map to load details.</p>
+							</div>
+							<button onclick="clearCountryDetail()"
+								class="text-xs uppercase tracking-[0.3em] text-slate-400 border border-slate-700 px-3 py-1 rounded hover:text-cyan-200 hover:border-cyan-300 transition">
+								Reset
+							</button>
+						</div>
+						<div id="countryDetailStats"
+							class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4 hidden">
+							<div class="border border-slate-700 rounded-lg px-4 py-3 bg-slate-900/60">
+								<p class="text-[0.65rem] uppercase tracking-[0.3em] text-slate-500">Unique IPs</p>
+								<p id="countryDetailUniqueIPs" class="text-lg text-white font-semibold mt-1">-</p>
+							</div>
+							<div class="border border-slate-700 rounded-lg px-4 py-3 bg-slate-900/60">
+								<p class="text-[0.65rem] uppercase tracking-[0.3em] text-slate-500">Bandwidth</p>
+								<p id="countryDetailBytes" class="text-lg text-white font-semibold mt-1">-</p>
+							</div>
+							<div class="border border-slate-700 rounded-lg px-4 py-3 bg-slate-900/60">
+								<p class="text-[0.65rem] uppercase tracking-[0.3em] text-slate-500">Avg Session</p>
+								<p id="countryDetailAvg" class="text-lg text-white font-semibold mt-1">-</p>
+							</div>
+							<div class="border border-slate-700 rounded-lg px-4 py-3 bg-slate-900/60">
+								<p class="text-[0.65rem] uppercase tracking-[0.3em] text-slate-500">Median Session</p>
+								<p id="countryDetailMedian" class="text-lg text-white font-semibold mt-1">-</p>
+							</div>
+						</div>
+						<div class="mt-5">
+							<p class="text-xs text-slate-400 uppercase tracking-[0.3em] mb-2">Top IPs</p>
+							<div class="table-container" style="max-height: 220px;">
+								<table class="min-w-full divide-y divide-slate-700">
+									<thead class="bg-slate-900 sticky top-0">
+										<tr>
+											<th
+												class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+												IP</th>
+											<th
+												class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+												Conns</th>
+											<th
+												class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+												Traffic</th>
+											<th
+												class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+												Avg Session</th>
+										</tr>
+									</thead>
+									<tbody id="countryDetailIPTable" class="divide-y divide-slate-800">
+										<tr>
+											<td colspan="4" class="px-4 py-3 text-center text-xs text-slate-500">No
+												country selected.</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -652,12 +728,16 @@
 		let hasLoadedOnce = false;
 		let worldGeoDataPromise = null;
 		let geoMapSvg = null;
+		let geoMapGroup = null;
+		let geoMapZoom = null;
+		let countryDetailState = { name: null, controller: null };
 		Chart.defaults.color = '#9ca3af';
 		Chart.defaults.borderColor = '#374151';
 		function formatBytes(b) { if (b === 0) return '0 B'; const k = 1024, s = ['B', 'KB', 'MB', 'GB', 'TB'], i = Math.floor(Math.log(b) / Math.log(k)); return parseFloat((b / Math.pow(k, i)).toFixed(2)) + ' ' + s[i] }
 		function formatTime(t) { return new Date(t).toLocaleString() }
 		function formatTimestamp(ts) { const d = new Date(ts); return isNaN(d.getTime()) ? ts : d.toLocaleString() }
 		function formatCompactTimestamp(ts) { const d = new Date(ts); if (isNaN(d.getTime())) return ts; return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit' }) }
+		function formatSeconds(v) { return (typeof v === 'number' && isFinite(v)) ? v.toFixed(2) + 's' : '0.00s' }
 		function loadWorldGeoData() {
 			if (!worldGeoDataPromise) {
 				worldGeoDataPromise = fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
@@ -997,11 +1077,10 @@
 
 			if (!Array.isArray(countryData) || countryData.length === 0) {
 				if (summaryEl) summaryEl.textContent = 'No data';
-				if (geoMapSvg) {
-					container.querySelectorAll('svg').forEach(el => el.remove());
-					container.querySelectorAll('.geo-map-legend').forEach(el => el.remove());
-					geoMapSvg = null;
-				}
+				container.querySelectorAll('svg').forEach(el => el.remove());
+				container.querySelectorAll('.geo-map-legend').forEach(el => el.remove());
+				geoMapSvg = null;
+				geoMapGroup = null;
 				resetStatus('No country data');
 				return;
 			}
@@ -1024,15 +1103,18 @@
 				const height = container.clientHeight || 360;
 
 				container.querySelectorAll('svg').forEach(el => el.remove());
+				container.querySelectorAll('.geo-map-legend').forEach(el => el.remove());
 				geoMapSvg = d3.select(container)
 					.append('svg')
 					.attr('width', width)
 					.attr('height', height);
 
+				geoMapGroup = geoMapSvg.append('g').attr('class', 'map-layer');
+
 				const projection = d3.geoMercator().fitSize([width, height], geojson);
 				const path = d3.geoPath().projection(projection);
 
-				geoMapSvg.selectAll('path.country')
+				const countries = geoMapGroup.selectAll('path.country')
 					.data(geojson.features)
 					.join('path')
 					.attr('class', 'country')
@@ -1044,17 +1126,28 @@
 					})
 					.attr('stroke', '#020617')
 					.attr('stroke-width', 0.4)
-					.append('title')
+					.on('click', (event, d) => {
+						event.stopPropagation();
+						const name = d.properties && d.properties.name ? d.properties.name : 'Unknown';
+						loadCountryDetail(name);
+					});
+
+				countries.append('title')
 					.text(d => {
 						const name = d.properties && d.properties.name ? d.properties.name : 'Unknown';
 						const value = metrics[(name || '').toLowerCase()] || 0;
 						return name + ': ' + formatBytes(value);
 					});
 
-					const legendExisting = container.querySelector('.geo-map-legend');
-					if (legendExisting) {
-						legendExisting.remove();
-					}
+				geoMapZoom = d3.zoom()
+					.scaleExtent([1, 8])
+					.on('zoom', (event) => {
+						if (geoMapGroup) {
+							geoMapGroup.attr('transform', event.transform);
+						}
+					});
+				geoMapSvg.call(geoMapZoom).call(geoMapZoom.transform, d3.zoomIdentity);
+
 				const legend = document.createElement('div');
 				legend.className = 'geo-map-legend';
 				legend.innerHTML = '<div>traffic</div><div style="height:6px;border-radius:999px;margin:6px 0;background:linear-gradient(90deg,#0ea5e9,#f97316,#dc2626);"></div><div style="display:flex;justify-content:space-between;font-size:0.6rem;text-transform:none;letter-spacing:0;"><span>low</span><span>' + formatBytes(maxValue || 0) + '</span></div>';
@@ -1064,10 +1157,117 @@
 					summaryEl.textContent = formatBytes(totalBytes) + ' total';
 				}
 				resetStatus('');
+				highlightCountry(countryDetailState.name);
 			} catch (error) {
 				console.error('Heat map render failed:', error);
 				if (summaryEl) summaryEl.textContent = 'Error';
 				resetStatus('Map unavailable');
+			}
+		}
+		function abortCountryDetailFetch() {
+			if (countryDetailState.controller) {
+				countryDetailState.controller.abort();
+				countryDetailState.controller = null;
+			}
+		}
+		function highlightCountry(country) {
+			if (!geoMapGroup) return;
+			const normalized = country ? country.toLowerCase() : null;
+			geoMapGroup.selectAll('path.country')
+				.classed('selected', d => {
+					if (!normalized) {
+						return false;
+					}
+					const name = d.properties && d.properties.name ? d.properties.name.toLowerCase() : '';
+					return name === normalized;
+				});
+		}
+		function clearCountryDetail(message = 'Click the map to load details.') {
+			abortCountryDetailFetch();
+			const nameEl = document.getElementById('countryDetailName');
+			const metaEl = document.getElementById('countryDetailMeta');
+			const statsEl = document.getElementById('countryDetailStats');
+			const tableEl = document.getElementById('countryDetailIPTable');
+			if (nameEl) nameEl.textContent = 'Select a country';
+			if (metaEl) metaEl.textContent = message;
+			if (statsEl) statsEl.classList.add('hidden');
+			if (tableEl) tableEl.innerHTML = '<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-slate-500">No country selected.</td></tr>';
+			countryDetailState.name = null;
+			highlightCountry(null);
+		}
+		function setCountryDetailLoading(name) {
+			const nameEl = document.getElementById('countryDetailName');
+			const metaEl = document.getElementById('countryDetailMeta');
+			const statsEl = document.getElementById('countryDetailStats');
+			const tableEl = document.getElementById('countryDetailIPTable');
+			if (nameEl) nameEl.textContent = name;
+			if (metaEl) metaEl.textContent = 'Loading telemetry…';
+			if (statsEl) statsEl.classList.add('hidden');
+			if (tableEl) tableEl.innerHTML = '<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-slate-500">Loading…</td></tr>';
+			highlightCountry(name);
+		}
+		function setCountryDetailError(name, message) {
+			const metaEl = document.getElementById('countryDetailMeta');
+			const tableEl = document.getElementById('countryDetailIPTable');
+			if (metaEl) metaEl.textContent = message;
+			if (tableEl) tableEl.innerHTML = '<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-red-400">' + message + '</td></tr>';
+			const statsEl = document.getElementById('countryDetailStats');
+			if (statsEl) statsEl.classList.add('hidden');
+			countryDetailState.name = name || null;
+			highlightCountry(name);
+		}
+		function renderCountryDetail(data) {
+			const nameEl = document.getElementById('countryDetailName');
+			const metaEl = document.getElementById('countryDetailMeta');
+			const statsEl = document.getElementById('countryDetailStats');
+			const tableEl = document.getElementById('countryDetailIPTable');
+			if (!data || !nameEl || !metaEl || !statsEl || !tableEl) {
+				return;
+			}
+			countryDetailState.name = data.country;
+			nameEl.textContent = data.country || 'Unknown';
+			metaEl.textContent = (data.connections || 0).toLocaleString() + ' connections · ' + (data.unique_upstreams || 0) + ' upstreams';
+			statsEl.classList.remove('hidden');
+			document.getElementById('countryDetailUniqueIPs').textContent = (data.unique_ips || 0).toLocaleString();
+			document.getElementById('countryDetailBytes').textContent = formatBytes(data.total_bytes || 0);
+			document.getElementById('countryDetailAvg').textContent = formatSeconds(data.avg_session_time_seconds || 0);
+			document.getElementById('countryDetailMedian').textContent = formatSeconds(data.median_session_time_seconds || 0);
+			if (!data.top_ips || data.top_ips.length === 0) {
+				tableEl.innerHTML = '<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-slate-500">No IP data available.</td></tr>';
+			} else {
+				tableEl.innerHTML = data.top_ips.map(ip => '<tr class="table-row">' +
+					'<td class="px-4 py-3 text-sm font-mono text-slate-200">' + ip.ip + '</td>' +
+					'<td class="px-4 py-3 text-sm text-right text-slate-200">' + (ip.connections || 0).toLocaleString() + '</td>' +
+					'<td class="px-4 py-3 text-sm text-right text-slate-200">' + formatBytes(ip.total_bytes || 0) + '</td>' +
+					'<td class="px-4 py-3 text-sm text-right text-slate-400">' + formatSeconds(ip.avg_session_seconds || 0) + '</td>' +
+					'</tr>').join('');
+			}
+			highlightCountry(data.country);
+		}
+		async function loadCountryDetail(country) {
+			if (!country || country.toLowerCase() === 'unknown') {
+				clearCountryDetail('No telemetry for that region.');
+				return;
+			}
+			abortCountryDetailFetch();
+			setCountryDetailLoading(country);
+			try {
+				const controller = new AbortController();
+				countryDetailState.controller = controller;
+				const params = getDateParams();
+				const response = await fetch('/streamInfo/country/' + encodeURIComponent(country) + (params || ''), { signal: controller.signal });
+				if (!response.ok) {
+					throw new Error('Failed to load country detail');
+				}
+				const data = await response.json();
+				if (controller.signal.aborted) return;
+				countryDetailState.controller = null;
+				renderCountryDetail(data);
+			} catch (error) {
+				if (error.name === 'AbortError') return;
+				countryDetailState.controller = null;
+				console.error('Country detail error:', error);
+				setCountryDetailError(country, 'No telemetry available.');
 			}
 		}
 		function updateTimelineChart(d) {
@@ -1362,7 +1562,7 @@
 			loadData({ silent: true, ...options });
 		}
 		async function initializeDateRange() { try { const dateInfo = await fetch('/streamInfo/daterange').then(r => r.json()); if (dateInfo.min_date && dateInfo.max_date) { document.getElementById('startDate').value = dateInfo.min_date; document.getElementById('endDate').value = dateInfo.max_date } } catch (e) { console.error('Error loading date range:', e) } }
-		window.addEventListener('DOMContentLoaded', () => { initializeDateRange(); loadData() }); setInterval(refreshData, 20000);
+		window.addEventListener('DOMContentLoaded', () => { clearCountryDetail(); initializeDateRange(); loadData() }); setInterval(refreshData, 20000);
 	</script>
 </body>
 
