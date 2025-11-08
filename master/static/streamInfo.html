@@ -228,11 +228,16 @@
 
 		.geo-map {
 			position: relative;
-			height: 360px;
-			background: linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(8, 13, 25, 0.9));
+			height: 500px;
+			background: radial-gradient(ellipse at center, rgba(15, 23, 42, 0.95), rgba(2, 6, 23, 1));
 			border-radius: 0.75rem;
 			overflow: hidden;
 			border: 1px solid var(--panel-border);
+			cursor: grab;
+		}
+
+		.geo-map:active {
+			cursor: grabbing;
 		}
 
 		.geo-map svg {
@@ -241,19 +246,35 @@
 			display: block;
 		}
 
+		.geo-map .sphere {
+			fill: radial-gradient(circle at 30% 30%, #1a2744, #0a1020);
+			stroke: rgba(59, 130, 246, 0.3);
+			stroke-width: 1.5;
+		}
+
+		.geo-map .graticule {
+			fill: none;
+			stroke: rgba(148, 163, 184, 0.1);
+			stroke-width: 0.5;
+		}
+
 		.geo-map .country {
 			cursor: pointer;
 			transition: fill 0.2s ease, stroke 0.2s ease;
+			stroke: rgba(148, 163, 184, 0.2);
+			stroke-width: 0.5;
 		}
 
 		.geo-map .country:hover {
-			stroke: rgba(248, 250, 252, 0.8);
-			stroke-width: 0.9;
+			stroke: rgba(96, 165, 250, 0.9);
+			stroke-width: 1.5;
+			filter: brightness(1.3);
 		}
 
 		.geo-map .country.selected {
 			stroke: #fcd34d;
-			stroke-width: 1.2;
+			stroke-width: 2;
+			filter: brightness(1.5);
 		}
 
 		.geo-map-status {
@@ -265,21 +286,73 @@
 			color: var(--text-soft);
 			text-transform: uppercase;
 			letter-spacing: 0.25em;
+			pointer-events: none;
 		}
 
 		.geo-map-legend {
 			position: absolute;
 			right: 1rem;
 			bottom: 1rem;
-			background: rgba(2, 6, 23, 0.65);
-			padding: 0.5rem 0.75rem;
-			border-radius: 0.4rem;
-			border: 1px solid rgba(148, 163, 184, 0.2);
+			background: rgba(2, 6, 23, 0.85);
+			padding: 0.6rem 0.85rem;
+			border-radius: 0.5rem;
+			border: 1px solid rgba(59, 130, 246, 0.3);
 			font-size: 0.65rem;
 			text-transform: uppercase;
 			letter-spacing: 0.15em;
 			color: #cbd5f5;
-			min-width: 120px;
+			min-width: 140px;
+			backdrop-filter: blur(10px);
+		}
+
+		.geo-map-controls {
+			position: absolute;
+			top: 1rem;
+			right: 1rem;
+			display: flex;
+			gap: 0.5rem;
+			z-index: 10;
+		}
+
+		.geo-map-controls button {
+			background: rgba(2, 6, 23, 0.85);
+			border: 1px solid rgba(59, 130, 246, 0.3);
+			color: #cbd5f5;
+			padding: 0.5rem;
+			border-radius: 0.4rem;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			backdrop-filter: blur(10px);
+			font-size: 0.75rem;
+			min-width: 32px;
+			height: 32px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.geo-map-controls button:hover {
+			background: rgba(59, 130, 246, 0.2);
+			border-color: rgba(96, 165, 250, 0.5);
+			transform: translateY(-1px);
+		}
+
+		.geo-map-controls button:active {
+			transform: translateY(0);
+		}
+
+		.geo-map-tooltip {
+			position: absolute;
+			background: rgba(2, 6, 23, 0.95);
+			color: white;
+			padding: 0.5rem 0.75rem;
+			border-radius: 0.4rem;
+			border: 1px solid rgba(59, 130, 246, 0.4);
+			font-size: 0.75rem;
+			pointer-events: none;
+			z-index: 1000;
+			display: none;
+			backdrop-filter: blur(10px);
 		}
 	</style>
 </head>
@@ -426,157 +499,175 @@
 					style="width:100%;height:600px;background:rgba(15,23,42,0.5);border-radius:8px;overflow:hidden">
 				</div>
 			</div>
-				<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-					<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-						<h3 class="text-lg font-semibold text-white mb-4">Activity</h3>
-						<div style="position:relative;height:250px"><canvas id="dailyChart"></canvas></div>
-					</div>
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+				<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
+					<h3 class="text-lg font-semibold text-white mb-4">Activity</h3>
+					<div style="position:relative;height:250px"><canvas id="dailyChart"></canvas></div>
+				</div>
 				<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
 					<h3 class="text-lg font-semibold text-white mb-4">Hourly Distribution</h3>
-						<div style="position:relative;height:250px"><canvas id="hourlyChart"></canvas></div>
-					</div>
+					<div style="position:relative;height:250px"><canvas id="hourlyChart"></canvas></div>
 				</div>
-				<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-					<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700 lg:col-span-2">
-						<div class="px-6 py-4 border-b border-slate-700">
-							<h3 class="text-lg font-semibold text-white">Timeline Telemetry</h3>
-							<p id="timelineSummary" class="text-xs text-slate-400 font-mono">Connections + failure rate per hour.</p>
-						</div>
-						<div class="p-6">
-							<div style="position:relative;height:320px"><canvas id="timelineChart"></canvas></div>
-						</div>
+			</div>
+			<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+				<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700 lg:col-span-2">
+					<div class="px-6 py-4 border-b border-slate-700">
+						<h3 class="text-lg font-semibold text-white">Timeline Telemetry</h3>
+						<p id="timelineSummary" class="text-xs text-slate-400 font-mono">Connections + failure rate per
+							hour.</p>
 					</div>
-					<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
-						<div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
-							<div>
-								<h3 class="text-lg font-semibold text-white">Signal Monitor</h3>
-								<p class="text-xs text-slate-400 font-mono">Auto-labeled anomalies in the timeline.</p>
-							</div>
-							<span id="anomalyCount" class="text-xs text-slate-400 font-mono">No signals</span>
-						</div>
-						<div id="anomalyList" class="p-6 space-y-4"></div>
-					</div>
-				</div>
-				<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-					<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
-						<div class="px-6 py-4 border-b border-slate-700">
-							<h3 class="text-lg font-semibold text-white">Failure Hotspots</h3>
-							<p class="text-xs text-slate-400 font-mono">Top hours ranked by failure rate.</p>
-						</div>
-						<div class="table-container">
-							<table class="min-w-full divide-y divide-slate-700">
-								<thead class="bg-slate-900 sticky top-0">
-									<tr>
-										<th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Window</th>
-										<th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Connections</th>
-										<th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Failure %</th>
-										<th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Unique IPs</th>
-									</tr>
-								</thead>
-								<tbody id="failureHotspotsTable" class="divide-y divide-slate-800"></tbody>
-							</table>
-						</div>
-					</div>
-					<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
-						<div class="px-6 py-4 border-b border-slate-700">
-							<h3 class="text-lg font-semibold text-white">Burst Detector</h3>
-							<p class="text-xs text-slate-400 font-mono">Hours where connections spiked sharply.</p>
-						</div>
-						<div class="table-container">
-							<table class="min-w-full divide-y divide-slate-700">
-								<thead class="bg-slate-900 sticky top-0">
-									<tr>
-										<th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Window</th>
-										<th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Δ Conns</th>
-										<th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">% Change</th>
-										<th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Upstreams</th>
-									</tr>
-								</thead>
-								<tbody id="burstDetectorTable" class="divide-y divide-slate-800"></tbody>
-							</table>
-						</div>
+					<div class="p-6">
+						<div style="position:relative;height:320px"><canvas id="timelineChart"></canvas></div>
 					</div>
 				</div>
 				<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
 					<div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
 						<div>
-							<h3 class="text-lg font-semibold text-white">Geographic Heat Map</h3>
-							<p class="text-xs text-slate-400 font-mono">Traffic intensity per country (total bytes).</p>
+							<h3 class="text-lg font-semibold text-white">Signal Monitor</h3>
+							<p class="text-xs text-slate-400 font-mono">Auto-labeled anomalies in the timeline.</p>
 						</div>
-						<span id="geoMapSummary" class="text-xs text-slate-500 font-mono">Click a region</span>
+						<span id="anomalyCount" class="text-xs text-slate-400 font-mono">No signals</span>
 					</div>
-					<div class="p-6">
-						<div id="geoMap" class="geo-map">
-							<div id="geoMapStatus" class="geo-map-status">Loading map…</div>
+					<div id="anomalyList" class="p-6 space-y-4"></div>
+				</div>
+			</div>
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+				<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
+					<div class="px-6 py-4 border-b border-slate-700">
+						<h3 class="text-lg font-semibold text-white">Failure Hotspots</h3>
+						<p class="text-xs text-slate-400 font-mono">Top hours ranked by failure rate.</p>
+					</div>
+					<div class="table-container">
+						<table class="min-w-full divide-y divide-slate-700">
+							<thead class="bg-slate-900 sticky top-0">
+								<tr>
+									<th
+										class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+										Window</th>
+									<th
+										class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+										Connections</th>
+									<th
+										class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+										Failure %</th>
+									<th
+										class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+										Unique IPs</th>
+								</tr>
+							</thead>
+							<tbody id="failureHotspotsTable" class="divide-y divide-slate-800"></tbody>
+						</table>
+					</div>
+				</div>
+				<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
+					<div class="px-6 py-4 border-b border-slate-700">
+						<h3 class="text-lg font-semibold text-white">Burst Detector</h3>
+						<p class="text-xs text-slate-400 font-mono">Hours where connections spiked sharply.</p>
+					</div>
+					<div class="table-container">
+						<table class="min-w-full divide-y divide-slate-700">
+							<thead class="bg-slate-900 sticky top-0">
+								<tr>
+									<th
+										class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+										Window</th>
+									<th
+										class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+										Δ Conns</th>
+									<th
+										class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+										% Change</th>
+									<th
+										class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+										Upstreams</th>
+								</tr>
+							</thead>
+							<tbody id="burstDetectorTable" class="divide-y divide-slate-800"></tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+			<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
+				<div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+					<div>
+						<h3 class="text-lg font-semibold text-white">Geographic Heat Map</h3>
+						<p class="text-xs text-slate-400 font-mono">Traffic intensity per country (total bytes).</p>
+					</div>
+					<span id="geoMapSummary" class="text-xs text-slate-500 font-mono">Click a region</span>
+				</div>
+				<div class="p-6">
+					<div id="geoMap" class="geo-map">
+						<div id="geoMapStatus" class="geo-map-status">Loading map…</div>
+					</div>
+				</div>
+				<div class="border-t border-slate-700 px-6 py-5 bg-slate-900/40">
+					<div class="flex flex-wrap items-start justify-between gap-4">
+						<div>
+							<p class="nerd-chip">Country focus</p>
+							<h4 id="countryDetailName" class="text-xl text-cyan-200 mt-1">Select a country</h4>
+							<p id="countryDetailMeta" class="text-xs text-slate-400 font-mono mt-1">Click the map to
+								load details.</p>
+						</div>
+						<button onclick="clearCountryDetail()"
+							class="text-xs uppercase tracking-[0.3em] text-slate-400 border border-slate-700 px-3 py-1 rounded hover:text-cyan-200 hover:border-cyan-300 transition">
+							Reset
+						</button>
+					</div>
+					<div id="countryDetailStats"
+						class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4 hidden">
+						<div class="border border-slate-700 rounded-lg px-4 py-3 bg-slate-900/60">
+							<p class="text-[0.65rem] uppercase tracking-[0.3em] text-slate-500">Unique IPs</p>
+							<p id="countryDetailUniqueIPs" class="text-lg text-white font-semibold mt-1">-</p>
+						</div>
+						<div class="border border-slate-700 rounded-lg px-4 py-3 bg-slate-900/60">
+							<p class="text-[0.65rem] uppercase tracking-[0.3em] text-slate-500">Bandwidth</p>
+							<p id="countryDetailBytes" class="text-lg text-white font-semibold mt-1">-</p>
+						</div>
+						<div class="border border-slate-700 rounded-lg px-4 py-3 bg-slate-900/60">
+							<p class="text-[0.65rem] uppercase tracking-[0.3em] text-slate-500">Avg Session</p>
+							<p id="countryDetailAvg" class="text-lg text-white font-semibold mt-1">-</p>
+						</div>
+						<div class="border border-slate-700 rounded-lg px-4 py-3 bg-slate-900/60">
+							<p class="text-[0.65rem] uppercase tracking-[0.3em] text-slate-500">Median Session</p>
+							<p id="countryDetailMedian" class="text-lg text-white font-semibold mt-1">-</p>
 						</div>
 					</div>
-					<div class="border-t border-slate-700 px-6 py-5 bg-slate-900/40">
-						<div class="flex flex-wrap items-start justify-between gap-4">
-							<div>
-								<p class="nerd-chip">Country focus</p>
-								<h4 id="countryDetailName" class="text-xl text-cyan-200 mt-1">Select a country</h4>
-								<p id="countryDetailMeta" class="text-xs text-slate-400 font-mono mt-1">Click the map to load details.</p>
-							</div>
-							<button onclick="clearCountryDetail()"
-								class="text-xs uppercase tracking-[0.3em] text-slate-400 border border-slate-700 px-3 py-1 rounded hover:text-cyan-200 hover:border-cyan-300 transition">
-								Reset
-							</button>
-						</div>
-						<div id="countryDetailStats"
-							class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4 hidden">
-							<div class="border border-slate-700 rounded-lg px-4 py-3 bg-slate-900/60">
-								<p class="text-[0.65rem] uppercase tracking-[0.3em] text-slate-500">Unique IPs</p>
-								<p id="countryDetailUniqueIPs" class="text-lg text-white font-semibold mt-1">-</p>
-							</div>
-							<div class="border border-slate-700 rounded-lg px-4 py-3 bg-slate-900/60">
-								<p class="text-[0.65rem] uppercase tracking-[0.3em] text-slate-500">Bandwidth</p>
-								<p id="countryDetailBytes" class="text-lg text-white font-semibold mt-1">-</p>
-							</div>
-							<div class="border border-slate-700 rounded-lg px-4 py-3 bg-slate-900/60">
-								<p class="text-[0.65rem] uppercase tracking-[0.3em] text-slate-500">Avg Session</p>
-								<p id="countryDetailAvg" class="text-lg text-white font-semibold mt-1">-</p>
-							</div>
-							<div class="border border-slate-700 rounded-lg px-4 py-3 bg-slate-900/60">
-								<p class="text-[0.65rem] uppercase tracking-[0.3em] text-slate-500">Median Session</p>
-								<p id="countryDetailMedian" class="text-lg text-white font-semibold mt-1">-</p>
-							</div>
-						</div>
-						<div class="mt-5">
-							<p class="text-xs text-slate-400 uppercase tracking-[0.3em] mb-2">Top IPs</p>
-							<div class="table-container" style="max-height: 220px;">
-								<table class="min-w-full divide-y divide-slate-700">
-									<thead class="bg-slate-900 sticky top-0">
-										<tr>
-											<th
-												class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-												IP</th>
-											<th
-												class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-												Conns</th>
-											<th
-												class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-												Traffic</th>
-											<th
-												class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-												Avg Session</th>
-										</tr>
-									</thead>
-									<tbody id="countryDetailIPTable" class="divide-y divide-slate-800">
-										<tr>
-											<td colspan="4" class="px-4 py-3 text-center text-xs text-slate-500">No
-												country selected.</td>
-										</tr>
-									</tbody>
-								</table>
-							</div>
+					<div class="mt-5">
+						<p class="text-xs text-slate-400 uppercase tracking-[0.3em] mb-2">Top IPs</p>
+						<div class="table-container" style="max-height: 220px;">
+							<table class="min-w-full divide-y divide-slate-700">
+								<thead class="bg-slate-900 sticky top-0">
+									<tr>
+										<th
+											class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+											IP</th>
+										<th
+											class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+											Conns</th>
+										<th
+											class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+											Traffic</th>
+										<th
+											class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+											Avg Session</th>
+									</tr>
+								</thead>
+								<tbody id="countryDetailIPTable" class="divide-y divide-slate-800">
+									<tr>
+										<td colspan="4" class="px-4 py-3 text-center text-xs text-slate-500">No
+											country selected.</td>
+									</tr>
+								</tbody>
+							</table>
 						</div>
 					</div>
 				</div>
-				<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-					<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-						<h3 class="text-lg font-semibold text-white mb-4">Top Countries by Traffic</h3>
-						<div style="position:relative;height:250px"><canvas id="countriesChart"></canvas></div>
-					</div>
+			</div>
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+				<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
+					<h3 class="text-lg font-semibold text-white mb-4">Top Countries by Traffic</h3>
+					<div style="position:relative;height:250px"><canvas id="countriesChart"></canvas></div>
+				</div>
 				<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
 					<h3 class="text-lg font-semibold text-white mb-4">Top Ports by Connections</h3>
 					<div style="position:relative;height:250px"><canvas id="portsChart"></canvas></div>
@@ -704,13 +795,17 @@
 					<table class="min-w-full divide-y divide-slate-700">
 						<thead class="sticky top-0 bg-slate-900">
 							<tr>
-								<th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-[0.2em]">
+								<th
+									class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-[0.2em]">
 									IP</th>
-								<th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-[0.2em]">
+								<th
+									class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-[0.2em]">
 									Country</th>
-								<th class="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-[0.2em]">
+								<th
+									class="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-[0.2em]">
 									Connections</th>
-								<th class="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-[0.2em]">
+								<th
+									class="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-[0.2em]">
 									Traffic</th>
 							</tr>
 						</thead>
@@ -1100,20 +1195,58 @@
 				const maxValue = values.length ? Math.max(...values) : 0;
 				const colorScale = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, maxValue || 1]);
 				const width = container.clientWidth || 800;
-				const height = container.clientHeight || 360;
+				const height = container.clientHeight || 500;
 
 				container.querySelectorAll('svg').forEach(el => el.remove());
 				container.querySelectorAll('.geo-map-legend').forEach(el => el.remove());
+				container.querySelectorAll('.geo-map-controls').forEach(el => el.remove());
+
 				geoMapSvg = d3.select(container)
 					.append('svg')
 					.attr('width', width)
 					.attr('height', height);
 
-				geoMapGroup = geoMapSvg.append('g').attr('class', 'map-layer');
+				// Create globe projection
+				const projection = d3.geoOrthographic()
+					.scale(Math.min(width, height) / 2.2)
+					.translate([width / 2, height / 2])
+					.clipAngle(90);
 
-				const projection = d3.geoMercator().fitSize([width, height], geojson);
 				const path = d3.geoPath().projection(projection);
 
+				// Add sphere (ocean background)
+				geoMapSvg.append('path')
+					.datum({ type: 'Sphere' })
+					.attr('class', 'sphere')
+					.attr('d', path)
+					.attr('fill', 'url(#oceanGradient)')
+					.attr('stroke', 'rgba(59, 130, 246, 0.4)')
+					.attr('stroke-width', 2);
+
+				// Add ocean gradient
+				const defs = geoMapSvg.append('defs');
+				const gradient = defs.append('radialGradient')
+					.attr('id', 'oceanGradient');
+				gradient.append('stop')
+					.attr('offset', '0%')
+					.attr('stop-color', '#1e3a5f');
+				gradient.append('stop')
+					.attr('offset', '100%')
+					.attr('stop-color', '#0a1929');
+
+				// Add graticule (grid lines)
+				const graticule = d3.geoGraticule();
+				geoMapSvg.append('path')
+					.datum(graticule)
+					.attr('class', 'graticule')
+					.attr('d', path)
+					.attr('fill', 'none')
+					.attr('stroke', 'rgba(148, 163, 184, 0.15)')
+					.attr('stroke-width', 0.5);
+
+				geoMapGroup = geoMapSvg.append('g').attr('class', 'map-layer');
+
+				// Add countries
 				const countries = geoMapGroup.selectAll('path.country')
 					.data(geojson.features)
 					.join('path')
@@ -1122,31 +1255,63 @@
 					.attr('fill', d => {
 						const name = ((d.properties && d.properties.name) || '').toLowerCase();
 						const value = metrics[name] || 0;
-						return value > 0 ? colorScale(value) : '#0f172a';
+						return value > 0 ? colorScale(value) : '#1e293b';
 					})
-					.attr('stroke', '#020617')
-					.attr('stroke-width', 0.4)
+					.attr('stroke', 'rgba(148, 163, 184, 0.3)')
+					.attr('stroke-width', 0.5)
 					.on('click', (event, d) => {
 						event.stopPropagation();
 						const name = d.properties && d.properties.name ? d.properties.name : 'Unknown';
 						loadCountryDetail(name);
-					});
-
-				countries.append('title')
-					.text(d => {
+					})
+					.on('mouseenter', function (event, d) {
 						const name = d.properties && d.properties.name ? d.properties.name : 'Unknown';
 						const value = metrics[(name || '').toLowerCase()] || 0;
-						return name + ': ' + formatBytes(value);
+						d3.select(this).attr('stroke-width', 1.5);
+						showGlobeTooltip(event, name + ': ' + formatBytes(value));
+					})
+					.on('mouseleave', function () {
+						d3.select(this).attr('stroke-width', 0.5);
+						hideGlobeTooltip();
 					});
 
-				geoMapZoom = d3.zoom()
-					.scaleExtent([1, 8])
-					.on('zoom', (event) => {
-						if (geoMapGroup) {
-							geoMapGroup.attr('transform', event.transform);
-						}
+				// Add drag rotation
+				let rotation = { x: 0, y: 0 };
+				const drag = d3.drag()
+					.on('start', function (event) {
+						rotation.x = event.x;
+						rotation.y = event.y;
+					})
+					.on('drag', function (event) {
+						const rotate = projection.rotate();
+						const k = 75 / projection.scale();
+						projection.rotate([
+							rotate[0] + (event.x - rotation.x) * k,
+							rotate[1] - (event.y - rotation.y) * k
+						]);
+						rotation.x = event.x;
+						rotation.y = event.y;
+
+						geoMapSvg.selectAll('path').attr('d', path);
 					});
-				geoMapSvg.call(geoMapZoom).call(geoMapZoom.transform, d3.zoomIdentity);
+
+				geoMapSvg.call(drag);
+
+				// Add control buttons
+				const controls = document.createElement('div');
+				controls.className = 'geo-map-controls';
+				controls.innerHTML = `
+					<button onclick="rotateGlobe(-15, 0)" title="Rotate Left">←</button>
+					<button onclick="rotateGlobe(15, 0)" title="Rotate Right">→</button>
+					<button onclick="rotateGlobe(0, 15)" title="Rotate Up">↑</button>
+					<button onclick="rotateGlobe(0, -15)" title="Rotate Down">↓</button>
+					<button onclick="resetGlobe()" title="Reset View">⟲</button>
+				`;
+				container.appendChild(controls);
+
+				// Store projection for rotation controls
+				window.globeProjection = projection;
+				window.globePath = path;
 
 				const legend = document.createElement('div');
 				legend.className = 'geo-map-legend';
@@ -1164,6 +1329,43 @@
 				resetStatus('Map unavailable');
 			}
 		}
+		function rotateGlobe(deltaLon, deltaLat) {
+			if (!window.globeProjection || !window.globePath) return;
+			const rotate = window.globeProjection.rotate();
+			window.globeProjection.rotate([rotate[0] + deltaLon, rotate[1] + deltaLat]);
+			if (geoMapSvg) {
+				geoMapSvg.selectAll('path').attr('d', window.globePath);
+			}
+		}
+
+		function resetGlobe() {
+			if (!window.globeProjection || !window.globePath) return;
+			window.globeProjection.rotate([0, 0]);
+			if (geoMapSvg) {
+				geoMapSvg.selectAll('path').attr('d', window.globePath);
+			}
+		}
+
+		function showGlobeTooltip(event, text) {
+			let tooltip = document.querySelector('.geo-map-tooltip');
+			if (!tooltip) {
+				tooltip = document.createElement('div');
+				tooltip.className = 'geo-map-tooltip';
+				document.body.appendChild(tooltip);
+			}
+			tooltip.textContent = text;
+			tooltip.style.display = 'block';
+			tooltip.style.left = (event.pageX + 10) + 'px';
+			tooltip.style.top = (event.pageY + 10) + 'px';
+		}
+
+		function hideGlobeTooltip() {
+			const tooltip = document.querySelector('.geo-map-tooltip');
+			if (tooltip) {
+				tooltip.style.display = 'none';
+			}
+		}
+
 		function abortCountryDetailFetch() {
 			if (countryDetailState.controller) {
 				countryDetailState.controller.abort();
@@ -1396,75 +1598,75 @@
 					'<div class="flex justify-between text-[0.65rem] uppercase tracking-[0.2em] text-slate-500"><span>' + ts + '</span><span>score ' + (event.score || 0).toFixed(2) + '</span></div>' +
 					'<p class="text-sm text-slate-200 mt-2">' + Number(event.connections || 0).toLocaleString() + ' conns · ' + failPct + '% fail · ' + bytes + '</p>' +
 					'<ul class="list-disc ml-4 mt-2 text-xs text-slate-400 space-y-1">' + signals + '</ul>' +
-						'</div>';
-				}).join('');
+					'</div>';
+			}).join('');
+		}
+		function updateFailureHotspots(points) {
+			const table = document.getElementById('failureHotspotsTable');
+			if (!table) return;
+			if (!Array.isArray(points) || points.length === 0) {
+				table.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-500">No timeline data.</td></tr>';
+				return;
 			}
-			function updateFailureHotspots(points) {
-				const table = document.getElementById('failureHotspotsTable');
-				if (!table) return;
-				if (!Array.isArray(points) || points.length === 0) {
-					table.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-500">No timeline data.</td></tr>';
-					return;
-				}
-				const ranked = points
-					.filter(p => (p.connections || 0) > 0)
-					.map(p => ({
-						ts: formatCompactTimestamp(p.timestamp),
-						failRate: ((p.failure_rate || 0) * 100),
-						connections: p.connections || 0,
-						uniqueIPs: p.unique_ips || 0
-					}))
-					.sort((a, b) => b.failRate - a.failRate)
-					.slice(0, 5);
-				if (ranked.length === 0 || ranked[0].failRate === 0) {
-					table.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-500">Failure rates are quiet.</td></tr>';
-					return;
-				}
-				table.innerHTML = ranked.map(row =>
-					'<tr class="table-row">' +
-					'<td class="px-6 py-3 text-sm text-slate-200">' + row.ts + '</td>' +
-					'<td class="px-6 py-3 text-sm text-right text-slate-200">' + row.connections.toLocaleString() + '</td>' +
-					'<td class="px-6 py-3 text-sm text-right text-amber-300 font-semibold">' + row.failRate.toFixed(1) + '%</td>' +
-					'<td class="px-6 py-3 text-sm text-right text-slate-400">' + row.uniqueIPs + '</td>' +
-					'</tr>'
-				).join('');
+			const ranked = points
+				.filter(p => (p.connections || 0) > 0)
+				.map(p => ({
+					ts: formatCompactTimestamp(p.timestamp),
+					failRate: ((p.failure_rate || 0) * 100),
+					connections: p.connections || 0,
+					uniqueIPs: p.unique_ips || 0
+				}))
+				.sort((a, b) => b.failRate - a.failRate)
+				.slice(0, 5);
+			if (ranked.length === 0 || ranked[0].failRate === 0) {
+				table.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-500">Failure rates are quiet.</td></tr>';
+				return;
 			}
-			function updateBurstDetector(points) {
-				const table = document.getElementById('burstDetectorTable');
-				if (!table) return;
-				if (!Array.isArray(points) || points.length < 2) {
-					table.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-500">Need more timeline samples.</td></tr>';
-					return;
-				}
-				const bursts = [];
-				for (let i = 1; i < points.length; i++) {
-					const prev = points[i - 1];
-					const curr = points[i];
-					const delta = (curr.connections || 0) - (prev.connections || 0);
-					if (delta <= 0) continue;
-					const pctChange = prev.connections > 0 ? (delta / prev.connections) * 100 : 100;
-					bursts.push({
-						ts: formatCompactTimestamp(curr.timestamp),
-						delta,
-						pctChange,
-						upstreams: curr.unique_upstreams || 0
-					});
-				}
-				if (bursts.length === 0) {
-					table.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-500">No spikes detected.</td></tr>';
-					return;
-				}
-				bursts.sort((a, b) => b.delta - a.delta || b.pctChange - a.pctChange);
-				const top = bursts.slice(0, 5);
-				table.innerHTML = top.map(row =>
-					'<tr class="table-row">' +
-					'<td class="px-6 py-3 text-sm text-slate-200">' + row.ts + '</td>' +
-					'<td class="px-6 py-3 text-sm text-right text-cyan-300 font-semibold">+' + row.delta.toLocaleString() + '</td>' +
-					'<td class="px-6 py-3 text-sm text-right text-slate-200">' + row.pctChange.toFixed(1) + '%</td>' +
-					'<td class="px-6 py-3 text-sm text-right text-slate-400">' + row.upstreams + '</td>' +
-					'</tr>'
-				).join('');
+			table.innerHTML = ranked.map(row =>
+				'<tr class="table-row">' +
+				'<td class="px-6 py-3 text-sm text-slate-200">' + row.ts + '</td>' +
+				'<td class="px-6 py-3 text-sm text-right text-slate-200">' + row.connections.toLocaleString() + '</td>' +
+				'<td class="px-6 py-3 text-sm text-right text-amber-300 font-semibold">' + row.failRate.toFixed(1) + '%</td>' +
+				'<td class="px-6 py-3 text-sm text-right text-slate-400">' + row.uniqueIPs + '</td>' +
+				'</tr>'
+			).join('');
+		}
+		function updateBurstDetector(points) {
+			const table = document.getElementById('burstDetectorTable');
+			if (!table) return;
+			if (!Array.isArray(points) || points.length < 2) {
+				table.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-500">Need more timeline samples.</td></tr>';
+				return;
 			}
+			const bursts = [];
+			for (let i = 1; i < points.length; i++) {
+				const prev = points[i - 1];
+				const curr = points[i];
+				const delta = (curr.connections || 0) - (prev.connections || 0);
+				if (delta <= 0) continue;
+				const pctChange = prev.connections > 0 ? (delta / prev.connections) * 100 : 100;
+				bursts.push({
+					ts: formatCompactTimestamp(curr.timestamp),
+					delta,
+					pctChange,
+					upstreams: curr.unique_upstreams || 0
+				});
+			}
+			if (bursts.length === 0) {
+				table.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-500">No spikes detected.</td></tr>';
+				return;
+			}
+			bursts.sort((a, b) => b.delta - a.delta || b.pctChange - a.pctChange);
+			const top = bursts.slice(0, 5);
+			table.innerHTML = top.map(row =>
+				'<tr class="table-row">' +
+				'<td class="px-6 py-3 text-sm text-slate-200">' + row.ts + '</td>' +
+				'<td class="px-6 py-3 text-sm text-right text-cyan-300 font-semibold">+' + row.delta.toLocaleString() + '</td>' +
+				'<td class="px-6 py-3 text-sm text-right text-slate-200">' + row.pctChange.toFixed(1) + '%</td>' +
+				'<td class="px-6 py-3 text-sm text-right text-slate-400">' + row.upstreams + '</td>' +
+				'</tr>'
+			).join('');
+		}
 		function updateTopTalkersTable(d) { document.getElementById('topTalkersTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.ip + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">' + (i.country || 'Unknown') + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right font-semibold">' + formatBytes(i.total_bytes) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.connections + '</td></tr>').join('') }
 		function updateProtocolTable(d) { document.getElementById('protocolTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-200">' + i.protocol + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td></tr>').join('') }
 		function updateUpstreamTable(d) { document.getElementById('upstreamTable').innerHTML = d.map(i => '<tr class="table-row clickable" onclick="showServerDetails(\'' + i.upstream_addr.replace(/'/g, "\\'") + '\')"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.upstream_addr + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.avg_session_time_seconds.toFixed(2) + 's</td><td class="px-6 py-4 whitespace-nowrap text-sm ' + (i.failed_connections > 0 ? 'text-red-400' : 'text-gray-400') + ' text-right">' + i.failed_connections + '</td></tr>').join('') }
