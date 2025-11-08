@@ -9,6 +9,7 @@
 	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 	<script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12"></script>
+	<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
 	<script>
 		tailwind.config = { darkMode: 'class', theme: { extend: { colors: { dark: { bg: '#0f172a', card: '#1e293b', border: '#334155' } } } } };
 	</script>
@@ -223,6 +224,47 @@
 
 		.modal-table table {
 			width: 100%;
+		}
+
+		.geo-map {
+			position: relative;
+			height: 360px;
+			background: linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(8, 13, 25, 0.9));
+			border-radius: 0.75rem;
+			overflow: hidden;
+			border: 1px solid var(--panel-border);
+		}
+
+		.geo-map svg {
+			width: 100%;
+			height: 100%;
+			display: block;
+		}
+
+		.geo-map-status {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			font-size: 0.75rem;
+			color: var(--text-soft);
+			text-transform: uppercase;
+			letter-spacing: 0.25em;
+		}
+
+		.geo-map-legend {
+			position: absolute;
+			right: 1rem;
+			bottom: 1rem;
+			background: rgba(2, 6, 23, 0.65);
+			padding: 0.5rem 0.75rem;
+			border-radius: 0.4rem;
+			border: 1px solid rgba(148, 163, 184, 0.2);
+			font-size: 0.65rem;
+			text-transform: uppercase;
+			letter-spacing: 0.15em;
+			color: #cbd5f5;
+			min-width: 120px;
 		}
 	</style>
 </head>
@@ -440,6 +482,20 @@
 						</div>
 					</div>
 				</div>
+				<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
+					<div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+						<div>
+							<h3 class="text-lg font-semibold text-white">Geographic Heat Map</h3>
+							<p class="text-xs text-slate-400 font-mono">Traffic intensity per country (total bytes).</p>
+						</div>
+						<span id="geoMapSummary" class="text-xs text-slate-500 font-mono">Loading…</span>
+					</div>
+					<div class="p-6">
+						<div id="geoMap" class="geo-map">
+							<div id="geoMapStatus" class="geo-map-status">Loading map…</div>
+						</div>
+					</div>
+				</div>
 				<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 					<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
 						<h3 class="text-lg font-semibold text-white mb-4">Top Countries by Traffic</h3>
@@ -594,12 +650,27 @@
 		let charts = {};
 		let isLoadingData = false;
 		let hasLoadedOnce = false;
+		let worldGeoDataPromise = null;
+		let geoMapSvg = null;
 		Chart.defaults.color = '#9ca3af';
 		Chart.defaults.borderColor = '#374151';
 		function formatBytes(b) { if (b === 0) return '0 B'; const k = 1024, s = ['B', 'KB', 'MB', 'GB', 'TB'], i = Math.floor(Math.log(b) / Math.log(k)); return parseFloat((b / Math.pow(k, i)).toFixed(2)) + ' ' + s[i] }
 		function formatTime(t) { return new Date(t).toLocaleString() }
 		function formatTimestamp(ts) { const d = new Date(ts); return isNaN(d.getTime()) ? ts : d.toLocaleString() }
 		function formatCompactTimestamp(ts) { const d = new Date(ts); if (isNaN(d.getTime())) return ts; return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit' }) }
+		function loadWorldGeoData() {
+			if (!worldGeoDataPromise) {
+				worldGeoDataPromise = fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+					.then(r => r.json())
+					.then(world => topojson.feature(world, world.objects.countries))
+					.catch(err => {
+						console.error('Failed to load world map data', err);
+						worldGeoDataPromise = null;
+						throw err;
+					});
+			}
+			return worldGeoDataPromise;
+		}
 		function destroyChart(n) { if (charts[n]) { charts[n].destroy(); charts[n] = null } }
 		function getDateParams() { const start = document.getElementById('startDate').value; const end = document.getElementById('endDate').value; let params = []; if (start) params.push('start=' + start); if (end) params.push('end=' + end); return params.length > 0 ? '?' + params.join('&') : '' }
 		async function loadData(options = {}) {
@@ -622,7 +693,7 @@
 			try {
 				const params = getDateParams();
 				const flowParams = params ? (params + '&limit=50') : '?limit=50';
-				const [dateInfo, summary, flow, daily, hourly, topCountries, topPorts, topTalkers, protocol, upstream, timeline, anomalies] = await Promise.all([
+				const [dateInfo, summary, flow, daily, hourly, topCountries, topPorts, topTalkers, protocol, upstream, timeline, anomalies, countryHeat] = await Promise.all([
 					fetch('/streamInfo/daterange' + params).then(r => r.json()),
 					fetch('/streamInfo/summary' + params).then(r => r.json()),
 					fetch('/streamInfo/flow' + flowParams).then(r => r.json()),
@@ -634,7 +705,8 @@
 					fetch('/streamInfo/traffic/by-protocol' + params).then(r => r.json()),
 					fetch('/streamInfo/upstream' + params).then(r => r.json()),
 					fetch('/streamInfo/timeline' + params).then(r => r.json()),
-					fetch('/streamInfo/anomalies' + params).then(r => r.json())
+					fetch('/streamInfo/anomalies' + params).then(r => r.json()),
+					fetch('/streamInfo/traffic/by-country' + params).then(r => r.json())
 				]);
 
 				const renderCharts = () => {
@@ -656,6 +728,7 @@
 					updateAnomalyPanel(anomalies);
 					updateFailureHotspots(timeline);
 					updateBurstDetector(timeline);
+					updateGeoHeatMap(countryHeat);
 					hasLoadedOnce = true;
 					if (lastUpdateEl) {
 						lastUpdateEl.textContent = 'Last updated: ' + new Date().toLocaleTimeString();
@@ -907,6 +980,94 @@
 				chart.data.labels = labels;
 				chart.data.datasets[0].data = connections;
 				chart.update();
+			}
+		}
+		async function updateGeoHeatMap(countryData) {
+			const container = document.getElementById('geoMap');
+			const statusEl = document.getElementById('geoMapStatus');
+			const summaryEl = document.getElementById('geoMapSummary');
+			if (!container) return;
+
+			const resetStatus = (text) => {
+				if (statusEl) {
+					statusEl.textContent = text || '';
+					statusEl.style.display = text ? 'block' : 'none';
+				}
+			};
+
+			if (!Array.isArray(countryData) || countryData.length === 0) {
+				if (summaryEl) summaryEl.textContent = 'No data';
+				if (geoMapSvg) {
+					container.querySelectorAll('svg').forEach(el => el.remove());
+					container.querySelectorAll('.geo-map-legend').forEach(el => el.remove());
+					geoMapSvg = null;
+				}
+				resetStatus('No country data');
+				return;
+			}
+
+			try {
+				const geojson = await loadWorldGeoData();
+				const metrics = {};
+				let totalBytes = 0;
+				countryData.forEach(item => {
+					const key = (item.country || 'Unknown').toLowerCase();
+					const bytes = (item.total_bytes) || ((item.bytes_sent || 0) + (item.bytes_received || 0));
+					metrics[key] = (metrics[key] || 0) + bytes;
+					totalBytes += bytes;
+				});
+
+				const values = Object.values(metrics);
+				const maxValue = values.length ? Math.max(...values) : 0;
+				const colorScale = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, maxValue || 1]);
+				const width = container.clientWidth || 800;
+				const height = container.clientHeight || 360;
+
+				container.querySelectorAll('svg').forEach(el => el.remove());
+				geoMapSvg = d3.select(container)
+					.append('svg')
+					.attr('width', width)
+					.attr('height', height);
+
+				const projection = d3.geoMercator().fitSize([width, height], geojson);
+				const path = d3.geoPath().projection(projection);
+
+				geoMapSvg.selectAll('path.country')
+					.data(geojson.features)
+					.join('path')
+					.attr('class', 'country')
+					.attr('d', path)
+					.attr('fill', d => {
+						const name = ((d.properties && d.properties.name) || '').toLowerCase();
+						const value = metrics[name] || 0;
+						return value > 0 ? colorScale(value) : '#0f172a';
+					})
+					.attr('stroke', '#020617')
+					.attr('stroke-width', 0.4)
+					.append('title')
+					.text(d => {
+						const name = d.properties && d.properties.name ? d.properties.name : 'Unknown';
+						const value = metrics[(name || '').toLowerCase()] || 0;
+						return name + ': ' + formatBytes(value);
+					});
+
+					const legendExisting = container.querySelector('.geo-map-legend');
+					if (legendExisting) {
+						legendExisting.remove();
+					}
+				const legend = document.createElement('div');
+				legend.className = 'geo-map-legend';
+				legend.innerHTML = '<div>traffic</div><div style="height:6px;border-radius:999px;margin:6px 0;background:linear-gradient(90deg,#0ea5e9,#f97316,#dc2626);"></div><div style="display:flex;justify-content:space-between;font-size:0.6rem;text-transform:none;letter-spacing:0;"><span>low</span><span>' + formatBytes(maxValue || 0) + '</span></div>';
+				container.appendChild(legend);
+
+				if (summaryEl) {
+					summaryEl.textContent = formatBytes(totalBytes) + ' total';
+				}
+				resetStatus('');
+			} catch (error) {
+				console.error('Heat map render failed:', error);
+				if (summaryEl) summaryEl.textContent = 'Error';
+				resetStatus('Map unavailable');
 			}
 		}
 		function updateTimelineChart(d) {
