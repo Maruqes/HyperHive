@@ -1297,6 +1297,19 @@
 
 				geoMapSvg.call(drag);
 
+				// Add mouse wheel zoom
+				geoMapSvg.on('wheel', function (event) {
+					event.preventDefault();
+					const currentScale = projection.scale();
+					const minScale = Math.min(width, height) / 2.2;
+					const maxScale = minScale * 4;
+					const delta = event.deltaY > 0 ? 0.9 : 1.1;
+					const newScale = Math.max(minScale, Math.min(maxScale, currentScale * delta));
+
+					projection.scale(newScale);
+					geoMapSvg.selectAll('path').attr('d', path);
+				});
+
 				// Add control buttons
 				const controls = document.createElement('div');
 				controls.className = 'geo-map-controls';
@@ -1305,13 +1318,16 @@
 					<button onclick="rotateGlobe(15, 0)" title="Rotate Right">→</button>
 					<button onclick="rotateGlobe(0, 15)" title="Rotate Up">↑</button>
 					<button onclick="rotateGlobe(0, -15)" title="Rotate Down">↓</button>
+					<button onclick="zoomGlobe(1.2)" title="Zoom In">+</button>
+					<button onclick="zoomGlobe(0.8)" title="Zoom Out">−</button>
 					<button onclick="resetGlobe()" title="Reset View">⟲</button>
 				`;
 				container.appendChild(controls);
 
-				// Store projection for rotation controls
+				// Store projection and dimensions for controls
 				window.globeProjection = projection;
 				window.globePath = path;
+				window.globeContainer = { width, height };
 
 				const legend = document.createElement('div');
 				legend.className = 'geo-map-legend';
@@ -1338,9 +1354,28 @@
 			}
 		}
 
+		function zoomGlobe(factor) {
+			if (!window.globeProjection || !window.globePath || !window.globeContainer) return;
+
+			const currentScale = window.globeProjection.scale();
+			const { width, height } = window.globeContainer;
+			const minScale = Math.min(width, height) / 2.2;
+			const maxScale = minScale * 4;
+			const newScale = Math.max(minScale, Math.min(maxScale, currentScale * factor));
+
+			window.globeProjection.scale(newScale);
+			if (geoMapSvg) {
+				geoMapSvg.selectAll('path').attr('d', window.globePath);
+			}
+		}
+
 		function resetGlobe() {
-			if (!window.globeProjection || !window.globePath) return;
+			if (!window.globeProjection || !window.globePath || !window.globeContainer) return;
+			const { width, height } = window.globeContainer;
+			const defaultScale = Math.min(width, height) / 2.2;
+
 			window.globeProjection.rotate([0, 0]);
+			window.globeProjection.scale(defaultScale);
 			if (geoMapSvg) {
 				geoMapSvg.selectAll('path').attr('d', window.globePath);
 			}
