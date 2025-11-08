@@ -894,6 +894,12 @@
 			const params = getDateParams();
 			return params && params.length > 0 ? params : '__all__';
 		}
+		function extractUpstreamPort(upstreamAddr) {
+			if (!upstreamAddr) return '';
+			// Extract port from upstream_addr like "10.0.0.1:8080" or "example.com:443"
+			const match = upstreamAddr.match(/:(\d+)$/);
+			return match ? match[1] : '';
+		}
 		async function fetchDetailedEntries() {
 			const key = getEntriesCacheKey();
 			if (globalEntryCache.key === key && Array.isArray(globalEntryCache.data)) {
@@ -923,10 +929,14 @@
 			modal.classList.add('active');
 		}
 		function renderEntriesModal(entries, options = {}) {
+			const modal = document.getElementById('serverModal');
 			const modalTotalIPs = document.getElementById('modalTotalIPs');
 			const modalTotalConnections = document.getElementById('modalTotalConnections');
 			const modalTotalTraffic = document.getElementById('modalTotalTraffic');
 			const modalIPTable = document.getElementById('modalIPTable');
+
+			// Modal is already shown by setModalLoadingState, just update content
+
 			if (!entries || entries.length === 0) {
 				modalTotalIPs.textContent = '0';
 				modalTotalConnections.textContent = '0';
@@ -2028,10 +2038,10 @@
 				charts.serverHourly.update();
 			}
 		}
-			function handleServerActivityPointClick(type, elements) {
-				if (!elements || elements.length === 0) {
-					return;
-				}
+		function handleServerActivityPointClick(type, elements) {
+			if (!elements || elements.length === 0) {
+				return;
+			}
 			const data = serverActivityState.data;
 			const server = serverActivityState.selected;
 			if (!data || !server) {
@@ -2052,55 +2062,55 @@
 					context: 'IP breakdown for hour ' + bucket.hour + ':00',
 					scope: { type: 'hourly', hour: bucket.hour }
 				});
-				}
 			}
-			function handleTrendChartClick(type, elements) {
-				const dataset = trendData[type] || [];
-				if (!elements || elements.length === 0) return;
-				const idx = elements[0].index;
-				const bucket = dataset[idx];
-				if (!bucket) return;
-				if (type === 'daily' && bucket.date) {
-					const day = bucket.date;
-					showGlobalEntries({
-						title: 'Activity · ' + day,
-						context: 'IPs active on ' + day,
-						filter: entry => entry.timestamp && entry.timestamp.slice(0, 10) === day
-					});
-				} else if (type === 'hourly' && typeof bucket.hour === 'number') {
-					const hourLabel = String(bucket.hour).padStart(2, '0');
-					showGlobalEntries({
-						title: 'Hour ' + hourLabel + ':00',
-						context: 'IPs active across all days during hour ' + hourLabel + ':00',
-						filter: entry => entry.timestamp && entry.timestamp.slice(11, 13) === hourLabel
-					});
-				} else if (type === 'timeline' && bucket.timestamp) {
-					const prefix = bucket.timestamp.slice(0, 13);
-					showGlobalEntries({
-						title: 'Timeline · ' + formatTimestamp(bucket.timestamp),
-						context: 'IPs contributing to this timeline bucket',
-						filter: entry => entry.timestamp && entry.timestamp.startsWith(prefix)
-					});
-				}
+		}
+		function handleTrendChartClick(type, elements) {
+			const dataset = trendData[type] || [];
+			if (!elements || elements.length === 0) return;
+			const idx = elements[0].index;
+			const bucket = dataset[idx];
+			if (!bucket) return;
+			if (type === 'daily' && bucket.date) {
+				const day = bucket.date;
+				showGlobalEntries({
+					title: 'Activity · ' + day,
+					context: 'IPs active on ' + day,
+					filter: entry => entry.timestamp && entry.timestamp.slice(0, 10) === day
+				});
+			} else if (type === 'hourly' && typeof bucket.hour === 'number') {
+				const hourLabel = String(bucket.hour).padStart(2, '0');
+				showGlobalEntries({
+					title: 'Hour ' + hourLabel + ':00',
+					context: 'IPs active across all days during hour ' + hourLabel + ':00',
+					filter: entry => entry.timestamp && entry.timestamp.slice(11, 13) === hourLabel
+				});
+			} else if (type === 'timeline' && bucket.timestamp) {
+				const prefix = bucket.timestamp.slice(0, 13);
+				showGlobalEntries({
+					title: 'Timeline · ' + formatTimestamp(bucket.timestamp),
+					context: 'IPs contributing to this timeline bucket',
+					filter: entry => entry.timestamp && entry.timestamp.startsWith(prefix)
+				});
 			}
-			function handleGlobalTrendButton(type) {
-				if (type === 'daily') {
-					showGlobalEntries({
-						title: 'Activity Overview',
-						context: 'All IPs represented in the Activity chart'
-					});
-				} else if (type === 'hourly') {
-					showGlobalEntries({
-						title: 'Hourly Distribution Overview',
-						context: 'All IPs represented in the Hourly Distribution chart'
-					});
-				} else if (type === 'timeline') {
-					showGlobalEntries({
-						title: 'Timeline Overview',
-						context: 'All IPs represented in the Timeline telemetry chart'
-					});
-				}
+		}
+		function handleGlobalTrendButton(type) {
+			if (type === 'daily') {
+				showGlobalEntries({
+					title: 'Activity Overview',
+					context: 'All IPs represented in the Activity chart'
+				});
+			} else if (type === 'hourly') {
+				showGlobalEntries({
+					title: 'Hourly Distribution Overview',
+					context: 'All IPs represented in the Hourly Distribution chart'
+				});
+			} else if (type === 'timeline') {
+				showGlobalEntries({
+					title: 'Timeline Overview',
+					context: 'All IPs represented in the Timeline telemetry chart'
+				});
 			}
+		}
 		function updateFailureHotspots(points) {
 			const table = document.getElementById('failureHotspotsTable');
 			if (!table) return;
