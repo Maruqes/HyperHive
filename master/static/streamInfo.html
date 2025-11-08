@@ -2246,10 +2246,3 @@
 		window.addEventListener('DOMContentLoaded', () => { clearCountryDetail(); initializeDateRange(); loadData() }); setInterval(refreshData, 20000);
 	</script>
 </body>
-
-</html>
-		function extractUpstreamPort(addr) {
-			if (typeof addr !== 'string') return '';
-			const parts = addr.split(':');
-			return parts.length > 1 ? parts[parts.length - 1] : '';
-		}
