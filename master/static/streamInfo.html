@@ -539,7 +539,8 @@
 					</div>
 					<div class="flex items-center gap-3 flex-wrap">
 						<select id="serverActivitySelect" onchange="handleServerActivityChange(this.value)"
-							class="bg-slate-900 border border-slate-700 text-sm text-white px-3 py-2 rounded focus:border-cyan-400 focus:outline-none" style="min-width: 180px;">
+							class="bg-slate-900 border border-slate-700 text-sm text-white px-3 py-2 rounded focus:border-cyan-400 focus:outline-none"
+							style="min-width: 180px;">
 							<option value="">No upstreams</option>
 						</select>
 						<button onclick="refreshServerActivity(true)"
@@ -939,7 +940,6 @@
 					updateBurstDetector(timeline);
 					updateGeoHeatMap(countryHeat);
 					updateServerActivityOptions(upstream);
-					refreshServerActivity(true);
 					hasLoadedOnce = true;
 					if (lastUpdateEl) {
 						lastUpdateEl.textContent = 'Last updated: ' + new Date().toLocaleTimeString();
@@ -1660,7 +1660,7 @@
 			if (badge) {
 				badge.textContent = events.length + ' signals';
 			}
-				container.innerHTML = events.map(event => {
+			container.innerHTML = events.map(event => {
 				const ts = formatTimestamp(event.timestamp);
 				const failPct = ((event.failure_rate || 0) * 100).toFixed(1);
 				const bytes = formatBytes(event.total_bytes || 0);
@@ -1670,165 +1670,184 @@
 					'<p class="text-sm text-slate-200 mt-2">' + Number(event.connections || 0).toLocaleString() + ' conns · ' + failPct + '% fail · ' + bytes + '</p>' +
 					'<ul class="list-disc ml-4 mt-2 text-xs text-slate-400 space-y-1">' + signals + '</ul>' +
 					'</div>';
-				}).join('');
+			}).join('');
+		}
+		function setServerActivityStatus(text) {
+			const statusEl = document.getElementById('serverActivityStatus');
+			if (statusEl) statusEl.textContent = text;
+		}
+		function destroyServerActivityCharts() {
+			if (charts.serverDaily) {
+				charts.serverDaily.destroy();
+				charts.serverDaily = null;
 			}
-			function setServerActivityStatus(text) {
-				const statusEl = document.getElementById('serverActivityStatus');
-				if (statusEl) statusEl.textContent = text;
+			if (charts.serverHourly) {
+				charts.serverHourly.destroy();
+				charts.serverHourly = null;
 			}
-			function destroyServerActivityCharts() {
-				if (charts.serverDaily) {
-					charts.serverDaily.destroy();
-					charts.serverDaily = null;
-				}
-				if (charts.serverHourly) {
-					charts.serverHourly.destroy();
-					charts.serverHourly = null;
-				}
+		}
+		function updateServerActivityOptions(upstreams) {
+			const select = document.getElementById('serverActivitySelect');
+			if (!select) return;
+			const previous = serverActivityState.selected;
+			if (!Array.isArray(upstreams) || upstreams.length === 0) {
+				select.innerHTML = '<option value="">No upstreams</option>';
+				serverActivityState.selected = null;
+				setServerActivityStatus('No upstream telemetry available.');
+				destroyServerActivityCharts();
+				return;
 			}
-			function updateServerActivityOptions(upstreams) {
-				const select = document.getElementById('serverActivitySelect');
-				if (!select) return;
-				const previous = serverActivityState.selected;
-				if (!Array.isArray(upstreams) || upstreams.length === 0) {
-					select.innerHTML = '<option value="">No upstreams</option>';
-					serverActivityState.selected = null;
-					setServerActivityStatus('No upstream telemetry available.');
-					destroyServerActivityCharts();
-					return;
-				}
-				select.innerHTML = upstreams.map(item => {
-					const value = item.upstream_addr || '';
-					return '<option value="' + value + '">' + value + '</option>';
-				}).join('');
-				if (previous && upstreams.some(item => item.upstream_addr === previous)) {
-					serverActivityState.selected = previous;
-				} else {
-					serverActivityState.selected = upstreams[0].upstream_addr;
-				}
-				select.value = serverActivityState.selected || '';
+			select.innerHTML = upstreams.map(item => {
+				const value = item.upstream_addr || '';
+				return '<option value="' + value + '">' + value + '</option>';
+			}).join('');
+			if (previous && upstreams.some(item => item.upstream_addr === previous)) {
+				serverActivityState.selected = previous;
+			} else {
+				serverActivityState.selected = upstreams[0].upstream_addr;
 			}
-			function handleServerActivityChange(value) {
-				serverActivityState.selected = value || null;
-				refreshServerActivity(true);
+			select.value = serverActivityState.selected || '';
+
+			// Auto-load activity for selected server
+			if (serverActivityState.selected) {
+				refreshServerActivity(false);
 			}
-			function refreshServerActivity(force = false) {
-				const server = serverActivityState.selected;
-				if (!server) {
-					setServerActivityStatus('Select a server.');
-					destroyServerActivityCharts();
-					return;
-				}
-				loadServerActivity(server, { force });
+		}
+		function handleServerActivityChange(value) {
+			serverActivityState.selected = value || null;
+			refreshServerActivity(true);
+		}
+		function refreshServerActivity(force = false) {
+			const server = serverActivityState.selected;
+			if (!server) {
+				setServerActivityStatus('Select a server.');
+				destroyServerActivityCharts();
+				return;
 			}
-			function loadServerActivity(server, options = {}) {
-				const { force = false } = options;
-				if (!force && serverActivityState.loadingServer === server) {
-					return;
-				}
-				if (serverActivityState.controller) {
-					serverActivityState.controller.abort();
-				}
-				serverActivityState.loadingServer = server;
-				const controller = new AbortController();
-				serverActivityState.controller = controller;
-				setServerActivityStatus('Loading telemetry for ' + server + ' …');
-				const params = getDateParams();
-				fetch('/streamInfo/server/' + encodeURIComponent(server) + '/activity' + (params || ''), { signal: controller.signal })
-					.then(response => {
-						if (!response.ok) {
-							throw new Error('Failed to load server activity');
+			loadServerActivity(server, { force });
+		}
+		function loadServerActivity(server, options = {}) {
+			const { force = false } = options;
+			if (!server || server.trim() === '') {
+				setServerActivityStatus('No server selected.');
+				destroyServerActivityCharts();
+				return;
+			}
+			if (!force && serverActivityState.loadingServer === server) {
+				return;
+			}
+			if (serverActivityState.controller) {
+				serverActivityState.controller.abort();
+			}
+			serverActivityState.loadingServer = server;
+			const controller = new AbortController();
+			serverActivityState.controller = controller;
+			setServerActivityStatus('Loading telemetry for ' + server + ' …');
+			const params = getDateParams();
+			const url = '/streamInfo/server/' + encodeURIComponent(server) + '/activity' + (params || '');
+			console.log('Fetching server activity:', url);
+			fetch(url, { signal: controller.signal })
+				.then(response => {
+					if (!response.ok) {
+						if (response.status === 404) {
+							return response.json().then(err => {
+								throw new Error(err.error || 'No data found for this server');
+							}).catch(() => {
+								throw new Error('No data found for this server');
+							});
 						}
-						return response.json();
-					})
-					.then(data => {
-						if (controller.signal.aborted) return;
-						serverActivityState.controller = null;
-						serverActivityState.loadingServer = null;
-						renderServerActivityCharts(data);
-					})
-					.catch(error => {
-						if (error.name === 'AbortError') return;
-						console.error('Server activity error:', error);
-						serverActivityState.controller = null;
-						serverActivityState.loadingServer = null;
-						setServerActivityStatus('Unable to load server telemetry.');
-						destroyServerActivityCharts();
-					});
-			}
-			function renderServerActivityCharts(data) {
-				if (!data || (!Array.isArray(data.daily) && !Array.isArray(data.hourly))) {
-					setServerActivityStatus('No data returned for this server.');
+						throw new Error('Failed to load server activity (HTTP ' + response.status + ')');
+					}
+					return response.json();
+				})
+				.then(data => {
+					if (controller.signal.aborted) return;
+					serverActivityState.controller = null;
+					serverActivityState.loadingServer = null;
+					renderServerActivityCharts(data);
+				})
+				.catch(error => {
+					if (error.name === 'AbortError') return;
+					console.error('Server activity error:', error);
+					serverActivityState.controller = null;
+					serverActivityState.loadingServer = null;
+					setServerActivityStatus(error.message || 'Unable to load server telemetry.');
 					destroyServerActivityCharts();
-					return;
-				}
-				const server = data.upstream || serverActivityState.selected || 'server';
-				const statusText = 'Server ' + server + ': ' + (Array.isArray(data.daily) ? data.daily.length : 0) + ' days';
-				setServerActivityStatus(statusText);
-				const dailyLabels = (data.daily || []).map(item => item.date);
-				const dailyConnections = (data.daily || []).map(item => item.connections);
-				if (!charts.serverDaily) {
-					const ctx = document.getElementById('serverDailyChart').getContext('2d');
-					charts.serverDaily = new Chart(ctx, {
-						type: 'line',
-						data: {
-							labels: dailyLabels,
-							datasets: [{
-								label: 'Connections',
-								data: dailyConnections,
-								borderColor: 'rgba(129, 140, 248, 0.9)',
-								backgroundColor: 'rgba(129, 140, 248, 0.1)',
-								tension: 0.35,
-								fill: true
-							}]
+				});
+		}
+		function renderServerActivityCharts(data) {
+			if (!data || (!Array.isArray(data.daily) && !Array.isArray(data.hourly))) {
+				setServerActivityStatus('No data returned for this server.');
+				destroyServerActivityCharts();
+				return;
+			}
+			const server = data.upstream || serverActivityState.selected || 'server';
+			const statusText = 'Server ' + server + ': ' + (Array.isArray(data.daily) ? data.daily.length : 0) + ' days';
+			setServerActivityStatus(statusText);
+			const dailyLabels = (data.daily || []).map(item => item.date);
+			const dailyConnections = (data.daily || []).map(item => item.connections);
+			if (!charts.serverDaily) {
+				const ctx = document.getElementById('serverDailyChart').getContext('2d');
+				charts.serverDaily = new Chart(ctx, {
+					type: 'line',
+					data: {
+						labels: dailyLabels,
+						datasets: [{
+							label: 'Connections',
+							data: dailyConnections,
+							borderColor: 'rgba(129, 140, 248, 0.9)',
+							backgroundColor: 'rgba(129, 140, 248, 0.1)',
+							tension: 0.35,
+							fill: true
+						}]
+					},
+					options: {
+						responsive: true,
+						maintainAspectRatio: false,
+						scales: {
+							x: { ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } },
+							y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } }
 						},
-						options: {
-							responsive: true,
-							maintainAspectRatio: false,
-							scales: {
-								x: { ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } },
-								y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } }
-							},
-							plugins: { legend: { display: false } }
-						}
-					});
-				} else {
-					charts.serverDaily.data.labels = dailyLabels;
-					charts.serverDaily.data.datasets[0].data = dailyConnections;
-					charts.serverDaily.update();
-				}
-				const hourlyLabels = (data.hourly || []).map(item => item.hour + ':00');
-				const hourlyConnections = (data.hourly || []).map(item => item.connections);
-				if (!charts.serverHourly) {
-					const ctx = document.getElementById('serverHourlyChart').getContext('2d');
-					charts.serverHourly = new Chart(ctx, {
-						type: 'bar',
-						data: {
-							labels: hourlyLabels,
-							datasets: [{
-								label: 'Connections',
-								data: hourlyConnections,
-								backgroundColor: 'rgba(14,165,233,0.5)',
-								borderColor: 'rgba(14,165,233,0.9)',
-								borderWidth: 1
-							}]
-						},
-						options: {
-							responsive: true,
-							maintainAspectRatio: false,
-							scales: {
-								x: { ticks: { color: '#94a3b8', maxRotation: 0 }, grid: { color: '#1f2937' } },
-								y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } }
-							},
-							plugins: { legend: { display: false } }
-						}
-					});
-				} else {
-					charts.serverHourly.data.labels = hourlyLabels;
-					charts.serverHourly.data.datasets[0].data = hourlyConnections;
-					charts.serverHourly.update();
-				}
+						plugins: { legend: { display: false } }
+					}
+				});
+			} else {
+				charts.serverDaily.data.labels = dailyLabels;
+				charts.serverDaily.data.datasets[0].data = dailyConnections;
+				charts.serverDaily.update();
 			}
+			const hourlyLabels = (data.hourly || []).map(item => item.hour + ':00');
+			const hourlyConnections = (data.hourly || []).map(item => item.connections);
+			if (!charts.serverHourly) {
+				const ctx = document.getElementById('serverHourlyChart').getContext('2d');
+				charts.serverHourly = new Chart(ctx, {
+					type: 'bar',
+					data: {
+						labels: hourlyLabels,
+						datasets: [{
+							label: 'Connections',
+							data: hourlyConnections,
+							backgroundColor: 'rgba(14,165,233,0.5)',
+							borderColor: 'rgba(14,165,233,0.9)',
+							borderWidth: 1
+						}]
+					},
+					options: {
+						responsive: true,
+						maintainAspectRatio: false,
+						scales: {
+							x: { ticks: { color: '#94a3b8', maxRotation: 0 }, grid: { color: '#1f2937' } },
+							y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } }
+						},
+						plugins: { legend: { display: false } }
+					}
+				});
+			} else {
+				charts.serverHourly.data.labels = hourlyLabels;
+				charts.serverHourly.data.datasets[0].data = hourlyConnections;
+				charts.serverHourly.update();
+			}
+		}
 		function updateFailureHotspots(points) {
 			const table = document.getElementById('failureHotspotsTable');
 			if (!table) return;
