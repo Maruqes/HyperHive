@@ -41,6 +41,36 @@
 			background-color: rgba(51, 65, 85, 0.5)
 		}
 
+		.table-row.clickable {
+			cursor: pointer;
+		}
+
+		.table-row.clickable:hover {
+			background-color: rgba(59, 130, 246, 0.2);
+		}
+
+		.table-container {
+			max-height: 400px;
+			overflow-y: auto;
+		}
+
+		.table-container::-webkit-scrollbar {
+			width: 8px;
+		}
+
+		.table-container::-webkit-scrollbar-track {
+			background: #1e293b;
+		}
+
+		.table-container::-webkit-scrollbar-thumb {
+			background: #475569;
+			border-radius: 4px;
+		}
+
+		.table-container::-webkit-scrollbar-thumb:hover {
+			background: #64748b;
+		}
+
 		body {
 			background-color: #0f172a
 		}
@@ -63,6 +93,35 @@
 		.sankey-node text {
 			pointer-events: none;
 			text-shadow: 0 1px 0 #000
+		}
+
+		.modal {
+			display: none;
+			position: fixed;
+			z-index: 1000;
+			left: 0;
+			top: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(0, 0, 0, 0.7);
+			backdrop-filter: blur(4px);
+		}
+
+		.modal.active {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.modal-content {
+			background-color: #1e293b;
+			border: 1px solid #334155;
+			border-radius: 8px;
+			max-width: 900px;
+			width: 90%;
+			max-height: 80vh;
+			overflow-y: auto;
+			box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
 		}
 	</style>
 </head>
@@ -233,9 +292,9 @@
 						<h3 class="text-lg font-semibold text-white">Top Talkers</h3>
 						<p class="text-sm text-gray-400">IPs with highest traffic volume</p>
 					</div>
-					<div class="overflow-x-auto">
+					<div class="table-container">
 						<table class="min-w-full divide-y divide-slate-700">
-							<thead class="bg-slate-900">
+							<thead class="bg-slate-900 sticky top-0">
 								<tr>
 									<th
 										class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
@@ -260,9 +319,9 @@
 						<h3 class="text-lg font-semibold text-white">Traffic by Protocol</h3>
 						<p class="text-sm text-gray-400">Protocol distribution</p>
 					</div>
-					<div class="overflow-x-auto">
+					<div class="table-container">
 						<table class="min-w-full divide-y divide-slate-700">
-							<thead class="bg-slate-900">
+							<thead class="bg-slate-900 sticky top-0">
 								<tr>
 									<th
 										class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
@@ -286,11 +345,11 @@
 			<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
 				<div class="px-6 py-4 border-b border-slate-700">
 					<h3 class="text-lg font-semibold text-white">Upstream Servers</h3>
-					<p class="text-sm text-gray-400">Backend server statistics</p>
+					<p class="text-sm text-gray-400">Click on a server to see detailed IP statistics</p>
 				</div>
-				<div class="overflow-x-auto">
+				<div class="table-container">
 					<table class="min-w-full divide-y divide-slate-700">
-						<thead class="bg-slate-900">
+						<thead class="bg-slate-900 sticky top-0">
 							<tr>
 								<th
 									class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
@@ -318,6 +377,56 @@
 			</div>
 		</div>
 	</main>
+
+	<!-- Server Details Modal -->
+	<div id="serverModal" class="modal" style="display: none;">
+		<div class="modal-content" style="max-width: 900px;">
+			<div class="flex justify-between items-center mb-4 pb-4 border-b border-slate-700">
+				<div>
+					<h2 class="text-xl font-bold text-white" id="modalServerName"></h2>
+					<p class="text-sm text-gray-400">Detailed IP statistics for this upstream server</p>
+				</div>
+				<button onclick="closeServerModal()" class="text-gray-400 hover:text-white text-2xl font-bold">
+					&times;
+				</button>
+			</div>
+
+			<div class="grid grid-cols-3 gap-4 mb-6">
+				<div class="bg-slate-800 rounded-lg p-4 border border-slate-700">
+					<p class="text-sm text-gray-400">Total IPs</p>
+					<p class="text-2xl font-bold text-blue-400" id="modalTotalIPs">-</p>
+				</div>
+				<div class="bg-slate-800 rounded-lg p-4 border border-slate-700">
+					<p class="text-sm text-gray-400">Total Connections</p>
+					<p class="text-2xl font-bold text-green-400" id="modalTotalConnections">-</p>
+				</div>
+				<div class="bg-slate-800 rounded-lg p-4 border border-slate-700">
+					<p class="text-sm text-gray-400">Total Traffic</p>
+					<p class="text-2xl font-bold text-purple-400" id="modalTotalTraffic">-</p>
+				</div>
+			</div>
+
+			<div class="table-container" style="max-height: 500px;">
+				<table class="min-w-full divide-y divide-slate-700">
+					<thead class="bg-slate-900 sticky top-0">
+						<tr>
+							<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+								IP Address</th>
+							<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+								Country</th>
+							<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+								Connections</th>
+							<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+								Traffic</th>
+						</tr>
+					</thead>
+					<tbody id="modalIPTable" class="divide-y divide-slate-700">
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+
 	<script>
 		let charts = {};
 		let isLoadingData = false;
@@ -553,91 +662,173 @@
 				container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ef4444">Error: ' + e.message + '</div>';
 			}
 		}
-			function updateDailyChart(d) {
-				const labels = d.map(x => x.date);
-				const connections = d.map(x => x.connections);
-				const uniqueIPs = d.map(x => x.unique_ips);
-				if (!charts.daily) {
-					const ctx = document.getElementById('dailyChart').getContext('2d');
-					charts.daily = new Chart(ctx, {
-						type: 'line',
-						data: {
-							labels,
-							datasets: [
-								{ label: 'Connections', data: connections, borderColor: 'rgb(59,130,246)', backgroundColor: 'rgba(59,130,246,0.1)', tension: 0.4, fill: true },
-								{ label: 'Unique IPs', data: uniqueIPs, borderColor: 'rgb(34,197,94)', backgroundColor: 'rgba(34,197,94,0.1)', tension: 0.4, fill: true }
-							]
-						},
-						options: { responsive: true, maintainAspectRatio: false, animation: { duration: 700 }, plugins: { legend: { position: 'top', labels: { color: '#e5e7eb' } } }, scales: { y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } }
-					});
-				} else {
-					const chart = charts.daily;
-					chart.data.labels = labels;
-					chart.data.datasets[0].data = connections;
-					chart.data.datasets[1].data = uniqueIPs;
-					chart.update();
-				}
+		function updateDailyChart(d) {
+			const labels = d.map(x => x.date);
+			const connections = d.map(x => x.connections);
+			const uniqueIPs = d.map(x => x.unique_ips);
+			if (!charts.daily) {
+				const ctx = document.getElementById('dailyChart').getContext('2d');
+				charts.daily = new Chart(ctx, {
+					type: 'line',
+					data: {
+						labels,
+						datasets: [
+							{ label: 'Connections', data: connections, borderColor: 'rgb(59,130,246)', backgroundColor: 'rgba(59,130,246,0.1)', tension: 0.4, fill: true },
+							{ label: 'Unique IPs', data: uniqueIPs, borderColor: 'rgb(34,197,94)', backgroundColor: 'rgba(34,197,94,0.1)', tension: 0.4, fill: true }
+						]
+					},
+					options: { responsive: true, maintainAspectRatio: false, animation: { duration: 700 }, plugins: { legend: { position: 'top', labels: { color: '#e5e7eb' } } }, scales: { y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } }
+				});
+			} else {
+				const chart = charts.daily;
+				chart.data.labels = labels;
+				chart.data.datasets[0].data = connections;
+				chart.data.datasets[1].data = uniqueIPs;
+				chart.update();
 			}
-			function updateHourlyChart(d) {
-				const labels = d.map(x => x.hour + ':00');
-				const connections = d.map(x => x.connections);
-				if (!charts.hourly) {
-					const ctx = document.getElementById('hourlyChart').getContext('2d');
-					charts.hourly = new Chart(ctx, {
-						type: 'bar',
-						data: { labels, datasets: [{ label: 'Connections', data: connections, backgroundColor: 'rgba(147,51,234,0.6)', borderColor: 'rgb(147,51,234)', borderWidth: 1 }] },
-						options: { responsive: true, maintainAspectRatio: false, animation: { duration: 700 }, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } }
-					});
-				} else {
-					const chart = charts.hourly;
-					chart.data.labels = labels;
-					chart.data.datasets[0].data = connections;
-					chart.update();
-				}
+		}
+		function updateHourlyChart(d) {
+			const labels = d.map(x => x.hour + ':00');
+			const connections = d.map(x => x.connections);
+			if (!charts.hourly) {
+				const ctx = document.getElementById('hourlyChart').getContext('2d');
+				charts.hourly = new Chart(ctx, {
+					type: 'bar',
+					data: { labels, datasets: [{ label: 'Connections', data: connections, backgroundColor: 'rgba(147,51,234,0.6)', borderColor: 'rgb(147,51,234)', borderWidth: 1 }] },
+					options: { responsive: true, maintainAspectRatio: false, animation: { duration: 700 }, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } }
+				});
+			} else {
+				const chart = charts.hourly;
+				chart.data.labels = labels;
+				chart.data.datasets[0].data = connections;
+				chart.update();
 			}
-			function updateCountriesChart(d) {
-				const labels = d.map(x => x.country);
-				const totals = d.map(x => x.total_bytes);
-				if (!charts.countries) {
-					const ctx = document.getElementById('countriesChart').getContext('2d');
-					charts.countries = new Chart(ctx, {
-						type: 'doughnut',
-						data: { labels, datasets: [{ data: totals, backgroundColor: ['rgba(59,130,246,0.8)', 'rgba(34,197,94,0.8)', 'rgba(251,146,60,0.8)', 'rgba(239,68,68,0.8)', 'rgba(147,51,234,0.8)', 'rgba(236,72,153,0.8)', 'rgba(14,165,233,0.8)', 'rgba(132,204,22,0.8)', 'rgba(250,204,21,0.8)', 'rgba(168,85,247,0.8)'], borderColor: '#1e293b', borderWidth: 2 }] },
-						options: { responsive: true, maintainAspectRatio: false, animation: { duration: 700 }, plugins: { legend: { position: 'right', labels: { color: '#e5e7eb', padding: 10 } }, tooltip: { callbacks: { label: function (c) { return c.label + ': ' + formatBytes(c.parsed) } } } } }
-					});
-				} else {
-					const chart = charts.countries;
-					chart.data.labels = labels;
-					chart.data.datasets[0].data = totals;
-					chart.update();
-				}
+		}
+		function updateCountriesChart(d) {
+			const labels = d.map(x => x.country);
+			const totals = d.map(x => x.total_bytes);
+			if (!charts.countries) {
+				const ctx = document.getElementById('countriesChart').getContext('2d');
+				charts.countries = new Chart(ctx, {
+					type: 'doughnut',
+					data: { labels, datasets: [{ data: totals, backgroundColor: ['rgba(59,130,246,0.8)', 'rgba(34,197,94,0.8)', 'rgba(251,146,60,0.8)', 'rgba(239,68,68,0.8)', 'rgba(147,51,234,0.8)', 'rgba(236,72,153,0.8)', 'rgba(14,165,233,0.8)', 'rgba(132,204,22,0.8)', 'rgba(250,204,21,0.8)', 'rgba(168,85,247,0.8)'], borderColor: '#1e293b', borderWidth: 2 }] },
+					options: { responsive: true, maintainAspectRatio: false, animation: { duration: 700 }, plugins: { legend: { position: 'right', labels: { color: '#e5e7eb', padding: 10 } }, tooltip: { callbacks: { label: function (c) { return c.label + ': ' + formatBytes(c.parsed) } } } } }
+				});
+			} else {
+				const chart = charts.countries;
+				chart.data.labels = labels;
+				chart.data.datasets[0].data = totals;
+				chart.update();
 			}
-			function updatePortsChart(d) {
-				const labels = d.map(x => 'Port ' + x.port);
-				const connections = d.map(x => x.connections);
-				if (!charts.ports) {
-					const ctx = document.getElementById('portsChart').getContext('2d');
-					charts.ports = new Chart(ctx, {
-						type: 'bar',
-						data: { labels, datasets: [{ label: 'Connections', data: connections, backgroundColor: 'rgba(34,197,94,0.6)', borderColor: 'rgb(34,197,94)', borderWidth: 1 }] },
-						options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', animation: { duration: 700 }, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, y: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } }
-					});
-				} else {
-					const chart = charts.ports;
-					chart.data.labels = labels;
-					chart.data.datasets[0].data = connections;
-					chart.update();
-				}
+		}
+		function updatePortsChart(d) {
+			const labels = d.map(x => 'Port ' + x.port);
+			const connections = d.map(x => x.connections);
+			if (!charts.ports) {
+				const ctx = document.getElementById('portsChart').getContext('2d');
+				charts.ports = new Chart(ctx, {
+					type: 'bar',
+					data: { labels, datasets: [{ label: 'Connections', data: connections, backgroundColor: 'rgba(34,197,94,0.6)', borderColor: 'rgb(34,197,94)', borderWidth: 1 }] },
+					options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', animation: { duration: 700 }, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, y: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } }
+				});
+			} else {
+				const chart = charts.ports;
+				chart.data.labels = labels;
+				chart.data.datasets[0].data = connections;
+				chart.update();
 			}
+		}
 		function updateTopTalkersTable(d) { document.getElementById('topTalkersTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.ip + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">' + (i.country || 'Unknown') + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right font-semibold">' + formatBytes(i.total_bytes) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.connections + '</td></tr>').join('') }
 		function updateProtocolTable(d) { document.getElementById('protocolTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-200">' + i.protocol + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td></tr>').join('') }
-		function updateUpstreamTable(d) { document.getElementById('upstreamTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.upstream_addr + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.avg_session_time_seconds.toFixed(2) + 's</td><td class="px-6 py-4 whitespace-nowrap text-sm ' + (i.failed_connections > 0 ? 'text-red-400' : 'text-gray-400') + ' text-right">' + i.failed_connections + '</td></tr>').join('') }
+		function updateUpstreamTable(d) { document.getElementById('upstreamTable').innerHTML = d.map(i => '<tr class="table-row clickable" onclick="showServerDetails(\'' + i.upstream_addr.replace(/'/g, "\\'") + '\')"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.upstream_addr + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.avg_session_time_seconds.toFixed(2) + 's</td><td class="px-6 py-4 whitespace-nowrap text-sm ' + (i.failed_connections > 0 ? 'text-red-400' : 'text-gray-400') + ' text-right">' + i.failed_connections + '</td></tr>').join('') }
+
+		async function showServerDetails(server) {
+			const modal = document.getElementById('serverModal');
+			const modalServerName = document.getElementById('modalServerName');
+			const modalTotalIPs = document.getElementById('modalTotalIPs');
+			const modalTotalConnections = document.getElementById('modalTotalConnections');
+			const modalTotalTraffic = document.getElementById('modalTotalTraffic');
+			const modalIPTable = document.getElementById('modalIPTable');
+
+			// Show modal with loading state
+			modalServerName.textContent = server;
+			modalTotalIPs.textContent = '-';
+			modalTotalConnections.textContent = '-';
+			modalTotalTraffic.textContent = '-';
+			modalIPTable.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">Loading...</td></tr>';
+			modal.style.display = 'flex';
+
+			try {
+				// Fetch detailed IP data
+				const response = await fetch('/streamInfo/data' + getDateParams());
+				const data = await response.json();
+
+				// Filter entries for this specific server
+				const serverEntries = data.filter(entry => entry.upstream_addr === server);
+
+				// Aggregate by IP
+				const ipStats = {};
+				serverEntries.forEach(entry => {
+					if (!ipStats[entry.client_ip]) {
+						ipStats[entry.client_ip] = {
+							ip: entry.client_ip,
+							country: entry.country || 'Unknown',
+							connections: 0,
+							totalBytes: 0
+						};
+					}
+					ipStats[entry.client_ip].connections++;
+					ipStats[entry.client_ip].totalBytes += entry.bytes_sent + entry.bytes_received;
+				});
+
+				// Convert to array and sort
+				const ipArray = Object.values(ipStats).sort((a, b) => b.totalBytes - a.totalBytes);
+
+				// Update summary
+				const totalIPs = ipArray.length;
+				const totalConnections = ipArray.reduce((sum, ip) => sum + ip.connections, 0);
+				const totalTraffic = ipArray.reduce((sum, ip) => sum + ip.totalBytes, 0);
+
+				modalTotalIPs.textContent = totalIPs.toLocaleString();
+				modalTotalConnections.textContent = totalConnections.toLocaleString();
+				modalTotalTraffic.textContent = formatBytes(totalTraffic);
+
+				// Update table
+				if (ipArray.length === 0) {
+					modalIPTable.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">No data available</td></tr>';
+				} else {
+					modalIPTable.innerHTML = ipArray.map(ip =>
+						'<tr class="table-row">' +
+						'<td class="px-4 py-3 whitespace-nowrap text-sm font-mono text-gray-200">' + ip.ip + '</td>' +
+						'<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-400">' + ip.country + '</td>' +
+						'<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-200 text-right">' + ip.connections.toLocaleString() + '</td>' +
+						'<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(ip.totalBytes) + '</td>' +
+						'</tr>'
+					).join('');
+				}
+			} catch (error) {
+				console.error('Error loading server details:', error);
+				modalIPTable.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-red-400">Error loading data</td></tr>';
+			}
+		}
+
+		function closeServerModal() {
+			document.getElementById('serverModal').style.display = 'none';
+		}
+
+		// Close modal when clicking outside
+		window.onclick = function (event) {
+			const modal = document.getElementById('serverModal');
+			if (event.target === modal) {
+				closeServerModal();
+			}
+		}
 		function refreshData(options = {}) {
 			if (isLoadingData) return;
 			loadData({ silent: true, ...options });
 		}
 		async function initializeDateRange() { try { const dateInfo = await fetch('/streamInfo/daterange').then(r => r.json()); if (dateInfo.min_date && dateInfo.max_date) { document.getElementById('startDate').value = dateInfo.min_date; document.getElementById('endDate').value = dateInfo.max_date } } catch (e) { console.error('Error loading date range:', e) } }
-		window.addEventListener('DOMContentLoaded', () => { initializeDateRange(); loadData() }); setInterval(refreshData, 10000);
+		window.addEventListener('DOMContentLoaded', () => { initializeDateRange(); loadData() }); setInterval(refreshData, 20000);
 	</script>
 </body>
 
