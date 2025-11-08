@@ -153,7 +153,7 @@
 			border-radius: 10px;
 			max-width: 920px;
 			width: 100%;
-			max-height: 82vh;
+			max-height: min(92vh, calc(100vh - 3rem));
 			overflow: hidden;
 			box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
 			display: flex;
@@ -163,6 +163,22 @@
 		.modal-body {
 			padding: 1.5rem;
 			overflow-y: auto;
+			flex: 1;
+			scrollbar-width: thin;
+			scrollbar-color: #3b4a62 transparent;
+		}
+
+		.modal-body::-webkit-scrollbar {
+			width: 8px;
+		}
+
+		.modal-body::-webkit-scrollbar-track {
+			background: transparent;
+		}
+
+		.modal-body::-webkit-scrollbar-thumb {
+			background: #3b4a62;
+			border-radius: 4px;
 		}
 
 		.modal-header {
@@ -355,31 +371,45 @@
 			backdrop-filter: blur(10px);
 		}
 
-		/* Enhanced Drill-Down Modal Styles */
+		/* Drill-Down Modal Styles */
 		#drillDownModal .modal-content {
 			max-width: 1400px;
-			background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-			border: 2px solid rgba(56, 189, 248, 0.4);
-			box-shadow: 0 25px 80px rgba(56, 189, 248, 0.2), 0 0 40px rgba(34, 211, 238, 0.1);
+			background: var(--panel);
+			border: 1px solid var(--panel-border);
+			box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
+			max-height: min(94vh, calc(100vh - 2rem));
+			width: 100%;
+			display: flex;
+			flex-direction: column;
+			overflow: hidden;
 		}
 
 		#drillDownModal .modal-header {
-			background: linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(34, 211, 238, 0.1) 100%);
-			border-bottom: 2px solid rgba(56, 189, 248, 0.3);
+			background: var(--panel-soft);
+			border-bottom: 1px solid var(--panel-border);
 			padding: 1.5rem;
 			position: relative;
 		}
 
 		#drillDownModal .modal-header:before {
-			content: '';
-			position: absolute;
-			top: 0;
-			left: 0;
-			right: 0;
-			height: 3px;
-			background: linear-gradient(90deg, #38bdf8, #22d3ee, #38bdf8);
-			background-size: 200% 100%;
-			animation: shimmer 3s linear infinite;
+			content: none;
+		}
+
+		.drill-modal-body {
+			flex: 1;
+			overflow-y: auto;
+			padding: 0 1.5rem 1.5rem;
+			scrollbar-width: thin;
+			scrollbar-color: #3b4a62 transparent;
+		}
+
+		.drill-modal-body::-webkit-scrollbar {
+			width: 8px;
+		}
+
+		.drill-modal-body::-webkit-scrollbar-thumb {
+			background: #3b4a62;
+			border-radius: 4px;
 		}
 
 		@keyframes shimmer {
@@ -397,7 +427,7 @@
 		}
 
 		.drill-level h3 {
-			color: #38bdf8;
+			color: #cbd5f5;
 			letter-spacing: 0.1em;
 			margin-bottom: 1rem;
 			display: flex;
@@ -408,29 +438,29 @@
 
 		.drill-level h3:before {
 			content: '▸';
-			color: #22d3ee;
+			color: #94a3b8;
 			font-size: 1.2em;
 		}
 
 		#drillDownModal .drill-stat-card {
-			background: linear-gradient(135deg, rgba(56, 189, 248, 0.1) 0%, rgba(34, 211, 238, 0.05) 100%);
-			border: 1px solid rgba(56, 189, 248, 0.3);
+			background: var(--panel-soft);
+			border: 1px solid var(--panel-border);
 			border-radius: 8px;
 			padding: 1rem;
 			transition: all 0.2s ease;
 		}
 
 		#drillDownModal .drill-stat-card:hover {
-			border-color: rgba(56, 189, 248, 0.6);
+			border-color: var(--accent);
 			transform: translateY(-2px);
-			box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
 		}
 
 		#drillDownBreadcrumb {
-			background: rgba(56, 189, 248, 0.15);
+			background: var(--panel-soft);
 			padding: 0.5rem 1rem;
 			border-radius: 6px;
-			border: 1px solid rgba(56, 189, 248, 0.3);
+			border: 1px solid var(--panel-border);
 			display: inline-block;
 			font-weight: 500;
 		}
@@ -439,12 +469,31 @@
 			background: var(--panel);
 			border: 1px solid var(--panel-border);
 			position: relative;
-			overflow: hidden;
 			box-shadow: 0 15px 35px rgba(2, 6, 23, 0.6);
 		}
 
 		.analysis-panel:before {
 			content: none;
+		}
+
+		.panel-scroll {
+			max-height: 85vh;
+			overflow-y: auto;
+			scrollbar-width: thin;
+			scrollbar-color: #3b4a62 transparent;
+		}
+
+		.panel-scroll::-webkit-scrollbar {
+			width: 8px;
+		}
+
+		.panel-scroll::-webkit-scrollbar-track {
+			background: transparent;
+		}
+
+		.panel-scroll::-webkit-scrollbar-thumb {
+			background: #3b4a62;
+			border-radius: 4px;
 		}
 
 		.drill-action-btn {
@@ -614,7 +663,7 @@
 					<p id="dateRange" class="text-xs text-gray-400 mt-3">-</p>
 				</div>
 			</div>
-			<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
+			<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700 panel-scroll">
 				<div class="flex justify-between items-center mb-4">
 					<div>
 						<h3 class="text-2xl font-bold text-white flex items-center"><svg
@@ -954,7 +1003,7 @@
 			</div>
 
 			<!-- Deep Analysis Panel -->
-			<div class="analysis-panel rounded-lg p-6 space-y-4">
+			<div class="analysis-panel panel-scroll rounded-lg p-6 space-y-4">
 				<div class="flex flex-col lg:flex-row justify-between gap-6">
 					<div>
 						<p class="nerd-chip">Deep Connection Analysis</p>
@@ -1028,6 +1077,7 @@
 					</table>
 				</div>
 			</div>
+			</div>
 		</div>
 	</div>
 
@@ -1049,6 +1099,7 @@
 				<button onclick="closeDrillDownModal()"
 					class="text-slate-400 hover:text-cyan-400 transition-colors text-2xl font-bold leading-none px-2">&times;</button>
 			</div>
+			<div class="drill-modal-body modal-body">
 
 			<!-- Level 1: Server List -->
 			<div id="drillLevel1" class="drill-level">
