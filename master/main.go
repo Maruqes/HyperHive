@@ -7,6 +7,7 @@ import (
 	"512SvMan/logs512"
 	"512SvMan/protocol"
 	"512SvMan/services"
+	"512SvMan/wireguard"
 	"bytes"
 	"fmt"
 	"io"
@@ -177,6 +178,35 @@ func setupFirewallD() error {
 	return nil
 }
 
+func installWireGuard() error {
+	// Check if WireGuard is already installed
+	if _, err := exec.LookPath("wg"); err == nil {
+		fmt.Println("WireGuard already installed.")
+		return nil
+	}
+
+	fmt.Println("Installing WireGuard...")
+	if err := execCommand("dnf", "install", "-y", "wireguard-tools"); err != nil {
+		return fmt.Errorf("failed to install WireGuard: %w", err)
+	}
+
+	// Open our wireguard port (default 51512/udp) in firewalld
+	if err := execCommand("firewall-cmd", "--permanent", "--add-port=51512/udp"); err != nil {
+		return fmt.Errorf("failed to add WireGuard UDP port: %w", err)
+	}
+
+	if err := execCommand("firewall-cmd", "--permanent", "--add-port=51512/tcp"); err != nil {
+		return fmt.Errorf("failed to add WireGuard TCP port: %w", err)
+	}
+
+	if err := execCommand("firewall-cmd", "--reload"); err != nil {
+		return fmt.Errorf("failed to reload firewall: %w", err)
+	}
+
+	fmt.Println("WireGuard installed and firewall configured.")
+	return nil
+}
+
 func main() {
 	askForSudo()
 
@@ -200,6 +230,23 @@ func main() {
 	if err != nil {
 		log.Fatalf("install GoAccess: %v", err)
 	}
+
+	err = installWireGuard()
+	if err != nil {
+		log.Fatalf("install wireguard: %v", err)
+	}
+
+	err = wireguard.SetupInterface()
+	if err != nil {
+		log.Fatalf("SetupInterface : %v", err)
+	}
+
+	cfg, err := wireguard.GeneratePeerAndGenerateConfig("10.128.0.3/32", "127.0.0.1:51512", 0)
+	if err != nil {
+		log.Fatalf("AddPeerAndGenerateConfig : %v", err)
+	}
+	fmt.Println(cfg)
+	return
 
 	db.InitDB()
 	//create all tables if not exists
@@ -264,6 +311,11 @@ func main() {
 	err = db.CreateTableAutomaticBackup()
 	if err != nil {
 		log.Fatalf("create autostart table: %v", err)
+	}
+
+	err = db.CreateWireguardPeerTable()
+	if err != nil {
+		log.Fatalf("create wireguard peer table: %v", err)
 	}
 
 	//listen and connects to gRPC
