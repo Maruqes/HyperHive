@@ -379,7 +379,7 @@
 	</main>
 
 	<!-- Server Details Modal -->
-	<div id="serverModal" class="modal" style="display: none;">
+	<div id="serverModal" class="modal">
 		<div class="modal-content" style="max-width: 900px;">
 			<div class="flex justify-between items-center mb-4 pb-4 border-b border-slate-700">
 				<div>
@@ -756,15 +756,22 @@
 			modalTotalConnections.textContent = '-';
 			modalTotalTraffic.textContent = '-';
 			modalIPTable.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">Loading...</td></tr>';
-			modal.style.display = 'flex';
+			modal.classList.add('active');
 
 			try {
 				// Fetch detailed IP data
 				const response = await fetch('/streamInfo/data' + getDateParams());
-				const data = await response.json();
+				if (!response.ok) {
+					throw new Error('Failed to load upstream data');
+				}
+
+				const payload = await response.json();
+				const entries = Array.isArray(payload)
+					? payload
+					: (Array.isArray(payload.entries) ? payload.entries : []);
 
 				// Filter entries for this specific server
-				const serverEntries = data.filter(entry => entry.upstream_addr === server);
+				const serverEntries = entries.filter(entry => entry.upstream_addr === server);
 
 				// Aggregate by IP
 				const ipStats = {};
@@ -813,7 +820,7 @@
 		}
 
 		function closeServerModal() {
-			document.getElementById('serverModal').style.display = 'none';
+			document.getElementById('serverModal').classList.remove('active');
 		}
 
 		// Close modal when clicking outside
