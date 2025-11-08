@@ -1250,15 +1250,22 @@
 			const filters = [];
 			let title = 'Flow Details';
 			let context = 'IP breakdown for this flow';
+
+			// Helper to match country including "Unknown" cases
+			const matchCountry = (entryCountry, targetCountry) => {
+				const normalizeCountry = (c) => (!c || c === '' || c === 'Unknown') ? 'Unknown' : c;
+				return normalizeCountry(entryCountry) === normalizeCountry(targetCountry);
+			};
+
 			if (selection.source && selection.target) {
 				title = selection.source + ' → ' + selection.target;
 				context = 'Flow from ' + selection.source + ' to ' + selection.target;
 				const targetPort = selection.target.replace('Port ', '');
-				filters.push(entry => entry.country === selection.source && extractUpstreamPort(entry.upstream_addr) === targetPort);
+				filters.push(entry => matchCountry(entry.country, selection.source) && extractUpstreamPort(entry.upstream_addr) === targetPort);
 			} else if (selection.source) {
 				title = 'Country ' + selection.source;
 				context = 'All flows originating from ' + selection.source;
-				filters.push(entry => entry.country === selection.source);
+				filters.push(entry => matchCountry(entry.country, selection.source));
 			} else if (selection.target) {
 				const port = selection.target.replace('Port ', '');
 				title = 'Destination ' + selection.target;
@@ -1273,7 +1280,7 @@
 				} else {
 					title = 'Country ' + selection.node;
 					context = 'All flows originating from ' + selection.node;
-					filters.push(entry => entry.country === selection.node);
+					filters.push(entry => matchCountry(entry.country, selection.node));
 				}
 			}
 			const filterFn = filters.length > 0
