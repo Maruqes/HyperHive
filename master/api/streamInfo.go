@@ -8,6 +8,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -936,6 +937,9 @@ func getServerActivity(w http.ResponseWriter, r *http.Request) {
 	}
 
 	upstreamParam := strings.TrimSpace(chi.URLParam(r, "upstream"))
+	if decoded, err := url.PathUnescape(upstreamParam); err == nil {
+		upstreamParam = decoded
+	}
 	if upstreamParam == "" {
 		respondJSONError(w, http.StatusBadRequest, "upstream parameter is required")
 		return
