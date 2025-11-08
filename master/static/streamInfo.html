@@ -503,7 +503,7 @@
 				<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
 					<div class="flex items-center justify-between mb-4">
 						<h3 class="text-lg font-semibold text-white">Activity</h3>
-						<button onclick="openGlobalModal({ type: 'daily' })"
+						<button onclick="handleGlobalTrendButton('daily')"
 							class="text-xs uppercase tracking-[0.3em] text-slate-300 border border-slate-700 px-3 py-1 rounded hover:text-cyan-200 hover:border-cyan-400 transition">
 							View IPs
 						</button>
@@ -513,7 +513,7 @@
 				<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
 					<div class="flex items-center justify-between mb-4">
 						<h3 class="text-lg font-semibold text-white">Hourly Distribution</h3>
-						<button onclick="openGlobalModal({ type: 'hourly' })"
+						<button onclick="handleGlobalTrendButton('hourly')"
 							class="text-xs uppercase tracking-[0.3em] text-slate-300 border border-slate-700 px-3 py-1 rounded hover:text-cyan-200 hover:border-cyan-400 transition">
 							View IPs
 						</button>
@@ -523,17 +523,18 @@
 			</div>
 			<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700 lg:col-span-2">
-						<div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
-							<div>
-								<h3 class="text-lg font-semibold text-white">Timeline Telemetry</h3>
-								<p id="timelineSummary" class="text-xs text-slate-400 font-mono">Connections + failure rate per
-									hour.</p>
-							</div>
-							<button onclick="openGlobalModal({ type: 'timeline' })"
-								class="text-xs uppercase tracking-[0.3em] text-slate-300 border border-slate-700 px-3 py-1 rounded hover:text-cyan-200 hover:border-cyan-400 transition">
-								View IPs
-							</button>
+					<div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+						<div>
+							<h3 class="text-lg font-semibold text-white">Timeline Telemetry</h3>
+							<p id="timelineSummary" class="text-xs text-slate-400 font-mono">Connections + failure rate
+								per
+								hour.</p>
 						</div>
+						<button onclick="handleGlobalTrendButton('timeline')"
+							class="text-xs uppercase tracking-[0.3em] text-slate-300 border border-slate-700 px-3 py-1 rounded hover:text-cyan-200 hover:border-cyan-400 transition">
+							View IPs
+						</button>
+					</div>
 					<div class="p-6">
 						<div style="position:relative;height:320px"><canvas id="timelineChart"></canvas></div>
 					</div>
@@ -824,7 +825,8 @@
 				<div>
 					<p class="nerd-chip">Upstream / detail</p>
 					<h2 id="modalServerName" class="font-semibold mt-2">-</h2>
-					<p id="serverModalContext" class="text-xs text-slate-400 mt-2">IP breakdown pulled directly from stream-proxy log.</p>
+					<p id="serverModalContext" class="text-xs text-slate-400 mt-2">IP breakdown pulled directly from
+						stream-proxy log.</p>
 				</div>
 				<button onclick="closeServerModal()" class="modal-close">ESC</button>
 			</div>
@@ -879,7 +881,8 @@
 		let geoMapZoom = null;
 		let countryDetailState = { name: null, controller: null };
 		let serverActivityState = { selected: null, controller: null, loadingServer: null, data: null };
-		let globalModalState = { controller: null };
+		let globalEntryCache = { key: null, data: null };
+		let trendData = { daily: [], hourly: [], timeline: [] };
 		Chart.defaults.color = '#9ca3af';
 		Chart.defaults.borderColor = '#374151';
 		function formatBytes(b) { if (b === 0) return '0 B'; const k = 1024, s = ['B', 'KB', 'MB', 'GB', 'TB'], i = Math.floor(Math.log(b) / Math.log(k)); return parseFloat((b / Math.pow(k, i)).toFixed(2)) + ' ' + s[i] }
@@ -887,6 +890,93 @@
 		function formatTimestamp(ts) { const d = new Date(ts); return isNaN(d.getTime()) ? ts : d.toLocaleString() }
 		function formatCompactTimestamp(ts) { const d = new Date(ts); if (isNaN(d.getTime())) return ts; return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit' }) }
 		function formatSeconds(v) { return (typeof v === 'number' && isFinite(v)) ? v.toFixed(2) + 's' : '0.00s' }
+		function getEntriesCacheKey() {
+			const params = getDateParams();
+			return params && params.length > 0 ? params : '__all__';
+		}
+		async function fetchDetailedEntries() {
+			const key = getEntriesCacheKey();
+			if (globalEntryCache.key === key && Array.isArray(globalEntryCache.data)) {
+				return globalEntryCache.data;
+			}
+			const response = await fetch('/streamInfo/data' + (key === '__all__' ? '' : key));
+			if (!response.ok) {
+				throw new Error('Failed to load detailed entries');
+			}
+			const payload = await response.json();
+			const entries = Array.isArray(payload)
+				? payload
+				: (Array.isArray(payload.entries) ? payload.entries : []);
+			globalEntryCache = { key, data: entries };
+			return entries;
+		}
+		function setModalLoadingState(title, context) {
+			const modal = document.getElementById('serverModal');
+			const modalServerName = document.getElementById('modalServerName');
+			const modalContext = document.getElementById('serverModalContext');
+			if (modalServerName) modalServerName.textContent = title || 'IP Breakdown';
+			if (modalContext) modalContext.textContent = context || 'Detailed IP statistics';
+			document.getElementById('modalTotalIPs').textContent = '-';
+			document.getElementById('modalTotalConnections').textContent = '-';
+			document.getElementById('modalTotalTraffic').textContent = '-';
+			document.getElementById('modalIPTable').innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">Loading...</td></tr>';
+			modal.classList.add('active');
+		}
+		function renderEntriesModal(entries, options = {}) {
+			const modalTotalIPs = document.getElementById('modalTotalIPs');
+			const modalTotalConnections = document.getElementById('modalTotalConnections');
+			const modalTotalTraffic = document.getElementById('modalTotalTraffic');
+			const modalIPTable = document.getElementById('modalIPTable');
+			if (!entries || entries.length === 0) {
+				modalTotalIPs.textContent = '0';
+				modalTotalConnections.textContent = '0';
+				modalTotalTraffic.textContent = '0 B';
+				modalIPTable.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">No data available</td></tr>';
+				return;
+			}
+			const ipStats = {};
+			entries.forEach(entry => {
+				const ip = entry.client_ip || 'Unknown';
+				if (!ipStats[ip]) {
+					ipStats[ip] = {
+						ip,
+						country: entry.country || 'Unknown',
+						connections: 0,
+						totalBytes: 0
+					};
+				}
+				ipStats[ip].connections++;
+				ipStats[ip].totalBytes += (entry.bytes_sent || 0) + (entry.bytes_received || 0);
+			});
+			const ipArray = Object.values(ipStats).sort((a, b) => b.totalBytes - a.totalBytes);
+			const totalConnections = ipArray.reduce((sum, ip) => sum + ip.connections, 0);
+			const totalBytes = ipArray.reduce((sum, ip) => sum + ip.totalBytes, 0);
+			modalTotalIPs.textContent = ipArray.length.toLocaleString();
+			modalTotalConnections.textContent = totalConnections.toLocaleString();
+			modalTotalTraffic.textContent = formatBytes(totalBytes);
+			modalIPTable.innerHTML = ipArray.map(ip =>
+				'<tr class="table-row">' +
+				'<td class="px-4 py-3 whitespace-nowrap text-sm font-mono text-gray-200">' + ip.ip + '</td>' +
+				'<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-400">' + ip.country + '</td>' +
+				'<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-200 text-right">' + ip.connections.toLocaleString() + '</td>' +
+				'<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(ip.totalBytes) + '</td>' +
+				'</tr>'
+			).join('');
+		}
+		async function showGlobalEntries(options = {}) {
+			const title = options.title || 'IP Breakdown';
+			const context = options.context || 'Detailed IP statistics';
+			const filter = options.filter || null;
+			setModalLoadingState(title, context);
+			try {
+				const entries = await fetchDetailedEntries();
+				const filtered = typeof filter === 'function' ? entries.filter(filter) : entries;
+				renderEntriesModal(filtered, { title, context });
+			} catch (error) {
+				console.error('Global detail error:', error);
+				document.getElementById('modalIPTable').innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-red-400">Unable to load data</td></tr>';
+			}
+		}
 		function loadWorldGeoData() {
 			if (!worldGeoDataPromise) {
 				worldGeoDataPromise = fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
@@ -1137,6 +1227,7 @@
 			}
 		}
 		function updateDailyChart(d) {
+			trendData.daily = Array.isArray(d) ? d.slice() : [];
 			const labels = d.map(x => x.date);
 			const connections = d.map(x => x.connections);
 			const uniqueIPs = d.map(x => x.unique_ips);
@@ -1157,7 +1248,7 @@
 						animation: { duration: 700 },
 						plugins: { legend: { position: 'top', labels: { color: '#e5e7eb' } } },
 						scales: { y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } },
-						onClick: (evt, elements) => handleGlobalTrendClick('daily', elements, d)
+						onClick: (evt, elements) => handleTrendChartClick('daily', elements)
 					}
 				});
 			} else {
@@ -1169,6 +1260,7 @@
 			}
 		}
 		function updateHourlyChart(d) {
+			trendData.hourly = Array.isArray(d) ? d.slice() : [];
 			const labels = d.map(x => x.hour + ':00');
 			const connections = d.map(x => x.connections);
 			if (!charts.hourly) {
@@ -1182,7 +1274,7 @@
 						animation: { duration: 700 },
 						plugins: { legend: { display: false } },
 						scales: { y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } },
-						onClick: (evt, elements) => handleGlobalTrendClick('hourly', elements, d)
+						onClick: (evt, elements) => handleTrendChartClick('hourly', elements)
 					}
 				});
 			} else {
@@ -1577,6 +1669,7 @@
 			}
 		}
 		function updateTimelineChart(d) {
+			trendData.timeline = Array.isArray(d) ? d.slice() : [];
 			const summaryEl = document.getElementById('timelineSummary');
 			if (!Array.isArray(d) || d.length === 0) {
 				if (summaryEl) {
@@ -1668,9 +1761,8 @@
 									}
 								}
 							}
-							},
-							onClick: (evt, elements) => handleGlobalTrendClick('timeline', elements, d)
-						}
+						},
+						onClick: (evt, elements) => handleTrendChartClick('timeline', elements)
 					}
 				});
 			} else {
@@ -1707,17 +1799,17 @@
 					'</div>';
 			}).join('');
 		}
-			function setServerActivityStatus(text) {
-				const statusEl = document.getElementById('serverActivityStatus');
-				if (statusEl) statusEl.textContent = text;
+		function setServerActivityStatus(text) {
+			const statusEl = document.getElementById('serverActivityStatus');
+			if (statusEl) statusEl.textContent = text;
+		}
+		function destroyServerActivityCharts() {
+			serverActivityState.data = null;
+			if (charts.serverDaily) {
+				charts.serverDaily.destroy();
+				charts.serverDaily = null;
 			}
-			function destroyServerActivityCharts() {
-				serverActivityState.data = null;
-				if (charts.serverDaily) {
-					charts.serverDaily.destroy();
-					charts.serverDaily = null;
-				}
-				if (charts.serverHourly) {
+			if (charts.serverHourly) {
 				charts.serverHourly.destroy();
 				charts.serverHourly = null;
 			}
@@ -1762,11 +1854,11 @@
 			}
 			loadServerActivity(server, { force });
 		}
-			function loadServerActivity(server, options = {}) {
-				const { force = false } = options;
-				if (!server || server.trim() === '') {
-					setServerActivityStatus('No server selected.');
-					destroyServerActivityCharts();
+		function loadServerActivity(server, options = {}) {
+			const { force = false } = options;
+			if (!server || server.trim() === '') {
+				setServerActivityStatus('No server selected.');
+				destroyServerActivityCharts();
 				return;
 			}
 			if (!force && serverActivityState.loadingServer === server) {
@@ -1811,18 +1903,18 @@
 					destroyServerActivityCharts();
 				});
 		}
-			function renderServerActivityCharts(data) {
-				if (!data || (!Array.isArray(data.daily) && !Array.isArray(data.hourly))) {
-					setServerActivityStatus('No data returned for this server.');
-					destroyServerActivityCharts();
-					return;
-				}
-				serverActivityState.data = data;
-				const server = data.upstream || serverActivityState.selected || 'server';
-				const statusText = 'Server ' + server + ': ' + (Array.isArray(data.daily) ? data.daily.length : 0) + ' days';
-				setServerActivityStatus(statusText);
-				const dailyLabels = (data.daily || []).map(item => item.date);
-				const dailyConnections = (data.daily || []).map(item => item.connections);
+		function renderServerActivityCharts(data) {
+			if (!data || (!Array.isArray(data.daily) && !Array.isArray(data.hourly))) {
+				setServerActivityStatus('No data returned for this server.');
+				destroyServerActivityCharts();
+				return;
+			}
+			serverActivityState.data = data;
+			const server = data.upstream || serverActivityState.selected || 'server';
+			const statusText = 'Server ' + server + ': ' + (Array.isArray(data.daily) ? data.daily.length : 0) + ' days';
+			setServerActivityStatus(statusText);
+			const dailyLabels = (data.daily || []).map(item => item.date);
+			const dailyConnections = (data.daily || []).map(item => item.connections);
 			if (!charts.serverDaily) {
 				const ctx = document.getElementById('serverDailyChart').getContext('2d');
 				charts.serverDaily = new Chart(ctx, {
@@ -1841,17 +1933,17 @@
 					options: {
 						responsive: true,
 						maintainAspectRatio: false,
-							scales: {
-								x: { ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } },
-								y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } }
-							},
-							plugins: { legend: { display: false } },
-							onClick: (evt, elements) => handleServerActivityPointClick('daily', elements)
-						}
-					});
-				} else {
-					charts.serverDaily.data.labels = dailyLabels;
-					charts.serverDaily.data.datasets[0].data = dailyConnections;
+						scales: {
+							x: { ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } },
+							y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } }
+						},
+						plugins: { legend: { display: false } },
+						onClick: (evt, elements) => handleServerActivityPointClick('daily', elements)
+					}
+				});
+			} else {
+				charts.serverDaily.data.labels = dailyLabels;
+				charts.serverDaily.data.datasets[0].data = dailyConnections;
 				charts.serverDaily.update();
 			}
 			const hourlyLabels = (data.hourly || []).map(item => item.hour + ':00');
@@ -1873,124 +1965,90 @@
 					options: {
 						responsive: true,
 						maintainAspectRatio: false,
-							scales: {
-								x: { ticks: { color: '#94a3b8', maxRotation: 0 }, grid: { color: '#1f2937' } },
-								y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } }
-							},
-							plugins: { legend: { display: false } },
-							onClick: (evt, elements) => handleServerActivityPointClick('hourly', elements)
-						}
-					});
-				} else {
-					charts.serverHourly.data.labels = hourlyLabels;
-					charts.serverHourly.data.datasets[0].data = hourlyConnections;
-					charts.serverHourly.update();
-				}
-			}
-			async function fetchGlobalDataEntries() {
-				if (globalModalState.controller) {
-					globalModalState.controller.abort();
-				}
-				const controller = new AbortController();
-				globalModalState.controller = controller;
-				const response = await fetch('/streamInfo/data' + getDateParams(), { signal: controller.signal });
-				if (!response.ok) {
-					throw new Error('Failed to load global data');
-				}
-				const payload = await response.json();
-				return Array.isArray(payload.entries) ? payload.entries : (Array.isArray(payload) ? payload : []);
-			}
-			async function fetchGlobalScopedModal(target) {
-				try {
-					const entries = await fetchGlobalDataEntries();
-					let context = 'IP breakdown';
-					let entryFilter = null;
-					if (target.type === 'dailyBreakdown' && target.metadata && target.metadata.date) {
-						context = 'IP breakdown for ' + target.metadata.date;
-						entryFilter = entry => entry.timestamp && entry.timestamp.slice(0, 10) === target.metadata.date;
-					} else if (target.type === 'hourlyBreakdown' && target.metadata && typeof target.metadata.hour === 'number') {
-						context = 'IP breakdown for hour ' + target.metadata.hour + ':00';
-						entryFilter = entry => entry.timestamp && parseInt(entry.timestamp.slice(11, 13), 10) === target.metadata.hour;
-					} else if (target.type === 'timelineBreakdown' && target.metadata && target.metadata.timestamp) {
-						const tsStr = target.metadata.timestamp;
-						context = 'IP breakdown for ' + formatTimestamp(tsStr);
-						entryFilter = entry => entry.timestamp && entry.timestamp.startsWith(tsStr.slice(0, 13));
+						scales: {
+							x: { ticks: { color: '#94a3b8', maxRotation: 0 }, grid: { color: '#1f2937' } },
+							y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } }
+						},
+						plugins: { legend: { display: false } },
+						onClick: (evt, elements) => handleServerActivityPointClick('hourly', elements)
 					}
-					const filteredEntries = entryFilter ? entries.filter(entryFilter) : entries;
-					renderGlobalModal(context, filteredEntries);
-				} catch (error) {
-					console.error('Global modal fetch failed:', error);
-					alert('Unable to load scoped data. Please try again.');
-				}
-			}
-			function renderGlobalModal(context, entries) {
-				const modal = document.getElementById('serverModal');
-				const modalServerName = document.getElementById('modalServerName');
-				const modalTotalIPs = document.getElementById('modalTotalIPs');
-				const modalTotalConnections = document.getElementById('modalTotalConnections');
-				const modalTotalTraffic = document.getElementById('modalTotalTraffic');
-				const modalIPTable = document.getElementById('modalIPTable');
-				const modalContext = document.getElementById('serverModalContext');
-				if (modalContext) modalContext.textContent = context || 'IP breakdown';
-				modalServerName.textContent = context || 'IP breakdown';
-				if (!entries || entries.length === 0) {
-					modalTotalIPs.textContent = '0';
-					modalTotalConnections.textContent = '0';
-					modalTotalTraffic.textContent = '0 B';
-					modalIPTable.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">No data available for this slice.</td></tr>';
-					modal.classList.add('active');
-					return;
-				}
-				const stats = {};
-				entries.forEach(entry => {
-					if (!stats[entry.client_ip]) {
-						stats[entry.client_ip] = {
-							ip: entry.client_ip,
-							country: entry.country || 'Unknown',
-							connections: 0,
-							totalBytes: 0
-						};
-					}
-					stats[entry.client_ip].connections++;
-					stats[entry.client_ip].totalBytes += (entry.bytes_sent || 0) + (entry.bytes_received || 0);
 				});
-				const list = Object.values(stats).sort((a, b) => b.totalBytes - a.totalBytes);
-				modalTotalIPs.textContent = list.length.toLocaleString();
-				const totalConnections = list.reduce((sum, item) => sum + item.connections, 0);
-				const totalBytes = list.reduce((sum, item) => sum + item.totalBytes, 0);
-				modalTotalConnections.textContent = totalConnections.toLocaleString();
-				modalTotalTraffic.textContent = formatBytes(totalBytes);
-				modalIPTable.innerHTML = list.map(ip => '<tr class="table-row">' +
-					'<td class="px-4 py-3 whitespace-nowrap text-sm font-mono text-gray-200">' + ip.ip + '</td>' +
-					'<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-400">' + ip.country + '</td>' +
-					'<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-200 text-right">' + ip.connections.toLocaleString() + '</td>' +
-					'<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(ip.totalBytes) + '</td>' +
-					'</tr>').join('');
-				modal.classList.add('active');
+			} else {
+				charts.serverHourly.data.labels = hourlyLabels;
+				charts.serverHourly.data.datasets[0].data = hourlyConnections;
+				charts.serverHourly.update();
 			}
+		}
 			function handleServerActivityPointClick(type, elements) {
 				if (!elements || elements.length === 0) {
 					return;
 				}
-				const data = serverActivityState.data;
-				const server = serverActivityState.selected;
-				if (!data || !server) {
-					return;
+			const data = serverActivityState.data;
+			const server = serverActivityState.selected;
+			if (!data || !server) {
+				return;
+			}
+			const idx = elements[0].index;
+			if (type === 'daily') {
+				const bucket = data.daily && data.daily[idx];
+				if (!bucket || !bucket.date) return;
+				showServerDetails(server, {
+					context: 'IP breakdown for ' + bucket.date,
+					scope: { type: 'daily', day: bucket.date }
+				});
+			} else if (type === 'hourly') {
+				const bucket = data.hourly && data.hourly[idx];
+				if (!bucket) return;
+				showServerDetails(server, {
+					context: 'IP breakdown for hour ' + bucket.hour + ':00',
+					scope: { type: 'hourly', hour: bucket.hour }
+				});
 				}
+			}
+			function handleTrendChartClick(type, elements) {
+				const dataset = trendData[type] || [];
+				if (!elements || elements.length === 0) return;
 				const idx = elements[0].index;
+				const bucket = dataset[idx];
+				if (!bucket) return;
+				if (type === 'daily' && bucket.date) {
+					const day = bucket.date;
+					showGlobalEntries({
+						title: 'Activity · ' + day,
+						context: 'IPs active on ' + day,
+						filter: entry => entry.timestamp && entry.timestamp.slice(0, 10) === day
+					});
+				} else if (type === 'hourly' && typeof bucket.hour === 'number') {
+					const hourLabel = String(bucket.hour).padStart(2, '0');
+					showGlobalEntries({
+						title: 'Hour ' + hourLabel + ':00',
+						context: 'IPs active across all days during hour ' + hourLabel + ':00',
+						filter: entry => entry.timestamp && entry.timestamp.slice(11, 13) === hourLabel
+					});
+				} else if (type === 'timeline' && bucket.timestamp) {
+					const prefix = bucket.timestamp.slice(0, 13);
+					showGlobalEntries({
+						title: 'Timeline · ' + formatTimestamp(bucket.timestamp),
+						context: 'IPs contributing to this timeline bucket',
+						filter: entry => entry.timestamp && entry.timestamp.startsWith(prefix)
+					});
+				}
+			}
+			function handleGlobalTrendButton(type) {
 				if (type === 'daily') {
-					const bucket = data.daily && data.daily[idx];
-					if (!bucket || !bucket.date) return;
-					showServerDetails(server, {
-						context: 'IP breakdown for ' + bucket.date,
-						scope: { type: 'daily', day: bucket.date }
+					showGlobalEntries({
+						title: 'Activity Overview',
+						context: 'All IPs represented in the Activity chart'
 					});
 				} else if (type === 'hourly') {
-					const bucket = data.hourly && data.hourly[idx];
-					if (!bucket) return;
-					showServerDetails(server, {
-						context: 'IP breakdown for hour ' + bucket.hour + ':00',
-						scope: { type: 'hourly', hour: bucket.hour }
+					showGlobalEntries({
+						title: 'Hourly Distribution Overview',
+						context: 'All IPs represented in the Hourly Distribution chart'
+					});
+				} else if (type === 'timeline') {
+					showGlobalEntries({
+						title: 'Timeline Overview',
+						context: 'All IPs represented in the Timeline telemetry chart'
 					});
 				}
 			}
@@ -2051,25 +2109,15 @@
 			}
 			bursts.sort((a, b) => b.delta - a.delta || b.pctChange - a.pctChange);
 			const top = bursts.slice(0, 5);
-				table.innerHTML = top.map(row =>
-					'<tr class="table-row">' +
-					'<td class="px-6 py-3 text-sm text-slate-200">' + row.ts + '</td>' +
-					'<td class="px-6 py-3 text-sm text-right text-cyan-300 font-semibold">+' + row.delta.toLocaleString() + '</td>' +
-					'<td class="px-6 py-3 text-sm text-right text-slate-200">' + row.pctChange.toFixed(1) + '%</td>' +
-					'<td class="px-6 py-3 text-sm text-right text-slate-400">' + row.upstreams + '</td>' +
-					'</tr>'
-				).join('');
-			}
-			function openGlobalModal(target) {
-				if (!target || !target.type) return;
-				const context = target.context || ('IP breakdown for ' + target.type);
-				if (target.type === 'daily' || target.type === 'hourly' || target.type === 'timeline') {
-					const scope = target.scope || null;
-					showServerDetails(target.upstream || serverActivityState.selected || '(all upstreams)', { context, scope, entryFilter: target.entryFilter });
-					return;
-				}
-				fetchGlobalScopedModal(target);
-			}
+			table.innerHTML = top.map(row =>
+				'<tr class="table-row">' +
+				'<td class="px-6 py-3 text-sm text-slate-200">' + row.ts + '</td>' +
+				'<td class="px-6 py-3 text-sm text-right text-cyan-300 font-semibold">+' + row.delta.toLocaleString() + '</td>' +
+				'<td class="px-6 py-3 text-sm text-right text-slate-200">' + row.pctChange.toFixed(1) + '%</td>' +
+				'<td class="px-6 py-3 text-sm text-right text-slate-400">' + row.upstreams + '</td>' +
+				'</tr>'
+			).join('');
+		}
 		function updateTopTalkersTable(d) { document.getElementById('topTalkersTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.ip + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">' + (i.country || 'Unknown') + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right font-semibold">' + formatBytes(i.total_bytes) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.connections + '</td></tr>').join('') }
 		function updateProtocolTable(d) { document.getElementById('protocolTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-200">' + i.protocol + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td></tr>').join('') }
 		function updateUpstreamTable(d) { document.getElementById('upstreamTable').innerHTML = d.map(i => '<tr class="table-row clickable" onclick="showServerDetails(\'' + i.upstream_addr.replace(/'/g, "\\'") + '\')"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.upstream_addr + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.avg_session_time_seconds.toFixed(2) + 's</td><td class="px-6 py-4 whitespace-nowrap text-sm ' + (i.failed_connections > 0 ? 'text-red-400' : 'text-gray-400') + ' text-right">' + i.failed_connections + '</td></tr>').join('') }
@@ -2096,97 +2144,30 @@
 		}
 
 		async function showServerDetails(server, options = {}) {
-			const modal = document.getElementById('serverModal');
-			const modalServerName = document.getElementById('modalServerName');
-			const modalTotalIPs = document.getElementById('modalTotalIPs');
-			const modalTotalConnections = document.getElementById('modalTotalConnections');
-			const modalTotalTraffic = document.getElementById('modalTotalTraffic');
-			const modalIPTable = document.getElementById('modalIPTable');
-			const modalContext = document.getElementById('serverModalContext');
+			const titleText = options.title || server || 'IP Breakdown';
 			const contextText = options.context || 'IP breakdown pulled directly from stream-proxy log.';
-			if (modalContext) {
-				modalContext.textContent = contextText;
-			}
-
-			// Show modal with loading state
-			modalServerName.textContent = server;
-			modalTotalIPs.textContent = '-';
-			modalTotalConnections.textContent = '-';
-			modalTotalTraffic.textContent = '-';
-			modalIPTable.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">Loading...</td></tr>';
-			modal.classList.add('active');
-
+			setModalLoadingState(titleText, contextText);
 			try {
-				// Fetch detailed IP data
-				const response = await fetch('/streamInfo/data' + getDateParams());
-				if (!response.ok) {
-					throw new Error('Failed to load upstream data');
-				}
-
-				const payload = await response.json();
-				const entries = Array.isArray(payload)
-					? payload
-					: (Array.isArray(payload.entries) ? payload.entries : []);
-
-				// Filter entries for this specific server
+				const entries = await fetchDetailedEntries();
 				const scope = options.scope || null;
 				const entryFilter = options.entryFilter || null;
-				const serverEntries = entries.filter(entry => {
-					if (entry.upstream_addr !== server) {
+				const targetServer = server && server !== '*' ? server : null;
+				const filteredEntries = entries.filter(entry => {
+					if (targetServer && entry.upstream_addr !== targetServer) {
 						return false;
 					}
 					if (scope && !matchesServerEntryScope(entry, scope)) {
 						return false;
 					}
-					if (entryFilter && typeof entryFilter === 'function' && !entryFilter(entry)) {
+					if (entryFilter && !entryFilter(entry)) {
 						return false;
 					}
 					return true;
 				});
-
-				// Aggregate by IP
-				const ipStats = {};
-				serverEntries.forEach(entry => {
-					if (!ipStats[entry.client_ip]) {
-						ipStats[entry.client_ip] = {
-							ip: entry.client_ip,
-							country: entry.country || 'Unknown',
-							connections: 0,
-							totalBytes: 0
-						};
-					}
-					ipStats[entry.client_ip].connections++;
-					ipStats[entry.client_ip].totalBytes += entry.bytes_sent + entry.bytes_received;
-				});
-
-				// Convert to array and sort
-				const ipArray = Object.values(ipStats).sort((a, b) => b.totalBytes - a.totalBytes);
-
-				// Update summary
-				const totalIPs = ipArray.length;
-				const totalConnections = ipArray.reduce((sum, ip) => sum + ip.connections, 0);
-				const totalTraffic = ipArray.reduce((sum, ip) => sum + ip.totalBytes, 0);
-
-				modalTotalIPs.textContent = totalIPs.toLocaleString();
-				modalTotalConnections.textContent = totalConnections.toLocaleString();
-				modalTotalTraffic.textContent = formatBytes(totalTraffic);
-
-				// Update table
-				if (ipArray.length === 0) {
-					modalIPTable.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">No data available</td></tr>';
-				} else {
-					modalIPTable.innerHTML = ipArray.map(ip =>
-						'<tr class="table-row">' +
-						'<td class="px-4 py-3 whitespace-nowrap text-sm font-mono text-gray-200">' + ip.ip + '</td>' +
-						'<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-400">' + ip.country + '</td>' +
-						'<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-200 text-right">' + ip.connections.toLocaleString() + '</td>' +
-						'<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(ip.totalBytes) + '</td>' +
-						'</tr>'
-					).join('');
-				}
+				renderEntriesModal(filteredEntries, { title: titleText, context: contextText });
 			} catch (error) {
 				console.error('Error loading server details:', error);
-				modalIPTable.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-red-400">Error loading data</td></tr>';
+				document.getElementById('modalIPTable').innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-red-400">Error loading data</td></tr>';
 			}
 		}
 
@@ -2218,20 +2199,3 @@
 </body>
 
 </html>
-			function handleGlobalTrendClick(type, elements, dataset) {
-				if (!elements || elements.length === 0) return;
-				const index = elements[0].index;
-				if (type === 'daily') {
-					const bucket = dataset[index];
-					if (!bucket || !bucket.date) return;
-					fetchGlobalScopedModal({ type: 'dailyBreakdown', metadata: { date: bucket.date } });
-				} else if (type === 'hourly') {
-					const bucket = dataset[index];
-					if (!bucket) return;
-					fetchGlobalScopedModal({ type: 'hourlyBreakdown', metadata: { hour: bucket.hour } });
-				} else if (type === 'timeline') {
-					const bucket = dataset[index];
-					if (!bucket || !bucket.timestamp) return;
-					fetchGlobalScopedModal({ type: 'timelineBreakdown', metadata: { timestamp: bucket.timestamp } });
-				}
-			}
