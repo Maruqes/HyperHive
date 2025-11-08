@@ -871,6 +871,129 @@
 		</div>
 	</div>
 
+	<!-- Connection Drill-Down Modal -->
+	<div id="drillDownModal" class="modal">
+		<div class="modal-content" style="max-width: 1200px;">
+			<div class="modal-header flex justify-between items-start gap-6">
+				<div>
+					<p class="nerd-chip">Deep Analysis</p>
+					<h2 id="drillDownTitle" class="font-semibold mt-2">Server Analysis</h2>
+					<p id="drillDownBreadcrumb" class="text-xs text-slate-400 mt-2 font-mono">Select path</p>
+				</div>
+				<button onclick="closeDrillDownModal()"
+					class="text-slate-400 hover:text-white text-2xl font-bold leading-none">&times;</button>
+			</div>
+
+			<!-- Level 1: Server List -->
+			<div id="drillLevel1" class="drill-level">
+				<h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Select Server</h3>
+				<div class="table-container" style="max-height: 500px;">
+					<table class="min-w-full divide-y divide-slate-700">
+						<thead class="bg-slate-900 sticky top-0">
+							<tr>
+								<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Server</th>
+								<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Connections
+								</th>
+								<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Unique IPs
+								</th>
+								<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Traffic
+								</th>
+							</tr>
+						</thead>
+						<tbody id="drillServerList" class="divide-y divide-slate-700"></tbody>
+					</table>
+				</div>
+			</div>
+
+			<!-- Level 2: IP List for Selected Server -->
+			<div id="drillLevel2" class="drill-level" style="display:none;">
+				<div class="flex justify-between items-center mb-3">
+					<h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider">Select IP</h3>
+					<button onclick="drillDownBack(1)" class="text-xs text-cyan-400 hover:text-cyan-300">← Back to
+						Servers</button>
+				</div>
+				<div class="grid grid-cols-3 gap-3 mb-4">
+					<div class="bg-slate-900 rounded p-3 border border-slate-700">
+						<p class="text-xs text-slate-400">Total IPs</p>
+						<p class="text-xl font-bold text-blue-400" id="drillIPCount">-</p>
+					</div>
+					<div class="bg-slate-900 rounded p-3 border border-slate-700">
+						<p class="text-xs text-slate-400">Total Connections</p>
+						<p class="text-xl font-bold text-green-400" id="drillIPConnections">-</p>
+					</div>
+					<div class="bg-slate-900 rounded p-3 border border-slate-700">
+						<p class="text-xs text-slate-400">Total Traffic</p>
+						<p class="text-xl font-bold text-purple-400" id="drillIPTraffic">-</p>
+					</div>
+				</div>
+				<div class="table-container" style="max-height: 400px;">
+					<table class="min-w-full divide-y divide-slate-700">
+						<thead class="bg-slate-900 sticky top-0">
+							<tr>
+								<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">IP Address
+								</th>
+								<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Country</th>
+								<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Connections
+								</th>
+								<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Traffic
+								</th>
+							</tr>
+						</thead>
+						<tbody id="drillIPList" class="divide-y divide-slate-700"></tbody>
+					</table>
+				</div>
+			</div>
+
+			<!-- Level 3: Individual Connections for Selected IP -->
+			<div id="drillLevel3" class="drill-level" style="display:none;">
+				<div class="flex justify-between items-center mb-3">
+					<h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider">Connection Details</h3>
+					<button onclick="drillDownBack(2)" class="text-xs text-cyan-400 hover:text-cyan-300">← Back to
+						IPs</button>
+				</div>
+				<div class="grid grid-cols-4 gap-3 mb-4">
+					<div class="bg-slate-900 rounded p-3 border border-slate-700">
+						<p class="text-xs text-slate-400">Total Sessions</p>
+						<p class="text-xl font-bold text-indigo-400" id="drillConnCount">-</p>
+					</div>
+					<div class="bg-slate-900 rounded p-3 border border-slate-700">
+						<p class="text-xs text-slate-400">Success Rate</p>
+						<p class="text-xl font-bold text-green-400" id="drillSuccessRate">-</p>
+					</div>
+					<div class="bg-slate-900 rounded p-3 border border-slate-700">
+						<p class="text-xs text-slate-400">Avg Session</p>
+						<p class="text-xl font-bold text-yellow-400" id="drillAvgSession">-</p>
+					</div>
+					<div class="bg-slate-900 rounded p-3 border border-slate-700">
+						<p class="text-xs text-slate-400">Total Data</p>
+						<p class="text-xl font-bold text-purple-400" id="drillTotalData">-</p>
+					</div>
+				</div>
+				<div class="table-container" style="max-height: 400px;">
+					<table class="min-w-full divide-y divide-slate-700">
+						<thead class="bg-slate-900 sticky top-0">
+							<tr>
+								<th class="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase">Timestamp
+								</th>
+								<th class="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase">Protocol
+								</th>
+								<th class="px-3 py-2 text-center text-xs font-medium text-gray-400 uppercase">Status
+								</th>
+								<th class="px-3 py-2 text-right text-xs font-medium text-gray-400 uppercase">Sent</th>
+								<th class="px-3 py-2 text-right text-xs font-medium text-gray-400 uppercase">Received
+								</th>
+								<th class="px-3 py-2 text-right text-xs font-medium text-gray-400 uppercase">Session
+									Time</th>
+								<th class="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase">Proxy</th>
+							</tr>
+						</thead>
+						<tbody id="drillConnectionList" class="divide-y divide-slate-700"></tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<script>
 		let charts = {};
 		let isLoadingData = false;
@@ -883,6 +1006,7 @@
 		let serverActivityState = { selected: null, controller: null, loadingServer: null, data: null };
 		let globalEntryCache = { key: null, data: null };
 		let trendData = { daily: [], hourly: [], timeline: [] };
+		let drillDownState = { level: 1, server: null, ip: null, allData: null };
 		Chart.defaults.color = '#9ca3af';
 		Chart.defaults.borderColor = '#374151';
 		function formatBytes(b) { if (b === 0) return '0 B'; const k = 1024, s = ['B', 'KB', 'MB', 'GB', 'TB'], i = Math.floor(Math.log(b) / Math.log(k)); return parseFloat((b / Math.pow(k, i)).toFixed(2)) + ' ' + s[i] }
@@ -2260,6 +2384,180 @@
 			loadData({ silent: true, ...options });
 		}
 		async function initializeDateRange() { try { const dateInfo = await fetch('/streamInfo/daterange').then(r => r.json()); if (dateInfo.min_date && dateInfo.max_date) { document.getElementById('startDate').value = dateInfo.min_date; document.getElementById('endDate').value = dateInfo.max_date } } catch (e) { console.error('Error loading date range:', e) } }
+
+		// Drill-Down Analysis Functions
+		async function openDrillDownModal() {
+			const modal = document.getElementById('drillDownModal');
+			modal.classList.add('active');
+			drillDownState = { level: 1, server: null, ip: null, allData: null };
+			updateDrillDownBreadcrumb();
+			await loadDrillDownServers();
+		}
+
+		function closeDrillDownModal() {
+			const modal = document.getElementById('drillDownModal');
+			modal.classList.remove('active');
+			drillDownState = { level: 1, server: null, ip: null, allData: null };
+		}
+
+		function updateDrillDownBreadcrumb() {
+			const breadcrumb = document.getElementById('drillDownBreadcrumb');
+			const title = document.getElementById('drillDownTitle');
+			if (drillDownState.level === 1) {
+				title.textContent = 'Server Analysis';
+				breadcrumb.textContent = 'Select a server to begin';
+			} else if (drillDownState.level === 2) {
+				title.textContent = drillDownState.server;
+				breadcrumb.textContent = 'Server → Select IP';
+			} else if (drillDownState.level === 3) {
+				title.textContent = drillDownState.ip;
+				breadcrumb.textContent = 'Server → ' + drillDownState.server + ' → IP → Connections';
+			}
+		}
+
+		async function loadDrillDownServers() {
+			try {
+				const params = getDateParams();
+				const data = await fetch('/streamInfo/data' + params).then(r => r.json());
+				drillDownState.allData = Array.isArray(data) ? data : (data.entries || []);
+
+				// Aggregate by server
+				const serverStats = {};
+				drillDownState.allData.forEach(entry => {
+					const server = entry.upstream_addr || 'Unknown';
+					if (!serverStats[server]) {
+						serverStats[server] = { server, connections: 0, ips: new Set(), traffic: 0 };
+					}
+					serverStats[server].connections++;
+					serverStats[server].ips.add(entry.client_ip);
+					serverStats[server].traffic += (entry.bytes_sent || 0) + (entry.bytes_received || 0);
+				});
+
+				const servers = Object.values(serverStats).map(s => ({
+					...s,
+					unique_ips: s.ips.size
+				})).sort((a, b) => b.connections - a.connections);
+
+				const tbody = document.getElementById('drillServerList');
+				tbody.innerHTML = servers.map(s =>
+					'<tr class="table-row clickable" onclick="drillDownToIPs(\'' + s.server.replace(/'/g, "\\'") + '\')">' +
+					'<td class="px-4 py-3 text-sm font-mono text-gray-200">' + s.server + '</td>' +
+					'<td class="px-4 py-3 text-sm text-gray-200 text-right">' + s.connections.toLocaleString() + '</td>' +
+					'<td class="px-4 py-3 text-sm text-gray-400 text-right">' + s.unique_ips + '</td>' +
+					'<td class="px-4 py-3 text-sm text-gray-200 text-right">' + formatBytes(s.traffic) + '</td>' +
+					'</tr>'
+				).join('');
+
+				showDrillLevel(1);
+			} catch (error) {
+				console.error('Failed to load servers:', error);
+			}
+		}
+
+		function drillDownToIPs(server) {
+			drillDownState.level = 2;
+			drillDownState.server = server;
+			updateDrillDownBreadcrumb();
+
+			// Filter data for this server
+			const serverEntries = drillDownState.allData.filter(e => e.upstream_addr === server);
+
+			// Aggregate by IP
+			const ipStats = {};
+			serverEntries.forEach(entry => {
+				const ip = entry.client_ip || 'Unknown';
+				if (!ipStats[ip]) {
+					ipStats[ip] = {
+						ip,
+						country: entry.country || 'Unknown',
+						connections: 0,
+						traffic: 0
+					};
+				}
+				ipStats[ip].connections++;
+				ipStats[ip].traffic += (entry.bytes_sent || 0) + (entry.bytes_received || 0);
+			});
+
+			const ips = Object.values(ipStats).sort((a, b) => b.traffic - a.traffic);
+			const totalConns = ips.reduce((sum, ip) => sum + ip.connections, 0);
+			const totalTraffic = ips.reduce((sum, ip) => sum + ip.traffic, 0);
+
+			document.getElementById('drillIPCount').textContent = ips.length.toLocaleString();
+			document.getElementById('drillIPConnections').textContent = totalConns.toLocaleString();
+			document.getElementById('drillIPTraffic').textContent = formatBytes(totalTraffic);
+
+			const tbody = document.getElementById('drillIPList');
+			tbody.innerHTML = ips.map(ip =>
+				'<tr class="table-row clickable" onclick="drillDownToConnections(\'' + ip.ip.replace(/'/g, "\\'") + '\')">' +
+				'<td class="px-4 py-3 text-sm font-mono text-gray-200">' + ip.ip + '</td>' +
+				'<td class="px-4 py-3 text-sm text-gray-400">' + ip.country + '</td>' +
+				'<td class="px-4 py-3 text-sm text-gray-200 text-right">' + ip.connections.toLocaleString() + '</td>' +
+				'<td class="px-4 py-3 text-sm text-gray-200 text-right">' + formatBytes(ip.traffic) + '</td>' +
+				'</tr>'
+			).join('');
+
+			showDrillLevel(2);
+		}
+
+		function drillDownToConnections(ip) {
+			drillDownState.level = 3;
+			drillDownState.ip = ip;
+			updateDrillDownBreadcrumb();
+
+			// Filter connections for this server + IP
+			const connections = drillDownState.allData.filter(e =>
+				e.upstream_addr === drillDownState.server && e.client_ip === ip
+			);
+
+			const successCount = connections.filter(c => c.status === 200).length;
+			const successRate = connections.length > 0 ? ((successCount / connections.length) * 100).toFixed(1) : '0';
+			const avgSession = connections.length > 0
+				? (connections.reduce((sum, c) => sum + (c.session_time_seconds || 0), 0) / connections.length).toFixed(2)
+				: '0';
+			const totalData = connections.reduce((sum, c) => sum + (c.bytes_sent || 0) + (c.bytes_received || 0), 0);
+
+			document.getElementById('drillConnCount').textContent = connections.length.toLocaleString();
+			document.getElementById('drillSuccessRate').textContent = successRate + '%';
+			document.getElementById('drillAvgSession').textContent = avgSession + 's';
+			document.getElementById('drillTotalData').textContent = formatBytes(totalData);
+
+			const tbody = document.getElementById('drillConnectionList');
+			tbody.innerHTML = connections.map(c =>
+				'<tr class="table-row">' +
+				'<td class="px-3 py-2 text-xs font-mono text-gray-200">' + formatTimestamp(c.timestamp) + '</td>' +
+				'<td class="px-3 py-2 text-xs text-gray-400">' + (c.protocol || '-') + '</td>' +
+				'<td class="px-3 py-2 text-xs text-center ' + (c.status === 200 ? 'text-green-400' : 'text-red-400') + '">' + (c.status || '-') + '</td>' +
+				'<td class="px-3 py-2 text-xs text-gray-200 text-right">' + formatBytes(c.bytes_sent || 0) + '</td>' +
+				'<td class="px-3 py-2 text-xs text-gray-200 text-right">' + formatBytes(c.bytes_received || 0) + '</td>' +
+				'<td class="px-3 py-2 text-xs text-gray-400 text-right">' + formatSeconds(c.session_time_seconds) + '</td>' +
+				'<td class="px-3 py-2 text-xs font-mono text-gray-400">' + (c.proxy_addr || '-') + '</td>' +
+				'</tr>'
+			).join('');
+
+			showDrillLevel(3);
+		}
+
+		function drillDownBack(toLevel) {
+			drillDownState.level = toLevel;
+			if (toLevel === 1) {
+				drillDownState.server = null;
+				drillDownState.ip = null;
+			} else if (toLevel === 2) {
+				drillDownState.ip = null;
+			}
+			updateDrillDownBreadcrumb();
+			showDrillLevel(toLevel);
+		}
+
+		function showDrillLevel(level) {
+			document.getElementById('drillLevel1').style.display = level === 1 ? 'block' : 'none';
+			document.getElementById('drillLevel2').style.display = level === 2 ? 'block' : 'none';
+			document.getElementById('drillLevel3').style.display = level === 3 ? 'block' : 'none';
+		}
+
+		// Add button to open drill-down from upstream table
+		window.openDrillDown = openDrillDownModal;
+
 		window.addEventListener('DOMContentLoaded', () => { clearCountryDetail(); initializeDateRange(); loadData() }); setInterval(refreshData, 20000);
 	</script>
 </body>
