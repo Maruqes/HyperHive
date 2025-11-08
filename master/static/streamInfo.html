@@ -354,6 +354,137 @@
 			display: none;
 			backdrop-filter: blur(10px);
 		}
+
+		/* Enhanced Drill-Down Modal Styles */
+		#drillDownModal .modal-content {
+			max-width: 1400px;
+			background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+			border: 2px solid rgba(56, 189, 248, 0.4);
+			box-shadow: 0 25px 80px rgba(56, 189, 248, 0.2), 0 0 40px rgba(34, 211, 238, 0.1);
+		}
+
+		#drillDownModal .modal-header {
+			background: linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(34, 211, 238, 0.1) 100%);
+			border-bottom: 2px solid rgba(56, 189, 248, 0.3);
+			padding: 1.5rem;
+			position: relative;
+		}
+
+		#drillDownModal .modal-header:before {
+			content: '';
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			height: 3px;
+			background: linear-gradient(90deg, #38bdf8, #22d3ee, #38bdf8);
+			background-size: 200% 100%;
+			animation: shimmer 3s linear infinite;
+		}
+
+		@keyframes shimmer {
+			0% {
+				background-position: -200% 0;
+			}
+
+			100% {
+				background-position: 200% 0;
+			}
+		}
+
+		.drill-level {
+			padding: 1.5rem;
+		}
+
+		.drill-level h3 {
+			color: #38bdf8;
+			letter-spacing: 0.1em;
+			margin-bottom: 1rem;
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			font-size: 0.875rem;
+		}
+
+		.drill-level h3:before {
+			content: '▸';
+			color: #22d3ee;
+			font-size: 1.2em;
+		}
+
+		#drillDownModal .drill-stat-card {
+			background: linear-gradient(135deg, rgba(56, 189, 248, 0.1) 0%, rgba(34, 211, 238, 0.05) 100%);
+			border: 1px solid rgba(56, 189, 248, 0.3);
+			border-radius: 8px;
+			padding: 1rem;
+			transition: all 0.2s ease;
+		}
+
+		#drillDownModal .drill-stat-card:hover {
+			border-color: rgba(56, 189, 248, 0.6);
+			transform: translateY(-2px);
+			box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+		}
+
+		#drillDownBreadcrumb {
+			background: rgba(56, 189, 248, 0.15);
+			padding: 0.5rem 1rem;
+			border-radius: 6px;
+			border: 1px solid rgba(56, 189, 248, 0.3);
+			display: inline-block;
+			font-weight: 500;
+		}
+
+		.analysis-panel {
+			background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+			border: 2px solid #38bdf8;
+			position: relative;
+			overflow: hidden;
+		}
+
+		.analysis-panel:before {
+			content: '';
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			height: 4px;
+			background: linear-gradient(90deg, #38bdf8, #22d3ee, #38bdf8);
+			background-size: 200% 100%;
+			animation: shimmer 3s linear infinite;
+		}
+
+		.drill-action-btn {
+			background: linear-gradient(135deg, #38bdf8 0%, #22d3ee 100%);
+			color: #0f172a;
+			font-weight: 700;
+			padding: 1rem 2rem;
+			border-radius: 8px;
+			border: none;
+			cursor: pointer;
+			transition: all 0.3s ease;
+			text-transform: uppercase;
+			letter-spacing: 0.1em;
+			font-size: 0.875rem;
+			box-shadow: 0 4px 12px rgba(56, 189, 248, 0.4);
+		}
+
+		.drill-action-btn:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 6px 20px rgba(56, 189, 248, 0.6);
+		}
+
+		.drill-action-btn:active {
+			transform: translateY(0);
+		}
+
+		.drill-icon {
+			display: inline-block;
+			width: 1.2em;
+			height: 1.2em;
+			margin-right: 0.5rem;
+			vertical-align: -0.2em;
+		}
 	</style>
 </head>
 
@@ -476,6 +607,96 @@
 					<p id="dateRange" class="text-xs text-gray-400 mt-3">-</p>
 				</div>
 			</div>
+
+			<!-- Deep Analysis Panel -->
+			<div class="analysis-panel rounded-lg shadow-2xl p-8 relative">
+				<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-6">
+					<div>
+						<div class="flex items-center gap-3 mb-2">
+							<svg class="w-8 h-8 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+									d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+							</svg>
+							<h3 class="text-2xl font-bold text-white">Deep Connection Analysis</h3>
+						</div>
+						<p class="text-sm text-slate-400 mt-2">Drill down from servers → IPs → individual connections
+							with full forensic details</p>
+					</div>
+					<button onclick="openDrillDown()" class="drill-action-btn">
+						<svg class="drill-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+								d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+						</svg>
+						Start Analysis
+					</button>
+				</div>
+
+				<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+					<div
+						class="bg-slate-900/50 border border-cyan-500/30 rounded-lg p-4 hover:border-cyan-500/60 transition-all">
+						<div class="flex items-center gap-3 mb-2">
+							<div class="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
+								<svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor"
+									viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+										d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+								</svg>
+							</div>
+							<h4 class="text-white font-semibold">Level 1: Servers</h4>
+						</div>
+						<p class="text-xs text-slate-400">View all upstream servers with aggregated connection stats,
+							unique IPs, and total traffic</p>
+					</div>
+
+					<div
+						class="bg-slate-900/50 border border-cyan-500/30 rounded-lg p-4 hover:border-cyan-500/60 transition-all">
+						<div class="flex items-center gap-3 mb-2">
+							<div class="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
+								<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor"
+									viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+										d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+								</svg>
+							</div>
+							<h4 class="text-white font-semibold">Level 2: IP Addresses</h4>
+						</div>
+						<p class="text-xs text-slate-400">Select a server to see all client IPs, their countries,
+							connection counts and traffic patterns</p>
+					</div>
+
+					<div
+						class="bg-slate-900/50 border border-cyan-500/30 rounded-lg p-4 hover:border-cyan-500/60 transition-all">
+						<div class="flex items-center gap-3 mb-2">
+							<div class="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
+								<svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor"
+									viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+										d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+								</svg>
+							</div>
+							<h4 class="text-white font-semibold">Level 3: Connections</h4>
+						</div>
+						<p class="text-xs text-slate-400">Drill into individual connections with timestamps, protocols,
+							status codes, bytes, and session durations</p>
+					</div>
+				</div>
+
+				<div class="mt-6 p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
+					<div class="flex items-start gap-3">
+						<svg class="w-5 h-5 text-cyan-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor"
+							viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+								d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						<div>
+							<p class="text-sm font-semibold text-cyan-300">Perfect for Security Analysis & Debugging</p>
+							<p class="text-xs text-slate-400 mt-1">Track suspicious IPs, investigate failed connections,
+								analyze traffic patterns, and perform forensic-level inspection of every connection</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
 			<div
 				class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg shadow-2xl p-6 border-2 border-purple-500">
 				<div class="flex justify-between items-center mb-4">
@@ -873,15 +1094,21 @@
 
 	<!-- Connection Drill-Down Modal -->
 	<div id="drillDownModal" class="modal">
-		<div class="modal-content" style="max-width: 1200px;">
+		<div class="modal-content">
 			<div class="modal-header flex justify-between items-start gap-6">
 				<div>
-					<p class="nerd-chip">Deep Analysis</p>
-					<h2 id="drillDownTitle" class="font-semibold mt-2">Server Analysis</h2>
-					<p id="drillDownBreadcrumb" class="text-xs text-slate-400 mt-2 font-mono">Select path</p>
+					<div class="flex items-center gap-3">
+						<svg class="drill-icon text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+								d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+						</svg>
+						<span class="text-xs font-bold uppercase tracking-[0.2em] text-cyan-400">Deep Analysis</span>
+					</div>
+					<h2 id="drillDownTitle" class="text-2xl font-bold mt-2 text-white">Server Analysis</h2>
+					<p id="drillDownBreadcrumb" class="text-xs text-slate-400 mt-3 font-mono">Select path</p>
 				</div>
 				<button onclick="closeDrillDownModal()"
-					class="text-slate-400 hover:text-white text-2xl font-bold leading-none">&times;</button>
+					class="text-slate-400 hover:text-cyan-400 transition-colors text-2xl font-bold leading-none px-2">&times;</button>
 			</div>
 
 			<!-- Level 1: Server List -->
@@ -913,17 +1140,17 @@
 						Servers</button>
 				</div>
 				<div class="grid grid-cols-3 gap-3 mb-4">
-					<div class="bg-slate-900 rounded p-3 border border-slate-700">
-						<p class="text-xs text-slate-400">Total IPs</p>
-						<p class="text-xl font-bold text-blue-400" id="drillIPCount">-</p>
+					<div class="drill-stat-card">
+						<p>Total IPs</p>
+						<p class="text-blue-400" id="drillIPCount">-</p>
 					</div>
-					<div class="bg-slate-900 rounded p-3 border border-slate-700">
-						<p class="text-xs text-slate-400">Total Connections</p>
-						<p class="text-xl font-bold text-green-400" id="drillIPConnections">-</p>
+					<div class="drill-stat-card">
+						<p>Total Connections</p>
+						<p class="text-green-400" id="drillIPConnections">-</p>
 					</div>
-					<div class="bg-slate-900 rounded p-3 border border-slate-700">
-						<p class="text-xs text-slate-400">Total Traffic</p>
-						<p class="text-xl font-bold text-purple-400" id="drillIPTraffic">-</p>
+					<div class="drill-stat-card">
+						<p>Total Traffic</p>
+						<p class="text-purple-400" id="drillIPTraffic">-</p>
 					</div>
 				</div>
 				<div class="table-container" style="max-height: 400px;">
@@ -952,21 +1179,21 @@
 						IPs</button>
 				</div>
 				<div class="grid grid-cols-4 gap-3 mb-4">
-					<div class="bg-slate-900 rounded p-3 border border-slate-700">
-						<p class="text-xs text-slate-400">Total Sessions</p>
-						<p class="text-xl font-bold text-indigo-400" id="drillConnCount">-</p>
+					<div class="drill-stat-card">
+						<p>Total Sessions</p>
+						<p class="text-indigo-400" id="drillConnCount">-</p>
 					</div>
-					<div class="bg-slate-900 rounded p-3 border border-slate-700">
-						<p class="text-xs text-slate-400">Success Rate</p>
-						<p class="text-xl font-bold text-green-400" id="drillSuccessRate">-</p>
+					<div class="drill-stat-card">
+						<p>Success Rate</p>
+						<p class="text-green-400" id="drillSuccessRate">-</p>
 					</div>
-					<div class="bg-slate-900 rounded p-3 border border-slate-700">
-						<p class="text-xs text-slate-400">Avg Session</p>
-						<p class="text-xl font-bold text-yellow-400" id="drillAvgSession">-</p>
+					<div class="drill-stat-card">
+						<p>Avg Session</p>
+						<p class="text-yellow-400" id="drillAvgSession">-</p>
 					</div>
-					<div class="bg-slate-900 rounded p-3 border border-slate-700">
-						<p class="text-xs text-slate-400">Total Data</p>
-						<p class="text-xl font-bold text-purple-400" id="drillTotalData">-</p>
+					<div class="drill-stat-card">
+						<p>Total Data</p>
+						<p class="text-purple-400" id="drillTotalData">-</p>
 					</div>
 				</div>
 				<div class="table-container" style="max-height: 400px;">
