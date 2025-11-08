@@ -113,3 +113,14 @@ func DeleteWireguardPeer(id int) error {
 	}
 	return nil
 }
+
+// DeleteAllWireguardPeers truncates the table.
+func DeleteAllWireguardPeers() error {
+	const query = `
+	DELETE FROM wireguard_peers;
+	`
+	if _, err := DB.Exec(query); err != nil {
+		return fmt.Errorf("delete all wireguard peers: %w", err)
+	}
+	return nil
+}

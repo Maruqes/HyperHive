@@ -46,6 +46,16 @@ func matchWGPeer(clientCIDR string, peers []wgtypes.Peer) (wgtypes.Peer, bool) {
 }
 
 func createVPN(w http.ResponseWriter, r *http.Request) {
+	if err := wireguard.RemoveAllPeers(); err != nil {
+		http.Error(w, fmt.Sprintf("reset wireguard peers: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	if err := db.DeleteAllWireguardPeers(); err != nil {
+		http.Error(w, fmt.Sprintf("truncate wireguard peers: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	if err := wireguard.SetupInterface(); err != nil {
 		http.Error(w, fmt.Sprintf("setup wireguard: %v", err), http.StatusInternalServerError)
 		return

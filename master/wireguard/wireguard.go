@@ -59,6 +59,10 @@ func ListenPort() int {
 	return listenPort
 }
 
+func ServerCIDRValue() string {
+	return ServerCIDR
+}
+
 func runCommand(desc string, args ...string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("%s: no command provided", desc)
@@ -316,6 +320,31 @@ func RemovePeerByIP(clientIPCIDR string) error {
 				Remove:    true,
 			},
 		},
+	}); err != nil {
+		return fmt.Errorf("ConfigureDevice(%s): %w", iface, err)
+	}
+
+	return nil
+}
+
+func RemoveAllPeers() error {
+	exists, err := doesInterfaceExists()
+	if err != nil {
+		return fmt.Errorf("check interface %s: %w", iface, err)
+	}
+	if !exists {
+		return nil
+	}
+
+	client, err := wgctrl.New()
+	if err != nil {
+		return fmt.Errorf("wgctrl.New: %w", err)
+	}
+	defer client.Close()
+
+	if err := client.ConfigureDevice(iface, wgtypes.Config{
+		ReplacePeers: true,
+		Peers:        nil,
 	}); err != nil {
 		return fmt.Errorf("ConfigureDevice(%s): %w", iface, err)
 	}

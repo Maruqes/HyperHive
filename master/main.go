@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -68,6 +69,25 @@ func execCommand(name string, arg ...string) error {
 		return err
 	}
 	return nil
+}
+
+func ensureIPForwarding() error {
+	const sysctlConf = "/etc/sysctl.d/99-wireguard.conf"
+	if err := os.WriteFile(sysctlConf, []byte("net.ipv4.ip_forward=1\n"), 0644); err != nil {
+		return fmt.Errorf("write %s: %w", sysctlConf, err)
+	}
+	if err := execCommand("sysctl", "-w", "net.ipv4.ip_forward=1"); err != nil {
+		return fmt.Errorf("enable ipv4 forwarding: %w", err)
+	}
+	return nil
+}
+
+func wireguardNetworkCIDR() (string, error) {
+	_, network, err := net.ParseCIDR(wireguard.ServerCIDRValue())
+	if err != nil {
+		return "", fmt.Errorf("parse wireguard network: %w", err)
+	}
+	return network.String(), nil
 }
 
 func downloadNoVNC() error {
@@ -179,15 +199,22 @@ func setupFirewallD() error {
 }
 
 func installWireGuard() error {
-	// Check if WireGuard is already installed
-	if _, err := exec.LookPath("wg"); err == nil {
-		fmt.Println("WireGuard already installed.")
-		return nil
+	if _, err := exec.LookPath("wg"); err != nil {
+		fmt.Println("Installing WireGuard...")
+		if err := execCommand("dnf", "install", "-y", "wireguard-tools"); err != nil {
+			return fmt.Errorf("failed to install WireGuard: %w", err)
+		}
+	} else {
+		fmt.Println("WireGuard already installed, ensuring configuration...")
 	}
 
-	fmt.Println("Installing WireGuard...")
-	if err := execCommand("dnf", "install", "-y", "wireguard-tools"); err != nil {
-		return fmt.Errorf("failed to install WireGuard: %w", err)
+	if err := ensureIPForwarding(); err != nil {
+		return err
+	}
+
+	networkCIDR, err := wireguardNetworkCIDR()
+	if err != nil {
+		return err
 	}
 
 	// Open our wireguard port (default 51512/udp) in firewalld
@@ -199,11 +226,20 @@ func installWireGuard() error {
 		return fmt.Errorf("failed to add WireGuard TCP port: %w", err)
 	}
 
+	if err := execCommand("firewall-cmd", "--permanent", "--add-masquerade"); err != nil {
+		return fmt.Errorf("failed to enable masquerade: %w", err)
+	}
+
+	richRule := fmt.Sprintf("rule family=\"ipv4\" source address=\"%s\" masquerade", networkCIDR)
+	if err := execCommand("firewall-cmd", "--permanent", "--zone=public", "--add-rich-rule", richRule); err != nil {
+		return fmt.Errorf("failed to add WireGuard rich rule: %w", err)
+	}
+
 	if err := execCommand("firewall-cmd", "--reload"); err != nil {
 		return fmt.Errorf("failed to reload firewall: %w", err)
 	}
 
-	fmt.Println("WireGuard installed and firewall configured.")
+	fmt.Println("WireGuard ready with firewall and routing configured.")
 	return nil
 }
 
