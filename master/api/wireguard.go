@@ -26,6 +26,7 @@ type peerPayload struct {
 	Name     string       `json:"name"`
 	ClientIP string       `json:"client_ip"`
 	WGPeer   wgtypes.Peer `json:"wireguard"`
+	Config   string       `json:"config"`
 }
 
 type createPeerResponse struct {
@@ -137,6 +138,7 @@ func getPeers(w http.ResponseWriter, r *http.Request) {
 
 	payload := make([]peerPayload, 0, len(peers))
 	for _, peer := range peers {
+
 		item := peerPayload{
 			ID:       peer.Id,
 			Name:     peer.Name,
@@ -145,6 +147,7 @@ func getPeers(w http.ResponseWriter, r *http.Request) {
 		if wgPeer, ok := matchWGPeer(peer.ClientIP, wgPeers); ok {
 			item.WGPeer = wgPeer
 		}
+
 		payload = append(payload, item)
 	}
 
