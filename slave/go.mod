@@ -7,6 +7,7 @@ require (
 	github.com/Maruqes/512SvMan/logger v0.0.0-20251001141129-5e5e217740cf
 	github.com/cavaliergopher/grab/v3 v3.0.1
 	github.com/coreos/go-systemd/v22 v22.6.0
+	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/prometheus/procfs v0.19.2
 	github.com/shirou/gopsutil/v4 v4.25.9

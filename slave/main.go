@@ -404,9 +404,10 @@ func main() {
 		stats, _ := btrfs.GetFileSystemStats(raid.Target)
 		info, _ := btrfs.GetFileSystemInfo(raid.Target)
 
-		fmt.Println(raid)
-		fmt.Println(stats)
-		fmt.Println(info)
+		raids.Print()
+		stats.Print()
+		info.Print()
+		fmt.Println(btrfs.GetDisksFromRaid(raid.Target))
 	}
 	return
 	// //varsc
