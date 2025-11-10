@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"slave/btrfs"
 	"slave/env512"
 	"slave/logs512"
 	"slave/nfs"
@@ -329,6 +330,10 @@ INSTALL THINGS THAT ARE NEEDED TO THE FULL APP FUNCTIONALITY
 sudo dnf install -y xmlstarlet
 */
 func setupAll() error {
+	if err := btrfs.InstallBTRFS(); err != nil {
+		log.Fatal("Error installing zfs: ", err)
+	}
+
 	// Install xmlstarlet
 	if err := exec.Command("dnf", "install", "-y", "xmlstarlet").Run(); err != nil {
 		return fmt.Errorf("failed to install xmlstarlet: %w", err)
