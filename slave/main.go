@@ -10,10 +10,6 @@ import (
 	"regexp"
 	"slave/btrfs"
 	"slave/env512"
-	"slave/logs512"
-	"slave/nfs"
-	"slave/protocol"
-	"slave/virsh"
 	"strings"
 	"time"
 
@@ -401,33 +397,44 @@ func set_host_uuid_source() error {
 
 func main() {
 	askForSudo()
+	disks, _ := btrfs.GetAllDisks()
+	fmt.Println(disks)
+	raids, _ := btrfs.GetAllFileSystems()
+	for _, raid := range raids.FileSystems {
+		stats, _ := btrfs.GetFileSystemStats(raid.Target)
+		info, _ := btrfs.GetFileSystemInfo(raid.Target)
 
-	//varsc
-	if err := env512.Setup(); err != nil {
-		log.Fatalf("env setup: %v", err)
+		fmt.Println(raid)
+		fmt.Println(stats)
+		fmt.Println(info)
 	}
+	return
+	// //varsc
+	// if err := env512.Setup(); err != nil {
+	// 	log.Fatalf("env setup: %v", err)
+	// }
 
-	if err := virsh.SetVNCPorts(env512.VNC_MIN_PORT, env512.VNC_MAX_PORT); err != nil {
-		log.Fatalf("set vnc ports: %v", err)
-	}
+	// if err := virsh.SetVNCPorts(env512.VNC_MIN_PORT, env512.VNC_MAX_PORT); err != nil {
+	// 	log.Fatalf("set vnc ports: %v", err)
+	// }
 
-	logger.SetType(env512.Mode)
-	logger.SetCallBack(logs512.LogMessage)
-	if err := nfs.InstallNFS(); err != nil {
-		log.Fatalf("failed to install NFS: %v", err)
-	}
+	// logger.SetType(env512.Mode)
+	// logger.SetCallBack(logs512.LogMessage)
+	// if err := nfs.InstallNFS(); err != nil {
+	// 	log.Fatalf("failed to install NFS: %v", err)
+	// }
 
-	if err := setupAll(); err != nil {
-		log.Fatalf("setup all: %v", err)
-	}
+	// if err := setupAll(); err != nil {
+	// 	log.Fatalf("setup all: %v", err)
+	// }
 
-	err := set_host_uuid_source()
-	if err != nil {
-		logger.Error(err.Error())
-	}
+	// err := set_host_uuid_source()
+	// if err != nil {
+	// 	logger.Error(err.Error())
+	// }
 
-	conn := protocol.ConnectGRPC()
-	env512.SetConn(conn)
-	defer conn.Close()
-	select {}
+	// conn := protocol.ConnectGRPC()
+	// env512.SetConn(conn)
+	// defer conn.Close()
+	// select {}
 }

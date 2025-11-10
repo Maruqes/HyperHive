@@ -2,6 +2,7 @@ package btrfs
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -76,6 +77,22 @@ var (
 	Raid1c4 = raidType{"raid1c4", "raid1c4", 4}
 )
 
+// Compression constants for BTRFS mount options
+const (
+	CompressionNone   = ""        // No compression (default)
+	CompressionNo     = "no"      // Explicitly disable compression
+	CompressionLZO    = "lzo"     // Fast compression, moderate ratio
+	CompressionZlib   = "zlib"    // Highest compression ratio, slowest
+	CompressionZlib1  = "zlib:1"  // Zlib level 1 (fastest)
+	CompressionZlib3  = "zlib:3"  // Zlib level 3 (default)
+	CompressionZlib9  = "zlib:9"  // Zlib level 9 (maximum compression)
+	CompressionZstd   = "zstd"    // Recommended: best balance of speed/ratio
+	CompressionZstd1  = "zstd:1"  // Zstd level 1 (fastest)
+	CompressionZstd3  = "zstd:3"  // Zstd level 3 (default, recommended)
+	CompressionZstd9  = "zstd:9"  // Zstd level 9 (high compression)
+	CompressionZstd15 = "zstd:15" // Zstd level 15 (maximum compression)
+)
+
 func doesDiskExist(disk string) bool {
 	_, err := os.Stat(disk)
 	return err == nil
@@ -90,11 +107,45 @@ func isMounted(disk string) bool {
 	lines := strings.Split(string(data), "\n")
 	for _, line := range lines {
 		fields := strings.Fields(line)
-		if len(fields) >= 1 && fields[0] == disk {
+		if len(fields) == 0 {
+			continue
+		}
+		if deviceMatchesDisk(fields[0], disk) {
 			return true
 		}
 	}
 	return false
+}
+
+func deviceMatchesDisk(device, disk string) bool {
+	if device == disk {
+		return true
+	}
+
+	if !strings.HasPrefix(device, disk) {
+		return false
+	}
+
+	suffix := device[len(disk):]
+	if suffix == "" {
+		return true
+	}
+
+	if suffix[0] == 'p' {
+		suffix = suffix[1:]
+	}
+
+	if suffix == "" {
+		return false
+	}
+
+	for _, r := range suffix {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+
+	return true
 }
 
 func isDuplicate(disk string, disks ...string) bool {
@@ -110,7 +161,7 @@ func isDuplicate(disk string, disks ...string) bool {
 	return false
 }
 
-func CreateRaid(raid raidType, disks ...string) error {
+func CreateRaid(name string, raid raidType, disks ...string) error {
 	for _, disk := range disks {
 		if !doesDiskExist(disk) {
 			return fmt.Errorf("disk %s does not exist", disk)
@@ -131,14 +182,195 @@ func CreateRaid(raid raidType, disks ...string) error {
 		"mkfs.btrfs",
 		"-d", raid.sType,
 		"-m", raid.sMeta,
+		"-L", name,
 		"-f",
 	}, disks...)
 
 	return runCommand("creating raid", args...)
 }
 
-//findmnt -t btrfs -o TARGET,SOURCE,FSTYPE,OPTIONS -J
-//sudo btrfs device stats /mnt/point
-//sudo btrfs filesystem df /mnt/point
+/*
+gpt explanation ->
 
-// func GetRaid
+BTRFS Compression Options:
+
+- "zlib" (levels 1-9, default 3):
+  - Highest compression ratio (~45-50% space savings)
+  - Slowest compression speed
+  - Best for: archival data, rarely accessed files, maximum space savings
+  - CPU usage: High
+
+- "lzo":
+  - Moderate compression ratio (~35-40% space savings)
+  - Fast compression/decompression
+  - Best for: general purpose, good balance of speed and compression
+  - CPU usage: Low to moderate
+
+- "zstd" (levels 1-15, default 3):
+  - Excellent compression ratio (~40-45% space savings)
+  - Very fast compression/decompression (faster than zlib, similar to lzo)
+  - Best for: modern systems, recommended for most use cases
+  - CPU usage: Low to moderate (very efficient)
+  - Note: Requires Linux kernel 4.14+
+
+- "no" or empty string:
+  - No compression (default)
+  - Fastest I/O performance
+  - Best for: already compressed data (videos, images), maximum performance
+
+Performance comparison (approximate):
+  Speed:       lzo > zstd > zlib
+  Compression: zlib > zstd > lzo
+  Recommended: zstd (best overall balance)
+*/
+
+func MountRaid(name string, mountPoint string, compression string) error {
+	if err := os.MkdirAll(mountPoint, 0755); err != nil {
+		return fmt.Errorf("failed to create mount point: %w", err)
+	}
+
+	var opts []string
+	compression = strings.TrimSpace(compression)
+	if compression != "" && compression != "no" {
+		opts = append(opts, "compress="+compression)
+	}
+
+	args := []string{
+		"mount",
+		"-t", "btrfs",
+	}
+
+	if len(opts) > 0 {
+		args = append(args, "-o", strings.Join(opts, ","))
+	}
+
+	args = append(args, "-L", name, mountPoint)
+
+	return runCommand("mounting raid", args...)
+}
+
+type MinDisk struct {
+	Path    string // /dev/sdx
+	Mounted bool
+}
+
+func GetAllDisks() ([]MinDisk, error) {
+	cmd := exec.Command("lsblk", "-d", "-n", "-o", "NAME,TYPE")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list disks: %w", err)
+	}
+
+	var disks []MinDisk
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		name := fields[0]
+		diskType := fields[1]
+
+		if diskType != "disk" {
+			continue
+		}
+
+		path := "/dev/" + name
+		mounted := isMounted(path)
+
+		disks = append(disks, MinDisk{
+			Path:    path,
+			Mounted: mounted,
+		})
+	}
+
+	return disks, nil
+}
+
+//findmnt -t btrfs -o TARGET,SOURCE,FSTYPE,OPTIONS -J
+//sudo btrfs --format json device stats /mnt/point
+//sudo btrfs --format json filesystem df /mnt/point
+
+type FileSystem struct {
+	Target   string       `json:"target"`
+	Source   string       `json:"source"`
+	FSType   string       `json:"fstype"`
+	Options  string       `json:"options"`
+	Children []FileSystem `json:"children,omitempty"`
+}
+
+type FindMntOutput struct {
+	FileSystems []FileSystem `json:"filesystems"`
+}
+
+func GetAllFileSystems() (*FindMntOutput, error) {
+	cmd := exec.Command("findmnt", "-t", "btrfs", "-o", "TARGET,SOURCE,FSTYPE,OPTIONS", "-J")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get filesystems: %w", err)
+	}
+
+	var result FindMntOutput
+	if err := json.Unmarshal(output, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal filesystems: %w", err)
+	}
+
+	return &result, nil
+}
+
+type DeviceStats struct {
+	Header struct {
+		Version string `json:"version"`
+	} `json:"__header"`
+	DeviceStats []struct {
+		Device         string `json:"device"`
+		DevID          int    `json:"devid"`
+		WriteIOErrs    int    `json:"write_io_errs"`
+		ReadIOErrs     int    `json:"read_io_errs"`
+		FlushIOErrs    int    `json:"flush_io_errs"`
+		CorruptionErrs int    `json:"corruption_errs"`
+		GenerationErrs int    `json:"generation_errs"`
+	} `json:"device-stats"`
+}
+
+func GetFileSystemStats(mountPoint string) (*DeviceStats, error) {
+	cmd := exec.Command("btrfs", "--format", "json", "device", "stats", mountPoint)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get device stats: %w", err)
+	}
+
+	var stats DeviceStats
+	if err := json.Unmarshal(output, &stats); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal device stats: %w", err)
+	}
+
+	return &stats, nil
+}
+
+type FilesystemDF struct {
+	Header struct {
+		Version string `json:"version"`
+	} `json:"__header"`
+	FilesystemDF []struct {
+		BgType    string `json:"bg-type"`
+		BgProfile string `json:"bg-profile"`
+		Total     int64  `json:"total"`
+		Used      int64  `json:"used"`
+	} `json:"filesystem-df"`
+}
+
+func GetFileSystemInfo(mountPoint string) (*FilesystemDF, error) {
+	cmd := exec.Command("btrfs", "--format", "json", "filesystem", "df", mountPoint)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get filesystem info: %w", err)
+	}
+
+	var info FilesystemDF
+	if err := json.Unmarshal(output, &info); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal filesystem info: %w", err)
+	}
+
+	return &info, nil
+}
