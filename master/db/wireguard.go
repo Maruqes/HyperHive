@@ -26,25 +26,6 @@ func CreateWireguardPeerTable() error {
 	if _, err := DB.Exec(query); err != nil {
 		return err
 	}
-
-	// For existing installations add the public_key column if missing.
-	const hasColumnQuery = `
-	SELECT COUNT(*) FROM pragma_table_info('wireguard_peers')
-	WHERE name = 'public_key';
-	`
-	var count int
-	if err := DB.QueryRow(hasColumnQuery).Scan(&count); err != nil {
-		return fmt.Errorf("check wireguard peer public_key column: %w", err)
-	}
-	if count == 0 {
-		const alterQuery = `
-		ALTER TABLE wireguard_peers
-		ADD COLUMN public_key TEXT NOT NULL DEFAULT '';
-		`
-		if _, err := DB.Exec(alterQuery); err != nil {
-			return fmt.Errorf("add wireguard peer public_key column: %w", err)
-		}
-	}
 	return nil
 }
 
