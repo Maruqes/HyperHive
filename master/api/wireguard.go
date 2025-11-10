@@ -22,11 +22,12 @@ type createPeerRequest struct {
 }
 
 type peerPayload struct {
-	ID       int          `json:"id"`
-	Name     string       `json:"name"`
-	ClientIP string       `json:"client_ip"`
-	WGPeer   wgtypes.Peer `json:"wireguard"`
-	Config   string       `json:"config"`
+	ID        int          `json:"id"`
+	Name      string       `json:"name"`
+	ClientIP  string       `json:"client_ip"`
+	PublicKey string       `json:"public_key"`
+	WGPeer    wgtypes.Peer `json:"wireguard"`
+	Config    string       `json:"config"`
 }
 
 type createPeerResponse struct {
@@ -98,13 +99,13 @@ func newPeer(w http.ResponseWriter, r *http.Request) {
 		keepalive = *req.KeepaliveSeconds
 	}
 
-	config, err := wireguard.GeneratePeerAndGenerateConfig(clientCIDR, endpoint, keepalive)
+	config, clientPubKey, err := wireguard.GeneratePeerAndGenerateConfig(clientCIDR, endpoint, keepalive)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("generate config: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	peerID, err := db.InsertWireguardPeer(req.Name, clientCIDR)
+	peerID, err := db.InsertWireguardPeer(req.Name, clientCIDR, clientPubKey)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("persist peer: %v", err), http.StatusInternalServerError)
 		return
@@ -112,9 +113,10 @@ func newPeer(w http.ResponseWriter, r *http.Request) {
 
 	response := createPeerResponse{
 		Peer: peerPayload{
-			ID:       peerID,
-			Name:     req.Name,
-			ClientIP: clientCIDR,
+			ID:        peerID,
+			Name:      req.Name,
+			ClientIP:  clientCIDR,
+			PublicKey: clientPubKey,
 		},
 		Config:   config,
 		Endpoint: endpoint,
@@ -140,9 +142,10 @@ func getPeers(w http.ResponseWriter, r *http.Request) {
 	for _, peer := range peers {
 
 		item := peerPayload{
-			ID:       peer.Id,
-			Name:     peer.Name,
-			ClientIP: peer.ClientIP,
+			ID:        peer.Id,
+			Name:      peer.Name,
+			ClientIP:  peer.ClientIP,
+			PublicKey: peer.PublicKey,
 		}
 		if wgPeer, ok := matchWGPeer(peer.ClientIP, wgPeers); ok {
 			item.WGPeer = wgPeer
@@ -190,9 +193,10 @@ func deletePeer(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{
 		"deleted": true,
 		"peer": peerPayload{
-			ID:       peer.Id,
-			Name:     peer.Name,
-			ClientIP: peer.ClientIP,
+			ID:        peer.Id,
+			Name:      peer.Name,
+			ClientIP:  peer.ClientIP,
+			PublicKey: peer.PublicKey,
 		},
 	})
 }

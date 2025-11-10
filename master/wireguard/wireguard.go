@@ -232,21 +232,22 @@ PersistentKeepalive = %d
 	return cfg, nil
 }
 
-func GeneratePeerAndGenerateConfig(clientIPCIDR, endpoint string, keepaliveSec int) (string, error) {
+func GeneratePeerAndGenerateConfig(clientIPCIDR, endpoint string, keepaliveSec int) (string, string, error) {
 	clientPriv, err := wgtypes.GeneratePrivateKey()
 	if err != nil {
-		return "", fmt.Errorf("generate client private key: %w", err)
+		return "", "", fmt.Errorf("generate client private key: %w", err)
 	}
 	cfg, err := buildClientConfig(clientPriv, clientIPCIDR, endpoint, keepaliveSec)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	if err := addPeerToDevice(clientPriv.PublicKey(), clientIPCIDR); err != nil {
-		return "", err
+	clientPub := clientPriv.PublicKey()
+	if err := addPeerToDevice(clientPub, clientIPCIDR); err != nil {
+		return "", "", err
 	}
 
-	return cfg, nil
+	return cfg, clientPub.String(), nil
 }
 
 func addPeerToDevice(clientPublic wgtypes.Key, clientIPCIDR string) error {
@@ -399,6 +400,37 @@ func SetupInterface() error {
 
 	if err := client.ConfigureDevice(iface, deviceCfg); err != nil {
 		return fmt.Errorf("ConfigureDevice(%s): %w", iface, err)
+	}
+
+	return nil
+}
+
+func AutoStartVPN() error {
+	if err := SetupInterface(); err != nil {
+		return err
+	}
+
+	peers, err := db.GetAllWireguardPeers()
+	if err != nil {
+		return fmt.Errorf("load wireguard peers: %w", err)
+	}
+
+	for _, peer := range peers {
+		publicKey := strings.TrimSpace(peer.PublicKey)
+		if publicKey == "" {
+			logger.Error("wireguard peer %d (%s) is missing a public key; skipping restore", peer.Id, peer.Name)
+			continue
+		}
+
+		key, err := wgtypes.ParseKey(publicKey)
+		if err != nil {
+			logger.Error("wireguard peer %d (%s) has invalid public key: %v", peer.Id, peer.Name, err)
+			continue
+		}
+
+		if err := addPeerToDevice(key, peer.ClientIP); err != nil {
+			return fmt.Errorf("restore wireguard peer %s (%s): %w", peer.Name, peer.ClientIP, err)
+		}
 	}
 
 	return nil

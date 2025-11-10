@@ -272,12 +272,16 @@ func main() {
 		log.Fatalf("install wireguard: %v", err)
 	}
 
-	err = wireguard.SetupInterface()
+	db.InitDB()
+	err = db.CreateWireguardPeerTable()
 	if err != nil {
-		log.Fatalf("SetupInterface : %v", err)
+		log.Fatalf("create wireguard peer table: %v", err)
 	}
 
-	db.InitDB()
+	if err := wireguard.AutoStartVPN(); err != nil {
+		log.Fatalf("start wireguard vpn: %v", err)
+	}
+
 	//create all tables if not exists
 	err = db.CreateNFSTable()
 	if err != nil {
@@ -340,11 +344,6 @@ func main() {
 	err = db.CreateTableAutomaticBackup()
 	if err != nil {
 		log.Fatalf("create autostart table: %v", err)
-	}
-
-	err = db.CreateWireguardPeerTable()
-	if err != nil {
-		log.Fatalf("create wireguard peer table: %v", err)
 	}
 
 	//listen and connects to gRPC
