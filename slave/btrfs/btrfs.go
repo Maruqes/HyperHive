@@ -73,10 +73,29 @@ type raidType struct {
 }
 
 var (
-	Raid0   = raidType{"raid0", "raid1c2", 2}
-	Raid1c2 = raidType{"raid1c2", "raid1c2", 2}
-	Raid1c3 = raidType{"raid1c3", "raid1c3", 3}
-	Raid1c4 = raidType{"raid1c4", "raid1c4", 4}
+	Raid0 = raidType{
+		sType: "raid0",
+		sMeta: "single",
+		c:     2,
+	}
+
+	Raid1 = raidType{
+		sType: "raid1",
+		sMeta: "raid1",
+		c:     2,
+	}
+
+	Raid1c3 = raidType{
+		sType: "raid1c3",
+		sMeta: "raid1c3",
+		c:     3,
+	}
+
+	Raid1c4 = raidType{
+		sType: "raid1c4",
+		sMeta: "raid1c4",
+		c:     4,
+	}
 )
 
 // Compression constants for BTRFS mount options
@@ -99,6 +118,7 @@ func doesDiskExist(disk string) bool {
 	return err == nil
 }
 
+// saber se disco esta montado
 func isMounted(disk string) bool {
 	data, err := os.ReadFile("/proc/mounts")
 	if err != nil {
@@ -118,6 +138,7 @@ func isMounted(disk string) bool {
 	return false
 }
 
+// saber se a PASTA esta montada (diferente da funcao de cima hehe)
 func isMountPoint(path string) bool {
 	data, err := os.ReadFile("/proc/mounts")
 	if err != nil {
@@ -248,6 +269,11 @@ func MountRaid(name string, mountPoint string, compression string) error {
 		return fmt.Errorf("failed to create mount point: %w", err)
 	}
 
+	// Check if something is already mounted at this mount point
+	if isMountPoint(mountPoint) {
+		return fmt.Errorf("mount point %s already has something mounted", mountPoint)
+	}
+
 	var opts []string
 	compression = strings.TrimSpace(compression)
 	if compression != "" {
@@ -280,22 +306,22 @@ func UMountRaid(target string, force bool) error {
 	return runCommand("unmounting raid", args...)
 }
 
-func RemoveRaid(target string, force bool) error {
+func RemoveRaid(targetMountPoint string, force bool) error {
 	//umount an do wipefs on all disks
 	//get info
-	devs, err := GetDisksFromRaid(target)
+	devs, err := GetDisksFromRaid(targetMountPoint)
 	if err != nil {
 		return err
 	}
 
 	//umount
-	err = UMountRaid(target, force)
+	err = UMountRaid(targetMountPoint, force)
 	if err != nil {
 		return err
 	}
 
 	//check if its mounted
-	mounted := isMountPoint(target)
+	mounted := isMountPoint(targetMountPoint)
 	if mounted {
 		return fmt.Errorf("raid should not be mounted at this point")
 	}
@@ -329,10 +355,6 @@ func AddDiskToRaid(diskPath string, target string) error {
 	}
 
 	logger.Info("Successfully added disk " + diskPath + " to raid")
-
-	// It's recommended to balance after adding a disk to distribute data
-	logger.Info("Note: Consider running BalanceRaid() to redistribute data across all disks")
-
 	return nil
 }
 
@@ -346,7 +368,7 @@ func RemoveDisk(diskPath string, target string) error {
 
 	//check if its mounted
 	mounted := isMountPoint(target)
-	if mounted {
+	if !mounted {
 		return fmt.Errorf("target mount point does not exist: %s", target)
 	}
 
@@ -442,13 +464,25 @@ func ReplaceDisk(oldDiskPath string, newDiskPath string, target string) error {
 	logger.Info("Replacing disk " + oldDiskPath + " with " + newDiskPath + " in filesystem at " + target)
 	logger.Info("This will relocate data from the old disk to the new disk; it may take some time")
 
-	err = runCommand("replace disk in raid", "btrfs", "device", "replace", "start", oldDiskPath, newDiskPath, target)
+	// Use 'start -B' to run in foreground and wait for completion
+	err = runCommand("replace disk in raid", "btrfs", "device", "replace", "start", "-B", oldDiskPath, newDiskPath, target)
 	if err != nil {
 		return fmt.Errorf("failed to replace disk: %w", err)
 	}
 
-	logger.Info("Replacement command completed. Monitor progress with: btrfs device replace status " + target)
-	logger.Info("After completion, consider wiping the old disk with: wipefs -a " + oldDiskPath)
+	logger.Info("Disk replacement completed successfully")
+
+	// Balance after replacing a disk to ensure optimal data distribution
+	logger.Info("Starting balance operation to optimize data distribution...")
+	if err := BalanceRaid(target, 0, false); err != nil {
+		logger.Error("Balance operation failed: " + err.Error())
+		logger.Info("You may need to manually run BalanceRaid() later")
+		logger.Info("You can now wipe the old disk with: wipefs -a " + oldDiskPath)
+		return fmt.Errorf("disk replaced successfully but balance failed: %w", err)
+	}
+
+	logger.Info("Balance completed successfully")
+	logger.Info("You can now wipe the old disk with: wipefs -a " + oldDiskPath)
 
 	return nil
 }
@@ -531,8 +565,6 @@ func BalanceRaid(target string, chunkLimit int, background bool) error {
 	}
 	if background {
 		args = append(args, "-b")
-	} else {
-		args = append(args, "-B")
 	}
 	args = append(args, target)
 
@@ -568,6 +600,13 @@ func Defragment(target string, recursive bool, compression string) error {
 	}
 	compression = strings.TrimSpace(compression)
 	if compression != "" && compression != "no" {
+		// btrfs defragment only accepts base algorithm names without levels
+		// e.g., "zstd:3" becomes "zstd", "zlib:9" becomes "zlib"
+		if idx := strings.Index(compression, ":"); idx != -1 {
+			compression = compression[:idx]
+		}
+		// Also handle forced compression suffix
+		compression = strings.TrimSuffix(compression, " (forced)")
 		args = append(args, "-c"+compression)
 	}
 	args = append(args, target)
@@ -651,11 +690,17 @@ func GetAllDisks() ([]MinDisk, error) {
 //sudo btrfs --format json filesystem df /mnt/point
 
 type FileSystem struct {
-	Target   string       `json:"target"`
-	Source   string       `json:"source"`
-	FSType   string       `json:"fstype"`
-	Options  string       `json:"options"`
-	Children []FileSystem `json:"children,omitempty"`
+	Target        string       `json:"target"`
+	Source        string       `json:"source"`
+	FSType        string       `json:"fstype"`
+	Options       string       `json:"options"`
+	UUID          string       `json:"uuid"`
+	Compression   string       `json:"compression"`
+	MaxSpace      int64        `json:"max_space"`       // Total space in bytes (from btrfs fi df)
+	UsedSpace     int64        `json:"used_space"`      // Used space in bytes (from btrfs fi df)
+	RealMaxSpace  int64        `json:"real_max_space"`  // Real device size (from btrfs fi usage)
+	RealUsedSpace int64        `json:"real_used_space"` // Real used space (from btrfs fi usage)
+	Children      []FileSystem `json:"children,omitempty"`
 }
 
 type FindMntOutput struct {
@@ -677,8 +722,12 @@ func (f *FindMntOutput) Print() {
 	}
 }
 
+func (f *FileSystem) Print() {
+	printFileSystem(*f, 0)
+}
+
 func GetAllFileSystems() (*FindMntOutput, error) {
-	cmd := exec.Command("findmnt", "-t", "btrfs", "-o", "TARGET,SOURCE,FSTYPE,OPTIONS", "-J")
+	cmd := exec.Command("findmnt", "-t", "btrfs", "-o", "TARGET,SOURCE,FSTYPE,OPTIONS,UUID", "-J")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get filesystems: %w", err)
@@ -689,18 +738,218 @@ func GetAllFileSystems() (*FindMntOutput, error) {
 		return nil, fmt.Errorf("failed to unmarshal filesystems: %w", err)
 	}
 
+	// Parse compression and space info from options for each filesystem
+	for i := range result.FileSystems {
+		parseFilesystemDetailsRecursive(&result.FileSystems[i])
+	}
+
 	return &result, nil
+}
+
+// parseFilesystemDetailsRecursive extracts compression and space info recursively
+func parseFilesystemDetailsRecursive(fs *FileSystem) {
+	fs.Compression = extractCompression(fs.Options)
+
+	// Get space information for the filesystem
+	if fs.Target != "" {
+		fsInfo, err := GetFileSystemInfo(fs.Target)
+		if err == nil && fsInfo != nil {
+			// Sum up total and used space across all allocation groups
+			var totalSpace, usedSpace int64
+			for _, bg := range fsInfo.FilesystemDF {
+				totalSpace += bg.Total
+				usedSpace += bg.Used
+			}
+			fs.MaxSpace = totalSpace
+			fs.UsedSpace = usedSpace
+		}
+
+		// Get real space information from btrfs filesystem usage
+		realMax, realUsed := getRealSpaceUsage(fs.Target)
+		fs.RealMaxSpace = realMax
+		fs.RealUsedSpace = realUsed
+	}
+
+	for i := range fs.Children {
+		parseFilesystemDetailsRecursive(&fs.Children[i])
+	}
+}
+
+// getRealSpaceUsage gets the real device size and used space from btrfs filesystem usage
+func getRealSpaceUsage(mountPoint string) (int64, int64) {
+	cmd := exec.Command("btrfs", "filesystem", "usage", "-b", mountPoint)
+	output, err := cmd.Output()
+	if err != nil {
+		return 0, 0
+	}
+
+	var totalDeviceSize int64
+	var totalUsed int64
+
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+
+		// Parse "Device size:" line for total real space
+		if strings.HasPrefix(line, "Device size:") {
+			parts := strings.Fields(line)
+			if len(parts) >= 3 {
+				// Format: "Device size: 6442450944"
+				if size, err := fmt.Sscanf(parts[2], "%d", &totalDeviceSize); err == nil && size > 0 {
+					// Successfully parsed
+				}
+			}
+		}
+
+		// Parse "Used:" line for total used space
+		if strings.HasPrefix(line, "Used:") {
+			parts := strings.Fields(line)
+			if len(parts) >= 2 {
+				// Format: "Used: 1234567890"
+				if size, err := fmt.Sscanf(parts[1], "%d", &totalUsed); err == nil && size > 0 {
+					// Successfully parsed
+				}
+			}
+		}
+	}
+
+	return totalDeviceSize, totalUsed
+}
+
+// extractCompression parses the mount options to find compression setting
+func extractCompression(options string) string {
+	if options == "" {
+		return "none"
+	}
+
+	opts := strings.Split(options, ",")
+	for _, opt := range opts {
+		opt = strings.TrimSpace(opt)
+		if strings.HasPrefix(opt, "compress=") {
+			return strings.TrimPrefix(opt, "compress=")
+		}
+		if strings.HasPrefix(opt, "compress-force=") {
+			return strings.TrimPrefix(opt, "compress-force=") + " (forced)"
+		}
+		if opt == "compress" {
+			return "zlib (default)"
+		}
+	}
+
+	return "none"
+}
+
+// GetFileSystemByUUID returns the FileSystem with the matching UUID
+func GetFileSystemByUUID(uuid string) (*FileSystem, error) {
+	allFS, err := GetAllFileSystems()
+	if err != nil {
+		return nil, err
+	}
+
+	if allFS == nil || len(allFS.FileSystems) == 0 {
+		return nil, fmt.Errorf("no BTRFS filesystems found")
+	}
+
+	for _, fs := range allFS.FileSystems {
+		if found := findFileSystemByUUID(fs, uuid); found != nil {
+			return found, nil
+		}
+	}
+
+	return nil, fmt.Errorf("filesystem with UUID %s not found", uuid)
+}
+
+// findFileSystemByUUID recursively searches for a filesystem with the given UUID
+func findFileSystemByUUID(fs FileSystem, uuid string) *FileSystem {
+	if fs.UUID == uuid {
+		return &fs
+	}
+	for _, child := range fs.Children {
+		if found := findFileSystemByUUID(child, uuid); found != nil {
+			return found
+		}
+	}
+	return nil
+}
+
+// GetFileSystemByMountPoint returns the FileSystem with the matching mount point
+func GetFileSystemByMountPoint(mountPoint string) (*FileSystem, error) {
+	allFS, err := GetAllFileSystems()
+	if err != nil {
+		return nil, err
+	}
+
+	if allFS == nil || len(allFS.FileSystems) == 0 {
+		return nil, fmt.Errorf("no BTRFS filesystems found")
+	}
+
+	for _, fs := range allFS.FileSystems {
+		if found := findFileSystemByMountPoint(fs, mountPoint); found != nil {
+			return found, nil
+		}
+	}
+
+	return nil, fmt.Errorf("filesystem with mount point %s not found", mountPoint)
+}
+
+// findFileSystemByMountPoint recursively searches for a filesystem with the given mount point
+func findFileSystemByMountPoint(fs FileSystem, mountPoint string) *FileSystem {
+	if fs.Target == mountPoint {
+		return &fs
+	}
+	for _, child := range fs.Children {
+		if found := findFileSystemByMountPoint(child, mountPoint); found != nil {
+			return found
+		}
+	}
+	return nil
+}
+
+// getBtrfsLabel retrieves the BTRFS filesystem label for a given mount point
+func getBtrfsLabel(mountPoint string) string {
+	cmd := exec.Command("btrfs", "filesystem", "label", mountPoint)
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(output))
 }
 
 func printFileSystem(fs FileSystem, depth int) {
 	indent := strings.Repeat("  ", depth)
 	fmt.Printf("%s- %s\n", indent, fs.Target)
-	fmt.Printf("%s  source : %s\n", indent, fs.Source)
+	fmt.Printf("%s  source     : %s\n", indent, fs.Source)
 	if fs.FSType != "" {
-		fmt.Printf("%s  type   : %s\n", indent, fs.FSType)
+		fmt.Printf("%s  type       : %s\n", indent, fs.FSType)
+	}
+	if fs.UUID != "" {
+		fmt.Printf("%s  uuid       : %s\n", indent, fs.UUID)
 	}
 	if fs.Options != "" {
-		fmt.Printf("%s  options: %s\n", indent, fs.Options)
+		fmt.Printf("%s  options    : %s\n", indent, fs.Options)
+	}
+	if fs.Compression != "" {
+		fmt.Printf("%s  compression: %s\n", indent, fs.Compression)
+	}
+	if fs.MaxSpace > 0 {
+		fmt.Printf("%s  max space  : %s\n", indent, formatBytes(fs.MaxSpace))
+		fmt.Printf("%s  used space : %s\n", indent, formatBytes(fs.UsedSpace))
+		freeSpace := fs.MaxSpace - fs.UsedSpace
+		fmt.Printf("%s  free space : %s\n", indent, formatBytes(freeSpace))
+		if fs.MaxSpace > 0 {
+			usedPercent := float64(fs.UsedSpace) * 100 / float64(fs.MaxSpace)
+			fmt.Printf("%s  usage      : %.2f%%\n", indent, usedPercent)
+		}
+	}
+	if fs.RealMaxSpace > 0 {
+		fmt.Printf("%s  real max   : %s\n", indent, formatBytes(fs.RealMaxSpace))
+		fmt.Printf("%s  real used  : %s\n", indent, formatBytes(fs.RealUsedSpace))
+		realFreeSpace := fs.RealMaxSpace - fs.RealUsedSpace
+		fmt.Printf("%s  real free  : %s\n", indent, formatBytes(realFreeSpace))
+		if fs.RealMaxSpace > 0 {
+			realUsedPercent := float64(fs.RealUsedSpace) * 100 / float64(fs.RealMaxSpace)
+			fmt.Printf("%s  real usage : %.2f%%\n", indent, realUsedPercent)
+		}
 	}
 	for _, child := range fs.Children {
 		printFileSystem(child, depth+1)
@@ -756,12 +1005,16 @@ func GetFileSystemStats(mountPoint string) (*DeviceStats, error) {
 	cmd := exec.Command("btrfs", "--format", "json", "device", "stats", mountPoint)
 	output, err := cmd.Output()
 	if err != nil {
+		// Try to get stderr for better error message
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("failed to get device stats: %w, stderr: %s", err, string(exitErr.Stderr))
+		}
 		return nil, fmt.Errorf("failed to get device stats: %w", err)
 	}
 
 	var stats DeviceStats
 	if err := json.Unmarshal(output, &stats); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal device stats: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal device stats: %w (output: %s)", err, string(output))
 	}
 
 	return &stats, nil
@@ -870,56 +1123,62 @@ func GetDisksFromRaid(mountPoint string) ([]string, error) {
 	return disks, nil
 }
 
-func CheckBtrfsGoLoop(callErrs func(...any)) {
-	type btrfsErrorEvent struct {
-		Target    string `json:"target"`
-		Device    string `json:"device"`
-		DevID     int    `json:"devid"`
-		ErrorType string `json:"error_type"`
-		Count     int    `json:"count"`
+type btrfsErrorEvent struct {
+	Target    string `json:"target"`
+	Device    string `json:"device"`
+	DevID     int    `json:"devid"`
+	ErrorType string `json:"error_type"`
+	Count     int    `json:"count"`
+}
+
+func CheckBtrfs(callErrs func(...any)) {
+
+	raids, _ := GetAllFileSystems()
+	if raids == nil || len(raids.FileSystems) == 0 {
+		return
 	}
+
+	for _, raid := range raids.FileSystems {
+		stats, err := GetFileSystemStats(raid.Target)
+		if err != nil {
+			callErrs(fmt.Errorf("failed to get stats for %s: %w", raid.Target, err))
+			continue
+		}
+		if stats == nil {
+			continue
+		}
+
+		for _, devStat := range stats.DeviceStats {
+			metrics := map[string]int{
+				"corruption_errs": devStat.CorruptionErrs,
+				"flush_io_errs":   devStat.FlushIOErrs,
+				"generation_errs": devStat.GenerationErrs,
+				"read_io_errs":    devStat.ReadIOErrs,
+				"write_io_errs":   devStat.WriteIOErrs,
+			}
+
+			for name, val := range metrics {
+				if val != 0 {
+					evt := btrfsErrorEvent{
+						Target:    raid.Target,
+						Device:    devStat.Device,
+						DevID:     devStat.DevID,
+						ErrorType: name,
+						Count:     val,
+					}
+					// pass the event to caller; callers can accept either errors or structured events
+					callErrs(evt)
+				}
+			}
+		}
+	}
+}
+
+func CheckBtrfsGoLoop(callErrs func(...any)) {
 
 	go func() {
 		for {
-			raids, _ := GetAllFileSystems()
-			if raids == nil || len(raids.FileSystems) == 0 {
-				return
-			}
-
-			for _, raid := range raids.FileSystems {
-				stats, err := GetFileSystemStats(raid.Target)
-				if err != nil {
-					callErrs(fmt.Errorf("failed to get stats for %s: %w", raid.Target, err))
-					continue
-				}
-				if stats == nil {
-					continue
-				}
-
-				for _, devStat := range stats.DeviceStats {
-					metrics := map[string]int{
-						"corruption_errs": devStat.CorruptionErrs,
-						"flush_io_errs":   devStat.FlushIOErrs,
-						"generation_errs": devStat.GenerationErrs,
-						"read_io_errs":    devStat.ReadIOErrs,
-						"write_io_errs":   devStat.WriteIOErrs,
-					}
-
-					for name, val := range metrics {
-						if val != 0 {
-							evt := btrfsErrorEvent{
-								Target:    raid.Target,
-								Device:    devStat.Device,
-								DevID:     devStat.DevID,
-								ErrorType: name,
-								Count:     val,
-							}
-							// pass the event to caller; callers can accept either errors or structured events
-							callErrs(evt)
-						}
-					}
-				}
-			}
+			CheckBtrfs(callErrs)
 			time.Sleep(30 * time.Second)
 		}
 	}()
