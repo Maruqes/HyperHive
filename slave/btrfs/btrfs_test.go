@@ -204,7 +204,7 @@ func TestRaid0(t *testing.T) {
 		return
 	}
 
-	err = CreateRaid("raid0", Raid0, dev0, dev1, dev2)
+	err = CreateRaid("raid0", &Raid0, dev0, dev1, dev2)
 	if err != nil {
 		t.Error(err)
 		return
@@ -313,7 +313,7 @@ func TestRaid1c2(t *testing.T) {
 		return
 	}
 
-	err = CreateRaid("raid1c2", Raid1, dev0, dev1, dev2)
+	err = CreateRaid("raid1c2", &Raid1, dev0, dev1, dev2)
 	if err != nil {
 		t.Error(err)
 		return
@@ -422,7 +422,7 @@ func TestRaid1c3(t *testing.T) {
 		return
 	}
 
-	err = CreateRaid("raid1c3", Raid1c3, dev0, dev1, dev2)
+	err = CreateRaid("raid1c3", &Raid1c3, dev0, dev1, dev2)
 	if err != nil {
 		t.Error(err)
 		return
@@ -536,7 +536,7 @@ func TestRaid1c4(t *testing.T) {
 		return
 	}
 
-	err = CreateRaid("raid1c4", Raid1c4, dev0, dev1, dev2, dev3)
+	err = CreateRaid("raid1c4", &Raid1c4, dev0, dev1, dev2, dev3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -656,7 +656,7 @@ func TestAddDiskToRaid(t *testing.T) {
 		return
 	}
 
-	err = CreateRaid("raid1c3-add", Raid1c3, dev0, dev1, dev2)
+	err = CreateRaid("raid1c3-add", &Raid1c3, dev0, dev1, dev2)
 	if err != nil {
 		t.Error(err)
 		return
@@ -783,7 +783,7 @@ func TestRemoveDiskFromRaid(t *testing.T) {
 		return
 	}
 
-	err = CreateRaid("raid1c3-add", Raid1c3, dev0, dev1, dev2, dev3)
+	err = CreateRaid("raid1c3-add", &Raid1c3, dev0, dev1, dev2, dev3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -911,7 +911,7 @@ func TestReplaceDiskFromRaid(t *testing.T) {
 		return
 	}
 
-	err = CreateRaid("raid1c3-replace", Raid1c3, dev0, dev1, dev2)
+	err = CreateRaid("raid1c3-replace", &Raid1c3, dev0, dev1, dev2)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1037,7 +1037,7 @@ func TestChangeRaidLevel(t *testing.T) {
 	}
 
 	// Start with RAID0
-	err = CreateRaid("raid-convert", Raid0, dev0, dev1, dev2)
+	err = CreateRaid("raid-convert", &Raid0, dev0, dev1, dev2)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1129,7 +1129,7 @@ func TestBalanceRaid(t *testing.T) {
 		return
 	}
 
-	err = CreateRaid("raid-balance", Raid1, dev0, dev1, dev2)
+	err = CreateRaid("raid-balance", &Raid1, dev0, dev1, dev2)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1230,7 +1230,7 @@ func TestDefragmentRaid(t *testing.T) {
 		return
 	}
 
-	err = CreateRaid("raid-defrag", Raid1, dev0, dev1)
+	err = CreateRaid("raid-defrag", &Raid1, dev0, dev1)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1349,7 +1349,7 @@ func TestScrubRaid(t *testing.T) {
 		return
 	}
 
-	err = CreateRaid("raid-scrub", Raid1, dev0, dev1, dev2)
+	err = CreateRaid("raid-scrub", &Raid1, dev0, dev1, dev2)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1453,7 +1453,7 @@ func TestCheckBtrfsFunc(t *testing.T) {
 		return
 	}
 
-	err = CreateRaid("raid-check", Raid1, dev0, dev1, dev2)
+	err = CreateRaid("raid-check", &Raid1, dev0, dev1, dev2)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1566,7 +1566,7 @@ func TestDiskFailure(t *testing.T) {
 	}
 
 	// Create RAID1 (can tolerate 1 disk failure)
-	err = CreateRaid("raid-failure", Raid1, dev0, dev1, dev2)
+	err = CreateRaid("raid-failure", &Raid1, dev0, dev1, dev2)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1768,7 +1768,7 @@ func TestMultipleDiskFailure(t *testing.T) {
 	}
 
 	// Create RAID1c3 (can tolerate 2 disk failures)
-	err = CreateRaid("raid-multi-failure", Raid1c3, dev0, dev1, dev2, dev3)
+	err = CreateRaid("raid-multi-failure", &Raid1c3, dev0, dev1, dev2, dev3)
 	if err != nil {
 		t.Error(err)
 		return

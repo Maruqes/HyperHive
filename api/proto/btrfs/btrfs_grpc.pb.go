@@ -19,7 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	BtrFSService_GetAllDisks_FullMethodName = "/btrfs.BtrFSService/GetAllDisks"
+	BtrFSService_GetAllDisks_FullMethodName       = "/btrfs.BtrFSService/GetAllDisks"
+	BtrFSService_GetAllFileSystems_FullMethodName = "/btrfs.BtrFSService/GetAllFileSystems"
+	BtrFSService_CreateRaid_FullMethodName        = "/btrfs.BtrFSService/CreateRaid"
 )
 
 // BtrFSServiceClient is the client API for BtrFSService service.
@@ -27,6 +29,8 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BtrFSServiceClient interface {
 	GetAllDisks(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*MinDiskArr, error)
+	GetAllFileSystems(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*FindMntOutput, error)
+	CreateRaid(ctx context.Context, in *CreateRaidReq, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type btrFSServiceClient struct {
@@ -47,11 +51,33 @@ func (c *btrFSServiceClient) GetAllDisks(ctx context.Context, in *Empty, opts ..
 	return out, nil
 }
 
+func (c *btrFSServiceClient) GetAllFileSystems(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*FindMntOutput, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FindMntOutput)
+	err := c.cc.Invoke(ctx, BtrFSService_GetAllFileSystems_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *btrFSServiceClient) CreateRaid(ctx context.Context, in *CreateRaidReq, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, BtrFSService_CreateRaid_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BtrFSServiceServer is the server API for BtrFSService service.
 // All implementations must embed UnimplementedBtrFSServiceServer
 // for forward compatibility
 type BtrFSServiceServer interface {
 	GetAllDisks(context.Context, *Empty) (*MinDiskArr, error)
+	GetAllFileSystems(context.Context, *Empty) (*FindMntOutput, error)
+	CreateRaid(context.Context, *CreateRaidReq) (*Empty, error)
 	mustEmbedUnimplementedBtrFSServiceServer()
 }
 
@@ -61,6 +87,12 @@ type UnimplementedBtrFSServiceServer struct {
 
 func (UnimplementedBtrFSServiceServer) GetAllDisks(context.Context, *Empty) (*MinDiskArr, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAllDisks not implemented")
+}
+func (UnimplementedBtrFSServiceServer) GetAllFileSystems(context.Context, *Empty) (*FindMntOutput, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAllFileSystems not implemented")
+}
+func (UnimplementedBtrFSServiceServer) CreateRaid(context.Context, *CreateRaidReq) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateRaid not implemented")
 }
 func (UnimplementedBtrFSServiceServer) mustEmbedUnimplementedBtrFSServiceServer() {}
 
@@ -93,6 +125,42 @@ func _BtrFSService_GetAllDisks_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BtrFSService_GetAllFileSystems_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BtrFSServiceServer).GetAllFileSystems(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BtrFSService_GetAllFileSystems_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BtrFSServiceServer).GetAllFileSystems(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BtrFSService_CreateRaid_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateRaidReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BtrFSServiceServer).CreateRaid(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BtrFSService_CreateRaid_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BtrFSServiceServer).CreateRaid(ctx, req.(*CreateRaidReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BtrFSService_ServiceDesc is the grpc.ServiceDesc for BtrFSService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -103,6 +171,14 @@ var BtrFSService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAllDisks",
 			Handler:    _BtrFSService_GetAllDisks_Handler,
+		},
+		{
+			MethodName: "GetAllFileSystems",
+			Handler:    _BtrFSService_GetAllFileSystems_Handler,
+		},
+		{
+			MethodName: "CreateRaid",
+			Handler:    _BtrFSService_CreateRaid_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

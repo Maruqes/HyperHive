@@ -66,11 +66,18 @@ func InstallBTRFS() error {
 	return runCommand("Install btrfs-progs", "sudo", "dnf", "install", "-y", "btrfs-progs")
 }
 
+// DUPLICATE ON MASTER
+// DUPLICATE ON MASTER
+// DUPLICATE ON MASTER
 type raidType struct {
 	sType string // perfil de dados (-d)
 	sMeta string // perfil de metadados (-m)
 	c     int    // numero minimo de discos
 }
+
+//DUPLICATE ON MASTER
+//DUPLICATE ON MASTER
+//DUPLICATE ON MASTER
 
 var (
 	Raid0 = raidType{
@@ -201,7 +208,10 @@ func isDuplicate(disk string, disks ...string) bool {
 	return false
 }
 
-func CreateRaid(name string, raid raidType, disks ...string) error {
+func CreateRaid(name string, raid *raidType, disks ...string) error {
+	if raid == nil {
+		return fmt.Errorf("raid type is not valid")
+	}
 	for _, disk := range disks {
 		if !doesDiskExist(disk) {
 			return fmt.Errorf("disk %s does not exist", disk)
@@ -216,6 +226,16 @@ func CreateRaid(name string, raid raidType, disks ...string) error {
 
 	if len(disks) < raid.c {
 		return fmt.Errorf("amount of disks must be at least %d to use %s", raid.c, raid.sType)
+	}
+
+	allFS, err := GetAllFileSystems()
+	if err == nil && allFS != nil {
+		for _, fs := range allFS.FileSystems {
+			label := getBtrfsLabel(fs.Target)
+			if label == name {
+				return fmt.Errorf("a BTRFS filesystem with label '%s' already exists at %s", name, fs.Target)
+			}
+		}
 	}
 
 	args := append([]string{
@@ -646,13 +666,15 @@ func Scrub(target string, background bool) error {
 	}
 	return nil
 }
+
 type MinDisk struct {
 	Path    string // /dev/sdx
 	Mounted bool
 	SizeGB  float64
 }
 
-func GetAllDisks() ([]MinDisk, error) {
+// if test i will return also loop for testing
+func GetAllDisks(test bool) ([]MinDisk, error) {
 	cmd := exec.Command("lsblk", "-d", "-n", "-b", "-o", "NAME,TYPE,SIZE")
 	output, err := cmd.Output()
 	if err != nil {
@@ -670,7 +692,7 @@ func GetAllDisks() ([]MinDisk, error) {
 		diskType := fields[1]
 		sizeBytes := fields[2]
 
-		if diskType != "disk" {
+		if diskType != "disk" && !test {
 			continue
 		}
 

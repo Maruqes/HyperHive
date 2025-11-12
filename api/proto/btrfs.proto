@@ -14,7 +14,33 @@ message MinDiskArr{
 	repeated MinDisk disks = 1;
 }
 
+message FileSystem {
+	string target = 1;
+	string source = 2;
+	string fs_type = 3;
+	string options = 4;
+	string uuid = 5;
+	string compression = 6;
+	int64 max_space = 7;
+	int64 used_space = 8;
+	int64 real_max_space = 9;
+	int64 real_used_space = 10;
+	repeated FileSystem children = 11;
+}
+
+message FindMntOutput {
+	repeated FileSystem filesystems = 1;
+}
+
+message CreateRaidReq {
+	string name = 1;
+	string raid = 2;
+	repeated string disks = 3;
+}
+
 message Empty{}
 service BtrFSService {
 	rpc GetAllDisks(Empty) returns (MinDiskArr);
+	rpc GetAllFileSystems(Empty) returns (FindMntOutput);
+	rpc CreateRaid(CreateRaidReq) returns (Empty);
 }
