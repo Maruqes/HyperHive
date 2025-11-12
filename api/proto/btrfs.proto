@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package btrfs;
+
+option go_package = "github.com/Maruqes/512SvMan/api/proto/btrfs;proto";
+
+message MinDisk {
+	string path = 1;
+	bool mounted = 2;
+	double size_gb = 3;
+}
+
+message MinDiskArr{
+	repeated MinDisk disks = 1;
+}
+
+message Empty{}
+service BtrFSService {
+	rpc GetAllDisks(Empty) returns (MinDiskArr);
+}

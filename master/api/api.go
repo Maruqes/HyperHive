@@ -92,6 +92,7 @@ func StartApi() {
 		setupGoAccessAPI(r)
 		setupStreamInfo(r)
 		setupWireguardAPI(r)
+		setupBTRFS(r)
 	})
 
 	http.ListenAndServe(":9595", r)

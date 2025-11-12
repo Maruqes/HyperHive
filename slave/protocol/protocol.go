@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"slave/btrfs"
 	"slave/env512"
 	"slave/extra"
 	"slave/info"
@@ -15,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	btrfsGrpc "github.com/Maruqes/512SvMan/api/proto/btrfs"
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
 	infoGrpc "github.com/Maruqes/512SvMan/api/proto/info"
 	nfsproto "github.com/Maruqes/512SvMan/api/proto/nfs"
@@ -83,6 +85,7 @@ func listenGRPC() {
 	grpcVirsh.RegisterSlaveVirshServiceServer(s, &virsh.SlaveVirshService{})
 	extraGrpc.RegisterExtraServiceServer(s, &extra.ExtraService{})
 	infoGrpc.RegisterInfoServer(s, &info.INFOService{})
+	btrfsGrpc.RegisterBtrFSServiceServer(s, &btrfs.BTRFSService{})
 	logger.Info("Cliente a ouvir em :50052")
 	if err := s.Serve(lis); err != nil {
 		logger.Error("serve: %v", err)

@@ -646,14 +646,14 @@ func Scrub(target string, background bool) error {
 	}
 	return nil
 }
-
 type MinDisk struct {
 	Path    string // /dev/sdx
 	Mounted bool
+	SizeGB  float64
 }
 
 func GetAllDisks() ([]MinDisk, error) {
-	cmd := exec.Command("lsblk", "-d", "-n", "-o", "NAME,TYPE")
+	cmd := exec.Command("lsblk", "-d", "-n", "-b", "-o", "NAME,TYPE,SIZE")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list disks: %w", err)
@@ -663,11 +663,12 @@ func GetAllDisks() ([]MinDisk, error) {
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	for _, line := range lines {
 		fields := strings.Fields(line)
-		if len(fields) < 2 {
+		if len(fields) < 3 {
 			continue
 		}
 		name := fields[0]
 		diskType := fields[1]
+		sizeBytes := fields[2]
 
 		if diskType != "disk" {
 			continue
@@ -676,9 +677,14 @@ func GetAllDisks() ([]MinDisk, error) {
 		path := "/dev/" + name
 		mounted := isMounted(path)
 
+		var size int64
+		fmt.Sscanf(sizeBytes, "%d", &size)
+		sizeGB := float64(size) / (1024 * 1024 * 1024)
+
 		disks = append(disks, MinDisk{
 			Path:    path,
 			Mounted: mounted,
+			SizeGB:  sizeGB,
 		})
 	}
 
