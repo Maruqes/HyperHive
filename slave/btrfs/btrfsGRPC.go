@@ -124,7 +124,7 @@ func convertStringToRaidType(s string) *raidType {
 }
 
 func (s *BTRFSService) CreateRaid(ctx context.Context, req *btrfsGrpc.CreateRaidReq) (*btrfsGrpc.Empty, error) {
-	err := CreateRaid(req.Name, convertStringToRaidType(req.Raid), req.Disks...)
+	_, err := CreateRaid(req.Name, convertStringToRaidType(req.Raid), req.Disks...)
 	if err != nil {
 		return nil, err
 	}

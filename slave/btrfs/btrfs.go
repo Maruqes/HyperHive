@@ -206,24 +206,24 @@ func isDuplicate(disk string, disks ...string) bool {
 	return false
 }
 
-func CreateRaid(name string, raid *raidType, disks ...string) error {
+func CreateRaid(name string, raid *raidType, disks ...string) (string, error) {
 	if raid == nil {
-		return fmt.Errorf("raid type is not valid")
+		return "", fmt.Errorf("raid type is not valid")
 	}
 	for _, disk := range disks {
 		if !doesDiskExist(disk) {
-			return fmt.Errorf("disk %s does not exist", disk)
+			return "", fmt.Errorf("disk %s does not exist", disk)
 		}
 		if isMounted(disk) {
-			return fmt.Errorf("disk %s is already mounted", disk)
+			return "", fmt.Errorf("disk %s is already mounted", disk)
 		}
 		if isDuplicate(disk, disks...) {
-			return fmt.Errorf("disk %s is duplicated", disk)
+			return "", fmt.Errorf("disk %s is duplicated", disk)
 		}
 	}
 
 	if len(disks) < raid.c {
-		return fmt.Errorf("amount of disks must be at least %d to use %s", raid.c, raid.sType)
+		return "", fmt.Errorf("amount of disks must be at least %d to use %s", raid.c, raid.sType)
 	}
 
 	allFS, err := GetAllFileSystems()
@@ -231,7 +231,7 @@ func CreateRaid(name string, raid *raidType, disks ...string) error {
 		for _, fs := range allFS.FileSystems {
 			label := getBtrfsLabel(fs.Target)
 			if label == name {
-				return fmt.Errorf("a BTRFS filesystem with label '%s' already exists at %s", name, fs.Target)
+				return "", fmt.Errorf("a BTRFS filesystem with label '%s' already exists at %s", name, fs.Target)
 			}
 		}
 	}
@@ -244,7 +244,19 @@ func CreateRaid(name string, raid *raidType, disks ...string) error {
 		"-f",
 	}, disks...)
 
-	return runCommand("creating raid", args...)
+	if err := runCommand("creating raid", args...); err != nil {
+		return "", err
+	}
+
+	// Get UUID of the newly created filesystem
+	cmd := exec.Command("blkid", "-s", "UUID", "-o", "value", disks[0])
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get UUID: %w", err)
+	}
+
+	uuid := strings.TrimSpace(string(output))
+	return uuid, nil
 }
 
 /*
