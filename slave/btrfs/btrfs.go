@@ -366,6 +366,155 @@ func RemoveRaid(targetMountPoint string, force bool) error {
 	return nil
 }
 
+// findmnt -rn -S UUID=755aaa3a-750b-410b-878f-b25c8f58e784 -o TARGET     onde esta montade para desmontar
+// sudo wipefs -a /dev/device     apaga device
+func RemoveRaidUUID(uuid string) error {
+	uuid = strings.TrimSpace(uuid)
+	if uuid == "" {
+		return fmt.Errorf("uuid is required")
+	}
+
+	devPaths, mountPoints, err := collectUUIDDeviceInfo(uuid)
+	if err != nil {
+		return err
+	}
+	if len(devPaths) == 0 {
+		return fmt.Errorf("no block devices found for uuid %s", uuid)
+	}
+
+	mountPoints = appendMountPointFromFindmnt(uuid, mountPoints)
+
+	removed, err := removeViaKnownMounts(uuid, mountPoints)
+	if err != nil {
+		return err
+	}
+	if removed {
+		return nil
+	}
+
+	if err := ensureFilesystemNotMounted(uuid, mountPoints); err != nil {
+		return err
+	}
+
+	return wipeDevicesByUUID(uuid, devPaths)
+}
+
+func collectUUIDDeviceInfo(uuid string) ([]string, []string, error) {
+	devicesByUUID, _, _, err := collectBtrfsDevices()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to collect btrfs devices: %w", err)
+	}
+
+	var (
+		devPaths    []string
+		mountPoints []string
+	)
+	for candidate, devs := range devicesByUUID {
+		if !strings.EqualFold(candidate, uuid) {
+			continue
+		}
+		for _, d := range devs {
+			if path := strings.TrimSpace(d.Path); path != "" {
+				devPaths = appendIfMissing(devPaths, path)
+			}
+			if mp := strings.TrimSpace(d.MountPoint); mp != "" {
+				mountPoints = appendIfMissing(mountPoints, mp)
+			}
+		}
+	}
+
+	return devPaths, mountPoints, nil
+}
+
+func appendMountPointFromFindmnt(uuid string, mountPoints []string) []string {
+	findmntCmd := exec.Command("findmnt", "-rn", "-S", "UUID="+uuid, "-o", "TARGET")
+	out, err := findmntCmd.Output()
+	if err != nil {
+		return mountPoints
+	}
+
+	mountOut := strings.TrimSpace(string(out))
+	if mountOut == "" {
+		return mountPoints
+	}
+
+	lines := strings.Split(mountOut, "\n")
+	target := strings.TrimSpace(lines[0])
+	if target == "" {
+		return mountPoints
+	}
+
+	return appendIfMissing(mountPoints, target)
+}
+
+func removeViaKnownMounts(uuid string, mountPoints []string) (bool, error) {
+	for _, target := range mountPoints {
+		target = strings.TrimSpace(target)
+		if target == "" || !isMountPoint(target) {
+			continue
+		}
+
+		logger.Info("Found mount point " + target + " for uuid " + uuid + "; removing raid via mount point")
+		if err := RemoveRaid(target, false); err != nil {
+			if isMountPoint(target) {
+				return false, fmt.Errorf("failed to remove raid at %s: %w", target, err)
+			}
+			logger.Error("RemoveRaid via mount point failed, attempting device-based removal: " + err.Error())
+			continue
+		}
+
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func ensureFilesystemNotMounted(uuid string, mountPoints []string) error {
+	for _, target := range mountPoints {
+		if isMountPoint(target) {
+			return fmt.Errorf("filesystem %s is still mounted at %s; aborting wipe", uuid, target)
+		}
+	}
+	return nil
+}
+
+func wipeDevicesByUUID(uuid string, devPaths []string) error {
+	var lastErr error
+	for _, disk := range devPaths {
+		if !doesDiskExist(disk) {
+			logger.Error("device does not exist: " + disk)
+			lastErr = fmt.Errorf("device not found: %s", disk)
+			continue
+		}
+
+		logger.Info("Wiping device " + disk + " for uuid " + uuid)
+		if err := runCommand("wiping disk "+disk, "wipefs", "-a", disk); err != nil {
+			logger.Error("failed to wipe " + disk + ": " + err.Error())
+			if lastErr == nil {
+				lastErr = err
+			}
+		}
+	}
+
+	if lastErr != nil {
+		return fmt.Errorf("some devices failed to be wiped: %w", lastErr)
+	}
+	return nil
+}
+
+func appendIfMissing(list []string, value string) []string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return list
+	}
+	for _, existing := range list {
+		if existing == value {
+			return list
+		}
+	}
+	return append(list, value)
+}
+
 func AddDiskToRaid(diskPath string, target string) error {
 	//check if is really a disk
 	if !doesDiskExist(diskPath) {
@@ -1117,6 +1266,8 @@ func runFindmnt() (*FindMntOutput, error) {
 	return &result, nil
 }
 
+// collectBtrfsDevices queries lsblk and returns BTRFS devices grouped by UUID,
+// along with their labels and total sizes. Returns maps: devicesByUUID, labelsByUUID, totalSizesByUUID.
 func collectBtrfsDevices() (map[string][]BtrfsDevice, map[string]string, map[string]int64, error) {
 	cmd := exec.Command("lsblk", "-b", "--json", "-o", "NAME,TYPE,SIZE,FSTYPE,PATH,LABEL,MOUNTPOINT,UUID")
 	output, err := cmd.Output()

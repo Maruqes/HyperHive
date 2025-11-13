@@ -103,7 +103,7 @@ func setupBTRFS(r chi.Router) chi.Router {
 		r.Get("/getAllDuckingDisks/{machine_name}", getAllDisks) // /dev/o_caralho_do_disco  apenas retorna merdas montadas
 		r.Get("/getraids/{machine_name}", getAllRaids)
 		r.Post("/createraid/{machine_name}", createRaid)
-		r.Post("/removeraid", test)
+		r.Post("/removeraid/{machine_name}", test)
 		r.Post("/add_diskraid", test)
 		r.Post("/remove_diskraid", test)
 		r.Post("/replace_diskraid", test)

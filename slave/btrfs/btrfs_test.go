@@ -2024,3 +2024,109 @@ func TestMultipleDiskFailure(t *testing.T) {
 	fmt.Println("\n=== Test completed successfully ===")
 	fmt.Println("✓ RAID1c3 successfully tolerated 2 simultaneous disk failures")
 }
+
+// TestRemoveRaidUUID_Mounted creates a RAID, mounts it and then calls RemoveRaidUUID(uuid)
+// Expectation: the RAID is unmounted and devices are wiped (cleanup via DeleteTempDisk)
+func TestRemoveRaidUUID_Mounted(t *testing.T) {
+	logger.SetType(env512.Mode)
+	logger.SetCallBack(logs512.LogMessage)
+	askForSudo()
+
+	filepath0, dev0, err := CreateTempFakeDisk()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	filepath1, dev1, err := CreateTempFakeDisk()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	filepath2, dev2, err := CreateTempFakeDisk()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	uuid, err := CreateRaid("raid-remove-uuid-mounted", &Raid0, dev0, dev1, dev2)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	mountPoint := "/mnt/test_remove_uuid_mounted"
+	if err := MountRaid(uuid, mountPoint, CompressionNone); err != nil {
+		t.Error(err)
+		return
+	}
+
+	// ensure it's mounted
+	verifyCmd := exec.Command("findmnt", "-t", "btrfs", mountPoint)
+	if output, err := verifyCmd.CombinedOutput(); err != nil {
+		t.Errorf("mount verification failed: %s", string(output))
+		UMountRaid(mountPoint, false)
+		return
+	}
+
+	// call RemoveRaidUUID and expect it to handle mounted case
+	if err := RemoveRaidUUID(uuid); err != nil {
+		t.Error("RemoveRaidUUID failed for mounted raid:", err)
+		// try to cleanup
+		UMountRaid(mountPoint, false)
+	}
+
+	// ensure not mounted anymore
+	if isMountPoint(mountPoint) {
+		t.Error("mount point still mounted after RemoveRaidUUID: ", mountPoint)
+		_ = UMountRaid(mountPoint, false)
+	}
+
+	// cleanup files (UmountDisk is used inside DeleteTempDisk)
+	if err := DeleteTempDisk(filepath0); err != nil {
+		t.Error(err)
+	}
+	if err := DeleteTempDisk(filepath1); err != nil {
+		t.Error(err)
+	}
+	if err := DeleteTempDisk(filepath2); err != nil {
+		t.Error(err)
+	}
+}
+
+// TestRemoveRaidUUID_Unmounted creates a RAID but does not mount it, then calls RemoveRaidUUID
+// Expectation: the function finds the block devices and wipes them (cleanup removes files)
+func TestRemoveRaidUUID_Unmounted(t *testing.T) {
+	logger.SetType(env512.Mode)
+	logger.SetCallBack(logs512.LogMessage)
+	askForSudo()
+
+	filepath0, dev0, err := CreateTempFakeDisk()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	filepath1, dev1, err := CreateTempFakeDisk()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	uuid, err := CreateRaid("raid-remove-uuid-unmounted", &Raid1, dev0, dev1)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	// do not mount; directly call RemoveRaidUUID
+	if err := RemoveRaidUUID(uuid); err != nil {
+		t.Error("RemoveRaidUUID failed for unmounted raid:", err)
+	}
+
+	// cleanup files
+	if err := DeleteTempDisk(filepath0); err != nil {
+		t.Error(err)
+	}
+	if err := DeleteTempDisk(filepath1); err != nil {
+		t.Error(err)
+	}
+}
