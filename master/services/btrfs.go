@@ -10,7 +10,7 @@ import (
 
 type BTRFSService struct{}
 
-func (s *BTRFSService) GetAllDisks(machineName string) ([]*btrfsGrpc.MinDisk, error) {
+func (s *BTRFSService) GetAllDisks(machineName string) (*btrfsGrpc.MinDiskArr, error) {
 	conn := protocol.GetConnectionByMachineName(machineName)
 	if conn == nil {
 		return nil, fmt.Errorf("no connection found for machine: %s", machineName)

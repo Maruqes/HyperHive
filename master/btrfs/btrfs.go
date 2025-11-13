@@ -7,13 +7,13 @@ import (
 	"google.golang.org/grpc"
 )
 
-func GetAllDisks(conn *grpc.ClientConn) ([]*btrfsGrpc.MinDisk, error) {
+func GetAllDisks(conn *grpc.ClientConn) (*btrfsGrpc.MinDiskArr, error) {
 	client := btrfsGrpc.NewBtrFSServiceClient(conn)
 	res, err := client.GetAllDisks(context.Background(), &btrfsGrpc.Empty{})
 	if err != nil {
 		return nil, err
 	}
-	return res.Disks, nil
+	return res, nil
 }
 
 func GetAllFileSystems(conn *grpc.ClientConn) (*btrfsGrpc.FindMntOutput, error) {

@@ -14,18 +14,33 @@ message MinDiskArr{
 	repeated MinDisk disks = 1;
 }
 
+message BtrfsDevice {
+	string name = 1;
+	string path = 2;
+	string type = 3;
+	string label = 4;
+	string uuid = 5;
+	string uuid_sub = 6;
+	int64 size_bytes = 7;
+	string mount_point = 8;
+	bool mounted = 9;
+}
+
 message FileSystem {
 	string target = 1;
 	string source = 2;
 	string fs_type = 3;
 	string options = 4;
 	string uuid = 5;
-	string compression = 6;
-	int64 max_space = 7;
-	int64 used_space = 8;
-	int64 real_max_space = 9;
-	int64 real_used_space = 10;
-	repeated FileSystem children = 11;
+	string label = 6;
+	string compression = 7;
+	int64 max_space = 8;
+	int64 used_space = 9;
+	int64 real_max_space = 10;
+	int64 real_used_space = 11;
+	repeated BtrfsDevice devices = 12;
+	repeated FileSystem children = 13;
+	bool mounted = 14;
 }
 
 message FindMntOutput {

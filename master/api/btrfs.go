@@ -8,11 +8,29 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/net/websocket"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 func test(w http.ResponseWriter, r *http.Request) {
 	websocket.Handler(vp.ServeWS).ServeHTTP(w, r)
 }
+
+func writeProtoJSON(w http.ResponseWriter, m proto.Message) {
+	marshaler := protojson.MarshalOptions{
+		EmitUnpopulated: true,
+	}
+
+	b, err := marshaler.Marshal(m)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to encode response: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(b)
+}
+
 func getAllDisks(w http.ResponseWriter, r *http.Request) {
 	machineName := chi.URLParam(r, "machine_name")
 	if machineName == "" {
@@ -21,18 +39,14 @@ func getAllDisks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	btrfsService := services.BTRFSService{}
-	disks, err := btrfsService.GetAllDisks(machineName)
+	// imagina que isto te devolve um *pb.GetAllDisksResponse
+	resp, err := btrfsService.GetAllDisks(machineName)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to get disks: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	encoder := json.NewEncoder(w)
-	if err := encoder.Encode(disks); err != nil {
-		http.Error(w, fmt.Sprintf("failed to encode response: %v", err), http.StatusInternalServerError)
-		return
-	}
+	writeProtoJSON(w, resp)
 }
 
 func getAllRaids(w http.ResponseWriter, r *http.Request) {
@@ -43,18 +57,13 @@ func getAllRaids(w http.ResponseWriter, r *http.Request) {
 	}
 
 	btrfsService := services.BTRFSService{}
-	raids, err := btrfsService.GetAllFileSystems(machineName)
+	resp, err := btrfsService.GetAllFileSystems(machineName) // *pb.GetAllFileSystemsResponse
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to get disks: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("failed to get raids: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	encoder := json.NewEncoder(w)
-	if err := encoder.Encode(raids); err != nil {
-		http.Error(w, fmt.Sprintf("failed to encode response: %v", err), http.StatusInternalServerError)
-		return
-	}
+	writeProtoJSON(w, resp)
 }
 
 func createRaid(w http.ResponseWriter, r *http.Request) {
@@ -102,6 +111,7 @@ func setupBTRFS(r chi.Router) chi.Router {
 		r.Post("/balance_raid", test)
 		r.Post("/defragment_raid", test)
 		r.Post("/scrub_raid", test)
+		r.Post("/add_existing_raid", test) //raid criada com comandos adicionada ao nosso sistema
 
 		r.Post("/mount_raid", test)
 		r.Post("/umount_raid", test)

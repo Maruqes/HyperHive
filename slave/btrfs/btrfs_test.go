@@ -180,6 +180,20 @@ func askForSudo() {
 	}
 }
 
+// getUUIDByLabel returns the filesystem UUID for a given btrfs label
+func getUUIDByLabel(label string) (string, error) {
+	all, err := GetAllFileSystems()
+	if err != nil {
+		return "", err
+	}
+	for _, fs := range all.FileSystems {
+		if fs.Label == label {
+			return fs.UUID, nil
+		}
+	}
+	return "", fmt.Errorf("filesystem with label %s not found", label)
+}
+
 // sudo btrfs filesystem show
 func TestRaid0(t *testing.T) {
 	logger.SetType(env512.Mode)
@@ -212,7 +226,12 @@ func TestRaid0(t *testing.T) {
 
 	// Mount the RAID before trying to get stats
 	mountPoint := "/mnt/raid0_test"
-	err = MountRaid("raid0", mountPoint, CompressionZlib9)
+	uuid, err := getUUIDByLabel("raid0")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = MountRaid(uuid, mountPoint, CompressionZlib9)
 	if err != nil {
 		t.Error(err)
 		return
@@ -321,7 +340,12 @@ func TestRaid1c2(t *testing.T) {
 
 	// Mount the RAID before trying to get stats
 	mountPoint := "/mnt/raid1c2_test"
-	err = MountRaid("raid1c2", mountPoint, CompressionNone)
+	uuid, err := getUUIDByLabel("raid1c2")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = MountRaid(uuid, mountPoint, CompressionNone)
 	if err != nil {
 		t.Error(err)
 		return
@@ -430,7 +454,12 @@ func TestRaid1c3(t *testing.T) {
 
 	// Mount the RAID before trying to get stats
 	mountPoint := "/mnt/raid1c3_test"
-	err = MountRaid("raid1c3", mountPoint, CompressionZstd3)
+	uuid, err := getUUIDByLabel("raid1c3")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -544,7 +573,12 @@ func TestRaid1c4(t *testing.T) {
 
 	// Mount the RAID before trying to get stats
 	mountPoint := "/mnt/raid1c4_test"
-	err = MountRaid("raid1c4", mountPoint, CompressionLZO)
+	uuid, err := getUUIDByLabel("raid1c4")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = MountRaid(uuid, mountPoint, CompressionLZO)
 	if err != nil {
 		t.Error(err)
 		return
@@ -664,7 +698,12 @@ func TestAddDiskToRaid(t *testing.T) {
 
 	// Mount the RAID before trying to get stats
 	mountPoint := "/mnt/raid1c3_add_test"
-	err = MountRaid("raid1c3-add", mountPoint, CompressionZstd3)
+	uuid, err := getUUIDByLabel("raid1c3-add")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -791,7 +830,12 @@ func TestRemoveDiskFromRaid(t *testing.T) {
 
 	// Mount the RAID before trying to get stats
 	mountPoint := "/mnt/raid1c3_add_test"
-	err = MountRaid("raid1c3-add", mountPoint, CompressionZstd3)
+	uuid, err := getUUIDByLabel("raid1c3-add")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -919,7 +963,12 @@ func TestReplaceDiskFromRaid(t *testing.T) {
 
 	// Mount the RAID
 	mountPoint := "/mnt/raid1c3_replace_test"
-	err = MountRaid("raid1c3-replace", mountPoint, CompressionZstd3)
+	uuid, err := getUUIDByLabel("raid1c3-replace")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1044,7 +1093,12 @@ func TestChangeRaidLevel(t *testing.T) {
 	}
 
 	mountPoint := "/mnt/raid_convert_test"
-	err = MountRaid("raid-convert", mountPoint, CompressionZstd3)
+	uuid, err := getUUIDByLabel("raid-convert")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1136,7 +1190,12 @@ func TestBalanceRaid(t *testing.T) {
 	}
 
 	mountPoint := "/mnt/raid_balance_test"
-	err = MountRaid("raid-balance", mountPoint, CompressionZstd3)
+	uuid, err := getUUIDByLabel("raid-balance")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1237,7 +1296,12 @@ func TestDefragmentRaid(t *testing.T) {
 	}
 
 	mountPoint := "/mnt/raid_defrag_test"
-	err = MountRaid("raid-defrag", mountPoint, CompressionNone)
+	uuid, err := getUUIDByLabel("raid-defrag")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = MountRaid(uuid, mountPoint, CompressionNone)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1356,7 +1420,12 @@ func TestScrubRaid(t *testing.T) {
 	}
 
 	mountPoint := "/mnt/raid_scrub_test"
-	err = MountRaid("raid-scrub", mountPoint, CompressionZstd3)
+	uuid, err := getUUIDByLabel("raid-scrub")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1460,7 +1529,12 @@ func TestCheckBtrfsFunc(t *testing.T) {
 	}
 
 	mountPoint := "/mnt/raid_check_test"
-	err = MountRaid("raid-check", mountPoint, CompressionZstd3)
+	uuid, err := getUUIDByLabel("raid-check")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1512,7 +1586,7 @@ func TestCheckBtrfsFunc(t *testing.T) {
 		}
 
 		// Try to remount (may fail)
-		err = MountRaid("raid-check", mountPoint, CompressionZstd3)
+		_, err = MountRaid("raid-check", mountPoint, CompressionZstd3)
 		if err != nil {
 			fmt.Println("Mount failed after corruption (expected):", err)
 		} else {
@@ -1573,7 +1647,12 @@ func TestDiskFailure(t *testing.T) {
 	}
 
 	mountPoint := "/mnt/raid_failure_test"
-	err = MountRaid("raid-failure", mountPoint, CompressionZstd3)
+	uuid, err := getUUIDByLabel("raid-failure")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1775,7 +1854,12 @@ func TestMultipleDiskFailure(t *testing.T) {
 	}
 
 	mountPoint := "/mnt/raid_multi_failure_test"
-	err = MountRaid("raid-multi-failure", mountPoint, CompressionZstd3)
+	uuid, err := getUUIDByLabel("raid-multi-failure")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return

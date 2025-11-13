@@ -42,12 +42,36 @@ func convertChildren(children []FileSystem) []*btrfsGrpc.FileSystem {
 			FsType:        child.FSType,
 			Options:       child.Options,
 			Uuid:          child.UUID,
+			Label:         child.Label,
 			Compression:   child.Compression,
 			MaxSpace:      child.MaxSpace,
 			UsedSpace:     child.UsedSpace,
 			RealMaxSpace:  child.RealMaxSpace,
 			RealUsedSpace: child.RealUsedSpace,
+			Devices:       convertDevices(child.Devices),
 			Children:      convertChildren(child.Children),
+			Mounted:       child.Mounted,
+		})
+	}
+	return result
+}
+
+func convertDevices(devices []BtrfsDevice) []*btrfsGrpc.BtrfsDevice {
+	if len(devices) == 0 {
+		return nil
+	}
+	result := make([]*btrfsGrpc.BtrfsDevice, 0, len(devices))
+	for _, dev := range devices {
+		result = append(result, &btrfsGrpc.BtrfsDevice{
+			Name:       dev.Name,
+			Path:       dev.Path,
+			Type:       dev.Type,
+			Label:      dev.Label,
+			Uuid:       dev.UUID,
+			UuidSub:    dev.UUIDSub,
+			SizeBytes:  dev.SizeBytes,
+			MountPoint: dev.MountPoint,
+			Mounted:    dev.Mounted,
 		})
 	}
 	return result
@@ -67,12 +91,15 @@ func (s *BTRFSService) GetAllFileSystems(ctx context.Context, _ *btrfsGrpc.Empty
 			FsType:        raid.FSType,
 			Options:       raid.Options,
 			Uuid:          raid.UUID,
+			Label:         raid.Label,
 			Compression:   raid.Compression,
 			MaxSpace:      raid.MaxSpace,
 			UsedSpace:     raid.UsedSpace,
 			RealMaxSpace:  raid.RealMaxSpace,
 			RealUsedSpace: raid.RealUsedSpace,
+			Devices:       convertDevices(raid.Devices),
 			Children:      convertChildren(raid.Children),
+			Mounted:       raid.Mounted,
 		})
 	}
 
@@ -99,7 +126,7 @@ func convertStringToRaidType(s string) *raidType {
 func (s *BTRFSService) CreateRaid(ctx context.Context, req *btrfsGrpc.CreateRaidReq) (*btrfsGrpc.Empty, error) {
 	err := CreateRaid(req.Name, convertStringToRaidType(req.Raid), req.Disks...)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	return &btrfsGrpc.Empty{}, nil
 }
