@@ -100,6 +100,7 @@ func createRaid(w http.ResponseWriter, r *http.Request) {
 
 func setupBTRFS(r chi.Router) chi.Router {
 	return r.Route("/btrfs", func(r chi.Router) {
+		r.Get("/getFreeDisks/{machine_name}", test) //discos nao usados em nenhum raid nem estao montados
 		r.Get("/getAllDuckingDisks/{machine_name}", getAllDisks) // /dev/o_caralho_do_disco  apenas retorna merdas montadas
 		r.Get("/getraids/{machine_name}", getAllRaids)
 		r.Post("/createraid/{machine_name}", createRaid)
@@ -122,5 +123,6 @@ func setupBTRFS(r chi.Router) chi.Router {
 		r.Get("/raid_errors", test) // Parse errors/corruptions
 		r.Get("/raid_usage", test)  // Human-friendly summary
 
+		//falta ver stats de balance scrub
 	})
 }
