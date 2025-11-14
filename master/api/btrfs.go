@@ -49,6 +49,24 @@ func getAllDisks(w http.ResponseWriter, r *http.Request) {
 	writeProtoJSON(w, resp)
 }
 
+func getFreeDisks(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	btrfsService := services.BTRFSService{}
+	// imagina que isto te devolve um *pb.GetAllDisksResponse
+	resp, err := btrfsService.GetNotMountedDisks(machineName)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to get disks: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	writeProtoJSON(w, resp)
+}
+
 func getAllRaids(w http.ResponseWriter, r *http.Request) {
 	machineName := chi.URLParam(r, "machine_name")
 	if machineName == "" {
@@ -98,24 +116,118 @@ func createRaid(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }
 
+func removeRaid(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	type RemoveRaidReq struct {
+		UUID string `json:"uuid"`
+	}
+
+	var req RemoveRaidReq
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("failed to decode request: %v", err), http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	btrfsService := services.BTRFSService{}
+	if err := btrfsService.RemoveRaid(machineName, req.UUID); err != nil {
+		http.Error(w, fmt.Sprintf("failed to create raid: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+func mountRaid(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	type MountUUIDREQ struct {
+		UUID       string `json:"uuid"`
+		MountPoint string `json:"mount_point"`
+		Options    string `json:"options"`
+	}
+
+	var req MountUUIDREQ
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("failed to decode request: %v", err), http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	btrfsService := services.BTRFSService{}
+	if err := btrfsService.MountRaid(machineName, req.UUID, req.MountPoint, req.Options); err != nil {
+		http.Error(w, fmt.Sprintf("failed to create raid: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+func umountRaid(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name parameter is required", http.StatusBadRequest)
+		return
+	}
+	type MountUUIDREQ struct {
+		UUID  string `json:"uuid"`
+		Force bool   `json:"force"`
+	}
+
+	var req MountUUIDREQ
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("failed to decode request: %v", err), http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	btrfsService := services.BTRFSService{}
+	if err := btrfsService.UMountRaid(machineName, req.UUID, req.Force); err != nil {
+		http.Error(w, fmt.Sprintf("failed to create raid: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
 func setupBTRFS(r chi.Router) chi.Router {
 	return r.Route("/btrfs", func(r chi.Router) {
-		r.Get("/getFreeDisks/{machine_name}", test) //discos nao usados em nenhum raid nem estao montados
+		r.Get("/getFreeDisks/{machine_name}", getFreeDisks)      //discos nao usados em nenhum raid nem estao montados
 		r.Get("/getAllDuckingDisks/{machine_name}", getAllDisks) // /dev/o_caralho_do_disco  apenas retorna merdas montadas
 		r.Get("/getraids/{machine_name}", getAllRaids)
 		r.Post("/createraid/{machine_name}", createRaid)
-		r.Post("/removeraid/{machine_name}", test)
+		r.Delete("/removeraid/{machine_name}", removeRaid)
+
+		r.Post("/mount_raid/{machine_name}", mountRaid)
+		r.Post("/umount_raid/{machine_name}", umountRaid)
+
 		r.Post("/add_diskraid", test)
 		r.Post("/remove_diskraid", test)
 		r.Post("/replace_diskraid", test)
+
 		r.Post("/change_raid_level", test)
 		r.Post("/balance_raid", test)
 		r.Post("/defragment_raid", test)
 		r.Post("/scrub_raid", test)
 		r.Post("/add_existing_raid", test) //raid criada com comandos adicionada ao nosso sistema
-
-		r.Post("/mount_raid", test)
-		r.Post("/umount_raid", test)
 
 		//gpt missing hehehehe obrigado alto sam
 		r.Get("/raid_status", test) // Equivalent to `btrfs filesystem show` + `btrfs device stats`

@@ -130,3 +130,31 @@ func (s *BTRFSService) CreateRaid(ctx context.Context, req *btrfsGrpc.CreateRaid
 	}
 	return &btrfsGrpc.Empty{}, nil
 }
+
+func (s *BTRFSService) RemoveRaid(ctx context.Context, req *btrfsGrpc.UUIDReq) (*btrfsGrpc.Empty, error) {
+	err := RemoveRaidUUID(req.Uuid)
+	if err != nil {
+		return nil, err
+	}
+	return &btrfsGrpc.Empty{}, nil
+}
+
+func (s *BTRFSService) MountRaid(ctx context.Context, req *btrfsGrpc.MountReq) (*btrfsGrpc.Empty, error) {
+	err := MountRaid(req.Target, req.Target, req.Compression)
+	if err != nil {
+		return nil, err
+	}
+	return &btrfsGrpc.Empty{}, nil
+}
+
+func (s *BTRFSService) UMountRaid(ctx context.Context, req *btrfsGrpc.UMountReq) (*btrfsGrpc.Empty, error) {
+	mp, err := GetMountPointFromUUID(req.Uuid)
+	if err != nil {
+		return nil, err
+	}
+	err = UMountRaid(mp, req.Force)
+	if err != nil {
+		return nil, err
+	}
+	return &btrfsGrpc.Empty{}, nil
+}

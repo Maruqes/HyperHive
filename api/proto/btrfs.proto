@@ -53,9 +53,27 @@ message CreateRaidReq {
 	repeated string disks = 3;
 }
 
+message UUIDReq{
+	string uuid = 1;
+}
+
+message MountReq{
+	string uuid = 1;
+	string target = 2;
+	string compression = 3;
+}
+message UMountReq{
+	string uuid = 1;
+	bool force = 2;
+}
+
+
 message Empty{}
 service BtrFSService {
 	rpc GetAllDisks(Empty) returns (MinDiskArr);
 	rpc GetAllFileSystems(Empty) returns (FindMntOutput);
 	rpc CreateRaid(CreateRaidReq) returns (Empty);
+	rpc RemoveRaid(UUIDReq)returns(Empty);
+	rpc MountRaid(MountReq)returns(Empty);
+	rpc UMountRaid(UMountReq)returns(Empty);
 }
