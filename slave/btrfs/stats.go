@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -101,6 +102,7 @@ type DeviceStats struct {
 		FlushIOErrs    int    `json:"flush_io_errs"`
 		CorruptionErrs int    `json:"corruption_errs"`
 		GenerationErrs int    `json:"generation_errs"`
+		BalanceStatus  string `json:"balance_status"`
 	} `json:"device-stats"`
 }
 
@@ -117,11 +119,11 @@ func (d *DeviceStats) Print() {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "DEVICE\tDEVID\tWRITE_ERRS\tREAD_ERRS\tFLUSH_ERRS\tCORRUPTION_ERRS\tGENERATION_ERRS")
+	fmt.Fprintln(w, "DEVICE\tDEVID\tWRITE_ERRS\tREAD_ERRS\tFLUSH_ERRS\tCORRUPTION_ERRS\tGENERATION_ERRS\tBALANCE_STATUS")
 	for _, stat := range d.DeviceStats {
 		fmt.Fprintf(
 			w,
-			"%s\t%d\t%d\t%d\t%d\t%d\t%d\n",
+			"%s\t%d\t%d\t%d\t%d\t%d\t%d\t%s\n",
 			stat.Device,
 			stat.DevID,
 			stat.WriteIOErrs,
@@ -129,6 +131,7 @@ func (d *DeviceStats) Print() {
 			stat.FlushIOErrs,
 			stat.CorruptionErrs,
 			stat.GenerationErrs,
+			stat.BalanceStatus,
 		)
 	}
 	w.Flush()
@@ -150,7 +153,36 @@ func GetFileSystemStats(mountPoint string) (*DeviceStats, error) {
 		return nil, fmt.Errorf("failed to unmarshal device stats: %w (output: %s)", err, string(output))
 	}
 
+	// Get balance status for each device
+	balanceStatus, _ := GetBalanceStatus(mountPoint)
+	for i := range stats.DeviceStats {
+		stats.DeviceStats[i].BalanceStatus = balanceStatus
+	}
+
 	return &stats, nil
+}
+
+type BalanceStatusResult struct {
+	Header struct {
+		Version string `json:"version"`
+	} `json:"__header"`
+	BalanceStatus string `json:"balance_status"`
+}
+
+func GetBalanceStatus(mountPoint string) (string, error) {
+	cmd := exec.Command("btrfs", "--format", "json", "balance", "status", mountPoint)
+	output, err := cmd.Output()
+	if err != nil {
+		// Balance status might not be available, return empty string
+		return "", nil
+	}
+
+	var result BalanceStatusResult
+	if err := json.Unmarshal(output, &result); err != nil {
+		return "", fmt.Errorf("failed to unmarshal balance status: %w", err)
+	}
+
+	return result.BalanceStatus, nil
 }
 
 // GetDisksFromRaid returns the list of disk devices that are part of a BTRFS raid
@@ -175,6 +207,105 @@ func GetDisksFromRaid(mountPoint string) ([]string, error) {
 	}
 
 	return disks, nil
+}
+
+type ScrubStatus struct {
+	UUID          string   `json:"uuid"`
+	Path          string   `json:"path"`                   // o mountpoint/dispositivo que passaste
+	Status        string   `json:"status"`                 // running / finished / aborted / ...
+	StartedAt     string   `json:"started_at"`             // string crua do btrfs
+	Duration      string   `json:"duration"`               // ex: "0:01:23"
+	TimeLeft      string   `json:"time_left"`              // ex: "0:05:40"
+	TotalToScrub  string   `json:"total_to_scrub"`         // ex: "500.00GiB"
+	BytesScrubbed string   `json:"bytes_scrubbed"`         // ex: "150.00GiB  (30.00%)"
+	Rate          string   `json:"rate"`                   // ex: "1.14GiB/s"
+	ErrorSummary  string   `json:"error_summary"`          // ex: "no errors found"
+	PercentDone   *float64 `json:"percent_done,omitempty"` // 30.00, se conseguir extrair
+}
+
+func GetScrubStats(mntPoint string) (ScrubStatus, error) {
+	var status ScrubStatus
+	status.Path = mntPoint
+
+	cmd := exec.Command("btrfs", "scrub", "status", mntPoint)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return status, fmt.Errorf(
+			"failed to get scrub status for %s: %w (output: %s)",
+			mntPoint,
+			err,
+			strings.TrimSpace(string(output)),
+		)
+	}
+
+	lines := strings.Split(string(output), "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+
+		switch {
+		case strings.HasPrefix(key, "UUID"):
+			status.UUID = value
+
+		case strings.HasPrefix(key, "Scrub started"):
+			status.StartedAt = value
+
+		case strings.HasPrefix(key, "Status"):
+			status.Status = strings.ToLower(value)
+
+		case strings.HasPrefix(key, "Duration"):
+			status.Duration = value
+
+		case strings.HasPrefix(key, "Time left"):
+			status.TimeLeft = value
+
+		case strings.HasPrefix(key, "Total to scrub"):
+			status.TotalToScrub = value
+
+		case strings.HasPrefix(key, "Bytes scrubbed"):
+			status.BytesScrubbed = value
+			// tentar extrair "(30.00%)" -> 30.00
+			if p, ok := extractPercent(value); ok {
+				status.PercentDone = &p
+			}
+
+		case strings.HasPrefix(key, "Rate"):
+			status.Rate = value
+
+		case strings.HasPrefix(key, "Error summary"):
+			status.ErrorSummary = value
+		}
+	}
+
+	return status, nil
+}
+
+func extractPercent(s string) (float64, bool) {
+	start := strings.Index(s, "(")
+	end := strings.Index(s, "%")
+	if start == -1 || end == -1 || end <= start+1 {
+		return 0, false
+	}
+
+	inner := s[start+1 : end] // "30.00"
+	inner = strings.TrimSpace(inner)
+
+	v, err := strconv.ParseFloat(inner, 64)
+	if err != nil {
+		return 0, false
+	}
+	return v, true
 }
 
 type btrfsErrorEvent struct {

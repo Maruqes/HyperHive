@@ -309,7 +309,7 @@ func MountRaid(uuid string, mountPoint string, compression string) error {
 		CompressionZstd9,
 		CompressionZstd15,
 	}
-	
+
 	isValid := false
 	for _, valid := range validCompressions {
 		if compression == valid {
@@ -779,6 +779,54 @@ func BalanceRaid(target string, chunkLimit int, background bool) error {
 	if background {
 		logger.Info("Balance running in background; check progress with: btrfs balance status " + target)
 	}
+	return nil
+}
+
+// PauseBalance pauses a running balance operation on the target filesystem.
+func PauseBalance(target string) error {
+	target, err := validateMountPoint(target)
+	if err != nil {
+		return err
+	}
+
+	args := []string{"btrfs", "balance", "pause", target}
+	if err := runCommand("pausing balance", args...); err != nil {
+		return err
+	}
+
+	logger.Info("Balance paused at " + target)
+	return nil
+}
+
+// ResumeBalance resumes a paused balance operation on the target filesystem.
+func ResumeBalance(target string) error {
+	target, err := validateMountPoint(target)
+	if err != nil {
+		return err
+	}
+
+	args := []string{"btrfs", "balance", "resume", target}
+	if err := runCommand("resuming balance", args...); err != nil {
+		return err
+	}
+
+	logger.Info("Balance resumed at " + target)
+	return nil
+}
+
+// CancelBalance cancels a running or paused balance operation on the target filesystem.
+func CancelBalance(target string) error {
+	target, err := validateMountPoint(target)
+	if err != nil {
+		return err
+	}
+
+	args := []string{"btrfs", "balance", "cancel", target}
+	if err := runCommand("canceling balance", args...); err != nil {
+		return err
+	}
+
+	logger.Info("Balance canceled at " + target)
 	return nil
 }
 

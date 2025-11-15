@@ -67,13 +67,79 @@ message UMountReq{
 	bool force = 2;
 }
 
+message AddDiskToRaidReq{
+	string uuid = 1;
+	string diskPath = 2;
+}
+
+message RemoveDiskFromRaidReq{
+	string uuid = 1;
+	string diskPath = 2;
+}
+
+message ReplaceDiskToRaidReq{
+	string uuid = 1;
+	string oldDiskPath = 2;
+	string newDiskPath = 3;
+}
+
+message ChangeRaidLevelReq{
+	string uuid = 1;
+	string raidType = 2;
+	string balance_status = 8;
+}
+
+
+message DeviceStat {
+	string device = 1;
+	int32 dev_id = 2;
+	int32 write_io_errs = 3;
+	int32 read_io_errs = 4;
+	int32 flush_io_errs = 5;
+	int32 corruption_errs = 6;
+	int32 generation_errs = 7;
+}
+
+message RaidStats {
+	string version = 1;
+	repeated DeviceStat device_stats = 2;
+}
+
+message ScrubStatus {
+	string uuid = 1;
+	string path = 2;
+	string status = 3;
+	string started_at = 4;
+	string duration = 5;
+	string time_left = 6;
+	string total_to_scrub = 7;
+	string bytes_scrubbed = 8;
+	string rate = 9;
+	string error_summary = 10;
+	double percent_done = 11;
+}
 
 message Empty{}
 service BtrFSService {
 	rpc GetAllDisks(Empty) returns (MinDiskArr);
 	rpc GetAllFileSystems(Empty) returns (FindMntOutput);
+	rpc GetFileSystem(UUIDReq) returns (FindMntOutput);
 	rpc CreateRaid(CreateRaidReq) returns (Empty);
 	rpc RemoveRaid(UUIDReq)returns(Empty);
 	rpc MountRaid(MountReq)returns(Empty);
 	rpc UMountRaid(UMountReq)returns(Empty);
+	
+
+	rpc AddDiskToRaid(AddDiskToRaidReq) returns (Empty);
+	rpc RemoveDiskFromRaid(RemoveDiskFromRaidReq) returns (Empty);
+	rpc ReplaceDiskInRaid(ReplaceDiskToRaidReq) returns (Empty);
+	rpc ChangeRaidLevel(ChangeRaidLevelReq) returns (Empty);
+	rpc BalanceRaid(UUIDReq) returns (Empty);
+	rpc DefragmentRaid(UUIDReq) returns (Empty);
+	rpc ScrubRaid(UUIDReq) returns (Empty);
+	rpc GetRaidStats(UUIDReq) returns (RaidStats);
+	rpc PauseBalance(UUIDReq) returns (Empty);
+	rpc ResumeBalance(UUIDReq) returns (Empty);
+	rpc CancelBalance(UUIDReq) returns (Empty);
+	rpc ScrubStats(UUIDReq) returns (ScrubStatus);
 }

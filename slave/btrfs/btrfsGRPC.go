@@ -2,6 +2,7 @@ package btrfs
 
 import (
 	"context"
+	"fmt"
 
 	btrfsGrpc "github.com/Maruqes/512SvMan/api/proto/btrfs"
 )
@@ -157,4 +158,194 @@ func (s *BTRFSService) UMountRaid(ctx context.Context, req *btrfsGrpc.UMountReq)
 		return nil, err
 	}
 	return &btrfsGrpc.Empty{}, nil
+}
+
+func (s *BTRFSService) AddDiskToRaid(ctx context.Context, req *btrfsGrpc.AddDiskToRaidReq) (*btrfsGrpc.Empty, error) {
+	mp, err := GetMountPointFromUUID(req.Uuid)
+	if err != nil {
+		return nil, err
+	}
+	err = AddDiskToRaid(req.DiskPath, mp)
+	if err != nil {
+		return nil, err
+	}
+	return &btrfsGrpc.Empty{}, nil
+}
+
+func (s *BTRFSService) RemoveDiskFromRaid(ctx context.Context, req *btrfsGrpc.RemoveDiskFromRaidReq) (*btrfsGrpc.Empty, error) {
+	mp, err := GetMountPointFromUUID(req.Uuid)
+	if err != nil {
+		return nil, err
+	}
+	err = RemoveDisk(req.DiskPath, mp)
+	if err != nil {
+		return nil, err
+	}
+	return &btrfsGrpc.Empty{}, nil
+}
+
+func (s *BTRFSService) ReplaceDiskInRaid(ctx context.Context, req *btrfsGrpc.ReplaceDiskToRaidReq) (*btrfsGrpc.Empty, error) {
+	mp, err := GetMountPointFromUUID(req.Uuid)
+	if err != nil {
+		return nil, err
+	}
+	err = ReplaceDisk(req.OldDiskPath, req.NewDiskPath, mp)
+	if err != nil {
+		return nil, err
+	}
+	return &btrfsGrpc.Empty{}, nil
+}
+
+func (s *BTRFSService) ChangeRaidLevel(ctx context.Context, req *btrfsGrpc.ChangeRaidLevelReq) (*btrfsGrpc.Empty, error) {
+	mp, err := GetMountPointFromUUID(req.Uuid)
+	if err != nil {
+		return nil, err
+	}
+	raidType := convertStringToRaidType(req.RaidType)
+	if raidType == nil {
+		return nil, fmt.Errorf("invalid raid type: %s", req.RaidType)
+	}
+	err = ChangeRaidLevel(mp, *raidType)
+	if err != nil {
+		return nil, err
+	}
+	return &btrfsGrpc.Empty{}, nil
+}
+
+func (s *BTRFSService) BalanceRaid(ctx context.Context, req *btrfsGrpc.UUIDReq) (*btrfsGrpc.Empty, error) {
+	mp, err := GetMountPointFromUUID(req.Uuid)
+	if err != nil {
+		return nil, err
+	}
+	err = BalanceRaid(mp, 0, false)
+	if err != nil {
+		return nil, err
+	}
+	return &btrfsGrpc.Empty{}, nil
+}
+
+func (s *BTRFSService) PauseBalance(ctx context.Context, req *btrfsGrpc.UUIDReq) (*btrfsGrpc.Empty, error) {
+	mp, err := GetMountPointFromUUID(req.Uuid)
+	if err != nil {
+		return nil, err
+	}
+	err = PauseBalance(mp)
+	if err != nil {
+		return nil, err
+	}
+	return &btrfsGrpc.Empty{}, nil
+}
+
+func (s *BTRFSService) ResumeBalance(ctx context.Context, req *btrfsGrpc.UUIDReq) (*btrfsGrpc.Empty, error) {
+	mp, err := GetMountPointFromUUID(req.Uuid)
+	if err != nil {
+		return nil, err
+	}
+	err = ResumeBalance(mp)
+	if err != nil {
+		return nil, err
+	}
+	return &btrfsGrpc.Empty{}, nil
+}
+
+func (s *BTRFSService) CancelBalance(ctx context.Context, req *btrfsGrpc.UUIDReq) (*btrfsGrpc.Empty, error) {
+	mp, err := GetMountPointFromUUID(req.Uuid)
+	if err != nil {
+		return nil, err
+	}
+	err = CancelBalance(mp)
+	if err != nil {
+		return nil, err
+	}
+	return &btrfsGrpc.Empty{}, nil
+}
+
+func (s *BTRFSService) DefragmentRaid(ctx context.Context, req *btrfsGrpc.UUIDReq) (*btrfsGrpc.Empty, error) {
+	mp, err := GetMountPointFromUUID(req.Uuid)
+	if err != nil {
+		return nil, err
+	}
+	err = Defragment(mp, true, "")
+	if err != nil {
+		return nil, err
+	}
+	return &btrfsGrpc.Empty{}, nil
+}
+
+func (s *BTRFSService) ScrubRaid(ctx context.Context, req *btrfsGrpc.UUIDReq) (*btrfsGrpc.Empty, error) {
+	mp, err := GetMountPointFromUUID(req.Uuid)
+	if err != nil {
+		return nil, err
+	}
+	err = Scrub(mp, false)
+	if err != nil {
+		return nil, err
+	}
+	return &btrfsGrpc.Empty{}, nil
+}
+
+func (s *BTRFSService) ScrubStats(ctx context.Context, req *btrfsGrpc.UUIDReq) (*btrfsGrpc.ScrubStatus, error) {
+	mp, err := GetMountPointFromUUID(req.Uuid)
+	if err != nil {
+		return nil, err
+	}
+
+	stats, err := GetScrubStats(mp)
+	if err != nil {
+		return nil, err
+	}
+
+	grpcStats := &btrfsGrpc.ScrubStatus{
+		Uuid:          stats.UUID,
+		Path:          stats.Path,
+		Status:        stats.Status,
+		StartedAt:     stats.StartedAt,
+		Duration:      stats.Duration,
+		TimeLeft:      stats.TimeLeft,
+		TotalToScrub:  stats.TotalToScrub,
+		BytesScrubbed: stats.BytesScrubbed,
+		Rate:          stats.Rate,
+		ErrorSummary:  stats.ErrorSummary,
+	}
+
+	if stats.PercentDone != nil {
+		grpcStats.PercentDone = *stats.PercentDone
+	}
+
+	return grpcStats, nil
+}
+
+func (s *BTRFSService) GetRaidStats(ctx context.Context, req *btrfsGrpc.UUIDReq) (*btrfsGrpc.RaidStats, error) {
+	mp, err := GetMountPointFromUUID(req.Uuid)
+	if err != nil {
+		return nil, err
+	}
+
+	stats, err := GetFileSystemStats(mp)
+	if err != nil {
+		return nil, err
+	}
+
+	if stats == nil {
+		return nil, fmt.Errorf("no stats available for filesystem at mount point: %s", mp)
+	}
+
+	// Convert device stats to gRPC format
+	deviceStats := make([]*btrfsGrpc.DeviceStat, 0, len(stats.DeviceStats))
+	for _, devStat := range stats.DeviceStats {
+		deviceStats = append(deviceStats, &btrfsGrpc.DeviceStat{
+			Device:         devStat.Device,
+			DevId:          int32(devStat.DevID),
+			WriteIoErrs:    int32(devStat.WriteIOErrs),
+			ReadIoErrs:     int32(devStat.ReadIOErrs),
+			FlushIoErrs:    int32(devStat.FlushIOErrs),
+			CorruptionErrs: int32(devStat.CorruptionErrs),
+			GenerationErrs: int32(devStat.GenerationErrs),
+		})
+	}
+
+	return &btrfsGrpc.RaidStats{
+		Version:     stats.Header.Version,
+		DeviceStats: deviceStats,
+	}, nil
 }

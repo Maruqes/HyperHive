@@ -171,7 +171,7 @@ func (s *BTRFSService) MountRaid(machineName string, uuid, target, compression s
 	if !isValid && compression != "" {
 		return fmt.Errorf("invalid compression type: %s", compression)
 	}
-	
+
 	return btrfs.MountRaid(conn.Connection, &btrfsGrpc.MountReq{Uuid: uuid, Target: target, Compression: compression})
 }
 
@@ -181,4 +181,106 @@ func (s *BTRFSService) UMountRaid(machineName string, uuid string, force bool) e
 		return fmt.Errorf("no connection found for machine: %s", machineName)
 	}
 	return btrfs.UMountRaid(conn.Connection, &btrfsGrpc.UMountReq{Uuid: uuid, Force: force})
+}
+
+func (s *BTRFSService) AddDiskToRaid(machineName string, uuid string, disk string) error {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil {
+		return fmt.Errorf("no connection found for machine: %s", machineName)
+	}
+	return btrfs.AddDiskToRaid(conn.Connection, &btrfsGrpc.AddDiskToRaidReq{Uuid: uuid, DiskPath: disk})
+}
+
+func (s *BTRFSService) RemoveDiskFromRaid(machineName string, uuid string, disk string) error {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil {
+		return fmt.Errorf("no connection found for machine: %s", machineName)
+	}
+	return btrfs.RemoveDiskFromRaid(conn.Connection, &btrfsGrpc.RemoveDiskFromRaidReq{Uuid: uuid, DiskPath: disk})
+}
+
+func (s *BTRFSService) ReplaceDiskInRaid(machineName string, uuid string, oldDisk string, newDisk string) error {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil {
+		return fmt.Errorf("no connection found for machine: %s", machineName)
+	}
+	return btrfs.ReplaceDiskInRaid(conn.Connection, &btrfsGrpc.ReplaceDiskToRaidReq{Uuid: uuid, OldDiskPath: oldDisk, NewDiskPath: newDisk})
+}
+
+func (s *BTRFSService) ChangeRaidLevel(machineName string, uuid string, newRaidLevel string) error {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil {
+		return fmt.Errorf("no connection found for machine: %s", machineName)
+	}
+
+	raidtype := convertStringToRaidType(newRaidLevel)
+	if raidtype == nil {
+		return fmt.Errorf("raid type is not valid: %s", newRaidLevel)
+	}
+
+	return btrfs.ChangeRaidLevel(conn.Connection, &btrfsGrpc.ChangeRaidLevelReq{Uuid: uuid, RaidType: raidtype.sType})
+}
+
+func (s *BTRFSService) BalanceRaid(machineName string, uuid string) error {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil {
+		return fmt.Errorf("no connection found for machine: %s", machineName)
+	}
+	return btrfs.BalanceRaid(conn.Connection, &btrfsGrpc.UUIDReq{Uuid: uuid})
+}
+
+func (s *BTRFSService) DefragmentRaid(machineName string, uuid string) error {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil {
+		return fmt.Errorf("no connection found for machine: %s", machineName)
+	}
+	return btrfs.DefragmentRaid(conn.Connection, &btrfsGrpc.UUIDReq{Uuid: uuid})
+}
+
+func (s *BTRFSService) ScrubRaid(machineName string, uuid string) error {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil {
+		return fmt.Errorf("no connection found for machine: %s", machineName)
+	}
+	return btrfs.ScrubRaid(conn.Connection, &btrfsGrpc.UUIDReq{Uuid: uuid})
+}
+
+func (s *BTRFSService) GetRaidStats(machineName string, uuid string) (*btrfsGrpc.RaidStats, error) {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil {
+		return nil, fmt.Errorf("no connection found for machine: %s", machineName)
+	}
+	return btrfs.GetRaidStats(conn.Connection, &btrfsGrpc.UUIDReq{Uuid: uuid})
+}
+
+func (s *BTRFSService) PauseBalance(machineName string, uuid string) error {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil {
+		return fmt.Errorf("no connection found for machine: %s", machineName)
+	}
+	return btrfs.PauseBalance(conn.Connection, &btrfsGrpc.UUIDReq{Uuid: uuid})
+}
+
+func (s *BTRFSService) ResumeBalance(machineName string, uuid string) error {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil {
+		return fmt.Errorf("no connection found for machine: %s", machineName)
+	}
+	return btrfs.ResumeBalance(conn.Connection, &btrfsGrpc.UUIDReq{Uuid: uuid})
+}
+
+func (s *BTRFSService) CancelBalance(machineName string, uuid string) error {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil {
+		return fmt.Errorf("no connection found for machine: %s", machineName)
+	}
+	return btrfs.CancelBalance(conn.Connection, &btrfsGrpc.UUIDReq{Uuid: uuid})
+}
+
+func (s *BTRFSService) ScrubStats(machineName string, uuid string) (*btrfsGrpc.ScrubStatus, error) {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil {
+		return nil, fmt.Errorf("no connection found for machine: %s", machineName)
+	}
+	return btrfs.ScrubStats(conn.Connection, &btrfsGrpc.UUIDReq{Uuid: uuid})
 }
