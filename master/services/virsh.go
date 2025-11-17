@@ -162,7 +162,7 @@ func (v *VirshService) GetCpuDisableFeatures(conns []string) (string, error) {
 }
 
 // vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword
-func (v *VirshService) CreateVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXML string, autoStart bool) error {
+func (v *VirshService) CreateVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXML string, autoStart bool, isWindows bool) error {
 
 	exists, err := virsh.DoesVMExist(name)
 	if err != nil {
@@ -214,7 +214,7 @@ func (v *VirshService) CreateVM(machine_name string, name string, memory int32, 
 		diskFolder = nfsShare.Target + name
 	}
 
-	if err := virsh.CreateVM(slaveMachine.Connection, name, memory, vcpu, diskFolder, qcowFile, diskSizeGB, isoPath, network, VNCPassword, cpuXML, autoStart); err != nil {
+	if err := virsh.CreateVM(slaveMachine.Connection, name, memory, vcpu, diskFolder, qcowFile, diskSizeGB, isoPath, network, VNCPassword, cpuXML, autoStart, isWindows); err != nil {
 		return err
 	}
 
@@ -224,7 +224,7 @@ func (v *VirshService) CreateVM(machine_name string, name string, memory int32, 
 	return nil
 }
 
-func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXml string, autoStart bool) error {
+func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXml string, autoStart bool, isWindows bool) error {
 	exists, err := db.DoesVmLiveExist(name)
 	if err != nil {
 		return fmt.Errorf("failed to check if live VM exists in database: %v", err)
@@ -246,7 +246,7 @@ func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int
 		return fmt.Errorf("cant have live VM on a HostNormalMount NFS true, use a nfs where HostNormalMount is false")
 	}
 
-	err = v.CreateVM(machine_name, name, memory, vcpu, nfsShareId, diskSizeGB, isoID, network, VNCPassword, cpuXml, autoStart)
+	err = v.CreateVM(machine_name, name, memory, vcpu, nfsShareId, diskSizeGB, isoID, network, VNCPassword, cpuXml, autoStart, isWindows)
 	if err != nil {
 		return err
 	}

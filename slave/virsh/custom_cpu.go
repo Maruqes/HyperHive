@@ -65,6 +65,8 @@ type CreateVMCustomCPUOptions struct {
 	GraphicsListen    string
 	VNCPassword       string
 	CPUXml            string
+	IsWindows         bool
+	VirtioISOPath     string
 }
 
 func isValidVMName(vmName string) error {
@@ -138,6 +140,18 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 		hasISO = true
 	}
 
+	hasVirtioISO := false
+	virtioISOTrim := strings.TrimSpace(opts.VirtioISOPath)
+	if opts.IsWindows {
+		if virtioISOTrim == "" {
+			return "", fmt.Errorf("virtio iso path is required for Windows VMs")
+		}
+		if err := ensureFileExists(virtioISOTrim); err != nil {
+			return "", fmt.Errorf("virtio iso path: %w", err)
+		}
+		hasVirtioISO = true
+	}
+
 	connURI := strings.TrimSpace(opts.ConnURI)
 	if connURI == "" {
 		connURI = "qemu:///system"
@@ -172,6 +186,17 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	  <target dev='sda' bus='sata'/>
 	  <readonly/>
 	</disk>`, isoTrim)
+	}
+
+	virtioCDROMXML := ""
+	if hasVirtioISO {
+		virtioCDROMXML = fmt.Sprintf(`
+	<disk type='file' device='cdrom'>
+	  <driver name='qemu' type='raw'/>
+	  <source file='%s'/>
+	  <target dev='sdb' bus='sata'/>
+	  <readonly/>
+	</disk>`, virtioISOTrim)
 	}
 
 	listenAddr := strings.TrimSpace(opts.GraphicsListen)
@@ -264,12 +289,12 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
   </os>
   <features><acpi/><apic/></features>
   %s
-  <devices>
+	<devices>
 	<disk type='file' device='disk'>
 	  <driver name='qemu' type='%s' cache='none' io='native'/>
 	  <source file='%s'/>
 	  <target dev='vda' bus='virtio'/>
-	</disk>%s%s%s%s%s%s%s%s
+	</disk>%s%s%s%s%s%s%s%s%s
 	<sound model='ich9'/>
 	%s
   </devices>
@@ -278,7 +303,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 		cputuneXML,
 		machineAttr,
 		bootDev,
-		cpuXML, driverType, disk, cdromXML, networkXML, virtioSerialControllerXML, guestAgentChannelXML, spiceChannelXML, inputDevicesXML, vncGraphicsXML, spiceGraphicsXML, videoXML,
+		cpuXML, driverType, disk, cdromXML, virtioCDROMXML, networkXML, virtioSerialControllerXML, guestAgentChannelXML, spiceChannelXML, inputDevicesXML, vncGraphicsXML, spiceGraphicsXML, videoXML,
 	)
 
 	xmlPath, err := WriteDomainXMLToDisk(opts.Name, domainXML, disk)

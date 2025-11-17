@@ -9,17 +9,18 @@ import (
 )
 
 var (
-	MasterIP     string
-	SlaveIP      string
-	PingInterval int
-	Mode         string
-	MachineName  string
-	VNC_MIN_PORT int
-	VNC_MAX_PORT int
-	OTHER_SLAVES []string
-	Conn         *grpc.ClientConn
-	Qemu_UID     string
-	Qemu_GID     string
+	MasterIP      string
+	SlaveIP       string
+	PingInterval  int
+	Mode          string
+	MachineName   string
+	VNC_MIN_PORT  int
+	VNC_MAX_PORT  int
+	OTHER_SLAVES  []string
+	Conn          *grpc.ClientConn
+	Qemu_UID      string
+	Qemu_GID      string
+	VirtioISOPath string
 )
 
 func SetConn(conn *grpc.ClientConn) {

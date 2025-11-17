@@ -4,9 +4,12 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"slave/btrfs"
 	"slave/env512"
@@ -18,6 +21,13 @@ import (
 	"time"
 
 	"github.com/Maruqes/512SvMan/logger"
+)
+
+const (
+	virtioISOURL          = "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/latest-virtio/virtio-win.iso"
+	virtioISOName         = "virtio-win.iso"
+	virtioDownloadDir     = "downloads"
+	virtioTempFilePattern = "virtio-*.iso"
 )
 
 func askForSudo() {
@@ -399,6 +409,68 @@ func set_host_uuid_source() error {
 	return nil
 }
 
+func ensureVirtioISO() (string, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("get working dir: %w", err)
+	}
+
+	downloadDir := filepath.Join(wd, virtioDownloadDir)
+	absDownloadDir, err := filepath.Abs(downloadDir)
+	if err != nil {
+		return "", fmt.Errorf("resolve download dir: %w", err)
+	}
+	if err := os.MkdirAll(absDownloadDir, 0o755); err != nil {
+		return "", fmt.Errorf("create download dir: %w", err)
+	}
+
+	target := filepath.Join(absDownloadDir, virtioISOName)
+	if info, err := os.Stat(target); err == nil {
+		if info.Size() > 0 {
+			return target, nil
+		}
+		if removeErr := os.Remove(target); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return "", fmt.Errorf("remove empty virtio iso: %w", removeErr)
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("stat virtio iso: %w", err)
+	}
+
+	tmpFile, err := os.CreateTemp(absDownloadDir, virtioTempFilePattern)
+	if err != nil {
+		return "", fmt.Errorf("create temp virtio iso: %w", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	resp, err := http.Get(virtioISOURL)
+	if err != nil {
+		return "", fmt.Errorf("download virtio iso: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("download virtio iso: unexpected status %s", resp.Status)
+	}
+
+	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
+		tmpFile.Close()
+		return "", fmt.Errorf("save virtio iso: %w", err)
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		return "", fmt.Errorf("finalize virtio iso: %w", err)
+	}
+
+	if err := os.Rename(tmpFile.Name(), target); err != nil {
+		return "", fmt.Errorf("place virtio iso: %w", err)
+	}
+	if err := os.Chmod(target, 0o644); err != nil {
+		return "", fmt.Errorf("chmod virtio iso: %w", err)
+	}
+
+	return target, nil
+}
+
 func main() {
 	askForSudo()
 
@@ -421,7 +493,13 @@ func main() {
 		log.Fatalf("setup all: %v", err)
 	}
 
-	err := set_host_uuid_source()
+	isoPath, err := ensureVirtioISO()
+	if err != nil {
+		log.Fatalf("ensure virtio iso: %v", err)
+	}
+	env512.VirtioISOPath = isoPath
+
+	err = set_host_uuid_source()
 	if err != nil {
 		logger.Error(err.Error())
 	}

@@ -3,6 +3,8 @@ package virsh
 import (
 	"context"
 
+	"slave/env512"
+
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 )
 
@@ -48,6 +50,8 @@ func (s *SlaveVirshService) CreateVm(ctx context.Context, req *grpcVirsh.CreateV
 		GraphicsListen: "0.0.0.0",
 		VNCPassword:    req.VncPassword,
 		CPUXml:         req.CpuXml,
+		IsWindows:      req.IsWindows,
+		VirtioISOPath:  env512.VirtioISOPath,
 	}
 	_, err := CreateVMCustomCPU(params)
 	if err != nil {
