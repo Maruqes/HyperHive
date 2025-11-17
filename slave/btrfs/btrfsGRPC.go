@@ -219,7 +219,7 @@ func (s *BTRFSService) BalanceRaid(ctx context.Context, req *btrfsGrpc.UUIDReq) 
 	if err != nil {
 		return nil, err
 	}
-	err = BalanceRaid(mp, 0, false)
+	err = BalanceRaid(mp, 0, true)
 	if err != nil {
 		return nil, err
 	}
@@ -318,8 +318,6 @@ func (s *BTRFSService) ScrubStats(ctx context.Context, req *btrfsGrpc.UUIDReq) (
 }
 
 func (s *BTRFSService) GetRaidStats(ctx context.Context, req *btrfsGrpc.UUIDReq) (*btrfsGrpc.RaidStats, error) {
-	fmt.Println(req.Uuid)
-
 	mp, err := GetMountPointFromUUID(req.Uuid)
 	if err != nil {
 		return nil, err
@@ -344,6 +342,7 @@ func (s *BTRFSService) GetRaidStats(ctx context.Context, req *btrfsGrpc.UUIDReq)
 			FlushIoErrs:    int32(devStat.FlushIOErrs),
 			CorruptionErrs: int32(devStat.CorruptionErrs),
 			GenerationErrs: int32(devStat.GenerationErrs),
+			BalanceStatus:  devStat.BalanceStatus,
 		})
 	}
 

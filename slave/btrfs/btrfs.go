@@ -358,7 +358,28 @@ func UMountRaid(target string, force bool) error {
 
 	args = append(args, target)
 
-	return runCommand("unmounting raid", args...)
+	err := runCommand("unmounting raid", args...)
+	if err != nil {
+		// Check what's using the mount point
+		cmd := exec.Command("lsof", "+D", target)
+		output, lsofErr := cmd.CombinedOutput()
+		if lsofErr == nil && len(output) > 0 {
+			logger.Error("Mount point is busy. Processes using it:")
+			logger.Error(string(output))
+			return fmt.Errorf("unmount failed - mount point busy: %w\nProcesses: %s", err, string(output))
+		}
+		
+		// Also try fuser as fallback
+		cmd = exec.Command("fuser", "-vm", target)
+		output, fuserErr := cmd.CombinedOutput()
+		if fuserErr == nil && len(output) > 0 {
+			logger.Error("Mount point is busy. Users:")
+			logger.Error(string(output))
+			return fmt.Errorf("unmount failed - mount point busy: %w\nUsers: %s", err, string(output))
+		}
+	}
+
+	return err
 }
 
 func RemoveRaid(targetMountPoint string, force bool) error {
@@ -768,7 +789,7 @@ func BalanceRaid(target string, chunkLimit int, background bool) error {
 		args = append(args, "-dlimit="+limit, "-mlimit="+limit)
 	}
 	if background {
-		args = append(args, "-b")
+		args = append(args, "--background")
 	}
 	args = append(args, target)
 

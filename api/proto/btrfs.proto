@@ -99,6 +99,7 @@ message DeviceStat {
 	int32 flush_io_errs = 5;
 	int32 corruption_errs = 6;
 	int32 generation_errs = 7;
+	string balanceStatus = 8;
 }
 
 message RaidStats {
