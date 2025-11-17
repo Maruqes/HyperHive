@@ -81,6 +81,7 @@ type FileSystem struct {
 	UUID          string        `json:"uuid"`
 	Label         string        `json:"label,omitempty"`
 	Compression   string        `json:"compression"`
+	RaidType      string        `json:"raid_type,omitempty"`
 	MaxSpace      int64         `json:"max_space"`       // Total space in bytes (from btrfs fi df)
 	UsedSpace     int64         `json:"used_space"`      // Used space in bytes (from btrfs fi df)
 	RealMaxSpace  int64         `json:"real_max_space"`  // Real device size (from btrfs fi usage)
@@ -109,6 +110,9 @@ func printFileSystem(fs FileSystem, depth int) {
 	fmt.Printf("%s  mounted    : %t\n", indent, fs.Mounted)
 	if fs.Compression != "" {
 		fmt.Printf("%s  compression: %s\n", indent, fs.Compression)
+	}
+	if fs.RaidType != "" {
+		fmt.Printf("%s  raid type  : %s\n", indent, fs.RaidType)
 	}
 	if fs.MaxSpace > 0 {
 		fmt.Printf("%s  max space  : %s\n", indent, formatBytes(fs.MaxSpace))
@@ -186,8 +190,9 @@ type lsblkDevice struct {
 }
 
 type usageStats struct {
-	maxBytes  int64
-	usedBytes int64
+	maxBytes    int64
+	usedBytes   int64
+	raidProfile string
 }
 
 func GetAllFileSystems() (*FindMntOutput, error) {
@@ -233,11 +238,8 @@ func GetAllFileSystems() (*FindMntOutput, error) {
 		}
 
 		if _, ok := usageByUUID[fs.UUID]; !ok && fs.Target != "" {
-			if total, used, err := filesystemUsageBytes(fs.Target); err == nil {
-				usageByUUID[fs.UUID] = usageStats{
-					maxBytes:  total,
-					usedBytes: used,
-				}
+			if usage, err := filesystemUsage(fs.Target); err == nil {
+				usageByUUID[fs.UUID] = usage
 			} else {
 				logger.Error(fmt.Sprintf("failed to inspect filesystem %s: %v", fs.Target, err))
 			}
@@ -250,6 +252,13 @@ func GetAllFileSystems() (*FindMntOutput, error) {
 				fs.RealMaxSpace = usage.maxBytes
 			}
 			fs.RealUsedSpace = usage.usedBytes
+			if fs.RaidType == "" {
+				fs.RaidType = usage.raidProfile
+			}
+		}
+
+		if fs.RaidType == "" {
+			fs.RaidType = detectRaidProfile(fs.Target, fs.Devices)
 		}
 	})
 
@@ -304,6 +313,13 @@ func GetAllFileSystems() (*FindMntOutput, error) {
 				fs.RealMaxSpace = usage.maxBytes
 			}
 			fs.RealUsedSpace = usage.usedBytes
+			if fs.RaidType == "" {
+				fs.RaidType = usage.raidProfile
+			}
+		}
+
+		if fs.RaidType == "" {
+			fs.RaidType = detectRaidProfile(fs.Target, fs.Devices)
 		}
 
 		findmntOutput.FileSystems = append(findmntOutput.FileSystems, fs)
@@ -381,19 +397,20 @@ func walkFileSystems(list []FileSystem, fn func(*FileSystem)) {
 	}
 }
 
-func filesystemUsageBytes(mountPoint string) (int64, int64, error) {
+func filesystemUsage(mountPoint string) (usageStats, error) {
+	var stats usageStats
 	mountPoint = strings.TrimSpace(mountPoint)
 	if mountPoint == "" {
-		return 0, 0, fmt.Errorf("mount point is required")
+		return stats, fmt.Errorf("mount point is required")
 	}
 
 	info, err := GetFileSystemInfo(mountPoint)
 	if err != nil {
-		return 0, 0, err
+		return stats, err
 	}
 
 	if info == nil {
-		return 0, 0, fmt.Errorf("no filesystem info for %s", mountPoint)
+		return stats, fmt.Errorf("no filesystem info for %s", mountPoint)
 	}
 
 	var total, used int64
@@ -402,7 +419,11 @@ func filesystemUsageBytes(mountPoint string) (int64, int64, error) {
 		used += bg.Used
 	}
 
-	return total, used, nil
+	return usageStats{
+		maxBytes:    total,
+		usedBytes:   used,
+		raidProfile: extractRaidProfile(info),
+	}, nil
 }
 
 func extractCompressionFromOptions(options string) string {
@@ -422,6 +443,68 @@ func extractCompressionFromOptions(options string) string {
 			return "compress"
 		}
 	}
+	return ""
+}
+
+func extractRaidProfile(info *FilesystemDF) string {
+	if info == nil {
+		return ""
+	}
+
+	var (
+		bestProfile string
+		largestData int64
+	)
+
+	for _, bg := range info.FilesystemDF {
+		profile := strings.TrimSpace(strings.ToLower(bg.BgProfile))
+		if profile == "" {
+			continue
+		}
+		if strings.EqualFold(bg.BgType, "data") && bg.Total >= largestData {
+			largestData = bg.Total
+			bestProfile = profile
+		}
+	}
+
+	if bestProfile != "" {
+		return bestProfile
+	}
+
+	for _, bg := range info.FilesystemDF {
+		profile := strings.TrimSpace(strings.ToLower(bg.BgProfile))
+		if profile != "" {
+			return profile
+		}
+	}
+
+	return ""
+}
+
+func detectRaidProfile(target string, devs []BtrfsDevice) string {
+	var paths []string
+	if t := strings.TrimSpace(target); t != "" {
+		paths = appendIfMissing(paths, t)
+	}
+	for _, dev := range devs {
+		paths = appendIfMissing(paths, dev.Path)
+	}
+
+	for _, path := range paths {
+		if strings.TrimSpace(path) == "" {
+			continue
+		}
+
+		usage, err := filesystemUsage(path)
+		if err != nil {
+			logger.Debug(fmt.Sprintf("failed to detect raid profile for %s: %v", path, err))
+			continue
+		}
+		if usage.raidProfile != "" {
+			return usage.raidProfile
+		}
+	}
+
 	return ""
 }
 
@@ -583,17 +666,50 @@ func getUUIDSub(path string) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
-func GetMountPointFromUUID(uuid string) (string, error) {
-	cmd := exec.Command("findmnt", "-n", "-o", "TARGET", "-U", uuid)
+func GetMountPointFromUUID(fsid string) (string, error) {
+	// Step 1: run `btrfs filesystem show`
+	cmd := exec.Command("btrfs", "filesystem", "show", fsid)
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to find mountpoint: %w", err)
+		return "", fmt.Errorf("failed to query btrfs fsid: %w", err)
 	}
 
-	mp := strings.TrimSpace(string(out))
-	if mp == "" {
-		return "", fmt.Errorf("filesystem %s is not mounted", uuid)
+	lines := strings.Split(string(out), "\n")
+	var devices []string
+
+	// Step 2: extract device paths
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "devid") {
+			parts := strings.Fields(line)
+
+			// procurar explicitamente pelo token "path"
+			for i := 0; i < len(parts); i++ {
+				if parts[i] == "path" && i+1 < len(parts) {
+					devices = append(devices, parts[i+1]) // ex: /dev/loop8
+					break
+				}
+			}
+		}
 	}
 
-	return mp, nil
+	if len(devices) == 0 {
+		return "", fmt.Errorf("no devices found for FSID %s", fsid)
+	}
+
+	// Step 3: try findmnt for each device
+	for _, dev := range devices {
+		cmd2 := exec.Command("findmnt", "-n", "-o", "TARGET", "--source", dev)
+		mpOut, err := cmd2.Output()
+		if err != nil {
+			continue // se um falhar tenta o próximo
+		}
+
+		mountPoint := strings.TrimSpace(string(mpOut))
+		if mountPoint != "" {
+			return mountPoint, nil
+		}
+	}
+
+	return "", fmt.Errorf("filesystem %s is not mounted", fsid)
 }

@@ -154,9 +154,9 @@ func mountRaid(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type MountUUIDREQ struct {
-		UUID       string `json:"uuid"`
-		MountPoint string `json:"mount_point"`
-		Options    string `json:"options"`
+		UUID        string `json:"uuid"`
+		MountPoint  string `json:"mount_point"`
+		Compression string `json:"compression"`
 	}
 
 	var req MountUUIDREQ
@@ -168,7 +168,7 @@ func mountRaid(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	btrfsService := services.BTRFSService{}
-	if err := btrfsService.MountRaid(machineName, req.UUID, req.MountPoint, req.Options); err != nil {
+	if err := btrfsService.MountRaid(machineName, req.UUID, req.MountPoint, req.Compression); err != nil {
 		http.Error(w, fmt.Sprintf("failed to create raid: %v", err), http.StatusInternalServerError)
 		return
 	}

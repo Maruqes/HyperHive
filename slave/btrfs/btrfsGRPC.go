@@ -45,6 +45,7 @@ func convertChildren(children []FileSystem) []*btrfsGrpc.FileSystem {
 			Uuid:          child.UUID,
 			Label:         child.Label,
 			Compression:   child.Compression,
+			RaidType:      child.RaidType,
 			MaxSpace:      child.MaxSpace,
 			UsedSpace:     child.UsedSpace,
 			RealMaxSpace:  child.RealMaxSpace,
@@ -94,6 +95,7 @@ func (s *BTRFSService) GetAllFileSystems(ctx context.Context, _ *btrfsGrpc.Empty
 			Uuid:          raid.UUID,
 			Label:         raid.Label,
 			Compression:   raid.Compression,
+			RaidType:      raid.RaidType,
 			MaxSpace:      raid.MaxSpace,
 			UsedSpace:     raid.UsedSpace,
 			RealMaxSpace:  raid.RealMaxSpace,
@@ -141,7 +143,7 @@ func (s *BTRFSService) RemoveRaid(ctx context.Context, req *btrfsGrpc.UUIDReq) (
 }
 
 func (s *BTRFSService) MountRaid(ctx context.Context, req *btrfsGrpc.MountReq) (*btrfsGrpc.Empty, error) {
-	err := MountRaid(req.Target, req.Target, req.Compression)
+	err := MountRaid(req.Uuid, req.Target, req.Compression)
 	if err != nil {
 		return nil, err
 	}
@@ -316,11 +318,12 @@ func (s *BTRFSService) ScrubStats(ctx context.Context, req *btrfsGrpc.UUIDReq) (
 }
 
 func (s *BTRFSService) GetRaidStats(ctx context.Context, req *btrfsGrpc.UUIDReq) (*btrfsGrpc.RaidStats, error) {
+	fmt.Println(req.Uuid)
+
 	mp, err := GetMountPointFromUUID(req.Uuid)
 	if err != nil {
 		return nil, err
 	}
-
 	stats, err := GetFileSystemStats(mp)
 	if err != nil {
 		return nil, err

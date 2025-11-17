@@ -41,6 +41,7 @@ message FileSystem {
 	repeated BtrfsDevice devices = 12;
 	repeated FileSystem children = 13;
 	bool mounted = 14;
+	string raid_type = 15;
 }
 
 message FindMntOutput {
