@@ -201,6 +201,8 @@ if [ -n "$BOOT_IMG" ] && [ -f "$BOOT_IMG" ]; then
         -J -joliet-long \
         -D -N \
         -relaxed-filenames \
+        -allow-limited-size \
+        -udf \
         -V "Windows_VirtIO" \
         -o "$NEW_ISO" \
         "$ISO_EXTRACT"
@@ -211,6 +213,8 @@ else
         -J -joliet-long \
         -D -N \
         -relaxed-filenames \
+        -allow-limited-size \
+        -udf \
         -V "Windows_VirtIO" \
         -o "$NEW_ISO" \
         "$ISO_EXTRACT"
