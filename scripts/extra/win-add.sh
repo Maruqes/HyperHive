@@ -21,7 +21,7 @@ fi
 
 # Verificar dependências necessárias
 echo -e "${YELLOW}A verificar dependências...${NC}"
-DEPENDENCIES=("genisoimage" "wget" "7z" "mkisofs" "rsync")
+DEPENDENCIES=("xorriso" "genisoimage" "wget" "7z" "mkisofs" "rsync")
 MISSING_DEPS=()
 
 for dep in "${DEPENDENCIES[@]}"; do
@@ -39,6 +39,9 @@ if [ ${#MISSING_DEPS[@]} -ne 0 ]; then
     
     for dep in "${MISSING_DEPS[@]}"; do
         case $dep in
+            "xorriso")
+                PACKAGES_TO_INSTALL+=("xorriso")
+                ;;
             "genisoimage"|"mkisofs")
                 PACKAGES_TO_INSTALL+=("genisoimage")
                 ;;
@@ -181,23 +184,50 @@ NEW_ISO="$OUTPUT_DIR/${ISO_NAME}_virtio.iso"
 echo -e "\n${YELLOW}A criar nova ISO com drivers VirtIO...${NC}"
 echo -e "${YELLOW}Isto pode demorar vários minutos...${NC}"
 
-# Detectar se é UEFI ou BIOS
-BOOT_IMG=""
+# Detectar tipo de boot e criar ISO
+echo -e "${YELLOW}A detectar tipo de boot...${NC}"
+
+# Procurar ficheiros de boot UEFI
+EFISYS_BIN=""
 if [ -f "$ISO_EXTRACT/efi/microsoft/boot/efisys.bin" ]; then
-    BOOT_IMG="$ISO_EXTRACT/efi/microsoft/boot/efisys.bin"
+    EFISYS_BIN="efi/microsoft/boot/efisys.bin"
     echo -e "${GREEN}Detectado boot UEFI${NC}"
-elif [ -f "$ISO_EXTRACT/boot/etfsboot.com" ]; then
-    BOOT_IMG="$ISO_EXTRACT/boot/etfsboot.com"
+elif [ -f "$ISO_EXTRACT/EFI/microsoft/boot/efisys.bin" ]; then
+    EFISYS_BIN="EFI/microsoft/boot/efisys.bin"
+    echo -e "${GREEN}Detectado boot UEFI (maiúsculas)${NC}"
+fi
+
+# Procurar boot catalog
+BOOT_CATALOG=""
+if [ -f "$ISO_EXTRACT/boot/etfsboot.com" ]; then
+    BOOT_CATALOG="boot/etfsboot.com"
     echo -e "${GREEN}Detectado boot BIOS${NC}"
 fi
 
-# Criar nova ISO
-if [ -n "$BOOT_IMG" ] && [ -f "$BOOT_IMG" ]; then
-    genisoimage -b "$(basename $BOOT_IMG)" \
+# Criar nova ISO usando xorriso (mais moderno e confiável)
+if command -v xorriso &> /dev/null; then
+    echo -e "${GREEN}Usando xorriso para criar ISO bootável${NC}"
+    
+    xorriso -as mkisofs \
+        -iso-level 4 \
+        -U \
+        -J -joliet-long \
+        -D -N \
+        -relaxed-filenames \
+        -allow-limited-size \
+        -udf \
+        -V "Windows_VirtIO" \
+        -eltorito-boot "$BOOT_CATALOG" \
         -no-emul-boot \
         -boot-load-size 8 \
-        -boot-info-table \
+        -eltorito-alt-boot \
+        -e "$EFISYS_BIN" \
+        -no-emul-boot \
+        -o "$NEW_ISO" \
+        "$ISO_EXTRACT" 2>/dev/null || \
+    xorriso -as mkisofs \
         -iso-level 4 \
+        -U \
         -J -joliet-long \
         -D -N \
         -relaxed-filenames \
@@ -207,17 +237,41 @@ if [ -n "$BOOT_IMG" ] && [ -f "$BOOT_IMG" ]; then
         -o "$NEW_ISO" \
         "$ISO_EXTRACT"
 else
-    # Fallback: criar ISO simples sem boot
-    echo -e "${YELLOW}Aviso: A criar ISO sem sector de boot${NC}"
-    genisoimage -iso-level 4 \
-        -J -joliet-long \
-        -D -N \
-        -relaxed-filenames \
-        -allow-limited-size \
-        -udf \
-        -V "Windows_VirtIO" \
-        -o "$NEW_ISO" \
-        "$ISO_EXTRACT"
+    echo -e "${YELLOW}xorriso não encontrado, usando genisoimage${NC}"
+    
+    # Criar nova ISO com genisoimage
+    if [ -n "$EFISYS_BIN" ]; then
+        genisoimage -b "$EFISYS_BIN" \
+            -no-emul-boot \
+            -iso-level 4 \
+            -J -joliet-long \
+            -D -N \
+            -relaxed-filenames \
+            -allow-limited-size \
+            -udf \
+            -V "Windows_VirtIO" \
+            -o "$NEW_ISO" \
+            "$ISO_EXTRACT" 2>/dev/null || \
+        genisoimage -iso-level 4 \
+            -J -joliet-long \
+            -D -N \
+            -relaxed-filenames \
+            -allow-limited-size \
+            -udf \
+            -V "Windows_VirtIO" \
+            -o "$NEW_ISO" \
+            "$ISO_EXTRACT"
+    else
+        genisoimage -iso-level 4 \
+            -J -joliet-long \
+            -D -N \
+            -relaxed-filenames \
+            -allow-limited-size \
+            -udf \
+            -V "Windows_VirtIO" \
+            -o "$NEW_ISO" \
+            "$ISO_EXTRACT"
+    fi
 fi
 
 # Verificar se a ISO foi criada
