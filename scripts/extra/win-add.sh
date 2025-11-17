@@ -49,7 +49,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 echo -e "${YELLOW}A verificar dependências...${NC}"
-DEPENDENCIES=("genisoimage" "mkisofs" "wget" "rsync" "isoinfo")
+DEPENDENCIES=("genisoimage" "mkisofs" "wget" "rsync" "isoinfo" "xorriso")
 MISSING_DEPS=()
 
 for dep in "${DEPENDENCIES[@]}"; do
@@ -70,6 +70,9 @@ if [ ${#MISSING_DEPS[@]} -ne 0 ]; then
                 ;;
             "isoinfo")
                 PACKAGES_TO_INSTALL+=("genisoimage")
+                ;;
+            "xorriso")
+                PACKAGES_TO_INSTALL+=("xorriso")
                 ;;
             "wget")
                 PACKAGES_TO_INSTALL+=("wget")
@@ -219,16 +222,18 @@ else
     echo -e "${YELLOW}Aviso: Imagem UEFI não encontrada. A ISO resultante poderá não arrancar em UEFI.${NC}"
 fi
 
-# escolher genisoimage/mkisofs
+# escolher ferramenta para gerar ISO (preferir xorriso)
 MKISO_TOOL=""
-if command -v genisoimage &> /dev/null; then
+if command -v xorriso &> /dev/null; then
+    MKISO_TOOL="$(command -v xorriso) -as mkisofs"
+elif command -v genisoimage &> /dev/null; then
     MKISO_TOOL="$(command -v genisoimage)"
 elif command -v mkisofs &> /dev/null; then
     MKISO_TOOL="$(command -v mkisofs)"
 fi
 
 if [ -z "$MKISO_TOOL" ]; then
-    echo -e "${RED}Nenhuma ferramenta mkisofs/genisoimage encontrada.${NC}"
+    echo -e "${RED}Nenhuma ferramenta xorriso/mkisofs/genisoimage encontrada.${NC}"
     exit 1
 fi
 
@@ -261,7 +266,6 @@ fi
             -eltorito-platform efi
             -eltorito-boot "$EFI_BOOT_REL"
             -no-emul-boot
-            -boot-load-size 1
         )
     fi
 
@@ -270,7 +274,8 @@ fi
         .
     )
 
-    "$MKISO_TOOL" "${MKISO_ARGS[@]}"
+    # shellcheck disable=SC2086
+    $MKISO_TOOL "${MKISO_ARGS[@]}"
 )
 
 # ---------- substituir ISO original ----------
