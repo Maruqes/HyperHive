@@ -19,7 +19,7 @@ Uso: sudo ./setup_dhcp.sh [WAN_IFACE]
   - WAN_IFACE: interface de saída para NAT (autodetecta se omitido)
 
 Override por variáveis de ambiente: LAN_PARENT_IF, LAN_INTERFACE_NAME, SUBNET_CIDR,
-GATEWAY_IP, DHCP_RANGE_START, DHCP_RANGE_END, WAN_IF, etc.
+GATEWAY_IP, DHCP_RANGE_START, DHCP_RANGE_END, DHCP_LEASE_TIME, WAN_IF, etc.
 USAGE
 exit 1; }
 
@@ -74,6 +74,7 @@ SUBNET_CIDR="${SUBNET_CIDR:-192.168.76.0/24}"
 GATEWAY_IP="${GATEWAY_IP:-192.168.76.1}"
 DHCP_RANGE_START="${DHCP_RANGE_START:-192.168.76.50}"
 DHCP_RANGE_END="${DHCP_RANGE_END:-192.168.76.200}"
+DHCP_LEASE_TIME="${DHCP_LEASE_TIME:-12h}"
 
 RESOLV_CONF="${RESOLV_CONF:-/etc/resolv.conf}"
 DNSMASQ_CONF_DIR="${DNSMASQ_CONF_DIR:-/etc/dnsmasq.d}"
@@ -295,7 +296,7 @@ domain-needed
 bogus-priv
 # DHCP
 dhcp-authoritative
-dhcp-range=${DHCP_RANGE_START},${DHCP_RANGE_END},${NETMASK},infinite
+dhcp-range=${DHCP_RANGE_START},${DHCP_RANGE_END},${NETMASK},${DHCP_LEASE_TIME}
 dhcp-option=option:router,${GATEWAY_IP}
 dhcp-option=option:dns-server,${GATEWAY_IP}
 dhcp-leasefile=${DNSMASQ_LEASE_DIR}/${NETWORK_NAME}.leases
@@ -461,5 +462,5 @@ systemctl is-active --quiet "${DEDICATED_UNIT}" || { systemctl --no-pager --line
 systemctl --no-pager --lines=20 status "${DEDICATED_UNIT}" || true
 ss -lupn | egrep ':(53|67|68)\b' || true
 
-info "Pronto: ${NETWORK_NAME} a servir DHCP ${DHCP_RANGE_START}-${DHCP_RANGE_END} via ${GATEWAY_IP} e NAT a sair por ${WAN_IF}."
+info "Pronto: ${NETWORK_NAME} a servir DHCP ${DHCP_RANGE_START}-${DHCP_RANGE_END} via ${GATEWAY_IP} (leases ${DHCP_LEASE_TIME}) e NAT a sair por ${WAN_IF}."
 echo "Dica: tcpdump -ni ${NETWORK_NAME} 'port 67 or 68' durante um pedido DHCP."
