@@ -770,6 +770,28 @@ func (v *VirshService) RemoveIso(vmName string) error {
 	return fmt.Errorf("failed to find VM %s on any machine", vmName)
 }
 
+func (v *VirshService) ChangeNetwork(vmName string, newNetwork string) error {
+	if newNetwork != "default" && newNetwork != "512rede" {
+		return fmt.Errorf("network must be either 'default' or '512rede', got '%s'", newNetwork)
+	}
+
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return err
+	}
+	if vm == nil {
+		return fmt.Errorf("vm %s does not exist", vmName)
+	}
+
+	slave := protocol.GetConnectionByMachineName(vm.MachineName)
+	if slave == nil || slave.Connection == nil {
+		return fmt.Errorf("slave %s no connected", vm.MachineName)
+	}
+
+	err = virsh.ChangeNetwork(slave.Connection, &grpcVirsh.ChangeNetworkReq{VmName: vmName, NewNetwork: newNetwork})
+	return err
+}
+
 func (v *VirshService) PauseVM(name string) error {
 	//find vm by name
 	exists, err := virsh.DoesVMExist(name)

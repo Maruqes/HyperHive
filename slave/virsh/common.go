@@ -1709,3 +1709,150 @@ func UnFreezeDisk(vmName string) error {
 
 	return nil
 }
+
+func ChangeNetwork(vmName string, newNetwork string) error {
+	vmName = strings.TrimSpace(vmName)
+	if vmName == "" {
+		return fmt.Errorf("vm name is empty")
+	}
+	newNetwork = strings.TrimSpace(newNetwork)
+	if newNetwork == "" {
+		return fmt.Errorf("network name is empty")
+	}
+	// Validate that network is either "default" or "512rede"
+	if newNetwork != "default" && newNetwork != "512rede" {
+		return fmt.Errorf("network must be either 'default' or '512rede', got '%s'", newNetwork)
+	}
+
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	dom, err := conn.LookupDomainByName(vmName)
+	if err != nil {
+		return fmt.Errorf("lookup: %w", err)
+	}
+	defer dom.Free()
+
+	state, _, err := dom.GetState()
+	if err != nil {
+		return fmt.Errorf("state: %w", err)
+	}
+
+	// Get the current domain XML
+	xmlDesc, err := dom.GetXMLDesc(libvirt.DOMAIN_XML_INACTIVE)
+	if err != nil {
+		return fmt.Errorf("xml: %w", err)
+	}
+
+	// Parse and modify the network in the XML
+	newXML, err := updateNetworkInXML(xmlDesc, newNetwork)
+	if err != nil {
+		return fmt.Errorf("update network xml: %w", err)
+	}
+
+	if newXML == xmlDesc {
+		return nil // No change needed
+	}
+
+	// If VM is running, update the live configuration first
+	if state == libvirt.DOMAIN_RUNNING || state == libvirt.DOMAIN_BLOCKED || state == libvirt.DOMAIN_PAUSED {
+		// Get the old interface XML for detaching
+		oldIfaceXML, err := extractInterfaceXML(xmlDesc)
+		if err != nil {
+			return fmt.Errorf("extract old interface: %w", err)
+		}
+
+		// Get the new interface XML for attaching
+		newIfaceXML, err := extractInterfaceXML(newXML)
+		if err != nil {
+			return fmt.Errorf("extract new interface: %w", err)
+		}
+
+		// Detach old interface (if exists)
+		if oldIfaceXML != "" {
+			if err := dom.DetachDeviceFlags(oldIfaceXML, libvirt.DOMAIN_DEVICE_MODIFY_LIVE); err != nil {
+				// Log warning but continue - the interface might not exist
+				logger.Error(fmt.Sprintf("warning: detach old interface: %v", err))
+			}
+		}
+
+		// Attach new interface
+		if newIfaceXML != "" {
+			if err := dom.AttachDeviceFlags(newIfaceXML, libvirt.DOMAIN_DEVICE_MODIFY_LIVE); err != nil {
+				return fmt.Errorf("attach new interface (live): %w", err)
+			}
+		}
+	}
+
+	// Update persistent configuration
+	newDom, err := conn.DomainDefineXML(newXML)
+	if err != nil {
+		return fmt.Errorf("define: %w", err)
+	}
+	defer newDom.Free()
+
+	return nil
+}
+
+func updateNetworkInXML(xmlDesc string, newNetwork string) (string, error) {
+	if strings.TrimSpace(xmlDesc) == "" {
+		return "", fmt.Errorf("domain xml is empty")
+	}
+	if strings.TrimSpace(newNetwork) == "" {
+		return "", fmt.Errorf("network name is empty")
+	}
+
+	// Build the new interface XML based on the network type
+	var newInterfaceXML string
+	if newNetwork == "512rede" {
+		newInterfaceXML = `<interface type='direct'>
+  <source dev='512rede' mode='bridge'/>
+  <model type='virtio'/>
+</interface>`
+	} else {
+		newInterfaceXML = fmt.Sprintf(`<interface type='network'>
+  <source network='%s'/>
+  <model type='virtio'/>
+</interface>`, newNetwork)
+	}
+
+	// Pattern to match any interface element (network, bridge, or direct)
+	interfacePattern := regexp.MustCompile(`(?s)[ \t]*<interface\s+type=['"][^'"]*['"][^>]*>.*?</interface>`)
+
+	// Find the first interface
+	match := interfacePattern.FindString(xmlDesc)
+	if match == "" {
+		return "", fmt.Errorf("no network interface found in domain xml")
+	}
+
+	// Get the indentation from the original interface
+	indent := extractLeadingWhitespace(match)
+
+	// Indent the new interface XML to match
+	indentedNewXML := indentBlock(newInterfaceXML, indent)
+
+	// Replace only the first interface
+	result := interfacePattern.ReplaceAllStringFunc(xmlDesc, func(m string) string {
+		if m == match {
+			return indentedNewXML
+		}
+		return m
+	})
+
+	return result, nil
+}
+
+func extractInterfaceXML(xmlDesc string) (string, error) {
+	// Pattern to extract the first interface element
+	ifacePattern := regexp.MustCompile(`(?s)<interface\s+type=['"][^'"]*['"][^>]*>.*?</interface>`)
+
+	match := ifacePattern.FindString(xmlDesc)
+	if match == "" {
+		return "", nil // No interface found
+	}
+
+	return strings.TrimSpace(match), nil
+}

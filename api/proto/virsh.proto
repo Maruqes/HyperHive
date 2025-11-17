@@ -101,6 +101,11 @@ message ColdMigrationRequest {
   bool live = 8;
 }
 
+message ChangeNetworkReq{
+  string vmName = 1;
+  string new_network = 2;
+}
+
 //defines on slave
 service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
@@ -125,6 +130,8 @@ service SlaveVirshService {
   rpc GetAllVms(Empty) returns (GetAllVmsResponse);
   rpc GetVmByName(GetVmByNameRequest) returns (Vm);
   rpc RemoveIsoFromVm(Vm) returns (OkResponse);
+
+  rpc ChangeNetwork(ChangeNetworkReq)returns (Empty);
 
   //only sees machine name, cpuCount and memoryMB
   //cpuCount and memoryMB are the new values to set

@@ -146,7 +146,6 @@ func (s *SlaveVirshService) UndefineVM(ctx context.Context, req *grpcVirsh.Vm) (
 	return &grpcVirsh.OkResponse{Ok: true}, nil
 }
 
-
 func (s *SlaveVirshService) ForceShutdownVM(ctx context.Context, req *grpcVirsh.Vm) (*grpcVirsh.OkResponse, error) {
 	if err := ForceShutdownVM(req.Name); err != nil {
 		return nil, err
@@ -166,6 +165,13 @@ func (s *SlaveVirshService) EditVmResources(ctx context.Context, req *grpcVirsh.
 		return nil, err
 	}
 	return &grpcVirsh.OkResponse{Ok: true}, nil
+}
+
+func (s *SlaveVirshService) ChangeNetwork(ctx context.Context, req *grpcVirsh.ChangeNetworkReq) (*grpcVirsh.Empty, error) {
+	if err := ChangeNetwork(req.VmName, req.NewNetwork); err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.Empty{}, nil
 }
 
 func (s *SlaveVirshService) RemoveIsoFromVm(ctx context.Context, req *grpcVirsh.Vm) (*grpcVirsh.OkResponse, error) {

@@ -156,13 +156,13 @@ func RemoveVM(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
 	return nil
 }
 
-func UndefineVM(conn *grpc.ClientConn, req *grpcVirsh.Vm)error{
+func UndefineVM(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.UndefineVM(context.Background(), req)
 	if err != nil {
 		return err
 	}
-	return nil 
+	return nil
 }
 
 func RestartVM(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
@@ -222,6 +222,15 @@ func FreezeDisk(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
 func UnFreezeDisk(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.UnFreezeDisk(context.Background(), req)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func ChangeNetwork(conn *grpc.ClientConn, req *grpcVirsh.ChangeNetworkReq) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.ChangeNetwork(context.Background(), req)
 	if err != nil {
 		return err
 	}

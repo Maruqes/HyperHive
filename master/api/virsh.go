@@ -415,6 +415,34 @@ func removeIso(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ISO removed from VM successfully"))
 }
 
+func changeVmNetwork(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+	type Req struct {
+		NewNetwork string `json:"new_network"`
+	}
+
+	var req Req
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+
+	err = virshServices.ChangeNetwork(vmName, req.NewNetwork)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func resumeVm(w http.ResponseWriter, r *http.Request) {
 	vmName := chi.URLParam(r, "vm_name")
 	if vmName == "" {
@@ -1150,6 +1178,8 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Post("/resumevm/{vm_name}", resumeVm)
 		r.Get("/getvmbyname/{vm_name}", getVmByName)
 		r.Post("/removeiso/{vm_name}", removeIso)
+
+		r.Post("/change_vm_network/{vm_name}", changeVmNetwork)
 
 		//move
 		r.Post("/moveDisk/{vm_name}/{dest_nfs}", moveDisk)
