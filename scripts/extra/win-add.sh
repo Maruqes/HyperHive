@@ -33,8 +33,7 @@ done
 if [ ${#MISSING_DEPS[@]} -ne 0 ]; then
     echo -e "${RED}Dependências em falta: ${MISSING_DEPS[*]}${NC}"
     echo -e "${YELLOW}A instalar dependências...${NC}"
-    apt-get update
-    apt-get install -y genisoimage wget p7zip-full cdrtools
+    dnf install -y genisoimage wget p7zip p7zip-plugins cdrtools rsync
 fi
 
 # Pedir caminho da ISO ao utilizador
