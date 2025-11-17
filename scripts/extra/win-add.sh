@@ -255,11 +255,11 @@ echo -e "${GREEN}A criar ISO com ${MKISO_TOOL##*/}...${NC}"
     if [ -n "$EFISYS_BIN" ]; then
         CMD+=(
             -eltorito-alt-boot
-            -eltorito-platform efi
             -e "$EFISYS_BIN"
             -no-emul-boot
         )
     fi
+
 
     CMD+=(
         -o "$NEW_ISO"
