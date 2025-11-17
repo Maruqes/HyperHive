@@ -222,14 +222,27 @@ else
     echo -e "${YELLOW}Aviso: Imagem UEFI não encontrada. A ISO resultante poderá não arrancar em UEFI.${NC}"
 fi
 
-# escolher ferramenta para gerar ISO (preferir xorriso)
+# escolher ferramenta para gerar ISO (preferir xorriso, mas só se suportar -udf)
 MKISO_TOOL=""
+MKISO_TOOL_NAME=""
+
 if command -v xorriso &> /dev/null; then
-    MKISO_TOOL="$(command -v xorriso) -as mkisofs"
-elif command -v genisoimage &> /dev/null; then
+    if xorriso -as mkisofs -udf --version >/dev/null 2>&1; then
+        MKISO_TOOL="$(command -v xorriso) -as mkisofs"
+        MKISO_TOOL_NAME="xorriso -as mkisofs"
+    else
+        echo -e "${YELLOW}Aviso: xorriso encontrado mas sem suporte para -udf. A usar outra ferramenta.${NC}"
+    fi
+fi
+
+if [ -z "$MKISO_TOOL" ] && command -v genisoimage &> /dev/null; then
     MKISO_TOOL="$(command -v genisoimage)"
-elif command -v mkisofs &> /dev/null; then
+    MKISO_TOOL_NAME="genisoimage"
+fi
+
+if [ -z "$MKISO_TOOL" ] && command -v mkisofs &> /dev/null; then
     MKISO_TOOL="$(command -v mkisofs)"
+    MKISO_TOOL_NAME="mkisofs"
 fi
 
 if [ -z "$MKISO_TOOL" ]; then
@@ -240,9 +253,9 @@ fi
 echo -e "\n${YELLOW}A criar nova ISO com drivers VirtIO...${NC}"
 echo -e "${YELLOW}Isto pode demorar vários minutos...${NC}"
 if [ -n "$EFI_BOOT_REL" ]; then
-    echo -e "${GREEN}A criar ISO com ${MKISO_TOOL##*/} (BIOS + UEFI)...${NC}"
+    echo -e "${GREEN}A criar ISO com ${MKISO_TOOL_NAME} (BIOS + UEFI)...${NC}"
 else
-    echo -e "${GREEN}A criar ISO com ${MKISO_TOOL##*/} (BIOS only)...${NC}"
+    echo -e "${GREEN}A criar ISO com ${MKISO_TOOL_NAME} (BIOS only)...${NC}"
 fi
 
 (
