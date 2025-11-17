@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Script para adicionar drivers VirtIO a uma ISO do Windows (BIOS only)
+# Script para adicionar drivers VirtIO a uma ISO do Windows (BIOS e UEFI)
 # Autor: HyperHive
 # Data: 2025
 
@@ -49,7 +49,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 echo -e "${YELLOW}A verificar dependências...${NC}"
-DEPENDENCIES=("genisoimage" "mkisofs" "wget" "rsync")
+DEPENDENCIES=("genisoimage" "mkisofs" "wget" "rsync" "isoinfo")
 MISSING_DEPS=()
 
 for dep in "${DEPENDENCIES[@]}"; do
@@ -66,6 +66,9 @@ if [ ${#MISSING_DEPS[@]} -ne 0 ]; then
     for dep in "${MISSING_DEPS[@]}"; do
         case $dep in
             "genisoimage"|"mkisofs")
+                PACKAGES_TO_INSTALL+=("genisoimage")
+                ;;
+            "isoinfo")
                 PACKAGES_TO_INSTALL+=("genisoimage")
                 ;;
             "wget")
@@ -99,6 +102,15 @@ if [[ ! "$ISO_PATH" =~ \.iso$ ]]; then
 fi
 
 echo -e "${GREEN}ISO encontrada: $ISO_PATH${NC}"
+
+# Tenta preservar o mesmo label da ISO original para evitar falhas de boot em UEFI
+ISO_LABEL="Windows_VirtIO"
+if command -v isoinfo &> /dev/null; then
+    ISO_LABEL_RAW="$(isoinfo -d -i "$ISO_PATH" 2>/dev/null | awk -F': ' '/Volume id/ {print $2; exit}')"
+    if [ -n "$ISO_LABEL_RAW" ]; then
+        ISO_LABEL="$ISO_LABEL_RAW"
+    fi
+fi
 
 # ---------- dirs de trabalho ----------
 
@@ -196,6 +208,17 @@ if [ ! -f "$ISO_EXTRACT/$BOOT_IMG" ]; then
     exit 1
 fi
 
+# Imagem de boot UEFI (efisys.bin ou similar)
+EFI_BOOT_IMG="$(find "$ISO_EXTRACT/efi" -maxdepth 3 -type f -iname 'efisys*.bin' 2>/dev/null | head -n1 || true)"
+EFI_BOOT_REL=""
+
+if [ -n "$EFI_BOOT_IMG" ]; then
+    EFI_BOOT_REL="${EFI_BOOT_IMG#$ISO_EXTRACT/}"
+    echo -e "${GREEN}Imagem UEFI encontrada: $EFI_BOOT_REL${NC}"
+else
+    echo -e "${YELLOW}Aviso: Imagem UEFI não encontrada. A ISO resultante poderá não arrancar em UEFI.${NC}"
+fi
+
 # escolher genisoimage/mkisofs
 MKISO_TOOL=""
 if command -v genisoimage &> /dev/null; then
@@ -211,23 +234,43 @@ fi
 
 echo -e "\n${YELLOW}A criar nova ISO com drivers VirtIO...${NC}"
 echo -e "${YELLOW}Isto pode demorar vários minutos...${NC}"
-echo -e "${GREEN}A criar ISO com ${MKISO_TOOL##*/} (BIOS only)...${NC}"
+if [ -n "$EFI_BOOT_REL" ]; then
+    echo -e "${GREEN}A criar ISO com ${MKISO_TOOL##*/} (BIOS + UEFI)...${NC}"
+else
+    echo -e "${GREEN}A criar ISO com ${MKISO_TOOL##*/} (BIOS only)...${NC}"
+fi
 
 (
     cd "$ISO_EXTRACT" || exit 1
 
-    "$MKISO_TOOL" \
-        -iso-level 3 \
-        -udf \
-        -D -N -relaxed-filenames -allow-limited-size \
-        -J -joliet-long \
-        -V "Windows_VirtIO" \
-        -b "$BOOT_IMG" \
-        -no-emul-boot \
-        -boot-load-size 8 \
-        -boot-info-table \
-        -o "$NEW_ISO" \
+    MKISO_ARGS=(
+        -iso-level 3
+        -udf
+        -D -N -relaxed-filenames -allow-limited-size
+        -J -joliet-long
+        -V "$ISO_LABEL"
+        -b "$BOOT_IMG"
+        -no-emul-boot
+        -boot-load-size 8
+        -boot-info-table
+    )
+
+    if [ -n "$EFI_BOOT_REL" ]; then
+        MKISO_ARGS+=(
+            -eltorito-alt-boot
+            -eltorito-platform efi
+            -eltorito-boot "$EFI_BOOT_REL"
+            -no-emul-boot
+            -boot-load-size 1
+        )
+    fi
+
+    MKISO_ARGS+=(
+        -o "$NEW_ISO"
         .
+    )
+
+    "$MKISO_TOOL" "${MKISO_ARGS[@]}"
 )
 
 # ---------- substituir ISO original ----------
@@ -258,10 +301,10 @@ echo -e "${GREEN}ISO com drivers VirtIO: $ISO_PATH${NC}"
 echo -e "${GREEN}ISO original (backup): $ORIGINAL_BACKUP${NC}"
 
 echo -e "\n${GREEN}Instruções durante a instalação do Windows:${NC}"
-echo -e "  1. Arranca a VM (SeaBIOS) com esta ISO: $ISO_PATH"
+echo -e "  1. Arranca a VM (SeaBIOS/UEFI) com esta ISO: $ISO_PATH"
 echo -e "  2. Quando não aparecer nenhum disco, clica em \"Load driver\" / \"Carregar controlador\""
 echo -e "  3. Vai à drive do DVD (normalmente D: ou E:)"
 echo -e "  4. Para disco VirtIO normal (virtio-blk): D:\\drivers\\viostor\\w10\\amd64"
 echo -e "  5. Para disco VirtIO-SCSI: D:\\drivers\\vioscsi\\w10\\amd64"
 echo -e "  6. Marca \"Include subfolders\" / \"Incluir subpastas\" e avança."
-echo -e "\n${GREEN}Feito. Podes agora instalar o Windows com discos VirtIO em modo BIOS.${NC}"
+echo -e "\n${GREEN}Feito. Podes agora instalar o Windows com discos VirtIO em modo BIOS ou UEFI.${NC}"
