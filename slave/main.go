@@ -425,50 +425,84 @@ func ensureVirtioISO() (string, error) {
 	}
 
 	target := filepath.Join(absDownloadDir, virtioISOName)
+	needDownload := false
 	if info, err := os.Stat(target); err == nil {
-		if info.Size() > 0 {
-			return target, nil
+		if info.Size() == 0 {
+			needDownload = true
+			if removeErr := os.Remove(target); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+				return "", fmt.Errorf("remove empty virtio iso: %w", removeErr)
+			}
 		}
-		if removeErr := os.Remove(target); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			return "", fmt.Errorf("remove empty virtio iso: %w", removeErr)
-		}
-	} else if !errors.Is(err, os.ErrNotExist) {
+	} else if errors.Is(err, os.ErrNotExist) {
+		needDownload = true
+	} else {
 		return "", fmt.Errorf("stat virtio iso: %w", err)
 	}
 
-	tmpFile, err := os.CreateTemp(absDownloadDir, virtioTempFilePattern)
+	if needDownload {
+		tmpFile, err := os.CreateTemp(absDownloadDir, virtioTempFilePattern)
+		if err != nil {
+			return "", fmt.Errorf("create temp virtio iso: %w", err)
+		}
+		defer os.Remove(tmpFile.Name())
+
+		resp, err := http.Get(virtioISOURL)
+		if err != nil {
+			return "", fmt.Errorf("download virtio iso: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return "", fmt.Errorf("download virtio iso: unexpected status %s", resp.Status)
+		}
+
+		if _, err := io.Copy(tmpFile, resp.Body); err != nil {
+			tmpFile.Close()
+			return "", fmt.Errorf("save virtio iso: %w", err)
+		}
+
+		if err := tmpFile.Close(); err != nil {
+			return "", fmt.Errorf("finalize virtio iso: %w", err)
+		}
+
+		if err := os.Rename(tmpFile.Name(), target); err != nil {
+			return "", fmt.Errorf("place virtio iso: %w", err)
+		}
+		if err := os.Chmod(target, 0o644); err != nil {
+			return "", fmt.Errorf("chmod virtio iso: %w", err)
+		}
+	}
+
+	// Also place a copy where libvirt/qemu can always read it
+	libvirtDir := "/var/lib/libvirt/boot"
+	if err := os.MkdirAll(libvirtDir, 0o755); err != nil {
+		return "", fmt.Errorf("create libvirt boot dir: %w", err)
+	}
+	dest := filepath.Join(libvirtDir, virtioISOName)
+
+	srcFile, err := os.Open(target)
 	if err != nil {
-		return "", fmt.Errorf("create temp virtio iso: %w", err)
+		return "", fmt.Errorf("open virtio iso for copy: %w", err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer srcFile.Close()
 
-	resp, err := http.Get(virtioISOURL)
+	destFile, err := os.Create(dest)
 	if err != nil {
-		return "", fmt.Errorf("download virtio iso: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("download virtio iso: unexpected status %s", resp.Status)
+		return "", fmt.Errorf("create virtio iso at libvirt dir: %w", err)
 	}
 
-	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
-		tmpFile.Close()
-		return "", fmt.Errorf("save virtio iso: %w", err)
+	if _, err := io.Copy(destFile, srcFile); err != nil {
+		destFile.Close()
+		return "", fmt.Errorf("copy virtio iso to libvirt dir: %w", err)
+	}
+	if err := destFile.Close(); err != nil {
+		return "", fmt.Errorf("finalize virtio iso at libvirt dir: %w", err)
+	}
+	if err := os.Chmod(dest, 0o644); err != nil {
+		return "", fmt.Errorf("chmod virtio iso at libvirt dir: %w", err)
 	}
 
-	if err := tmpFile.Close(); err != nil {
-		return "", fmt.Errorf("finalize virtio iso: %w", err)
-	}
-
-	if err := os.Rename(tmpFile.Name(), target); err != nil {
-		return "", fmt.Errorf("place virtio iso: %w", err)
-	}
-	if err := os.Chmod(target, 0o644); err != nil {
-		return "", fmt.Errorf("chmod virtio iso: %w", err)
-	}
-
-	return target, nil
+	return dest, nil
 }
 
 func main() {
