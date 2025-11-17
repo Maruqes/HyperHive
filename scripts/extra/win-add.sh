@@ -186,7 +186,7 @@ VOLID="WIN_VIRTIO"
 
 info "A criar ISO bootável com xorriso..."
 xorriso -as mkisofs \
-  -iso-level 3 -UDF \
+  -iso-level 3 \
   -full-iso9660-filenames \
   -volid "$VOLID" \
   -eltorito-boot "${BOOT_ETFS#./}" \
