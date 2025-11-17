@@ -21,7 +21,7 @@ fi
 
 # Verificar dependências necessárias
 echo -e "${YELLOW}A verificar dependências...${NC}"
-DEPENDENCIES=("genisoimage" "wget" "7z" "mkisofs")
+DEPENDENCIES=("genisoimage" "wget" "7z" "mkisofs" "rsync")
 MISSING_DEPS=()
 
 for dep in "${DEPENDENCIES[@]}"; do
@@ -33,7 +33,33 @@ done
 if [ ${#MISSING_DEPS[@]} -ne 0 ]; then
     echo -e "${RED}Dependências em falta: ${MISSING_DEPS[*]}${NC}"
     echo -e "${YELLOW}A instalar dependências...${NC}"
-    dnf install -y genisoimage wget p7zip p7zip-plugins cdrtools rsync
+    
+    # Instalar pacotes do Fedora
+    PACKAGES_TO_INSTALL=()
+    
+    for dep in "${MISSING_DEPS[@]}"; do
+        case $dep in
+            "genisoimage"|"mkisofs")
+                PACKAGES_TO_INSTALL+=("genisoimage")
+                ;;
+            "wget")
+                PACKAGES_TO_INSTALL+=("wget")
+                ;;
+            "7z")
+                PACKAGES_TO_INSTALL+=("p7zip" "p7zip-plugins")
+                ;;
+            "rsync")
+                PACKAGES_TO_INSTALL+=("rsync")
+                ;;
+        esac
+    done
+    
+    # Remover duplicados
+    PACKAGES_TO_INSTALL=($(echo "${PACKAGES_TO_INSTALL[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
+    
+    if [ ${#PACKAGES_TO_INSTALL[@]} -ne 0 ]; then
+        dnf install -y --skip-unavailable "${PACKAGES_TO_INSTALL[@]}"
+    fi
 fi
 
 # Pedir caminho da ISO ao utilizador
