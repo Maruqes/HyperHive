@@ -274,12 +274,21 @@ fi
     )
 
     if [ -n "$EFI_BOOT_REL" ]; then
-        MKISO_ARGS+=(
-            -eltorito-alt-boot
-            -eltorito-platform efi
-            -eltorito-boot "$EFI_BOOT_REL"
-            -no-emul-boot
-        )
+        if [ "$MKISO_TOOL_NAME" = "genisoimage" ]; then
+            # genisoimage (cdrkit) é mais compatível com -e para a entrada UEFI
+            MKISO_ARGS+=(
+                -eltorito-alt-boot
+                -e "$EFI_BOOT_REL"
+                -no-emul-boot
+            )
+        else
+            MKISO_ARGS+=(
+                -eltorito-alt-boot
+                -eltorito-platform efi
+                -eltorito-boot "$EFI_BOOT_REL"
+                -no-emul-boot
+            )
+        fi
     fi
 
     MKISO_ARGS+=(
