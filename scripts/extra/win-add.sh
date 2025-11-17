@@ -1,231 +1,239 @@
-#!/usr/bin/env bash
-# Cria um ISO de Windows 10/11 com drivers VirtIO incluídos numa pasta /virtio
-# e, no fim, substitui o ISO original pelo novo, guardando o original como
-# NOME-original.ext
-#
-# Uso:
-#   chmod +x make_win_virtio.sh
-#   ./make_win_virtio.sh
-#
-# Vai pedir:
-#   - Caminho para o ISO original do Windows
-#   - (Opcional) caminho para virtio-win.iso se não for encontrado automaticamente
+#!/bin/bash
 
-set -euo pipefail
+# Script para adicionar drivers VirtIO a uma ISO do Windows
+# Autor: HyperHive
+# Data: 2025
 
-###############################################################################
-# Helpers
-###############################################################################
+set -e
 
-info()  { printf '[INFO] %s\n' "$*"; }
-warn()  { printf '[WARN] %s\n' "$*" >&2; }
-error() { printf '[ERROR] %s\n' "$*" >&2; exit 1; }
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
 
-have_cmd() { command -v "$1" >/dev/null 2>&1; }
+echo -e "${GREEN}=== Script de Integração de Drivers VirtIO em ISO Windows ===${NC}\n"
 
-# sudo opcional
-if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
-    SUDO=""
+# Verificar se está a correr como root
+if [ "$EUID" -ne 0 ]; then 
+    echo -e "${RED}Por favor, execute como root (sudo)${NC}"
+    exit 1
+fi
+
+# Verificar dependências necessárias
+echo -e "${YELLOW}A verificar dependências...${NC}"
+DEPENDENCIES=("genisoimage" "wget" "7z" "mkisofs")
+MISSING_DEPS=()
+
+for dep in "${DEPENDENCIES[@]}"; do
+    if ! command -v $dep &> /dev/null; then
+        MISSING_DEPS+=($dep)
+    fi
+done
+
+if [ ${#MISSING_DEPS[@]} -ne 0 ]; then
+    echo -e "${RED}Dependências em falta: ${MISSING_DEPS[*]}${NC}"
+    echo -e "${YELLOW}A instalar dependências...${NC}"
+    apt-get update
+    apt-get install -y genisoimage wget p7zip-full cdrtools
+fi
+
+# Pedir caminho da ISO ao utilizador
+echo -e "\n${GREEN}Por favor, indique o caminho completo da ISO do Windows:${NC}"
+read -e -p "Caminho da ISO: " ISO_PATH
+
+# Validar se o ficheiro existe
+if [ ! -f "$ISO_PATH" ]; then
+    echo -e "${RED}Erro: Ficheiro não encontrado: $ISO_PATH${NC}"
+    exit 1
+fi
+
+# Validar se é um ficheiro ISO
+if [[ ! "$ISO_PATH" =~ \.iso$ ]]; then
+    echo -e "${RED}Erro: O ficheiro não é uma ISO${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}ISO encontrada: $ISO_PATH${NC}"
+
+# Criar diretórios de trabalho temporários
+WORK_DIR="/tmp/virtio_iso_work_$$"
+ISO_MOUNT="$WORK_DIR/iso_mount"
+ISO_EXTRACT="$WORK_DIR/iso_extract"
+VIRTIO_DIR="$WORK_DIR/virtio"
+OUTPUT_DIR="$WORK_DIR/output"
+
+mkdir -p "$ISO_MOUNT" "$ISO_EXTRACT" "$VIRTIO_DIR" "$OUTPUT_DIR"
+
+echo -e "\n${YELLOW}A criar diretórios de trabalho...${NC}"
+
+# Montar a ISO original
+echo -e "${YELLOW}A montar ISO original...${NC}"
+mount -o loop "$ISO_PATH" "$ISO_MOUNT"
+
+# Copiar conteúdo da ISO
+echo -e "${YELLOW}A extrair conteúdo da ISO... (isto pode demorar)${NC}"
+rsync -av --progress "$ISO_MOUNT/" "$ISO_EXTRACT/"
+umount "$ISO_MOUNT"
+
+# Tornar os ficheiros editáveis
+chmod -R u+w "$ISO_EXTRACT"
+
+# Descarregar drivers VirtIO mais recentes
+echo -e "\n${YELLOW}A descarregar drivers VirtIO...${NC}"
+VIRTIO_ISO_URL="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso"
+VIRTIO_ISO="$WORK_DIR/virtio-win.iso"
+
+wget -c "$VIRTIO_ISO_URL" -O "$VIRTIO_ISO"
+
+if [ ! -f "$VIRTIO_ISO" ]; then
+    echo -e "${RED}Erro ao descarregar drivers VirtIO${NC}"
+    cleanup
+    exit 1
+fi
+
+# Montar ISO dos drivers VirtIO
+echo -e "${YELLOW}A extrair drivers VirtIO...${NC}"
+VIRTIO_MOUNT="$WORK_DIR/virtio_mount"
+mkdir -p "$VIRTIO_MOUNT"
+mount -o loop "$VIRTIO_ISO" "$VIRTIO_MOUNT"
+
+# Copiar drivers para a ISO do Windows
+echo -e "${YELLOW}A integrar drivers VirtIO na ISO...${NC}"
+
+# Criar pasta para drivers
+DRIVERS_DIR="$ISO_EXTRACT/drivers"
+mkdir -p "$DRIVERS_DIR"
+
+# Copiar drivers relevantes (suporta Windows 10, 11 e Server)
+echo -e "${YELLOW}A copiar drivers...${NC}"
+cp -r "$VIRTIO_MOUNT/NetKVM" "$DRIVERS_DIR/" 2>/dev/null || true
+cp -r "$VIRTIO_MOUNT/viostor" "$DRIVERS_DIR/" 2>/dev/null || true
+cp -r "$VIRTIO_MOUNT/vioscsi" "$DRIVERS_DIR/" 2>/dev/null || true
+cp -r "$VIRTIO_MOUNT/Balloon" "$DRIVERS_DIR/" 2>/dev/null || true
+cp -r "$VIRTIO_MOUNT/qemupciserial" "$DRIVERS_DIR/" 2>/dev/null || true
+cp -r "$VIRTIO_MOUNT/qxldod" "$DRIVERS_DIR/" 2>/dev/null || true
+cp -r "$VIRTIO_MOUNT/vioinput" "$DRIVERS_DIR/" 2>/dev/null || true
+cp -r "$VIRTIO_MOUNT/viorng" "$DRIVERS_DIR/" 2>/dev/null || true
+cp -r "$VIRTIO_MOUNT/viogpudo" "$DRIVERS_DIR/" 2>/dev/null || true
+
+# Copiar guest tools se existirem
+if [ -d "$VIRTIO_MOUNT/guest-agent" ]; then
+    cp -r "$VIRTIO_MOUNT/guest-agent" "$DRIVERS_DIR/" 2>/dev/null || true
+fi
+
+umount "$VIRTIO_MOUNT"
+
+# Criar ficheiro autounattend.xml para instalação automática dos drivers (opcional)
+echo -e "${YELLOW}A criar ficheiro de configuração para drivers...${NC}"
+cat > "$ISO_EXTRACT/autounattend_drivers.xml" << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<unattend xmlns="urn:schemas-microsoft-com:unattend">
+    <settings pass="windowsPE">
+        <component name="Microsoft-Windows-PnpCustomizationsWinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+            <DriverPaths>
+                <PathAndCredentials wcm:action="add" wcm:keyValue="1">
+                    <Path>d:\drivers\viostor</Path>
+                </PathAndCredentials>
+                <PathAndCredentials wcm:action="add" wcm:keyValue="2">
+                    <Path>d:\drivers\NetKVM</Path>
+                </PathAndCredentials>
+                <PathAndCredentials wcm:action="add" wcm:keyValue="3">
+                    <Path>d:\drivers\Balloon</Path>
+                </PathAndCredentials>
+                <PathAndCredentials wcm:action="add" wcm:keyValue="4">
+                    <Path>d:\drivers\vioscsi</Path>
+                </PathAndCredentials>
+            </DriverPaths>
+        </component>
+    </settings>
+</unattend>
+EOF
+
+# Obter informação da ISO original para criar a nova
+ISO_NAME=$(basename "$ISO_PATH" .iso)
+NEW_ISO="$OUTPUT_DIR/${ISO_NAME}_virtio.iso"
+
+echo -e "\n${YELLOW}A criar nova ISO com drivers VirtIO...${NC}"
+echo -e "${YELLOW}Isto pode demorar vários minutos...${NC}"
+
+# Detectar se é UEFI ou BIOS
+BOOT_IMG=""
+if [ -f "$ISO_EXTRACT/efi/microsoft/boot/efisys.bin" ]; then
+    BOOT_IMG="$ISO_EXTRACT/efi/microsoft/boot/efisys.bin"
+    echo -e "${GREEN}Detectado boot UEFI${NC}"
+elif [ -f "$ISO_EXTRACT/boot/etfsboot.com" ]; then
+    BOOT_IMG="$ISO_EXTRACT/boot/etfsboot.com"
+    echo -e "${GREEN}Detectado boot BIOS${NC}"
+fi
+
+# Criar nova ISO
+if [ -n "$BOOT_IMG" ] && [ -f "$BOOT_IMG" ]; then
+    genisoimage -b "$(basename $BOOT_IMG)" \
+        -no-emul-boot \
+        -boot-load-size 8 \
+        -boot-info-table \
+        -iso-level 4 \
+        -J -joliet-long \
+        -D -N \
+        -relaxed-filenames \
+        -V "Windows_VirtIO" \
+        -o "$NEW_ISO" \
+        "$ISO_EXTRACT"
 else
-    SUDO="sudo"
+    # Fallback: criar ISO simples sem boot
+    echo -e "${YELLOW}Aviso: A criar ISO sem sector de boot${NC}"
+    genisoimage -iso-level 4 \
+        -J -joliet-long \
+        -D -N \
+        -relaxed-filenames \
+        -V "Windows_VirtIO" \
+        -o "$NEW_ISO" \
+        "$ISO_EXTRACT"
 fi
 
-install_pkg() {
-    local pkg="$1"
-
-    if have_cmd dnf; then
-        info "A instalar pacote '$pkg' com dnf..."
-        $SUDO dnf install -y "$pkg"
-    elif have_cmd apt-get; then
-        info "A instalar pacote '$pkg' com apt-get..."
-        $SUDO apt-get update -y
-        $SUDO apt-get install -y "$pkg"
-    else
-        warn "Não sei instalar '$pkg' automaticamente nesta distro."
-        warn "Instala manualmente e volta a correr o script."
-    fi
-}
-
-VIRTIO_SEARCH_DIRS=(
-    "/usr/share/virtio-win"
-    "/usr/share/virtio"
-    "/usr/lib/virtio-win"
-    "/usr/lib64/virtio-win"
-    "/usr/share/qemu"
-)
-
-search_virtio_iso() {
-    local dir iso
-    for dir in "${VIRTIO_SEARCH_DIRS[@]}"; do
-        [[ -d "$dir" ]] || continue
-        iso=$(find "$dir" -maxdepth 1 -type f -iname "virtio-win*.iso" -print -quit 2>/dev/null)
-        if [[ -n "$iso" ]]; then
-            printf '%s\n' "$iso"
-            return 0
-        fi
-    done
-    return 1
-}
-
-###############################################################################
-# Ler caminho do ISO do Windows
-###############################################################################
-
-read -rp "Caminho para o ISO do Windows (ex: /path/Win10.iso): " WIN_ISO
-
-[[ -f "$WIN_ISO" ]] || error "Ficheiro não encontrado: $WIN_ISO"
-
-WIN_ISO=$(readlink -f "$WIN_ISO")
-WIN_DIR=$(dirname "$WIN_ISO")
-WIN_BASE=$(basename "$WIN_ISO")
-WIN_EXT="${WIN_BASE##*.}"
-WIN_BASENAME="${WIN_BASE%.*}"
-
-OUT_ISO="$WIN_DIR/${WIN_BASENAME}-virtio.${WIN_EXT}"
-BACKUP_ISO="$WIN_DIR/${WIN_BASENAME}-original.${WIN_EXT}"
-
-info "ISO original: $WIN_ISO"
-info "ISO de saída (temporário): $OUT_ISO"
-info "Backup do original será:   $BACKUP_ISO"
-
-###############################################################################
-# Verificar / instalar dependências
-###############################################################################
-
-if ! have_cmd xorriso; then
-    warn "xorriso não encontrado. Vou tentar instalar."
-    install_pkg xorriso || true
+# Verificar se a ISO foi criada
+if [ -f "$NEW_ISO" ]; then
+    ISO_SIZE=$(du -h "$NEW_ISO" | cut -f1)
+    echo -e "\n${GREEN}=== Sucesso! ===${NC}"
+    echo -e "${GREEN}Nova ISO criada com drivers VirtIO integrados${NC}"
+    echo -e "${GREEN}Tamanho: $ISO_SIZE${NC}"
+    
+    # Fazer backup da ISO original
+    ISO_DIR=$(dirname "$ISO_PATH")
+    ISO_BASENAME=$(basename "$ISO_PATH" .iso)
+    ORIGINAL_BACKUP="${ISO_DIR}/${ISO_BASENAME}-original.iso"
+    
+    echo -e "\n${YELLOW}A fazer backup da ISO original...${NC}"
+    mv "$ISO_PATH" "$ORIGINAL_BACKUP"
+    echo -e "${GREEN}ISO original guardada em: $ORIGINAL_BACKUP${NC}"
+    
+    # Copiar nova ISO para o caminho original
+    echo -e "${YELLOW}A substituir ISO original pela versão com drivers...${NC}"
+    cp "$NEW_ISO" "$ISO_PATH"
+    
+    echo -e "\n${GREEN}=== Concluído! ===${NC}"
+    echo -e "${GREEN}ISO com drivers VirtIO: $ISO_PATH${NC}"
+    echo -e "${GREEN}ISO original (backup): $ORIGINAL_BACKUP${NC}"
+    echo -e "\n${GREEN}Instruções:${NC}"
+    echo -e "1. Use a ISO em $ISO_PATH para instalar o Windows em VMs com VirtIO"
+    echo -e "2. Durante a instalação, quando pedir drivers de disco, navegue para d:\\drivers\\viostor"
+    echo -e "3. Os drivers de rede estarão em d:\\drivers\\NetKVM"
+    echo -e "4. O ficheiro autounattend_drivers.xml pode ser usado para instalação automática"
+    echo -e "5. A ISO original está guardada em: $ORIGINAL_BACKUP"
+else
+    echo -e "${RED}Erro ao criar nova ISO${NC}"
+    exit 1
 fi
 
-have_cmd xorriso || error "xorriso continua em falta. Instala-o manualmente e volta a correr o script."
-
-# Tentar encontrar virtio-win.iso
-VIRTIO_ISO=""
-
-info "A procurar virtio-win.iso em locais conhecidos..."
-if ! VIRTIO_ISO=$(search_virtio_iso); then
-    warn "Não encontrei virtio-win.iso automaticamente."
-
-    warn "Vou tentar instalar o pacote 'virtio-win' (se existir na tua distro)."
-    install_pkg virtio-win || true
-
-    if ! VIRTIO_ISO=$(search_virtio_iso); then
-        warn "Ainda não encontrei virtio-win.iso automaticamente."
-        read -rp "Caminho para virtio-win.iso (ou ENTER para abortar): " VIRTIO_MANUAL
-        if [[ -z "$VIRTIO_MANUAL" ]]; then
-            error "Sem virtio-win.iso não consigo continuar."
-        fi
-        [[ -f "$VIRTIO_MANUAL" ]] || error "Ficheiro não encontrado: $VIRTIO_MANUAL"
-        VIRTIO_ISO=$(readlink -f "$VIRTIO_MANUAL")
-    fi
-fi
-
-info "ISO de drivers VirtIO: $VIRTIO_ISO"
-
-###############################################################################
-# Preparar diretórios de trabalho
-###############################################################################
-
-WORKDIR="$(mktemp -d -t winvirtio.XXXXXXXX)"
-MNT_WIN="$WORKDIR/mnt_win"
-MNT_VIRTIO="$WORKDIR/mnt_virtio"
-ISO_ROOT="$WORKDIR/iso_root"
-
-mkdir -p "$MNT_WIN" "$MNT_VIRTIO" "$ISO_ROOT"
-
+# Limpeza
 cleanup() {
-    set +e
-    info "A limpar diretórios temporários..."
-    $SUDO umount "$MNT_WIN"    2>/dev/null || true
-    $SUDO umount "$MNT_VIRTIO" 2>/dev/null || true
-    rm -rf "$WORKDIR"
+    echo -e "\n${YELLOW}A limpar ficheiros temporários...${NC}"
+    umount "$ISO_MOUNT" 2>/dev/null || true
+    umount "$VIRTIO_MOUNT" 2>/dev/null || true
+    rm -rf "$WORK_DIR"
+    echo -e "${GREEN}Limpeza concluída${NC}"
 }
-trap cleanup EXIT
 
-###############################################################################
-# Montar ISOs
-###############################################################################
+cleanup
 
-info "A montar ISO do Windows em $MNT_WIN"
-$SUDO mount -o loop,ro "$WIN_ISO" "$MNT_WIN"
-
-info "A montar ISO virtio-win em $MNT_VIRTIO"
-$SUDO mount -o loop,ro "$VIRTIO_ISO" "$MNT_VIRTIO"
-
-###############################################################################
-# Copiar conteúdo do Windows + drivers VirtIO
-###############################################################################
-
-info "A copiar conteúdo do Windows para pasta de trabalho..."
-cp -aT "$MNT_WIN" "$ISO_ROOT"
-
-info "A copiar drivers VirtIO para pasta /virtio no ISO..."
-mkdir -p "$ISO_ROOT/virtio"
-cp -a "$MNT_VIRTIO"/. "$ISO_ROOT/virtio/"
-
-###############################################################################
-# Encontrar ficheiros de boot (BIOS + UEFI)
-###############################################################################
-
-cd "$ISO_ROOT"
-
-BOOT_ETFS=$(find . -type f -iname "etfsboot.com" | head -n1 || true)
-EFI_BOOT=$(find . -type f \( -iname "efisys.bin" -o -iname "efisys_noprompt.bin" \) | head -n1 || true)
-
-[[ -n "$BOOT_ETFS" ]] || error "Não encontrei etfsboot.com no ISO do Windows."
-[[ -n "$EFI_BOOT"  ]] || error "Não encontrei efisys.bin / efisys_noprompt.bin no ISO do Windows."
-
-info "Ficheiro BIOS boot: $BOOT_ETFS"
-info "Ficheiro UEFI boot: $EFI_BOOT"
-
-###############################################################################
-# Criar novo ISO
-###############################################################################
-
-VOLID="WIN_VIRTIO"
-
-info "A criar ISO bootável com xorriso..."
-xorriso -as mkisofs \
-  -iso-level 3 \
-  -full-iso9660-filenames \
-  -volid "$VOLID" \
-  -eltorito-boot "${BOOT_ETFS#./}" \
-  -no-emul-boot -boot-load-size 8 -boot-info-table \
-  -eltorito-alt-boot \
-  -eltorito-platform efi \
-  -eltorito-boot "${EFI_BOOT#./}" \
-  -no-emul-boot \
-  -output "$OUT_ISO" \
-  .
-
-info "Novo ISO criado: $OUT_ISO"
-
-###############################################################################
-# Substituir o ISO original e guardar backup
-###############################################################################
-
-# Se o backup já existir, acrescenta timestamp para não sobrescrever
-if [[ -e "$BACKUP_ISO" ]]; then
-    TS=$(date +%Y%m%d-%H%M%S)
-    BACKUP_ISO="$WIN_DIR/${WIN_BASENAME}-original-${TS}.${WIN_EXT}"
-    warn "Backup já existia, vou usar nome alternativo:"
-    warn "  $BACKUP_ISO"
-fi
-
-info "A mover ISO original para backup: $BACKUP_ISO"
-mv "$WIN_ISO" "$BACKUP_ISO"
-
-info "A substituir ISO original pelo ISO com VirtIO..."
-mv "$OUT_ISO" "$WIN_ISO"
-
-info "Concluído!"
-info "  Backup do original: $BACKUP_ISO"
-info "  ISO atual (com pasta /virtio): $WIN_ISO"
-info
-info "Na VM:"
-info "  - Disco em VirtIO (vda, bus=virtio)"
-info "  - CD-ROM a apontar para: $WIN_ISO"
-info "No setup do Windows:"
-info "  - Clica em 'Load driver'"
-info "  - Vai a D:\\virtio\\viostor\\w10\\amd64"
-info "  - Instala o driver -> o disco VirtIO aparece e segues a instalação."
+echo -e "\n${GREEN}=== Processo concluído com sucesso! ===${NC}"
