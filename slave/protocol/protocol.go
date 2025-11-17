@@ -3,7 +3,6 @@ package protocol
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"slave/btrfs"
@@ -13,6 +12,7 @@ import (
 	"slave/logs512"
 	nfsservice "slave/nfs"
 	"slave/virsh"
+	"sync"
 	"syscall"
 	"time"
 
@@ -58,7 +58,8 @@ func listenGRPC() {
 
 	lis, err := net.Listen("tcp", ":50052")
 	if err != nil {
-		log.Fatalf("listen: %v", err)
+		logger.Error("failed to start client listener", "addr", ":50052", "error", err)
+		os.Exit(1)
 	}
 
 	enf := keepalive.EnforcementPolicy{
@@ -86,9 +87,9 @@ func listenGRPC() {
 	extraGrpc.RegisterExtraServiceServer(s, &extra.ExtraService{})
 	infoGrpc.RegisterInfoServer(s, &info.INFOService{})
 	btrfsGrpc.RegisterBtrFSServiceServer(s, &btrfs.BTRFSService{})
-	logger.Info("Cliente a ouvir em :50052")
+	logger.Info("client services listening", "port", 50052)
 	if err := s.Serve(lis); err != nil {
-		logger.Error("serve: %v", err)
+		logger.Error("client gRPC serve failed", "error", err)
 	}
 }
 
@@ -100,20 +101,20 @@ func monitorConnection(conn *grpc.ClientConn) {
 		case connectivity.Ready:
 			// ok
 		case connectivity.Connecting:
-			logger.Info("connection to master reconnecting...")
+			logger.Info("connection to master reconnecting")
 		case connectivity.Idle:
-			logger.Info("connection state changed: IDLE -> forcing Connect()")
+			logger.Info("connection state idle; forcing connect", "state", state.String())
 			conn.Connect()
 		case connectivity.Shutdown, connectivity.TransientFailure:
 			logger.Info("connection to master lost; restarting")
 			_ = conn.Close()
 			if err := restartSelf(); err != nil {
-				logger.Error(fmt.Sprintf("failed to restart slave process: %v", err))
+				logger.Error("failed to restart slave process", "error", err)
 			}
 			os.Exit(1)
 			return
 		default:
-			logger.Info(fmt.Sprintf("connection state changed: %s", state.String()))
+			logger.Info("connection state changed", "state", state.String())
 		}
 		if !conn.WaitForStateChange(ctx, state) {
 			logger.Info("monitorConnection: no further state changes, stopping monitor")
@@ -133,45 +134,51 @@ func PingMaster(conn *grpc.ClientConn) {
 		_, err := h.Notify(ctx, &pb.NotifyRequest{Text: "Ping do Slave"})
 		cancel()
 		if err != nil {
-			logger.Error("PingMaster: %v", err)
+			logger.Error("failed to ping master", "error", err)
 			// Check connection state and handle accordingly
 			state := conn.GetState()
 			switch state {
 			case connectivity.Idle:
-				logger.Info("Connection idle, attempting to reconnect...")
+				logger.Info("connection idle; attempting to reconnect")
 				conn.Connect()
 			case connectivity.TransientFailure, connectivity.Shutdown:
-				logger.Error("Connection to master is dead (state: %s), triggering restart", state)
+				logger.Error("connection to master is dead; restarting", "state", state.String())
 				_ = conn.Close()
 				if err := restartSelf(); err != nil {
-					logger.Error("failed to restart slave process: %v", err)
+					logger.Error("failed to restart slave process", "error", err)
 				}
 				os.Exit(1)
 				return
 			default:
-				logger.Debug("Connection state: %s, continuing...", state)
+				logger.Debug("connection state while pinging master", "state", state.String())
 			}
 		} else {
 			//ping to master ok
-			// logger.Debug("Ping to master successful")
 		}
 		<-ticker.C
 	}
 }
 
+var startSlaveServerOnce sync.Once
+
 func ConnectGRPC() *grpc.ClientConn {
 
 	target := fmt.Sprintf("%s:50051", env512.MasterIP)
-	go listenGRPC()
+	startSlaveServerOnce.Do(func() {
+		go listenGRPC()
+	})
 
 	for {
-		logger.Info("Connecting to master at", target)
+		logger.Info("connecting to master", "target", target)
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 
 		ka := keepalive.ClientParameters{
-			Time:                15 * time.Second, // envia ping a cada 15s (mais agressivo)
-			Timeout:             10 * time.Second, // espera 10s pelo ACK do ping
-			PermitWithoutStream: true,             // pings mesmo sem RPCs ativas
+			// Time:                15 * time.Second, // envia ping a cada 15s (mais agressivo)
+			// Timeout:             10 * time.Second, // espera 10s pelo ACK do ping
+			// PermitWithoutStream: true,             // pings mesmo sem RPCs ativas
+			Time:                0 * time.Second,
+			Timeout:             0 * time.Second,
+			PermitWithoutStream: false,
 		}
 
 		conn, err := grpc.DialContext(ctx, target,
@@ -182,8 +189,8 @@ func ConnectGRPC() *grpc.ClientConn {
 		)
 		cancel()
 		if err != nil {
-			logger.Error("dial master failed: %v", err)
-			time.Sleep(3 * time.Second)
+			logger.Error("failed to dial master", "target", target, "error", err)
+			time.Sleep(15 * time.Second)
 			continue
 		}
 
@@ -193,13 +200,13 @@ func ConnectGRPC() *grpc.ClientConn {
 		outR, err := h.SetConnection(reqCtx, &pb.SetConnectionRequest{Addr: env512.SlaveIP, MachineName: env512.MachineName})
 		reqCancel()
 		if err != nil {
-			logger.Error("SetConnection failed: %v", err)
+			logger.Error("SetConnection request failed", "error", err)
 			conn.Close()
-			time.Sleep(3 * time.Second)
+			time.Sleep(3 * time.Minute)
 			continue
 		}
 
-		logger.Info("Resposta do master: %s", outR.GetOk())
+		logger.Info("master acknowledged slave", "message", outR.GetOk())
 		go monitorConnection(conn)
 		go PingMaster(conn)
 		return conn
