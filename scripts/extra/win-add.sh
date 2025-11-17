@@ -208,34 +208,46 @@ fi
 if command -v xorriso &> /dev/null; then
     echo -e "${GREEN}Usando xorriso para criar ISO bootável${NC}"
     
-    xorriso -as mkisofs \
-        -iso-level 4 \
-        -U \
-        -J -joliet-long \
-        -D -N \
-        -relaxed-filenames \
-        -allow-limited-size \
-        -udf \
-        -V "Windows_VirtIO" \
-        -eltorito-boot "$BOOT_CATALOG" \
-        -no-emul-boot \
-        -boot-load-size 8 \
-        -eltorito-alt-boot \
-        -e "$EFISYS_BIN" \
-        -no-emul-boot \
-        -o "$NEW_ISO" \
-        "$ISO_EXTRACT" 2>/dev/null || \
-    xorriso -as mkisofs \
-        -iso-level 4 \
-        -U \
-        -J -joliet-long \
-        -D -N \
-        -relaxed-filenames \
-        -allow-limited-size \
-        -udf \
-        -V "Windows_VirtIO" \
-        -o "$NEW_ISO" \
-        "$ISO_EXTRACT"
+    # Tentar criar ISO bootável com UEFI e BIOS
+    if [ -n "$EFISYS_BIN" ] && [ -n "$BOOT_CATALOG" ]; then
+        xorriso -as mkisofs \
+            -iso-level 3 \
+            -full-iso9660-filenames \
+            -volid "Windows_VirtIO" \
+            -J -joliet-long \
+            -rational-rock \
+            -eltorito-boot "$BOOT_CATALOG" \
+            -no-emul-boot \
+            -boot-load-size 8 \
+            -eltorito-alt-boot \
+            -e "$EFISYS_BIN" \
+            -no-emul-boot \
+            -isohybrid-gpt-basdat \
+            -o "$NEW_ISO" \
+            "$ISO_EXTRACT" 2>&1 | grep -v "^xorriso : UPDATE"
+    elif [ -n "$EFISYS_BIN" ]; then
+        # Apenas UEFI
+        xorriso -as mkisofs \
+            -iso-level 3 \
+            -full-iso9660-filenames \
+            -volid "Windows_VirtIO" \
+            -J -joliet-long \
+            -rational-rock \
+            -e "$EFISYS_BIN" \
+            -no-emul-boot \
+            -o "$NEW_ISO" \
+            "$ISO_EXTRACT" 2>&1 | grep -v "^xorriso : UPDATE"
+    else
+        # ISO simples
+        xorriso -as mkisofs \
+            -iso-level 3 \
+            -full-iso9660-filenames \
+            -volid "Windows_VirtIO" \
+            -J -joliet-long \
+            -rational-rock \
+            -o "$NEW_ISO" \
+            "$ISO_EXTRACT" 2>&1 | grep -v "^xorriso : UPDATE"
+    fi
 else
     echo -e "${YELLOW}xorriso não encontrado, usando genisoimage${NC}"
     
