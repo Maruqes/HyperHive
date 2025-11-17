@@ -21,7 +21,7 @@ fi
 
 # Verificar dependências necessárias
 echo -e "${YELLOW}A verificar dependências...${NC}"
-DEPENDENCIES=("xorriso" "genisoimage" "wget" "7z" "mkisofs" "rsync")
+DEPENDENCIES=("genisoimage" "mkisofs" "wget" "7z" "rsync")
 MISSING_DEPS=()
 
 for dep in "${DEPENDENCIES[@]}"; do
@@ -39,9 +39,6 @@ if [ ${#MISSING_DEPS[@]} -ne 0 ]; then
     
     for dep in "${MISSING_DEPS[@]}"; do
         case $dep in
-            "xorriso")
-                PACKAGES_TO_INSTALL+=("xorriso")
-                ;;
             "genisoimage"|"mkisofs")
                 PACKAGES_TO_INSTALL+=("genisoimage")
                 ;;
@@ -204,86 +201,49 @@ if [ -f "$ISO_EXTRACT/boot/etfsboot.com" ]; then
     echo -e "${GREEN}Detectado boot BIOS${NC}"
 fi
 
-# Criar nova ISO usando xorriso (mais moderno e confiável)
-if command -v xorriso &> /dev/null; then
-    echo -e "${GREEN}Usando xorriso para criar ISO bootável${NC}"
-    
-    # Tentar criar ISO bootável com UEFI e BIOS
-    if [ -n "$EFISYS_BIN" ] && [ -n "$BOOT_CATALOG" ]; then
-        xorriso -as mkisofs \
-            -iso-level 3 \
-            -full-iso9660-filenames \
-            -volid "Windows_VirtIO" \
-            -J -joliet-long \
-            -rational-rock \
-            -eltorito-boot "$BOOT_CATALOG" \
-            -no-emul-boot \
-            -boot-load-size 8 \
-            -eltorito-alt-boot \
-            -e "$EFISYS_BIN" \
-            -no-emul-boot \
-            -isohybrid-gpt-basdat \
-            -o "$NEW_ISO" \
-            "$ISO_EXTRACT" 2>&1 | grep -v "^xorriso : UPDATE"
-    elif [ -n "$EFISYS_BIN" ]; then
-        # Apenas UEFI
-        xorriso -as mkisofs \
-            -iso-level 3 \
-            -full-iso9660-filenames \
-            -volid "Windows_VirtIO" \
-            -J -joliet-long \
-            -rational-rock \
-            -e "$EFISYS_BIN" \
-            -no-emul-boot \
-            -o "$NEW_ISO" \
-            "$ISO_EXTRACT" 2>&1 | grep -v "^xorriso : UPDATE"
-    else
-        # ISO simples
-        xorriso -as mkisofs \
-            -iso-level 3 \
-            -full-iso9660-filenames \
-            -volid "Windows_VirtIO" \
-            -J -joliet-long \
-            -rational-rock \
-            -o "$NEW_ISO" \
-            "$ISO_EXTRACT" 2>&1 | grep -v "^xorriso : UPDATE"
-    fi
-else
-    echo -e "${YELLOW}xorriso não encontrado, usando genisoimage${NC}"
-    
-    # Criar nova ISO com genisoimage
+# Escolher ferramenta para gerar ISO
+MKISO_TOOL=""
+if command -v genisoimage &> /dev/null; then
+    MKISO_TOOL="$(command -v genisoimage)"
+elif command -v mkisofs &> /dev/null; then
+    MKISO_TOOL="$(command -v mkisofs)"
+fi
+
+if [ -z "$MKISO_TOOL" ]; then
+    echo -e "${RED}Nenhuma ferramenta mkisofs/genisoimage encontrada.${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}A criar ISO com ${MKISO_TOOL##*/}...${NC}"
+
+# Construir comando dinamicamente
+MKISO_OPTS=(
+    "$MKISO_TOOL"
+    -iso-level 3
+    -udf
+    -D
+    -N
+    -relaxed-filenames
+    -allow-limited-size
+    -J
+    -joliet-long
+    -V "Windows_VirtIO"
+)
+
+if [ -n "$BOOT_CATALOG" ]; then
+    MKISO_OPTS+=(-b "$BOOT_CATALOG" -no-emul-boot -boot-load-size 8 -boot-info-table)
     if [ -n "$EFISYS_BIN" ]; then
-        genisoimage -b "$EFISYS_BIN" \
-            -no-emul-boot \
-            -iso-level 4 \
-            -J -joliet-long \
-            -D -N \
-            -relaxed-filenames \
-            -allow-limited-size \
-            -udf \
-            -V "Windows_VirtIO" \
-            -o "$NEW_ISO" \
-            "$ISO_EXTRACT" 2>/dev/null || \
-        genisoimage -iso-level 4 \
-            -J -joliet-long \
-            -D -N \
-            -relaxed-filenames \
-            -allow-limited-size \
-            -udf \
-            -V "Windows_VirtIO" \
-            -o "$NEW_ISO" \
-            "$ISO_EXTRACT"
-    else
-        genisoimage -iso-level 4 \
-            -J -joliet-long \
-            -D -N \
-            -relaxed-filenames \
-            -allow-limited-size \
-            -udf \
-            -V "Windows_VirtIO" \
-            -o "$NEW_ISO" \
-            "$ISO_EXTRACT"
+        MKISO_OPTS+=(-eltorito-alt-boot -eltorito-platform efi -e "$EFISYS_BIN" -no-emul-boot)
     fi
+elif [ -n "$EFISYS_BIN" ]; then
+    MKISO_OPTS+=(-eltorito-boot "$EFISYS_BIN" -eltorito-platform efi -no-emul-boot)
+fi
+
+MKISO_OPTS+=(-o "$NEW_ISO" "$ISO_EXTRACT")
+
+if ! "${MKISO_OPTS[@]}"; then
+    echo -e "${RED}Falha ao gerar a ISO${NC}"
+    exit 1
 fi
 
 # Verificar se a ISO foi criada
