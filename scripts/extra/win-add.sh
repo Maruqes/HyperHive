@@ -46,6 +46,27 @@ install_pkg() {
     fi
 }
 
+VIRTIO_SEARCH_DIRS=(
+    "/usr/share/virtio-win"
+    "/usr/share/virtio"
+    "/usr/lib/virtio-win"
+    "/usr/lib64/virtio-win"
+    "/usr/share/qemu"
+)
+
+search_virtio_iso() {
+    local dir iso
+    for dir in "${VIRTIO_SEARCH_DIRS[@]}"; do
+        [[ -d "$dir" ]] || continue
+        iso=$(find "$dir" -maxdepth 1 -type f -iname "virtio-win*.iso" -print -quit 2>/dev/null)
+        if [[ -n "$iso" ]]; then
+            printf '%s\n' "$iso"
+            return 0
+        fi
+    done
+    return 1
+}
+
 ###############################################################################
 # Ler caminho do ISO do Windows
 ###############################################################################
@@ -79,21 +100,16 @@ fi
 have_cmd xorriso || error "xorriso continua em falta. Instala-o manualmente e volta a correr o script."
 
 # Tentar encontrar virtio-win.iso
-VIRTIO_ISO_DEFAULT="/usr/share/virtio-win/virtio-win.iso"
 VIRTIO_ISO=""
 
-if [[ -f "$VIRTIO_ISO_DEFAULT" ]]; then
-    VIRTIO_ISO="$VIRTIO_ISO_DEFAULT"
-else
-    warn "Não encontrei $VIRTIO_ISO_DEFAULT"
+info "A procurar virtio-win.iso em locais conhecidos..."
+if ! VIRTIO_ISO=$(search_virtio_iso); then
+    warn "Não encontrei virtio-win.iso automaticamente."
 
-    # tentar instalar virtio-win
     warn "Vou tentar instalar o pacote 'virtio-win' (se existir na tua distro)."
     install_pkg virtio-win || true
 
-    if [[ -f "$VIRTIO_ISO_DEFAULT" ]]; then
-        VIRTIO_ISO="$VIRTIO_ISO_DEFAULT"
-    else
+    if ! VIRTIO_ISO=$(search_virtio_iso); then
         warn "Ainda não encontrei virtio-win.iso automaticamente."
         read -rp "Caminho para virtio-win.iso (ou ENTER para abortar): " VIRTIO_MANUAL
         if [[ -z "$VIRTIO_MANUAL" ]]; then
