@@ -425,18 +425,30 @@ func ensureVirtioISO() (string, error) {
 	}
 
 	target := filepath.Join(absDownloadDir, virtioISOName)
-	needDownload := false
-	if info, err := os.Stat(target); err == nil {
-		if info.Size() == 0 {
-			needDownload = true
-			if removeErr := os.Remove(target); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-				return "", fmt.Errorf("remove empty virtio iso: %w", removeErr)
+	libvirtDir := "/var/lib/libvirt/boot"
+	if err := os.MkdirAll(libvirtDir, 0o755); err != nil {
+		return "", fmt.Errorf("create libvirt boot dir: %w", err)
+	}
+	dest := filepath.Join(libvirtDir, virtioISOName)
+	metaPath := dest + ".etag"
+
+	remoteInfo, headErr := fetchRemoteVirtioInfo()
+
+	destInfo, destErr := os.Stat(dest)
+	needDownload := errors.Is(destErr, os.ErrNotExist)
+	if destErr != nil && !errors.Is(destErr, os.ErrNotExist) {
+		return "", fmt.Errorf("stat virtio iso dest: %w", destErr)
+	}
+
+	if !needDownload && headErr == nil {
+		if remoteInfo.ETag != "" {
+			localETag := strings.TrimSpace(readETag(metaPath))
+			if localETag != remoteInfo.ETag {
+				needDownload = true
 			}
+		} else if remoteInfo.ContentLength > 0 && destInfo.Size() != remoteInfo.ContentLength {
+			needDownload = true
 		}
-	} else if errors.Is(err, os.ErrNotExist) {
-		needDownload = true
-	} else {
-		return "", fmt.Errorf("stat virtio iso: %w", err)
 	}
 
 	if needDownload {
@@ -471,14 +483,16 @@ func ensureVirtioISO() (string, error) {
 		if err := os.Chmod(target, 0o644); err != nil {
 			return "", fmt.Errorf("chmod virtio iso: %w", err)
 		}
+	} else if errors.Is(destErr, os.ErrNotExist) {
+		return "", fmt.Errorf("virtio iso missing and remote head failed")
 	}
 
-	// Also place a copy where libvirt/qemu can always read it
-	libvirtDir := "/var/lib/libvirt/boot"
-	if err := os.MkdirAll(libvirtDir, 0o755); err != nil {
-		return "", fmt.Errorf("create libvirt boot dir: %w", err)
+	// ensure cache copy exists for troubleshooting
+	if _, err := os.Stat(target); errors.Is(err, os.ErrNotExist) && destErr == nil {
+		if err := copyFile(dest, target); err != nil {
+			return "", fmt.Errorf("sync virtio cache: %w", err)
+		}
 	}
-	dest := filepath.Join(libvirtDir, virtioISOName)
 
 	srcFile, err := os.Open(target)
 	if err != nil {
@@ -502,7 +516,69 @@ func ensureVirtioISO() (string, error) {
 		return "", fmt.Errorf("chmod virtio iso at libvirt dir: %w", err)
 	}
 
+	if headErr == nil && remoteInfo.ETag != "" {
+		_ = os.WriteFile(metaPath, []byte(remoteInfo.ETag+"\n"), 0o644)
+	}
+
 	return dest, nil
+}
+
+type virtioRemoteInfo struct {
+	ETag          string
+	ContentLength int64
+}
+
+func fetchRemoteVirtioInfo() (virtioRemoteInfo, error) {
+	resp, err := http.Head(virtioISOURL)
+	if err != nil {
+		return virtioRemoteInfo{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return virtioRemoteInfo{}, fmt.Errorf("head virtio iso: status %s", resp.Status)
+	}
+
+	etag := strings.TrimSpace(resp.Header.Get("ETag"))
+	etag = strings.Trim(etag, "\"")
+	return virtioRemoteInfo{
+		ETag:          etag,
+		ContentLength: resp.ContentLength,
+	}, nil
+}
+
+func readETag(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		return err
+	}
+	if err := out.Close(); err != nil {
+		return err
+	}
+	return os.Chmod(dst, 0o644)
 }
 
 func main() {
