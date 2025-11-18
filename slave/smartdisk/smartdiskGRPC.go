@@ -3,6 +3,8 @@ package smartdisk
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 
 	smartdiskGrpc "github.com/Maruqes/512SvMan/api/proto/smartdisk"
@@ -186,7 +188,7 @@ func (s *Service) GetSelfTestProgress(ctx context.Context, req *smartdiskGrpc.Sm
 	if err != nil && info == nil {
 		return nil, err
 	}
-	// If smartctl returned warnings but we still parsed info, continue.
+
 	progress := &smartdiskGrpc.SelfTestProgress{
 		Device:           req.GetDevice(),
 		Status:           "idle",
@@ -194,25 +196,27 @@ func (s *Service) GetSelfTestProgress(ctx context.Context, req *smartdiskGrpc.Sm
 		RemainingPercent: 0,
 	}
 
+	// Prefer parsed self-test entries.
 	for _, test := range info.SelfTests {
 		if test.RemainingPercent > 0 || containsInProgress(test.Status) {
-			pct := int64(100 - test.RemainingPercent)
-			if pct < 0 {
-				pct = 0
-			}
-			if pct > 100 {
-				pct = 100
-			}
+			pctDone := clampPercent(100 - test.RemainingPercent)
 			progress = &smartdiskGrpc.SelfTestProgress{
 				Device:           req.GetDevice(),
 				Status:           test.Status,
-				ProgressPercent:  pct,
-				RemainingPercent: test.RemainingPercent,
+				ProgressPercent:  pctDone,
+				RemainingPercent: clampPercent(test.RemainingPercent),
 				TestType:         test.Type,
 				LifetimeHours:    test.LifetimeHours,
 			}
-			break
+			return progress, nil
 		}
+	}
+
+	// Fallback: if smartctl responded with a running test error, parse remaining from the message.
+	if pct, ok := parseRemainingFromError(err); ok {
+		progress.Status = "in progress"
+		progress.RemainingPercent = pct
+		progress.ProgressPercent = clampPercent(100 - pct)
 	}
 
 	return progress, nil
@@ -221,4 +225,30 @@ func (s *Service) GetSelfTestProgress(ctx context.Context, req *smartdiskGrpc.Sm
 func containsInProgress(status string) bool {
 	status = strings.ToLower(strings.TrimSpace(status))
 	return strings.Contains(status, "in progress") || strings.Contains(status, "progress")
+}
+
+func parseRemainingFromError(err error) (int64, bool) {
+	if err == nil {
+		return 0, false
+	}
+	re := regexp.MustCompile(`([0-9]+)%\s*remaining`)
+	m := re.FindStringSubmatch(err.Error())
+	if len(m) < 2 {
+		return 0, false
+	}
+	value, convErr := strconv.ParseInt(m[1], 10, 64)
+	if convErr != nil {
+		return 0, false
+	}
+	return clampPercent(value), true
+}
+
+func clampPercent(v int64) int64 {
+	if v < 0 {
+		return 0
+	}
+	if v > 100 {
+		return 100
+	}
+	return v
 }
