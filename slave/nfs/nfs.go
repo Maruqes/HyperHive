@@ -1330,26 +1330,9 @@ func GetNfsMountStats(folderPath string) (*NfsMountCurStats, error) {
 		return nil, fmt.Errorf("failed to resolve absolute path: %w", err)
 	}
 
-	// Try to find the actual mount point if the provided path is a FolderPath (source)
-	// Check if this path matches any FolderPath in CurrentMounts and use its Target instead
-	CurrentMountsLock.RLock()
-	actualMountPoint := absPath
-	for _, mount := range CurrentMounts {
-		cleanFolderPath := strings.TrimSpace(mount.FolderPath)
-		cleanTarget := strings.TrimSpace(mount.Target)
-
-		// If the provided path matches a FolderPath, use the Target instead
-		if cleanFolderPath == absPath || cleanFolderPath == path {
-			actualMountPoint = cleanTarget
-			logger.Info("GetNfsMountStats: resolved FolderPath to mount Target:", absPath, "->", actualMountPoint)
-			break
-		}
-	}
-	CurrentMountsLock.RUnlock()
-
-	// Check if the actual mount point is mounted
-	if !isMounted(actualMountPoint) {
-		return nil, fmt.Errorf("path is not mounted: %s (resolved from: %s)", actualMountPoint, absPath)
+	// Check if path is mounted
+	if !isMounted(absPath) {
+		return nil, fmt.Errorf("path is not mounted: %s", absPath)
 	}
 
 	// Read mountstats
@@ -1358,7 +1341,7 @@ func GetNfsMountStats(folderPath string) (*NfsMountCurStats, error) {
 		return nil, fmt.Errorf("failed to read /proc/self/mountstats: %w", err)
 	}
 
-	stats, err := parseMountStats(string(data), actualMountPoint)
+	stats, err := parseMountStats(string(data), absPath)
 	if err != nil {
 		return nil, err
 	}

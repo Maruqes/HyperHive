@@ -617,7 +617,7 @@ func (s *NFSService) GetNfsMountStats(nfsId int) (*proto.NfsMountCurStats, error
 		return nil, fmt.Errorf("machineName does not exist or conn is nil")
 	}
 
-	stats, err := nfs.GetNfsMountStats(conn.Connection, nfsShare.FolderPath)
+	stats, err := nfs.GetNfsMountStats(conn.Connection, nfsShare.Target)
 	if err != nil {
 		return nil, err
 	}
