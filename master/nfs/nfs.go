@@ -109,3 +109,12 @@ func Sync(conn *grpc.ClientConn) error {
 	}
 	return nil
 }
+
+func GetNfsMountStats(conn *grpc.ClientConn, path string) (*pbnfs.NfsMountCurStats, error) {
+	client := pbnfs.NewNFSServiceClient(conn)
+	res, err := client.GetNfsMountStats(context.Background(), &pbnfs.FolderPath{Path: path})
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}

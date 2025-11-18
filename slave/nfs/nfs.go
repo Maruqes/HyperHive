@@ -1297,3 +1297,169 @@ func CanFindFileOrDir(folderPath string) (bool, error) {
 func Sync() error {
 	return runCommand("sync filesystem", "sync")
 }
+
+type NfsMountCurStats struct {
+	CurrentRead              int64
+	CurrentWrite             int64
+	CurrentDirtyCache        int64
+	CurrentWriteBackCache    int64
+	CurrentWriteBackTmpCache int64
+	// NFS operation counters
+	ReadOps    int64
+	WriteOps   int64
+	ReaddirOps int64
+	// Performance metrics
+	AvgReadLatencyMs  float64
+	AvgWriteLatencyMs float64
+	// Connection status
+	RetransmitCount int64
+	TimeoutCount    int64
+	// Cache effectiveness
+	CacheHitRate float64
+}
+
+func GetNfsMountStats(folderPath string) (*NfsMountCurStats, error) {
+	path := strings.TrimSpace(folderPath)
+	if path == "" {
+		return nil, fmt.Errorf("folder path is required")
+	}
+
+	// Resolve to absolute path
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve absolute path: %w", err)
+	}
+
+	// Check if path is mounted
+	if !isMounted(absPath) {
+		return nil, fmt.Errorf("path is not mounted: %s", absPath)
+	}
+
+	// Read mountstats
+	data, err := os.ReadFile("/proc/self/mountstats")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read /proc/self/mountstats: %w", err)
+	}
+
+	stats, err := parseMountStats(string(data), absPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return stats, nil
+}
+
+func parseMountStats(content string, targetPath string) (*NfsMountCurStats, error) {
+	lines := strings.Split(content, "\n")
+	var inTarget bool
+	stats := &NfsMountCurStats{}
+
+parsing:
+	for i := 0; i < len(lines); i++ {
+		line := strings.TrimSpace(lines[i])
+		if line == "" {
+			continue
+		}
+
+		// Check if this is the start of our target mount point
+		if strings.HasPrefix(line, "device ") {
+			fields := strings.Fields(line)
+			// Format: device <source> mounted on <target> with fstype <fstype>
+			if len(fields) >= 5 {
+				mountPoint := fields[4] // The "mounted on" part is at index 4
+				if mountPoint == targetPath {
+					inTarget = true
+					continue
+				} else {
+					inTarget = false
+				}
+			}
+		}
+
+		if !inTarget {
+			continue
+		}
+
+		// Parse NFS statistics lines
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+
+		switch fields[0] {
+		case "bytes:":
+			// Format: bytes: <normalread> <normalwrite> <directread> <directwrite> <serverread> <serverwrite> <readpages> <writepages>
+			if len(fields) >= 9 {
+				fmt.Sscanf(fields[1], "%d", &stats.CurrentRead)
+				fmt.Sscanf(fields[2], "%d", &stats.CurrentWrite)
+			}
+
+		case "READ:":
+			// Format: READ: <ops> <transmissions> <majortimeouts> <bytessent> <bytesrecv> <queue> <rtt> <execute>
+			if len(fields) >= 9 {
+				var ops, queue, rtt, execute int64
+				fmt.Sscanf(fields[1], "%d", &ops)
+				fmt.Sscanf(fields[6], "%d", &queue)
+				fmt.Sscanf(fields[7], "%d", &rtt)
+				fmt.Sscanf(fields[8], "%d", &execute)
+				stats.ReadOps = ops
+				if ops > 0 {
+					// Convert from milliseconds (cumulative) to average
+					stats.AvgReadLatencyMs = float64(rtt+execute) / float64(ops)
+				}
+			}
+
+		case "WRITE:":
+			// Format: WRITE: <ops> <transmissions> <majortimeouts> <bytessent> <bytesrecv> <queue> <rtt> <execute>
+			if len(fields) >= 9 {
+				var ops, queue, rtt, execute int64
+				fmt.Sscanf(fields[1], "%d", &ops)
+				fmt.Sscanf(fields[6], "%d", &queue)
+				fmt.Sscanf(fields[7], "%d", &rtt)
+				fmt.Sscanf(fields[8], "%d", &execute)
+				stats.WriteOps = ops
+				if ops > 0 {
+					stats.AvgWriteLatencyMs = float64(rtt+execute) / float64(ops)
+				}
+			}
+
+		case "READDIR:":
+			// Format: READDIR: <ops> ...
+			if len(fields) >= 2 {
+				fmt.Sscanf(fields[1], "%d", &stats.ReaddirOps)
+			}
+
+		case "xprt:":
+			// Format: xprt: <proto> <port> <bind_count> <connect_count> <connect_time> <idle_time> <sends> <recvs> <bad_xids> <req_u> <bklog_u> <max_slots> <sending_u> <pending_u>
+			if len(fields) >= 10 {
+				var badXids int64
+				fmt.Sscanf(fields[9], "%d", &badXids)
+				stats.RetransmitCount = badXids
+			}
+
+		case "per-op":
+			// This marks the beginning of per-operation stats, we can break here
+			// as we've collected the main statistics
+			break parsing
+		}
+
+		// Try to read cache stats from meminfo (this is a rough approximation)
+		// NFS doesn't directly expose cache hit rate in mountstats
+		// We can infer some cache behavior from the operation counts
+	}
+
+	if !inTarget {
+		return nil, fmt.Errorf("mount point not found in /proc/self/mountstats: %s", targetPath)
+	}
+
+	// Calculate approximate cache hit rate based on read operations
+	// This is a heuristic: if we have fewer server reads than read ops,
+	// some were likely served from cache
+	if stats.ReadOps > 0 {
+		// This is a simplified calculation - actual cache metrics would need
+		// more detailed tracking or kernel support
+		stats.CacheHitRate = 0.0 // Default to 0 as we don't have direct metrics
+	}
+
+	return stats, nil
+}

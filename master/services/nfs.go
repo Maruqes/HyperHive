@@ -602,3 +602,24 @@ func (s *NFSService) SyncNFSSlavesByMachineName(machineName string) error {
 	}
 	return nil
 }
+
+func (s *NFSService) GetNfsMountStats(nfsId int) (*proto.NfsMountCurStats, error) {
+	nfsShare, err := db.GetNFSShareByID(nfsId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get NFS share: %v", err)
+	}
+	if nfsShare == nil {
+		return nil, fmt.Errorf("NFS share not found")
+	}
+
+	conn := protocol.GetConnectionByMachineName(nfsShare.MachineName)
+	if conn == nil || conn.Connection == nil {
+		return nil, fmt.Errorf("machineName does not exist or conn is nil")
+	}
+
+	stats, err := nfs.GetNfsMountStats(conn.Connection, nfsShare.FolderPath)
+	if err != nil {
+		return nil, err
+	}
+	return stats, nil
+}

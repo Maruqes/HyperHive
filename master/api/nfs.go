@@ -5,6 +5,7 @@ import (
 	"512SvMan/services"
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	proto "github.com/Maruqes/512SvMan/api/proto/nfs"
 	"github.com/Maruqes/512SvMan/logger"
@@ -137,11 +138,38 @@ func listPathContents(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
+func getInfo(w http.ResponseWriter, r *http.Request) {
+	nfsIDStr := chi.URLParam(r, "nfs_id")
+	
+	nfsID, err := strconv.Atoi(nfsIDStr)
+	if err != nil {
+		http.Error(w, "invalid nfs_id parameter", http.StatusBadRequest)
+		return
+	}
+	nfsService := services.NFSService{}
+	stats, err := nfsService.GetNfsMountStats(nfsID)
+	if err != nil {
+		logger.Error("GetNfsMountStats failed: %v", err)
+		http.Error(w, "failed to get NFS mount stats: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(stats)
+	if err != nil {
+		http.Error(w, "failed to marshal NFS mount stats", http.StatusInternalServerError)
+		return
+	}
+
+	_, _ = w.Write(data)
+}
+
 func setupNFSAPI(r chi.Router) chi.Router {
 	return r.Route("/nfs", func(r chi.Router) {
 		r.Get("/list", listShares)
 		r.Post("/create", createShare)
 		r.Delete("/delete", deleteShare)
 		r.Post("/contents/{machine}", listPathContents)
+		r.Get("/info/{nfs_id}",getInfo)
 	})
 }
