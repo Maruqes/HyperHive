@@ -505,18 +505,141 @@ func (x *DiskIOStruct) GetMergedWriteCount() uint64 {
 	return 0
 }
 
-type DiskSummary struct {
+type DiskCacheStruct struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Device         string                 `protobuf:"bytes,1,opt,name=device,proto3" json:"device,omitempty"`
+	DirtyKb        uint64                 `protobuf:"varint,2,opt,name=dirty_kb,json=dirtyKb,proto3" json:"dirty_kb,omitempty"`
+	WritebackKb    uint64                 `protobuf:"varint,3,opt,name=writeback_kb,json=writebackKb,proto3" json:"writeback_kb,omitempty"`
+	WritebackTmpKb uint64                 `protobuf:"varint,4,opt,name=writeback_tmp_kb,json=writebackTmpKb,proto3" json:"writeback_tmp_kb,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *DiskCacheStruct) Reset() {
+	*x = DiskCacheStruct{}
+	mi := &file_info_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiskCacheStruct) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiskCacheStruct) ProtoMessage() {}
+
+func (x *DiskCacheStruct) ProtoReflect() protoreflect.Message {
+	mi := &file_info_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiskCacheStruct.ProtoReflect.Descriptor instead.
+func (*DiskCacheStruct) Descriptor() ([]byte, []int) {
+	return file_info_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *DiskCacheStruct) GetDevice() string {
+	if x != nil {
+		return x.Device
+	}
+	return ""
+}
+
+func (x *DiskCacheStruct) GetDirtyKb() uint64 {
+	if x != nil {
+		return x.DirtyKb
+	}
+	return 0
+}
+
+func (x *DiskCacheStruct) GetWritebackKb() uint64 {
+	if x != nil {
+		return x.WritebackKb
+	}
+	return 0
+}
+
+func (x *DiskCacheStruct) GetWritebackTmpKb() uint64 {
+	if x != nil {
+		return x.WritebackTmpKb
+	}
+	return 0
+}
+
+type NFSServerCacheStats struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Disks         []*DiskStruct          `protobuf:"bytes,1,rep,name=disks,proto3" json:"disks,omitempty"`
-	Usage         map[string]float64     `protobuf:"bytes,2,rep,name=usage,proto3" json:"usage,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"fixed64,2,opt,name=value"`
-	Io            []*DiskIOStruct        `protobuf:"bytes,3,rep,name=io,proto3" json:"io,omitempty"`
+	ReplyCache    map[string]uint64      `protobuf:"bytes,1,rep,name=reply_cache,json=replyCache,proto3" json:"reply_cache,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	FileCache     map[string]uint64      `protobuf:"bytes,2,rep,name=file_cache,json=fileCache,proto3" json:"file_cache,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
+func (x *NFSServerCacheStats) Reset() {
+	*x = NFSServerCacheStats{}
+	mi := &file_info_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NFSServerCacheStats) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NFSServerCacheStats) ProtoMessage() {}
+
+func (x *NFSServerCacheStats) ProtoReflect() protoreflect.Message {
+	mi := &file_info_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NFSServerCacheStats.ProtoReflect.Descriptor instead.
+func (*NFSServerCacheStats) Descriptor() ([]byte, []int) {
+	return file_info_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *NFSServerCacheStats) GetReplyCache() map[string]uint64 {
+	if x != nil {
+		return x.ReplyCache
+	}
+	return nil
+}
+
+func (x *NFSServerCacheStats) GetFileCache() map[string]uint64 {
+	if x != nil {
+		return x.FileCache
+	}
+	return nil
+}
+
+type DiskSummary struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Disks          []*DiskStruct          `protobuf:"bytes,1,rep,name=disks,proto3" json:"disks,omitempty"`
+	Usage          map[string]float64     `protobuf:"bytes,2,rep,name=usage,proto3" json:"usage,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"fixed64,2,opt,name=value"`
+	Io             []*DiskIOStruct        `protobuf:"bytes,3,rep,name=io,proto3" json:"io,omitempty"`
+	Cache          []*DiskCacheStruct     `protobuf:"bytes,4,rep,name=cache,proto3" json:"cache,omitempty"`
+	SystemCache    *DiskCacheStruct       `protobuf:"bytes,5,opt,name=system_cache,json=systemCache,proto3" json:"system_cache,omitempty"`
+	NfsServerCache *NFSServerCacheStats   `protobuf:"bytes,6,opt,name=nfs_server_cache,json=nfsServerCache,proto3" json:"nfs_server_cache,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
 func (x *DiskSummary) Reset() {
 	*x = DiskSummary{}
-	mi := &file_info_proto_msgTypes[7]
+	mi := &file_info_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -528,7 +651,7 @@ func (x *DiskSummary) String() string {
 func (*DiskSummary) ProtoMessage() {}
 
 func (x *DiskSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_info_proto_msgTypes[7]
+	mi := &file_info_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -541,7 +664,7 @@ func (x *DiskSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiskSummary.ProtoReflect.Descriptor instead.
 func (*DiskSummary) Descriptor() ([]byte, []int) {
-	return file_info_proto_rawDescGZIP(), []int{7}
+	return file_info_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *DiskSummary) GetDisks() []*DiskStruct {
@@ -565,6 +688,27 @@ func (x *DiskSummary) GetIo() []*DiskIOStruct {
 	return nil
 }
 
+func (x *DiskSummary) GetCache() []*DiskCacheStruct {
+	if x != nil {
+		return x.Cache
+	}
+	return nil
+}
+
+func (x *DiskSummary) GetSystemCache() *DiskCacheStruct {
+	if x != nil {
+		return x.SystemCache
+	}
+	return nil
+}
+
+func (x *DiskSummary) GetNfsServerCache() *NFSServerCacheStats {
+	if x != nil {
+		return x.NfsServerCache
+	}
+	return nil
+}
+
 type NetworkInterfaceStruct struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -578,7 +722,7 @@ type NetworkInterfaceStruct struct {
 
 func (x *NetworkInterfaceStruct) Reset() {
 	*x = NetworkInterfaceStruct{}
-	mi := &file_info_proto_msgTypes[8]
+	mi := &file_info_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -590,7 +734,7 @@ func (x *NetworkInterfaceStruct) String() string {
 func (*NetworkInterfaceStruct) ProtoMessage() {}
 
 func (x *NetworkInterfaceStruct) ProtoReflect() protoreflect.Message {
-	mi := &file_info_proto_msgTypes[8]
+	mi := &file_info_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -603,7 +747,7 @@ func (x *NetworkInterfaceStruct) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkInterfaceStruct.ProtoReflect.Descriptor instead.
 func (*NetworkInterfaceStruct) Descriptor() ([]byte, []int) {
-	return file_info_proto_rawDescGZIP(), []int{8}
+	return file_info_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *NetworkInterfaceStruct) GetName() string {
@@ -654,7 +798,7 @@ type NetworkStatsStruct struct {
 
 func (x *NetworkStatsStruct) Reset() {
 	*x = NetworkStatsStruct{}
-	mi := &file_info_proto_msgTypes[9]
+	mi := &file_info_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -666,7 +810,7 @@ func (x *NetworkStatsStruct) String() string {
 func (*NetworkStatsStruct) ProtoMessage() {}
 
 func (x *NetworkStatsStruct) ProtoReflect() protoreflect.Message {
-	mi := &file_info_proto_msgTypes[9]
+	mi := &file_info_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -679,7 +823,7 @@ func (x *NetworkStatsStruct) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkStatsStruct.ProtoReflect.Descriptor instead.
 func (*NetworkStatsStruct) Descriptor() ([]byte, []int) {
-	return file_info_proto_rawDescGZIP(), []int{9}
+	return file_info_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *NetworkStatsStruct) GetName() string {
@@ -732,7 +876,7 @@ type NetworkConnectionStruct struct {
 
 func (x *NetworkConnectionStruct) Reset() {
 	*x = NetworkConnectionStruct{}
-	mi := &file_info_proto_msgTypes[10]
+	mi := &file_info_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -744,7 +888,7 @@ func (x *NetworkConnectionStruct) String() string {
 func (*NetworkConnectionStruct) ProtoMessage() {}
 
 func (x *NetworkConnectionStruct) ProtoReflect() protoreflect.Message {
-	mi := &file_info_proto_msgTypes[10]
+	mi := &file_info_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -757,7 +901,7 @@ func (x *NetworkConnectionStruct) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkConnectionStruct.ProtoReflect.Descriptor instead.
 func (*NetworkConnectionStruct) Descriptor() ([]byte, []int) {
-	return file_info_proto_rawDescGZIP(), []int{10}
+	return file_info_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *NetworkConnectionStruct) GetFd() uint32 {
@@ -820,7 +964,7 @@ type NetworkSummary struct {
 
 func (x *NetworkSummary) Reset() {
 	*x = NetworkSummary{}
-	mi := &file_info_proto_msgTypes[11]
+	mi := &file_info_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -832,7 +976,7 @@ func (x *NetworkSummary) String() string {
 func (*NetworkSummary) ProtoMessage() {}
 
 func (x *NetworkSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_info_proto_msgTypes[11]
+	mi := &file_info_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -845,7 +989,7 @@ func (x *NetworkSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkSummary.ProtoReflect.Descriptor instead.
 func (*NetworkSummary) Descriptor() ([]byte, []int) {
-	return file_info_proto_rawDescGZIP(), []int{11}
+	return file_info_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *NetworkSummary) GetInterfaces() []*NetworkInterfaceStruct {
@@ -901,7 +1045,7 @@ type ProcessStruct struct {
 
 func (x *ProcessStruct) Reset() {
 	*x = ProcessStruct{}
-	mi := &file_info_proto_msgTypes[12]
+	mi := &file_info_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -913,7 +1057,7 @@ func (x *ProcessStruct) String() string {
 func (*ProcessStruct) ProtoMessage() {}
 
 func (x *ProcessStruct) ProtoReflect() protoreflect.Message {
-	mi := &file_info_proto_msgTypes[12]
+	mi := &file_info_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -926,7 +1070,7 @@ func (x *ProcessStruct) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessStruct.ProtoReflect.Descriptor instead.
 func (*ProcessStruct) Descriptor() ([]byte, []int) {
-	return file_info_proto_rawDescGZIP(), []int{12}
+	return file_info_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ProcessStruct) GetPid() int32 {
@@ -1106,7 +1250,7 @@ type ProcessList struct {
 
 func (x *ProcessList) Reset() {
 	*x = ProcessList{}
-	mi := &file_info_proto_msgTypes[13]
+	mi := &file_info_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1118,7 +1262,7 @@ func (x *ProcessList) String() string {
 func (*ProcessList) ProtoMessage() {}
 
 func (x *ProcessList) ProtoReflect() protoreflect.Message {
-	mi := &file_info_proto_msgTypes[13]
+	mi := &file_info_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1131,7 +1275,7 @@ func (x *ProcessList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessList.ProtoReflect.Descriptor instead.
 func (*ProcessList) Descriptor() ([]byte, []int) {
-	return file_info_proto_rawDescGZIP(), []int{13}
+	return file_info_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ProcessList) GetProcesses() []*ProcessStruct {
@@ -1150,7 +1294,7 @@ type ProcessPIDRequest struct {
 
 func (x *ProcessPIDRequest) Reset() {
 	*x = ProcessPIDRequest{}
-	mi := &file_info_proto_msgTypes[14]
+	mi := &file_info_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1162,7 +1306,7 @@ func (x *ProcessPIDRequest) String() string {
 func (*ProcessPIDRequest) ProtoMessage() {}
 
 func (x *ProcessPIDRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_info_proto_msgTypes[14]
+	mi := &file_info_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1175,7 +1319,7 @@ func (x *ProcessPIDRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessPIDRequest.ProtoReflect.Descriptor instead.
 func (*ProcessPIDRequest) Descriptor() ([]byte, []int) {
-	return file_info_proto_rawDescGZIP(), []int{14}
+	return file_info_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ProcessPIDRequest) GetPid() int32 {
@@ -1195,7 +1339,7 @@ type StressCPUParams struct {
 
 func (x *StressCPUParams) Reset() {
 	*x = StressCPUParams{}
-	mi := &file_info_proto_msgTypes[15]
+	mi := &file_info_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1207,7 +1351,7 @@ func (x *StressCPUParams) String() string {
 func (*StressCPUParams) ProtoMessage() {}
 
 func (x *StressCPUParams) ProtoReflect() protoreflect.Message {
-	mi := &file_info_proto_msgTypes[15]
+	mi := &file_info_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1220,7 +1364,7 @@ func (x *StressCPUParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StressCPUParams.ProtoReflect.Descriptor instead.
 func (*StressCPUParams) Descriptor() ([]byte, []int) {
-	return file_info_proto_rawDescGZIP(), []int{15}
+	return file_info_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *StressCPUParams) GetNumVCPU() int32 {
@@ -1247,7 +1391,7 @@ type TestRamMEMParams struct {
 
 func (x *TestRamMEMParams) Reset() {
 	*x = TestRamMEMParams{}
-	mi := &file_info_proto_msgTypes[16]
+	mi := &file_info_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1259,7 +1403,7 @@ func (x *TestRamMEMParams) String() string {
 func (*TestRamMEMParams) ProtoMessage() {}
 
 func (x *TestRamMEMParams) ProtoReflect() protoreflect.Message {
-	mi := &file_info_proto_msgTypes[16]
+	mi := &file_info_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1272,7 +1416,7 @@ func (x *TestRamMEMParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestRamMEMParams.ProtoReflect.Descriptor instead.
 func (*TestRamMEMParams) Descriptor() ([]byte, []int) {
-	return file_info_proto_rawDescGZIP(), []int{16}
+	return file_info_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *TestRamMEMParams) GetNumGigs() int32 {
@@ -1341,11 +1485,30 @@ const file_info_proto_rawDesc = "" +
 	" \x01(\x04R\n" +
 	"weightedIo\x12*\n" +
 	"\x11merged_read_count\x18\v \x01(\x04R\x0fmergedReadCount\x12,\n" +
-	"\x12merged_write_count\x18\f \x01(\x04R\x10mergedWriteCount\"\xc7\x01\n" +
+	"\x12merged_write_count\x18\f \x01(\x04R\x10mergedWriteCount\"\x91\x01\n" +
+	"\x0fDiskCacheStruct\x12\x16\n" +
+	"\x06device\x18\x01 \x01(\tR\x06device\x12\x19\n" +
+	"\bdirty_kb\x18\x02 \x01(\x04R\adirtyKb\x12!\n" +
+	"\fwriteback_kb\x18\x03 \x01(\x04R\vwritebackKb\x12(\n" +
+	"\x10writeback_tmp_kb\x18\x04 \x01(\x04R\x0ewritebackTmpKb\"\xa7\x02\n" +
+	"\x13NFSServerCacheStats\x12J\n" +
+	"\vreply_cache\x18\x01 \x03(\v2).info.NFSServerCacheStats.ReplyCacheEntryR\n" +
+	"replyCache\x12G\n" +
+	"\n" +
+	"file_cache\x18\x02 \x03(\v2(.info.NFSServerCacheStats.FileCacheEntryR\tfileCache\x1a=\n" +
+	"\x0fReplyCacheEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x04R\x05value:\x028\x01\x1a<\n" +
+	"\x0eFileCacheEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x04R\x05value:\x028\x01\"\xf3\x02\n" +
 	"\vDiskSummary\x12&\n" +
 	"\x05disks\x18\x01 \x03(\v2\x10.info.DiskStructR\x05disks\x122\n" +
 	"\x05usage\x18\x02 \x03(\v2\x1c.info.DiskSummary.UsageEntryR\x05usage\x12\"\n" +
-	"\x02io\x18\x03 \x03(\v2\x12.info.DiskIOStructR\x02io\x1a8\n" +
+	"\x02io\x18\x03 \x03(\v2\x12.info.DiskIOStructR\x02io\x12+\n" +
+	"\x05cache\x18\x04 \x03(\v2\x15.info.DiskCacheStructR\x05cache\x128\n" +
+	"\fsystem_cache\x18\x05 \x01(\v2\x15.info.DiskCacheStructR\vsystemCache\x12C\n" +
+	"\x10nfs_server_cache\x18\x06 \x01(\v2\x19.info.NFSServerCacheStatsR\x0enfsServerCache\x1a8\n" +
 	"\n" +
 	"UsageEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
@@ -1455,7 +1618,7 @@ func file_info_proto_rawDescGZIP() []byte {
 	return file_info_proto_rawDescData
 }
 
-var file_info_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_info_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_info_proto_goTypes = []any{
 	(*Empty)(nil),                   // 0: info.Empty
 	(*Ok)(nil),                      // 1: info.Ok
@@ -1464,53 +1627,62 @@ var file_info_proto_goTypes = []any{
 	(*MemSummary)(nil),              // 4: info.MemSummary
 	(*DiskStruct)(nil),              // 5: info.DiskStruct
 	(*DiskIOStruct)(nil),            // 6: info.DiskIOStruct
-	(*DiskSummary)(nil),             // 7: info.DiskSummary
-	(*NetworkInterfaceStruct)(nil),  // 8: info.NetworkInterfaceStruct
-	(*NetworkStatsStruct)(nil),      // 9: info.NetworkStatsStruct
-	(*NetworkConnectionStruct)(nil), // 10: info.NetworkConnectionStruct
-	(*NetworkSummary)(nil),          // 11: info.NetworkSummary
-	(*ProcessStruct)(nil),           // 12: info.ProcessStruct
-	(*ProcessList)(nil),             // 13: info.ProcessList
-	(*ProcessPIDRequest)(nil),       // 14: info.ProcessPIDRequest
-	(*StressCPUParams)(nil),         // 15: info.StressCPUParams
-	(*TestRamMEMParams)(nil),        // 16: info.TestRamMEMParams
-	nil,                             // 17: info.DiskSummary.UsageEntry
-	nil,                             // 18: info.NetworkSummary.UsageEntry
+	(*DiskCacheStruct)(nil),         // 7: info.DiskCacheStruct
+	(*NFSServerCacheStats)(nil),     // 8: info.NFSServerCacheStats
+	(*DiskSummary)(nil),             // 9: info.DiskSummary
+	(*NetworkInterfaceStruct)(nil),  // 10: info.NetworkInterfaceStruct
+	(*NetworkStatsStruct)(nil),      // 11: info.NetworkStatsStruct
+	(*NetworkConnectionStruct)(nil), // 12: info.NetworkConnectionStruct
+	(*NetworkSummary)(nil),          // 13: info.NetworkSummary
+	(*ProcessStruct)(nil),           // 14: info.ProcessStruct
+	(*ProcessList)(nil),             // 15: info.ProcessList
+	(*ProcessPIDRequest)(nil),       // 16: info.ProcessPIDRequest
+	(*StressCPUParams)(nil),         // 17: info.StressCPUParams
+	(*TestRamMEMParams)(nil),        // 18: info.TestRamMEMParams
+	nil,                             // 19: info.NFSServerCacheStats.ReplyCacheEntry
+	nil,                             // 20: info.NFSServerCacheStats.FileCacheEntry
+	nil,                             // 21: info.DiskSummary.UsageEntry
+	nil,                             // 22: info.NetworkSummary.UsageEntry
 }
 var file_info_proto_depIdxs = []int32{
 	2,  // 0: info.CPUCoreInfo.cores:type_name -> info.Core
-	5,  // 1: info.DiskSummary.disks:type_name -> info.DiskStruct
-	17, // 2: info.DiskSummary.usage:type_name -> info.DiskSummary.UsageEntry
-	6,  // 3: info.DiskSummary.io:type_name -> info.DiskIOStruct
-	8,  // 4: info.NetworkSummary.interfaces:type_name -> info.NetworkInterfaceStruct
-	9,  // 5: info.NetworkSummary.stats:type_name -> info.NetworkStatsStruct
-	18, // 6: info.NetworkSummary.usage:type_name -> info.NetworkSummary.UsageEntry
-	12, // 7: info.ProcessList.processes:type_name -> info.ProcessStruct
-	0,  // 8: info.Info.GetCPUInfo:input_type -> info.Empty
-	0,  // 9: info.Info.GetMemSummary:input_type -> info.Empty
-	0,  // 10: info.Info.GetDiskSummary:input_type -> info.Empty
-	0,  // 11: info.Info.GetNetworkSummary:input_type -> info.Empty
-	0,  // 12: info.Info.GetProcesses:input_type -> info.Empty
-	14, // 13: info.Info.GetProcessByPID:input_type -> info.ProcessPIDRequest
-	14, // 14: info.Info.KillProcess:input_type -> info.ProcessPIDRequest
-	14, // 15: info.Info.TerminateProcess:input_type -> info.ProcessPIDRequest
-	15, // 16: info.Info.StressCPU:input_type -> info.StressCPUParams
-	16, // 17: info.Info.TestRamMEM:input_type -> info.TestRamMEMParams
-	3,  // 18: info.Info.GetCPUInfo:output_type -> info.CPUCoreInfo
-	4,  // 19: info.Info.GetMemSummary:output_type -> info.MemSummary
-	7,  // 20: info.Info.GetDiskSummary:output_type -> info.DiskSummary
-	11, // 21: info.Info.GetNetworkSummary:output_type -> info.NetworkSummary
-	13, // 22: info.Info.GetProcesses:output_type -> info.ProcessList
-	12, // 23: info.Info.GetProcessByPID:output_type -> info.ProcessStruct
-	1,  // 24: info.Info.KillProcess:output_type -> info.Ok
-	1,  // 25: info.Info.TerminateProcess:output_type -> info.Ok
-	0,  // 26: info.Info.StressCPU:output_type -> info.Empty
-	1,  // 27: info.Info.TestRamMEM:output_type -> info.Ok
-	18, // [18:28] is the sub-list for method output_type
-	8,  // [8:18] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	19, // 1: info.NFSServerCacheStats.reply_cache:type_name -> info.NFSServerCacheStats.ReplyCacheEntry
+	20, // 2: info.NFSServerCacheStats.file_cache:type_name -> info.NFSServerCacheStats.FileCacheEntry
+	5,  // 3: info.DiskSummary.disks:type_name -> info.DiskStruct
+	21, // 4: info.DiskSummary.usage:type_name -> info.DiskSummary.UsageEntry
+	6,  // 5: info.DiskSummary.io:type_name -> info.DiskIOStruct
+	7,  // 6: info.DiskSummary.cache:type_name -> info.DiskCacheStruct
+	7,  // 7: info.DiskSummary.system_cache:type_name -> info.DiskCacheStruct
+	8,  // 8: info.DiskSummary.nfs_server_cache:type_name -> info.NFSServerCacheStats
+	10, // 9: info.NetworkSummary.interfaces:type_name -> info.NetworkInterfaceStruct
+	11, // 10: info.NetworkSummary.stats:type_name -> info.NetworkStatsStruct
+	22, // 11: info.NetworkSummary.usage:type_name -> info.NetworkSummary.UsageEntry
+	14, // 12: info.ProcessList.processes:type_name -> info.ProcessStruct
+	0,  // 13: info.Info.GetCPUInfo:input_type -> info.Empty
+	0,  // 14: info.Info.GetMemSummary:input_type -> info.Empty
+	0,  // 15: info.Info.GetDiskSummary:input_type -> info.Empty
+	0,  // 16: info.Info.GetNetworkSummary:input_type -> info.Empty
+	0,  // 17: info.Info.GetProcesses:input_type -> info.Empty
+	16, // 18: info.Info.GetProcessByPID:input_type -> info.ProcessPIDRequest
+	16, // 19: info.Info.KillProcess:input_type -> info.ProcessPIDRequest
+	16, // 20: info.Info.TerminateProcess:input_type -> info.ProcessPIDRequest
+	17, // 21: info.Info.StressCPU:input_type -> info.StressCPUParams
+	18, // 22: info.Info.TestRamMEM:input_type -> info.TestRamMEMParams
+	3,  // 23: info.Info.GetCPUInfo:output_type -> info.CPUCoreInfo
+	4,  // 24: info.Info.GetMemSummary:output_type -> info.MemSummary
+	9,  // 25: info.Info.GetDiskSummary:output_type -> info.DiskSummary
+	13, // 26: info.Info.GetNetworkSummary:output_type -> info.NetworkSummary
+	15, // 27: info.Info.GetProcesses:output_type -> info.ProcessList
+	14, // 28: info.Info.GetProcessByPID:output_type -> info.ProcessStruct
+	1,  // 29: info.Info.KillProcess:output_type -> info.Ok
+	1,  // 30: info.Info.TerminateProcess:output_type -> info.Ok
+	0,  // 31: info.Info.StressCPU:output_type -> info.Empty
+	1,  // 32: info.Info.TestRamMEM:output_type -> info.Ok
+	23, // [23:33] is the sub-list for method output_type
+	13, // [13:23] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_info_proto_init() }
@@ -1524,7 +1696,7 @@ func file_info_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_info_proto_rawDesc), len(file_info_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

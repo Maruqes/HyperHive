@@ -143,27 +143,3 @@ func (s *NFSService) Sync(ctx context.Context, req *pb.Empty) (*pb.OkResponse, e
 	}
 	return &pb.OkResponse{Ok: true}, nil
 }
-
-func (s *NFSService) GetNfsMountStats(ctx context.Context, req *pb.FolderPath) (*pb.NfsMountCurStats, error) {
-	stats, err := GetNfsMountStats(req.Path)
-	if err != nil {
-		logger.Error("GetNfsMountStats failed", "error", err)
-		return nil, err
-	}
-	logger.Info("GetNfsMountStats succeeded", "path", req.Path)
-	return &pb.NfsMountCurStats{
-		CurrentRead:              stats.CurrentRead,
-		CurrentWrite:             stats.CurrentWrite,
-		CurrentDirtyCache:        stats.CurrentDirtyCache,
-		CurrentWriteBackCache:    stats.CurrentWriteBackCache,
-		CurrentWriteBackTmpCache: stats.CurrentWriteBackTmpCache,
-		ReadOps:                  stats.ReadOps,
-		WriteOps:                 stats.WriteOps,
-		ReaddirOps:               stats.ReaddirOps,
-		AvgReadLatencyMs:         stats.AvgReadLatencyMs,
-		AvgWriteLatencyMs:        stats.AvgWriteLatencyMs,
-		RetransmitCount:          stats.RetransmitCount,
-		TimeoutCount:             stats.TimeoutCount,
-		CacheHitRate:             stats.CacheHitRate,
-	}, nil
-}

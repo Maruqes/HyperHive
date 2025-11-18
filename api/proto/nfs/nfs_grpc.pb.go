@@ -29,7 +29,6 @@ const (
 	NFSService_ListFolderContents_FullMethodName    = "/nfs.NFSService/ListFolderContents"
 	NFSService_CanFindFileOrDir_FullMethodName      = "/nfs.NFSService/CanFindFileOrDir"
 	NFSService_DownloadIso_FullMethodName           = "/nfs.NFSService/DownloadIso"
-	NFSService_GetNfsMountStats_FullMethodName      = "/nfs.NFSService/GetNfsMountStats"
 )
 
 // NFSServiceClient is the client API for NFSService service.
@@ -49,7 +48,6 @@ type NFSServiceClient interface {
 	CanFindFileOrDir(ctx context.Context, in *FolderPath, opts ...grpc.CallOption) (*CreateResponse, error)
 	// nao devia estar aqui mas como download iso vai fazer download num folderMount facilita
 	DownloadIso(ctx context.Context, in *DownloadIsoRequest, opts ...grpc.CallOption) (*CreateResponse, error)
-	GetNfsMountStats(ctx context.Context, in *FolderPath, opts ...grpc.CallOption) (*NfsMountCurStats, error)
 }
 
 type nFSServiceClient struct {
@@ -160,16 +158,6 @@ func (c *nFSServiceClient) DownloadIso(ctx context.Context, in *DownloadIsoReque
 	return out, nil
 }
 
-func (c *nFSServiceClient) GetNfsMountStats(ctx context.Context, in *FolderPath, opts ...grpc.CallOption) (*NfsMountCurStats, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(NfsMountCurStats)
-	err := c.cc.Invoke(ctx, NFSService_GetNfsMountStats_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // NFSServiceServer is the server API for NFSService service.
 // All implementations must embed UnimplementedNFSServiceServer
 // for forward compatibility.
@@ -187,7 +175,6 @@ type NFSServiceServer interface {
 	CanFindFileOrDir(context.Context, *FolderPath) (*CreateResponse, error)
 	// nao devia estar aqui mas como download iso vai fazer download num folderMount facilita
 	DownloadIso(context.Context, *DownloadIsoRequest) (*CreateResponse, error)
-	GetNfsMountStats(context.Context, *FolderPath) (*NfsMountCurStats, error)
 	mustEmbedUnimplementedNFSServiceServer()
 }
 
@@ -227,9 +214,6 @@ func (UnimplementedNFSServiceServer) CanFindFileOrDir(context.Context, *FolderPa
 }
 func (UnimplementedNFSServiceServer) DownloadIso(context.Context, *DownloadIsoRequest) (*CreateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DownloadIso not implemented")
-}
-func (UnimplementedNFSServiceServer) GetNfsMountStats(context.Context, *FolderPath) (*NfsMountCurStats, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetNfsMountStats not implemented")
 }
 func (UnimplementedNFSServiceServer) mustEmbedUnimplementedNFSServiceServer() {}
 func (UnimplementedNFSServiceServer) testEmbeddedByValue()                    {}
@@ -432,24 +416,6 @@ func _NFSService_DownloadIso_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
-func _NFSService_GetNfsMountStats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(FolderPath)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NFSServiceServer).GetNfsMountStats(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: NFSService_GetNfsMountStats_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NFSServiceServer).GetNfsMountStats(ctx, req.(*FolderPath))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // NFSService_ServiceDesc is the grpc.ServiceDesc for NFSService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -496,10 +462,6 @@ var NFSService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DownloadIso",
 			Handler:    _NFSService_DownloadIso_Handler,
-		},
-		{
-			MethodName: "GetNfsMountStats",
-			Handler:    _NFSService_GetNfsMountStats_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

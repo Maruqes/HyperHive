@@ -419,146 +419,6 @@ func (x *OkResponse) GetMessage() string {
 	return ""
 }
 
-type NfsMountCurStats struct {
-	state                    protoimpl.MessageState `protogen:"open.v1"`
-	CurrentRead              int64                  `protobuf:"varint,1,opt,name=current_read,json=currentRead,proto3" json:"current_read,omitempty"`
-	CurrentWrite             int64                  `protobuf:"varint,2,opt,name=current_write,json=currentWrite,proto3" json:"current_write,omitempty"`
-	CurrentDirtyCache        int64                  `protobuf:"varint,3,opt,name=current_dirty_cache,json=currentDirtyCache,proto3" json:"current_dirty_cache,omitempty"`
-	CurrentWriteBackCache    int64                  `protobuf:"varint,4,opt,name=current_write_back_cache,json=currentWriteBackCache,proto3" json:"current_write_back_cache,omitempty"`
-	CurrentWriteBackTmpCache int64                  `protobuf:"varint,5,opt,name=current_write_back_tmp_cache,json=currentWriteBackTmpCache,proto3" json:"current_write_back_tmp_cache,omitempty"`
-	ReadOps                  int64                  `protobuf:"varint,6,opt,name=read_ops,json=readOps,proto3" json:"read_ops,omitempty"`
-	WriteOps                 int64                  `protobuf:"varint,7,opt,name=write_ops,json=writeOps,proto3" json:"write_ops,omitempty"`
-	ReaddirOps               int64                  `protobuf:"varint,8,opt,name=readdir_ops,json=readdirOps,proto3" json:"readdir_ops,omitempty"`
-	AvgReadLatencyMs         float64                `protobuf:"fixed64,9,opt,name=avg_read_latency_ms,json=avgReadLatencyMs,proto3" json:"avg_read_latency_ms,omitempty"`
-	AvgWriteLatencyMs        float64                `protobuf:"fixed64,10,opt,name=avg_write_latency_ms,json=avgWriteLatencyMs,proto3" json:"avg_write_latency_ms,omitempty"`
-	RetransmitCount          int64                  `protobuf:"varint,11,opt,name=retransmit_count,json=retransmitCount,proto3" json:"retransmit_count,omitempty"`
-	TimeoutCount             int64                  `protobuf:"varint,12,opt,name=timeout_count,json=timeoutCount,proto3" json:"timeout_count,omitempty"`
-	CacheHitRate             float64                `protobuf:"fixed64,13,opt,name=cache_hit_rate,json=cacheHitRate,proto3" json:"cache_hit_rate,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
-}
-
-func (x *NfsMountCurStats) Reset() {
-	*x = NfsMountCurStats{}
-	mi := &file_nfs_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *NfsMountCurStats) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*NfsMountCurStats) ProtoMessage() {}
-
-func (x *NfsMountCurStats) ProtoReflect() protoreflect.Message {
-	mi := &file_nfs_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use NfsMountCurStats.ProtoReflect.Descriptor instead.
-func (*NfsMountCurStats) Descriptor() ([]byte, []int) {
-	return file_nfs_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *NfsMountCurStats) GetCurrentRead() int64 {
-	if x != nil {
-		return x.CurrentRead
-	}
-	return 0
-}
-
-func (x *NfsMountCurStats) GetCurrentWrite() int64 {
-	if x != nil {
-		return x.CurrentWrite
-	}
-	return 0
-}
-
-func (x *NfsMountCurStats) GetCurrentDirtyCache() int64 {
-	if x != nil {
-		return x.CurrentDirtyCache
-	}
-	return 0
-}
-
-func (x *NfsMountCurStats) GetCurrentWriteBackCache() int64 {
-	if x != nil {
-		return x.CurrentWriteBackCache
-	}
-	return 0
-}
-
-func (x *NfsMountCurStats) GetCurrentWriteBackTmpCache() int64 {
-	if x != nil {
-		return x.CurrentWriteBackTmpCache
-	}
-	return 0
-}
-
-func (x *NfsMountCurStats) GetReadOps() int64 {
-	if x != nil {
-		return x.ReadOps
-	}
-	return 0
-}
-
-func (x *NfsMountCurStats) GetWriteOps() int64 {
-	if x != nil {
-		return x.WriteOps
-	}
-	return 0
-}
-
-func (x *NfsMountCurStats) GetReaddirOps() int64 {
-	if x != nil {
-		return x.ReaddirOps
-	}
-	return 0
-}
-
-func (x *NfsMountCurStats) GetAvgReadLatencyMs() float64 {
-	if x != nil {
-		return x.AvgReadLatencyMs
-	}
-	return 0
-}
-
-func (x *NfsMountCurStats) GetAvgWriteLatencyMs() float64 {
-	if x != nil {
-		return x.AvgWriteLatencyMs
-	}
-	return 0
-}
-
-func (x *NfsMountCurStats) GetRetransmitCount() int64 {
-	if x != nil {
-		return x.RetransmitCount
-	}
-	return 0
-}
-
-func (x *NfsMountCurStats) GetTimeoutCount() int64 {
-	if x != nil {
-		return x.TimeoutCount
-	}
-	return 0
-}
-
-func (x *NfsMountCurStats) GetCacheHitRate() float64 {
-	if x != nil {
-		return x.CacheHitRate
-	}
-	return 0
-}
-
 type Empty struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -567,7 +427,7 @@ type Empty struct {
 
 func (x *Empty) Reset() {
 	*x = Empty{}
-	mi := &file_nfs_proto_msgTypes[8]
+	mi := &file_nfs_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -579,7 +439,7 @@ func (x *Empty) String() string {
 func (*Empty) ProtoMessage() {}
 
 func (x *Empty) ProtoReflect() protoreflect.Message {
-	mi := &file_nfs_proto_msgTypes[8]
+	mi := &file_nfs_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -592,7 +452,7 @@ func (x *Empty) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Empty.ProtoReflect.Descriptor instead.
 func (*Empty) Descriptor() ([]byte, []int) {
-	return file_nfs_proto_rawDescGZIP(), []int{8}
+	return file_nfs_proto_rawDescGZIP(), []int{7}
 }
 
 type CreateResponse struct {
@@ -604,7 +464,7 @@ type CreateResponse struct {
 
 func (x *CreateResponse) Reset() {
 	*x = CreateResponse{}
-	mi := &file_nfs_proto_msgTypes[9]
+	mi := &file_nfs_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -616,7 +476,7 @@ func (x *CreateResponse) String() string {
 func (*CreateResponse) ProtoMessage() {}
 
 func (x *CreateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nfs_proto_msgTypes[9]
+	mi := &file_nfs_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -629,7 +489,7 @@ func (x *CreateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateResponse.ProtoReflect.Descriptor instead.
 func (*CreateResponse) Descriptor() ([]byte, []int) {
-	return file_nfs_proto_rawDescGZIP(), []int{9}
+	return file_nfs_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CreateResponse) GetOk() bool {
@@ -648,7 +508,7 @@ type MountResponse struct {
 
 func (x *MountResponse) Reset() {
 	*x = MountResponse{}
-	mi := &file_nfs_proto_msgTypes[10]
+	mi := &file_nfs_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -660,7 +520,7 @@ func (x *MountResponse) String() string {
 func (*MountResponse) ProtoMessage() {}
 
 func (x *MountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nfs_proto_msgTypes[10]
+	mi := &file_nfs_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -673,7 +533,7 @@ func (x *MountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MountResponse.ProtoReflect.Descriptor instead.
 func (*MountResponse) Descriptor() ([]byte, []int) {
-	return file_nfs_proto_rawDescGZIP(), []int{10}
+	return file_nfs_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *MountResponse) GetOk() bool {
@@ -692,7 +552,7 @@ type UnmountResponse struct {
 
 func (x *UnmountResponse) Reset() {
 	*x = UnmountResponse{}
-	mi := &file_nfs_proto_msgTypes[11]
+	mi := &file_nfs_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -704,7 +564,7 @@ func (x *UnmountResponse) String() string {
 func (*UnmountResponse) ProtoMessage() {}
 
 func (x *UnmountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nfs_proto_msgTypes[11]
+	mi := &file_nfs_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -717,7 +577,7 @@ func (x *UnmountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnmountResponse.ProtoReflect.Descriptor instead.
 func (*UnmountResponse) Descriptor() ([]byte, []int) {
-	return file_nfs_proto_rawDescGZIP(), []int{11}
+	return file_nfs_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *UnmountResponse) GetOk() bool {
@@ -760,30 +620,14 @@ const file_nfs_proto_rawDesc = "" +
 	"\n" +
 	"OkResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\xb2\x04\n" +
-	"\x10NfsMountCurStats\x12!\n" +
-	"\fcurrent_read\x18\x01 \x01(\x03R\vcurrentRead\x12#\n" +
-	"\rcurrent_write\x18\x02 \x01(\x03R\fcurrentWrite\x12.\n" +
-	"\x13current_dirty_cache\x18\x03 \x01(\x03R\x11currentDirtyCache\x127\n" +
-	"\x18current_write_back_cache\x18\x04 \x01(\x03R\x15currentWriteBackCache\x12>\n" +
-	"\x1ccurrent_write_back_tmp_cache\x18\x05 \x01(\x03R\x18currentWriteBackTmpCache\x12\x19\n" +
-	"\bread_ops\x18\x06 \x01(\x03R\areadOps\x12\x1b\n" +
-	"\twrite_ops\x18\a \x01(\x03R\bwriteOps\x12\x1f\n" +
-	"\vreaddir_ops\x18\b \x01(\x03R\n" +
-	"readdirOps\x12-\n" +
-	"\x13avg_read_latency_ms\x18\t \x01(\x01R\x10avgReadLatencyMs\x12/\n" +
-	"\x14avg_write_latency_ms\x18\n" +
-	" \x01(\x01R\x11avgWriteLatencyMs\x12)\n" +
-	"\x10retransmit_count\x18\v \x01(\x03R\x0fretransmitCount\x12#\n" +
-	"\rtimeout_count\x18\f \x01(\x03R\ftimeoutCount\x12$\n" +
-	"\x0ecache_hit_rate\x18\r \x01(\x01R\fcacheHitRate\"\a\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\a\n" +
 	"\x05Empty\" \n" +
 	"\x0eCreateResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\"\x1f\n" +
 	"\rMountResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\"!\n" +
 	"\x0fUnmountResponse\x12\x0e\n" +
-	"\x02ok\x18\x01 \x01(\bR\x02ok2\x93\x05\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok2\xd7\x04\n" +
 	"\n" +
 	"NFSService\x12#\n" +
 	"\x04Sync\x12\n" +
@@ -796,8 +640,7 @@ const file_nfs_proto_rawDesc = "" +
 	"\x15GetSharedFolderStatus\x12\x10.nfs.FolderMount\x1a\x1f.nfs.SharedFolderStatusResponse\x12:\n" +
 	"\x12ListFolderContents\x12\x0f.nfs.FolderPath\x1a\x13.nfs.FolderContents\x128\n" +
 	"\x10CanFindFileOrDir\x12\x0f.nfs.FolderPath\x1a\x13.nfs.CreateResponse\x12;\n" +
-	"\vDownloadIso\x12\x17.nfs.DownloadIsoRequest\x1a\x13.nfs.CreateResponse\x12:\n" +
-	"\x10GetNfsMountStats\x12\x0f.nfs.FolderPath\x1a\x15.nfs.NfsMountCurStatsB1Z/github.com/Maruqes/512SvMan/api/proto/nfs;protob\x06proto3"
+	"\vDownloadIso\x12\x17.nfs.DownloadIsoRequest\x1a\x13.nfs.CreateResponseB1Z/github.com/Maruqes/512SvMan/api/proto/nfs;protob\x06proto3"
 
 var (
 	file_nfs_proto_rawDescOnce sync.Once
@@ -811,7 +654,7 @@ func file_nfs_proto_rawDescGZIP() []byte {
 	return file_nfs_proto_rawDescData
 }
 
-var file_nfs_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_nfs_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_nfs_proto_goTypes = []any{
 	(*FolderMount)(nil),                // 0: nfs.FolderMount
 	(*FolderMountList)(nil),            // 1: nfs.FolderMountList
@@ -820,16 +663,15 @@ var file_nfs_proto_goTypes = []any{
 	(*FolderContents)(nil),             // 4: nfs.FolderContents
 	(*FolderPath)(nil),                 // 5: nfs.FolderPath
 	(*OkResponse)(nil),                 // 6: nfs.OkResponse
-	(*NfsMountCurStats)(nil),           // 7: nfs.NfsMountCurStats
-	(*Empty)(nil),                      // 8: nfs.Empty
-	(*CreateResponse)(nil),             // 9: nfs.CreateResponse
-	(*MountResponse)(nil),              // 10: nfs.MountResponse
-	(*UnmountResponse)(nil),            // 11: nfs.UnmountResponse
+	(*Empty)(nil),                      // 7: nfs.Empty
+	(*CreateResponse)(nil),             // 8: nfs.CreateResponse
+	(*MountResponse)(nil),              // 9: nfs.MountResponse
+	(*UnmountResponse)(nil),            // 10: nfs.UnmountResponse
 }
 var file_nfs_proto_depIdxs = []int32{
 	0,  // 0: nfs.FolderMountList.mounts:type_name -> nfs.FolderMount
 	0,  // 1: nfs.DownloadIsoRequest.folderMount:type_name -> nfs.FolderMount
-	8,  // 2: nfs.NFSService.Sync:input_type -> nfs.Empty
+	7,  // 2: nfs.NFSService.Sync:input_type -> nfs.Empty
 	0,  // 3: nfs.NFSService.CreateSharedFolder:input_type -> nfs.FolderMount
 	0,  // 4: nfs.NFSService.RemoveSharedFolder:input_type -> nfs.FolderMount
 	0,  // 5: nfs.NFSService.MountFolder:input_type -> nfs.FolderMount
@@ -839,20 +681,18 @@ var file_nfs_proto_depIdxs = []int32{
 	5,  // 9: nfs.NFSService.ListFolderContents:input_type -> nfs.FolderPath
 	5,  // 10: nfs.NFSService.CanFindFileOrDir:input_type -> nfs.FolderPath
 	2,  // 11: nfs.NFSService.DownloadIso:input_type -> nfs.DownloadIsoRequest
-	5,  // 12: nfs.NFSService.GetNfsMountStats:input_type -> nfs.FolderPath
-	6,  // 13: nfs.NFSService.Sync:output_type -> nfs.OkResponse
-	9,  // 14: nfs.NFSService.CreateSharedFolder:output_type -> nfs.CreateResponse
-	9,  // 15: nfs.NFSService.RemoveSharedFolder:output_type -> nfs.CreateResponse
-	10, // 16: nfs.NFSService.MountFolder:output_type -> nfs.MountResponse
-	11, // 17: nfs.NFSService.UnmountFolder:output_type -> nfs.UnmountResponse
-	9,  // 18: nfs.NFSService.SyncSharedFolder:output_type -> nfs.CreateResponse
-	3,  // 19: nfs.NFSService.GetSharedFolderStatus:output_type -> nfs.SharedFolderStatusResponse
-	4,  // 20: nfs.NFSService.ListFolderContents:output_type -> nfs.FolderContents
-	9,  // 21: nfs.NFSService.CanFindFileOrDir:output_type -> nfs.CreateResponse
-	9,  // 22: nfs.NFSService.DownloadIso:output_type -> nfs.CreateResponse
-	7,  // 23: nfs.NFSService.GetNfsMountStats:output_type -> nfs.NfsMountCurStats
-	13, // [13:24] is the sub-list for method output_type
-	2,  // [2:13] is the sub-list for method input_type
+	6,  // 12: nfs.NFSService.Sync:output_type -> nfs.OkResponse
+	8,  // 13: nfs.NFSService.CreateSharedFolder:output_type -> nfs.CreateResponse
+	8,  // 14: nfs.NFSService.RemoveSharedFolder:output_type -> nfs.CreateResponse
+	9,  // 15: nfs.NFSService.MountFolder:output_type -> nfs.MountResponse
+	10, // 16: nfs.NFSService.UnmountFolder:output_type -> nfs.UnmountResponse
+	8,  // 17: nfs.NFSService.SyncSharedFolder:output_type -> nfs.CreateResponse
+	3,  // 18: nfs.NFSService.GetSharedFolderStatus:output_type -> nfs.SharedFolderStatusResponse
+	4,  // 19: nfs.NFSService.ListFolderContents:output_type -> nfs.FolderContents
+	8,  // 20: nfs.NFSService.CanFindFileOrDir:output_type -> nfs.CreateResponse
+	8,  // 21: nfs.NFSService.DownloadIso:output_type -> nfs.CreateResponse
+	12, // [12:22] is the sub-list for method output_type
+	2,  // [2:12] is the sub-list for method input_type
 	2,  // [2:2] is the sub-list for extension type_name
 	2,  // [2:2] is the sub-list for extension extendee
 	0,  // [0:2] is the sub-list for field type_name
@@ -869,7 +709,7 @@ func file_nfs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nfs_proto_rawDesc), len(file_nfs_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
