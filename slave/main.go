@@ -28,6 +28,9 @@ const (
 	virtioISOName         = "virtio-win.iso"
 	virtioDownloadDir     = "downloads"
 	virtioTempFilePattern = "virtio-*.iso"
+
+	vmDirtyRatioPath           = "/proc/sys/vm/dirty_ratio"
+	vmDirtyBackgroundRatioPath = "/proc/sys/vm/dirty_background_ratio"
 )
 
 func askForSudo() {
@@ -36,6 +39,30 @@ func askForSudo() {
 		fmt.Println("This program needs to be run as root.")
 		os.Exit(0)
 	}
+}
+
+func applyDirtyRatioPercent(percent int) error {
+	if percent < 1 || percent > 100 {
+		return fmt.Errorf("dirty ratio percent %d must be between 1 and 100", percent)
+	}
+
+	if err := writeSysctlValue(vmDirtyRatioPath, percent); err != nil {
+		return err
+	}
+
+	background := percent / 4
+	if background < 1 {
+		background = 1
+	}
+
+	return writeSysctlValue(vmDirtyBackgroundRatioPath, background)
+}
+
+func writeSysctlValue(path string, value int) error {
+	if err := os.WriteFile(path, []byte(fmt.Sprintf("%d", value)), 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+	return nil
 }
 
 /*
@@ -657,6 +684,12 @@ func main() {
 	//varsc
 	if err := env512.Setup(); err != nil {
 		log.Fatalf("env setup: %v", err)
+	}
+
+	if env512.DirtyRatioPercent > 0 {
+		if err := applyDirtyRatioPercent(env512.DirtyRatioPercent); err != nil {
+			log.Fatalf("set dirty ratio percent: %v", err)
+		}
 	}
 
 	if err := virsh.SetVNCPorts(env512.VNC_MIN_PORT, env512.VNC_MAX_PORT); err != nil {
