@@ -43,3 +43,18 @@ func (s *SmartDiskService) RunSelfTest(ctx context.Context, machineName, device 
 	}
 	return resp.GetMessage(), nil
 }
+
+func (s *SmartDiskService) GetSelfTestProgress(machineName, device string) (*smartdiskGrpc.SelfTestProgress, error) {
+	if device == "" {
+		return nil, fmt.Errorf("device parameter is required")
+	}
+
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil || conn.Connection == nil {
+		return nil, fmt.Errorf("no connection found for machine: %s", machineName)
+	}
+
+	return smartdisk.GetSelfTestProgress(conn.Connection, &smartdiskGrpc.SmartInfoRequest{
+		Device: device,
+	})
+}

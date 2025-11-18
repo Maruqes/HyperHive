@@ -16,3 +16,8 @@ func RunSelfTest(ctx context.Context, conn *grpc.ClientConn, req *smartdiskGrpc.
 	client := smartdiskGrpc.NewSmartDiskServiceClient(conn)
 	return client.RunSelfTest(ctx, req)
 }
+
+func GetSelfTestProgress(conn *grpc.ClientConn, req *smartdiskGrpc.SmartInfoRequest) (*smartdiskGrpc.SelfTestProgress, error) {
+	client := smartdiskGrpc.NewSmartDiskServiceClient(conn)
+	return client.GetSelfTestProgress(context.Background(), req)
+}

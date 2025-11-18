@@ -75,9 +75,28 @@ func runSmartDiskSelfTest(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"message": message})
 }
 
+func getSmartDiskSelfTestProgress(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	device := strings.TrimSpace(r.URL.Query().Get("device"))
+	if device == "" {
+		http.Error(w, "device query parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	service := services.SmartDiskService{}
+	progress, err := service.GetSelfTestProgress(machineName, device)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	_ = writeProto(w, progress)
+}
+
 func setupSmartDiskAPI(r chi.Router) chi.Router {
 	return r.Route("/smartdisk", func(r chi.Router) {
 		r.Get("/{machine_name}", getSmartDiskInfo)
 		r.Post("/{machine_name}/self-test", runSmartDiskSelfTest)
+		r.Get("/{machine_name}/self-test/progress", getSmartDiskSelfTestProgress)
 	})
 }

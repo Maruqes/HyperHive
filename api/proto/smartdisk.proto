@@ -109,8 +109,18 @@ message SmartDiskInfo {
   string smartctl_error = 49;
 }
 
+message SelfTestProgress {
+  string device = 1;
+  string status = 2;
+  int64 progress_percent = 3;
+  int64 remaining_percent = 4;
+  string test_type = 5;
+  int64 lifetime_hours = 6;
+}
+
 // Provides SMART/health information for disks on the slave.
 service SmartDiskService {
   rpc GetSmartInfo(SmartInfoRequest) returns (SmartDiskInfo);
   rpc RunSelfTest(SelfTestRequest) returns (SelfTestResponse);
+  rpc GetSelfTestProgress(SmartInfoRequest) returns (SelfTestProgress);
 }

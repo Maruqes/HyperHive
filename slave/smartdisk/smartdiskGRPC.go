@@ -3,6 +3,7 @@ package smartdisk
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	smartdiskGrpc "github.com/Maruqes/512SvMan/api/proto/smartdisk"
 )
@@ -178,4 +179,46 @@ func (s *Service) RunSelfTest(ctx context.Context, req *smartdiskGrpc.SelfTestRe
 	return &smartdiskGrpc.SelfTestResponse{
 		Message: fmt.Sprintf("%s self-test started for %s", desc, req.GetDevice()),
 	}, nil
+}
+
+func (s *Service) GetSelfTestProgress(ctx context.Context, req *smartdiskGrpc.SmartInfoRequest) (*smartdiskGrpc.SelfTestProgress, error) {
+	info, err := GetSmartInfo(req.GetDevice())
+	if err != nil && info == nil {
+		return nil, err
+	}
+	// If smartctl returned warnings but we still parsed info, continue.
+	progress := &smartdiskGrpc.SelfTestProgress{
+		Device:           req.GetDevice(),
+		Status:           "idle",
+		ProgressPercent:  0,
+		RemainingPercent: 0,
+	}
+
+	for _, test := range info.SelfTests {
+		if test.RemainingPercent > 0 || containsInProgress(test.Status) {
+			pct := int64(100 - test.RemainingPercent)
+			if pct < 0 {
+				pct = 0
+			}
+			if pct > 100 {
+				pct = 100
+			}
+			progress = &smartdiskGrpc.SelfTestProgress{
+				Device:           req.GetDevice(),
+				Status:           test.Status,
+				ProgressPercent:  pct,
+				RemainingPercent: test.RemainingPercent,
+				TestType:         test.Type,
+				LifetimeHours:    test.LifetimeHours,
+			}
+			break
+		}
+	}
+
+	return progress, nil
+}
+
+func containsInProgress(status string) bool {
+	status = strings.ToLower(strings.TrimSpace(status))
+	return strings.Contains(status, "in progress") || strings.Contains(status, "progress")
 }

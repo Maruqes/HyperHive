@@ -19,8 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	SmartDiskService_GetSmartInfo_FullMethodName = "/smartdisk.SmartDiskService/GetSmartInfo"
-	SmartDiskService_RunSelfTest_FullMethodName  = "/smartdisk.SmartDiskService/RunSelfTest"
+	SmartDiskService_GetSmartInfo_FullMethodName        = "/smartdisk.SmartDiskService/GetSmartInfo"
+	SmartDiskService_RunSelfTest_FullMethodName         = "/smartdisk.SmartDiskService/RunSelfTest"
+	SmartDiskService_GetSelfTestProgress_FullMethodName = "/smartdisk.SmartDiskService/GetSelfTestProgress"
 )
 
 // SmartDiskServiceClient is the client API for SmartDiskService service.
@@ -29,6 +30,7 @@ const (
 type SmartDiskServiceClient interface {
 	GetSmartInfo(ctx context.Context, in *SmartInfoRequest, opts ...grpc.CallOption) (*SmartDiskInfo, error)
 	RunSelfTest(ctx context.Context, in *SelfTestRequest, opts ...grpc.CallOption) (*SelfTestResponse, error)
+	GetSelfTestProgress(ctx context.Context, in *SmartInfoRequest, opts ...grpc.CallOption) (*SelfTestProgress, error)
 }
 
 type smartDiskServiceClient struct {
@@ -59,12 +61,23 @@ func (c *smartDiskServiceClient) RunSelfTest(ctx context.Context, in *SelfTestRe
 	return out, nil
 }
 
+func (c *smartDiskServiceClient) GetSelfTestProgress(ctx context.Context, in *SmartInfoRequest, opts ...grpc.CallOption) (*SelfTestProgress, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SelfTestProgress)
+	err := c.cc.Invoke(ctx, SmartDiskService_GetSelfTestProgress_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SmartDiskServiceServer is the server API for SmartDiskService service.
 // All implementations must embed UnimplementedSmartDiskServiceServer
 // for forward compatibility
 type SmartDiskServiceServer interface {
 	GetSmartInfo(context.Context, *SmartInfoRequest) (*SmartDiskInfo, error)
 	RunSelfTest(context.Context, *SelfTestRequest) (*SelfTestResponse, error)
+	GetSelfTestProgress(context.Context, *SmartInfoRequest) (*SelfTestProgress, error)
 	mustEmbedUnimplementedSmartDiskServiceServer()
 }
 
@@ -77,6 +90,9 @@ func (UnimplementedSmartDiskServiceServer) GetSmartInfo(context.Context, *SmartI
 }
 func (UnimplementedSmartDiskServiceServer) RunSelfTest(context.Context, *SelfTestRequest) (*SelfTestResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RunSelfTest not implemented")
+}
+func (UnimplementedSmartDiskServiceServer) GetSelfTestProgress(context.Context, *SmartInfoRequest) (*SelfTestProgress, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSelfTestProgress not implemented")
 }
 func (UnimplementedSmartDiskServiceServer) mustEmbedUnimplementedSmartDiskServiceServer() {}
 
@@ -127,6 +143,24 @@ func _SmartDiskService_RunSelfTest_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SmartDiskService_GetSelfTestProgress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SmartInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SmartDiskServiceServer).GetSelfTestProgress(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SmartDiskService_GetSelfTestProgress_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SmartDiskServiceServer).GetSelfTestProgress(ctx, req.(*SmartInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SmartDiskService_ServiceDesc is the grpc.ServiceDesc for SmartDiskService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -141,6 +175,10 @@ var SmartDiskService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RunSelfTest",
 			Handler:    _SmartDiskService_RunSelfTest_Handler,
+		},
+		{
+			MethodName: "GetSelfTestProgress",
+			Handler:    _SmartDiskService_GetSelfTestProgress_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
