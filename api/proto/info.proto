@@ -60,18 +60,11 @@ message DiskCacheStruct {
 	uint64 writeback_tmp_kb = 4;
 }
 
-message NFSServerCacheStats {
-	map<string, uint64> reply_cache = 1;
-	map<string, uint64> file_cache = 2;
-}
-
 message DiskSummary {
 	repeated DiskStruct disks = 1;
 	map<string, double> usage = 2;
 	repeated DiskIOStruct io = 3;
-	repeated DiskCacheStruct cache = 4;
 	DiskCacheStruct system_cache = 5;
-	NFSServerCacheStats nfs_server_cache = 6;
 }
 
 
