@@ -9,19 +9,20 @@ import (
 )
 
 var (
-	MasterIP          string
-	SlaveIP           string
-	PingInterval      int
-	Mode              string
-	MachineName       string
-	VNC_MIN_PORT      int
-	VNC_MAX_PORT      int
-	OTHER_SLAVES      []string
-	Conn              *grpc.ClientConn
-	Qemu_UID          string
-	Qemu_GID          string
-	VirtioISOPath     string
-	DirtyRatioPercent int
+	MasterIP                    string
+	SlaveIP                     string
+	PingInterval                int
+	Mode                        string
+	MachineName                 string
+	VNC_MIN_PORT                int
+	VNC_MAX_PORT                int
+	OTHER_SLAVES                []string
+	Conn                        *grpc.ClientConn
+	Qemu_UID                    string
+	Qemu_GID                    string
+	VirtioISOPath               string
+	DirtyRatioPercent           int
+	DirtyBackgroundRatioPercent int
 )
 
 func SetConn(conn *grpc.ClientConn) {
@@ -40,6 +41,7 @@ func Setup() error {
 	VNC_MIN_PORT, _ = strconv.Atoi(os.Getenv("VNC_MIN_PORT"))
 	VNC_MAX_PORT, _ = strconv.Atoi(os.Getenv("VNC_MAX_PORT"))
 	DirtyRatioPercent, _ = strconv.Atoi(os.Getenv("DIRTY_RATIO_PERCENT"))
+	DirtyBackgroundRatioPercent, _ = strconv.Atoi(os.Getenv("DIRTY_BACKGROUND_RATIO_PERCENT"))
 
 	if PingInterval == 0 {
 		PingInterval = 15 // default 15 seconds

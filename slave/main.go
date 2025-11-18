@@ -31,6 +31,7 @@ const (
 
 	vmDirtyRatioPath           = "/proc/sys/vm/dirty_ratio"
 	vmDirtyBackgroundRatioPath = "/proc/sys/vm/dirty_background_ratio"
+	defaultDirtyRatio          = 15
 )
 
 func askForSudo() {
@@ -41,21 +42,31 @@ func askForSudo() {
 	}
 }
 
-func applyDirtyRatioPercent(percent int) error {
-	if percent < 1 || percent > 100 {
-		return fmt.Errorf("dirty ratio percent %d must be between 1 and 100", percent)
+func applyDirtyRatioSettings(ratio, background int) error {
+	setRatio := ratio
+	if setRatio <= 0 {
+		setRatio = defaultDirtyRatio
+	}
+	if setRatio > 100 {
+		return fmt.Errorf("dirty ratio percent %d must be between 1 and 100", setRatio)
 	}
 
-	if err := writeSysctlValue(vmDirtyRatioPath, percent); err != nil {
+	if err := writeSysctlValue(vmDirtyRatioPath, setRatio); err != nil {
 		return err
 	}
 
-	background := percent / 4
-	if background < 1 {
-		background = 1
+	setBackground := background
+	if setBackground <= 0 {
+		setBackground = setRatio / 4
+		if setBackground < 1 {
+			setBackground = 1
+		}
+	}
+	if setBackground > 100 {
+		return fmt.Errorf("dirty background ratio %d must be between 1 and 100", setBackground)
 	}
 
-	return writeSysctlValue(vmDirtyBackgroundRatioPath, background)
+	return writeSysctlValue(vmDirtyBackgroundRatioPath, setBackground)
 }
 
 func writeSysctlValue(path string, value int) error {
@@ -686,10 +697,8 @@ func main() {
 		log.Fatalf("env setup: %v", err)
 	}
 
-	if env512.DirtyRatioPercent > 0 {
-		if err := applyDirtyRatioPercent(env512.DirtyRatioPercent); err != nil {
-			log.Fatalf("set dirty ratio percent: %v", err)
-		}
+	if err := applyDirtyRatioSettings(env512.DirtyRatioPercent, env512.DirtyBackgroundRatioPercent); err != nil {
+		log.Fatalf("apply dirty ratio settings: %v", err)
 	}
 
 	if err := virsh.SetVNCPorts(env512.VNC_MIN_PORT, env512.VNC_MAX_PORT); err != nil {
