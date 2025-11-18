@@ -167,9 +167,16 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	if opts.Machine != "" {
 		machineAttr = fmt.Sprintf(" machine='%s'", opts.Machine)
 	}
+	if opts.VCPUs <= 0 {
+		return "", fmt.Errorf("vcpu count must be at least 1")
+	}
 	cpuXML := strings.TrimSpace(opts.CPUXml)
 	if cpuXML == "" {
 		cpuXML = "<cpu mode='host-passthrough' check='none'/>"
+	}
+	cpuXML, err = ensureTopologyInCPUXML(cpuXML, opts.VCPUs)
+	if err != nil {
+		return "", fmt.Errorf("set cpu topology: %w", err)
 	}
 
 	err = validateCPUXML(cpuXML)
@@ -394,6 +401,27 @@ func validateCPUXML(cpuXML string) error {
 	default:
 		return fmt.Errorf("unknown compare result: %v", res)
 	}
+}
+
+func ensureTopologyInCPUXML(cpuXML string, vcpus int) (string, error) {
+	if vcpus <= 0 {
+		return "", fmt.Errorf("vcpus must be positive")
+	}
+	if strings.Contains(cpuXML, "<topology") {
+		return cpuXML, nil
+	}
+
+	topology := fmt.Sprintf("<topology sockets='1' cores='%d' threads='1'/>", vcpus)
+
+	if strings.Contains(cpuXML, "</cpu>") {
+		return strings.Replace(cpuXML, "</cpu>", "  "+topology+"\n</cpu>", 1), nil
+	}
+
+	if strings.HasSuffix(cpuXML, "/>") {
+		return strings.TrimSuffix(cpuXML, "/>") + ">\n  " + topology + "\n</cpu>", nil
+	}
+
+	return "", fmt.Errorf("cpu xml must contain a <cpu> block")
 }
 
 func UpdateVMCPUXml(vmName, cpuXml string) error {
