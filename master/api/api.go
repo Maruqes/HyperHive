@@ -89,6 +89,7 @@ func StartApi() {
 		setupISOAPI(r)
 		setupExtraAPI(r)
 		setupInfoAPI(r)
+		setupSmartDiskAPI(r)
 		setupGoAccessAPI(r)
 		setupStreamInfo(r)
 		setupWireguardAPI(r)

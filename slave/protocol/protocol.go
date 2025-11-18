@@ -11,6 +11,7 @@ import (
 	"slave/info"
 	"slave/logs512"
 	nfsservice "slave/nfs"
+	smartdisk "slave/smartdisk"
 	"slave/virsh"
 	"sync"
 	"syscall"
@@ -21,6 +22,7 @@ import (
 	infoGrpc "github.com/Maruqes/512SvMan/api/proto/info"
 	nfsproto "github.com/Maruqes/512SvMan/api/proto/nfs"
 	pb "github.com/Maruqes/512SvMan/api/proto/protocol"
+	smartdiskGrpc "github.com/Maruqes/512SvMan/api/proto/smartdisk"
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 
 	"github.com/Maruqes/512SvMan/logger"
@@ -86,6 +88,7 @@ func listenGRPC() {
 	grpcVirsh.RegisterSlaveVirshServiceServer(s, &virsh.SlaveVirshService{})
 	extraGrpc.RegisterExtraServiceServer(s, &extra.ExtraService{})
 	infoGrpc.RegisterInfoServer(s, &info.INFOService{})
+	smartdiskGrpc.RegisterSmartDiskServiceServer(s, &smartdisk.Service{})
 	btrfsGrpc.RegisterBtrFSServiceServer(s, &btrfs.BTRFSService{})
 	logger.Info("client services listening", "port", 50052)
 	if err := s.Serve(lis); err != nil {
