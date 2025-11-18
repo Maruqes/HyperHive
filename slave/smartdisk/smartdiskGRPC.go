@@ -217,6 +217,9 @@ func (s *Service) GetSelfTestProgress(ctx context.Context, req *smartdiskGrpc.Sm
 		progress.Status = "in progress"
 		progress.RemainingPercent = pct
 		progress.ProgressPercent = clampPercent(100 - pct)
+		if progress.TestType == "" {
+			progress.TestType = parseTestTypeFromError(err)
+		}
 	}
 
 	return progress, nil
@@ -241,6 +244,23 @@ func parseRemainingFromError(err error) (int64, bool) {
 		return 0, false
 	}
 	return clampPercent(value), true
+}
+
+func parseTestTypeFromError(err error) string {
+	if err == nil {
+		return ""
+	}
+	re := regexp.MustCompile(`\((short|long|extended)\)`)
+	m := re.FindStringSubmatch(strings.ToLower(err.Error()))
+	if len(m) < 2 {
+		return ""
+	}
+	switch m[1] {
+	case "long":
+		return "extended"
+	default:
+		return m[1]
+	}
 }
 
 func clampPercent(v int64) int64 {

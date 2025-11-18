@@ -90,7 +90,23 @@ func getSmartDiskSelfTestProgress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = writeProto(w, progress)
+	type response struct {
+		Device           string `json:"device"`
+		Status           string `json:"status"`
+		ProgressPercent  int64  `json:"progressPercent"`
+		RemainingPercent int64  `json:"remainingPercent"`
+		TestType         string `json:"testType"`
+	}
+
+	out := response{
+		Device:           progress.GetDevice(),
+		Status:           progress.GetStatus(),
+		ProgressPercent:  progress.GetProgressPercent(),
+		RemainingPercent: progress.GetRemainingPercent(),
+		TestType:         progress.GetTestType(),
+	}
+
+	writeJSON(w, out)
 }
 
 func setupSmartDiskAPI(r chi.Router) chi.Router {
