@@ -113,10 +113,21 @@ func (s *INFOService) GetDiskSummary(ctx context.Context, req *infoGrpc.Empty) (
 		})
 	}
 
+	var systemCache *infoGrpc.DiskCacheStruct
+	if info.SystemCache != nil {
+		systemCache = &infoGrpc.DiskCacheStruct{
+			Device:         info.SystemCache.Device,
+			DirtyKb:        info.SystemCache.DirtyKB,
+			WritebackKb:    info.SystemCache.WritebackKB,
+			WritebackTmpKb: info.SystemCache.WritebackTmpKB,
+		}
+	}
+
 	return &infoGrpc.DiskSummary{
-		Disks: disks,
-		Usage: info.Usage,
-		Io:    ioStats,
+		Disks:       disks,
+		Usage:       info.Usage,
+		Io:          ioStats,
+		SystemCache: systemCache,
 	}, nil
 }
 

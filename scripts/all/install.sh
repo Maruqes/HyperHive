@@ -157,6 +157,19 @@ echo ""
 echo "═══════════════════════════════════════════════════════════════════════════"
 echo ""
 
+# Install additional development packages requested
+echo -e "${BOLD}[3.a] Installing additional dev packages: libmaxminddb-devel, ncurses-devel...${NC}"
+if command -v dnf >/dev/null 2>&1; then
+    if sudo_run dnf install -y libmaxminddb-devel ncurses-devel; then
+        echo -e "${YELLOW}✓ Additional development packages installed.${NC}"
+    else
+        echo -e "${YELLOW}Could not install libmaxminddb-devel or ncurses-devel with dnf. Please install manually.${NC}"
+    fi
+else
+    echo -e "${YELLOW}dnf not found; skipping installation of libmaxminddb-devel and ncurses-devel.${NC}"
+fi
+
+
 echo -e "${BOLD}[4/4] Updating Firewall and Permissions...${NC}"
 echo ""
 

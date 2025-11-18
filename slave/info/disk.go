@@ -1,10 +1,13 @@
 package info
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 
 	"github.com/shirou/gopsutil/v4/disk"
 )
@@ -23,7 +26,6 @@ type DiskStruct struct {
 	UsedPercent float64  // Used percentage
 	Opts        []string // Mount options
 }
-
 
 func (d *DiskInfoStruct) GetDisks() ([]DiskStruct, error) {
 	partitions, err := disk.Partitions(false) // false = exclude pseudo filesystems
@@ -93,6 +95,14 @@ type DiskIOStruct struct {
 	MergedWriteCount uint64 // Number of merged writes
 }
 
+// SystemCacheStruct holds the global Dirty/Writeback/WritebackTmp metrics.
+type SystemCacheStruct struct {
+	Device         string `json:"device"`
+	DirtyKB        uint64 `json:"dirty_kb"`
+	WritebackKB    uint64 `json:"writeback_kb"`
+	WritebackTmpKB uint64 `json:"writeback_tmp_kb"`
+}
+
 // GetDiskIOUsage returns I/O statistics for each disk
 func (d *DiskInfoStruct) GetDiskIOUsage() ([]DiskIOStruct, error) {
 	ioCounters, err := disk.IOCounters()
@@ -121,6 +131,63 @@ func (d *DiskInfoStruct) GetDiskIOUsage() ([]DiskIOStruct, error) {
 	}
 
 	return diskIOs, nil
+}
+
+func getSystemCacheStats() *SystemCacheStruct {
+	values, err := parseMeminfoFields([]string{"Dirty", "Writeback", "WritebackTmp"})
+	if err != nil || len(values) == 0 {
+		return nil
+	}
+
+	return &SystemCacheStruct{
+		Device:         "system",
+		DirtyKB:        values["Dirty"],
+		WritebackKB:    values["Writeback"],
+		WritebackTmpKB: values["WritebackTmp"],
+	}
+}
+
+func parseMeminfoFields(fields []string) (map[string]uint64, error) {
+	fieldSet := make(map[string]struct{}, len(fields))
+	for _, f := range fields {
+		fieldSet[f] = struct{}{}
+	}
+
+	file, err := os.Open("/proc/meminfo")
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	values := make(map[string]uint64)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.Fields(line)
+		if len(parts) < 2 {
+			continue
+		}
+
+		field := strings.TrimSuffix(parts[0], ":")
+		if _, ok := fieldSet[field]; !ok {
+			continue
+		}
+
+		value, err := strconv.ParseUint(parts[1], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		values[field] = value
+		if len(values) == len(fieldSet) {
+			break
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return values, nil
 }
 
 // returns write/read/err
@@ -204,9 +271,10 @@ func (d *DiskInfoStruct) GetWriteReadSpeed(folderMount string) (float64, float64
 
 // DiskSummary groups together disk inventory, usage, and IO stats.
 type DiskSummary struct {
-	Disks []DiskStruct       `json:"disks"`
-	Usage map[string]float64 `json:"usage"`
-	IO    []DiskIOStruct     `json:"io"`
+	Disks       []DiskStruct       `json:"disks"`
+	Usage       map[string]float64 `json:"usage"`
+	IO          []DiskIOStruct     `json:"io"`
+	SystemCache *SystemCacheStruct `json:"system_cache"`
 }
 
 // GetDiskSummary returns a consolidated view of disk information by calling
@@ -227,9 +295,12 @@ func (d *DiskInfoStruct) GetDiskSummary() (*DiskSummary, error) {
 		return nil, err
 	}
 
+	systemCache := getSystemCacheStats()
+
 	return &DiskSummary{
-		Disks: disks,
-		Usage: usage,
-		IO:    ioStats,
+		Disks:       disks,
+		Usage:       usage,
+		IO:          ioStats,
+		SystemCache: systemCache,
 	}, nil
 }

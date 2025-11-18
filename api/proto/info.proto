@@ -53,10 +53,18 @@ message DiskIOStruct {
 	uint64 merged_write_count = 12;
 }
 
+message DiskCacheStruct {
+	string device = 1;
+	uint64 dirty_kb = 2;
+	uint64 writeback_kb = 3;
+	uint64 writeback_tmp_kb = 4;
+}
+
 message DiskSummary {
 	repeated DiskStruct disks = 1;
 	map<string, double> usage = 2;
 	repeated DiskIOStruct io = 3;
+	DiskCacheStruct system_cache = 5;
 }
 
 

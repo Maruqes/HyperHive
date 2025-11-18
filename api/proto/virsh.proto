@@ -107,6 +107,7 @@ message ChangeNetworkReq{
   string new_network = 2;
 }
 
+
 //defines on slave
 service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);

@@ -28,6 +28,10 @@ const (
 	virtioISOName         = "virtio-win.iso"
 	virtioDownloadDir     = "downloads"
 	virtioTempFilePattern = "virtio-*.iso"
+
+	vmDirtyRatioPath           = "/proc/sys/vm/dirty_ratio"
+	vmDirtyBackgroundRatioPath = "/proc/sys/vm/dirty_background_ratio"
+	defaultDirtyRatio          = 15
 )
 
 func askForSudo() {
@@ -36,6 +40,40 @@ func askForSudo() {
 		fmt.Println("This program needs to be run as root.")
 		os.Exit(0)
 	}
+}
+
+func applyDirtyRatioSettings(ratio, background int) error {
+	setRatio := ratio
+	if setRatio <= 0 {
+		setRatio = defaultDirtyRatio
+	}
+	if setRatio > 100 {
+		return fmt.Errorf("dirty ratio percent %d must be between 1 and 100", setRatio)
+	}
+
+	if err := writeSysctlValue(vmDirtyRatioPath, setRatio); err != nil {
+		return err
+	}
+
+	setBackground := background
+	if setBackground <= 0 {
+		setBackground = setRatio / 4
+		if setBackground < 1 {
+			setBackground = 1
+		}
+	}
+	if setBackground > 100 {
+		return fmt.Errorf("dirty background ratio %d must be between 1 and 100", setBackground)
+	}
+
+	return writeSysctlValue(vmDirtyBackgroundRatioPath, setBackground)
+}
+
+func writeSysctlValue(path string, value int) error {
+	if err := os.WriteFile(path, []byte(fmt.Sprintf("%d", value)), 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+	return nil
 }
 
 /*
@@ -452,6 +490,8 @@ func ensureVirtioISO() (string, error) {
 	}
 
 	if needDownload {
+		logger.Info("Starting VirtIO ISO download from " + virtioISOURL)
+
 		tmpFile, err := os.CreateTemp(absDownloadDir, virtioTempFilePattern)
 		if err != nil {
 			return "", fmt.Errorf("create temp virtio iso: %w", err)
@@ -468,10 +508,68 @@ func ensureVirtioISO() (string, error) {
 			return "", fmt.Errorf("download virtio iso: unexpected status %s", resp.Status)
 		}
 
-		if _, err := io.Copy(tmpFile, resp.Body); err != nil {
-			tmpFile.Close()
-			return "", fmt.Errorf("save virtio iso: %w", err)
+		totalSize := resp.ContentLength
+		if totalSize > 0 {
+			logger.Info(fmt.Sprintf("VirtIO ISO size: %.2f MB", float64(totalSize)/(1024*1024)))
 		}
+
+		// Download with progress tracking
+		startTime := time.Now()
+		var downloaded int64
+		lastLogTime := startTime
+		lastLogBytes := int64(0)
+
+		buffer := make([]byte, 32*1024) // 32KB buffer
+		for {
+			n, err := resp.Body.Read(buffer)
+			if n > 0 {
+				if _, writeErr := tmpFile.Write(buffer[:n]); writeErr != nil {
+					tmpFile.Close()
+					return "", fmt.Errorf("save virtio iso: %w", writeErr)
+				}
+				downloaded += int64(n)
+
+				// Log progress every 2 seconds or at completion
+				now := time.Now()
+				if now.Sub(lastLogTime) >= 2*time.Second || err == io.EOF {
+					elapsed := now.Sub(startTime).Seconds()
+					if elapsed > 0 {
+						avgSpeed := float64(downloaded) / elapsed / (1024 * 1024)                                         // MB/s
+						instantSpeed := float64(downloaded-lastLogBytes) / now.Sub(lastLogTime).Seconds() / (1024 * 1024) // MB/s
+
+						if totalSize > 0 {
+							percentage := float64(downloaded) / float64(totalSize) * 100
+							logger.Info(fmt.Sprintf("Downloading VirtIO ISO: %.1f%% (%.2f/%.2f MB) - Speed: %.2f MB/s (avg: %.2f MB/s)",
+								percentage,
+								float64(downloaded)/(1024*1024),
+								float64(totalSize)/(1024*1024),
+								instantSpeed,
+								avgSpeed))
+						} else {
+							logger.Info(fmt.Sprintf("Downloading VirtIO ISO: %.2f MB - Speed: %.2f MB/s (avg: %.2f MB/s)",
+								float64(downloaded)/(1024*1024),
+								instantSpeed,
+								avgSpeed))
+						}
+						lastLogTime = now
+						lastLogBytes = downloaded
+					}
+				}
+			}
+
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				tmpFile.Close()
+				return "", fmt.Errorf("read virtio iso during download: %w", err)
+			}
+		}
+
+		totalTime := time.Since(startTime).Seconds()
+		avgSpeed := float64(downloaded) / totalTime / (1024 * 1024)
+		logger.Info(fmt.Sprintf("VirtIO ISO download completed: %.2f MB in %.1fs (avg: %.2f MB/s)",
+			float64(downloaded)/(1024*1024), totalTime, avgSpeed))
 
 		if err := tmpFile.Close(); err != nil {
 			return "", fmt.Errorf("finalize virtio iso: %w", err)
@@ -483,37 +581,47 @@ func ensureVirtioISO() (string, error) {
 		if err := os.Chmod(target, 0o644); err != nil {
 			return "", fmt.Errorf("chmod virtio iso: %w", err)
 		}
+
+		logger.Info("VirtIO ISO saved to " + target)
 	} else if errors.Is(destErr, os.ErrNotExist) {
 		return "", fmt.Errorf("virtio iso missing and remote head failed")
+	} else {
+		logger.Info("VirtIO ISO already up to date at " + dest)
 	}
 
 	// ensure cache copy exists for troubleshooting
 	if _, err := os.Stat(target); errors.Is(err, os.ErrNotExist) && destErr == nil {
+		logger.Info("Syncing VirtIO ISO to cache directory")
 		if err := copyFile(dest, target); err != nil {
 			return "", fmt.Errorf("sync virtio cache: %w", err)
 		}
 	}
 
-	srcFile, err := os.Open(target)
-	if err != nil {
-		return "", fmt.Errorf("open virtio iso for copy: %w", err)
-	}
-	defer srcFile.Close()
+	// Copy to libvirt directory if needed
+	if needDownload || errors.Is(destErr, os.ErrNotExist) {
+		logger.Info("Copying VirtIO ISO to libvirt boot directory")
+		srcFile, err := os.Open(target)
+		if err != nil {
+			return "", fmt.Errorf("open virtio iso for copy: %w", err)
+		}
+		defer srcFile.Close()
 
-	destFile, err := os.Create(dest)
-	if err != nil {
-		return "", fmt.Errorf("create virtio iso at libvirt dir: %w", err)
-	}
+		destFile, err := os.Create(dest)
+		if err != nil {
+			return "", fmt.Errorf("create virtio iso at libvirt dir: %w", err)
+		}
 
-	if _, err := io.Copy(destFile, srcFile); err != nil {
-		destFile.Close()
-		return "", fmt.Errorf("copy virtio iso to libvirt dir: %w", err)
-	}
-	if err := destFile.Close(); err != nil {
-		return "", fmt.Errorf("finalize virtio iso at libvirt dir: %w", err)
-	}
-	if err := os.Chmod(dest, 0o644); err != nil {
-		return "", fmt.Errorf("chmod virtio iso at libvirt dir: %w", err)
+		if _, err := io.Copy(destFile, srcFile); err != nil {
+			destFile.Close()
+			return "", fmt.Errorf("copy virtio iso to libvirt dir: %w", err)
+		}
+		if err := destFile.Close(); err != nil {
+			return "", fmt.Errorf("finalize virtio iso at libvirt dir: %w", err)
+		}
+		if err := os.Chmod(dest, 0o644); err != nil {
+			return "", fmt.Errorf("chmod virtio iso at libvirt dir: %w", err)
+		}
+		logger.Info("VirtIO ISO copied to " + dest)
 	}
 
 	if headErr == nil && remoteInfo.ETag != "" {
@@ -587,6 +695,10 @@ func main() {
 	//varsc
 	if err := env512.Setup(); err != nil {
 		log.Fatalf("env setup: %v", err)
+	}
+
+	if err := applyDirtyRatioSettings(env512.DirtyRatioPercent, env512.DirtyBackgroundRatioPercent); err != nil {
+		log.Fatalf("apply dirty ratio settings: %v", err)
 	}
 
 	if err := virsh.SetVNCPorts(env512.VNC_MIN_PORT, env512.VNC_MAX_PORT); err != nil {
