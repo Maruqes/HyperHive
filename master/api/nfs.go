@@ -140,7 +140,7 @@ func listPathContents(w http.ResponseWriter, r *http.Request) {
 
 func getInfo(w http.ResponseWriter, r *http.Request) {
 	nfsIDStr := chi.URLParam(r, "nfs_id")
-	
+
 	nfsID, err := strconv.Atoi(nfsIDStr)
 	if err != nil {
 		http.Error(w, "invalid nfs_id parameter", http.StatusBadRequest)
@@ -154,14 +154,7 @@ func getInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	data, err := json.Marshal(stats)
-	if err != nil {
-		http.Error(w, "failed to marshal NFS mount stats", http.StatusInternalServerError)
-		return
-	}
-
-	_, _ = w.Write(data)
+	writeProtoJSON(w, stats)
 }
 
 func setupNFSAPI(r chi.Router) chi.Router {
@@ -170,6 +163,6 @@ func setupNFSAPI(r chi.Router) chi.Router {
 		r.Post("/create", createShare)
 		r.Delete("/delete", deleteShare)
 		r.Post("/contents/{machine}", listPathContents)
-		r.Get("/info/{nfs_id}",getInfo)
+		r.Get("/info/{nfs_id}", getInfo)
 	})
 }
