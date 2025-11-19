@@ -38,26 +38,13 @@ type forceReallocState struct {
 var (
 	forceReallocMu       sync.Mutex
 	forceReallocStateMap = map[string]*forceReallocState{}
-
-	// Example outputs we want to handle:
-	//   "0.01% done, 0:15 elapsed. (0/0/0 errors)"
-	//   "37585 0.84% done, 7:31:08 elapsed. (0/0/527405 errors)"
-	//   "0.03% done, 0:12 elapsed"
-	//   "37585 0.84% done, 7:31:08 elapsed"
-	badBlocksProgressWithErrorsRegex = regexp.MustCompile(
-		`^(?:(\d+)\s+)?([\d.]+)%\s+done,?\s+([\d:]+)\s+elapsed\.?\s+\((\d+)/(\d+)/(\d+)\s+errors\)$`,
-	)
-	badBlocksProgressSimpleRegex = regexp.MustCompile(
-		`^(?:(\d+)\s+)?([\d.]+)%\s+done,?\s+([\d:]+)\s+elapsed\.?$`,
-	)
-
-	// "Checking blocks 0 to 488386583"
-	badBlocksRangeRegex = regexp.MustCompile(
-		`^Checking blocks\s+(\d+)\s+to\s+(\d+)`,
-	)
-
-	// A line that is just a block number, e.g. "37584"
-	badBlocksBlockOnlyRegex = regexp.MustCompile(`^\d+$`)
+	// badblocks output formats:
+	// "0.01% done, 0:15 elapsed. (0/0/0 errors)"
+	// "0.01% done, 0:15 elapsed (0/0/0 errors)" (no period)
+	badBlocksProgressRegex = regexp.MustCompile(`([\d.]+)%\s+done,?\s+([\d:]+)\s+elapsed\.?\s+\((\d+)/(\d+)/(\d+)\s+errors\)`)
+	// Also capture just the block numbers if present
+	// Format: "Reading and comparing: 1234567"
+	badBlocksBlockRegex = regexp.MustCompile(`(?:Reading and comparing|Checking|Testing with pattern):\s*(\d+)`)
 )
 
 // StartForceReallocation kicks off a non-destructive badblocks pass to force sector remapping.
@@ -69,18 +56,16 @@ func StartForceReallocation(device string) (*ForceReallocProgress, error) {
 
 	forceReallocMu.Lock()
 	if existing, ok := forceReallocStateMap[device]; ok && existing.Status == "running" {
-		// Return a copy to avoid data races
-		copy := existing.ForceReallocProgress
-		forceReallocMu.Unlock()
-		return &copy, fmt.Errorf("force reallocation already running for %s (progress: %s)", device, copy.ProgressPercent)
+		defer forceReallocMu.Unlock()
+		return &existing.ForceReallocProgress, fmt.Errorf("force reallocation already running for %s (progress: %s)", device, existing.ProgressPercent)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// Use -nsv flags:
+	// Use -nsvf flags:
 	// -n = non-destructive read-write
 	// -s = show progress
 	// -v = verbose
-	// stdbuf to reduce buffering so we see progress updates promptly
+	// Use stdbuf to disable buffering so we get realtime progress
 	cmd := exec.CommandContext(ctx, "stdbuf", "-o0", "-e0", "badblocks", "-nsv", device)
 
 	state := &forceReallocState{
@@ -102,11 +87,15 @@ func StartForceReallocation(device string) (*ForceReallocProgress, error) {
 	forceReallocStateMap[device] = state
 	forceReallocMu.Unlock()
 
-	// badblocks writes progress to stderr
-	stderr, pipeErr := cmd.StderrPipe()
+	// badblocks writes progress updates to stdout (some builds use stderr), so read both streams
+	stdout, pipeErr := cmd.StdoutPipe()
 	if pipeErr != nil {
-		updateForceReallocError(device, fmt.Errorf("failed to create stderr pipe for badblocks: %w", pipeErr))
+		updateForceReallocError(device, fmt.Errorf("failed to create stdout pipe for badblocks: %w", pipeErr))
 		return nil, pipeErr
+	}
+	// Mirror stderr into the same pipe so we don't miss progress/errors regardless of the stream used.
+	if cmd.Stdout != nil {
+		cmd.Stderr = cmd.Stdout
 	}
 
 	if err := cmd.Start(); err != nil {
@@ -114,14 +103,14 @@ func StartForceReallocation(device string) (*ForceReallocProgress, error) {
 		return nil, err
 	}
 
-	go trackBadblocks(device, ctx, cmd, stderr)
+	go trackBadblocks(device, ctx, cmd, stdout)
 
 	return currentForceRealloc(device), nil
 }
 
 // GetForceReallocationProgress returns the current state for a device.
 func GetForceReallocationProgress(device string) *ForceReallocProgress {
-	device, _ = validateDevicePath(device) // best effort
+	device, _ = validateDevicePath(device) // best effort; invalid device will just return nil
 	return currentForceRealloc(device)
 }
 
@@ -132,6 +121,7 @@ func GetAllForceReallocationProgress() []*ForceReallocProgress {
 
 	var results []*ForceReallocProgress
 	for _, state := range forceReallocStateMap {
+		// Return a copy to avoid data races
 		copy := state.ForceReallocProgress
 		results = append(results, &copy)
 	}
@@ -153,40 +143,40 @@ func CancelForceReallocation(device string) error {
 	}
 
 	if state.Status != "running" {
-		currentStatus := state.Status
 		forceReallocMu.Unlock()
-		return fmt.Errorf("force reallocation job for %s is not running (current status: %s)", device, currentStatus)
+		return fmt.Errorf("force reallocation job for %s is not running (current status: %s)", device, state.Status)
 	}
 
-	cancel := state.cancel
-	cmd := state.cmd
-	forceReallocMu.Unlock()
-
-	// Stop the context/process without holding the global mutex
-	if cancel != nil {
-		cancel()
-	}
-	if cmd != nil && cmd.Process != nil {
-		_ = cmd.Process.Kill()
+	// Call the cancel function to stop the badblocks process
+	if state.cancel != nil {
+		state.cancel()
 	}
 
-	// Mark as cancelled (if still present and not already in another terminal state)
-	forceReallocMu.Lock()
-	if state, ok := forceReallocStateMap[device]; ok {
-		if state.Status == "running" {
-			state.Status = "cancelled"
-			state.Message = "force reallocation cancelled by user"
-			state.Error = ""
-		}
+	// Kill the process directly to ensure it stops
+	if state.cmd != nil && state.cmd.Process != nil {
+		state.cmd.Process.Kill()
 	}
+
+	// Immediately update the status to prevent race conditions
+	state.Status = "cancelled"
+	state.Message = "force reallocation cancelled by user"
+	state.Error = ""
 	forceReallocMu.Unlock()
 
 	return nil
 }
 
 func trackBadblocks(device string, ctx context.Context, cmd *exec.Cmd, r io.ReadCloser) {
-	defer r.Close()
+	defer func() {
+		r.Close()
+		forceReallocMu.Lock()
+		if state, ok := forceReallocStateMap[device]; ok && state.cancel != nil {
+			state.cancel()
+		}
+		forceReallocMu.Unlock()
+	}()
 
+	// Create a scanner that splits on both \n and \r
 	scanner := bufio.NewScanner(r)
 	buf := make([]byte, 0, 1024)
 	scanner.Buffer(buf, 1024*1024)
@@ -220,27 +210,42 @@ func trackBadblocks(device string, ctx context.Context, cmd *exec.Cmd, r io.Read
 		return 0, nil, nil
 	})
 
-scanLoop:
 	for scanner.Scan() {
 		line := scanner.Text()
 
+		// Check if context is cancelled during scanning
 		select {
 		case <-ctx.Done():
-			// Context cancelled, break out and let cmd.Wait() handle cleanup
-			break scanLoop
+			// Context cancelled, kill the process
+			if cmd.Process != nil {
+				cmd.Process.Kill()
+			}
+			forceReallocMu.Lock()
+			if state, ok := forceReallocStateMap[device]; ok {
+				state.Status = "cancelled"
+				state.Message = "force reallocation cancelled by user"
+				state.Error = ""
+			}
+			forceReallocMu.Unlock()
+			return
 		default:
 			updateForceReallocProgress(device, line)
 		}
 	}
 
-	if scanErr := scanner.Err(); scanErr != nil && !errors.Is(ctx.Err(), context.Canceled) {
-		updateForceReallocError(device, fmt.Errorf("badblocks read: %w", scanErr))
+	if scanErr := scanner.Err(); scanErr != nil {
+		// Don't report error if context was cancelled
+		if !errors.Is(ctx.Err(), context.Canceled) {
+			updateForceReallocError(device, fmt.Errorf("badblocks read: %w", scanErr))
+		}
+		return
 	}
 
-	// Always reap the process
 	waitErr := cmd.Wait()
 
 	if waitErr != nil {
+		// If the context was cancelled (user request), keep/correct the state
+		// as "cancelled" instead of overwriting with an error.
 		if errors.Is(ctx.Err(), context.Canceled) {
 			forceReallocMu.Lock()
 			if state, ok := forceReallocStateMap[device]; ok {
@@ -274,51 +279,28 @@ func updateForceReallocProgress(device, line string) {
 		return
 	}
 
-	// Basic "we're alive" message tweak
+	// Update last activity to show we're receiving output
 	forceReallocMu.Lock()
 	if state, ok := forceReallocStateMap[device]; ok && state.Status == "running" {
+		// Update message to show we're getting output (even if we can't parse it yet)
 		if state.Message == "starting badblocks (non-destructive read-write test)" {
 			state.Message = "badblocks running, receiving output..."
 		}
 	}
 	forceReallocMu.Unlock()
 
-	// 1) Range line: "Checking blocks 0 to 488386583"
-	if m := badBlocksRangeRegex.FindStringSubmatch(line); m != nil {
-		first, _ := strconv.ParseInt(m[1], 10, 64)
-		last, _ := strconv.ParseInt(m[2], 10, 64)
-		total := last - first + 1
-		if total < 0 {
-			total = 0
-		}
+	// Try to match the progress line format: "0.01% done, 0:15 elapsed. (0/0/0 errors)"
+	matches := badBlocksProgressRegex.FindStringSubmatch(line)
+	if len(matches) == 6 {
+		progressStr := matches[1] + "%"
+		elapsed := matches[2]
+		readErrs, _ := strconv.ParseInt(matches[3], 10, 64)
+		writeErrs, _ := strconv.ParseInt(matches[4], 10, 64)
+		corruptErrs, _ := strconv.ParseInt(matches[5], 10, 64)
 
 		forceReallocMu.Lock()
 		if state, ok := forceReallocStateMap[device]; ok && state.Status == "running" {
-			state.TotalBlocks = total
-			state.CurrentBlock = first
-		}
-		forceReallocMu.Unlock()
-		return
-	}
-
-	// 2) Full progress line with (r/w/c errors)
-	if m := badBlocksProgressWithErrorsRegex.FindStringSubmatch(line); m != nil {
-		var currentBlock int64
-		if m[1] != "" {
-			currentBlock, _ = strconv.ParseInt(m[1], 10, 64)
-		}
-		pctStr := m[2] + "%"
-		elapsed := m[3]
-		readErrs, _ := strconv.ParseInt(m[4], 10, 64)
-		writeErrs, _ := strconv.ParseInt(m[5], 10, 64)
-		corruptErrs, _ := strconv.ParseInt(m[6], 10, 64)
-
-		forceReallocMu.Lock()
-		if state, ok := forceReallocStateMap[device]; ok && state.Status == "running" {
-			if currentBlock > 0 {
-				state.CurrentBlock = currentBlock
-			}
-			state.ProgressPercent = pctStr
+			state.ProgressPercent = progressStr
 			state.ElapsedTime = elapsed
 			state.ReadErrors = readErrs
 			state.WriteErrors = writeErrs
@@ -327,41 +309,20 @@ func updateForceReallocProgress(device, line string) {
 			totalErrs := readErrs + writeErrs + corruptErrs
 			if totalErrs > 0 {
 				state.Message = fmt.Sprintf("badblocks scanning: %s complete, %s elapsed (%d/%d/%d errors)",
-					pctStr, elapsed, readErrs, writeErrs, corruptErrs)
+					progressStr, elapsed, readErrs, writeErrs, corruptErrs)
 			} else {
 				state.Message = fmt.Sprintf("badblocks scanning: %s complete, %s elapsed",
-					pctStr, elapsed)
+					progressStr, elapsed)
 			}
 		}
 		forceReallocMu.Unlock()
 		return
 	}
 
-	// 3) Simpler progress line without error tuple
-	if m := badBlocksProgressSimpleRegex.FindStringSubmatch(line); m != nil {
-		var currentBlock int64
-		if m[1] != "" {
-			currentBlock, _ = strconv.ParseInt(m[1], 10, 64)
-		}
-		pctStr := m[2] + "%"
-		elapsed := m[3]
-
-		forceReallocMu.Lock()
-		if state, ok := forceReallocStateMap[device]; ok && state.Status == "running" {
-			if currentBlock > 0 {
-				state.CurrentBlock = currentBlock
-			}
-			state.ProgressPercent = pctStr
-			state.ElapsedTime = elapsed
-			state.Message = fmt.Sprintf("badblocks scanning: %s complete, %s elapsed", pctStr, elapsed)
-		}
-		forceReallocMu.Unlock()
-		return
-	}
-
-	// 4) A line that is just a block number (common in -w/-n modes)
-	if badBlocksBlockOnlyRegex.MatchString(line) {
-		currentBlock, err := strconv.ParseInt(line, 10, 64)
+	// Try to extract block numbers if present
+	blockMatches := badBlocksBlockRegex.FindStringSubmatch(line)
+	if len(blockMatches) == 2 {
+		currentBlock, err := strconv.ParseInt(blockMatches[1], 10, 64)
 		if err == nil {
 			forceReallocMu.Lock()
 			if state, ok := forceReallocStateMap[device]; ok && state.Status == "running" {
@@ -369,10 +330,7 @@ func updateForceReallocProgress(device, line string) {
 			}
 			forceReallocMu.Unlock()
 		}
-		return
 	}
-
-	// Any other line is ignored for progress purposes
 }
 
 func updateForceReallocError(device string, err error) {
