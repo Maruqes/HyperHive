@@ -395,13 +395,13 @@ func currentForceRealloc(device string) *ForceReallocProgress {
 
 	state, ok := forceReallocStateMap[device]
 	if !ok {
-		return &ForceReallocProgress(
+		return &ForceReallocProgress{
 			Device:          device,
 			Status:          "idle",
 			ProgressPercent: "0.00%",
 			ElapsedTime:     "0:00",
 			Message:         "no force reallocation job",
-		)
+		}
 	}
 
 	// Return a copy to avoid data races.
