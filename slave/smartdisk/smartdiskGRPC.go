@@ -234,64 +234,6 @@ func (s *Service) CancelSelfTest(ctx context.Context, req *smartdiskGrpc.CancelS
 	return &smartdiskGrpc.SelfTestResponse{Message: fmt.Sprintf("self-test cancelled for %s", device)}, nil
 }
 
-func (s *Service) StartForceReallocation(ctx context.Context, req *smartdiskGrpc.ForceReallocRequest) (*smartdiskGrpc.ForceReallocResponse, error) {
-	progress, err := StartForceReallocation(req.GetDevice())
-	if err != nil {
-		return nil, err
-	}
-	return &smartdiskGrpc.ForceReallocResponse{Message: fmt.Sprintf("force reallocation started for %s (badblocks)", progress.Device)}, nil
-}
-
-func (s *Service) GetForceReallocationProgress(ctx context.Context, req *smartdiskGrpc.ForceReallocRequest) (*smartdiskGrpc.ForceReallocProgress, error) {
-	progress := GetForceReallocationProgress(req.GetDevice())
-	if progress == nil {
-		return nil, fmt.Errorf("device not found")
-	}
-	return &smartdiskGrpc.ForceReallocProgress{
-		Device:           progress.Device,
-		Status:           progress.Status,
-		ProgressPercent:  progress.ProgressPercent,
-		CurrentBlock:     progress.CurrentBlock,
-		TotalBlocks:      progress.TotalBlocks,
-		ElapsedTime:      progress.ElapsedTime,
-		ReadErrors:       progress.ReadErrors,
-		WriteErrors:      progress.WriteErrors,
-		CorruptionErrors: progress.CorruptionErrors,
-		Message:          progress.Message,
-		Error:            progress.Error,
-	}, nil
-}
-
-func (s *Service) GetAllForceReallocationProgress(ctx context.Context, req *smartdiskGrpc.Empty) (*smartdiskGrpc.ForceReallocProgressList, error) {
-	progressList := GetAllForceReallocationProgress()
-	var protoList []*smartdiskGrpc.ForceReallocProgress
-	for _, progress := range progressList {
-		protoList = append(protoList, &smartdiskGrpc.ForceReallocProgress{
-			Device:           progress.Device,
-			Status:           progress.Status,
-			ProgressPercent:  progress.ProgressPercent,
-			CurrentBlock:     progress.CurrentBlock,
-			TotalBlocks:      progress.TotalBlocks,
-			ElapsedTime:      progress.ElapsedTime,
-			ReadErrors:       progress.ReadErrors,
-			WriteErrors:      progress.WriteErrors,
-			CorruptionErrors: progress.CorruptionErrors,
-			Message:          progress.Message,
-			Error:            progress.Error,
-		})
-	}
-	return &smartdiskGrpc.ForceReallocProgressList{Jobs: protoList}, nil
-}
-
-func (s *Service) CancelForceReallocation(ctx context.Context, req *smartdiskGrpc.ForceReallocRequest) (*smartdiskGrpc.ForceReallocResponse, error) {
-	if err := CancelForceReallocation(req.GetDevice()); err != nil {
-		return nil, err
-	}
-	return &smartdiskGrpc.ForceReallocResponse{
-		Message: fmt.Sprintf("force reallocation cancelled for %s", req.GetDevice()),
-	}, nil
-}
-
 func containsInProgress(status string) bool {
 	status = strings.ToLower(strings.TrimSpace(status))
 	return strings.Contains(status, "in progress") || strings.Contains(status, "progress")

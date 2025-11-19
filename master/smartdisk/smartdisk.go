@@ -26,27 +26,3 @@ func CancelSelfTest(ctx context.Context, conn *grpc.ClientConn, req *smartdiskGr
 	client := smartdiskGrpc.NewSmartDiskServiceClient(conn)
 	return client.CancelSelfTest(ctx, req)
 }
-
-func StartForceReallocation(ctx context.Context, conn *grpc.ClientConn, req *smartdiskGrpc.ForceReallocRequest) (*smartdiskGrpc.ForceReallocResponse, error) {
-	client := smartdiskGrpc.NewSmartDiskServiceClient(conn)
-	return client.StartForceReallocation(ctx, req)
-}
-
-func GetForceReallocationProgress(conn *grpc.ClientConn, req *smartdiskGrpc.ForceReallocRequest) (*smartdiskGrpc.ForceReallocProgress, error) {
-	client := smartdiskGrpc.NewSmartDiskServiceClient(conn)
-	return client.GetForceReallocationProgress(context.Background(), req)
-}
-
-func GetAllForceReallocationProgress(conn *grpc.ClientConn) ([]*smartdiskGrpc.ForceReallocProgress, error) {
-	client := smartdiskGrpc.NewSmartDiskServiceClient(conn)
-	resp, err := client.GetAllForceReallocationProgress(context.Background(), &smartdiskGrpc.Empty{})
-	if err != nil {
-		return nil, err
-	}
-	return resp.GetJobs(), nil
-}
-
-func CancelForceReallocation(ctx context.Context, conn *grpc.ClientConn, req *smartdiskGrpc.ForceReallocRequest) (*smartdiskGrpc.ForceReallocResponse, error) {
-	client := smartdiskGrpc.NewSmartDiskServiceClient(conn)
-	return client.CancelForceReallocation(ctx, req)
-}
