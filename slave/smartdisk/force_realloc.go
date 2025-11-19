@@ -38,13 +38,21 @@ type forceReallocState struct {
 var (
 	forceReallocMu       sync.Mutex
 	forceReallocStateMap = map[string]*forceReallocState{}
-	// badblocks output formats:
-	// "0.01% done, 0:15 elapsed. (0/0/0 errors)"
-	// "0.01% done, 0:15 elapsed (0/0/0 errors)" (no period)
-	badBlocksProgressRegex = regexp.MustCompile(`([\d.]+)%\s+done,?\s+([\d:]+)\s+elapsed\.?\s+\((\d+)/(\d+)/(\d+)\s+errors\)`)
-	// Also capture just the block numbers if present
-	// Format: "Reading and comparing: 1234567"
-	badBlocksBlockRegex = regexp.MustCompile(`(?:Reading and comparing|Checking|Testing with pattern):\s*(\d+)`)
+
+	// Covers the progress output with optional leading block number and optional "(x/x/x errors)" suffix.
+	// Examples:
+	//   "0.01% done, 0:15 elapsed. (0/0/0 errors)"
+	//   "37585 0.84% done, 7:31:08 elapsed. (0/0/527405 errors)"
+	//   "0.03% done, 0:12 elapsed"
+	badBlocksProgressRegex = regexp.MustCompile(
+		`^(?:(\d+)\s+)?([\d.]+)%\s+done,?\s+([\d:]+)\s+elapsed\.?(?:\s+\((\d+)/(\d+)/(\d+)\s+errors\))?$`,
+	)
+	// "Checking blocks 0 to 488386583"
+	badBlocksRangeRegex = regexp.MustCompile(`^Checking blocks\s+(\d+)\s+to\s+(\d+)`)
+	// Format: "Reading and comparing: 1234567" / "Testing with pattern: 1234567" / "Checking: 1234567"
+	badBlocksActivityRegex = regexp.MustCompile(`(?:Reading and comparing|Testing with pattern|Checking|Writing and reading):\s*(\d+)`)
+	// A bare integer line, e.g. "37584" when -s is printing carriage-return updates.
+	badBlocksBlockOnlyRegex = regexp.MustCompile(`^\d+$`)
 )
 
 // StartForceReallocation kicks off a non-destructive badblocks pass to force sector remapping.
@@ -289,48 +297,101 @@ func updateForceReallocProgress(device, line string) {
 	}
 	forceReallocMu.Unlock()
 
-	// Try to match the progress line format: "0.01% done, 0:15 elapsed. (0/0/0 errors)"
+	// Try to match the common progress line formats
 	matches := badBlocksProgressRegex.FindStringSubmatch(line)
-	if len(matches) == 6 {
-		progressStr := matches[1] + "%"
-		elapsed := matches[2]
-		readErrs, _ := strconv.ParseInt(matches[3], 10, 64)
-		writeErrs, _ := strconv.ParseInt(matches[4], 10, 64)
-		corruptErrs, _ := strconv.ParseInt(matches[5], 10, 64)
+	if len(matches) == 7 {
+		blockStr := matches[1]
+		progressValue := matches[2]
+		progressStr := progressValue + "%"
+		elapsed := matches[3]
+		readStr, writeStr, corruptStr := matches[4], matches[5], matches[6]
+
+		blockVal, blockSet := parseOptionalInt(blockStr)
+		readErrs, readSet := parseOptionalInt(readStr)
+		writeErrs, writeSet := parseOptionalInt(writeStr)
+		corruptErrs, corruptSet := parseOptionalInt(corruptStr)
 
 		forceReallocMu.Lock()
 		if state, ok := forceReallocStateMap[device]; ok && state.Status == "running" {
 			state.ProgressPercent = progressStr
 			state.ElapsedTime = elapsed
-			state.ReadErrors = readErrs
-			state.WriteErrors = writeErrs
-			state.CorruptionErrors = corruptErrs
+			if blockSet {
+				state.CurrentBlock = blockVal
+			}
+			if readSet {
+				state.ReadErrors = readErrs
+			}
+			if writeSet {
+				state.WriteErrors = writeErrs
+			}
+			if corruptSet {
+				state.CorruptionErrors = corruptErrs
+			}
 
-			totalErrs := readErrs + writeErrs + corruptErrs
-			if totalErrs > 0 {
+			if readSet && writeSet && corruptSet {
 				state.Message = fmt.Sprintf("badblocks scanning: %s complete, %s elapsed (%d/%d/%d errors)",
-					progressStr, elapsed, readErrs, writeErrs, corruptErrs)
+					progressStr, elapsed, state.ReadErrors, state.WriteErrors, state.CorruptionErrors)
 			} else {
-				state.Message = fmt.Sprintf("badblocks scanning: %s complete, %s elapsed",
-					progressStr, elapsed)
+				state.Message = fmt.Sprintf("badblocks scanning: %s complete, %s elapsed", progressStr, elapsed)
 			}
 		}
 		forceReallocMu.Unlock()
 		return
 	}
 
-	// Try to extract block numbers if present
-	blockMatches := badBlocksBlockRegex.FindStringSubmatch(line)
-	if len(blockMatches) == 2 {
-		currentBlock, err := strconv.ParseInt(blockMatches[1], 10, 64)
-		if err == nil {
+	// Capture reported total block ranges to estimate total work
+	rangeMatches := badBlocksRangeRegex.FindStringSubmatch(line)
+	if len(rangeMatches) == 3 {
+		start, startErr := strconv.ParseInt(rangeMatches[1], 10, 64)
+		end, endErr := strconv.ParseInt(rangeMatches[2], 10, 64)
+		if startErr == nil && endErr == nil && end >= start {
+			total := (end - start) + 1
+			if total < 0 {
+				total = 0
+			}
 			forceReallocMu.Lock()
 			if state, ok := forceReallocStateMap[device]; ok && state.Status == "running" {
-				state.CurrentBlock = currentBlock
+				state.TotalBlocks = total
 			}
 			forceReallocMu.Unlock()
 		}
+		return
 	}
+
+	// Try to extract block numbers from explicit activity lines
+	blockMatches := badBlocksActivityRegex.FindStringSubmatch(line)
+	if len(blockMatches) == 2 {
+		if currentBlock, err := strconv.ParseInt(blockMatches[1], 10, 64); err == nil {
+			updateCurrentBlock(device, currentBlock)
+		}
+		return
+	}
+
+	// Fall back to treating bare integers as the current block counter.
+	if badBlocksBlockOnlyRegex.MatchString(line) {
+		if currentBlock, err := strconv.ParseInt(line, 10, 64); err == nil {
+			updateCurrentBlock(device, currentBlock)
+		}
+	}
+}
+
+func updateCurrentBlock(device string, block int64) {
+	forceReallocMu.Lock()
+	if state, ok := forceReallocStateMap[device]; ok && state.Status == "running" {
+		state.CurrentBlock = block
+	}
+	forceReallocMu.Unlock()
+}
+
+func parseOptionalInt(value string) (int64, bool) {
+	if value == "" {
+		return 0, false
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return parsed, true
 }
 
 func updateForceReallocError(device string, err error) {
