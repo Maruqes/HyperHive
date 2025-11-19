@@ -148,10 +148,17 @@ func startForceReallocation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, map[string]any{
-		"device":          progress.GetDevice(),
-		"status":          progress.GetStatus(),
-		"progressPercent": progress.GetProgressPercent(),
-		"message":         progress.GetMessage(),
+		"device":           progress.GetDevice(),
+		"status":           progress.GetStatus(),
+		"progressPercent":  progress.GetProgressPercent(),
+		"currentBlock":     progress.GetCurrentBlock(),
+		"totalBlocks":      progress.GetTotalBlocks(),
+		"elapsedTime":      progress.GetElapsedTime(),
+		"readErrors":       progress.GetReadErrors(),
+		"writeErrors":      progress.GetWriteErrors(),
+		"corruptionErrors": progress.GetCorruptionErrors(),
+		"message":          progress.GetMessage(),
+		"error":            progress.GetError(),
 	})
 }
 
@@ -172,11 +179,17 @@ func getForceReallocationProgress(w http.ResponseWriter, r *http.Request) {
 		var response []map[string]any
 		for _, progress := range jobs {
 			response = append(response, map[string]any{
-				"device":          progress.GetDevice(),
-				"status":          progress.GetStatus(),
-				"progressPercent": progress.GetProgressPercent(),
-				"message":         progress.GetMessage(),
-				"error":           progress.GetError(),
+				"device":           progress.GetDevice(),
+				"status":           progress.GetStatus(),
+				"progressPercent":  progress.GetProgressPercent(),
+				"currentBlock":     progress.GetCurrentBlock(),
+				"totalBlocks":      progress.GetTotalBlocks(),
+				"elapsedTime":      progress.GetElapsedTime(),
+				"readErrors":       progress.GetReadErrors(),
+				"writeErrors":      progress.GetWriteErrors(),
+				"corruptionErrors": progress.GetCorruptionErrors(),
+				"message":          progress.GetMessage(),
+				"error":            progress.GetError(),
 			})
 		}
 		writeJSON(w, map[string]any{"jobs": response})
@@ -191,11 +204,17 @@ func getForceReallocationProgress(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, map[string]any{
-		"device":          progress.GetDevice(),
-		"status":          progress.GetStatus(),
-		"progressPercent": progress.GetProgressPercent(),
-		"message":         progress.GetMessage(),
-		"error":           progress.GetError(),
+		"device":           progress.GetDevice(),
+		"status":           progress.GetStatus(),
+		"progressPercent":  progress.GetProgressPercent(),
+		"currentBlock":     progress.GetCurrentBlock(),
+		"totalBlocks":      progress.GetTotalBlocks(),
+		"elapsedTime":      progress.GetElapsedTime(),
+		"readErrors":       progress.GetReadErrors(),
+		"writeErrors":      progress.GetWriteErrors(),
+		"corruptionErrors": progress.GetCorruptionErrors(),
+		"message":          progress.GetMessage(),
+		"error":            progress.GetError(),
 	})
 }
 

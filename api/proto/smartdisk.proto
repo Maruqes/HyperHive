@@ -130,10 +130,16 @@ message ForceReallocResponse {
 
 message ForceReallocProgress {
   string device = 1;
-  string status = 2; // running, completed, error, idle
-  int64 progress_percent = 3;
-  string message = 4;
-  string error = 5;
+  string status = 2; // running, completed, error, idle, cancelled
+  string progress_percent = 3; // e.g., "0.01%" or "100.00%"
+  int64 current_block = 4;
+  int64 total_blocks = 5;
+  string elapsed_time = 6; // e.g., "0:15" or "1:30:45"
+  int64 read_errors = 7;
+  int64 write_errors = 8;
+  int64 corruption_errors = 9;
+  string message = 10;
+  string error = 11;
 }
 
 message ForceReallocProgressList {

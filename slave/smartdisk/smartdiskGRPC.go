@@ -248,11 +248,17 @@ func (s *Service) GetForceReallocationProgress(ctx context.Context, req *smartdi
 		return nil, fmt.Errorf("device not found")
 	}
 	return &smartdiskGrpc.ForceReallocProgress{
-		Device:          progress.Device,
-		Status:          progress.Status,
-		ProgressPercent: progress.ProgressPercent,
-		Message:         progress.Message,
-		Error:           progress.Error,
+		Device:           progress.Device,
+		Status:           progress.Status,
+		ProgressPercent:  progress.ProgressPercent,
+		CurrentBlock:     progress.CurrentBlock,
+		TotalBlocks:      progress.TotalBlocks,
+		ElapsedTime:      progress.ElapsedTime,
+		ReadErrors:       progress.ReadErrors,
+		WriteErrors:      progress.WriteErrors,
+		CorruptionErrors: progress.CorruptionErrors,
+		Message:          progress.Message,
+		Error:            progress.Error,
 	}, nil
 }
 
@@ -261,11 +267,17 @@ func (s *Service) GetAllForceReallocationProgress(ctx context.Context, req *smar
 	var protoList []*smartdiskGrpc.ForceReallocProgress
 	for _, progress := range progressList {
 		protoList = append(protoList, &smartdiskGrpc.ForceReallocProgress{
-			Device:          progress.Device,
-			Status:          progress.Status,
-			ProgressPercent: progress.ProgressPercent,
-			Message:         progress.Message,
-			Error:           progress.Error,
+			Device:           progress.Device,
+			Status:           progress.Status,
+			ProgressPercent:  progress.ProgressPercent,
+			CurrentBlock:     progress.CurrentBlock,
+			TotalBlocks:      progress.TotalBlocks,
+			ElapsedTime:      progress.ElapsedTime,
+			ReadErrors:       progress.ReadErrors,
+			WriteErrors:      progress.WriteErrors,
+			CorruptionErrors: progress.CorruptionErrors,
+			Message:          progress.Message,
+			Error:            progress.Error,
 		})
 	}
 	return &smartdiskGrpc.ForceReallocProgressList{Jobs: protoList}, nil
