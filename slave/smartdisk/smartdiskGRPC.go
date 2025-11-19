@@ -3,6 +3,7 @@ package smartdisk
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -205,8 +206,6 @@ func (s *Service) GetSelfTestProgress(ctx context.Context, req *smartdiskGrpc.Sm
 				Status:           test.Status,
 				ProgressPercent:  pctDone,
 				RemainingPercent: clampPercent(test.RemainingPercent),
-				TestType:         test.Type,
-				LifetimeHours:    test.LifetimeHours,
 			}
 			return progress, nil
 		}
@@ -217,12 +216,68 @@ func (s *Service) GetSelfTestProgress(ctx context.Context, req *smartdiskGrpc.Sm
 		progress.Status = "in progress"
 		progress.RemainingPercent = pct
 		progress.ProgressPercent = clampPercent(100 - pct)
-		if progress.TestType == "" {
-			progress.TestType = parseTestTypeFromError(err)
-		}
 	}
 
 	return progress, nil
+}
+
+func (s *Service) CancelSelfTest(ctx context.Context, req *smartdiskGrpc.CancelSelfTestRequest) (*smartdiskGrpc.SelfTestResponse, error) {
+	device, err := validateDevicePath(req.GetDevice())
+	if err != nil {
+		return nil, err
+	}
+	cmd := exec.CommandContext(ctx, "smartctl", "-X", device)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("smartctl -X failed: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+	return &smartdiskGrpc.SelfTestResponse{Message: fmt.Sprintf("self-test cancelled for %s", device)}, nil
+}
+
+func (s *Service) StartForceReallocation(ctx context.Context, req *smartdiskGrpc.ForceReallocRequest) (*smartdiskGrpc.ForceReallocResponse, error) {
+	progress, err := StartForceReallocation(req.GetDevice())
+	if err != nil {
+		return nil, err
+	}
+	return &smartdiskGrpc.ForceReallocResponse{Message: fmt.Sprintf("force reallocation started for %s (badblocks)", progress.Device)}, nil
+}
+
+func (s *Service) GetForceReallocationProgress(ctx context.Context, req *smartdiskGrpc.ForceReallocRequest) (*smartdiskGrpc.ForceReallocProgress, error) {
+	progress := GetForceReallocationProgress(req.GetDevice())
+	if progress == nil {
+		return nil, fmt.Errorf("device not found")
+	}
+	return &smartdiskGrpc.ForceReallocProgress{
+		Device:          progress.Device,
+		Status:          progress.Status,
+		ProgressPercent: progress.ProgressPercent,
+		Message:         progress.Message,
+		Error:           progress.Error,
+	}, nil
+}
+
+func (s *Service) GetAllForceReallocationProgress(ctx context.Context, req *smartdiskGrpc.Empty) (*smartdiskGrpc.ForceReallocProgressList, error) {
+	progressList := GetAllForceReallocationProgress()
+	var protoList []*smartdiskGrpc.ForceReallocProgress
+	for _, progress := range progressList {
+		protoList = append(protoList, &smartdiskGrpc.ForceReallocProgress{
+			Device:          progress.Device,
+			Status:          progress.Status,
+			ProgressPercent: progress.ProgressPercent,
+			Message:         progress.Message,
+			Error:           progress.Error,
+		})
+	}
+	return &smartdiskGrpc.ForceReallocProgressList{Jobs: protoList}, nil
+}
+
+func (s *Service) CancelForceReallocation(ctx context.Context, req *smartdiskGrpc.ForceReallocRequest) (*smartdiskGrpc.ForceReallocResponse, error) {
+	if err := CancelForceReallocation(req.GetDevice()); err != nil {
+		return nil, err
+	}
+	return &smartdiskGrpc.ForceReallocResponse{
+		Message: fmt.Sprintf("force reallocation cancelled for %s", req.GetDevice()),
+	}, nil
 }
 
 func containsInProgress(status string) bool {
@@ -244,23 +299,6 @@ func parseRemainingFromError(err error) (int64, bool) {
 		return 0, false
 	}
 	return clampPercent(value), true
-}
-
-func parseTestTypeFromError(err error) string {
-	if err == nil {
-		return ""
-	}
-	re := regexp.MustCompile(`\((short|long|extended)\)`)
-	m := re.FindStringSubmatch(strings.ToLower(err.Error()))
-	if len(m) < 2 {
-		return ""
-	}
-	switch m[1] {
-	case "long":
-		return "extended"
-	default:
-		return m[1]
-	}
 }
 
 func clampPercent(v int64) int64 {

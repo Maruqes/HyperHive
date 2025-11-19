@@ -114,8 +114,33 @@ message SelfTestProgress {
   string status = 2;
   int64 progress_percent = 3;
   int64 remaining_percent = 4;
-  string test_type = 5;
-  int64 lifetime_hours = 6;
+}
+
+message CancelSelfTestRequest {
+  string device = 1;
+}
+
+message ForceReallocRequest {
+  string device = 1;
+}
+
+message ForceReallocResponse {
+  string message = 1;
+}
+
+message ForceReallocProgress {
+  string device = 1;
+  string status = 2; // running, completed, error, idle
+  int64 progress_percent = 3;
+  string message = 4;
+  string error = 5;
+}
+
+message ForceReallocProgressList {
+  repeated ForceReallocProgress jobs = 1;
+}
+
+message Empty {
 }
 
 // Provides SMART/health information for disks on the slave.
@@ -123,4 +148,9 @@ service SmartDiskService {
   rpc GetSmartInfo(SmartInfoRequest) returns (SmartDiskInfo);
   rpc RunSelfTest(SelfTestRequest) returns (SelfTestResponse);
   rpc GetSelfTestProgress(SmartInfoRequest) returns (SelfTestProgress);
+  rpc CancelSelfTest(CancelSelfTestRequest) returns (SelfTestResponse);
+  rpc StartForceReallocation(ForceReallocRequest) returns (ForceReallocResponse);
+  rpc GetForceReallocationProgress(ForceReallocRequest) returns (ForceReallocProgress);
+  rpc GetAllForceReallocationProgress(Empty) returns (ForceReallocProgressList);
+  rpc CancelForceReallocation(ForceReallocRequest) returns (ForceReallocResponse);
 }

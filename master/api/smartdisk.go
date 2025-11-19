@@ -90,23 +90,139 @@ func getSmartDiskSelfTestProgress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type response struct {
-		Device           string `json:"device"`
-		Status           string `json:"status"`
-		ProgressPercent  int64  `json:"progressPercent"`
-		RemainingPercent int64  `json:"remainingPercent"`
-		TestType         string `json:"testType"`
+	writeJSON(w, map[string]any{
+		"device":           progress.GetDevice(),
+		"status":           progress.GetStatus(),
+		"progressPercent":  progress.GetProgressPercent(),
+		"remainingPercent": progress.GetRemainingPercent(),
+	})
+}
+
+func cancelSmartDiskSelfTest(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+
+	var req struct {
+		Device string `json:"device"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+	req.Device = strings.TrimSpace(req.Device)
+	if req.Device == "" {
+		http.Error(w, "device is required", http.StatusBadRequest)
+		return
 	}
 
-	out := response{
-		Device:           progress.GetDevice(),
-		Status:           progress.GetStatus(),
-		ProgressPercent:  progress.GetProgressPercent(),
-		RemainingPercent: progress.GetRemainingPercent(),
-		TestType:         progress.GetTestType(),
+	service := services.SmartDiskService{}
+	msg, err := service.CancelSelfTest(r.Context(), machineName, req.Device)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	writeJSON(w, out)
+	writeJSON(w, map[string]string{"message": msg})
+}
+
+func startForceReallocation(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+
+	var req struct {
+		Device string `json:"device"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+	req.Device = strings.TrimSpace(req.Device)
+	if req.Device == "" {
+		http.Error(w, "device is required", http.StatusBadRequest)
+		return
+	}
+
+	service := services.SmartDiskService{}
+	progress, err := service.StartForceReallocation(r.Context(), machineName, req.Device)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, map[string]any{
+		"device":          progress.GetDevice(),
+		"status":          progress.GetStatus(),
+		"progressPercent": progress.GetProgressPercent(),
+		"message":         progress.GetMessage(),
+	})
+}
+
+func getForceReallocationProgress(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	device := strings.TrimSpace(r.URL.Query().Get("device"))
+
+	service := services.SmartDiskService{}
+
+	// If device is empty, return all active jobs
+	if device == "" {
+		jobs, err := service.GetAllForceReallocationProgress(machineName)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		var response []map[string]any
+		for _, progress := range jobs {
+			response = append(response, map[string]any{
+				"device":          progress.GetDevice(),
+				"status":          progress.GetStatus(),
+				"progressPercent": progress.GetProgressPercent(),
+				"message":         progress.GetMessage(),
+				"error":           progress.GetError(),
+			})
+		}
+		writeJSON(w, map[string]any{"jobs": response})
+		return
+	}
+
+	// Otherwise return progress for specific device
+	progress, err := service.GetForceReallocationProgress(machineName, device)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, map[string]any{
+		"device":          progress.GetDevice(),
+		"status":          progress.GetStatus(),
+		"progressPercent": progress.GetProgressPercent(),
+		"message":         progress.GetMessage(),
+		"error":           progress.GetError(),
+	})
+}
+
+func cancelForceReallocation(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+
+	var req struct {
+		Device string `json:"device"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+	req.Device = strings.TrimSpace(req.Device)
+	if req.Device == "" {
+		http.Error(w, "device is required", http.StatusBadRequest)
+		return
+	}
+
+	service := services.SmartDiskService{}
+	msg, err := service.CancelForceReallocation(r.Context(), machineName, req.Device)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, map[string]string{"message": msg})
 }
 
 func setupSmartDiskAPI(r chi.Router) chi.Router {
@@ -114,5 +230,9 @@ func setupSmartDiskAPI(r chi.Router) chi.Router {
 		r.Get("/{machine_name}", getSmartDiskInfo)
 		r.Post("/{machine_name}/self-test", runSmartDiskSelfTest)
 		r.Get("/{machine_name}/self-test/progress", getSmartDiskSelfTestProgress)
+		r.Post("/{machine_name}/self-test/cancel", cancelSmartDiskSelfTest)
+		r.Post("/{machine_name}/force-reallocation", startForceReallocation)
+		r.Get("/{machine_name}/force-reallocation/progress", getForceReallocationProgress)
+		r.Post("/{machine_name}/force-reallocation/cancel", cancelForceReallocation)
 	})
 }

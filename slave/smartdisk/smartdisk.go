@@ -1,11 +1,17 @@
 package smartdisk
 
 import (
+	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os/exec"
+	"regexp"
+	"strconv"
 	"strings"
+	"sync"
 )
 
 // SelfTestType defines which SMART test to trigger.
@@ -15,6 +21,19 @@ const (
 	SelfTestShort    SelfTestType = "short"
 	SelfTestExtended SelfTestType = "long" // "long" is the smartctl flag for extended tests
 )
+
+var devicePathPattern = regexp.MustCompile(`^/dev/(sd[a-z][a-z0-9]*|hd[a-z][a-z0-9]*|vd[a-z][a-z0-9]*|xvd[a-z][a-z0-9]*|nvme[0-9]+n[0-9]+(p[0-9]+)?|mmcblk[0-9]+(p[0-9]+)?|disk/by-id/[A-Za-z0-9._:-]+|disk/by-path/[A-Za-z0-9._:-]+)$`)
+
+func validateDevicePath(device string) (string, error) {
+	device = strings.TrimSpace(device)
+	if device == "" {
+		return "", errors.New("device must not be empty")
+	}
+	if !devicePathPattern.MatchString(device) {
+		return "", fmt.Errorf("device path not allowed: %s", device)
+	}
+	return device, nil
+}
 
 // SmartDiskInfo exposes the most relevant SMART health indicators for a device.
 type SmartDiskInfo struct {
@@ -73,6 +92,26 @@ type SmartDiskInfo struct {
 	rawSmartctlParseError error  `json:"-"`
 }
 
+// ForceReallocProgress represents the progress of a badblocks-based force reallocation job.
+type ForceReallocProgress struct {
+	Device          string `json:"device"`
+	Status          string `json:"status"`           // running, completed, error, idle
+	ProgressPercent int64  `json:"progress_percent"` // 0-100
+	Message         string `json:"message"`
+	Error           string `json:"error,omitempty"`
+}
+
+type forceReallocState struct {
+	ForceReallocProgress
+	cancel context.CancelFunc
+}
+
+var (
+	forceReallocMu       sync.Mutex
+	forceReallocStateMap = map[string]*forceReallocState{}
+	percentRegex         = regexp.MustCompile(`(\d+)%`)
+)
+
 // SelfTestResult captures the outcome of recent SMART self-tests.
 type SelfTestResult struct {
 	Type             string `json:"type"`
@@ -86,8 +125,9 @@ type SelfTestResult struct {
 // a non-zero exit code when the device reports problems, so the caller should
 // inspect the returned error message for context.
 func RunSelfTest(device string, test SelfTestType) error {
-	if device == "" {
-		return errors.New("device must not be empty")
+	var err error
+	if device, err = validateDevicePath(device); err != nil {
+		return err
 	}
 
 	testFlag := string(test)
@@ -108,8 +148,9 @@ func RunSelfTest(device string, test SelfTestType) error {
 // (common if the drive reports failing health); in that case the error is
 // attached to SmartDiskInfo.rawSmartctlParseError and also returned.
 func GetSmartInfo(device string) (*SmartDiskInfo, error) {
-	if device == "" {
-		return nil, errors.New("device must not be empty")
+	var err error
+	if device, err = validateDevicePath(device); err != nil {
+		return nil, err
 	}
 
 	resp, parseErr := runSmartctlJSON(device)
@@ -120,6 +161,234 @@ func GetSmartInfo(device string) (*SmartDiskInfo, error) {
 	info := summarizeSMART(device, resp)
 	info.rawSmartctlParseError = parseErr
 	return info, parseErr
+}
+
+// StartForceReallocation kicks off a non-destructive badblocks pass to force sector remapping.
+func StartForceReallocation(device string) (*ForceReallocProgress, error) {
+	var err error
+	if device, err = validateDevicePath(device); err != nil {
+		return nil, err
+	}
+
+	forceReallocMu.Lock()
+	if existing, ok := forceReallocStateMap[device]; ok && existing.Status == "running" {
+		defer forceReallocMu.Unlock()
+		return &existing.ForceReallocProgress, fmt.Errorf("force reallocation already running for %s (progress: %d%%)", device, existing.ProgressPercent)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	state := &forceReallocState{
+		ForceReallocProgress: ForceReallocProgress{
+			Device:          device,
+			Status:          "running",
+			ProgressPercent: 0,
+			Message:         "starting badblocks (non-destructive read-write test)",
+		},
+		cancel: cancel,
+	}
+	forceReallocStateMap[device] = state
+	forceReallocMu.Unlock()
+
+	// Use -nsv flags: -n = non-destructive read-write, -s = show progress, -v = verbose
+	cmd := exec.CommandContext(ctx, "badblocks", "-nsv", device)
+	// badblocks writes progress to stderr, so we need to capture stderr
+	stderr, pipeErr := cmd.StderrPipe()
+	if pipeErr != nil {
+		updateForceReallocError(device, fmt.Errorf("failed to create stderr pipe for badblocks: %w", pipeErr))
+		return nil, pipeErr
+	}
+
+	if err := cmd.Start(); err != nil {
+		updateForceReallocError(device, fmt.Errorf("failed to start badblocks process: %w", err))
+		return nil, err
+	}
+
+	go trackBadblocks(device, ctx, cmd, stderr)
+
+	return currentForceRealloc(device), nil
+}
+
+// GetForceReallocationProgress returns the current state for a device.
+func GetForceReallocationProgress(device string) *ForceReallocProgress {
+	device, _ = validateDevicePath(device) // best effort; invalid device will just return nil
+	return currentForceRealloc(device)
+}
+
+// GetAllForceReallocationProgress returns the current state for all devices.
+func GetAllForceReallocationProgress() []*ForceReallocProgress {
+	forceReallocMu.Lock()
+	defer forceReallocMu.Unlock()
+
+	var results []*ForceReallocProgress
+	for _, state := range forceReallocStateMap {
+		// Return a copy to avoid data races
+		copy := state.ForceReallocProgress
+		results = append(results, &copy)
+	}
+	return results
+}
+
+// CancelForceReallocation cancels a running force reallocation job for a device.
+func CancelForceReallocation(device string) error {
+	var err error
+	if device, err = validateDevicePath(device); err != nil {
+		return err
+	}
+
+	forceReallocMu.Lock()
+	state, ok := forceReallocStateMap[device]
+	if !ok {
+		forceReallocMu.Unlock()
+		return fmt.Errorf("no force reallocation job found for %s", device)
+	}
+
+	if state.Status != "running" {
+		forceReallocMu.Unlock()
+		return fmt.Errorf("force reallocation job for %s is not running (current status: %s)", device, state.Status)
+	}
+
+	// Call the cancel function to stop the badblocks process
+	if state.cancel != nil {
+		state.cancel()
+	}
+
+	// Immediately update the status to prevent race conditions
+	state.Status = "cancelled"
+	state.Message = "force reallocation cancelled by user"
+	state.Error = ""
+	forceReallocMu.Unlock()
+
+	return nil
+}
+
+func trackBadblocks(device string, ctx context.Context, cmd *exec.Cmd, r io.ReadCloser) {
+	defer func() {
+		r.Close()
+		forceReallocMu.Lock()
+		if state, ok := forceReallocStateMap[device]; ok && state.cancel != nil {
+			state.cancel()
+		}
+		forceReallocMu.Unlock()
+	}()
+
+	scanner := bufio.NewScanner(r)
+	// Increase buffer to handle long badblocks lines.
+	buf := make([]byte, 0, 1024)
+	scanner.Buffer(buf, 1024*1024)
+	for scanner.Scan() {
+		// Check if context is cancelled during scanning
+		select {
+		case <-ctx.Done():
+			// Context cancelled, stop scanning
+			cmd.Process.Kill()
+			forceReallocMu.Lock()
+			if state, ok := forceReallocStateMap[device]; ok {
+				state.Status = "cancelled"
+				state.Message = "force reallocation cancelled by user"
+				state.Error = ""
+			}
+			forceReallocMu.Unlock()
+			return
+		default:
+			updateForceReallocProgress(device, scanner.Text())
+		}
+	}
+	if scanErr := scanner.Err(); scanErr != nil {
+		// Don't report error if context was cancelled
+		if !errors.Is(ctx.Err(), context.Canceled) {
+			updateForceReallocError(device, fmt.Errorf("badblocks read: %w", scanErr))
+		}
+		return
+	}
+
+	waitErr := cmd.Wait()
+
+	if waitErr != nil {
+		// If the context was cancelled (user request), keep/correct the state
+		// as "cancelled" instead of overwriting with an error.
+		if errors.Is(ctx.Err(), context.Canceled) {
+			forceReallocMu.Lock()
+			if state, ok := forceReallocStateMap[device]; ok {
+				state.Status = "cancelled"
+				if state.Message == "" {
+					state.Message = "force reallocation cancelled by user"
+				}
+				state.Error = ""
+			}
+			forceReallocMu.Unlock()
+			return
+		}
+
+		updateForceReallocError(device, fmt.Errorf("badblocks exited with error: %w", waitErr))
+		return
+	}
+
+	forceReallocMu.Lock()
+	if state, ok := forceReallocStateMap[device]; ok {
+		state.Status = "completed"
+		state.ProgressPercent = 100
+		state.Message = "badblocks completed successfully"
+		state.Error = ""
+	}
+	forceReallocMu.Unlock()
+}
+
+func updateForceReallocProgress(device, chunk string) {
+	matches := percentRegex.FindAllStringSubmatch(chunk, -1)
+	if len(matches) == 0 {
+		return
+	}
+	last := matches[len(matches)-1]
+	if len(last) < 2 {
+		return
+	}
+	pctStr := last[1]
+	pct, err := strconv.ParseInt(pctStr, 10, 64)
+	if err != nil {
+		return
+	}
+	if pct < 0 {
+		pct = 0
+	}
+	if pct > 100 {
+		pct = 100
+	}
+
+	forceReallocMu.Lock()
+	if state, ok := forceReallocStateMap[device]; ok && state.Status == "running" {
+		state.ProgressPercent = pct
+		state.Message = fmt.Sprintf("badblocks scanning: %d%% complete", pct)
+	}
+	forceReallocMu.Unlock()
+}
+
+func updateForceReallocError(device string, err error) {
+	forceReallocMu.Lock()
+	if state, ok := forceReallocStateMap[device]; ok {
+		// Don't overwrite cancelled status with error
+		if state.Status != "cancelled" {
+			state.Status = "error"
+			state.Error = err.Error()
+			state.Message = "badblocks failed"
+		}
+	}
+	forceReallocMu.Unlock()
+}
+
+func currentForceRealloc(device string) *ForceReallocProgress {
+	forceReallocMu.Lock()
+	defer forceReallocMu.Unlock()
+	state, ok := forceReallocStateMap[device]
+	if !ok {
+		return &ForceReallocProgress{
+			Device:          device,
+			Status:          "idle",
+			ProgressPercent: 0,
+			Message:         "no force reallocation job",
+		}
+	}
+	// Return a copy to avoid data races.
+	copy := state.ForceReallocProgress
+	return &copy
 }
 
 // === Helpers ===
@@ -400,6 +669,18 @@ func assessHealth(info *SmartDiskInfo) {
 		warningCount++
 	}
 
+	var guidance []string
+	if info.TemperatureC > 60 {
+		if info.TemperatureC > 70 {
+			guidance = append(guidance, "immediately cool disk and reduce workload (temperature critical)")
+		} else {
+			guidance = append(guidance, "improve airflow or reduce load (temperature high)")
+		}
+	}
+	if info.CRCErrorCount > 0 || info.CommandTimeouts > 0 || info.DeviceErrorCount > 0 {
+		guidance = append(guidance, "check/reseat data and power cables or move to a stable port (interface errors seen)")
+	}
+
 	// Determine health status
 	if !info.SmartPassed {
 		info.HealthStatus = "failing"
@@ -439,6 +720,12 @@ func assessHealth(info *SmartDiskInfo) {
 			}
 			break
 		}
+	}
+
+	if len(guidance) > 0 && info.RecommendedAction != "" {
+		info.RecommendedAction = fmt.Sprintf("%s; %s", info.RecommendedAction, strings.Join(guidance, "; "))
+	} else if len(guidance) > 0 {
+		info.RecommendedAction = strings.Join(guidance, "; ")
 	}
 }
 
