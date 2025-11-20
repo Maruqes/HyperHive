@@ -356,7 +356,7 @@ func (s *BTRFSService) AutoMountRaid(machineName string) error {
 		return err
 	}
 	if len(raids) == 0 {
-		return fmt.Errorf("not a error, %s has no autoMounts")
+		return nil
 	}
 
 	for _, raid := range raids {
