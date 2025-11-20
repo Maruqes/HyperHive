@@ -152,6 +152,32 @@ func toProtoSmartDiskInfo(info *SmartDiskInfo, smartctlErr error) *smartdiskGrpc
 	return pb
 }
 
+func toProtoForceReallocStatus(st ForceReallocStatus) *smartdiskGrpc.ForceReallocStatus {
+	var startedAt int64
+	if !st.StartedAt.IsZero() {
+		startedAt = st.StartedAt.Unix()
+	}
+	elapsed := int64(st.Elapsed.Seconds())
+	var errMsg string
+	if st.Err != nil {
+		errMsg = st.Err.Error()
+	}
+	return &smartdiskGrpc.ForceReallocStatus{
+		Device:           st.Device,
+		Mode:             smartdiskGrpc.ForceReallocMode(st.Mode),
+		StartedAtUnix:    startedAt,
+		ElapsedSeconds:   elapsed,
+		Percent:          st.Percent,
+		Pattern:          st.Pattern,
+		ReadErrors:       int32(st.ReadErrors),
+		WriteErrors:      int32(st.WriteErrors),
+		CorruptionErrors: int32(st.CorruptionErrors),
+		LastLine:         st.LastLine,
+		Completed:        st.Completed,
+		Error:            errMsg,
+	}
+}
+
 func (s *Service) GetSmartInfo(ctx context.Context, req *smartdiskGrpc.SmartInfoRequest) (*smartdiskGrpc.SmartDiskInfo, error) {
 	info, err := GetSmartInfo(req.GetDevice())
 	if info == nil {
@@ -263,4 +289,60 @@ func clampPercent(v int64) int64 {
 		return 100
 	}
 	return v
+}
+
+func (s *Service) StartFullWipe(ctx context.Context, req *smartdiskGrpc.ForceReallocRequest) (*smartdiskGrpc.ForceReallocResponse, error) {
+	if req.GetDevice() == "" {
+		return nil, fmt.Errorf("device must not be empty")
+	}
+	msg, err := StartFullWipe(req.GetDevice())
+	if err != nil {
+		return nil, err
+	}
+	return &smartdiskGrpc.ForceReallocResponse{Message: msg}, nil
+}
+
+func (s *Service) StartNonDestructiveRealloc(ctx context.Context, req *smartdiskGrpc.ForceReallocRequest) (*smartdiskGrpc.ForceReallocResponse, error) {
+	if req.GetDevice() == "" {
+		return nil, fmt.Errorf("device must not be empty")
+	}
+	msg, err := StartNonDestructiveRealloc(req.GetDevice())
+	if err != nil {
+		return nil, err
+	}
+	return &smartdiskGrpc.ForceReallocResponse{Message: msg}, nil
+}
+
+func (s *Service) GetReallocStatus(ctx context.Context, req *smartdiskGrpc.ForceReallocStatusRequest) (*smartdiskGrpc.ForceReallocStatus, error) {
+	if req.GetDevice() == "" {
+		return nil, fmt.Errorf("device must not be empty")
+	}
+	status, err := GetReallocStatus(req.GetDevice())
+	if err != nil {
+		return nil, err
+	}
+	return toProtoForceReallocStatus(status), nil
+}
+
+func (s *Service) ListReallocStatus(ctx context.Context, req *smartdiskGrpc.ListReallocStatusRequest) (*smartdiskGrpc.ForceReallocStatusList, error) {
+	statuses := ListReallocStatus()
+	resp := &smartdiskGrpc.ForceReallocStatusList{
+		Statuses: make([]*smartdiskGrpc.ForceReallocStatus, 0, len(statuses)),
+	}
+	for _, st := range statuses {
+		resp.Statuses = append(resp.Statuses, toProtoForceReallocStatus(st))
+	}
+	return resp, nil
+}
+
+func (s *Service) CancelRealloc(ctx context.Context, req *smartdiskGrpc.ForceReallocRequest) (*smartdiskGrpc.ForceReallocResponse, error) {
+	if req.GetDevice() == "" {
+		return nil, fmt.Errorf("device must not be empty")
+	}
+	if err := CancelRealloc(req.GetDevice()); err != nil {
+		return nil, err
+	}
+	return &smartdiskGrpc.ForceReallocResponse{
+		Message: fmt.Sprintf("limpeza/reallocação cancelada em %s", req.GetDevice()),
+	}, nil
 }

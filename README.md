@@ -1,5 +1,5 @@
 # HyperHive
-Choose the right install guide, follow the runtime setup, and make sure required ports stay open—especially when slaves sit outside the LAN.
+Choose the right install guide, follow the runtime setup, and make sure required ports stay open—especially when slaves sit outside the LAN. HyperHive is currently only supported on Fedora hosts configured with an English locale.
 
 ## Installation Guides
 - [Solo Install](SOLO-INSTALL.md) — single node hosts every role.

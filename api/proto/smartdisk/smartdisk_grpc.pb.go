@@ -19,10 +19,15 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	SmartDiskService_GetSmartInfo_FullMethodName        = "/smartdisk.SmartDiskService/GetSmartInfo"
-	SmartDiskService_RunSelfTest_FullMethodName         = "/smartdisk.SmartDiskService/RunSelfTest"
-	SmartDiskService_GetSelfTestProgress_FullMethodName = "/smartdisk.SmartDiskService/GetSelfTestProgress"
-	SmartDiskService_CancelSelfTest_FullMethodName      = "/smartdisk.SmartDiskService/CancelSelfTest"
+	SmartDiskService_GetSmartInfo_FullMethodName               = "/smartdisk.SmartDiskService/GetSmartInfo"
+	SmartDiskService_RunSelfTest_FullMethodName                = "/smartdisk.SmartDiskService/RunSelfTest"
+	SmartDiskService_GetSelfTestProgress_FullMethodName        = "/smartdisk.SmartDiskService/GetSelfTestProgress"
+	SmartDiskService_CancelSelfTest_FullMethodName             = "/smartdisk.SmartDiskService/CancelSelfTest"
+	SmartDiskService_StartFullWipe_FullMethodName              = "/smartdisk.SmartDiskService/StartFullWipe"
+	SmartDiskService_StartNonDestructiveRealloc_FullMethodName = "/smartdisk.SmartDiskService/StartNonDestructiveRealloc"
+	SmartDiskService_GetReallocStatus_FullMethodName           = "/smartdisk.SmartDiskService/GetReallocStatus"
+	SmartDiskService_ListReallocStatus_FullMethodName          = "/smartdisk.SmartDiskService/ListReallocStatus"
+	SmartDiskService_CancelRealloc_FullMethodName              = "/smartdisk.SmartDiskService/CancelRealloc"
 )
 
 // SmartDiskServiceClient is the client API for SmartDiskService service.
@@ -33,6 +38,11 @@ type SmartDiskServiceClient interface {
 	RunSelfTest(ctx context.Context, in *SelfTestRequest, opts ...grpc.CallOption) (*SelfTestResponse, error)
 	GetSelfTestProgress(ctx context.Context, in *SmartInfoRequest, opts ...grpc.CallOption) (*SelfTestProgress, error)
 	CancelSelfTest(ctx context.Context, in *CancelSelfTestRequest, opts ...grpc.CallOption) (*SelfTestResponse, error)
+	StartFullWipe(ctx context.Context, in *ForceReallocRequest, opts ...grpc.CallOption) (*ForceReallocResponse, error)
+	StartNonDestructiveRealloc(ctx context.Context, in *ForceReallocRequest, opts ...grpc.CallOption) (*ForceReallocResponse, error)
+	GetReallocStatus(ctx context.Context, in *ForceReallocStatusRequest, opts ...grpc.CallOption) (*ForceReallocStatus, error)
+	ListReallocStatus(ctx context.Context, in *ListReallocStatusRequest, opts ...grpc.CallOption) (*ForceReallocStatusList, error)
+	CancelRealloc(ctx context.Context, in *ForceReallocRequest, opts ...grpc.CallOption) (*ForceReallocResponse, error)
 }
 
 type smartDiskServiceClient struct {
@@ -83,6 +93,56 @@ func (c *smartDiskServiceClient) CancelSelfTest(ctx context.Context, in *CancelS
 	return out, nil
 }
 
+func (c *smartDiskServiceClient) StartFullWipe(ctx context.Context, in *ForceReallocRequest, opts ...grpc.CallOption) (*ForceReallocResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ForceReallocResponse)
+	err := c.cc.Invoke(ctx, SmartDiskService_StartFullWipe_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *smartDiskServiceClient) StartNonDestructiveRealloc(ctx context.Context, in *ForceReallocRequest, opts ...grpc.CallOption) (*ForceReallocResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ForceReallocResponse)
+	err := c.cc.Invoke(ctx, SmartDiskService_StartNonDestructiveRealloc_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *smartDiskServiceClient) GetReallocStatus(ctx context.Context, in *ForceReallocStatusRequest, opts ...grpc.CallOption) (*ForceReallocStatus, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ForceReallocStatus)
+	err := c.cc.Invoke(ctx, SmartDiskService_GetReallocStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *smartDiskServiceClient) ListReallocStatus(ctx context.Context, in *ListReallocStatusRequest, opts ...grpc.CallOption) (*ForceReallocStatusList, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ForceReallocStatusList)
+	err := c.cc.Invoke(ctx, SmartDiskService_ListReallocStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *smartDiskServiceClient) CancelRealloc(ctx context.Context, in *ForceReallocRequest, opts ...grpc.CallOption) (*ForceReallocResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ForceReallocResponse)
+	err := c.cc.Invoke(ctx, SmartDiskService_CancelRealloc_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SmartDiskServiceServer is the server API for SmartDiskService service.
 // All implementations must embed UnimplementedSmartDiskServiceServer
 // for forward compatibility
@@ -91,6 +151,11 @@ type SmartDiskServiceServer interface {
 	RunSelfTest(context.Context, *SelfTestRequest) (*SelfTestResponse, error)
 	GetSelfTestProgress(context.Context, *SmartInfoRequest) (*SelfTestProgress, error)
 	CancelSelfTest(context.Context, *CancelSelfTestRequest) (*SelfTestResponse, error)
+	StartFullWipe(context.Context, *ForceReallocRequest) (*ForceReallocResponse, error)
+	StartNonDestructiveRealloc(context.Context, *ForceReallocRequest) (*ForceReallocResponse, error)
+	GetReallocStatus(context.Context, *ForceReallocStatusRequest) (*ForceReallocStatus, error)
+	ListReallocStatus(context.Context, *ListReallocStatusRequest) (*ForceReallocStatusList, error)
+	CancelRealloc(context.Context, *ForceReallocRequest) (*ForceReallocResponse, error)
 	mustEmbedUnimplementedSmartDiskServiceServer()
 }
 
@@ -109,6 +174,21 @@ func (UnimplementedSmartDiskServiceServer) GetSelfTestProgress(context.Context, 
 }
 func (UnimplementedSmartDiskServiceServer) CancelSelfTest(context.Context, *CancelSelfTestRequest) (*SelfTestResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CancelSelfTest not implemented")
+}
+func (UnimplementedSmartDiskServiceServer) StartFullWipe(context.Context, *ForceReallocRequest) (*ForceReallocResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StartFullWipe not implemented")
+}
+func (UnimplementedSmartDiskServiceServer) StartNonDestructiveRealloc(context.Context, *ForceReallocRequest) (*ForceReallocResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StartNonDestructiveRealloc not implemented")
+}
+func (UnimplementedSmartDiskServiceServer) GetReallocStatus(context.Context, *ForceReallocStatusRequest) (*ForceReallocStatus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetReallocStatus not implemented")
+}
+func (UnimplementedSmartDiskServiceServer) ListReallocStatus(context.Context, *ListReallocStatusRequest) (*ForceReallocStatusList, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListReallocStatus not implemented")
+}
+func (UnimplementedSmartDiskServiceServer) CancelRealloc(context.Context, *ForceReallocRequest) (*ForceReallocResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CancelRealloc not implemented")
 }
 func (UnimplementedSmartDiskServiceServer) mustEmbedUnimplementedSmartDiskServiceServer() {}
 
@@ -195,6 +275,96 @@ func _SmartDiskService_CancelSelfTest_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SmartDiskService_StartFullWipe_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ForceReallocRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SmartDiskServiceServer).StartFullWipe(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SmartDiskService_StartFullWipe_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SmartDiskServiceServer).StartFullWipe(ctx, req.(*ForceReallocRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SmartDiskService_StartNonDestructiveRealloc_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ForceReallocRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SmartDiskServiceServer).StartNonDestructiveRealloc(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SmartDiskService_StartNonDestructiveRealloc_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SmartDiskServiceServer).StartNonDestructiveRealloc(ctx, req.(*ForceReallocRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SmartDiskService_GetReallocStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ForceReallocStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SmartDiskServiceServer).GetReallocStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SmartDiskService_GetReallocStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SmartDiskServiceServer).GetReallocStatus(ctx, req.(*ForceReallocStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SmartDiskService_ListReallocStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListReallocStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SmartDiskServiceServer).ListReallocStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SmartDiskService_ListReallocStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SmartDiskServiceServer).ListReallocStatus(ctx, req.(*ListReallocStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SmartDiskService_CancelRealloc_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ForceReallocRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SmartDiskServiceServer).CancelRealloc(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SmartDiskService_CancelRealloc_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SmartDiskServiceServer).CancelRealloc(ctx, req.(*ForceReallocRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SmartDiskService_ServiceDesc is the grpc.ServiceDesc for SmartDiskService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -217,6 +387,26 @@ var SmartDiskService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CancelSelfTest",
 			Handler:    _SmartDiskService_CancelSelfTest_Handler,
+		},
+		{
+			MethodName: "StartFullWipe",
+			Handler:    _SmartDiskService_StartFullWipe_Handler,
+		},
+		{
+			MethodName: "StartNonDestructiveRealloc",
+			Handler:    _SmartDiskService_StartNonDestructiveRealloc_Handler,
+		},
+		{
+			MethodName: "GetReallocStatus",
+			Handler:    _SmartDiskService_GetReallocStatus_Handler,
+		},
+		{
+			MethodName: "ListReallocStatus",
+			Handler:    _SmartDiskService_ListReallocStatus_Handler,
+		},
+		{
+			MethodName: "CancelRealloc",
+			Handler:    _SmartDiskService_CancelRealloc_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
