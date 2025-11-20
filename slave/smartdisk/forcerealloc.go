@@ -170,7 +170,7 @@ func (m *ForceReallocManager) periodicCleanup() {
 		m.mu.Lock()
 		for device, job := range m.jobs {
 			job.mu.RLock()
-			if job.status.Completed && time.Since(job.status.StartedAt.Add(job.status.Elapsed)) > time.Hour {
+			if job.status.Completed && time.Since(job.status.StartedAt.Add(job.status.Elapsed)) > 7*24*time.Hour {
 				delete(m.jobs, device)
 			}
 			job.mu.RUnlock()
