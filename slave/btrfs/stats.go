@@ -170,19 +170,57 @@ type BalanceStatusResult struct {
 }
 
 func GetBalanceStatus(mountPoint string) (string, error) {
+	// First try the JSON output (newer btrfs-progs)
 	cmd := exec.Command("btrfs", "--format", "json", "balance", "status", mountPoint)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		var result BalanceStatusResult
+		if err := json.Unmarshal(output, &result); err == nil && result.BalanceStatus != "" {
+			return result.BalanceStatus, nil
+		}
+		// Fall through to text parsing if JSON parsing fails or is empty
+		if parsed := parseBalanceStatusText(string(output)); parsed != "" {
+			return parsed, nil
+		}
+	}
+
+	// Fallback for older versions that do not support JSON output
+	cmd = exec.Command("btrfs", "balance", "status", mountPoint)
+	output, err = cmd.CombinedOutput()
 	if err != nil {
-		// Balance status might not be available, return empty string
-		return "", nil
+		return "", fmt.Errorf(
+			"failed to get balance status for %s: %w (output: %s)",
+			mountPoint,
+			err,
+			strings.TrimSpace(string(output)),
+		)
 	}
 
-	var result BalanceStatusResult
-	if err := json.Unmarshal(output, &result); err != nil {
-		return "", fmt.Errorf("failed to unmarshal balance status: %w", err)
+	return parseBalanceStatusText(string(output)), nil
+}
+
+// parseBalanceStatusText extracts a useful balance status string from the CLI output.
+// When progress information is present (second line), it returns that line;
+// otherwise it returns the first non-empty line.
+func parseBalanceStatusText(output string) string {
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	cleaned := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			cleaned = append(cleaned, trimmed)
+		}
 	}
 
-	return result.BalanceStatus, nil
+	if len(cleaned) == 0 {
+		return ""
+	}
+
+	// Prefer the progress line when available
+	if len(cleaned) > 1 {
+		return cleaned[len(cleaned)-1]
+	}
+
+	return cleaned[0]
 }
 
 // GetDisksFromRaid returns the list of disk devices that are part of a BTRFS raid

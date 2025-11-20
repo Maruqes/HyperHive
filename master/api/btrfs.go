@@ -239,6 +239,26 @@ func addAutomaticMount(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func getAutomaticMounts(w http.ResponseWriter, r *http.Request) {
+	machineName := r.URL.Query().Get("machine_name")
+
+	btrfsService := services.BTRFSService{}
+	mounts, err := btrfsService.ListAutomaticMounts(machineName)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to list automatic mounts: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "success",
+		"data":   mounts,
+	}); err != nil {
+		http.Error(w, fmt.Sprintf("failed to encode response: %v", err), http.StatusInternalServerError)
+	}
+}
+
 func removeAutomaticMount(w http.ResponseWriter, r *http.Request) {
 	type RemoveAutoMountReq struct {
 		ID int `json:"id"`
@@ -633,6 +653,9 @@ func setupBTRFS(r chi.Router) chi.Router {
 
 		r.Post("/mount_raid/{machine_name}", mountRaid)
 		r.Post("/umount_raid/{machine_name}", umountRaid)
+
+		//automatic
+		r.Get("/automatic_mount", getAutomaticMounts)
 		r.Post("/automatic_mount", addAutomaticMount)
 		r.Delete("/automatic_mount", removeAutomaticMount)
 

@@ -350,6 +350,14 @@ func (s *BTRFSService) RemoveAutomaticMount(id int) (int64, error) {
 	return rows, nil
 }
 
+func (s *BTRFSService) ListAutomaticMounts(machineName string) ([]db.Btrfs, error) {
+	machineName = strings.TrimSpace(machineName)
+	if machineName == "" {
+		return db.GetAllBtrfs()
+	}
+	return db.GetBtrfsByMachineName(machineName)
+}
+
 func (s *BTRFSService) AutoMountRaid(machineName string) error {
 	raids, err := db.GetBtrfsByMachineName(machineName)
 	if err != nil {
