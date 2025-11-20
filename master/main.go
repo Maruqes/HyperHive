@@ -26,9 +26,16 @@ import (
 
 func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 
+	btrfsService := services.BTRFSService{}
+	err := btrfsService.AutoMountRaid(machineName)
+	if err != nil {
+		logger.Error("UpdateNFS failed: %v", err)
+		return err
+	}
+
 	logger.Info("Mounting all NFS")
 	nfsService := services.NFSService{}
-	err := nfsService.UpdateNFSShit()
+	err = nfsService.UpdateNFSShit()
 	if err != nil {
 		logger.Error("UpdateNFS failed: %v", err)
 		return err
@@ -344,6 +351,11 @@ func main() {
 	err = db.CreateTableAutomaticBackup()
 	if err != nil {
 		log.Fatalf("create autostart table: %v", err)
+	}
+
+	err = db.CreateBtrfsTable()
+	if err != nil {
+		log.Fatalf("create btrfs auto table: %v", err)
 	}
 
 	//listen and connects to gRPC

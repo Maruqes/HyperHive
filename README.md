@@ -27,3 +27,18 @@ When adding new listeners (for example, a Minecraft server proxied by NPM) make 
    - (Optional) add UDP if needed, then reload: `sudo firewall-cmd --reload`.
    - Confirm: `sudo firewall-cmd --zone=FedoraServer --list-ports`.
 3. Re-test from outside the host (`nc -zv <host-ip> 25565`) and verify traffic reaches the service.
+
+## Disk Health Tool
+
+`cmd/diskreport` is a small client you can run on Fedora hosts to capture SMART metrics, self-test results, and (optionally) a read-only `badblocks` surface scan. Install `smartmontools` before running and add `smartctl` to the `PATH`. If you plan to run `--surface-scan`, install `badblocks` and execute the command as root.
+
+```sh
+sudo go run ./cmd/diskreport --device sda --surface-scan
+```
+
+Other useful knobs:
+
+1. `--device nvme0n1` lets you target specific devices. Multiple `--device` flags or comma-separated names are accepted.
+1. `--json` emits JSON so you can script report collection.
+
+The command prints a human-friendly summary, highlights pending/reallocated sectors, and notes any connectors or surface-scan findings. Run it again periodically to compare reports and catch degrading health early.

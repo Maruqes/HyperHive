@@ -31,6 +31,33 @@ type BtrfsDevice struct {
 
 // if test i will return also loop for testing
 func GetAllDisks(test bool) ([]MinDisk, error) {
+	// Map devices that are part of a mounted BTRFS filesystem
+	// so we don't report them as "free" even if the individual
+	// block device does not show a mountpoint (only one device
+	// appears in /proc/mounts for multi-device BTRFS).
+	btrfsInUse := make(map[string]bool)
+	if devsByUUID, _, _, err := collectBtrfsDevices(); err == nil {
+		for _, devs := range devsByUUID {
+			fsMounted := false
+			for _, d := range devs {
+				if strings.TrimSpace(d.MountPoint) != "" || d.Mounted {
+					fsMounted = true
+					break
+				}
+			}
+			if fsMounted {
+				for _, d := range devs {
+					path := strings.TrimSpace(d.Path)
+					if path != "" {
+						btrfsInUse[path] = true
+					}
+				}
+			}
+		}
+	} else {
+		logger.Error(fmt.Sprintf("failed to collect btrfs devices: %v", err))
+	}
+
 	cmd := exec.Command("lsblk", "-d", "-n", "-b", "-o", "NAME,TYPE,SIZE")
 	output, err := cmd.Output()
 	if err != nil {
@@ -53,7 +80,7 @@ func GetAllDisks(test bool) ([]MinDisk, error) {
 		}
 
 		path := "/dev/" + name
-		mounted := isMounted(path)
+		mounted := btrfsInUse[path] || isMounted(path)
 
 		var size int64
 		fmt.Sscanf(sizeBytes, "%d", &size)

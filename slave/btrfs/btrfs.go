@@ -31,10 +31,23 @@ func runCommand(desc string, args ...string) error {
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = io.MultiWriter(os.Stdout, &stdoutBuf)
 	cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
-	if err := cmd.Run(); err != nil {
-		stdoutStr := strings.TrimSpace(stdoutBuf.String())
-		stderrStr := strings.TrimSpace(stderrBuf.String())
-		logger.Error(desc + " failed: " + err.Error())
+
+	err := cmd.Run()
+
+	cmdStr := strings.Join(cmd.Args, " ")
+	stdoutStr := strings.TrimSpace(stdoutBuf.String())
+	stderrStr := strings.TrimSpace(stderrBuf.String())
+
+	if err != nil {
+		exitInfo := err.Error()
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitInfo = fmt.Sprintf("exit code %d", exitErr.ExitCode())
+		}
+
+		logger.Error(fmt.Sprintf("%s failed (cmd=%s)", desc, cmdStr))
+		if exitInfo != "" {
+			logger.Error(desc + " exit info: " + exitInfo)
+		}
 		if stderrStr != "" {
 			logger.Error(desc + " stderr: " + stderrStr)
 		}
@@ -42,19 +55,21 @@ func runCommand(desc string, args ...string) error {
 			logger.Error(desc + " stdout: " + stdoutStr)
 		}
 
-		var details []string
+		details := []string{fmt.Sprintf("cmd=%s", cmdStr)}
+		if exitInfo != "" {
+			details = append(details, "exit="+exitInfo)
+		}
 		if stderrStr != "" {
-			details = append(details, "stderr: "+stderrStr)
+			details = append(details, "stderr="+stderrStr)
 		}
 		if stdoutStr != "" {
-			details = append(details, "stdout: "+stdoutStr)
+			details = append(details, "stdout="+stdoutStr)
 		}
-		if len(details) > 0 {
-			return fmt.Errorf("%s: %s: %w", desc, strings.Join(details, "; "), err)
-		}
-		return fmt.Errorf("%s: %w", desc, err)
+
+		return fmt.Errorf("%s failed (%s): %w", desc, strings.Join(details, "; "), err)
 	}
-	logger.Info(desc + " succeeded")
+
+	logger.Info(fmt.Sprintf("%s succeeded (cmd=%s)", desc, cmdStr))
 	return nil
 }
 
@@ -249,12 +264,15 @@ func CreateRaid(name string, raid *raidType, disks ...string) (string, error) {
 
 	// Get UUID of the newly created filesystem
 	cmd := exec.Command("blkid", "-s", "UUID", "-o", "value", disks[0])
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("failed to get UUID: %w", err)
+		return "", fmt.Errorf("failed to get UUID from %s: %w (output: %s)", disks[0], err, strings.TrimSpace(string(output)))
 	}
 
 	uuid := strings.TrimSpace(string(output))
+	if uuid == "" {
+		return "", fmt.Errorf("failed to get UUID from %s: empty blkid output", disks[0])
+	}
 	return uuid, nil
 }
 
@@ -288,13 +306,27 @@ BTRFS Compression Options:
   - Best for: already compressed data (videos, images), maximum performance
 
 Performance comparison (approximate):
-  Speed:       lzo > zstd > zlib
-  Compression: zlib > zstd > lzo
-  Recommended: zstd (best overall balance)
-*/
 
-func MountRaid(uuid string, mountPoint string, compression string) error {
-	// Validate compression against known constants
+	Speed:       lzo > zstd > zlib
+	Compression: zlib > zstd > lzo
+	Recommended: zstd (best overall balance)
+*/
+type MountResult struct {
+	Degraded bool
+	Problems []string
+}
+
+func MountRaid(uuid string, mountPoint string, compression string) (*MountResult, error) {
+	uuid = strings.TrimSpace(uuid)
+	if uuid == "" {
+		return nil, fmt.Errorf("uuid is required to mount a filesystem")
+	}
+
+	mountPoint = strings.TrimSpace(mountPoint)
+	if mountPoint == "" {
+		return nil, fmt.Errorf("mount point is required")
+	}
+
 	compression = strings.TrimSpace(compression)
 	validCompressions := []string{
 		CompressionNone,
@@ -318,35 +350,59 @@ func MountRaid(uuid string, mountPoint string, compression string) error {
 		}
 	}
 	if !isValid && compression != "" {
-		return fmt.Errorf("invalid compression type: %s", compression)
+		return nil, fmt.Errorf("invalid compression type: %s", compression)
 	}
 
 	if err := os.MkdirAll(mountPoint, 0755); err != nil {
-		return fmt.Errorf("failed to create mount point: %w", err)
+		return nil, fmt.Errorf("failed to create mount point: %w", err)
 	}
 
-	// Check if something is already mounted at this mount point
 	if isMountPoint(mountPoint) {
-		return fmt.Errorf("mount point %s already has something mounted", mountPoint)
+		return nil, fmt.Errorf("mount point %s already has something mounted", mountPoint)
 	}
 
-	var opts []string
-	if compression != "" {
-		opts = append(opts, "compress="+compression)
-	}
-
-	args := []string{
+	baseArgs := []string{
 		"mount",
 		"-t", "btrfs",
 	}
 
-	if len(opts) > 0 {
-		args = append(args, "-o", strings.Join(opts, ","))
+	// função interna para montar com opções extra
+	mountWithOpts := func(extraOpts []string) error {
+		var opts []string
+		if compression != "" {
+			opts = append(opts, "compress="+compression)
+		}
+		opts = append(opts, extraOpts...)
+
+		args := append([]string{}, baseArgs...)
+		if len(opts) > 0 {
+			args = append(args, "-o", strings.Join(opts, ","))
+		}
+		args = append(args, "-U", uuid, mountPoint)
+		return runCommand("mounting raid", args...)
 	}
 
-	args = append(args, "-U", uuid, mountPoint)
+	// 1) tentar montar normalmente
+	normalErr := mountWithOpts(nil)
+	if normalErr == nil {
+		return &MountResult{Degraded: false, Problems: nil}, nil
+	}
 
-	return runCommand("mounting raid", args...)
+	// 2) fallback: tentar com degraded
+	if degradedErr := mountWithOpts([]string{"degraded"}); degradedErr == nil {
+		// aqui sabemos que montou mas está degradado
+		return &MountResult{Degraded: true, Problems: []string{normalErr.Error()}}, nil
+	} else {
+		// se até com degraded falhar, provavelmente RAID0 partido ou perda demasiado grande
+		return nil, fmt.Errorf(
+			"failed to mount uuid %s at %s (compression=%q); normal attempt error: %v; degraded attempt error: %v",
+			uuid,
+			mountPoint,
+			compression,
+			normalErr,
+			degradedErr,
+		)
+	}
 }
 
 func UMountRaid(target string, force bool) error {
@@ -368,7 +424,7 @@ func UMountRaid(target string, force bool) error {
 			logger.Error(string(output))
 			return fmt.Errorf("unmount failed - mount point busy: %w\nProcesses: %s", err, string(output))
 		}
-		
+
 		// Also try fuser as fallback
 		cmd = exec.Command("fuser", "-vm", target)
 		output, fuserErr := cmd.CombinedOutput()
@@ -574,9 +630,8 @@ func AddDiskToRaid(diskPath string, target string) error {
 
 	// Add the disk to the BTRFS filesystem
 	logger.Info("Adding disk " + diskPath + " to BTRFS filesystem at " + target)
-	err := runCommand("add disk to raid", "btrfs", "device", "add", diskPath, target)
-	if err != nil {
-		return fmt.Errorf("failed to add disk to raid: %w", err)
+	if err := runCommand("add disk to raid", "btrfs", "device", "add", diskPath, target); err != nil {
+		return fmt.Errorf("failed to add disk %s to raid at %s: %w", diskPath, target, err)
 	}
 
 	logger.Info("Successfully added disk " + diskPath + " to raid")
@@ -627,9 +682,8 @@ func RemoveDisk(diskPath string, target string) error {
 	logger.Info("Removing disk " + diskPath + " from BTRFS filesystem at " + target)
 	logger.Info("This operation may take a while as data is being relocated...")
 
-	err = runCommand("remove disk from raid", "btrfs", "device", "remove", diskPath, target)
-	if err != nil {
-		return fmt.Errorf("failed to remove disk from raid: %w", err)
+	if err = runCommand("remove disk from raid", "btrfs", "device", "remove", diskPath, target); err != nil {
+		return fmt.Errorf("failed to remove disk %s from raid at %s: %w", diskPath, target, err)
 	}
 
 	logger.Info("Successfully removed disk " + diskPath + " from raid")
@@ -690,9 +744,8 @@ func ReplaceDisk(oldDiskPath string, newDiskPath string, target string) error {
 	logger.Info("This will relocate data from the old disk to the new disk; it may take some time")
 
 	// Use 'start -B' to run in foreground and wait for completion
-	err = runCommand("replace disk in raid", "btrfs", "device", "replace", "start", "-B", oldDiskPath, newDiskPath, target)
-	if err != nil {
-		return fmt.Errorf("failed to replace disk: %w", err)
+	if err = runCommand("replace disk in raid", "btrfs", "device", "replace", "start", "-B", oldDiskPath, newDiskPath, target); err != nil {
+		return fmt.Errorf("failed to replace disk %s with %s at %s: %w", oldDiskPath, newDiskPath, target, err)
 	}
 
 	logger.Info("Disk replacement completed successfully")
@@ -753,13 +806,15 @@ func ChangeRaidLevel(target string, raid raidType) error {
 
 	args := []string{
 		"btrfs", "balance", "start",
+		"-f",
+		"-v",
 		"-dconvert=" + raid.sType,
 		"-mconvert=" + raid.sMeta,
 		target,
 	}
 
 	if err := runCommand("changing raid level", args...); err != nil {
-		return err
+		return fmt.Errorf("failed to change raid level to data=%s meta=%s at %s: %w", raid.sType, raid.sMeta, target, err)
 	}
 
 	logger.Info("Monitor progress with: btrfs balance status " + target)
@@ -794,7 +849,7 @@ func BalanceRaid(target string, chunkLimit int, background bool) error {
 	args = append(args, target)
 
 	if err := runCommand("balancing raid", args...); err != nil {
-		return err
+		return fmt.Errorf("failed to balance filesystem at %s: %w", target, err)
 	}
 
 	if background {
@@ -812,7 +867,7 @@ func PauseBalance(target string) error {
 
 	args := []string{"btrfs", "balance", "pause", target}
 	if err := runCommand("pausing balance", args...); err != nil {
-		return err
+		return fmt.Errorf("failed to pause balance at %s: %w", target, err)
 	}
 
 	logger.Info("Balance paused at " + target)
@@ -828,7 +883,7 @@ func ResumeBalance(target string) error {
 
 	args := []string{"btrfs", "balance", "resume", target}
 	if err := runCommand("resuming balance", args...); err != nil {
-		return err
+		return fmt.Errorf("failed to resume balance at %s: %w", target, err)
 	}
 
 	logger.Info("Balance resumed at " + target)
@@ -844,7 +899,7 @@ func CancelBalance(target string) error {
 
 	args := []string{"btrfs", "balance", "cancel", target}
 	if err := runCommand("canceling balance", args...); err != nil {
-		return err
+		return fmt.Errorf("failed to cancel balance at %s: %w", target, err)
 	}
 
 	logger.Info("Balance canceled at " + target)
@@ -884,7 +939,10 @@ func Defragment(target string, recursive bool, compression string) error {
 	}
 	args = append(args, target)
 
-	return runCommand("defragmenting", args...)
+	if err := runCommand("defragmenting", args...); err != nil {
+		return fmt.Errorf("failed to defragment %s: %w", target, err)
+	}
+	return nil
 }
 
 // Scrub verifies data and metadata checksums across devices, optionally running in background.
@@ -911,7 +969,7 @@ func Scrub(target string, background bool) error {
 	args = append(args, target)
 
 	if err := runCommand("scrubbing raid", args...); err != nil {
-		return err
+		return fmt.Errorf("failed to scrub %s: %w", target, err)
 	}
 
 	if background {

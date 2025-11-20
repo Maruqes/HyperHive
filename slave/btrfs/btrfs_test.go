@@ -212,7 +212,7 @@ func TestRaid0(t *testing.T) {
 
 	// Mount the RAID before trying to get stats
 	mountPoint := "/mnt/raid0_test"
-	err = MountRaid(uuid, mountPoint, CompressionZlib9)
+	_, err = MountRaid(uuid, mountPoint, CompressionZlib9)
 	if err != nil {
 		t.Error(err)
 		return
@@ -321,7 +321,7 @@ func TestRaid1c2(t *testing.T) {
 
 	// Mount the RAID before trying to get stats
 	mountPoint := "/mnt/raid1c2_test"
-	err = MountRaid(uuid, mountPoint, CompressionNone)
+	_, err = MountRaid(uuid, mountPoint, CompressionNone)
 	if err != nil {
 		t.Error(err)
 		return
@@ -430,7 +430,7 @@ func TestRaid1c3(t *testing.T) {
 
 	// Mount the RAID before trying to get stats
 	mountPoint := "/mnt/raid1c3_test"
-	err = MountRaid(uuid, mountPoint, CompressionZstd3)
+	_, err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -544,7 +544,7 @@ func TestRaid1c4(t *testing.T) {
 
 	// Mount the RAID before trying to get stats
 	mountPoint := "/mnt/raid1c4_test"
-	err = MountRaid(uuid, mountPoint, CompressionLZO)
+	_, err = MountRaid(uuid, mountPoint, CompressionLZO)
 	if err != nil {
 		t.Error(err)
 		return
@@ -664,7 +664,7 @@ func TestAddDiskToRaid(t *testing.T) {
 
 	// Mount the RAID before trying to get stats
 	mountPoint := "/mnt/raid1c3_add_test"
-	err = MountRaid(uuid, mountPoint, CompressionZstd3)
+	_, err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -791,7 +791,7 @@ func TestRemoveDiskFromRaid(t *testing.T) {
 
 	// Mount the RAID before trying to get stats
 	mountPoint := "/mnt/raid1c3_add_test"
-	err = MountRaid(uuid, mountPoint, CompressionZstd3)
+	_, err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -919,7 +919,7 @@ func TestReplaceDiskFromRaid(t *testing.T) {
 
 	// Mount the RAID
 	mountPoint := "/mnt/raid1c3_replace_test"
-	err = MountRaid(uuid, mountPoint, CompressionZstd3)
+	_, err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1044,7 +1044,7 @@ func TestChangeRaidLevel(t *testing.T) {
 	}
 
 	mountPoint := "/mnt/raid_convert_test"
-	err = MountRaid(uuid, mountPoint, CompressionZstd3)
+	_, err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1136,7 +1136,7 @@ func TestBalanceRaid(t *testing.T) {
 	}
 
 	mountPoint := "/mnt/raid_balance_test"
-	err = MountRaid(uuid, mountPoint, CompressionZstd3)
+	_, err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1237,7 +1237,7 @@ func TestDefragmentRaid(t *testing.T) {
 	}
 
 	mountPoint := "/mnt/raid_defrag_test"
-	err = MountRaid(uuid, mountPoint, CompressionNone)
+	_, err = MountRaid(uuid, mountPoint, CompressionNone)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1356,7 +1356,7 @@ func TestScrubRaid(t *testing.T) {
 	}
 
 	mountPoint := "/mnt/raid_scrub_test"
-	err = MountRaid(uuid, mountPoint, CompressionZstd3)
+	_, err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1460,7 +1460,7 @@ func TestCheckBtrfsFunc(t *testing.T) {
 	}
 
 	mountPoint := "/mnt/raid_check_test"
-	err = MountRaid(uuid, mountPoint, CompressionZstd3)
+	_, err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1512,7 +1512,7 @@ func TestCheckBtrfsFunc(t *testing.T) {
 		}
 
 		// Try to remount (may fail)
-		_, err = MountRaid("raid-check", mountPoint, CompressionZstd3)
+		_, _, err = MountRaid("raid-check", mountPoint, CompressionZstd3)
 		if err != nil {
 			fmt.Println("Mount failed after corruption (expected):", err)
 		} else {
@@ -1573,7 +1573,7 @@ func TestDiskFailure(t *testing.T) {
 	}
 
 	mountPoint := "/mnt/raid_failure_test"
-	err = MountRaid(uuid, mountPoint, CompressionZstd3)
+	_, err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1775,7 +1775,7 @@ func TestMultipleDiskFailure(t *testing.T) {
 	}
 
 	mountPoint := "/mnt/raid_multi_failure_test"
-	err = MountRaid(uuid, mountPoint, CompressionZstd3)
+	_, err = MountRaid(uuid, mountPoint, CompressionZstd3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -2055,7 +2055,7 @@ func TestRemoveRaidUUID_Mounted(t *testing.T) {
 	}
 
 	mountPoint := "/mnt/test_remove_uuid_mounted"
-	if err := MountRaid(uuid, mountPoint, CompressionNone); err != nil {
+	if _, err := MountRaid(uuid, mountPoint, CompressionNone); err != nil {
 		t.Error(err)
 		return
 	}
