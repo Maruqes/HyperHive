@@ -162,31 +162,9 @@ func GetFileSystemStats(mountPoint string) (*DeviceStats, error) {
 	return &stats, nil
 }
 
-type BalanceStatusResult struct {
-	Header struct {
-		Version string `json:"version"`
-	} `json:"__header"`
-	BalanceStatus string `json:"balance_status"`
-}
-
 func GetBalanceStatus(mountPoint string) (string, error) {
-	// First try the JSON output (newer btrfs-progs)
-	cmd := exec.Command("btrfs", "--format", "json", "balance", "status", mountPoint)
+	cmd := exec.Command("btrfs", "balance", "status", mountPoint)
 	output, err := cmd.CombinedOutput()
-	if err == nil {
-		var result BalanceStatusResult
-		if err := json.Unmarshal(output, &result); err == nil && result.BalanceStatus != "" {
-			return result.BalanceStatus, nil
-		}
-		// Fall through to text parsing if JSON parsing fails or is empty
-		if parsed := parseBalanceStatusText(string(output)); parsed != "" {
-			return parsed, nil
-		}
-	}
-
-	// Fallback for older versions that do not support JSON output
-	cmd = exec.Command("btrfs", "balance", "status", mountPoint)
-	output, err = cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf(
 			"failed to get balance status for %s: %w (output: %s)",
