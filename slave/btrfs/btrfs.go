@@ -288,13 +288,17 @@ BTRFS Compression Options:
   - Best for: already compressed data (videos, images), maximum performance
 
 Performance comparison (approximate):
-  Speed:       lzo > zstd > zlib
-  Compression: zlib > zstd > lzo
-  Recommended: zstd (best overall balance)
-*/
 
-func MountRaid(uuid string, mountPoint string, compression string) error {
-	// Validate compression against known constants
+	Speed:       lzo > zstd > zlib
+	Compression: zlib > zstd > lzo
+	Recommended: zstd (best overall balance)
+*/
+type MountResult struct {
+	Degraded bool
+	Problems []string
+}
+
+func MountRaid(uuid string, mountPoint string, compression string) (*MountResult, error) {
 	compression = strings.TrimSpace(compression)
 	validCompressions := []string{
 		CompressionNone,
@@ -318,35 +322,51 @@ func MountRaid(uuid string, mountPoint string, compression string) error {
 		}
 	}
 	if !isValid && compression != "" {
-		return fmt.Errorf("invalid compression type: %s", compression)
+		return nil, fmt.Errorf("invalid compression type: %s", compression)
 	}
 
 	if err := os.MkdirAll(mountPoint, 0755); err != nil {
-		return fmt.Errorf("failed to create mount point: %w", err)
+		return nil, fmt.Errorf("failed to create mount point: %w", err)
 	}
 
-	// Check if something is already mounted at this mount point
 	if isMountPoint(mountPoint) {
-		return fmt.Errorf("mount point %s already has something mounted", mountPoint)
+		return nil, fmt.Errorf("mount point %s already has something mounted", mountPoint)
 	}
 
-	var opts []string
-	if compression != "" {
-		opts = append(opts, "compress="+compression)
-	}
-
-	args := []string{
+	baseArgs := []string{
 		"mount",
 		"-t", "btrfs",
 	}
 
-	if len(opts) > 0 {
-		args = append(args, "-o", strings.Join(opts, ","))
+	// função interna para montar com opções extra
+	mountWithOpts := func(extraOpts []string) error {
+		var opts []string
+		if compression != "" {
+			opts = append(opts, "compress="+compression)
+		}
+		opts = append(opts, extraOpts...)
+
+		args := append([]string{}, baseArgs...)
+		if len(opts) > 0 {
+			args = append(args, "-o", strings.Join(opts, ","))
+		}
+		args = append(args, "-U", uuid, mountPoint)
+		return runCommand("mounting raid", args...)
 	}
 
-	args = append(args, "-U", uuid, mountPoint)
-
-	return runCommand("mounting raid", args...)
+	// 1) tentar montar normalmente
+	if err := mountWithOpts(nil); err == nil {
+		return &MountResult{Degraded: false, Problems: nil}, nil
+	} else {
+		// 2) fallback: tentar com degraded
+		if err2 := mountWithOpts([]string{"degraded"}); err2 == nil {
+			// aqui sabemos que montou mas está degradado
+			return &MountResult{Degraded: true, Problems: []string{err.Error()}}, nil
+		} else {
+			// se até com degraded falhar, provavelmente RAID0 partido ou perda demasiado grande
+			return nil, fmt.Errorf("failed to mount (normal and degraded): %w", err2)
+		}
+	}
 }
 
 func UMountRaid(target string, force bool) error {
@@ -368,7 +388,7 @@ func UMountRaid(target string, force bool) error {
 			logger.Error(string(output))
 			return fmt.Errorf("unmount failed - mount point busy: %w\nProcesses: %s", err, string(output))
 		}
-		
+
 		// Also try fuser as fallback
 		cmd = exec.Command("fuser", "-vm", target)
 		output, fuserErr := cmd.CombinedOutput()

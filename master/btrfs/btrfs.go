@@ -43,13 +43,13 @@ func RemoveRaid(conn *grpc.ClientConn, req *btrfsGrpc.UUIDReq) error {
 	return nil
 }
 
-func MountRaid(conn *grpc.ClientConn, req *btrfsGrpc.MountReq) error {
+func MountRaid(conn *grpc.ClientConn, req *btrfsGrpc.MountReq) (*btrfsGrpc.MountRaidRet, error) {
 	client := btrfsGrpc.NewBtrFSServiceClient(conn)
-	_, err := client.MountRaid(context.Background(), req)
+	mountRes, err := client.MountRaid(context.Background(), req)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return mountRes, nil
 }
 
 func UMountRaid(conn *grpc.ClientConn, req *btrfsGrpc.UMountReq) error {

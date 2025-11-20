@@ -121,6 +121,11 @@ message ScrubStatus {
 	double percent_done = 11;
 }
 
+message MountRaidRet{
+	bool degraded=1;
+	repeated string Problems=2;
+}
+
 message Empty{}
 service BtrFSService {
 	rpc GetAllDisks(Empty) returns (MinDiskArr);
@@ -128,7 +133,7 @@ service BtrFSService {
 	rpc GetFileSystem(UUIDReq) returns (FindMntOutput);
 	rpc CreateRaid(CreateRaidReq) returns (Empty);
 	rpc RemoveRaid(UUIDReq)returns(Empty);
-	rpc MountRaid(MountReq)returns(Empty);
+	rpc MountRaid(MountReq)returns(MountRaidRet);
 	rpc UMountRaid(UMountReq)returns(Empty);
 	
 

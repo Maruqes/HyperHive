@@ -142,12 +142,12 @@ func (s *BTRFSService) RemoveRaid(ctx context.Context, req *btrfsGrpc.UUIDReq) (
 	return &btrfsGrpc.Empty{}, nil
 }
 
-func (s *BTRFSService) MountRaid(ctx context.Context, req *btrfsGrpc.MountReq) (*btrfsGrpc.Empty, error) {
-	err := MountRaid(req.Uuid, req.Target, req.Compression)
+func (s *BTRFSService) MountRaid(ctx context.Context, req *btrfsGrpc.MountReq) (*btrfsGrpc.MountRaidRet, error) {
+	res, err := MountRaid(req.Uuid, req.Target, req.Compression)
 	if err != nil {
 		return nil, err
 	}
-	return &btrfsGrpc.Empty{}, nil
+	return &btrfsGrpc.MountRaidRet{Degraded: res.Degraded, Problems: res.Problems}, nil
 }
 
 func (s *BTRFSService) UMountRaid(ctx context.Context, req *btrfsGrpc.UMountReq) (*btrfsGrpc.Empty, error) {

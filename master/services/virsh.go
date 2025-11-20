@@ -849,7 +849,7 @@ func (v *VirshService) AutoStart(vmName string, autoStart bool) error {
 	}
 
 	if vm == nil {
-		return fmt.Errorf("failed to get vm " + vmName)
+		return fmt.Errorf("failed to get vm %s", vmName)
 	}
 
 	if autoStart {

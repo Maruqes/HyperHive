@@ -2,11 +2,13 @@ package services
 
 import (
 	"512SvMan/btrfs"
+	"512SvMan/db"
 	"512SvMan/protocol"
 	"fmt"
 	"strings"
 
 	btrfsGrpc "github.com/Maruqes/512SvMan/api/proto/btrfs"
+	"github.com/Maruqes/512SvMan/logger"
 )
 
 type BTRFSService struct{}
@@ -140,39 +142,55 @@ const (
 	CompressionZstd15 = "zstd:15" // Zstd level 15 (maximum compression)
 )
 
+var allowedCompressions = []string{
+	CompressionNone,
+	CompressionLZO,
+	CompressionZlib,
+	CompressionZlib1,
+	CompressionZlib3,
+	CompressionZlib9,
+	CompressionZstd,
+	CompressionZstd1,
+	CompressionZstd3,
+	CompressionZstd9,
+	CompressionZstd15,
+}
+
+func normalizeCompression(compression string) (string, error) {
+	compression = strings.TrimSpace(compression)
+	for _, valid := range allowedCompressions {
+		if compression == valid {
+			return compression, nil
+		}
+	}
+	if compression != "" {
+		return "", fmt.Errorf("invalid compression type: %s", compression)
+	}
+	return compression, nil
+}
+
 func (s *BTRFSService) MountRaid(machineName string, uuid, target, compression string) error {
 	conn := protocol.GetConnectionByMachineName(machineName)
 	if conn == nil {
 		return fmt.Errorf("no connection found for machine: %s", machineName)
 	}
 
-	compression = strings.TrimSpace(compression)
-	validCompressions := []string{
-		CompressionNone,
-		CompressionLZO,
-		CompressionZlib,
-		CompressionZlib1,
-		CompressionZlib3,
-		CompressionZlib9,
-		CompressionZstd,
-		CompressionZstd1,
-		CompressionZstd3,
-		CompressionZstd9,
-		CompressionZstd15,
+	var err error
+	compression, err = normalizeCompression(compression)
+	if err != nil {
+		return err
 	}
 
-	isValid := false
-	for _, valid := range validCompressions {
-		if compression == valid {
-			isValid = true
-			break
+	mountRes, err := btrfs.MountRaid(conn.Connection, &btrfsGrpc.MountReq{Uuid: uuid, Target: target, Compression: compression})
+	if err != nil {
+		return err
+	}
+	if mountRes.Degraded {
+		for _, prob := range mountRes.Problems {
+			logger.Error(prob)
 		}
 	}
-	if !isValid && compression != "" {
-		return fmt.Errorf("invalid compression type: %s", compression)
-	}
-
-	return btrfs.MountRaid(conn.Connection, &btrfsGrpc.MountReq{Uuid: uuid, Target: target, Compression: compression})
+	return nil
 }
 
 func (s *BTRFSService) UMountRaid(machineName string, uuid string, force bool) error {
@@ -283,4 +301,69 @@ func (s *BTRFSService) ScrubStats(machineName string, uuid string) (*btrfsGrpc.S
 		return nil, fmt.Errorf("no connection found for machine: %s", machineName)
 	}
 	return btrfs.ScrubStats(conn.Connection, &btrfsGrpc.UUIDReq{Uuid: uuid})
+}
+
+func (s *BTRFSService) AddAutomaticMount(machineName, uuid, mountPoint, compression string) (int64, error) {
+	machineName = strings.TrimSpace(machineName)
+	uuid = strings.TrimSpace(uuid)
+	mountPoint = strings.TrimSpace(mountPoint)
+
+	if machineName == "" {
+		return 0, fmt.Errorf("machine name cannot be empty")
+	}
+	if uuid == "" {
+		return 0, fmt.Errorf("uuid cannot be empty")
+	}
+	if mountPoint == "" {
+		return 0, fmt.Errorf("mount point cannot be empty")
+	}
+
+	var err error
+	compression, err = normalizeCompression(compression)
+	if err != nil {
+		return 0, err
+	}
+
+	existing, err := db.GetBtrfsByUUIDAndMount(machineName, uuid, mountPoint)
+	if err != nil {
+		return 0, err
+	}
+	if existing != nil {
+		return 0, fmt.Errorf("automatic mount already exists for machine %s uuid %s at %s", machineName, uuid, mountPoint)
+	}
+
+	return db.InsertBtrfs(uuid, mountPoint, compression, machineName)
+}
+
+func (s *BTRFSService) RemoveAutomaticMount(id int) (int64, error) {
+	if id <= 0 {
+		return 0, fmt.Errorf("invalid id %d", id)
+	}
+
+	rows, err := db.DeleteBtrfs(id)
+	if err != nil {
+		return 0, err
+	}
+	if rows == 0 {
+		return 0, fmt.Errorf("automatic mount with id %d not found", id)
+	}
+	return rows, nil
+}
+
+func (s *BTRFSService) AutoMountRaid(machineName string) error {
+	raids, err := db.GetBtrfsByMachineName(machineName)
+	if err != nil {
+		return err
+	}
+	if len(raids) == 0 {
+		return fmt.Errorf("not a error, %s has no autoMounts")
+	}
+
+	for _, raid := range raids {
+		err := s.MountRaid(machineName, raid.RaidUUID, raid.MountPoint, raid.Compression)
+		if err != nil {
+			logger.Error(err.Error())
+		}
+	}
+	return nil
 }
