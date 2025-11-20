@@ -174,31 +174,7 @@ func GetBalanceStatus(mountPoint string) (string, error) {
 		)
 	}
 
-	return parseBalanceStatusText(string(output)), nil
-}
-
-// parseBalanceStatusText extracts a useful balance status string from the CLI output.
-// When progress information is present (second line), it returns that line;
-// otherwise it returns the first non-empty line.
-func parseBalanceStatusText(output string) string {
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-	cleaned := make([]string, 0, len(lines))
-	for _, line := range lines {
-		if trimmed := strings.TrimSpace(line); trimmed != "" {
-			cleaned = append(cleaned, trimmed)
-		}
-	}
-
-	if len(cleaned) == 0 {
-		return ""
-	}
-
-	// Prefer the progress line when available
-	if len(cleaned) > 1 {
-		return cleaned[len(cleaned)-1]
-	}
-
-	return cleaned[0]
+	return string(output), nil
 }
 
 // GetDisksFromRaid returns the list of disk devices that are part of a BTRFS raid
