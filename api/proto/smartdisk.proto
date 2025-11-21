@@ -10,6 +10,11 @@ enum SelfTestType {
   SELF_TEST_TYPE_EXTENDED = 2;
 }
 
+enum ForceReallocMode {
+  FORCE_REALLOC_MODE_DESTRUCTIVE = 0;
+  FORCE_REALLOC_MODE_NON_DESTRUCTIVE = 1;
+}
+
 message SmartInfoRequest {
   string device = 1;
 }
@@ -120,10 +125,49 @@ message CancelSelfTestRequest {
   string device = 1;
 }
 
+message ForceReallocRequest {
+  string device = 1;
+}
+
+message ForceReallocResponse {
+  string message = 1;
+}
+
+message ForceReallocStatusRequest {
+  string device = 1;
+}
+
+message ForceReallocStatus {
+  string device = 1;
+  ForceReallocMode mode = 2;
+  int64 started_at_unix = 3;
+  int64 elapsed_seconds = 4;
+  double percent = 5;
+  string pattern = 6;
+  int32 read_errors = 7;
+  int32 write_errors = 8;
+  int32 corruption_errors = 9;
+  string last_line = 10;
+  bool completed = 11;
+  string error = 12;
+}
+
+message ForceReallocStatusList {
+  repeated ForceReallocStatus statuses = 1;
+}
+
+message ListReallocStatusRequest {}
+
 // Provides SMART/health information for disks on the slave.
 service SmartDiskService {
   rpc GetSmartInfo(SmartInfoRequest) returns (SmartDiskInfo);
   rpc RunSelfTest(SelfTestRequest) returns (SelfTestResponse);
   rpc GetSelfTestProgress(SmartInfoRequest) returns (SelfTestProgress);
   rpc CancelSelfTest(CancelSelfTestRequest) returns (SelfTestResponse);
+  rpc StartFullWipe(ForceReallocRequest) returns (ForceReallocResponse);
+  rpc StartNonDestructiveRealloc(ForceReallocRequest)
+      returns (ForceReallocResponse);
+  rpc GetReallocStatus(ForceReallocStatusRequest) returns (ForceReallocStatus);
+  rpc ListReallocStatus(ListReallocStatusRequest) returns (ForceReallocStatusList);
+  rpc CancelRealloc(ForceReallocRequest) returns (ForceReallocResponse);
 }

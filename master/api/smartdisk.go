@@ -16,6 +16,10 @@ type smartDiskSelfTestRequest struct {
 	Type   string `json:"type"`
 }
 
+type forceReallocRequest struct {
+	Device string `json:"device"`
+}
+
 func getSmartDiskInfo(w http.ResponseWriter, r *http.Request) {
 	machineName := chi.URLParam(r, "machine_name")
 	device := strings.TrimSpace(r.URL.Query().Get("device"))
@@ -124,11 +128,114 @@ func cancelSmartDiskSelfTest(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"message": msg})
 }
 
+func startForceReallocFullWipe(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	var req forceReallocRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+	req.Device = strings.TrimSpace(req.Device)
+	if req.Device == "" {
+		http.Error(w, "device is required", http.StatusBadRequest)
+		return
+	}
+
+	service := services.SmartDiskService{}
+	message, err := service.StartFullWipe(r.Context(), machineName, req.Device)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]string{"message": message})
+}
+
+func startForceReallocNonDestructive(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	var req forceReallocRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+	req.Device = strings.TrimSpace(req.Device)
+	if req.Device == "" {
+		http.Error(w, "device is required", http.StatusBadRequest)
+		return
+	}
+
+	service := services.SmartDiskService{}
+	message, err := service.StartNonDestructiveRealloc(r.Context(), machineName, req.Device)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]string{"message": message})
+}
+
+func getForceReallocStatus(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	device := strings.TrimSpace(r.URL.Query().Get("device"))
+	if device == "" {
+		http.Error(w, "device query parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	service := services.SmartDiskService{}
+	status, err := service.GetReallocStatus(machineName, device)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	_ = writeProto(w, status)
+}
+
+func listForceReallocStatus(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	service := services.SmartDiskService{}
+	statuses, err := service.ListReallocStatus(machineName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	resp := &smartdiskGrpc.ForceReallocStatusList{Statuses: statuses}
+	_ = writeProto(w, resp)
+}
+
+func cancelForceRealloc(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	var req forceReallocRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+	req.Device = strings.TrimSpace(req.Device)
+	if req.Device == "" {
+		http.Error(w, "device is required", http.StatusBadRequest)
+		return
+	}
+
+	service := services.SmartDiskService{}
+	msg, err := service.CancelRealloc(r.Context(), machineName, req.Device)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]string{"message": msg})
+}
+
 func setupSmartDiskAPI(r chi.Router) chi.Router {
 	return r.Route("/smartdisk", func(r chi.Router) {
 		r.Get("/{machine_name}", getSmartDiskInfo)
 		r.Post("/{machine_name}/self-test", runSmartDiskSelfTest)
 		r.Get("/{machine_name}/self-test/progress", getSmartDiskSelfTestProgress)
 		r.Post("/{machine_name}/self-test/cancel", cancelSmartDiskSelfTest)
+		r.Route("/{machine_name}/realloc", func(r chi.Router) {
+			r.Post("/full-wipe", startForceReallocFullWipe)
+			r.Post("/non-destructive", startForceReallocNonDestructive)
+			r.Get("/status", getForceReallocStatus)
+			r.Get("/", listForceReallocStatus)
+			r.Post("/cancel", cancelForceRealloc)
+		})
 	})
 }

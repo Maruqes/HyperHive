@@ -26,3 +26,28 @@ func CancelSelfTest(ctx context.Context, conn *grpc.ClientConn, req *smartdiskGr
 	client := smartdiskGrpc.NewSmartDiskServiceClient(conn)
 	return client.CancelSelfTest(ctx, req)
 }
+
+func StartFullWipe(ctx context.Context, conn *grpc.ClientConn, req *smartdiskGrpc.ForceReallocRequest) (*smartdiskGrpc.ForceReallocResponse, error) {
+	client := smartdiskGrpc.NewSmartDiskServiceClient(conn)
+	return client.StartFullWipe(ctx, req)
+}
+
+func StartNonDestructiveRealloc(ctx context.Context, conn *grpc.ClientConn, req *smartdiskGrpc.ForceReallocRequest) (*smartdiskGrpc.ForceReallocResponse, error) {
+	client := smartdiskGrpc.NewSmartDiskServiceClient(conn)
+	return client.StartNonDestructiveRealloc(ctx, req)
+}
+
+func GetReallocStatus(conn *grpc.ClientConn, req *smartdiskGrpc.ForceReallocStatusRequest) (*smartdiskGrpc.ForceReallocStatus, error) {
+	client := smartdiskGrpc.NewSmartDiskServiceClient(conn)
+	return client.GetReallocStatus(context.Background(), req)
+}
+
+func ListReallocStatus(conn *grpc.ClientConn, req *smartdiskGrpc.ListReallocStatusRequest) (*smartdiskGrpc.ForceReallocStatusList, error) {
+	client := smartdiskGrpc.NewSmartDiskServiceClient(conn)
+	return client.ListReallocStatus(context.Background(), req)
+}
+
+func CancelRealloc(ctx context.Context, conn *grpc.ClientConn, req *smartdiskGrpc.ForceReallocRequest) (*smartdiskGrpc.ForceReallocResponse, error) {
+	client := smartdiskGrpc.NewSmartDiskServiceClient(conn)
+	return client.CancelRealloc(ctx, req)
+}

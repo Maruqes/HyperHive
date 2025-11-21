@@ -17,7 +17,7 @@ const (
 	SelfTestExtended SelfTestType = "long" // "long" is the smartctl flag for extended tests
 )
 
-var devicePathPattern = regexp.MustCompile(`^/dev/(sd[a-z][a-z0-9]*|hd[a-z][a-z0-9]*|vd[a-z][a-z0-9]*|xvd[a-z][a-z0-9]*|nvme[0-9]+n[0-9]+(p[0-9]+)?|mmcblk[0-9]+(p[0-9]+)?|disk/by-id/[A-Za-z0-9._:-]+|disk/by-path/[A-Za-z0-9._:-]+)$`)
+var devicePathPattern = regexp.MustCompile(`^/dev/(sd[a-z][a-z0-9]*|hd[a-z][a-z0-9]*|vd[a-z][a-z0-9]*|xvd[a-z][a-z0-9]*|nvme[0-9]+n[0-9]+(p[0-9]+)?|mmcblk[0-9]+(p[0-9]+)?|loop[0-9]+|disk/by-id/[A-Za-z0-9._:-]+|disk/by-path/[A-Za-z0-9._:-]+)$`)
 
 func validateDevicePath(device string) (string, error) {
 	device = strings.TrimSpace(device)
