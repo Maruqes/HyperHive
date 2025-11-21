@@ -454,10 +454,9 @@ func MountRaid(uuid string, mountPoint string, compression string) (*MountResult
 }
 
 func UMountRaid(target string, force bool) error {
+	usg := UsingMnt(target)
+	if usg != nil {
 
-	pids, err := CheckMountUsed(target)
-	if len(pids) > 0 {
-		return fmt.Errorf(target + "  " + err.Error())
 	}
 
 	args := []string{"umount"}
@@ -468,34 +467,14 @@ func UMountRaid(target string, force bool) error {
 
 	args = append(args, target)
 
-	err = runCommand("unmounting raid", args...)
-	if err != nil {
-		// Check what's using the mount point
-		cmd := exec.Command("lsof", "+D", target)
-		output, lsofErr := cmd.CombinedOutput()
-		if lsofErr == nil && len(output) > 0 {
-			logger.Error("Mount point is busy. Processes using it:")
-			logger.Error(string(output))
-			return fmt.Errorf("unmount failed - mount point busy: %w\nProcesses: %s", err, string(output))
-		}
-
-		// Also try fuser as fallback
-		cmd = exec.Command("fuser", "-vm", target)
-		output, fuserErr := cmd.CombinedOutput()
-		if fuserErr == nil && len(output) > 0 {
-			logger.Error("Mount point is busy. Users:")
-			logger.Error(string(output))
-			return fmt.Errorf("unmount failed - mount point busy: %w\nUsers: %s", err, string(output))
-		}
-	}
-
+	err := runCommand("unmounting raid", args...)
 	return err
 }
 
 func RemoveRaid(targetMountPoint string, force bool) error {
-	pids, err := CheckMountUsed(targetMountPoint)
-	if len(pids) > 0 {
-		return fmt.Errorf(targetMountPoint + "  " + err.Error())
+	usg := UsingMnt(targetMountPoint)
+	if usg != nil {
+
 	}
 
 	//umount an do wipefs on all disks
