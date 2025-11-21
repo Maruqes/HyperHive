@@ -454,11 +454,6 @@ func MountRaid(uuid string, mountPoint string, compression string) (*MountResult
 }
 
 func UMountRaid(target string, force bool) error {
-	usg := UsingMnt(target)
-	if usg != nil {
-		return usg
-	}
-
 	args := []string{"umount"}
 
 	if force {
@@ -472,11 +467,6 @@ func UMountRaid(target string, force bool) error {
 }
 
 func RemoveRaid(targetMountPoint string, force bool) error {
-	usg := UsingMnt(targetMountPoint)
-	if usg != nil {
-		return usg
-	}
-
 	//umount an do wipefs on all disks
 	//get info
 	devs, err := GetDisksFromRaid(targetMountPoint)
