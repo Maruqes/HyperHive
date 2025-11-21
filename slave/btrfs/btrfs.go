@@ -752,7 +752,10 @@ func ReplaceDisk(oldDiskPath string, newDiskPath string, target string) error {
 
 	// Balance after replacing a disk to ensure optimal data distribution
 	logger.Info("Starting balance operation to optimize data distribution...")
-	if err := BalanceRaid(target, 0, false); err != nil {
+	if err := BalanceRaid(BalanceRaidReq{
+		MountPoint: target,
+		Force:      false,
+	}); err != nil {
 		logger.Error("Balance operation failed: " + err.Error())
 		logger.Info("You may need to manually run BalanceRaid() later")
 		logger.Info("You can now wipe the old disk with: wipefs -a " + oldDiskPath)
@@ -821,40 +824,136 @@ func ChangeRaidLevel(target string, raid raidType) error {
 	return nil
 }
 
-// BalanceRaid redistributes data and metadata chunks across devices.
-// When chunkLimit > 0, only that many chunks of each type are balanced per run.
-// Set background to true to let the kernel continue the balance asynchronously.
-func BalanceRaid(target string, chunkLimit int, background bool) error {
-	target, err := validateMountPoint(target)
+// BalanceRaidReq defines the input for a Btrfs balance operation.
+type BalanceRaidReq struct {
+	// MountPoint is the path where the Btrfs filesystem is mounted,
+	// e.g. "/mnt/raidpool".
+	MountPoint string `json:"mountPoint"`
+
+	Filters struct {
+		// DataUsageMax maps to `-dusage=<n>` (0–100).
+		// Only data chunks with usage <= n% will be relocated.
+		DataUsageMax int32 `json:"dataUsageMax"`
+
+		// MetadataUsageMax maps to `-musage=<n>` (0–100).
+		// Only metadata chunks with usage <= n% will be relocated.
+		MetadataUsageMax int32 `json:"metadataUsageMax"`
+	} `json:"filters"`
+
+	// Force adds `-f` to the balance command.
+	Force bool `json:"force"`
+
+	// ConvertToCurrentRaid, if true, will add -dconvert=<profile> and
+	// -mconvert=<profile> using the filesystem's current RaidType.
+	ConvertToCurrentRaid bool `json:"convertToCurrentRaid"`
+}
+
+func raidTypeToBtrfsProfile(raidType string) (string, error) {
+	rt := strings.ToLower(strings.TrimSpace(raidType))
+	if rt == "" {
+		// No raid type set — treat as "no-op".
+		return "", nil
+	}
+
+	switch rt {
+	case "single",
+		"raid0",
+		"raid1",
+		"raid1c2", // sometimes explicit
+		"raid1c3",
+		"raid1c4",
+		"raid5",
+		"raid6",
+		"dup":
+		return rt, nil
+
+	default:
+		return "", fmt.Errorf("unsupported raid type %q for convert", raidType)
+	}
+}
+
+// BalanceRaid balances a Btrfs filesystem using parameters from BalanceRaidReq.
+//
+// - Uses the provided mountpoint (must already be mounted).
+// - Optionally applies -dusage and -musage filters.
+// - Optionally applies -f (force).
+// - Optionally re-applies the current RaidType as -dconvert/-mconvert.
+//
+// If no filters are set (>0) and ConvertToCurrentRaid is false,
+// it behaves like a normal `btrfs balance start <mount>`.
+func BalanceRaid(req BalanceRaidReq) error {
+	mountPoint, err := validateMountPoint(strings.TrimSpace(req.MountPoint))
 	if err != nil {
 		return err
 	}
 
-	stats, err := GetFileSystemStats(target)
+	stats, err := GetFileSystemStats(mountPoint)
 	if err != nil {
 		return fmt.Errorf("failed to inspect filesystem: %w", err)
 	}
 	if stats == nil || len(stats.DeviceStats) == 0 {
-		return fmt.Errorf("no devices detected for filesystem at %s", target)
+		return fmt.Errorf("no devices detected for filesystem at %s", mountPoint)
+	}
+
+	fileSystem, err := GetFileSystemByMountPoint(mountPoint)
+	if err != nil {
+		return fmt.Errorf("failed to get filesystem: %w", err)
 	}
 
 	args := []string{"btrfs", "balance", "start"}
-	if chunkLimit > 0 {
-		limit := fmt.Sprintf("%d", chunkLimit)
-		args = append(args, "-dlimit="+limit, "-mlimit="+limit)
+
+	// Force (-f)
+	if req.Force {
+		args = append(args, "-f")
 	}
-	if background {
-		args = append(args, "--background")
+
+	// Optionally re-apply current RAID profile with -dconvert/-mconvert.
+	if req.ConvertToCurrentRaid {
+		profile, err := raidTypeToBtrfsProfile(fileSystem.RaidType)
+		if err != nil {
+			return err
+		}
+		if profile != "" {
+			// Use same profile for data and metadata.
+			// If in the future you track them separately (e.g. DataRaidType/MetaRaidType),
+			// you can map them independently here.
+			args = append(args,
+				fmt.Sprintf("-dconvert=%s", profile),
+				fmt.Sprintf("-mconvert=%s", profile),
+			)
+		}
 	}
-	args = append(args, target)
+
+	// Clamp helper: 1–100 only; 0 = disabled (no flag).
+	clampPercent := func(v int32) int32 {
+		if v <= 0 {
+			return 0
+		}
+		if v > 100 {
+			return 100
+		}
+		return v
+	}
+
+	dataUsage := clampPercent(req.Filters.DataUsageMax)
+	metaUsage := clampPercent(req.Filters.MetadataUsageMax)
+
+	// Add usage filters if set.
+	if dataUsage > 0 {
+		args = append(args, fmt.Sprintf("-dusage=%d", dataUsage))
+	}
+	if metaUsage > 0 {
+		args = append(args, fmt.Sprintf("-musage=%d", metaUsage))
+	}
+
+	// Finally, the mount point.
+	args = append(args, mountPoint)
 
 	if err := runCommand("balancing raid", args...); err != nil {
-		return fmt.Errorf("failed to balance filesystem at %s: %w", target, err)
+		return fmt.Errorf("failed to balance filesystem at %s: %w", mountPoint, err)
 	}
 
-	if background {
-		logger.Info("Balance running in background; check progress with: btrfs balance status " + target)
-	}
+	logger.Info("Balance operation started; check progress with: btrfs balance status " + mountPoint)
 	return nil
 }
 

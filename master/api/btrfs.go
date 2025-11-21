@@ -424,11 +424,17 @@ func balanceRaid(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type UUIDReq struct {
-		UUID string `json:"uuid"`
+	type BalanceRaidReq struct {
+		UUID    string `json:"uuid"`
+		Filters struct {
+			DataUsageMax     int32 `json:"dataUsageMax"`
+			MetadataUsageMax int32 `json:"metadataUsageMax"`
+		} `json:"filters"`
+		Force                bool `json:"force"`
+		ConvertToCurrentRaid bool `json:"convertToCurrentRaid"`
 	}
 
-	var req UUIDReq
+	var req BalanceRaidReq
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&req); err != nil {
 		http.Error(w, fmt.Sprintf("failed to decode request: %v", err), http.StatusBadRequest)
@@ -437,7 +443,7 @@ func balanceRaid(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	btrfsService := services.BTRFSService{}
-	if err := btrfsService.BalanceRaid(machineName, req.UUID); err != nil {
+	if err := btrfsService.BalanceRaid(machineName, req.UUID, req.Filters.DataUsageMax, req.Filters.MetadataUsageMax, req.Force, req.ConvertToCurrentRaid); err != nil {
 		http.Error(w, fmt.Sprintf("failed to balance raid: %v", err), http.StatusInternalServerError)
 		return
 	}

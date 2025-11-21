@@ -214,12 +214,21 @@ func (s *BTRFSService) ChangeRaidLevel(ctx context.Context, req *btrfsGrpc.Chang
 	return &btrfsGrpc.Empty{}, nil
 }
 
-func (s *BTRFSService) BalanceRaid(ctx context.Context, req *btrfsGrpc.UUIDReq) (*btrfsGrpc.Empty, error) {
+func (s *BTRFSService) BalanceRaid(ctx context.Context, req *btrfsGrpc.BalanceRaidReq) (*btrfsGrpc.Empty, error) {
 	mp, err := GetMountPointFromUUID(req.Uuid)
 	if err != nil {
 		return nil, err
 	}
-	err = BalanceRaid(mp, 0, true)
+	balanceReq := BalanceRaidReq{
+		MountPoint:           mp,
+		Force:                req.Force,
+		ConvertToCurrentRaid: req.ConvertToCurrentRaid,
+	}
+	if req.Filters != nil {
+		balanceReq.Filters.DataUsageMax = req.Filters.DataUsageMax
+		balanceReq.Filters.MetadataUsageMax = req.Filters.MetadataUsageMax
+	}
+	err = BalanceRaid(balanceReq)
 	if err != nil {
 		return nil, err
 	}

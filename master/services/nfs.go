@@ -421,6 +421,8 @@ func (s *NFSService) MountAllSharedFolders() error {
 		return fmt.Errorf("length of connections and machine names must be the same")
 	}
 
+	mountErrors := make([]string, 0)
+
 	logger.Info("Creating NFS shared folders on all slaves...")
 	// create shared folders on all provided connections
 	for _, svNSF := range serversNFS {
@@ -443,14 +445,17 @@ func (s *NFSService) MountAllSharedFolders() error {
 			logger.Info("Creating NFS shared folder on machine:", machineNames[i], " with mount:", mount)
 			// create shared folder on the specific machine
 			if err := nfs.CreateSharedFolder(conn, mount); err != nil {
-				return err
+				errMsg := fmt.Sprintf("CreateSharedFolder on %s target %s failed: %v", machineNames[i], mount.Target, err)
+				logger.Error(errMsg)
+				mountErrors = append(mountErrors, errMsg)
+				continue
 			}
 		}
 	}
 
 	logger.Info("Mounting NFS shared folders on all slaves...")
 	// mount on all provided connections
-	for _, conn := range conns {
+	for i, conn := range conns {
 		if conn == nil {
 			continue
 		}
@@ -464,9 +469,15 @@ func (s *NFSService) MountAllSharedFolders() error {
 			}
 			logger.Info("Mounting NFS shared folder on machine with mount:", mount)
 			if err := nfs.MountSharedFolder(conn, mount); err != nil {
-				return err
+				errMsg := fmt.Sprintf("MountSharedFolder on %s target %s failed: %v", machineNames[i], mount.Target, err)
+				logger.Error(errMsg)
+				mountErrors = append(mountErrors, errMsg)
+				continue
 			}
 		}
+	}
+	if len(mountErrors) > 0 {
+		return fmt.Errorf("one or more NFS mounts failed: %s", strings.Join(mountErrors, "; "))
 	}
 	return nil
 }
@@ -602,4 +613,3 @@ func (s *NFSService) SyncNFSSlavesByMachineName(machineName string) error {
 	}
 	return nil
 }
-

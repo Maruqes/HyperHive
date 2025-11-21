@@ -55,7 +55,7 @@ type BtrFSServiceClient interface {
 	RemoveDiskFromRaid(ctx context.Context, in *RemoveDiskFromRaidReq, opts ...grpc.CallOption) (*Empty, error)
 	ReplaceDiskInRaid(ctx context.Context, in *ReplaceDiskToRaidReq, opts ...grpc.CallOption) (*Empty, error)
 	ChangeRaidLevel(ctx context.Context, in *ChangeRaidLevelReq, opts ...grpc.CallOption) (*Empty, error)
-	BalanceRaid(ctx context.Context, in *UUIDReq, opts ...grpc.CallOption) (*Empty, error)
+	BalanceRaid(ctx context.Context, in *BalanceRaidReq, opts ...grpc.CallOption) (*Empty, error)
 	DefragmentRaid(ctx context.Context, in *UUIDReq, opts ...grpc.CallOption) (*Empty, error)
 	ScrubRaid(ctx context.Context, in *UUIDReq, opts ...grpc.CallOption) (*Empty, error)
 	GetRaidStats(ctx context.Context, in *UUIDReq, opts ...grpc.CallOption) (*RaidStats, error)
@@ -183,7 +183,7 @@ func (c *btrFSServiceClient) ChangeRaidLevel(ctx context.Context, in *ChangeRaid
 	return out, nil
 }
 
-func (c *btrFSServiceClient) BalanceRaid(ctx context.Context, in *UUIDReq, opts ...grpc.CallOption) (*Empty, error) {
+func (c *btrFSServiceClient) BalanceRaid(ctx context.Context, in *BalanceRaidReq, opts ...grpc.CallOption) (*Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(Empty)
 	err := c.cc.Invoke(ctx, BtrFSService_BalanceRaid_FullMethodName, in, out, cOpts...)
@@ -278,7 +278,7 @@ type BtrFSServiceServer interface {
 	RemoveDiskFromRaid(context.Context, *RemoveDiskFromRaidReq) (*Empty, error)
 	ReplaceDiskInRaid(context.Context, *ReplaceDiskToRaidReq) (*Empty, error)
 	ChangeRaidLevel(context.Context, *ChangeRaidLevelReq) (*Empty, error)
-	BalanceRaid(context.Context, *UUIDReq) (*Empty, error)
+	BalanceRaid(context.Context, *BalanceRaidReq) (*Empty, error)
 	DefragmentRaid(context.Context, *UUIDReq) (*Empty, error)
 	ScrubRaid(context.Context, *UUIDReq) (*Empty, error)
 	GetRaidStats(context.Context, *UUIDReq) (*RaidStats, error)
@@ -329,7 +329,7 @@ func (UnimplementedBtrFSServiceServer) ReplaceDiskInRaid(context.Context, *Repla
 func (UnimplementedBtrFSServiceServer) ChangeRaidLevel(context.Context, *ChangeRaidLevelReq) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChangeRaidLevel not implemented")
 }
-func (UnimplementedBtrFSServiceServer) BalanceRaid(context.Context, *UUIDReq) (*Empty, error) {
+func (UnimplementedBtrFSServiceServer) BalanceRaid(context.Context, *BalanceRaidReq) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BalanceRaid not implemented")
 }
 func (UnimplementedBtrFSServiceServer) DefragmentRaid(context.Context, *UUIDReq) (*Empty, error) {
@@ -573,7 +573,7 @@ func _BtrFSService_ChangeRaidLevel_Handler(srv interface{}, ctx context.Context,
 }
 
 func _BtrFSService_BalanceRaid_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UUIDReq)
+	in := new(BalanceRaidReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -585,7 +585,7 @@ func _BtrFSService_BalanceRaid_Handler(srv interface{}, ctx context.Context, dec
 		FullMethod: BtrFSService_BalanceRaid_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BtrFSServiceServer).BalanceRaid(ctx, req.(*UUIDReq))
+		return srv.(BtrFSServiceServer).BalanceRaid(ctx, req.(*BalanceRaidReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }

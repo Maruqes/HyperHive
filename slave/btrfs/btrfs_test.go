@@ -1172,7 +1172,15 @@ func TestBalanceRaid(t *testing.T) {
 
 	// Test balance with chunk limit
 	fmt.Println("\n=== Running balance (limited chunks) ===")
-	err = BalanceRaid(mountPoint, 5, false)
+	balanceReq := BalanceRaidReq{
+		MountPoint: mountPoint,
+		Force:      false,
+	}
+	balanceReq.Filters.DataUsageMax = 50
+	balanceReq.Filters.MetadataUsageMax = 50
+	balanceReq.ConvertToCurrentRaid = false
+
+	err = BalanceRaid(balanceReq)
 	if err != nil {
 		t.Error("Balance with chunk limit failed:", err)
 		UMountRaid(mountPoint, false)
@@ -1180,7 +1188,12 @@ func TestBalanceRaid(t *testing.T) {
 	}
 
 	fmt.Println("\n=== Running full balance ===")
-	err = BalanceRaid(mountPoint, 0, false)
+	fullBalanceReq := BalanceRaidReq{
+		MountPoint:           mountPoint,
+		Force:                false,
+		ConvertToCurrentRaid: false,
+	}
+	err = BalanceRaid(fullBalanceReq)
 	if err != nil {
 		t.Error("Full balance failed:", err)
 		UMountRaid(mountPoint, false)

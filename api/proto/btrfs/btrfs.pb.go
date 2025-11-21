@@ -1201,6 +1201,74 @@ func (x *MountRaidRet) GetProblems() []string {
 	return nil
 }
 
+type BalanceRaidReq struct {
+	state                protoimpl.MessageState  `protogen:"open.v1"`
+	Uuid                 string                  `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
+	Filters              *BalanceRaidReq_Filters `protobuf:"bytes,2,opt,name=filters,proto3" json:"filters,omitempty"`
+	Force                bool                    `protobuf:"varint,3,opt,name=force,proto3" json:"force,omitempty"`
+	ConvertToCurrentRaid bool                    `protobuf:"varint,4,opt,name=convertToCurrentRaid,proto3" json:"convertToCurrentRaid,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *BalanceRaidReq) Reset() {
+	*x = BalanceRaidReq{}
+	mi := &file_btrfs_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BalanceRaidReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BalanceRaidReq) ProtoMessage() {}
+
+func (x *BalanceRaidReq) ProtoReflect() protoreflect.Message {
+	mi := &file_btrfs_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BalanceRaidReq.ProtoReflect.Descriptor instead.
+func (*BalanceRaidReq) Descriptor() ([]byte, []int) {
+	return file_btrfs_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *BalanceRaidReq) GetUuid() string {
+	if x != nil {
+		return x.Uuid
+	}
+	return ""
+}
+
+func (x *BalanceRaidReq) GetFilters() *BalanceRaidReq_Filters {
+	if x != nil {
+		return x.Filters
+	}
+	return nil
+}
+
+func (x *BalanceRaidReq) GetForce() bool {
+	if x != nil {
+		return x.Force
+	}
+	return false
+}
+
+func (x *BalanceRaidReq) GetConvertToCurrentRaid() bool {
+	if x != nil {
+		return x.ConvertToCurrentRaid
+	}
+	return false
+}
+
 type Empty struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -1209,7 +1277,7 @@ type Empty struct {
 
 func (x *Empty) Reset() {
 	*x = Empty{}
-	mi := &file_btrfs_proto_msgTypes[17]
+	mi := &file_btrfs_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1221,7 +1289,7 @@ func (x *Empty) String() string {
 func (*Empty) ProtoMessage() {}
 
 func (x *Empty) ProtoReflect() protoreflect.Message {
-	mi := &file_btrfs_proto_msgTypes[17]
+	mi := &file_btrfs_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1234,7 +1302,59 @@ func (x *Empty) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Empty.ProtoReflect.Descriptor instead.
 func (*Empty) Descriptor() ([]byte, []int) {
-	return file_btrfs_proto_rawDescGZIP(), []int{17}
+	return file_btrfs_proto_rawDescGZIP(), []int{18}
+}
+
+type BalanceRaidReq_Filters struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	DataUsageMax     int32                  `protobuf:"varint,1,opt,name=dataUsageMax,proto3" json:"dataUsageMax,omitempty"`
+	MetadataUsageMax int32                  `protobuf:"varint,2,opt,name=metadataUsageMax,proto3" json:"metadataUsageMax,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *BalanceRaidReq_Filters) Reset() {
+	*x = BalanceRaidReq_Filters{}
+	mi := &file_btrfs_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BalanceRaidReq_Filters) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BalanceRaidReq_Filters) ProtoMessage() {}
+
+func (x *BalanceRaidReq_Filters) ProtoReflect() protoreflect.Message {
+	mi := &file_btrfs_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BalanceRaidReq_Filters.ProtoReflect.Descriptor instead.
+func (*BalanceRaidReq_Filters) Descriptor() ([]byte, []int) {
+	return file_btrfs_proto_rawDescGZIP(), []int{17, 0}
+}
+
+func (x *BalanceRaidReq_Filters) GetDataUsageMax() int32 {
+	if x != nil {
+		return x.DataUsageMax
+	}
+	return 0
+}
+
+func (x *BalanceRaidReq_Filters) GetMetadataUsageMax() int32 {
+	if x != nil {
+		return x.MetadataUsageMax
+	}
+	return 0
 }
 
 var File_btrfs_proto protoreflect.FileDescriptor
@@ -1339,8 +1459,16 @@ const file_btrfs_proto_rawDesc = "" +
 	"\fpercent_done\x18\v \x01(\x01R\vpercentDone\"F\n" +
 	"\fMountRaidRet\x12\x1a\n" +
 	"\bdegraded\x18\x01 \x01(\bR\bdegraded\x12\x1a\n" +
-	"\bProblems\x18\x02 \x03(\tR\bProblems\"\a\n" +
-	"\x05Empty2\xdb\a\n" +
+	"\bProblems\x18\x02 \x03(\tR\bProblems\"\x82\x02\n" +
+	"\x0eBalanceRaidReq\x12\x12\n" +
+	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x127\n" +
+	"\afilters\x18\x02 \x01(\v2\x1d.btrfs.BalanceRaidReq.FiltersR\afilters\x12\x14\n" +
+	"\x05force\x18\x03 \x01(\bR\x05force\x122\n" +
+	"\x14convertToCurrentRaid\x18\x04 \x01(\bR\x14convertToCurrentRaid\x1aY\n" +
+	"\aFilters\x12\"\n" +
+	"\fdataUsageMax\x18\x01 \x01(\x05R\fdataUsageMax\x12*\n" +
+	"\x10metadataUsageMax\x18\x02 \x01(\x05R\x10metadataUsageMax\"\a\n" +
+	"\x05Empty2\xe2\a\n" +
 	"\fBtrFSService\x12.\n" +
 	"\vGetAllDisks\x12\f.btrfs.Empty\x1a\x11.btrfs.MinDiskArr\x127\n" +
 	"\x11GetAllFileSystems\x12\f.btrfs.Empty\x1a\x14.btrfs.FindMntOutput\x125\n" +
@@ -1355,8 +1483,8 @@ const file_btrfs_proto_rawDesc = "" +
 	"\rAddDiskToRaid\x12\x17.btrfs.AddDiskToRaidReq\x1a\f.btrfs.Empty\x12@\n" +
 	"\x12RemoveDiskFromRaid\x12\x1c.btrfs.RemoveDiskFromRaidReq\x1a\f.btrfs.Empty\x12>\n" +
 	"\x11ReplaceDiskInRaid\x12\x1b.btrfs.ReplaceDiskToRaidReq\x1a\f.btrfs.Empty\x12:\n" +
-	"\x0fChangeRaidLevel\x12\x19.btrfs.ChangeRaidLevelReq\x1a\f.btrfs.Empty\x12+\n" +
-	"\vBalanceRaid\x12\x0e.btrfs.UUIDReq\x1a\f.btrfs.Empty\x12.\n" +
+	"\x0fChangeRaidLevel\x12\x19.btrfs.ChangeRaidLevelReq\x1a\f.btrfs.Empty\x122\n" +
+	"\vBalanceRaid\x12\x15.btrfs.BalanceRaidReq\x1a\f.btrfs.Empty\x12.\n" +
 	"\x0eDefragmentRaid\x12\x0e.btrfs.UUIDReq\x1a\f.btrfs.Empty\x12)\n" +
 	"\tScrubRaid\x12\x0e.btrfs.UUIDReq\x1a\f.btrfs.Empty\x120\n" +
 	"\fGetRaidStats\x12\x0e.btrfs.UUIDReq\x1a\x10.btrfs.RaidStats\x12,\n" +
@@ -1378,26 +1506,28 @@ func file_btrfs_proto_rawDescGZIP() []byte {
 	return file_btrfs_proto_rawDescData
 }
 
-var file_btrfs_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_btrfs_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_btrfs_proto_goTypes = []any{
-	(*MinDisk)(nil),               // 0: btrfs.MinDisk
-	(*MinDiskArr)(nil),            // 1: btrfs.MinDiskArr
-	(*BtrfsDevice)(nil),           // 2: btrfs.BtrfsDevice
-	(*FileSystem)(nil),            // 3: btrfs.FileSystem
-	(*FindMntOutput)(nil),         // 4: btrfs.FindMntOutput
-	(*CreateRaidReq)(nil),         // 5: btrfs.CreateRaidReq
-	(*UUIDReq)(nil),               // 6: btrfs.UUIDReq
-	(*MountReq)(nil),              // 7: btrfs.MountReq
-	(*UMountReq)(nil),             // 8: btrfs.UMountReq
-	(*AddDiskToRaidReq)(nil),      // 9: btrfs.AddDiskToRaidReq
-	(*RemoveDiskFromRaidReq)(nil), // 10: btrfs.RemoveDiskFromRaidReq
-	(*ReplaceDiskToRaidReq)(nil),  // 11: btrfs.ReplaceDiskToRaidReq
-	(*ChangeRaidLevelReq)(nil),    // 12: btrfs.ChangeRaidLevelReq
-	(*DeviceStat)(nil),            // 13: btrfs.DeviceStat
-	(*RaidStats)(nil),             // 14: btrfs.RaidStats
-	(*ScrubStatus)(nil),           // 15: btrfs.ScrubStatus
-	(*MountRaidRet)(nil),          // 16: btrfs.MountRaidRet
-	(*Empty)(nil),                 // 17: btrfs.Empty
+	(*MinDisk)(nil),                // 0: btrfs.MinDisk
+	(*MinDiskArr)(nil),             // 1: btrfs.MinDiskArr
+	(*BtrfsDevice)(nil),            // 2: btrfs.BtrfsDevice
+	(*FileSystem)(nil),             // 3: btrfs.FileSystem
+	(*FindMntOutput)(nil),          // 4: btrfs.FindMntOutput
+	(*CreateRaidReq)(nil),          // 5: btrfs.CreateRaidReq
+	(*UUIDReq)(nil),                // 6: btrfs.UUIDReq
+	(*MountReq)(nil),               // 7: btrfs.MountReq
+	(*UMountReq)(nil),              // 8: btrfs.UMountReq
+	(*AddDiskToRaidReq)(nil),       // 9: btrfs.AddDiskToRaidReq
+	(*RemoveDiskFromRaidReq)(nil),  // 10: btrfs.RemoveDiskFromRaidReq
+	(*ReplaceDiskToRaidReq)(nil),   // 11: btrfs.ReplaceDiskToRaidReq
+	(*ChangeRaidLevelReq)(nil),     // 12: btrfs.ChangeRaidLevelReq
+	(*DeviceStat)(nil),             // 13: btrfs.DeviceStat
+	(*RaidStats)(nil),              // 14: btrfs.RaidStats
+	(*ScrubStatus)(nil),            // 15: btrfs.ScrubStatus
+	(*MountRaidRet)(nil),           // 16: btrfs.MountRaidRet
+	(*BalanceRaidReq)(nil),         // 17: btrfs.BalanceRaidReq
+	(*Empty)(nil),                  // 18: btrfs.Empty
+	(*BalanceRaidReq_Filters)(nil), // 19: btrfs.BalanceRaidReq.Filters
 }
 var file_btrfs_proto_depIdxs = []int32{
 	0,  // 0: btrfs.MinDiskArr.disks:type_name -> btrfs.MinDisk
@@ -1405,49 +1535,50 @@ var file_btrfs_proto_depIdxs = []int32{
 	3,  // 2: btrfs.FileSystem.children:type_name -> btrfs.FileSystem
 	3,  // 3: btrfs.FindMntOutput.filesystems:type_name -> btrfs.FileSystem
 	13, // 4: btrfs.RaidStats.device_stats:type_name -> btrfs.DeviceStat
-	17, // 5: btrfs.BtrFSService.GetAllDisks:input_type -> btrfs.Empty
-	17, // 6: btrfs.BtrFSService.GetAllFileSystems:input_type -> btrfs.Empty
-	6,  // 7: btrfs.BtrFSService.GetFileSystem:input_type -> btrfs.UUIDReq
-	5,  // 8: btrfs.BtrFSService.CreateRaid:input_type -> btrfs.CreateRaidReq
-	6,  // 9: btrfs.BtrFSService.RemoveRaid:input_type -> btrfs.UUIDReq
-	7,  // 10: btrfs.BtrFSService.MountRaid:input_type -> btrfs.MountReq
-	8,  // 11: btrfs.BtrFSService.UMountRaid:input_type -> btrfs.UMountReq
-	9,  // 12: btrfs.BtrFSService.AddDiskToRaid:input_type -> btrfs.AddDiskToRaidReq
-	10, // 13: btrfs.BtrFSService.RemoveDiskFromRaid:input_type -> btrfs.RemoveDiskFromRaidReq
-	11, // 14: btrfs.BtrFSService.ReplaceDiskInRaid:input_type -> btrfs.ReplaceDiskToRaidReq
-	12, // 15: btrfs.BtrFSService.ChangeRaidLevel:input_type -> btrfs.ChangeRaidLevelReq
-	6,  // 16: btrfs.BtrFSService.BalanceRaid:input_type -> btrfs.UUIDReq
-	6,  // 17: btrfs.BtrFSService.DefragmentRaid:input_type -> btrfs.UUIDReq
-	6,  // 18: btrfs.BtrFSService.ScrubRaid:input_type -> btrfs.UUIDReq
-	6,  // 19: btrfs.BtrFSService.GetRaidStats:input_type -> btrfs.UUIDReq
-	6,  // 20: btrfs.BtrFSService.PauseBalance:input_type -> btrfs.UUIDReq
-	6,  // 21: btrfs.BtrFSService.ResumeBalance:input_type -> btrfs.UUIDReq
-	6,  // 22: btrfs.BtrFSService.CancelBalance:input_type -> btrfs.UUIDReq
-	6,  // 23: btrfs.BtrFSService.ScrubStats:input_type -> btrfs.UUIDReq
-	1,  // 24: btrfs.BtrFSService.GetAllDisks:output_type -> btrfs.MinDiskArr
-	4,  // 25: btrfs.BtrFSService.GetAllFileSystems:output_type -> btrfs.FindMntOutput
-	4,  // 26: btrfs.BtrFSService.GetFileSystem:output_type -> btrfs.FindMntOutput
-	17, // 27: btrfs.BtrFSService.CreateRaid:output_type -> btrfs.Empty
-	17, // 28: btrfs.BtrFSService.RemoveRaid:output_type -> btrfs.Empty
-	16, // 29: btrfs.BtrFSService.MountRaid:output_type -> btrfs.MountRaidRet
-	17, // 30: btrfs.BtrFSService.UMountRaid:output_type -> btrfs.Empty
-	17, // 31: btrfs.BtrFSService.AddDiskToRaid:output_type -> btrfs.Empty
-	17, // 32: btrfs.BtrFSService.RemoveDiskFromRaid:output_type -> btrfs.Empty
-	17, // 33: btrfs.BtrFSService.ReplaceDiskInRaid:output_type -> btrfs.Empty
-	17, // 34: btrfs.BtrFSService.ChangeRaidLevel:output_type -> btrfs.Empty
-	17, // 35: btrfs.BtrFSService.BalanceRaid:output_type -> btrfs.Empty
-	17, // 36: btrfs.BtrFSService.DefragmentRaid:output_type -> btrfs.Empty
-	17, // 37: btrfs.BtrFSService.ScrubRaid:output_type -> btrfs.Empty
-	14, // 38: btrfs.BtrFSService.GetRaidStats:output_type -> btrfs.RaidStats
-	17, // 39: btrfs.BtrFSService.PauseBalance:output_type -> btrfs.Empty
-	17, // 40: btrfs.BtrFSService.ResumeBalance:output_type -> btrfs.Empty
-	17, // 41: btrfs.BtrFSService.CancelBalance:output_type -> btrfs.Empty
-	15, // 42: btrfs.BtrFSService.ScrubStats:output_type -> btrfs.ScrubStatus
-	24, // [24:43] is the sub-list for method output_type
-	5,  // [5:24] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	19, // 5: btrfs.BalanceRaidReq.filters:type_name -> btrfs.BalanceRaidReq.Filters
+	18, // 6: btrfs.BtrFSService.GetAllDisks:input_type -> btrfs.Empty
+	18, // 7: btrfs.BtrFSService.GetAllFileSystems:input_type -> btrfs.Empty
+	6,  // 8: btrfs.BtrFSService.GetFileSystem:input_type -> btrfs.UUIDReq
+	5,  // 9: btrfs.BtrFSService.CreateRaid:input_type -> btrfs.CreateRaidReq
+	6,  // 10: btrfs.BtrFSService.RemoveRaid:input_type -> btrfs.UUIDReq
+	7,  // 11: btrfs.BtrFSService.MountRaid:input_type -> btrfs.MountReq
+	8,  // 12: btrfs.BtrFSService.UMountRaid:input_type -> btrfs.UMountReq
+	9,  // 13: btrfs.BtrFSService.AddDiskToRaid:input_type -> btrfs.AddDiskToRaidReq
+	10, // 14: btrfs.BtrFSService.RemoveDiskFromRaid:input_type -> btrfs.RemoveDiskFromRaidReq
+	11, // 15: btrfs.BtrFSService.ReplaceDiskInRaid:input_type -> btrfs.ReplaceDiskToRaidReq
+	12, // 16: btrfs.BtrFSService.ChangeRaidLevel:input_type -> btrfs.ChangeRaidLevelReq
+	17, // 17: btrfs.BtrFSService.BalanceRaid:input_type -> btrfs.BalanceRaidReq
+	6,  // 18: btrfs.BtrFSService.DefragmentRaid:input_type -> btrfs.UUIDReq
+	6,  // 19: btrfs.BtrFSService.ScrubRaid:input_type -> btrfs.UUIDReq
+	6,  // 20: btrfs.BtrFSService.GetRaidStats:input_type -> btrfs.UUIDReq
+	6,  // 21: btrfs.BtrFSService.PauseBalance:input_type -> btrfs.UUIDReq
+	6,  // 22: btrfs.BtrFSService.ResumeBalance:input_type -> btrfs.UUIDReq
+	6,  // 23: btrfs.BtrFSService.CancelBalance:input_type -> btrfs.UUIDReq
+	6,  // 24: btrfs.BtrFSService.ScrubStats:input_type -> btrfs.UUIDReq
+	1,  // 25: btrfs.BtrFSService.GetAllDisks:output_type -> btrfs.MinDiskArr
+	4,  // 26: btrfs.BtrFSService.GetAllFileSystems:output_type -> btrfs.FindMntOutput
+	4,  // 27: btrfs.BtrFSService.GetFileSystem:output_type -> btrfs.FindMntOutput
+	18, // 28: btrfs.BtrFSService.CreateRaid:output_type -> btrfs.Empty
+	18, // 29: btrfs.BtrFSService.RemoveRaid:output_type -> btrfs.Empty
+	16, // 30: btrfs.BtrFSService.MountRaid:output_type -> btrfs.MountRaidRet
+	18, // 31: btrfs.BtrFSService.UMountRaid:output_type -> btrfs.Empty
+	18, // 32: btrfs.BtrFSService.AddDiskToRaid:output_type -> btrfs.Empty
+	18, // 33: btrfs.BtrFSService.RemoveDiskFromRaid:output_type -> btrfs.Empty
+	18, // 34: btrfs.BtrFSService.ReplaceDiskInRaid:output_type -> btrfs.Empty
+	18, // 35: btrfs.BtrFSService.ChangeRaidLevel:output_type -> btrfs.Empty
+	18, // 36: btrfs.BtrFSService.BalanceRaid:output_type -> btrfs.Empty
+	18, // 37: btrfs.BtrFSService.DefragmentRaid:output_type -> btrfs.Empty
+	18, // 38: btrfs.BtrFSService.ScrubRaid:output_type -> btrfs.Empty
+	14, // 39: btrfs.BtrFSService.GetRaidStats:output_type -> btrfs.RaidStats
+	18, // 40: btrfs.BtrFSService.PauseBalance:output_type -> btrfs.Empty
+	18, // 41: btrfs.BtrFSService.ResumeBalance:output_type -> btrfs.Empty
+	18, // 42: btrfs.BtrFSService.CancelBalance:output_type -> btrfs.Empty
+	15, // 43: btrfs.BtrFSService.ScrubStats:output_type -> btrfs.ScrubStatus
+	25, // [25:44] is the sub-list for method output_type
+	6,  // [6:25] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_btrfs_proto_init() }
@@ -1461,7 +1592,7 @@ func file_btrfs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_btrfs_proto_rawDesc), len(file_btrfs_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

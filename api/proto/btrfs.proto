@@ -126,6 +126,17 @@ message MountRaidRet{
 	repeated string Problems=2;
 }
 
+message BalanceRaidReq {
+	string uuid = 1;
+	message Filters {
+		int32 dataUsageMax = 1;
+		int32 metadataUsageMax = 2;
+	}
+	Filters filters = 2;
+	bool force = 3;
+	bool convertToCurrentRaid = 4;
+}
+
 message Empty{}
 service BtrFSService {
 	rpc GetAllDisks(Empty) returns (MinDiskArr);
@@ -141,7 +152,9 @@ service BtrFSService {
 	rpc RemoveDiskFromRaid(RemoveDiskFromRaidReq) returns (Empty);
 	rpc ReplaceDiskInRaid(ReplaceDiskToRaidReq) returns (Empty);
 	rpc ChangeRaidLevel(ChangeRaidLevelReq) returns (Empty);
-	rpc BalanceRaid(UUIDReq) returns (Empty);
+	
+	rpc BalanceRaid(BalanceRaidReq) returns (Empty);
+
 	rpc DefragmentRaid(UUIDReq) returns (Empty);
 	rpc ScrubRaid(UUIDReq) returns (Empty);
 	rpc GetRaidStats(UUIDReq) returns (RaidStats);
