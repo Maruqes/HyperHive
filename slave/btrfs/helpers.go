@@ -742,22 +742,76 @@ func GetMountPointFromUUID(fsid string) (string, error) {
 }
 
 func UsingMnt(target string) error {
-	// Check what's using the mount point
+	target = strings.TrimRight(target, "/")
+
+	// 1) Tenta lsof
 	cmd := exec.Command("lsof", "+D", target)
-	output, lsofErr := cmd.CombinedOutput()
-	if lsofErr == nil && len(output) > 0 {
-		logger.Error("Mount point is busy. Processes using it:")
-		logger.Error(string(output))
-		return fmt.Errorf("unmount failed - mount point busy: Processes: %s", string(output))
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			// exit code 1 = nada a usar, segue
+			if exitErr.ExitCode() > 1 {
+				// erro "real" do lsof
+				logger.Error("lsof failed:", string(output))
+				return fmt.Errorf("lsof failed: %w (%s)", err, string(output))
+			}
+		}
+	} else {
+		// exit code == 0 -> encontrou algo
+		trimmed := strings.TrimSpace(string(output))
+		if trimmed != "" {
+			logger.Error("Mount point is busy. Processes using it (lsof):")
+			logger.Error(trimmed)
+			return fmt.Errorf("unmount failed - mount point busy (lsof): %s", trimmed)
+		}
 	}
 
-	// Also try fuser as fallback
+	// 2) Fallback: fuser
 	cmd = exec.Command("fuser", "-vm", target)
-	output, fuserErr := cmd.CombinedOutput()
-	if fuserErr == nil && len(output) > 0 {
-		logger.Error("Mount point is busy. Users:")
-		logger.Error(string(output))
-		return fmt.Errorf("unmount failed - mount point busy Users: %s", string(output))
+	output, err = cmd.CombinedOutput()
+
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			// 1 = nenhuma proc, 2 = erro
+			if exitErr.ExitCode() == 1 {
+				// ninguém a usar, está ok
+				return nil
+			}
+			logger.Error("fuser failed:", string(output))
+			return fmt.Errorf("fuser failed: %w (%s)", err, string(output))
+		}
+		// erro estranho
+		return fmt.Errorf("fuser exec error: %w (%s)", err, string(output))
 	}
+
+	// exit code 0 => há output, mas precisamos filtrar headers / kernel
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	var relevant []string
+
+	for _, line := range lines {
+		l := strings.TrimSpace(line)
+		if l == "" {
+			continue
+		}
+		// headers típicos
+		if strings.HasPrefix(l, "USER") || strings.Contains(l, "ACCESS") {
+			continue
+		}
+		// linha do tipo:
+		// /mnt/raid1teste:     root     kernel mount /mnt/raid1teste
+		if strings.Contains(l, "kernel mount") {
+			continue
+		}
+		relevant = append(relevant, l)
+	}
+
+	if len(relevant) > 0 {
+		text := strings.Join(relevant, "\n")
+		logger.Error("Mount point is busy. Users (fuser):")
+		logger.Error(text)
+		return fmt.Errorf("unmount failed - mount point busy (fuser): %s", text)
+	}
+
 	return nil
 }
