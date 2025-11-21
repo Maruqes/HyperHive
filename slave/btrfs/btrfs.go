@@ -183,12 +183,16 @@ func isMountPoint(path string) bool {
 	return false
 }
 
-func filterLsofOutput(output string) string {
+func filterUsageOutput(output string) string {
 	lines := strings.Split(output, "\n")
 	filtered := make([]string, 0, len(lines))
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "lsof:") {
+		if line == "" ||
+			strings.HasPrefix(line, "lsof:") ||
+			strings.HasPrefix(line, "fuser:") ||
+			strings.HasPrefix(line, "Cannot stat") ||
+			strings.HasPrefix(line, "kernel ") {
 			continue
 		}
 		filtered = append(filtered, line)
@@ -196,7 +200,50 @@ func filterLsofOutput(output string) string {
 	return strings.Join(filtered, "\n")
 }
 
+func collectUsageWithFuser(target string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), mountUsageCheckTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "fuser", "-vm", target)
+	output, err := cmd.CombinedOutput()
+
+	if ctx.Err() == context.DeadlineExceeded {
+		logger.Warn("fuser timed out while inspecting " + target + "; skipping busy check")
+		return "", errMountUsageCheckUnavailable
+	}
+
+	if err != nil {
+		if errors.Is(err, exec.ErrNotFound) {
+			return "", errMountUsageCheckUnavailable
+		}
+
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			// fuser returns exit code 1 when no process is using the target; treat as success.
+			if exitErr.ExitCode() > 1 {
+				logger.Warn(fmt.Sprintf("fuser failed for %s: %v", target, err))
+				return "", errMountUsageCheckUnavailable
+			}
+		} else {
+			logger.Warn(fmt.Sprintf("fuser failed for %s: %v", target, err))
+			return "", errMountUsageCheckUnavailable
+		}
+	}
+
+	details := filterUsageOutput(string(output))
+	if details == "" {
+		return "", nil
+	}
+	return details, nil
+}
+
 func collectMountUsageDetails(target string) (string, error) {
+	if details, err := collectUsageWithFuser(target); err == nil {
+		return details, nil
+	} else if err != nil && !errors.Is(err, errMountUsageCheckUnavailable) {
+		return "", err
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), mountUsageCheckTimeout)
 	defer cancel()
 
@@ -204,7 +251,8 @@ func collectMountUsageDetails(target string) (string, error) {
 	output, err := cmd.CombinedOutput()
 
 	if ctx.Err() == context.DeadlineExceeded {
-		return "", fmt.Errorf("timeout while inspecting open files under %s", target)
+		logger.Warn("lsof timed out while inspecting " + target + "; skipping busy check")
+		return "", errMountUsageCheckUnavailable
 	}
 
 	if err != nil {
@@ -212,11 +260,12 @@ func collectMountUsageDetails(target string) (string, error) {
 			return "", errMountUsageCheckUnavailable
 		}
 		if _, ok := err.(*exec.ExitError); !ok {
-			return "", fmt.Errorf("lsof failed for %s: %w", target, err)
+			logger.Warn(fmt.Sprintf("lsof failed for %s: %v", target, err))
+			return "", errMountUsageCheckUnavailable
 		}
 	}
 
-	details := filterLsofOutput(string(output))
+	details := filterUsageOutput(string(output))
 	if details == "" {
 		return "", nil
 	}
