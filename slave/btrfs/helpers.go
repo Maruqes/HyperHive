@@ -781,6 +781,7 @@ func CheckMountUsed(path string) ([]int32, error) {
 		if err != nil {
 			return nil, err
 		}
+		name = string(pid) + "-" + name
 		names = append(names, name)
 	}
 	joinedNames := strings.Join(names, ",")
