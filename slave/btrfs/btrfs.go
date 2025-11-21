@@ -183,16 +183,12 @@ func isMountPoint(path string) bool {
 	return false
 }
 
-func filterUsageOutput(output string) string {
+func filterLsofOutput(output string) string {
 	lines := strings.Split(output, "\n")
 	filtered := make([]string, 0, len(lines))
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if line == "" ||
-			strings.HasPrefix(line, "lsof:") ||
-			strings.HasPrefix(line, "fuser:") ||
-			strings.HasPrefix(line, "Cannot stat") ||
-			strings.HasPrefix(line, "kernel ") {
+		if line == "" || strings.HasPrefix(line, "lsof:") {
 			continue
 		}
 		filtered = append(filtered, line)
@@ -200,50 +196,7 @@ func filterUsageOutput(output string) string {
 	return strings.Join(filtered, "\n")
 }
 
-func collectUsageWithFuser(target string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), mountUsageCheckTimeout)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "fuser", "-vm", target)
-	output, err := cmd.CombinedOutput()
-
-	if ctx.Err() == context.DeadlineExceeded {
-		logger.Warn("fuser timed out while inspecting " + target + "; skipping busy check")
-		return "", errMountUsageCheckUnavailable
-	}
-
-	if err != nil {
-		if errors.Is(err, exec.ErrNotFound) {
-			return "", errMountUsageCheckUnavailable
-		}
-
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			// fuser returns exit code 1 when no process is using the target; treat as success.
-			if exitErr.ExitCode() > 1 {
-				logger.Warn(fmt.Sprintf("fuser failed for %s: %v", target, err))
-				return "", errMountUsageCheckUnavailable
-			}
-		} else {
-			logger.Warn(fmt.Sprintf("fuser failed for %s: %v", target, err))
-			return "", errMountUsageCheckUnavailable
-		}
-	}
-
-	details := filterUsageOutput(string(output))
-	if details == "" {
-		return "", nil
-	}
-	return details, nil
-}
-
 func collectMountUsageDetails(target string) (string, error) {
-	if details, err := collectUsageWithFuser(target); err == nil {
-		return details, nil
-	} else if err != nil && !errors.Is(err, errMountUsageCheckUnavailable) {
-		return "", err
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), mountUsageCheckTimeout)
 	defer cancel()
 
@@ -251,8 +204,7 @@ func collectMountUsageDetails(target string) (string, error) {
 	output, err := cmd.CombinedOutput()
 
 	if ctx.Err() == context.DeadlineExceeded {
-		logger.Warn("lsof timed out while inspecting " + target + "; skipping busy check")
-		return "", errMountUsageCheckUnavailable
+		return "", fmt.Errorf("timeout while inspecting open files under %s", target)
 	}
 
 	if err != nil {
@@ -260,12 +212,11 @@ func collectMountUsageDetails(target string) (string, error) {
 			return "", errMountUsageCheckUnavailable
 		}
 		if _, ok := err.(*exec.ExitError); !ok {
-			logger.Warn(fmt.Sprintf("lsof failed for %s: %v", target, err))
-			return "", errMountUsageCheckUnavailable
+			return "", fmt.Errorf("lsof failed for %s: %w", target, err)
 		}
 	}
 
-	details := filterUsageOutput(string(output))
+	details := filterLsofOutput(string(output))
 	if details == "" {
 		return "", nil
 	}
@@ -503,74 +454,48 @@ func MountRaid(uuid string, mountPoint string, compression string) (*MountResult
 }
 
 func UMountRaid(target string, force bool) error {
-	target = strings.TrimSpace(target)
-	if target == "" {
-		return fmt.Errorf("target mount point is required")
-	}
 
-	if !isMountPoint(target) {
-		return fmt.Errorf("%s is not a mounted target", target)
-	}
-
-	usageDetails, usageErr := collectMountUsageDetails(target)
-	if usageErr != nil {
-		if errors.Is(usageErr, errMountUsageCheckUnavailable) {
-			logger.Warn("lsof not found; skipping busy mount verification for " + target)
-		} else {
-			return fmt.Errorf("failed to verify usage for %s: %w", target, usageErr)
-		}
-	}
-
-	if usageDetails != "" && !force {
-		return fmt.Errorf("mount point %s is busy; close open files before unmounting:\n%s", target, usageDetails)
-	}
-
-	if usageDetails != "" && force {
-		logger.Warn("Force unmount requested even though mount is busy:\n" + usageDetails)
+	pids, err := CheckMountUsed(target)
+	if len(pids) > 0 {
+		return fmt.Errorf(target + "  " + err.Error())
 	}
 
 	args := []string{"umount"}
+
 	if force {
 		args = append(args, "-f")
 	}
+
 	args = append(args, target)
 
-	err := runCommand("unmounting raid", args...)
+	err = runCommand("unmounting raid", args...)
 	if err != nil {
-		if usageDetails == "" {
-			if refreshed, refreshErr := collectMountUsageDetails(target); refreshErr == nil {
-				usageDetails = refreshed
-			}
+		// Check what's using the mount point
+		cmd := exec.Command("lsof", "+D", target)
+		output, lsofErr := cmd.CombinedOutput()
+		if lsofErr == nil && len(output) > 0 {
+			logger.Error("Mount point is busy. Processes using it:")
+			logger.Error(string(output))
+			return fmt.Errorf("unmount failed - mount point busy: %w\nProcesses: %s", err, string(output))
 		}
-		if usageDetails != "" {
-			return fmt.Errorf("unmount failed - mount point busy: %w\n%s", err, usageDetails)
+
+		// Also try fuser as fallback
+		cmd = exec.Command("fuser", "-vm", target)
+		output, fuserErr := cmd.CombinedOutput()
+		if fuserErr == nil && len(output) > 0 {
+			logger.Error("Mount point is busy. Users:")
+			logger.Error(string(output))
+			return fmt.Errorf("unmount failed - mount point busy: %w\nUsers: %s", err, string(output))
 		}
-		return err
 	}
 
-	return nil
+	return err
 }
 
 func RemoveRaid(targetMountPoint string, force bool) error {
-	if !isMountPoint(targetMountPoint) {
-		return fmt.Errorf("%s is not a mounted target", targetMountPoint)
-	}
-
-	usageDetails, usageErr := collectMountUsageDetails(targetMountPoint)
-	if usageErr != nil {
-		if errors.Is(usageErr, errMountUsageCheckUnavailable) {
-			logger.Warn("lsof not found; skipping busy mount verification for " + targetMountPoint)
-		} else {
-			return fmt.Errorf("failed to verify usage for %s: %w", targetMountPoint, usageErr)
-		}
-	}
-
-	if usageDetails != "" && !force {
-		return fmt.Errorf("mount point %s is busy; close open files before unmounting:\n%s", targetMountPoint, usageDetails)
-	}
-
-	if usageDetails != "" && force {
-		logger.Warn("Force unmount requested even though mount is busy:\n" + usageDetails)
+	pids, err := CheckMountUsed(targetMountPoint)
+	if len(pids) > 0 {
+		return fmt.Errorf(targetMountPoint + "  " + err.Error())
 	}
 
 	//umount an do wipefs on all disks

@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
 	"github.com/Maruqes/512SvMan/logger"
+	"github.com/shirou/gopsutil/v4/process"
 )
 
 type MinDisk struct {
@@ -739,4 +741,53 @@ func GetMountPointFromUUID(fsid string) (string, error) {
 	}
 
 	return "", fmt.Errorf("filesystem %s is not mounted", fsid)
+}
+
+func GetProgramNameByPID(pid int) (string, error) {
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid))
+	if err != nil {
+		return "", fmt.Errorf("failed to read /proc/%d/comm: %w", pid, err)
+	}
+
+	name := strings.TrimSpace(string(data))
+	if name == "" {
+		return "", fmt.Errorf("empty program name for pid %d", pid)
+	}
+
+	return name, nil
+}
+
+func CheckMountUsed(path string) ([]int32, error) {
+	procs, _ := process.Processes()
+	var busy []int32
+
+	for _, p := range procs {
+		files, err := p.OpenFiles()
+		if err != nil {
+			continue
+		}
+
+		for _, f := range files {
+			if strings.HasPrefix(f.Path, path) {
+				busy = append(busy, p.Pid)
+				break
+			}
+		}
+	}
+
+	names := make([]string, 0, len(busy))
+	for _, pid := range busy {
+		name, err := GetProgramNameByPID(int(pid))
+		if err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+	}
+	joinedNames := strings.Join(names, ",")
+
+	if joinedNames != "" {
+		return busy, fmt.Errorf("this programs are using the mount %s", joinedNames)
+	}
+
+	return busy, nil
 }
