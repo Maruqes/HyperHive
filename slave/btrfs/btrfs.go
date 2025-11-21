@@ -2,11 +2,14 @@ package btrfs
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/Maruqes/512SvMan/logger"
 )
@@ -132,6 +135,10 @@ const (
 	CompressionZstd15 = "zstd:15" // Zstd level 15 (maximum compression)
 )
 
+const mountUsageCheckTimeout = 10 * time.Second
+
+var errMountUsageCheckUnavailable = errors.New("mount usage check unavailable")
+
 func doesDiskExist(disk string) bool {
 	_, err := os.Stat(disk)
 	return err == nil
@@ -174,6 +181,47 @@ func isMountPoint(path string) bool {
 		}
 	}
 	return false
+}
+
+func filterLsofOutput(output string) string {
+	lines := strings.Split(output, "\n")
+	filtered := make([]string, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "lsof:") {
+			continue
+		}
+		filtered = append(filtered, line)
+	}
+	return strings.Join(filtered, "\n")
+}
+
+func collectMountUsageDetails(target string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), mountUsageCheckTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "lsof", "+D", target)
+	output, err := cmd.CombinedOutput()
+
+	if ctx.Err() == context.DeadlineExceeded {
+		return "", fmt.Errorf("timeout while inspecting open files under %s", target)
+	}
+
+	if err != nil {
+		if errors.Is(err, exec.ErrNotFound) {
+			return "", errMountUsageCheckUnavailable
+		}
+		if _, ok := err.(*exec.ExitError); !ok {
+			return "", fmt.Errorf("lsof failed for %s: %w", target, err)
+		}
+	}
+
+	details := filterLsofOutput(string(output))
+	if details == "" {
+		return "", nil
+	}
+
+	return details, nil
 }
 
 func deviceMatchesDisk(device, disk string) bool {
@@ -406,39 +454,76 @@ func MountRaid(uuid string, mountPoint string, compression string) (*MountResult
 }
 
 func UMountRaid(target string, force bool) error {
-	args := []string{"umount"}
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return fmt.Errorf("target mount point is required")
+	}
 
+	if !isMountPoint(target) {
+		return fmt.Errorf("%s is not a mounted target", target)
+	}
+
+	usageDetails, usageErr := collectMountUsageDetails(target)
+	if usageErr != nil {
+		if errors.Is(usageErr, errMountUsageCheckUnavailable) {
+			logger.Warn("lsof not found; skipping busy mount verification for " + target)
+		} else {
+			return fmt.Errorf("failed to verify usage for %s: %w", target, usageErr)
+		}
+	}
+
+	if usageDetails != "" && !force {
+		return fmt.Errorf("mount point %s is busy; close open files before unmounting:\n%s", target, usageDetails)
+	}
+
+	if usageDetails != "" && force {
+		logger.Warn("Force unmount requested even though mount is busy:\n" + usageDetails)
+	}
+
+	args := []string{"umount"}
 	if force {
 		args = append(args, "-f")
 	}
-
 	args = append(args, target)
 
 	err := runCommand("unmounting raid", args...)
 	if err != nil {
-		// Check what's using the mount point
-		cmd := exec.Command("lsof", "+D", target)
-		output, lsofErr := cmd.CombinedOutput()
-		if lsofErr == nil && len(output) > 0 {
-			logger.Error("Mount point is busy. Processes using it:")
-			logger.Error(string(output))
-			return fmt.Errorf("unmount failed - mount point busy: %w\nProcesses: %s", err, string(output))
+		if usageDetails == "" {
+			if refreshed, refreshErr := collectMountUsageDetails(target); refreshErr == nil {
+				usageDetails = refreshed
+			}
 		}
-
-		// Also try fuser as fallback
-		cmd = exec.Command("fuser", "-vm", target)
-		output, fuserErr := cmd.CombinedOutput()
-		if fuserErr == nil && len(output) > 0 {
-			logger.Error("Mount point is busy. Users:")
-			logger.Error(string(output))
-			return fmt.Errorf("unmount failed - mount point busy: %w\nUsers: %s", err, string(output))
+		if usageDetails != "" {
+			return fmt.Errorf("unmount failed - mount point busy: %w\n%s", err, usageDetails)
 		}
+		return err
 	}
 
-	return err
+	return nil
 }
 
 func RemoveRaid(targetMountPoint string, force bool) error {
+	if !isMountPoint(targetMountPoint) {
+		return fmt.Errorf("%s is not a mounted target", targetMountPoint)
+	}
+
+	usageDetails, usageErr := collectMountUsageDetails(targetMountPoint)
+	if usageErr != nil {
+		if errors.Is(usageErr, errMountUsageCheckUnavailable) {
+			logger.Warn("lsof not found; skipping busy mount verification for " + targetMountPoint)
+		} else {
+			return fmt.Errorf("failed to verify usage for %s: %w", targetMountPoint, usageErr)
+		}
+	}
+
+	if usageDetails != "" && !force {
+		return fmt.Errorf("mount point %s is busy; close open files before unmounting:\n%s", targetMountPoint, usageDetails)
+	}
+
+	if usageDetails != "" && force {
+		logger.Warn("Force unmount requested even though mount is busy:\n" + usageDetails)
+	}
+
 	//umount an do wipefs on all disks
 	//get info
 	devs, err := GetDisksFromRaid(targetMountPoint)
@@ -755,6 +840,14 @@ func ReplaceDisk(oldDiskPath string, newDiskPath string, target string) error {
 	if err := BalanceRaid(BalanceRaidReq{
 		MountPoint: target,
 		Force:      false,
+		Filters: struct {
+			DataUsageMax     int32 `json:"dataUsageMax"`
+			MetadataUsageMax int32 `json:"metadataUsageMax"`
+		}{
+			DataUsageMax:     100,
+			MetadataUsageMax: 100,
+		},
+		ConvertToCurrentRaid: true,
 	}); err != nil {
 		logger.Error("Balance operation failed: " + err.Error())
 		logger.Info("You may need to manually run BalanceRaid() later")
