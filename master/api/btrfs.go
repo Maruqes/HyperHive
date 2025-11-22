@@ -661,7 +661,7 @@ func setupBTRFS(r chi.Router) chi.Router {
 		r.Post("/umount_raid/{machine_name}", umountRaid)
 
 		//automatic
-		r.Get("/automatic_mount", getAutomaticMounts)
+		r.Get("/automatic_mount/{machine_name}", getAutomaticMounts)
 		r.Post("/automatic_mount", addAutomaticMount)
 		r.Delete("/automatic_mount", removeAutomaticMount)
 

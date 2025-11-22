@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -11,9 +12,17 @@ import (
 )
 
 type MinDisk struct {
-	Path    string // /dev/sdx
-	Mounted bool
-	SizeGB  float64
+	Path       string // /dev/sda
+	Name       string // sda
+	Model      string // "Samsung SSD 860 EVO"
+	Vendor     string // "Samsung"
+	Serial     string // "S3Z8NX0K123456A"
+	Rotational bool   // true = HDD, false = SSD
+	SizeGB     float64
+	Mounted    bool
+	ByID       string // /dev/disk/by-id/ata-Samsung_SSD
+	Transport  string // sata, nvme, usb, virtio
+	PCIPath    string // /sys/block/sda/device
 }
 
 // BtrfsDevice represents a physical device that is part of a BTRFS filesystem.
@@ -29,67 +38,70 @@ type BtrfsDevice struct {
 	Mounted    bool   `json:"mounted"`
 }
 
+func findByID(name string) string {
+	files, _ := os.ReadDir("/dev/disk/by-id")
+	for _, f := range files {
+		fullPath := "/dev/disk/by-id/" + f.Name()
+		target, _ := os.Readlink(fullPath)
+		if strings.Contains(target, name) {
+			return fullPath
+		}
+	}
+	return ""
+}
+
 // if test i will return also loop for testing
 func GetAllDisks(test bool) ([]MinDisk, error) {
-	// Map devices that are part of a mounted BTRFS filesystem
-	// so we don't report them as "free" even if the individual
-	// block device does not show a mountpoint (only one device
-	// appears in /proc/mounts for multi-device BTRFS).
-	btrfsInUse := make(map[string]bool)
-	if devsByUUID, _, _, err := collectBtrfsDevices(); err == nil {
-		for _, devs := range devsByUUID {
-			fsMounted := false
-			for _, d := range devs {
-				if strings.TrimSpace(d.MountPoint) != "" || d.Mounted {
-					fsMounted = true
-					break
-				}
-			}
-			if fsMounted {
-				for _, d := range devs {
-					path := strings.TrimSpace(d.Path)
-					if path != "" {
-						btrfsInUse[path] = true
-					}
-				}
-			}
-		}
-	} else {
-		logger.Error(fmt.Sprintf("failed to collect btrfs devices: %v", err))
+	cmd := exec.Command(
+		"lsblk", "-d", "-J",
+		"-o", "NAME,PATH,MODEL,VENDOR,SERIAL,SIZE,ROTA,TYPE,TRAN",
+	)
+
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("lsblk failed: %w", err)
 	}
 
-	cmd := exec.Command("lsblk", "-d", "-n", "-b", "-o", "NAME,TYPE,SIZE")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("failed to list disks: %w", err)
+	var parsed struct {
+		Blockdevices []struct {
+			Name   string `json:"name"`
+			Path   string `json:"path"`
+			Model  string `json:"model"`
+			Vendor string `json:"vendor"`
+			Serial string `json:"serial"`
+			Size   int64  `json:"size"`
+			Rota   int    `json:"rota"`
+			Type   string `json:"type"`
+			Tran   string `json:"tran"`
+		} `json:"blockdevices"`
+	}
+
+	if err := json.Unmarshal(out, &parsed); err != nil {
+		return nil, fmt.Errorf("json parse error: %w", err)
 	}
 
 	var disks []MinDisk
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	for _, line := range lines {
-		fields := strings.Fields(line)
-		if len(fields) < 3 {
-			continue
-		}
-		name := fields[0]
-		diskType := fields[1]
-		sizeBytes := fields[2]
+	for _, d := range parsed.Blockdevices {
 
-		if diskType != "disk" && !test {
+		if d.Type != "disk" && !test {
 			continue
 		}
 
-		path := "/dev/" + name
-		mounted := btrfsInUse[path] || isMounted(path)
-
-		var size int64
-		fmt.Sscanf(sizeBytes, "%d", &size)
-		sizeGB := float64(size) / (1024 * 1024 * 1024)
+		// /dev/disk/by-id
+		byID := findByID(d.Name)
 
 		disks = append(disks, MinDisk{
-			Path:    path,
-			Mounted: mounted,
-			SizeGB:  sizeGB,
+			Path:       d.Path,
+			Name:       d.Name,
+			Model:      d.Model,
+			Vendor:     d.Vendor,
+			Serial:     d.Serial,
+			Rotational: d.Rota == 1,
+			SizeGB:     float64(d.Size) / (1024 * 1024 * 1024),
+			Mounted:    isMounted(d.Path),
+			ByID:       byID,
+			Transport:  d.Tran,
+			PCIPath:    "/sys/block/" + d.Name + "/device",
 		})
 	}
 

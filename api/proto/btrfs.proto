@@ -5,9 +5,17 @@ package btrfs;
 option go_package = "github.com/Maruqes/512SvMan/api/proto/btrfs;proto";
 
 message MinDisk {
-	string path = 1;
-	bool mounted = 2;
-	double size_gb = 3;
+	string path = 1;        // /dev/sda
+	string name = 2;        // sda
+	string model = 3;       // "Samsung SSD 860 EVO"
+	string vendor = 4;      // "Samsung"
+	string serial = 5;      // "S3Z8NX0K123456A"
+	bool rotational = 6;    // true = HDD, false = SSD
+	double size_gb = 7;
+	bool mounted = 8;
+	string by_id = 9;       // /dev/disk/by-id/ata-Samsung_SSD
+	string transport = 10;  // sata, nvme, usb, virtio
+	string pci_path = 11;   // /sys/block/sda/device
 }
 
 message MinDiskArr{

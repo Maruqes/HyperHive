@@ -20,9 +20,17 @@ func (s *BTRFSService) GetAllDisks(ctx context.Context, _ *btrfsGrpc.Empty) (*bt
 	grpcDisks := make([]*btrfsGrpc.MinDisk, 0, len(disks))
 	for _, disk := range disks {
 		grpcDisks = append(grpcDisks, &btrfsGrpc.MinDisk{
-			Path:    disk.Path,
-			SizeGb:  disk.SizeGB,
-			Mounted: disk.Mounted,
+			Path:       disk.Path,
+			Name:       disk.Name,
+			Model:      disk.Model,
+			Vendor:     disk.Vendor,
+			Serial:     disk.Serial,
+			Rotational: disk.Rotational,
+			SizeGb:     disk.SizeGB,
+			Mounted:    disk.Mounted,
+			ById:       disk.ByID,
+			Transport:  disk.Transport,
+			PciPath:    disk.PCIPath,
 		})
 	}
 
