@@ -117,7 +117,8 @@ func (s *BTRFSService) CreateRaid(machineName string, name string, raid string, 
 	}
 
 	req := btrfsGrpc.CreateRaidReq{Name: name, Raid: raidtype.sType, Disks: disks}
-	return btrfs.CreateRaid(conn.Connection, &req)
+	go btrfs.CreateRaid(conn.Connection, &req)
+	return nil
 }
 
 func (s *BTRFSService) RemoveRaid(machineName string, uuid string) error {

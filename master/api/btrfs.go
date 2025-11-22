@@ -113,7 +113,10 @@ func createRaid(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+	json.NewEncoder(w).Encode(map[string]string{
+		"status":  "success",
+		"message": "Please wait 30 seconds to 2 minutes to ensure the RAID is created.",
+	})
 }
 
 func removeRaid(w http.ResponseWriter, r *http.Request) {
