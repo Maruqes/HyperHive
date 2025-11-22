@@ -6,23 +6,25 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/Maruqes/512SvMan/logger"
 )
 
 type MinDisk struct {
-	Path       string // /dev/sda
-	Name       string // sda
-	Model      string // "Samsung SSD 860 EVO"
-	Vendor     string // "Samsung"
-	Serial     string // "S3Z8NX0K123456A"
-	Rotational bool   // true = HDD, false = SSD
-	SizeGB     float64
-	Mounted    bool
-	ByID       string // /dev/disk/by-id/ata-Samsung_SSD
-	Transport  string // sata, nvme, usb, virtio
-	PCIPath    string // /sys/block/sda/device
+	Path       string  `json:"path"`       // /dev/sda
+	Name       string  `json:"name"`       // sda
+	Model      string  `json:"model"`      // "Samsung SSD 860 EVO"
+	Vendor     string  `json:"vendor"`     // "Samsung"
+	Serial     string  `json:"serial"`     // "S3Z8NX0K123456A"
+	Rotational bool    `json:"rotational"` // true = HDD, false = SSD
+	SizeGB     float64 `json:"size_gb"`    // tamanho em GB
+	Mounted    bool    `json:"mounted"`    // está em uso/montado
+	ByID       string  `json:"by_id"`      // /dev/disk/by-id/ata-...
+	Transport  string  `json:"transport"`  // sata, nvme, usb, virtio, ...
+	PCIPath    string  `json:"pci_path"`   // /sys/block/sda/device
 }
 
 // BtrfsDevice represents a physical device that is part of a BTRFS filesystem.
@@ -38,71 +40,142 @@ type BtrfsDevice struct {
 	Mounted    bool   `json:"mounted"`
 }
 
+func parseInt64(raw json.RawMessage) int64 {
+	if len(raw) == 0 {
+		return 0
+	}
+
+	// 1) tentar como número
+	var n int64
+	if err := json.Unmarshal(raw, &n); err == nil {
+		return n
+	}
+
+	// 2) tentar como string
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		if v, err2 := strconv.ParseInt(s, 10, 64); err2 == nil {
+			return v
+		}
+	}
+
+	return 0
+}
+
+func parseBoolFromInt(raw json.RawMessage) bool {
+	n := parseInt64(raw)
+	return n == 1
+}
+
+// devolve o primeiro /dev/disk/by-id/* que aponta para este device (ex: "sda")
 func findByID(name string) string {
-	files, _ := os.ReadDir("/dev/disk/by-id")
-	for _, f := range files {
-		fullPath := "/dev/disk/by-id/" + f.Name()
-		target, _ := os.Readlink(fullPath)
+	entries, err := os.ReadDir("/dev/disk/by-id")
+	if err != nil {
+		return ""
+	}
+
+	for _, e := range entries {
+		fullPath := filepath.Join("/dev/disk/by-id", e.Name())
+		target, err := os.Readlink(fullPath)
+		if err != nil {
+			continue
+		}
+		// target costuma ser algo tipo "../../sda"
 		if strings.Contains(target, name) {
 			return fullPath
 		}
 	}
+
 	return ""
 }
-
-// if test i will return also loop for testing
 func GetAllDisks(test bool) ([]MinDisk, error) {
+	// Map de devices BTRFS já em uso, para não os sugerir como "livres"
+	btrfsInUse := make(map[string]bool)
+
+	if devsByUUID, _, _, err := collectBtrfsDevices(); err == nil {
+		for _, devs := range devsByUUID {
+			fsMounted := false
+			for _, d := range devs {
+				if strings.TrimSpace(d.MountPoint) != "" || d.Mounted {
+					fsMounted = true
+					break
+				}
+			}
+			if fsMounted {
+				for _, d := range devs {
+					path := strings.TrimSpace(d.Path)
+					if path != "" {
+						btrfsInUse[path] = true
+					}
+				}
+			}
+		}
+	} else {
+		// ajusta ao teu logger
+		logger.Error(fmt.Sprintf("failed to collect btrfs devices: %v", err))
+	}
+
+	// lsblk em JSON com os campos que queremos
 	cmd := exec.Command(
 		"lsblk", "-d", "-J",
 		"-o", "NAME,PATH,MODEL,VENDOR,SERIAL,SIZE,ROTA,TYPE,TRAN",
 	)
 
-	out, err := cmd.Output()
+	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("lsblk failed: %w", err)
+		return nil, fmt.Errorf("failed to list disks with lsblk: %w", err)
 	}
 
+	// struct para fazer unmarshal ao JSON de lsblk
 	var parsed struct {
 		Blockdevices []struct {
-			Name   string `json:"name"`
-			Path   string `json:"path"`
-			Model  string `json:"model"`
-			Vendor string `json:"vendor"`
-			Serial string `json:"serial"`
-			Size   int64  `json:"size"`
-			Rota   int    `json:"rota"`
-			Type   string `json:"type"`
-			Tran   string `json:"tran"`
+			Name   string          `json:"name"`
+			Path   string          `json:"path"`
+			Model  string          `json:"model"`
+			Vendor string          `json:"vendor"`
+			Serial string          `json:"serial"`
+			Size   json.RawMessage `json:"size"` // pode ser número ou string
+			Rota   json.RawMessage `json:"rota"` // idem
+			Type   string          `json:"type"`
+			Tran   string          `json:"tran"`
 		} `json:"blockdevices"`
 	}
 
-	if err := json.Unmarshal(out, &parsed); err != nil {
+	if err := json.Unmarshal(output, &parsed); err != nil {
 		return nil, fmt.Errorf("json parse error: %w", err)
 	}
 
 	var disks []MinDisk
-	for _, d := range parsed.Blockdevices {
 
+	for _, d := range parsed.Blockdevices {
+		// manter o comportamento antigo
 		if d.Type != "disk" && !test {
 			continue
 		}
 
-		// /dev/disk/by-id
-		byID := findByID(d.Name)
+		path := d.Path
+		if strings.TrimSpace(path) == "" {
+			path = "/dev/" + d.Name
+		}
 
-		disks = append(disks, MinDisk{
-			Path:       d.Path,
+		sizeBytes := parseInt64(d.Size)
+		sizeGB := float64(sizeBytes) / (1024 * 1024 * 1024)
+
+		md := MinDisk{
+			Path:       path,
 			Name:       d.Name,
-			Model:      d.Model,
-			Vendor:     d.Vendor,
-			Serial:     d.Serial,
-			Rotational: d.Rota == 1,
-			SizeGB:     float64(d.Size) / (1024 * 1024 * 1024),
-			Mounted:    isMounted(d.Path),
-			ByID:       byID,
-			Transport:  d.Tran,
+			Model:      strings.TrimSpace(d.Model),
+			Vendor:     strings.TrimSpace(d.Vendor),
+			Serial:     strings.TrimSpace(d.Serial),
+			Rotational: parseBoolFromInt(d.Rota),
+			SizeGB:     sizeGB,
+			Mounted:    btrfsInUse[path] || isMounted(path),
+			ByID:       findByID(d.Name),
+			Transport:  strings.TrimSpace(d.Tran),
 			PCIPath:    "/sys/block/" + d.Name + "/device",
-		})
+		}
+
+		disks = append(disks, md)
 	}
 
 	return disks, nil
