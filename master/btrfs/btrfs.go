@@ -97,7 +97,7 @@ func ChangeRaidLevel(conn *grpc.ClientConn, req *btrfsGrpc.ChangeRaidLevelReq) e
 	return nil
 }
 
-func BalanceRaid(conn *grpc.ClientConn, req *btrfsGrpc.UUIDReq) error {
+func BalanceRaid(conn *grpc.ClientConn, req *btrfsGrpc.BalanceRaidReq) error {
 	client := btrfsGrpc.NewBtrFSServiceClient(conn)
 	_, err := client.BalanceRaid(context.Background(), req)
 	if err != nil {

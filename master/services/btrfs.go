@@ -238,13 +238,23 @@ func (s *BTRFSService) ChangeRaidLevel(machineName string, uuid string, newRaidL
 
 	return btrfs.ChangeRaidLevel(conn.Connection, &btrfsGrpc.ChangeRaidLevelReq{Uuid: uuid, RaidType: raidtype.sType})
 }
-
-func (s *BTRFSService) BalanceRaid(machineName string, uuid string) error {
+func (s *BTRFSService) BalanceRaid(machineName string, uuid string, dataUsageMax, metadataUsageMax int32, force, convertToCurrentRaid bool) error {
 	conn := protocol.GetConnectionByMachineName(machineName)
 	if conn == nil {
 		return fmt.Errorf("no connection found for machine: %s", machineName)
 	}
-	return btrfs.BalanceRaid(conn.Connection, &btrfsGrpc.UUIDReq{Uuid: uuid})
+
+	req := &btrfsGrpc.BalanceRaidReq{
+		Uuid: uuid,
+		Filters: &btrfsGrpc.BalanceRaidReq_Filters{
+			DataUsageMax:     dataUsageMax,
+			MetadataUsageMax: metadataUsageMax,
+		},
+		Force: force,
+		ConvertToCurrentRaid: convertToCurrentRaid,
+	}
+
+	return btrfs.BalanceRaid(conn.Connection, req)
 }
 
 func (s *BTRFSService) DefragmentRaid(machineName string, uuid string) error {
