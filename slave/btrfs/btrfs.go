@@ -319,6 +319,7 @@ func CreateRaid(name string, raid *raidType, disks ...string) (string, error) {
 		"-m", raid.sMeta,
 		"-L", name,
 		"-f",
+		"-K",
 	}, disks...)
 
 	if err := runCommand("creating raid", args...); err != nil {
