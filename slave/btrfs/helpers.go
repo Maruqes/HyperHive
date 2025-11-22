@@ -20,11 +20,11 @@ type MinDisk struct {
 	Vendor     string  `json:"vendor"`     // "Samsung"
 	Serial     string  `json:"serial"`     // "S3Z8NX0K123456A"
 	Rotational bool    `json:"rotational"` // true = HDD, false = SSD
-	SizeGB     float64 `json:"size_gb"`    // tamanho em GB
+	SizeGB     float64 `json:"sizeGb"`     // tamanho em GB
 	Mounted    bool    `json:"mounted"`    // está em uso/montado
-	ByID       string  `json:"by_id"`      // /dev/disk/by-id/ata-...
+	ByID       string  `json:"byId"`       // /dev/disk/by-id/ata-...
 	Transport  string  `json:"transport"`  // sata, nvme, usb, virtio, ...
-	PCIPath    string  `json:"pci_path"`   // /sys/block/sda/device
+	PCIPath    string  `json:"pciPath"`    // /sys/block/sda/device
 }
 
 // BtrfsDevice represents a physical device that is part of a BTRFS filesystem.
@@ -54,6 +54,8 @@ func parseInt64(raw json.RawMessage) int64 {
 	// 2) tentar como string
 	var s string
 	if err := json.Unmarshal(raw, &s); err == nil {
+		// retirar espaços só para o caso
+		s = strings.TrimSpace(s)
 		if v, err2 := strconv.ParseInt(s, 10, 64); err2 == nil {
 			return v
 		}
@@ -88,6 +90,12 @@ func findByID(name string) string {
 
 	return ""
 }
+
+// GetAllDisks devolve todos os discos físicos visíveis via lsblk,
+// marcando também os que já estão em uso por BTRFS ou montados.
+//
+// - test = true → não filtra por TYPE (permite ver "loop", etc.)
+// - test = false → só TYPE == "disk"
 func GetAllDisks(test bool) ([]MinDisk, error) {
 	// Map de devices BTRFS já em uso, para não os sugerir como "livres"
 	btrfsInUse := make(map[string]bool)
@@ -111,13 +119,13 @@ func GetAllDisks(test bool) ([]MinDisk, error) {
 			}
 		}
 	} else {
-		// ajusta ao teu logger
+		// ajusta ao teu logger real
 		logger.Error(fmt.Sprintf("failed to collect btrfs devices: %v", err))
 	}
 
-	// lsblk em JSON com os campos que queremos
+	// lsblk em JSON com os campos que queremos, e SIZE em bytes (-b)
 	cmd := exec.Command(
-		"lsblk", "-d", "-J",
+		"lsblk", "-d", "-b", "-J",
 		"-o", "NAME,PATH,MODEL,VENDOR,SERIAL,SIZE,ROTA,TYPE,TRAN",
 	)
 
