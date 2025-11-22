@@ -220,6 +220,15 @@ func isDuplicate(disk string, disks ...string) bool {
 	return false
 }
 
+func wipeDiskSignatures(disk string) error {
+	cmd := exec.Command("wipefs", "-a", disk)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("wipefs failed: %w (output: %s)", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
 func CreateRaid(name string, raid *raidType, disks ...string) (string, error) {
 	if raid == nil {
 		return "", fmt.Errorf("raid type is not valid")
@@ -238,6 +247,12 @@ func CreateRaid(name string, raid *raidType, disks ...string) (string, error) {
 
 	if len(disks) < raid.c {
 		return "", fmt.Errorf("amount of disks must be at least %d to use %s", raid.c, raid.sType)
+	}
+
+	for _, disk := range disks {
+		if err := wipeDiskSignatures(disk); err != nil {
+			return "", fmt.Errorf("failed to wipe signatures on %s: %w", disk, err)
+		}
 	}
 
 	allFS, err := GetAllFileSystems()
