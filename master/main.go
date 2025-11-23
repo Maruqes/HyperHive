@@ -335,6 +335,11 @@ func main() {
 		log.Fatalf("create stream metrics table: %v", err)
 	}
 
+	err = db.InitSmartDiskDB()
+	if err != nil {
+		log.Fatalf("create stream metrics table: %v", err)
+	}
+
 	infoCollector := &services.InfoService{}
 	go infoCollector.GetSlaveData()
 

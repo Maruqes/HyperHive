@@ -265,7 +265,7 @@ func createSchedule(w http.ResponseWriter, r *http.Request) {
 		active = *req.Active
 	}
 
-	id, err := db.AddSchedule(nil, time.Weekday(req.WeekDay), req.Hour, tt, device, machineName, active)
+	id, err := db.AddSchedule(time.Weekday(req.WeekDay), req.Hour, tt, device, machineName, active)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -276,7 +276,7 @@ func createSchedule(w http.ResponseWriter, r *http.Request) {
 // listSchedules handles GET /{machine_name}/schedules
 func listSchedules(w http.ResponseWriter, r *http.Request) {
 	machineName := chi.URLParam(r, "machine_name")
-	schedules, err := db.GetSchedules(nil)
+	schedules, err := db.GetSchedules()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -332,7 +332,7 @@ func editSchedule(w http.ResponseWriter, r *http.Request) {
 		tt = "short"
 	}
 
-	s, err := db.GetScheduleByID(nil, id)
+	s, err := db.GetScheduleByID(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -348,7 +348,7 @@ func editSchedule(w http.ResponseWriter, r *http.Request) {
 	if req.Active != nil {
 		s.Active = *req.Active
 	}
-	if err := db.UpdateSchedule(nil, s); err != nil {
+	if err := db.UpdateSchedule(s); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -364,7 +364,7 @@ func deleteSchedule(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	s, err := db.GetScheduleByID(nil, id)
+	s, err := db.GetScheduleByID(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -373,7 +373,7 @@ func deleteSchedule(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "schedule does not belong to this machine", http.StatusBadRequest)
 		return
 	}
-	if err := db.DeleteSchedule(nil, id); err != nil {
+	if err := db.DeleteSchedule(id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -396,7 +396,7 @@ func enableSchedule(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("invalid request body: %v", err), http.StatusBadRequest)
 		return
 	}
-	s, err := db.GetScheduleByID(nil, id)
+	s, err := db.GetScheduleByID(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -405,7 +405,7 @@ func enableSchedule(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "schedule does not belong to this machine", http.StatusBadRequest)
 		return
 	}
-	if err := db.SetActive(nil, id, body.Active); err != nil {
+	if err := db.SetActive(id, body.Active); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
