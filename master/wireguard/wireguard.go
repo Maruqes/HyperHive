@@ -418,13 +418,13 @@ func AutoStartVPN() error {
 	for _, peer := range peers {
 		publicKey := strings.TrimSpace(peer.PublicKey)
 		if publicKey == "" {
-			logger.Error("wireguard peer %d (%s) is missing a public key; skipping restore", peer.Id, peer.Name)
+			logger.Errorf("wireguard peer %d (%s) is missing a public key; skipping restore", peer.Id, peer.Name)
 			continue
 		}
 
 		key, err := wgtypes.ParseKey(publicKey)
 		if err != nil {
-			logger.Error("wireguard peer %d (%s) has invalid public key: %v", peer.Id, peer.Name, err)
+			logger.Errorf("wireguard peer %d (%s) has invalid public key: %v", peer.Id, peer.Name, err)
 			continue
 		}
 

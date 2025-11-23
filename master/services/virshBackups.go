@@ -558,7 +558,7 @@ func (v *VirshService) createAutoBak(bak db.AutomaticBackup) error {
 		for i := bak.MaxBackupsRetain; i < len(baksVm); i++ {
 			err := v.DeleteBackup(baksVm[i].Id)
 			if err != nil {
-				logger.Error(fmt.Sprintf("failed to delete old backup %d: %v", baksVm[i].Id, err))
+				logger.Errorf("failed to delete old backup %d: %v", baksVm[i].Id, err)
 			}
 		}
 	}
@@ -577,7 +577,7 @@ func (v *VirshService) LoopAutomaticBaks() {
 		defer v.backupLoopRunning.Store(false)
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Error(fmt.Sprintf("Automatic backup loop panic: %v", r))
+				logger.Errorf("Automatic backup loop panic: %v", r)
 				// Optionally restart the loop after a delay
 				time.Sleep(time.Minute * 5)
 				v.backupLoopRunning.Store(false)
@@ -597,29 +597,29 @@ func (v *VirshService) LoopAutomaticBaks() {
 				continue
 			}
 
-			logger.Info(fmt.Sprintf("Processing %d automatic backup(s)", len(baks)))
+			logger.Infof("Processing %d automatic backup(s)", len(baks))
 
 			for _, bak := range baks {
 				vm, err := v.GetVmByName(bak.VmName)
 				if err != nil {
-					logger.Error(fmt.Sprintf("Failed to resolve VM %s for automatic backup: %v", bak.VmName, err))
+					logger.Errorf("Failed to resolve VM %s for automatic backup: %v", bak.VmName, err)
 					continue
 				}
 				if vm == nil {
-					logger.Warn(fmt.Sprintf("Skipping automatic backup for VM %s because it no longer exists", bak.VmName))
+					logger.Warnf("Skipping automatic backup for VM %s because it no longer exists", bak.VmName)
 					continue
 				}
 
 				machineCon := protocol.GetConnectionByMachineName(vm.MachineName)
 				if machineCon == nil || machineCon.Connection == nil {
-					logger.Error(fmt.Sprintf("Failed to get connection for VM %s, slave %s is down", bak.VmName, vm.MachineName))
+					logger.Errorf("Failed to get connection for VM %s, slave %s is down", bak.VmName, vm.MachineName)
 					continue
 				}
 
 				// Verify we're actually within the backup's time window
 				if !currentClock.IsBetween(bak.MinTime, bak.MaxTime) {
-					logger.Info(fmt.Sprintf("Skipping backup for VM %s - outside time window (current: %s, window: %s-%s)",
-						bak.VmName, currentClock.String(), bak.MinTime.String(), bak.MaxTime.String()))
+					logger.Infof("Skipping backup for VM %s - outside time window (current: %s, window: %s-%s)",
+						bak.VmName, currentClock.String(), bak.MinTime.String(), bak.MaxTime.String())
 					continue
 				}
 
@@ -632,7 +632,7 @@ func (v *VirshService) LoopAutomaticBaks() {
 				} else {
 					lastBakTime, ok := parseBackupTimestamp(*bak.LastBackupTime)
 					if !ok {
-						logger.Error(fmt.Sprintf("Error parsing last backup time for VM %s: %s", bak.VmName, *bak.LastBackupTime))
+						logger.Errorf("Error parsing last backup time for VM %s: %s", bak.VmName, *bak.LastBackupTime)
 						continue
 					}
 
@@ -642,10 +642,10 @@ func (v *VirshService) LoopAutomaticBaks() {
 				}
 
 				if shouldBackup {
-					logger.Info(fmt.Sprintf("Creating automatic backup for VM %s", bak.VmName))
+					logger.Infof("Creating automatic backup for VM %s", bak.VmName)
 					err = v.createAutoBak(bak)
 					if err != nil {
-						logger.Error(fmt.Sprintf("Failed to create automatic backup for VM %s: %v", bak.VmName, err))
+						logger.Errorf("Failed to create automatic backup for VM %s: %v", bak.VmName, err)
 					}
 				}
 			}

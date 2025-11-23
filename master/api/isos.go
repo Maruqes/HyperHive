@@ -104,7 +104,7 @@ func getAllISOs(w http.ResponseWriter, r *http.Request) {
 	for i := range isos {
 		workingFile, err := nfsService.CanFindFileOrDirOnAllSlaves(isos[i].FilePath)
 		if err != nil {
-			logger.Error("CanFindFileOrDirOnAllSlaves failed: %v", err)
+			logger.Errorf("CanFindFileOrDirOnAllSlaves failed: %v", err)
 			continue
 		}
 		isosRes[i].AvailableOnSlaves = workingFile

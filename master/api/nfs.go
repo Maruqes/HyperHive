@@ -35,7 +35,7 @@ func listShares(w http.ResponseWriter, r *http.Request) {
 			Target:      shares[i].Target,
 		})
 		if err != nil {
-			logger.Error("GetSharedFolderStatus failed: %v", err)
+			logger.Errorf("GetSharedFolderStatus failed: %v", err)
 			res = append(res, resStruct{
 				NfsShare: shares[i],
 				Status: &proto.SharedFolderStatusResponse{
@@ -74,7 +74,7 @@ func createShare(w http.ResponseWriter, r *http.Request) {
 
 	err := nfsService.CreateSharePoint()
 	if err != nil {
-		logger.Error("CreateSharePoint failed: %v", err)
+		logger.Errorf("CreateSharePoint failed: %v", err)
 		http.Error(w, "failed to create share point: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -98,7 +98,7 @@ func deleteShare(w http.ResponseWriter, r *http.Request) {
 
 	err := nfsService.DeleteSharePoint(force)
 	if err != nil {
-		logger.Error("DeleteSharePoint failed: %v", err)
+		logger.Errorf("DeleteSharePoint failed: %v", err)
 		http.Error(w, "failed to delete share point: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -122,7 +122,7 @@ func listPathContents(w http.ResponseWriter, r *http.Request) {
 	nfsService := services.NFSService{}
 	contents, err := nfsService.ListFolderContents(machine, req.Path)
 	if err != nil {
-		logger.Error("ListFolderContents failed: %v", err)
+		logger.Errorf("ListFolderContents failed: %v", err)
 		http.Error(w, "failed to list folder contents: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

@@ -29,7 +29,7 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 	btrfsService := services.BTRFSService{}
 	err := btrfsService.AutoMountRaid(machineName)
 	if err != nil {
-		logger.Error("UpdateNFS failed: %v", err)
+		logger.Errorf("UpdateNFS failed: %v", err)
 		return err
 	}
 
@@ -37,7 +37,7 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 	nfsService := services.NFSService{}
 	err = nfsService.UpdateNFSShit()
 	if err != nil {
-		logger.Error("UpdateNFS failed: %v", err)
+		logger.Errorf("UpdateNFS failed: %v", err)
 		return err
 	}
 
@@ -47,7 +47,7 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 	virshServices := services.VirshService{}
 	err = virshServices.StartAutoStartVms()
 	if err != nil {
-		logger.Error("UpdateNFS failed: %v", err)
+		logger.Errorf("UpdateNFS failed: %v", err)
 		return err
 	}
 

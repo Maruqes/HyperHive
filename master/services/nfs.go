@@ -119,25 +119,25 @@ func (s *NFSService) CreateSharePoint() error {
 	}
 
 	if err := nfs.CreateSharedFolder(conn.Connection, mount); err != nil {
-		logger.Error("CreateSharedFolder failed: %v", err)
+		logger.Errorf("CreateSharedFolder failed: %v", err)
 		return err
 	}
 
 	err := db.AddNFSShare(mount.MachineName, mount.FolderPath, mount.Source, mount.Target, s.SharePoint.Name, mount.HostNormalMount)
 	if err != nil {
-		logger.Error("AddNFSShare failed: %v", err)
+		logger.Errorf("AddNFSShare failed: %v", err)
 		return err
 	}
 
 	err = s.SyncSharedFolder()
 	if err != nil {
-		logger.Error("SyncSharedFolder failed: %v", err)
+		logger.Errorf("SyncSharedFolder failed: %v", err)
 		return err
 	}
 
 	err = s.MountAllSharedFolders()
 	if err != nil {
-		logger.Error("MountAllSharedFolders failed: %v", err)
+		logger.Errorf("MountAllSharedFolders failed: %v", err)
 		return err
 	}
 	return nil
@@ -220,13 +220,13 @@ func forcedelete(s *NFSService) error {
 			continue
 		}
 		if err := nfs.UnmountSharedFolder(c, mount); err != nil {
-			logger.Error("UnmountSharedFolder failed: %v", err)
+			logger.Errorf("UnmountSharedFolder failed: %v", err)
 		}
 	}
 
 	if conn := protocol.GetConnectionByMachineName(mount.MachineName); conn != nil && conn.Connection != nil {
 		if err := nfs.RemoveSharedFolder(conn.Connection, mount); err != nil {
-			logger.Error("RemoveSharedFolder failed: %v", err)
+			logger.Errorf("RemoveSharedFolder failed: %v", err)
 		}
 	}
 
@@ -332,7 +332,7 @@ func (s *NFSService) DeleteSharePoint(force bool) error {
 			continue
 		}
 		if err := nfs.UnmountSharedFolder(c, mount); err != nil {
-			logger.Error("UnmountSharedFolder failed: %v", err)
+			logger.Errorf("UnmountSharedFolder failed: %v", err)
 			continue
 		}
 	}
@@ -363,7 +363,7 @@ func (s *NFSService) GetSharedFolderStatus(folderMount *proto.FolderMount) (*pro
 		}
 		statusLoop, err := nfs.GetSharedFolderStatus(c, folderMount)
 		if err != nil {
-			logger.Error("IsFolderMounted failed: %v", err)
+			logger.Errorf("IsFolderMounted failed: %v", err)
 			continue
 		}
 		status.Working = status.Working && statusLoop.Working
@@ -485,12 +485,12 @@ func (s *NFSService) MountAllSharedFolders() error {
 func (s *NFSService) UpdateNFSShit() error {
 	err := s.SyncSharedFolder()
 	if err != nil {
-		logger.Error("SyncSharedFolder failed: %v", err)
+		logger.Errorf("SyncSharedFolder failed: %v", err)
 	}
 
 	err = s.MountAllSharedFolders()
 	if err != nil {
-		logger.Error("MountAllSharedFolders failed: %v", err)
+		logger.Errorf("MountAllSharedFolders failed: %v", err)
 	}
 	return nil
 }
@@ -518,7 +518,7 @@ func (s *NFSService) DownloadISO(ctx context.Context, url, isoName string, nfsSh
 	}
 
 	if err := nfs.DownloadISO(conn.Connection, ctx, isoRequest); err != nil {
-		logger.Error("DownloadISO failed: %v", err)
+		logger.Errorf("DownloadISO failed: %v", err)
 		return "", err
 	}
 	err := nfs.Sync(conn.Connection)
@@ -572,7 +572,7 @@ func (s *NFSService) CanFindFileOrDirOnAllSlaves(path string) (map[string]bool, 
 
 		found, err := nfs.CanFindFileOrDir(conn, path)
 		if err != nil {
-			logger.Error("CanFindFileOrDir failed for machine %s: %v", machineName, err)
+			logger.Errorf("CanFindFileOrDir failed for machine %s: %v", machineName, err)
 			results[machineName] = false
 			continue
 		}

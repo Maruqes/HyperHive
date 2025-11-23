@@ -169,7 +169,7 @@ func (s *SmartDiskService) runDueSchedules() {
 
 	schedules, err := db.GetDueSchedules(now)
 	if err != nil {
-		logger.Error("DoAutomaticTest: failed to get due schedules: %v", err)
+		logger.Errorf("DoAutomaticTest: failed to get due schedules: %v", err)
 		return
 	}
 
@@ -180,13 +180,13 @@ func (s *SmartDiskService) runDueSchedules() {
 
 func (s *SmartDiskService) runSchedule(now time.Time, sch db.SmartDiskSchedule) {
 	if sch.Device == "" || sch.MachineName == "" {
-		logger.Error("DoAutomaticTest: schedule %d missing device or machine", sch.ID)
+		logger.Errorf("DoAutomaticTest: schedule %d missing device or machine", sch.ID)
 		return
 	}
 
 	conn := protocol.GetConnectionByMachineName(sch.MachineName)
 	if conn == nil || conn.Connection == nil {
-		logger.Error("DoAutomaticTest: no connection for machine %s (schedule id=%d)", sch.MachineName, sch.ID)
+		logger.Errorf("DoAutomaticTest: no connection for machine %s (schedule id=%d)", sch.MachineName, sch.ID)
 		return
 	}
 
@@ -208,7 +208,7 @@ func (s *SmartDiskService) runSchedule(now time.Time, sch db.SmartDiskSchedule) 
 		Type:   protoType,
 	})
 	if err != nil {
-		logger.Error(
+		logger.Errorf(
 			"DoAutomaticTest: failed to start test for device=%s on machine=%s: %v",
 			sch.Device, sch.MachineName, err,
 		)
@@ -216,11 +216,11 @@ func (s *SmartDiskService) runSchedule(now time.Time, sch db.SmartDiskSchedule) 
 	}
 
 	if err := db.UpdateLastRun(sch.ID, now); err != nil {
-		logger.Error("DoAutomaticTest: failed to update last_run for schedule id=%d: %v", sch.ID, err)
+		logger.Errorf("DoAutomaticTest: failed to update last_run for schedule id=%d: %v", sch.ID, err)
 		return
 	}
 
-	logger.Info(
+	logger.Infof(
 		"DoAutomaticTest: scheduled test started for device=%s on machine=%s (schedule id=%d)",
 		sch.Device, sch.MachineName, sch.ID,
 	)

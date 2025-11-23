@@ -158,26 +158,26 @@ func (s *InfoService) collectSlaveSnapshots() {
 
 func (s *InfoService) collectMachineSnapshots(machineName string) {
 	if info, err := s.GetCPUInfo(machineName); err != nil {
-		logger.Debug(fmt.Sprintf("cpu snapshot skipped for %s: %v", machineName, err))
+		logger.Debugf("cpu snapshot skipped for %s: %v", machineName, err)
 	} else if err := db.InsertCPUSnapshot(machineName, time.Now(), info); err != nil {
-		logger.Error(fmt.Sprintf("failed to persist cpu snapshot for %s: %v", machineName, err))
+		logger.Errorf("failed to persist cpu snapshot for %s: %v", machineName, err)
 	}
 
 	if info, err := s.GetMemSummary(machineName); err != nil {
-		logger.Debug(fmt.Sprintf("mem snapshot skipped for %s: %v", machineName, err))
+		logger.Debugf("mem snapshot skipped for %s: %v", machineName, err)
 	} else if err := db.InsertMemSnapshot(machineName, time.Now(), info); err != nil {
-		logger.Error(fmt.Sprintf("failed to persist mem snapshot for %s: %v", machineName, err))
+		logger.Errorf("failed to persist mem snapshot for %s: %v", machineName, err)
 	}
 
 	if info, err := s.GetDiskSummary(machineName); err != nil {
-		logger.Debug(fmt.Sprintf("disk snapshot skipped for %s: %v", machineName, err))
+		logger.Debugf("disk snapshot skipped for %s: %v", machineName, err)
 	} else if err := db.InsertDiskSnapshot(machineName, time.Now(), info); err != nil {
-		logger.Error(fmt.Sprintf("failed to persist disk snapshot for %s: %v", machineName, err))
+		logger.Errorf("failed to persist disk snapshot for %s: %v", machineName, err)
 	}
 
 	if info, err := s.GetNetworkSummary(machineName); err != nil {
-		logger.Debug(fmt.Sprintf("network snapshot skipped for %s: %v", machineName, err))
+		logger.Debugf("network snapshot skipped for %s: %v", machineName, err)
 	} else if err := db.InsertNetworkSnapshot(machineName, time.Now(), info); err != nil {
-		logger.Error(fmt.Sprintf("failed to persist network snapshot for %s: %v", machineName, err))
+		logger.Errorf("failed to persist network snapshot for %s: %v", machineName, err)
 	}
 }
