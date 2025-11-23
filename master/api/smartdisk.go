@@ -31,6 +31,39 @@ type scheduleRequest struct {
 	Active  *bool  `json:"active"` // optional
 }
 
+func (s *scheduleRequest) Validate(machineName string) error {
+	// Check week day
+	if s.WeekDay < 0 || s.WeekDay > 6 {
+		return fmt.Errorf("week_day must be 0..6")
+	}
+	// Check hour
+	if s.Hour < 0 || s.Hour > 23 {
+		return fmt.Errorf("hour must be 0..23")
+	}
+	// Check type
+	tt := strings.ToLower(strings.TrimSpace(s.Type))
+	if tt != "short" && tt != "long" && tt != "extended" && tt != "" {
+		return fmt.Errorf("type must be short or extended")
+	}
+	// Check device exists
+	btrfsService := services.BTRFSService{}
+	disks, err := btrfsService.GetAllDisks(machineName)
+	if err != nil {
+		return err
+	}
+	found := false
+	for _, disk := range disks.Disks {
+		if disk.Path == s.Device {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("device not found")
+	}
+	return nil
+}
+
 func getSmartDiskInfo(w http.ResponseWriter, r *http.Request) {
 	machineName := chi.URLParam(r, "machine_name")
 	device := strings.TrimSpace(r.URL.Query().Get("device"))
@@ -243,14 +276,7 @@ func createSchedule(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("invalid request body: %v", err), http.StatusBadRequest)
 		return
 	}
-	if req.WeekDay < 0 || req.WeekDay > 6 {
-		http.Error(w, "week_day must be 0..6", http.StatusBadRequest)
-		return
-	}
-	if req.Hour < 0 || req.Hour > 23 {
-		http.Error(w, "hour must be 0..23", http.StatusBadRequest)
-		return
-	}
+
 	tt := strings.ToLower(strings.TrimSpace(req.Type))
 	if tt == "" {
 		tt = "short"
@@ -263,6 +289,12 @@ func createSchedule(w http.ResponseWriter, r *http.Request) {
 	active := true
 	if req.Active != nil {
 		active = *req.Active
+	}
+
+	err := req.Validate(machineName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	id, err := db.AddSchedule(time.Weekday(req.WeekDay), req.Hour, tt, device, machineName, active)
@@ -314,14 +346,6 @@ func editSchedule(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("invalid request body: %v", err), http.StatusBadRequest)
 		return
 	}
-	if req.WeekDay < 0 || req.WeekDay > 6 {
-		http.Error(w, "week_day must be 0..6", http.StatusBadRequest)
-		return
-	}
-	if req.Hour < 0 || req.Hour > 23 {
-		http.Error(w, "hour must be 0..23", http.StatusBadRequest)
-		return
-	}
 	device := strings.TrimSpace(req.Device)
 	if device == "" {
 		http.Error(w, "device is required", http.StatusBadRequest)
@@ -330,6 +354,12 @@ func editSchedule(w http.ResponseWriter, r *http.Request) {
 	tt := strings.ToLower(strings.TrimSpace(req.Type))
 	if tt == "" {
 		tt = "short"
+	}
+
+	err = req.Validate(machineName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	s, err := db.GetScheduleByID(id)
