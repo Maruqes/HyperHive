@@ -370,6 +370,8 @@ func main() {
 
 	virshService := services.VirshService{}
 	virshService.LoopAutomaticBaks()
+	smartDiskService := services.SmartDiskService{}
+	smartDiskService.DoAutomaticTest()
 
 	api.StartApi()
 

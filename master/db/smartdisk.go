@@ -128,9 +128,6 @@ func NextRun(s SmartDiskSchedule, from time.Time) time.Time {
 	return candidate
 }
 
-// GetDueSchedules returns schedules that should run at the given time `now`.
-// It respects the `Active` flag and avoids schedules already run in the same hour
-// (based on `LastRun`). This is a read-only helper returning matching rows.
 func GetDueSchedules(now time.Time) ([]SmartDiskSchedule, error) {
 	if DB == nil {
 		return nil, errors.New("no database provided")
@@ -140,24 +137,33 @@ func GetDueSchedules(now time.Time) ([]SmartDiskSchedule, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	var due []SmartDiskSchedule
 	for _, s := range schedules {
 		if !s.Active {
 			continue
 		}
+
+		// Só dispara no dia/hora configurados
 		if now.Weekday() != s.WeekDay || now.Hour() != s.Hour {
 			continue
 		}
-		if s.LastRun.Valid {
-			lr := s.LastRun.Time
-			if lr.Year() == now.Year() && lr.YearDay() == now.YearDay() && lr.Hour() == now.Hour() {
-				// already ran this scheduled hour
-				continue
-			}
+
+		// Se já correu hoje, não corre outra vez
+		if s.LastRun.Valid && sameDay(s.LastRun.Time, now) {
+			continue
 		}
+
 		due = append(due, s)
 	}
+
 	return due, nil
+}
+
+func sameDay(a, b time.Time) bool {
+	// garantir que comparamos no mesmo fuso
+	a = a.In(b.Location())
+	return a.Year() == b.Year() && a.YearDay() == b.YearDay()
 }
 
 // GetScheduleByID returns a single schedule by id.
