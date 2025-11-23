@@ -103,7 +103,7 @@ func GetSchedules() ([]SmartDiskSchedule, error) {
 }
 
 // UpdateLastRun sets last_run for a schedule.
-func UpdateLastRun(db *sql.DB, id int64, t time.Time) error {
+func UpdateLastRun(id int64, t time.Time) error {
 	if DB == nil {
 		return errors.New("no database provided")
 	}

@@ -1,13 +1,16 @@
 package services
 
 import (
+	"512SvMan/db"
 	"512SvMan/protocol"
 	"512SvMan/smartdisk"
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	smartdiskGrpc "github.com/Maruqes/512SvMan/api/proto/smartdisk"
+	"github.com/Maruqes/512SvMan/logger"
 )
 
 type SmartDiskService struct{}
@@ -149,4 +152,76 @@ func (s *SmartDiskService) CancelRealloc(ctx context.Context, machineName, devic
 		return "", err
 	}
 	return resp.GetMessage(), nil
+}
+
+func (s *SmartDiskService) DoAutomaticTest() {
+	go func() {
+
+		for {
+			s.runDueSchedules()
+			time.Sleep(20 * time.Second)
+		}
+	}()
+}
+
+func (s *SmartDiskService) runDueSchedules() {
+	now := time.Now()
+
+	schedules, err := db.GetDueSchedules(now)
+	if err != nil {
+		logger.Error("DoAutomaticTest: failed to get due schedules: %v", err)
+		return
+	}
+
+	for _, sch := range schedules {
+		s.runSchedule(now, sch)
+	}
+}
+
+func (s *SmartDiskService) runSchedule(now time.Time, sch db.SmartDiskSchedule) {
+	if sch.Device == "" || sch.MachineName == "" {
+		logger.Error("DoAutomaticTest: schedule %d missing device or machine", sch.ID)
+		return
+	}
+
+	conn := protocol.GetConnectionByMachineName(sch.MachineName)
+	if conn == nil || conn.Connection == nil {
+		logger.Error("DoAutomaticTest: no connection for machine %s (schedule id=%d)", sch.MachineName, sch.ID)
+		return
+	}
+
+	var protoType smartdiskGrpc.SelfTestType
+	switch strings.ToLower(strings.TrimSpace(sch.TestType)) {
+	case "short":
+		protoType = smartdiskGrpc.SelfTestType_SELF_TEST_TYPE_SHORT
+	case "long", "extended":
+		protoType = smartdiskGrpc.SelfTestType_SELF_TEST_TYPE_EXTENDED
+	default:
+		protoType = smartdiskGrpc.SelfTestType_SELF_TEST_TYPE_SHORT
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	_, err := smartdisk.RunSelfTest(ctx, conn.Connection, &smartdiskGrpc.SelfTestRequest{
+		Device: sch.Device,
+		Type:   protoType,
+	})
+	if err != nil {
+		logger.Error(
+			"DoAutomaticTest: failed to start test for device=%s on machine=%s: %v",
+			sch.Device, sch.MachineName, err,
+		)
+		return
+	}
+
+	if err := db.UpdateLastRun(sch.ID, now); err != nil {
+		logger.Error("DoAutomaticTest: failed to update last_run for schedule id=%d: %v", sch.ID, err)
+		return
+	}
+
+	logger.Info(
+		"DoAutomaticTest: scheduled test started for device=%s on machine=%s (schedule id=%d)",
+		sch.Device, sch.MachineName, sch.ID,
+	)
 }

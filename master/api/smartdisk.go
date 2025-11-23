@@ -281,6 +281,10 @@ func createSchedule(w http.ResponseWriter, r *http.Request) {
 	if tt == "" {
 		tt = "short"
 	}
+	if tt != "short" && tt != "extended" {
+		http.Error(w, "type must be short or extended", http.StatusBadRequest)
+		return
+	}
 	device := strings.TrimSpace(req.Device)
 	if device == "" {
 		http.Error(w, "device is required", http.StatusBadRequest)
@@ -354,6 +358,10 @@ func editSchedule(w http.ResponseWriter, r *http.Request) {
 	tt := strings.ToLower(strings.TrimSpace(req.Type))
 	if tt == "" {
 		tt = "short"
+	}
+	if tt != "short" && tt != "extended" {
+		http.Error(w, "type must be short or extended", http.StatusBadRequest)
+		return
 	}
 
 	err = req.Validate(machineName)
