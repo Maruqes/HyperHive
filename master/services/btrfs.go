@@ -125,7 +125,17 @@ func (s *BTRFSService) RemoveRaid(machineName string, uuid string) error {
 	if conn == nil {
 		return fmt.Errorf("no connection found for machine: %s", machineName)
 	}
-	return btrfs.RemoveRaid(conn.Connection, &btrfsGrpc.UUIDReq{Uuid: uuid})
+	err := btrfs.RemoveRaid(conn.Connection, &btrfsGrpc.UUIDReq{Uuid: uuid})
+	if err != nil {
+		return err
+	}
+
+	_, err = db.DeleteBtrfsByUUID(uuid, machineName)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 const (
@@ -250,7 +260,7 @@ func (s *BTRFSService) BalanceRaid(machineName string, uuid string, dataUsageMax
 			DataUsageMax:     dataUsageMax,
 			MetadataUsageMax: metadataUsageMax,
 		},
-		Force: force,
+		Force:                force,
 		ConvertToCurrentRaid: convertToCurrentRaid,
 	}
 

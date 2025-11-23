@@ -1,11 +1,14 @@
 package api
 
 import (
+	"512SvMan/db"
 	"512SvMan/services"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	smartdiskGrpc "github.com/Maruqes/512SvMan/api/proto/smartdisk"
 	"github.com/go-chi/chi/v5"
@@ -18,6 +21,14 @@ type smartDiskSelfTestRequest struct {
 
 type forceReallocRequest struct {
 	Device string `json:"device"`
+}
+
+type scheduleRequest struct {
+	WeekDay int    `json:"week_day"` // 0=Sunday..6=Saturday
+	Hour    int    `json:"hour"`
+	Type    string `json:"type"`
+	Device  string `json:"device"`
+	Active  *bool  `json:"active"` // optional
 }
 
 func getSmartDiskInfo(w http.ResponseWriter, r *http.Request) {
@@ -224,12 +235,199 @@ func cancelForceRealloc(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"message": msg})
 }
 
+// createSchedule handles POST /{machine_name}/schedules
+func createSchedule(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	var req scheduleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+	if req.WeekDay < 0 || req.WeekDay > 6 {
+		http.Error(w, "week_day must be 0..6", http.StatusBadRequest)
+		return
+	}
+	if req.Hour < 0 || req.Hour > 23 {
+		http.Error(w, "hour must be 0..23", http.StatusBadRequest)
+		return
+	}
+	tt := strings.ToLower(strings.TrimSpace(req.Type))
+	if tt == "" {
+		tt = "short"
+	}
+	device := strings.TrimSpace(req.Device)
+	if device == "" {
+		http.Error(w, "device is required", http.StatusBadRequest)
+		return
+	}
+	active := true
+	if req.Active != nil {
+		active = *req.Active
+	}
+
+	id, err := db.AddSchedule(nil, time.Weekday(req.WeekDay), req.Hour, tt, device, machineName, active)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{"id": id})
+}
+
+// listSchedules handles GET /{machine_name}/schedules
+func listSchedules(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	schedules, err := db.GetSchedules(nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var out []map[string]any
+	for _, s := range schedules {
+		if s.MachineName != machineName {
+			continue
+		}
+		out = append(out, map[string]any{
+			"id":           s.ID,
+			"week_day":     int(s.WeekDay),
+			"hour":         s.Hour,
+			"type":         s.TestType,
+			"device":       s.Device,
+			"active":       s.Active,
+			"machine_name": s.MachineName,
+			"last_run":     s.LastRun.Time,
+		})
+	}
+	writeJSON(w, out)
+}
+
+// editSchedule handles PUT /{machine_name}/schedules/{id}
+func editSchedule(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	var req scheduleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+	if req.WeekDay < 0 || req.WeekDay > 6 {
+		http.Error(w, "week_day must be 0..6", http.StatusBadRequest)
+		return
+	}
+	if req.Hour < 0 || req.Hour > 23 {
+		http.Error(w, "hour must be 0..23", http.StatusBadRequest)
+		return
+	}
+	device := strings.TrimSpace(req.Device)
+	if device == "" {
+		http.Error(w, "device is required", http.StatusBadRequest)
+		return
+	}
+	tt := strings.ToLower(strings.TrimSpace(req.Type))
+	if tt == "" {
+		tt = "short"
+	}
+
+	s, err := db.GetScheduleByID(nil, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if s.MachineName != machineName {
+		http.Error(w, "schedule does not belong to this machine", http.StatusBadRequest)
+		return
+	}
+	s.WeekDay = time.Weekday(req.WeekDay)
+	s.Hour = req.Hour
+	s.TestType = tt
+	s.Device = device
+	if req.Active != nil {
+		s.Active = *req.Active
+	}
+	if err := db.UpdateSchedule(nil, s); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]string{"message": "updated"})
+}
+
+// deleteSchedule handles DELETE /{machine_name}/schedules/{id}
+func deleteSchedule(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	s, err := db.GetScheduleByID(nil, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if s.MachineName != machineName {
+		http.Error(w, "schedule does not belong to this machine", http.StatusBadRequest)
+		return
+	}
+	if err := db.DeleteSchedule(nil, id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]string{"message": "deleted"})
+}
+
+// enableSchedule handles PUT /{machine_name}/schedules/{id}/enable
+func enableSchedule(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	var body struct {
+		Active bool `json:"active"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, fmt.Sprintf("invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+	s, err := db.GetScheduleByID(nil, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if s.MachineName != machineName {
+		http.Error(w, "schedule does not belong to this machine", http.StatusBadRequest)
+		return
+	}
+	if err := db.SetActive(nil, id, body.Active); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]string{"message": "updated"})
+}
+
 func setupSmartDiskAPI(r chi.Router) chi.Router {
 	return r.Route("/smartdisk", func(r chi.Router) {
 		r.Get("/{machine_name}", getSmartDiskInfo)
 		r.Post("/{machine_name}/self-test", runSmartDiskSelfTest)
 		r.Get("/{machine_name}/self-test/progress", getSmartDiskSelfTestProgress)
 		r.Post("/{machine_name}/self-test/cancel", cancelSmartDiskSelfTest)
+		// schedule management
+		r.Route("/{machine_name}/schedules", func(r chi.Router) {
+			r.Post("/", createSchedule)
+			r.Get("/", listSchedules)
+			r.Route("/{id}", func(r chi.Router) {
+				r.Put("/", editSchedule)
+				r.Delete("/", deleteSchedule)
+				r.Put("/enable", enableSchedule)
+			})
+		})
 		r.Route("/{machine_name}/realloc", func(r chi.Router) {
 			r.Post("/full-wipe", startForceReallocFullWipe)
 			r.Post("/non-destructive", startForceReallocNonDestructive)

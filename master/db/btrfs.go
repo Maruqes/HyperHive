@@ -183,15 +183,11 @@ func GetBtrfsByUUIDAndMount(machineName, raidUUID, mountPoint string) (*Btrfs, e
 	return &b, nil
 }
 
-// DeleteBtrfsByUUID removes automatic mount entries filtered by UUID and optionally by mount point.
-// When mountPoint is empty, every entry for the given UUID is removed.
-func DeleteBtrfsByUUID(raidUUID, mountPoint, machineName string) (int64, error) {
+// DeleteBtrfsByUUID removes automatic mount entries filtered by UUID and optionally by machine name.
+// If machineName is empty, every entry for the given UUID is removed.
+func DeleteBtrfsByUUID(raidUUID, machineName string) (int64, error) {
 	query := `DELETE FROM btrfs WHERE raid_uuid = ?`
 	args := []interface{}{raidUUID}
-	if mountPoint != "" {
-		query += ` AND mount_point = ?`
-		args = append(args, mountPoint)
-	}
 	if machineName != "" {
 		query += ` AND machine_name = ?`
 		args = append(args, machineName)
