@@ -14,20 +14,24 @@ self.addEventListener('push', function (event) {
 	const body = data.body || 'New notification';
 	const url = data.url || '/';
 
+	const isCritical = (data.critical === true) || (data.critical === 'true');
+
+	// vibration pattern for critical notifications (very strong)
+	const heavyVibrate = [400, 120, 400, 120, 800];
+
 	const options = {
 		body: body,
 		data: { url: url },
-		// include a simple icon (provided by server) — no vibration, no extras
+		// include a simple icon (provided by server)
 		icon: data.icon || '/static/notification-icon.png',
-		tag: Date.now().toString(),
-		// request that the notification remains visible until user interacts;
-		// this increases chances of a persistent / expanded heads-up on Android.
-		requireInteraction: true,
-		renotify: true,
+		tag: isCritical ? 'hyperhive-critical' : Date.now().toString(),
+		requireInteraction: !!isCritical,
+		renotify: !!isCritical,
+		vibrate: isCritical ? heavyVibrate : undefined,
 	};
 
 	// Debug log so you can inspect payload/options in ServiceWorker console
-	console.log('[sw] showNotification options=', options, 'data=', data);
+	console.log('[sw] showNotification options=', options, 'data=', data, 'isCritical=', isCritical);
 
 	event.waitUntil(self.registration.showNotification(title, options));
 });

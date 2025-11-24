@@ -111,8 +111,12 @@ func subscribe_nots(w http.ResponseWriter, r *http.Request) {
 // POST /notification/test → envia notificação para TODOS
 func test_nots(w http.ResponseWriter, r *http.Request) {
 
+	// support ?critical=1 or ?critical=true to make this a critical notification
+	criticalParam := r.URL.Query().Get("critical")
+	critical := criticalParam == "1" || criticalParam == "true"
+
 	notService := services.NotsService{}
-	if err := notService.SendGlobalNotification("HyperHive", "Isto é uma notificação de teste.", "/"); err != nil {
+	if err := notService.SendGlobalNotification("HyperHive", "Isto é uma notificação de teste.", "/", critical); err != nil {
 		http.Error(w, "failed to send notifications: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

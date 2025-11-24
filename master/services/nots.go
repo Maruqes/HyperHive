@@ -16,7 +16,8 @@ import (
 type NotsService struct{}
 
 // SendWebPush envia uma notificação simples (title, body, url) para 1 subscrição.
-func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL string) error {
+// Se `critical` for true, a payload inclui essa flag para o SW tratar com vibração/renotify.
+func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL string, critical bool) error {
 	if env512.VapidPublicKey == "" || env512.VapidPrivateKey == "" {
 		err := fmt.Errorf("VAPID keys not set; call InitVAPIDFromEnv() at startup")
 		logger.Error(err.Error())
@@ -29,6 +30,9 @@ func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL s
 		"body":  body,
 		"url":   relURL,
 		"icon":  "/static/notification-icon.png",
+	}
+	if critical {
+		base["critical"] = "true"
 	}
 
 	payload, err := json.Marshal(base)
@@ -49,6 +53,9 @@ func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL s
 			"body":  body,
 			"url":   relURL,
 			"icon":  "/static/notification-icon.png",
+		}
+		if critical {
+			small["critical"] = "true"
 		}
 		payload, err = json.Marshal(small)
 		if err != nil {
@@ -92,7 +99,7 @@ func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL s
 }
 
 // SendGlobalNotification envia uma notificação simples para TODAS as subscrições.
-func (s *NotsService) SendGlobalNotification(title, body, relURL string) error {
+func (s *NotsService) SendGlobalNotification(title, body, relURL string, critical bool) error {
 	subs, err := db.DbGetAllSubscriptions()
 	if err != nil {
 		logger.Error(fmt.Sprintf("load subs: %v", err))
@@ -102,7 +109,7 @@ func (s *NotsService) SendGlobalNotification(title, body, relURL string) error {
 	for _, sub := range subs {
 		// se quiseres serial, tira o go
 		go func(sub db.PushSubscription) {
-			if err := s.SendWebPush(sub, title, body, relURL); err != nil {
+			if err := s.SendWebPush(sub, title, body, relURL, critical); err != nil {
 				logger.Error(fmt.Sprintf("failed to send to %s: %v", sub.Endpoint, err))
 			}
 		}(sub)
