@@ -12,13 +12,14 @@ import (
 )
 
 const (
-	CUR_LINK      = "https://github.com/JotaBarbosaDev/HyperHive/releases/download/v1.0.1/web-dist.zip"
 	frontendDir   = "/opt/hyperhive/frontend"
 	containerName = "hyperhive-frontend"
 	hostPort      = "8079" // http://servidor:8080
 
 	nginxConfPath = "/opt/hyperhive/nginx.conf"
 )
+
+var CUR_LINK = "https://github.com/JotaBarbosaDev/HyperHive/releases/latest/download/web-dist.zip"
 
 func setupFrontendContainer() error {
 	fmt.Println("[1/4] A garantir nginx.conf de SPA...")
