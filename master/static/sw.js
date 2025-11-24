@@ -20,8 +20,14 @@ self.addEventListener('push', function (event) {
 		// include a simple icon (provided by server) — no vibration, no extras
 		icon: data.icon || '/static/notification-icon.png',
 		tag: Date.now().toString(),
-		requireInteraction: false,
+		// request that the notification remains visible until user interacts;
+		// this increases chances of a persistent / expanded heads-up on Android.
+		requireInteraction: true,
+		renotify: true,
 	};
+
+	// Debug log so you can inspect payload/options in ServiceWorker console
+	console.log('[sw] showNotification options=', options, 'data=', data);
 
 	event.waitUntil(self.registration.showNotification(title, options));
 });
