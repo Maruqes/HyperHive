@@ -18,21 +18,11 @@ func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL s
 		return fmt.Errorf("VAPID keys not set; call InitVAPIDFromEnv() at startup")
 	}
 
-	// Include optional icon/badge paths so the client Service Worker
-	// can display a custom notification logo. These files should be
-	// served from the `/static/` path (add them to the static folder).
-
-	sev := "info"
-	if critical {
-		sev = "critical"
-	}
+	// Minimal payload: only title, body and url to keep push small and simple.
 	base := map[string]string{
-		"title":    title,
-		"body":     body,
-		"url":      relURL,
-		"icon":     "/static/notification-icon.png",
-		"badge":    "/static/notification-badge.png",
-		"severity": sev, // ou "info"/"warning" conforme o tipo de alerta
+		"title": title,
+		"body":  body,
+		"url":   relURL,
 	}
 
 	payload, err := json.Marshal(base)
@@ -42,26 +32,16 @@ func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL s
 		return fmt.Errorf("marshal payload: %w", err)
 	}
 
-	// Protect against push services rejecting large payloads (HTTP 413).
-	// Many push services (FCM/Chrome) limit the encrypted payload to ~4KB;
-	// after encryption overhead the safe payload size is smaller. If the
-	// payload is large, send a trimmed payload to avoid 413 errors.
-	const safeLimit = 1800 // bytes - conservative threshold
+	// Keep a small safety truncation in case caller provided very large body
+	// to avoid 413 responses. We keep this conservative but simple.
+	const safeLimit = 1800
 	if len(payload) > safeLimit {
-		// truncate body to reduce size and remove optional fields
-		maxBody := 1000
+		maxBody := 500
 		runeBody := []rune(body)
 		if len(runeBody) > maxBody {
 			body = string(runeBody[:maxBody]) + "…"
 		}
-
-		// create a minimal payload (no icon/badge/severity) to stay small
-		small := map[string]string{
-			"title": title,
-			"body":  body,
-			"url":   relURL,
-			"note":  "truncated",
-		}
+		small := map[string]string{"title": title, "body": body, "url": relURL}
 		payload, err = json.Marshal(small)
 		if err != nil {
 			logger.Error(fmt.Sprintf("marshal small payload: %v", err))

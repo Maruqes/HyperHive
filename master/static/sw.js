@@ -1,5 +1,5 @@
 self.addEventListener('push', function (event) {
-	// Handle incoming push event and show a notification.
+	// Simple push handler: parse payload and show a minimal notification
 	let data = {};
 	if (event.data) {
 		try {
@@ -11,67 +11,17 @@ self.addEventListener('push', function (event) {
 
 	const title = data.title || 'Notification';
 	const body = data.body || 'New notification';
-	const url = data.url || '/'; // relative path provided by backend
-
-	// Normalize icon/badge to absolute URLs so fetch debugging works.
-	const iconPath = data.icon || '/static/notification-icon.png';
-	const badgePath = data.badge || '/static/notification-badge.png';
-	const iconUrl = (iconPath && iconPath.startsWith('http')) ? iconPath : (self.location.origin + iconPath);
-	const badgeUrl = (badgePath && badgePath.startsWith('http')) ? badgePath : (self.location.origin + badgePath);
-
-	// Severidade (vem do backend: "critical", "warning", "info", etc.)
-	const severity = data.severity || 'info';
-
-	// Vibração: muito forte para critical, normal para o resto
-	let vibratePattern = undefined;
-	if (severity === 'critical') {
-		// treme MUITO
-		vibratePattern = [400, 120, 400, 120, 800];
-	} else {
-		// treme “normalzinho”
-		vibratePattern = [200, 100, 200];
-	}
+	const url = data.url || '/';
 
 	const options = {
-		body,
-		data: { url },
-
-		// popup desaparece após alguns segundos
+		body: body,
+		data: { url: url },
+		// minimal: no icon, no badge, no vibrate, no image, no renotify
+		tag: Date.now().toString(),
 		requireInteraction: false,
-
-		// para critical usamos sempre a mesma tag → renotify volta a fazer barulho
-		tag: severity === 'critical'
-			? 'hyperhive-critical'
-			: Date.now().toString(),
-
-		renotify: severity === 'critical',
-
-		// vibração depende da severidade
-		vibrate: vibratePattern,
-
-		// infos podem ser silenciosas se quiseres; aqui deixo todas com som
-		silent: false,
 	};
 
-	// Log payload to SW console for debugging (open DevTools -> Console -> ServiceWorker)
-	console.log('[sw] push received, severity=', severity, 'data=', data, 'using icon=', iconUrl, 'badge=', badgeUrl);
-
-	// Try to fetch the icon so we can see if it's reachable (helps debug 404/CORS issues
-	// or other server problems). We still show the notification even if fetch fails.
-	const promise = fetch(iconUrl, { method: 'GET' })
-		.then(function (resp) {
-			if (!resp.ok) throw new Error('icon fetch status=' + resp.status);
-			return resp.blob();
-		})
-		.catch(function (err) {
-			console.error('[sw] failed to fetch icon', err);
-			// continue and show notification (browser will try to load icon URL too)
-		})
-		.then(function () {
-			return self.registration.showNotification(title, options);
-		});
-
-	event.waitUntil(promise);
+	event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener('notificationclick', function (event) {
