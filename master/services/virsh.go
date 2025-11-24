@@ -349,9 +349,6 @@ func (v *VirshService) MigrateVm(ctx context.Context, originMachine string, dest
 	if err != nil || vm == nil {
 		return fmt.Errorf("VM %s not found on origin machine %s", vmName, originMachine)
 	}
-	if vm == nil {
-		return fmt.Errorf("vm does not exist")
-	}
 
 	//check if vm is running on origin machine
 	if vm.MachineName != originMachine {
