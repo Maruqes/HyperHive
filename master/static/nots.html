@@ -170,17 +170,41 @@
 		async function unsubscribe() {
 			try {
 				if (!('serviceWorker' in navigator)) throw new Error('Service workers are not supported by this browser.');
-				const registration = await navigator.serviceWorker.getRegistration();
-				if (!registration) throw new Error('No service worker registered.');
-				const subscription = await registration.pushManager.getSubscription();
-				if (!subscription) {
-					setStatus('No active subscription');
+
+				// Get all registrations for this origin and attempt to remove subscriptions
+				const regs = await navigator.serviceWorker.getRegistrations();
+				if (!regs || regs.length === 0) {
+					setStatus('No service worker registrations found');
 					return;
 				}
-				const unsub = await subscription.unsubscribe();
-				// Server-side cleanup could be implemented (call /notification/unsubscribe)
-				setStatus(unsub ? 'Unsubscribed' : 'Unsubscribe failed', !unsub);
-				debugEl.innerHTML = '';
+
+				let anyUnsub = false;
+				let anyUnreg = false;
+				for (const reg of regs) {
+					try {
+						const subscription = await reg.pushManager.getSubscription();
+						if (subscription) {
+							const ok = await subscription.unsubscribe();
+							anyUnsub = anyUnsub || Boolean(ok);
+							// Optionally notify server to remove subscription here
+						}
+						// Unregister the Service Worker for this registration
+						const unregOk = await reg.unregister();
+						anyUnreg = anyUnreg || Boolean(unregOk);
+					} catch (e) {
+						console.warn('Error unsub/register for reg', e);
+					}
+				}
+
+				if (!anyUnsub && !anyUnreg) {
+					setStatus('No active subscription or failed to unregister');
+				} else {
+					setStatus('Unsubscribed and service worker unregistered');
+					// Clear debug UI
+					debugEl.innerHTML = '';
+					// reload page so SW state is reflected
+					setTimeout(() => location.reload(), 600);
+				}
 			} catch (err) {
 				console.error(err);
 				setStatus('Error: ' + err.message, true);
