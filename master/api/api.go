@@ -112,7 +112,7 @@ func subscribe_nots(w http.ResponseWriter, r *http.Request) {
 func test_nots(w http.ResponseWriter, r *http.Request) {
 
 	notService := services.NotsService{}
-	if err := notService.SendGlobalNotification("HyperHive Test", "Isto é uma notificação de teste.", "/"); err != nil {
+	if err := notService.SendGlobalNotification("HH", "Test", "/"); err != nil {
 		http.Error(w, "failed to send notifications: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
