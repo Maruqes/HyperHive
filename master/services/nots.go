@@ -26,18 +26,48 @@ func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL s
 	if critical {
 		sev = "critical"
 	}
-	payload, err := json.Marshal(map[string]string{
+	base := map[string]string{
 		"title":    title,
 		"body":     body,
 		"url":      relURL,
 		"icon":     "/static/notification-icon.png",
 		"badge":    "/static/notification-badge.png",
 		"severity": sev, // ou "info"/"warning" conforme o tipo de alerta
-	})
+	}
+
+	payload, err := json.Marshal(base)
 
 	if err != nil {
 		logger.Error(fmt.Sprintf("marshal payload: %v", err))
 		return fmt.Errorf("marshal payload: %w", err)
+	}
+
+	// Protect against push services rejecting large payloads (HTTP 413).
+	// Many push services (FCM/Chrome) limit the encrypted payload to ~4KB;
+	// after encryption overhead the safe payload size is smaller. If the
+	// payload is large, send a trimmed payload to avoid 413 errors.
+	const safeLimit = 1800 // bytes - conservative threshold
+	if len(payload) > safeLimit {
+		// truncate body to reduce size and remove optional fields
+		maxBody := 1000
+		runeBody := []rune(body)
+		if len(runeBody) > maxBody {
+			body = string(runeBody[:maxBody]) + "…"
+		}
+
+		// create a minimal payload (no icon/badge/severity) to stay small
+		small := map[string]string{
+			"title": title,
+			"body":  body,
+			"url":   relURL,
+			"note":  "truncated",
+		}
+		payload, err = json.Marshal(small)
+		if err != nil {
+			logger.Error(fmt.Sprintf("marshal small payload: %v", err))
+			return fmt.Errorf("marshal small payload: %w", err)
+		}
+		logger.Error(fmt.Sprintf("payload too large, sent truncated notification (size=%d)", len(payload)))
 	}
 
 	subscription := &webpush.Subscription{
@@ -72,7 +102,7 @@ func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL s
 func (s *NotsService) SendGlobalNotification(title, body, relURL string) error {
 	subs, err := db.DbGetAllSubscriptions()
 	if err != nil {
-		logger.Error(fmt.Sprintf("load subs: %w", err))
+		logger.Error(fmt.Sprintf("load subs: %v", err))
 		return err
 	}
 
