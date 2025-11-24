@@ -35,9 +35,6 @@ self.addEventListener('push', function (event) {
 	const options = {
 		body,
 		data: { url },
-		icon: iconUrl,
-		badge: badgeUrl,
-		image: data.image || iconUrl,
 
 		// popup desaparece após alguns segundos
 		requireInteraction: false,
