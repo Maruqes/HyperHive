@@ -1,3 +1,4 @@
+// services/nots.go
 package services
 
 import (
@@ -5,20 +6,24 @@ import (
 	"512SvMan/env512"
 	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/Maruqes/512SvMan/logger"
 	"github.com/SherClockHolmes/webpush-go"
 )
 
+// NotsService envia push notifications Web Push simples.
 type NotsService struct{}
 
-func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL string, critical bool) error {
+// SendWebPush envia uma notificação simples (title, body, url) para 1 subscrição.
+func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL string) error {
 	if env512.VapidPublicKey == "" || env512.VapidPrivateKey == "" {
-		logger.Error("VAPID keys not set; call InitVAPIDFromEnv() at startup")
-		return fmt.Errorf("VAPID keys not set; call InitVAPIDFromEnv() at startup")
+		err := fmt.Errorf("VAPID keys not set; call InitVAPIDFromEnv() at startup")
+		logger.Error(err.Error())
+		return err
 	}
 
-	// Minimal payload: only title, body and url to keep push small and simple.
+	// payload minimal – só o essencial
 	base := map[string]string{
 		"title": title,
 		"body":  body,
@@ -26,22 +31,23 @@ func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL s
 	}
 
 	payload, err := json.Marshal(base)
-
 	if err != nil {
 		logger.Error(fmt.Sprintf("marshal payload: %v", err))
 		return fmt.Errorf("marshal payload: %w", err)
 	}
 
-	// Keep a small safety truncation in case caller provided very large body
-	// to avoid 413 responses. We keep this conservative but simple.
-	const safeLimit = 1800
+	// Pequeno safety para não mandar textos gigantes.
+	const safeLimit = 1500
 	if len(payload) > safeLimit {
-		maxBody := 500
-		runeBody := []rune(body)
-		if len(runeBody) > maxBody {
-			body = string(runeBody[:maxBody]) + "…"
+		runes := []rune(body)
+		if len(runes) > 300 {
+			body = string(runes[:300]) + "…"
 		}
-		small := map[string]string{"title": title, "body": body, "url": relURL}
+		small := map[string]string{
+			"title": title,
+			"body":  body,
+			"url":   relURL,
+		}
 		payload, err = json.Marshal(small)
 		if err != nil {
 			logger.Error(fmt.Sprintf("marshal small payload: %v", err))
@@ -63,6 +69,9 @@ func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL s
 		VAPIDPublicKey:  env512.VapidPublicKey,
 		VAPIDPrivateKey: env512.VapidPrivateKey,
 		TTL:             60,
+
+		// IMPORTANTE: reduzir para caber no Firefox Android (evitar 413).
+		RecordSize: 3000, // se quiseres ser extra seguro, usa 2900
 	})
 	if err != nil {
 		logger.Error(fmt.Sprintf("send notification: %v", err))
@@ -70,15 +79,17 @@ func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL s
 	}
 	defer resp.Body.Close()
 
+	// (opcional) logar corpo em caso de erro para debug
 	if resp.StatusCode >= 400 {
-		logger.Error(fmt.Sprintf("webpush error status=%d", resp.StatusCode))
+		b, _ := io.ReadAll(resp.Body)
+		logger.Error(fmt.Sprintf("webpush error status=%d body=%s", resp.StatusCode, string(b)))
 		return fmt.Errorf("webpush error status=%d", resp.StatusCode)
 	}
 
 	return nil
 }
 
-// Envia notificação global (para TODOS os subs)
+// SendGlobalNotification envia uma notificação simples para TODAS as subscrições.
 func (s *NotsService) SendGlobalNotification(title, body, relURL string) error {
 	subs, err := db.DbGetAllSubscriptions()
 	if err != nil {
@@ -87,7 +98,12 @@ func (s *NotsService) SendGlobalNotification(title, body, relURL string) error {
 	}
 
 	for _, sub := range subs {
-		go s.SendWebPush(sub, title, body, relURL, true)
+		// se quiseres serial, tira o go
+		go func(sub db.PushSubscription) {
+			if err := s.SendWebPush(sub, title, body, relURL); err != nil {
+				logger.Error(fmt.Sprintf("failed to send to %s: %v", sub.Endpoint, err))
+			}
+		}(sub)
 	}
 	return nil
 }
