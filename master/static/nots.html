@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Enable Notifications - HyperHive</title>
+	<style>
+		:root {
+			--bg: #f6f8fb;
+			--card: #ffffff;
+			--accent: #0066cc;
+			--text: #1f2937;
+		}
+
+		body {
+			margin: 0;
+			font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+			background: linear-gradient(180deg, var(--bg), #ffffff 60%);
+			color: var(--text);
+			display: flex;
+			min-height: 100vh;
+			align-items: center;
+			justify-content: center;
+			padding: 24px;
+		}
+
+		.card {
+			width: 100%;
+			max-width: 720px;
+			background: var(--card);
+			box-shadow: 0 6px 24px rgba(16, 24, 40, 0.06);
+			border-radius: 12px;
+			padding: 28px;
+		}
+
+		h1 {
+			margin: 0 0 8px 0;
+			font-size: 20px;
+		}
+
+		p.lead {
+			margin: 0 0 20px 0;
+			color: #374151;
+		}
+
+		.controls {
+			display: flex;
+			gap: 12px;
+			align-items: center
+		}
+
+		button {
+			background: var(--accent);
+			color: white;
+			border: none;
+			padding: 10px 16px;
+			border-radius: 8px;
+			cursor: pointer;
+			font-weight: 600;
+			box-shadow: 0 4px 10px rgba(3, 102, 214, 0.12);
+		}
+
+		button.secondary {
+			background: transparent;
+			border: 1px solid #e6eef9;
+			color: var(--accent);
+			font-weight: 600;
+		}
+
+		.status {
+			margin-left: 8px;
+			color: #065f46;
+			font-weight: 600
+		}
+
+		.explain {
+			margin-top: 12px;
+			color: #6b7280;
+			font-size: 14px
+		}
+
+		pre.subscription {
+			background: #f3f4f6;
+			padding: 8px;
+			border-radius: 6px;
+			overflow: auto;
+			margin-top: 12px;
+			font-size: 12px
+		}
+	</style>
+</head>
+
+<body>
+	<div class="card">
+		<h1>Enable Notifications</h1>
+		<p class="lead">Allow this browser to receive push notifications from this HyperHive server (desktop or mobile).
+		</p>
+
+		<div class="controls">
+			<button id="enable-btn">Enable Notifications</button>
+			<button id="unsubscribe-btn" class="secondary">Unsubscribe</button>
+			<span id="status" class="status"></span>
+		</div>
+
+		<p class="explain">Click <strong>Enable Notifications</strong> to register a Service Worker, grant permission,
+			and subscribe your browser. The subscription is sent to the server at <code>/notification/subscribe</code>.
+		</p>
+
+		<div id="debug" aria-live="polite"></div>
+	</div>
+
+	<script>
+		let PUBLIC_VAPID_KEY = null;
+
+		const statusEl = document.getElementById('status');
+		const debugEl = document.getElementById('debug');
+
+		function setStatus(msg, isError) {
+			statusEl.textContent = msg || '';
+			statusEl.style.color = isError ? '#b91c1c' : '#065f46';
+		}
+
+		async function fetchPublicKey() {
+			if (PUBLIC_VAPID_KEY) return PUBLIC_VAPID_KEY;
+			const res = await fetch('/notification/public-key');
+			if (!res.ok) throw new Error('Failed to fetch public key');
+			const data = await res.json();
+			if (!data.publicKey) throw new Error('Empty public key');
+			PUBLIC_VAPID_KEY = data.publicKey;
+			return PUBLIC_VAPID_KEY;
+		}
+
+		async function enableNotifications() {
+			try {
+				if (!('serviceWorker' in navigator)) throw new Error('Service workers are not supported by this browser.');
+				if (!('PushManager' in window)) throw new Error('Web Push is not supported by this browser.');
+
+				await fetchPublicKey();
+
+				const permission = await Notification.requestPermission();
+				if (permission !== 'granted') throw new Error('Notification permission was not granted.');
+
+				const registration = await navigator.serviceWorker.register('/sw.js');
+				setStatus('Registered service worker');
+
+				const subscription = await registration.pushManager.subscribe({
+					userVisibleOnly: true,
+					applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY),
+				});
+
+				const resp = await fetch('/notification/subscribe', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(subscription),
+				});
+				if (!resp.ok) {
+					const text = await resp.text();
+					throw new Error('Subscribe failed: ' + text);
+				}
+
+				setStatus('Subscribed ✔');
+				debugEl.innerHTML = '<pre class="subscription">' + JSON.stringify(subscription, null, 2) + '</pre>';
+			} catch (err) {
+				console.error(err);
+				setStatus('Error: ' + err.message, true);
+			}
+		}
+
+		async function unsubscribe() {
+			try {
+				if (!('serviceWorker' in navigator)) throw new Error('Service workers are not supported by this browser.');
+				const registration = await navigator.serviceWorker.getRegistration();
+				if (!registration) throw new Error('No service worker registered.');
+				const subscription = await registration.pushManager.getSubscription();
+				if (!subscription) {
+					setStatus('No active subscription');
+					return;
+				}
+				const unsub = await subscription.unsubscribe();
+				// Server-side cleanup could be implemented (call /notification/unsubscribe)
+				setStatus(unsub ? 'Unsubscribed' : 'Unsubscribe failed', !unsub);
+				debugEl.innerHTML = '';
+			} catch (err) {
+				console.error(err);
+				setStatus('Error: ' + err.message, true);
+			}
+		}
+
+		document.getElementById('enable-btn').addEventListener('click', enableNotifications);
+		document.getElementById('unsubscribe-btn').addEventListener('click', unsubscribe);
+
+		function urlBase64ToUint8Array(base64String) {
+			const padding = '='.repeat((4 - base64String.length % 4) % 4);
+			const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+			const rawData = window.atob(base64);
+			const outputArray = new Uint8Array(rawData.length);
+			for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+			return outputArray;
+		}
+	</script>
+</body>
+
+</html>

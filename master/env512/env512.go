@@ -22,6 +22,8 @@ var (
 	GoAccessDisablePanels   []string
 	GoAccessGeoIPLicenseKey string
 	GoAccessGeoIPEdition    string
+	VapidPublicKey          string
+	VapidPrivateKey         string
 )
 
 func Setup() error {
@@ -85,6 +87,10 @@ func Setup() error {
 	if Mode != "dev" {
 		Mode = "prod" //default prod
 	}
+	
+	VapidPublicKey = strings.TrimSpace(os.Getenv("VAPID_PUBLIC_KEY"))
+	VapidPrivateKey = strings.TrimSpace(os.Getenv("VAPID_PRIVATE_KEY"))
+
 	return nil
 }
 

@@ -363,6 +363,11 @@ func main() {
 		log.Fatalf("create btrfs auto table: %v", err)
 	}
 
+	err = db.DbCreatePushSubscriptionsTable()
+	if err != nil {
+		log.Fatalf("create btrfs auto table: %v", err)
+	}
+
 	if err := setupFrontendContainer(); err != nil {
 		fmt.Fprintf(os.Stderr, "erro a preparar frontend container: %v\n", err)
 		os.Exit(1)
