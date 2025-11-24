@@ -10,9 +10,5 @@ func (s *LoginService) Login(baseUrl, email, password string) (string, error) {
 
 func (s *LoginService) IsLoginValid(baseUrl, token string) bool {
 	_, err := npm.GetAllUsers(baseUrl, token)
-	if err != nil {
-		return false
-	}
-
-	return true
+	return err == nil
 }
