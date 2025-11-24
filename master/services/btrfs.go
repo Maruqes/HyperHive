@@ -35,7 +35,7 @@ func (s *BTRFSService) GetNotMountedDisks(machineName string) (*btrfsGrpc.MinDis
 
 	var ret btrfsGrpc.MinDiskArr
 	for _, disk := range disks.Disks {
-		if disk.Mounted == false {
+		if !disk.Mounted {
 			ret.Disks = append(ret.Disks, disk)
 		}
 	}
