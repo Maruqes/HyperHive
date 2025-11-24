@@ -363,6 +363,12 @@ func main() {
 		log.Fatalf("create btrfs auto table: %v", err)
 	}
 
+	if err := setupFrontendContainer(); err != nil {
+		fmt.Fprintf(os.Stderr, "erro a preparar frontend container: %v\n", err)
+		os.Exit(1)
+	}
+	logger.Info("Frontend container ready at http://localhost:" + hostPort)
+
 	//listen and connects to gRPC
 	logger.SetCallBack(logs512.LoggerCallBack)
 	go protocol.PingAllSlavesLoop()
