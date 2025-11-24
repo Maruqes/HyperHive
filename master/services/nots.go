@@ -23,11 +23,12 @@ func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL s
 		return err
 	}
 
-	// payload minimal – só o essencial
+	// payload minimal – só o essencial, incluir ícone estático
 	base := map[string]string{
 		"title": title,
 		"body":  body,
 		"url":   relURL,
+		"icon":  "/static/notification-icon.png",
 	}
 
 	payload, err := json.Marshal(base)
@@ -47,6 +48,7 @@ func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL s
 			"title": title,
 			"body":  body,
 			"url":   relURL,
+			"icon":  "/static/notification-icon.png",
 		}
 		payload, err = json.Marshal(small)
 		if err != nil {

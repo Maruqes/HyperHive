@@ -11,13 +11,14 @@ self.addEventListener('push', function (event) {
 	}
 
 	const title = data.title || 'Notification';
-	const body  = data.body  || 'New notification';
-	const url   = data.url   || '/';
+	const body = data.body || 'New notification';
+	const url = data.url || '/';
 
 	const options = {
 		body: body,
 		data: { url: url },
-		// nada de ícones, vibrar, etc. – mesmo minimal
+		// include a simple icon (provided by server) — no vibration, no extras
+		icon: data.icon || '/static/notification-icon.png',
 		tag: Date.now().toString(),
 		requireInteraction: false,
 	};

@@ -112,7 +112,7 @@ func subscribe_nots(w http.ResponseWriter, r *http.Request) {
 func test_nots(w http.ResponseWriter, r *http.Request) {
 
 	notService := services.NotsService{}
-	if err := notService.SendGlobalNotification("HH", "Test", "/"); err != nil {
+	if err := notService.SendGlobalNotification("HyperHive", "Isto é uma notificação de teste.", "/"); err != nil {
 		http.Error(w, "failed to send notifications: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -153,10 +153,6 @@ func StartApi() {
 	//tem de estar fora a autenticacao esta dentro da rota
 	r.Get("/nots/register", register_nots)
 
-	r.Get("/static/notification-badge.png", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "image/png")
-		http.ServeFile(w, r, "static/notification-icon.png")
-	})
 	r.Get("/static/notification-icon.png", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/png")
 		http.ServeFile(w, r, "static/notification-icon.png")
