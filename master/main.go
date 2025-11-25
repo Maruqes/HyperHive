@@ -365,7 +365,12 @@ func main() {
 
 	err = db.DbCreatePushSubscriptionsTable()
 	if err != nil {
-		log.Fatalf("create btrfs auto table: %v", err)
+		log.Fatalf("create push subs table: %v", err)
+	}
+
+	err = db.DbCreateNotsTable()
+	if err != nil {
+		log.Fatalf("create nots table: %v", err)
 	}
 
 	if err := setupFrontendContainer(); err != nil {

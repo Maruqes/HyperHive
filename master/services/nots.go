@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/Maruqes/512SvMan/logger"
 	"github.com/SherClockHolmes/webpush-go"
@@ -17,7 +18,23 @@ type NotsService struct{}
 
 // SendWebPush envia uma notificação simples (title, body, url) para 1 subscrição.
 // Se `critical` for true, a payload inclui essa flag para o SW tratar com vibração/renotify.
-func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL string, critical bool) error {
+func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL string, critical bool) (err error) {
+	defer func() {
+		// Here "err" refers to the named return variable
+		if err == nil {
+			errDb := db.DbSaveNot(db.Not{
+				Title:     title,
+				Body:      body,
+				RelURL:    relURL,
+				Critical:  critical,
+				CreatedAt: time.Now(),
+			})
+			if errDb != nil {
+				logger.Error("could not save notification into db :D hehe")
+			}
+		}
+	}()
+
 	if env512.VapidPublicKey == "" || env512.VapidPrivateKey == "" {
 		err := fmt.Errorf("VAPID keys not set; call InitVAPIDFromEnv() at startup")
 		logger.Error(err.Error())
@@ -115,4 +132,9 @@ func (s *NotsService) SendGlobalNotification(title, body, relURL string, critica
 		}(sub)
 	}
 	return nil
+}
+
+// GetNotsSince returns nots created at or after `since`.
+func (s *NotsService) GetNotsSince(since time.Time) ([]db.Not, error) {
+	return db.DbGetNotsFrom(since)
 }

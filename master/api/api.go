@@ -111,7 +111,6 @@ func subscribe_nots(w http.ResponseWriter, r *http.Request) {
 // POST /notification/test → envia notificação para TODOS
 func test_nots(w http.ResponseWriter, r *http.Request) {
 
-
 	notService := services.NotsService{}
 	if err := notService.SendGlobalNotification("HyperHive", "Isto é uma notificação de teste.", "/", true); err != nil {
 		http.Error(w, "failed to send notifications: "+err.Error(), http.StatusInternalServerError)
@@ -152,8 +151,8 @@ func StartApi() {
 	r.Post("/login", loginHandler)
 
 	//tem de estar fora a autenticacao esta dentro da rota
+	//é das notifications hehe :D:D:D:D:D::D:D:D:D q funfaoummm
 	r.Get("/nots/register", register_nots)
-
 	r.Get("/static/notification-icon.png", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/png")
 		http.ServeFile(w, r, "static/notification-icon.png")
@@ -164,12 +163,12 @@ func StartApi() {
 		r.Use(authMiddleware)
 		setupNoVNCAPI(r)
 
+		//NOTIFICATION heere HEHEHE
 		r.Route("/notification", func(r chi.Router) {
 			r.Get("/public-key", get_public_key)
 			r.Post("/subscribe", subscribe_nots)
 			r.Get("/test", test_nots) // opcional, para testes
 		})
-
 		r.Get("/sw.js", func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, "static/sw.js")
 		})
@@ -196,6 +195,7 @@ func StartApi() {
 		setupStreamInfo(r)
 		setupWireguardAPI(r)
 		setupBTRFS(r)
+		setupNotsAPI(r)
 	})
 
 	http.ListenAndServe(":9595", r)
