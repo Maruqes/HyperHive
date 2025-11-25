@@ -743,7 +743,7 @@ func timeSince(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, map[string]string{"uptime": uptime.String()})
+	writeJSON(w, map[string]int64{"uptime": int64(uptime.Minutes())})
 }
 
 func setupInfoAPI(r chi.Router) chi.Router {
@@ -763,6 +763,6 @@ func setupInfoAPI(r chi.Router) chi.Router {
 		r.Post("/stress-cpu/{machine_name}", stressCPU)
 		r.Post("/test-ram/{machine_name}", testRamMEM)
 
-		r.Get("/time-since/{machine_name}",timeSince)
+		r.Get("/time-since/{machine_name}", timeSince)
 	})
 }
