@@ -188,6 +188,6 @@ func (s *InfoService) GetUpTimeByMachine(machineName string) (*time.Duration, er
 		return nil, fmt.Errorf("slave %s not connected", machineName)
 	}
 
-	diff := time.Since(conn.LastSeen)
+	diff := time.Since(conn.EntryTime)
 	return &diff, nil
 }

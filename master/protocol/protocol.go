@@ -25,6 +25,7 @@ type ConnectionsStruct struct {
 	MachineName string
 	Connection  *grpc.ClientConn
 	LastSeen    time.Time
+	EntryTime   time.Time
 }
 
 var recievedNewSlaveFunc func(addr, machineName string, conn *grpc.ClientConn) error
@@ -140,7 +141,7 @@ func NewSlaveConnection(addr, machineName string) error {
 	}
 
 	entry := &ConnectionsStruct{
-		Addr: addr, MachineName: machineName, Connection: conn, LastSeen: time.Now(),
+		Addr: addr, MachineName: machineName, Connection: conn, LastSeen: time.Now(), EntryTime: time.Now(),
 	}
 
 	replaced, err := addOrReplaceConnection(entry)
