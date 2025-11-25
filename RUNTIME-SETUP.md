@@ -56,38 +56,164 @@ THIS IS A MUST DO IT SETS PASSWORD BETWEEN SLAVES NEEDS TO BE RAN AT LEAST ONCE 
   make
   ```
 Leave them running until every slave prints a message similar to `Ok Master`, confirming the cluster is healthy.
-
 ## 5. Install PM2 and Configure Autostart
-Perform on each node (as root or with `sudo`).
-1. Install PM2 if needed:
-   ```bash
-   npm install -g pm2
-   ```
-2. Register processes; PM2 will change directories and invoke `make` for you:
-   - Master:
-     ```bash
-     sudo pm2 start bash --name hyperhive-master -- -lc "cd /path/to/HyperHive/master && ./512SvMan"
-     ```
-   - Slaves:
-     ```bash
-     sudo pm2 start bash --name hyperhive-slave -- -lc "cd /path/to/HyperHive/slave && ./slave"
-     ```
-3. Persist and enable autostart:
-   ```bash
-   sudo pm2 save
-   sudo pm2 startup systemd -u root --hp /root
-   ```
-   Follow any command PM2 prints to finalize boot integration.
-4. Check status/logs:
-   ```bash
-   sudo pm2 status
-   sudo pm2 logs hyperhive-master    # or hyperhive-slave
-   ```
+
+Run these steps on each node (as `root` or with `sudo`).
+
+### 5.1 Install PM2
+
+```bash
+npm install -g pm2
+```
+
+---
+
+### 5.2 Master Node: Master + Local Slave via `ecosystem.config.js`
+
+Create the config file on the master:
+
+```bash
+cd /path/to/HyperHive/master
+nano ecosystem.config.js
+```
+
+Insert:
+
+```js
+module.exports = {
+  apps: [
+    {
+      name: "hyperhive-master",
+      script: "./512SvMan",
+      cwd: "/path/to/HyperHive/master",
+      autorestart: true,
+      max_restarts: 0,
+      min_uptime: "10s",
+      restart_delay: 5000,
+      env: {
+        NODE_ENV: "production",
+      },
+    },
+    {
+      name: "hyperhive-slave-local",
+      script: "./slave",
+      cwd: "/path/to/HyperHive/slave",
+      autorestart: true,
+      max_restarts: 0,
+      min_uptime: "10s",
+      restart_delay: 5000,
+      env: {
+        NODE_ENV: "production",
+      },
+    },
+  ],
+};
+```
+
+Start both processes:
+
+```bash
+cd /path/to/HyperHive/master
+sudo pm2 start ecosystem.config.js
+```
+
+---
+
+### 5.3 Slave Nodes: Slave Only via `ecosystem.config.js`
+
+On each slave:
+
+```bash
+cd /path/to/HyperHive/slave
+nano ecosystem.config.js
+```
+
+Insert:
+
+```js
+module.exports = {
+  apps: [
+    {
+      name: "hyperhive-slave",
+      script: "./slave",
+      cwd: "/path/to/HyperHive/slave",
+      autorestart: true,
+      max_restarts: 0,
+      min_uptime: "10s",
+      restart_delay: 5000,
+      env: {
+        NODE_ENV: "production",
+      },
+    },
+  ],
+};
+```
+
+Start:
+
+```bash
+cd /path/to/HyperHive/slave
+sudo pm2 start ecosystem.config.js
+```
+
+---
+
+### 5.4 Persist Processes and Enable Boot Autostart
+
+```bash
+sudo pm2 save
+sudo pm2 startup systemd -u root --hp /root
+```
+
+Follow any extra command printed by PM2 to finalize integration.
+
+---
+
+### 5.5 Status & Logs
+
+```bash
+sudo pm2 status
+sudo pm2 logs hyperhive-master
+sudo pm2 logs hyperhive-slave-local
+sudo pm2 logs hyperhive-slave      # On slave nodes
+```
+
+---
 
 ## 6. Maintenance Tips
-- Rebuild/restart after pulling new code:
-  ```bash
-  cd /path/to/HyperHive/master && go build && sudo pm2 restart hyperhive-master
-  cd /path/to/HyperHive/slave && go build && sudo pm2 restart hyperhive-slave
-  ```
-- Use `sudo pm2 delete <name>` before re-registering if needed.
+
+### Rebuild & Restart After Updating Code
+
+**Master:**
+
+```bash
+cd /path/to/HyperHive/master
+go build
+sudo pm2 restart hyperhive-master
+```
+
+**Local slave (on master):**
+
+```bash
+cd /path/to/HyperHive/slave
+go build
+sudo pm2 restart hyperhive-slave-local
+```
+
+**Remote slaves:**
+
+```bash
+cd /path/to/HyperHive/slave
+go build
+sudo pm2 restart hyperhive-slave
+```
+
+### Re-register if Needed
+
+```bash
+sudo pm2 delete hyperhive-master
+sudo pm2 delete hyperhive-slave-local
+sudo pm2 delete hyperhive-slave
+```
+
+---
