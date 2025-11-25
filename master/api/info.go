@@ -729,6 +729,23 @@ func testRamMEM(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"message": result})
 }
 
+func timeSince(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	infoService := services.InfoService{}
+	uptime, err := infoService.GetUpTimeByMachine(machineName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, map[string]string{"uptime": uptime.String()})
+}
+
 func setupInfoAPI(r chi.Router) chi.Router {
 	return r.Route("/info", func(r chi.Router) {
 		r.Get("/cpu/{machine_name}", getCpuInfo)
@@ -745,5 +762,7 @@ func setupInfoAPI(r chi.Router) chi.Router {
 		r.Get("/history/network/{machine_name}", getNetworkHistory)
 		r.Post("/stress-cpu/{machine_name}", stressCPU)
 		r.Post("/test-ram/{machine_name}", testRamMEM)
+
+		r.Get("/time-since/{machine_name}",timeSince)
 	})
 }

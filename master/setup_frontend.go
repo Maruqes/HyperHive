@@ -13,6 +13,7 @@ import (
 
 const (
 	frontendDir   = "/opt/hyperhive/frontend"
+	tempWorkDir   = "/tmp/hyperhive"
 	containerName = "hyperhive-frontend"
 	hostPort      = "8079" // http://servidor:8080
 
@@ -22,35 +23,58 @@ const (
 var CUR_LINK = "https://github.com/JotaBarbosaDev/HyperHive/releases/latest/download/web-dist.zip"
 
 func setupFrontendContainer() error {
-	fmt.Println("[1/4] A garantir nginx.conf de SPA...")
-	if err := ensureNginxConfig(); err != nil {
-		return fmt.Errorf("criar nginx.conf: %w", err)
+	// Step 1: prepare temporary workspace and download+extract there
+	fmt.Println("[1/4] Clearing and preparing temporary workspace at", tempWorkDir)
+	if err := os.RemoveAll(tempWorkDir); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("clear tempWorkDir: %w", err)
+	}
+	if err := os.MkdirAll(tempWorkDir, 0o755); err != nil {
+		return fmt.Errorf("create tempWorkDir: %w", err)
 	}
 
-	fmt.Println("[2/4] A fazer download do web-dist.zip...")
+	fmt.Println("[2/4] Downloading web-dist.zip...")
 	zipPath, err := downloadZip(CUR_LINK)
 	if err != nil {
 		return fmt.Errorf("download zip: %w", err)
 	}
+	// remove downloaded zip when finished
 	defer os.Remove(zipPath)
+	// cleanup temporary workspace when finished
+	defer os.RemoveAll(tempWorkDir)
 
-	fmt.Println("[3/4] A extrair zip para", frontendDir)
-	if err := os.RemoveAll(frontendDir); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("limpar pasta frontend: %w", err)
+	extractDir := filepath.Join(tempWorkDir, "extract")
+	fmt.Println("[3/4] Extracting zip to temporary workspace", extractDir)
+	if err := os.RemoveAll(extractDir); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("clear extractDir: %w", err)
 	}
-	if err := unzip(zipPath, frontendDir); err != nil {
+	if err := unzip(zipPath, extractDir); err != nil {
 		return fmt.Errorf("unzip: %w", err)
 	}
 
-	fmt.Println("[4/4] A recriar container Docker", containerName)
+	// Atomically replace the published frontend directory
+	// Remove old frontend dir only after successful extraction
+	if err := os.RemoveAll(frontendDir); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("clear frontend directory: %w", err)
+	}
+	if err := os.Rename(extractDir, frontendDir); err != nil {
+		return fmt.Errorf("move frontend to destination: %w", err)
+	}
+
+	// Ensure nginx config exists (persisted at nginxConfPath)
+	fmt.Println("[4/4] Ensuring nginx.conf for SPA...")
+	if err := ensureNginxConfig(); err != nil {
+		return fmt.Errorf("create nginx.conf: %w", err)
+	}
+
+	// Recreate container after files and config are ready
 	if err := recreateNginxContainer(); err != nil {
-		return fmt.Errorf("recriar container: %w", err)
+		return fmt.Errorf("recreate container: %w", err)
 	}
 
 	return nil
 }
 
-// cria / atualiza o nginx.conf com fallback SPA
+// create/update nginx.conf with SPA fallback
 func ensureNginxConfig() error {
 	if err := os.MkdirAll(filepath.Dir(nginxConfPath), 0o755); err != nil {
 		return err
@@ -86,7 +110,7 @@ func downloadZip(url string) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("download falhou: status %s", resp.Status)
+		return "", fmt.Errorf("download failed: status %s", resp.Status)
 	}
 
 	tmpFile, err := os.CreateTemp("", "hyperhive-web-dist-*.zip")
@@ -121,7 +145,7 @@ func extractZipFile(f *zip.File, dest string) error {
 	fpath := filepath.Join(dest, f.Name)
 
 	if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
-		return fmt.Errorf("entrada inválida no zip: %s", f.Name)
+		return fmt.Errorf("invalid zip entry: %s", f.Name)
 	}
 
 	if f.FileInfo().IsDir() {
@@ -149,7 +173,7 @@ func extractZipFile(f *zip.File, dest string) error {
 }
 
 func recreateNginxContainer() error {
-	// remove container antigo se existir
+	// remove old container if exists
 	_ = exec.Command("docker", "rm", "-f", containerName).Run()
 
 	// docker run -d --name hyperhive-frontend --restart unless-stopped \

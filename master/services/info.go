@@ -181,3 +181,13 @@ func (s *InfoService) collectMachineSnapshots(machineName string) {
 		logger.Errorf("failed to persist network snapshot for %s: %v", machineName, err)
 	}
 }
+
+func (s *InfoService) GetUpTimeByMachine(machineName string) (*time.Duration, error) {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil || conn.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	diff := time.Since(conn.LastSeen)
+	return &diff, nil
+}
