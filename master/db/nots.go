@@ -69,6 +69,13 @@ func DbGetAllSubscriptions() ([]PushSubscription, error) {
 	return subs, nil
 }
 
+// DbDeleteAllSubscriptions removes all rows from push_subscriptions.
+func DbDeleteAllSubscriptions() error {
+	const q = `DELETE FROM push_subscriptions`
+	_, err := DB.Exec(q)
+	return err
+}
+
 // DbCreateNotsTable creates the `nots` table if it does not exist.
 func DbCreateNotsTable() error {
 	const q = `

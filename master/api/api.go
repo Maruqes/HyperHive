@@ -108,6 +108,16 @@ func subscribe_nots(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"status":"ok"}`))
 }
 
+// DELETE /notification/subscriptions -> remove all stored push subscriptions
+func delete_all_subscriptions(w http.ResponseWriter, r *http.Request) {
+	if err := db.DbDeleteAllSubscriptions(); err != nil {
+		http.Error(w, "failed to delete subscriptions: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"status":"ok"}`))
+}
+
 // POST /notification/test → envia notificação para TODOS
 func test_nots(w http.ResponseWriter, r *http.Request) {
 
@@ -168,6 +178,7 @@ func StartApi() {
 			r.Get("/public-key", get_public_key)
 			r.Post("/subscribe", subscribe_nots)
 			r.Get("/test", test_nots) // opcional, para testes
+			r.Delete("/subscriptions", delete_all_subscriptions)
 		})
 		r.Get("/sw.js", func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, "static/sw.js")
