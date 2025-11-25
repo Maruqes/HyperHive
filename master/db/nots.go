@@ -73,12 +73,12 @@ func DbGetAllSubscriptions() ([]PushSubscription, error) {
 func DbCreateNotsTable() error {
 	const q = `
 CREATE TABLE IF NOT EXISTS nots (
-	id SERIAL PRIMARY KEY,
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	title TEXT,
 	body TEXT,
 	relurl TEXT,
-	critical BOOLEAN NOT NULL DEFAULT false,
-	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+	critical BOOLEAN NOT NULL DEFAULT 0,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 `
 	_, err := DB.Exec(q)
