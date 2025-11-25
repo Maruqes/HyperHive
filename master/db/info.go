@@ -7,6 +7,7 @@ import (
 	"time"
 
 	infoGrpc "github.com/Maruqes/512SvMan/api/proto/info"
+	"github.com/Maruqes/512SvMan/logger"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -425,6 +426,18 @@ func GetNetworkSnapshots(machineName string, limit int) ([]NetworkSnapshot, erro
 }
 
 func sampleEvenly[T any](items []T, n int) []T {
+	logger.Infof("HEHE->%d", n)
+	logger.Infof("HEHE->%d", n)
+	logger.Infof("HEHE->%d", n)
+	logger.Infof("HEHE->%d", n)
+	logger.Infof("HEHE->%d", n)
+	logger.Infof("HEHE->%d", n)
+	logger.Infof("HEHE->%d", n)
+	logger.Infof("HEHE->%d", n)
+	logger.Infof("HEHE->%d", n)
+	logger.Infof("HEHE->%d", n)
+	logger.Infof("HEHE->%d", n)
+	logger.Infof("HEHE->%d", n)
 	if n <= 0 || len(items) <= n {
 		return items
 	}
