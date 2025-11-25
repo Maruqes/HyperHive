@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"math"
 	"time"
 
 	infoGrpc "github.com/Maruqes/512SvMan/api/proto/info"
@@ -423,50 +424,88 @@ func GetNetworkSnapshots(machineName string, limit int) ([]NetworkSnapshot, erro
 	return snapshots, err
 }
 
-func GetCPUSnapshotsSince(machineName string, since time.Time) ([]CPUSnapshot, error) {
+func sampleEvenly[T any](items []T, n int) []T {
+	if n <= 0 || len(items) <= n {
+		return items
+	}
+
+	out := make([]T, 0, n)
+	step := float64(len(items)-1) / float64(n-1)
+
+	for i := 0; i < n; i++ {
+		idx := int(math.Round(float64(i) * step))
+		if idx < 0 {
+			idx = 0
+		}
+		if idx >= len(items) {
+			idx = len(items) - 1
+		}
+		out = append(out, items[idx])
+	}
+
+	return out
+}
+
+func GetDiskSnapshotsSince(machineName string, since time.Time, numberOfRows int) ([]DiskSnapshot, error) {
 	const query = `
-	SELECT id, machine_name, captured_at, payload
-	FROM cpu_snapshots
-	WHERE machine_name = ? AND captured_at >= ?
-	ORDER BY captured_at ASC;
+		SELECT id, machine_name, captured_at, payload
+		FROM disk_snapshots
+		WHERE machine_name = ? AND captured_at >= ?
+		ORDER BY captured_at ASC;
+	`
+	var snapshots []DiskSnapshot
+	err := fetchSnapshots(
+		query,
+		[]any{machineName, formatQueryTime(since)},
+		diskSnapshotCollector(&snapshots),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return sampleEvenly(snapshots, numberOfRows), nil
+}
+func GetCPUSnapshotsSince(machineName string, since time.Time, numberOfRows int) ([]CPUSnapshot, error) {
+	const query = `
+		SELECT id, machine_name, captured_at, payload
+		FROM cpu_snapshots
+		WHERE machine_name = ? AND captured_at >= ?
+		ORDER BY captured_at ASC;
 	`
 	var snapshots []CPUSnapshot
 	err := fetchSnapshots(query, []any{machineName, formatQueryTime(since)}, cpuSnapshotCollector(&snapshots))
-	return snapshots, err
+	if err != nil {
+		return nil, err
+	}
+	return sampleEvenly(snapshots, numberOfRows), nil
 }
 
-func GetMemSnapshotsSince(machineName string, since time.Time) ([]MemSnapshot, error) {
+func GetMemSnapshotsSince(machineName string, since time.Time, numberOfRows int) ([]MemSnapshot, error) {
 	const query = `
-	SELECT id, machine_name, captured_at, payload
-	FROM mem_snapshots
-	WHERE machine_name = ? AND captured_at >= ?
-	ORDER BY captured_at ASC;
+		SELECT id, machine_name, captured_at, payload
+		FROM mem_snapshots
+		WHERE machine_name = ? AND captured_at >= ?
+		ORDER BY captured_at ASC;
 	`
 	var snapshots []MemSnapshot
 	err := fetchSnapshots(query, []any{machineName, formatQueryTime(since)}, memSnapshotCollector(&snapshots))
-	return snapshots, err
+	if err != nil {
+		return nil, err
+	}
+	return sampleEvenly(snapshots, numberOfRows), nil
 }
 
-func GetDiskSnapshotsSince(machineName string, since time.Time) ([]DiskSnapshot, error) {
+func GetNetworkSnapshotsSince(machineName string, since time.Time, numberOfRows int) ([]NetworkSnapshot, error) {
 	const query = `
-	SELECT id, machine_name, captured_at, payload
-	FROM disk_snapshots
-	WHERE machine_name = ? AND captured_at >= ?
-	ORDER BY captured_at ASC;
-	`
-	var snapshots []DiskSnapshot
-	err := fetchSnapshots(query, []any{machineName, formatQueryTime(since)}, diskSnapshotCollector(&snapshots))
-	return snapshots, err
-}
-
-func GetNetworkSnapshotsSince(machineName string, since time.Time) ([]NetworkSnapshot, error) {
-	const query = `
-	SELECT id, machine_name, captured_at, payload
-	FROM network_snapshots
-	WHERE machine_name = ? AND captured_at >= ?
-	ORDER BY captured_at ASC;
+		SELECT id, machine_name, captured_at, payload
+		FROM network_snapshots
+		WHERE machine_name = ? AND captured_at >= ?
+		ORDER BY captured_at ASC;
 	`
 	var snapshots []NetworkSnapshot
 	err := fetchSnapshots(query, []any{machineName, formatQueryTime(since)}, networkSnapshotCollector(&snapshots))
-	return snapshots, err
+	if err != nil {
+		return nil, err
+	}
+	return sampleEvenly(snapshots, numberOfRows), nil
 }

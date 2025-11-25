@@ -23,10 +23,11 @@ var protoJSONMarshaler = protojson.MarshalOptions{
 }
 
 type historyRequest struct {
-	Hours  *int `json:"hours"`
-	Days   *int `json:"days"`
-	Weeks  *int `json:"weeks"`
-	Months *int `json:"months"`
+	Hours       *int `json:"hours"`
+	Days        *int `json:"days"`
+	Weeks       *int `json:"weeks"`
+	Months      *int `json:"months"`
+	NumerOfRows *int `json:"number_of_rows"`
 }
 
 type snapshotResponse struct {
@@ -125,18 +126,17 @@ func (h *historyRequest) duration() time.Duration {
 	total += parseRelativeDuration(h.Months, 30*24*time.Hour)
 	return total
 }
-
-func parseHistoryDuration(r *http.Request) (time.Duration, error) {
+func parseHistoryDuration(r *http.Request) (time.Duration, int, error) {
 	query := r.URL.Query()
 	if raw := query.Get("duration"); raw != "" {
 		parsed, err := time.ParseDuration(raw)
 		if err != nil {
-			return 0, err
+			return 0, 0, err
 		}
 		if parsed <= 0 {
-			return 0, fmt.Errorf("duration must be positive")
+			return 0, 0, fmt.Errorf("duration must be positive")
 		}
-		return parsed, nil
+		return parsed, 0, nil
 	}
 
 	total := time.Duration(0)
@@ -157,22 +157,29 @@ func parseHistoryDuration(r *http.Request) (time.Duration, error) {
 		}
 		value, err := strconv.Atoi(raw)
 		if err != nil {
-			return 0, fmt.Errorf("invalid %s value: %w", item.Key, err)
+			return 0, 0, fmt.Errorf("invalid %s value: %w", item.Key, err)
 		}
 		total += parseRelativeDuration(&value, item.Unit)
 	}
 
 	if total > 0 {
-		return total, nil
+		return total, 0, nil
 	}
 
 	var body historyRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		if !errors.Is(err, io.EOF) {
-			return 0, err
+			return 0, 0, err
 		}
 	}
-	return body.duration(), nil
+	return body.duration(), getNumerOfRows(body.NumerOfRows), nil
+}
+
+func getNumerOfRows(n *int) int {
+	if n == nil || *n <= 0 {
+		return 0
+	}
+	return *n
 }
 
 // summary handlers
@@ -405,7 +412,7 @@ func buildSnapshotCarriers[T any](snaps []T, accessor func(T) snapshotCarrier) [
 
 func getCPUHistory(w http.ResponseWriter, r *http.Request) {
 	machineName := chi.URLParam(r, "machine_name")
-	duration, err := parseHistoryDuration(r)
+	duration,numberOfRows, err := parseHistoryDuration(r)
 	if err != nil {
 		http.Error(w, "invalid duration: "+err.Error(), http.StatusBadRequest)
 		return
@@ -421,7 +428,7 @@ func getCPUHistory(w http.ResponseWriter, r *http.Request) {
 		machines := protocol.GetAllMachineNames()
 		response := make(map[string][]snapshotResponse)
 		for _, name := range machines {
-			snaps, err := infoService.GetCPUHistory(name, duration)
+			snaps, err := infoService.GetCPUHistory(name, duration,numberOfRows)
 			if err != nil {
 				continue
 			}
@@ -448,7 +455,7 @@ func getCPUHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	snaps, err := infoService.GetCPUHistory(machineName, duration)
+	snaps, err := infoService.GetCPUHistory(machineName, duration,numberOfRows)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -471,7 +478,7 @@ func getCPUHistory(w http.ResponseWriter, r *http.Request) {
 
 func getMemHistory(w http.ResponseWriter, r *http.Request) {
 	machineName := chi.URLParam(r, "machine_name")
-	duration, err := parseHistoryDuration(r)
+	duration,numberOfRows, err := parseHistoryDuration(r)
 	if err != nil {
 		http.Error(w, "invalid duration: "+err.Error(), http.StatusBadRequest)
 		return
@@ -487,7 +494,7 @@ func getMemHistory(w http.ResponseWriter, r *http.Request) {
 		machines := protocol.GetAllMachineNames()
 		response := make(map[string][]snapshotResponse)
 		for _, name := range machines {
-			snaps, err := infoService.GetMemHistory(name, duration)
+			snaps, err := infoService.GetMemHistory(name, duration,numberOfRows)
 			if err != nil {
 				continue
 			}
@@ -514,7 +521,7 @@ func getMemHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	snaps, err := infoService.GetMemHistory(machineName, duration)
+	snaps, err := infoService.GetMemHistory(machineName, duration,numberOfRows)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -537,7 +544,7 @@ func getMemHistory(w http.ResponseWriter, r *http.Request) {
 
 func getDiskHistory(w http.ResponseWriter, r *http.Request) {
 	machineName := chi.URLParam(r, "machine_name")
-	duration, err := parseHistoryDuration(r)
+	duration,numberOfRows, err := parseHistoryDuration(r)
 	if err != nil {
 		http.Error(w, "invalid duration: "+err.Error(), http.StatusBadRequest)
 		return
@@ -553,7 +560,7 @@ func getDiskHistory(w http.ResponseWriter, r *http.Request) {
 		machines := protocol.GetAllMachineNames()
 		response := make(map[string][]snapshotResponse)
 		for _, name := range machines {
-			snaps, err := infoService.GetDiskHistory(name, duration)
+			snaps, err := infoService.GetDiskHistory(name, duration,numberOfRows)
 			if err != nil {
 				continue
 			}
@@ -580,7 +587,7 @@ func getDiskHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	snaps, err := infoService.GetDiskHistory(machineName, duration)
+	snaps, err := infoService.GetDiskHistory(machineName, duration,numberOfRows)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -603,7 +610,7 @@ func getDiskHistory(w http.ResponseWriter, r *http.Request) {
 
 func getNetworkHistory(w http.ResponseWriter, r *http.Request) {
 	machineName := chi.URLParam(r, "machine_name")
-	duration, err := parseHistoryDuration(r)
+	duration, numberOfRows,err := parseHistoryDuration(r)
 	if err != nil {
 		http.Error(w, "invalid duration: "+err.Error(), http.StatusBadRequest)
 		return
@@ -619,7 +626,7 @@ func getNetworkHistory(w http.ResponseWriter, r *http.Request) {
 		machines := protocol.GetAllMachineNames()
 		response := make(map[string][]snapshotResponse)
 		for _, name := range machines {
-			snaps, err := infoService.GetNetworkHistory(name, duration)
+			snaps, err := infoService.GetNetworkHistory(name, duration,numberOfRows)
 			if err != nil {
 				continue
 			}
@@ -646,7 +653,7 @@ func getNetworkHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	snaps, err := infoService.GetNetworkHistory(machineName, duration)
+	snaps, err := infoService.GetNetworkHistory(machineName, duration,numberOfRows)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -743,7 +750,7 @@ func timeSince(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, map[string]int64{"uptime": int64(uptime.Minutes())})
+	writeJSON(w, map[string]string{"uptime": uptime.String()})
 }
 
 func setupInfoAPI(r chi.Router) chi.Router {

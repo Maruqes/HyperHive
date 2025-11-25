@@ -93,20 +93,20 @@ func historySinceDuration(duration time.Duration) time.Time {
 	return time.Now().Add(-duration)
 }
 
-func (s *InfoService) GetCPUHistory(machineName string, duration time.Duration) ([]db.CPUSnapshot, error) {
-	return db.GetCPUSnapshotsSince(machineName, historySinceDuration(duration))
+func (s *InfoService) GetCPUHistory(machineName string, duration time.Duration, numberOfRows int) ([]db.CPUSnapshot, error) {
+	return db.GetCPUSnapshotsSince(machineName, historySinceDuration(duration), numberOfRows)
 }
 
-func (s *InfoService) GetMemHistory(machineName string, duration time.Duration) ([]db.MemSnapshot, error) {
-	return db.GetMemSnapshotsSince(machineName, historySinceDuration(duration))
+func (s *InfoService) GetMemHistory(machineName string, duration time.Duration, numberOfRows int) ([]db.MemSnapshot, error) {
+	return db.GetMemSnapshotsSince(machineName, historySinceDuration(duration), numberOfRows)
 }
 
-func (s *InfoService) GetDiskHistory(machineName string, duration time.Duration) ([]db.DiskSnapshot, error) {
-	return db.GetDiskSnapshotsSince(machineName, historySinceDuration(duration))
+func (s *InfoService) GetDiskHistory(machineName string, duration time.Duration, numberOfRows int) ([]db.DiskSnapshot, error) {
+	return db.GetDiskSnapshotsSince(machineName, historySinceDuration(duration), numberOfRows)
 }
 
-func (s *InfoService) GetNetworkHistory(machineName string, duration time.Duration) ([]db.NetworkSnapshot, error) {
-	return db.GetNetworkSnapshotsSince(machineName, historySinceDuration(duration))
+func (s *InfoService) GetNetworkHistory(machineName string, duration time.Duration, numberOfRows int) ([]db.NetworkSnapshot, error) {
+	return db.GetNetworkSnapshotsSince(machineName, historySinceDuration(duration), numberOfRows)
 }
 
 func (s *InfoService) StressCPU(ctx context.Context, machineName string, params *infoGrpc.StressCPUParams) (*infoGrpc.Empty, error) {
