@@ -136,7 +136,16 @@ func parseHistoryDuration(r *http.Request) (time.Duration, int, error) {
 		if parsed <= 0 {
 			return 0, 0, fmt.Errorf("duration must be positive")
 		}
-		return parsed, 0, nil
+		// also parse optional number_of_rows when provided
+		numberOfRows := 0
+		if rawRows := query.Get("number_of_rows"); rawRows != "" {
+			v, err := strconv.Atoi(rawRows)
+			if err != nil {
+				return 0, 0, fmt.Errorf("invalid number_of_rows value: %w", err)
+			}
+			numberOfRows = v
+		}
+		return parsed, numberOfRows, nil
 	}
 
 	total := time.Duration(0)
@@ -162,8 +171,18 @@ func parseHistoryDuration(r *http.Request) (time.Duration, int, error) {
 		total += parseRelativeDuration(&value, item.Unit)
 	}
 
+	// parse optional number_of_rows from query
+	numberOfRows := 0
+	if rawRows := query.Get("number_of_rows"); rawRows != "" {
+		v, err := strconv.Atoi(rawRows)
+		if err != nil {
+			return 0, 0, fmt.Errorf("invalid number_of_rows value: %w", err)
+		}
+		numberOfRows = v
+	}
+
 	if total > 0 {
-		return total, 0, nil
+		return total, numberOfRows, nil
 	}
 	var body historyRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -171,13 +190,9 @@ func parseHistoryDuration(r *http.Request) (time.Duration, int, error) {
 			return 0, 0, err
 		}
 	}
-	numberOfRows := 0
-	if raw := query.Get("number_of_rows"); raw != "" {
-		value, err := strconv.Atoi(raw)
-		if err != nil {
-			return 0, 0, fmt.Errorf("invalid number_of_rows value: %w", err)
-		}
-		numberOfRows = value
+	// If not provided in query, prefer body value
+	if body.NumerOfRows != nil {
+		numberOfRows = *body.NumerOfRows
 	}
 	return body.duration(), numberOfRows, nil
 }
