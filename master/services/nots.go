@@ -113,7 +113,7 @@ func (s *NotsService) SendGlobalNotification(title, body, relURL string, critica
 				CreatedAt: time.Now(),
 			})
 			if errDb != nil {
-				logger.Error("could not save notification into db :D hehe")
+				logger.Error(fmt.Sprintf("could not save notification into db: %v", errDb))
 			}
 		}
 	}()

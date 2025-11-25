@@ -99,17 +99,25 @@ func DbSaveNot(n Not) error {
 
 	const insertQ = `
 	INSERT INTO nots (title, body, relurl, critical, created_at)
-	VALUES ($1, $2, $3, $4, COALESCE($5, NOW()))
+	VALUES (?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
 	`
-	_, err = tx.Exec(insertQ, n.Title, n.Body, n.RelURL, n.Critical, n.CreatedAt)
+
+	var created interface{}
+	if n.CreatedAt.IsZero() {
+		created = nil
+	} else {
+		created = formatSnapshotTime(n.CreatedAt)
+	}
+
+	_, err = tx.Exec(insertQ, n.Title, n.Body, n.RelURL, n.Critical, created)
 	if err != nil {
 		_ = tx.Rollback()
 		return err
 	}
 
-	// Delete entries older than 3 months
-	cutoff := time.Now().AddDate(0, -snapshotRetentionMonths, 0)
-	const delQ = `DELETE FROM nots WHERE created_at < $1`
+	// Delete entries older than 3 months (use datetime() for robust comparison)
+	cutoff := formatSnapshotTime(time.Now().AddDate(0, -snapshotRetentionMonths, 0))
+	const delQ = `DELETE FROM nots WHERE datetime(created_at) < datetime(?)`
 	if _, err = tx.Exec(delQ, cutoff); err != nil {
 		_ = tx.Rollback()
 		return err
@@ -123,7 +131,7 @@ func DbGetRecentNots(limit int) ([]Not, error) {
 	if limit <= 0 {
 		limit = 100
 	}
-	q := `SELECT title, body, relurl, critical, created_at FROM nots ORDER BY created_at DESC LIMIT $1`
+	q := `SELECT title, body, relurl, critical, created_at FROM nots ORDER BY datetime(created_at) DESC LIMIT ?`
 	rows, err := DB.Query(q, limit)
 	if err != nil {
 		return nil, err
@@ -133,8 +141,19 @@ func DbGetRecentNots(limit int) ([]Not, error) {
 	var res []Not
 	for rows.Next() {
 		var n Not
-		if err := rows.Scan(&n.Title, &n.Body, &n.RelURL, &n.Critical, &n.CreatedAt); err != nil {
+		var createdAtStr string
+		if err := rows.Scan(&n.Title, &n.Body, &n.RelURL, &n.Critical, &createdAtStr); err != nil {
 			return nil, err
+		}
+		// Try parsing stored timestamp in multiple formats (RFC3339Nano first, then SQLite default)
+		if t, err := parseSnapshotTime(createdAtStr); err == nil {
+			n.CreatedAt = t
+		} else if t2, err2 := time.Parse("2006-01-02 15:04:05", createdAtStr); err2 == nil {
+			n.CreatedAt = t2
+		} else if t3, err3 := time.Parse(time.RFC3339, createdAtStr); err3 == nil {
+			n.CreatedAt = t3
+		} else {
+			n.CreatedAt = time.Time{}
 		}
 		res = append(res, n)
 	}
@@ -146,8 +165,8 @@ func DbGetRecentNots(limit int) ([]Not, error) {
 
 // DbGetNotsFrom returns notifications created at or after `since`, ordered newest first.
 func DbGetNotsFrom(since time.Time) ([]Not, error) {
-	q := `SELECT title, body, relurl, critical, created_at FROM nots WHERE created_at >= $1 ORDER BY created_at DESC`
-	rows, err := DB.Query(q, since)
+	q := `SELECT title, body, relurl, critical, created_at FROM nots WHERE datetime(created_at) >= datetime(?) ORDER BY datetime(created_at) DESC`
+	rows, err := DB.Query(q, formatSnapshotTime(since))
 	if err != nil {
 		return nil, err
 	}
@@ -156,8 +175,18 @@ func DbGetNotsFrom(since time.Time) ([]Not, error) {
 	var res []Not
 	for rows.Next() {
 		var n Not
-		if err := rows.Scan(&n.Title, &n.Body, &n.RelURL, &n.Critical, &n.CreatedAt); err != nil {
+		var createdAtStr string
+		if err := rows.Scan(&n.Title, &n.Body, &n.RelURL, &n.Critical, &createdAtStr); err != nil {
 			return nil, err
+		}
+		if t, err := parseSnapshotTime(createdAtStr); err == nil {
+			n.CreatedAt = t
+		} else if t2, err2 := time.Parse("2006-01-02 15:04:05", createdAtStr); err2 == nil {
+			n.CreatedAt = t2
+		} else if t3, err3 := time.Parse(time.RFC3339, createdAtStr); err3 == nil {
+			n.CreatedAt = t3
+		} else {
+			n.CreatedAt = time.Time{}
 		}
 		res = append(res, n)
 	}
