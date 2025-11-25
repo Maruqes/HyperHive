@@ -165,21 +165,21 @@ func parseHistoryDuration(r *http.Request) (time.Duration, int, error) {
 	if total > 0 {
 		return total, 0, nil
 	}
-
 	var body historyRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		if !errors.Is(err, io.EOF) {
 			return 0, 0, err
 		}
 	}
-	return body.duration(), getNumerOfRows(body.NumerOfRows), nil
-}
-
-func getNumerOfRows(n *int) int {
-	if n == nil || *n <= 0 {
-		return 0
+	numberOfRows := 0
+	if raw := query.Get("number_of_rows"); raw != "" {
+		value, err := strconv.Atoi(raw)
+		if err != nil {
+			return 0, 0, fmt.Errorf("invalid number_of_rows value: %w", err)
+		}
+		numberOfRows = value
 	}
-	return *n
+	return body.duration(), numberOfRows, nil
 }
 
 // summary handlers
