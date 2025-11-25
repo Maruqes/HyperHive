@@ -72,15 +72,15 @@ func DbGetAllSubscriptions() ([]PushSubscription, error) {
 // DbCreateNotsTable creates the `nots` table if it does not exist.
 func DbCreateNotsTable() error {
 	const q = `
-	CREATE TABLE IF NOT EXISTS nots (
-		id SERIAL PRIMARY KEY,
-		title TEXT,
-		body TEXT,
-		relurl TEXT,
-		critical BOOLEAN NOT NULL DEFAULT false,
-		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-	);
-	`
+CREATE TABLE IF NOT EXISTS nots (
+	id SERIAL PRIMARY KEY,
+	title TEXT,
+	body TEXT,
+	relurl TEXT,
+	critical BOOLEAN NOT NULL DEFAULT false,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+`
 	_, err := DB.Exec(q)
 	return err
 }
