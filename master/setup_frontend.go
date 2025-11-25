@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 const (
@@ -56,8 +57,22 @@ func setupFrontendContainer() error {
 	if err := os.RemoveAll(frontendDir); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("clear frontend directory: %w", err)
 	}
+
+	// Try to rename the extracted dir into place. If the rename fails
+	// with EXDEV (invalid cross-device link), perform a recursive copy
+	// instead and then clean up the temp extract dir.
 	if err := os.Rename(extractDir, frontendDir); err != nil {
-		return fmt.Errorf("move frontend to destination: %w", err)
+		if linkErr, ok := err.(*os.LinkError); ok && linkErr.Err == syscall.EXDEV {
+			fmt.Println("Detected cross-device move; copying files instead.")
+			if err := copyDir(extractDir, frontendDir); err != nil {
+				return fmt.Errorf("copy frontend to destination: %w", err)
+			}
+			if err := os.RemoveAll(extractDir); err != nil {
+				return fmt.Errorf("cleanup extractDir: %w", err)
+			}
+		} else {
+			return fmt.Errorf("move frontend to destination: %w", err)
+		}
 	}
 
 	// Ensure nginx config exists (persisted at nginxConfPath)
@@ -170,6 +185,63 @@ func extractZipFile(f *zip.File, dest string) error {
 
 	_, err = io.Copy(outFile, rc)
 	return err
+}
+
+// copyDir recursively copies src -> dst preserving file modes and symlinks.
+func copyDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+
+		// handle symlinks
+		if info.Mode()&os.ModeSymlink != 0 {
+			linkTarget, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return err
+			}
+			return os.Symlink(linkTarget, target)
+		}
+
+		if info.IsDir() {
+			return os.MkdirAll(target, info.Mode())
+		}
+
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+		return copyFile(path, target, info.Mode())
+	})
+}
+
+func copyFile(src, dst string, mode os.FileMode) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	if err := out.Sync(); err != nil {
+		return err
+	}
+	return os.Chmod(dst, mode)
 }
 
 func recreateNginxContainer() error {

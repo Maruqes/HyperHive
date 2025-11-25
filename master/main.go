@@ -369,7 +369,7 @@ func main() {
 	}
 
 	if err := setupFrontendContainer(); err != nil {
-		fmt.Fprintf(os.Stderr, "erro a preparar frontend container: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error on frontend container: %v\n", err)
 		os.Exit(1)
 	}
 	logger.Info("Frontend container ready at http://localhost:" + hostPort)
