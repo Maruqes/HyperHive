@@ -66,6 +66,7 @@ func applyDirtyRatioSettings(ratio, background int) error {
 		return fmt.Errorf("dirty background ratio %d must be between 1 and 100", setBackground)
 	}
 
+
 	return writeSysctlValue(vmDirtyBackgroundRatioPath, setBackground)
 }
 
