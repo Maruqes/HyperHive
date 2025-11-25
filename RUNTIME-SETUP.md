@@ -95,7 +95,7 @@ module.exports = {
       },
     },
     {
-      name: "hyperhive-slave-local",
+      name: "hyperhive-slave",
       script: "./slave",
       cwd: "/path/to/HyperHive/slave",
       autorestart: true,
