@@ -245,6 +245,14 @@ func (s *Service) GetSelfTestProgress(ctx context.Context, req *smartdiskGrpc.Sm
 		return progress, nil
 	}
 
+	// 2b) Fallback: try running smartctl text output and parse remaining percent
+	if pct, ok := getRemainingFromSmartctlText(req.GetDevice()); ok {
+		progress.Status = "in progress"
+		progress.RemainingPercent = pct
+		progress.ProgressPercent = clampPercent(100 - pct)
+		return progress, nil
+	}
+
 	// 3) Se houver erro mas não conseguimos percentagens, podes opcionalmente marcar como "unknown"
 	if err != nil {
 		progress.Status = "unknown"
@@ -276,12 +284,15 @@ func parseRemainingFromError(err error) (int64, bool) {
 	if err == nil {
 		return 0, false
 	}
+	return parseRemainingFromText(err.Error())
+}
 
-	text := err.Error()
+// parseRemainingFromText looks for percentage/remaining patterns in arbitrary text.
+func parseRemainingFromText(text string) (int64, bool) {
+	if text == "" {
+		return 0, false
+	}
 
-	// Try multiple case-insensitive patterns to capture variations such as:
-	// "90% remaining", "90 % remaining", "90% of test remaining",
-	// "Remaining: 90%", "90 percent remaining", etc.
 	patterns := []string{
 		`(?i)([0-9]{1,3})\s*(?:%|percent)\b[^0-9A-Za-z%]*remaining`,
 		`(?i)remaining[^0-9A-Za-z%]*[:\-\s]*([0-9]{1,3})\s*(?:%|percent)`,
@@ -298,8 +309,23 @@ func parseRemainingFromError(err error) (int64, bool) {
 			}
 		}
 	}
-
 	return 0, false
+}
+
+// getRemainingFromSmartctlText runs `smartctl -a` and parses the textual output
+// for remaining percentage. This helps when JSON output doesn't include the
+// self-test entry for an in-progress test.
+func getRemainingFromSmartctlText(device string) (int64, bool) {
+	device, err := validateDevicePath(device)
+	if err != nil {
+		return 0, false
+	}
+	cmd := exec.Command("smartctl", "-a", device)
+	out, _ := cmd.CombinedOutput()
+	if len(out) == 0 {
+		return 0, false
+	}
+	return parseRemainingFromText(string(out))
 }
 
 func clampPercent(v int64) int64 {
