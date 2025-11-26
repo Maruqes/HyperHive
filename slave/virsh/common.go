@@ -745,6 +745,11 @@ func GetPrimaryDiskInfo(dom *libvirt.Domain) (*DiskInfo, error) {
 	}
 	st, err := os.Stat(srcPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			// Disk image file is missing on the host; return a zero-sized DiskInfo
+			// so callers can continue and treat missing files as non-fatal.
+			return &DiskInfo{Path: srcPath, SizeGB: 0, AllocatedGB: 0}, nil
+		}
 		return nil, fmt.Errorf("stat %s: %w", srcPath, err)
 	}
 	allocGB := int64((st.Size() + (1 << 30) - 1) / (1 << 30))
@@ -1120,7 +1125,11 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 		info.VNCPassword = vncPassword
 		info.CPUXML = cpuXML
 		info.SpritePort = strconv.Itoa(spicePort)
-		info.AllocatedGb = int32(diskInfo.AllocatedGB)
+		if diskInfo != nil {
+			info.AllocatedGb = int32(diskInfo.AllocatedGB)
+		} else {
+			info.AllocatedGb = 0
+		}
 
 		vms = append(vms, info)
 		dom.Free()
