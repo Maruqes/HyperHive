@@ -364,6 +364,7 @@ type Vm struct {
 	CPUXML               string                 `protobuf:"bytes,15,opt,name=CPUXML,proto3" json:"CPUXML,omitempty"`
 	DefinedCPUS          int32                  `protobuf:"varint,16,opt,name=DefinedCPUS,proto3" json:"DefinedCPUS,omitempty"` //vm as for emxaple 5 cpus
 	DefinedRam           int32                  `protobuf:"varint,17,opt,name=DefinedRam,proto3" json:"DefinedRam,omitempty"`   //vm has 16G of memory (its in megas)
+	AllocatedGb          int32                  `protobuf:"varint,18,opt,name=AllocatedGb,proto3" json:"AllocatedGb,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -513,6 +514,13 @@ func (x *Vm) GetDefinedCPUS() int32 {
 func (x *Vm) GetDefinedRam() int32 {
 	if x != nil {
 		return x.DefinedRam
+	}
+	return 0
+}
+
+func (x *Vm) GetAllocatedGb() int32 {
+	if x != nil {
+		return x.AllocatedGb
 	}
 	return 0
 }
@@ -956,7 +964,7 @@ const file_virsh_proto_rawDesc = "" +
 	"\n" +
 	"OkResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\x96\x04\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xb8\x04\n" +
 	"\x02Vm\x12 \n" +
 	"\vmachineName\x18\x01 \x01(\tR\vmachineName\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12$\n" +
@@ -981,7 +989,8 @@ const file_virsh_proto_rawDesc = "" +
 	"\vDefinedCPUS\x18\x10 \x01(\x05R\vDefinedCPUS\x12\x1e\n" +
 	"\n" +
 	"DefinedRam\x18\x11 \x01(\x05R\n" +
-	"DefinedRam\"(\n" +
+	"DefinedRam\x12 \n" +
+	"\vAllocatedGb\x18\x12 \x01(\x05R\vAllocatedGb\"(\n" +
 	"\x12GetVmByNameRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"L\n" +
 	"\x11GetAllVmsResponse\x12\x1b\n" +

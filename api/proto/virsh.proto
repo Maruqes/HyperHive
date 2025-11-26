@@ -62,6 +62,7 @@ message Vm{
   string CPUXML = 15;
   int32 DefinedCPUS = 16; //vm as for emxaple 5 cpus
   int32 DefinedRam = 17; //vm has 16G of memory (its in megas)
+  int32 AllocatedGb = 18;
 }
 
 message GetVmByNameRequest {

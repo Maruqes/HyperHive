@@ -659,6 +659,8 @@ func cpuPercentOver(dom *libvirt.Domain, interval time.Duration) (percent float6
 type DiskInfo struct {
 	Path   string
 	SizeGB int64 // virtual capacity in GB (fallback: allocated GB)
+	// AllocatedGB is the currently allocated/occupied size on disk in GB (if available)
+	AllocatedGB int64
 }
 
 func GetPrimaryDiskInfo(dom *libvirt.Domain) (*DiskInfo, error) {
@@ -728,20 +730,25 @@ func GetPrimaryDiskInfo(dom *libvirt.Domain) (*DiskInfo, error) {
 		}
 	}
 
+	// Prefer to return Capacity as SizeGB and Allocation as AllocatedGB when available
 	if bi != nil && bi.Capacity > 0 {
 		sizeGB := int64((bi.Capacity + (1 << 30) - 1) / (1 << 30))
-		return &DiskInfo{Path: srcPath, SizeGB: sizeGB}, nil
+		allocGB := int64(0)
+		if bi.Allocation > 0 {
+			allocGB = int64((bi.Allocation + (1 << 30) - 1) / (1 << 30))
+		}
+		return &DiskInfo{Path: srcPath, SizeGB: sizeGB, AllocatedGB: allocGB}, nil
 	}
 
 	if strings.HasPrefix(srcPath, "/dev/") {
-		return &DiskInfo{Path: srcPath, SizeGB: 0}, nil
+		return &DiskInfo{Path: srcPath, SizeGB: 0, AllocatedGB: 0}, nil
 	}
 	st, err := os.Stat(srcPath)
 	if err != nil {
 		return nil, fmt.Errorf("stat %s: %w", srcPath, err)
 	}
 	allocGB := int64((st.Size() + (1 << 30) - 1) / (1 << 30))
-	return &DiskInfo{Path: srcPath, SizeGB: allocGB}, nil
+	return &DiskInfo{Path: srcPath, SizeGB: allocGB, AllocatedGB: allocGB}, nil
 }
 
 func isUsefulIP(ip string) bool {
@@ -980,6 +987,7 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		DefinedCPUS:          definedCPUs,
 		DefinedRam:           definedMemMB,
 		SpritePort:           strconv.Itoa(spicePort),
+		AllocatedGb:          int32(diskInfo.AllocatedGB),
 	}
 	return info, nil
 }
@@ -1088,10 +1096,12 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 
 		diskInfoPath := ""
 		diskSizeGB := int32(0)
-		if diskInfo, err := GetPrimaryDiskInfo(&dom); err != nil {
+		var diskInfo *DiskInfo
+		if di, err := GetPrimaryDiskInfo(&dom); err != nil {
 			warnings = append(warnings, fmt.Sprintf("%s: get disk info: %v", name, err))
 			logger.Error("failed to get diskInfo err: " + err.Error())
-		} else if diskInfo != nil {
+		} else if di != nil {
+			diskInfo = di
 			diskInfoPath = diskInfo.Path
 			diskSizeGB = int32(diskInfo.SizeGB)
 		}
@@ -1110,6 +1120,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 		info.VNCPassword = vncPassword
 		info.CPUXML = cpuXML
 		info.SpritePort = strconv.Itoa(spicePort)
+		info.AllocatedGb = int32(diskInfo.AllocatedGB)
 
 		vms = append(vms, info)
 		dom.Free()
