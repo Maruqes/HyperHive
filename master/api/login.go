@@ -101,7 +101,9 @@ func authMiddleware(next http.Handler) http.Handler {
 
 		if token == "" {
 			token = tryGetFromURLparam(r)
-			SetCookieInBrowser(w, token, 3600)
+			if token != "" {
+				SetCookieInBrowser(w, token, 3600)
+			}
 		}
 
 		if token == "" {
