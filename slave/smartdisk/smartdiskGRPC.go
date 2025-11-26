@@ -213,6 +213,7 @@ func (s *Service) RunSelfTest(ctx context.Context, req *smartdiskGrpc.SelfTestRe
 func (s *Service) GetSelfTestProgress(ctx context.Context, req *smartdiskGrpc.SmartInfoRequest) (*smartdiskGrpc.SelfTestProgress, error) {
 	info, err := GetSmartInfo(req.GetDevice())
 	if err != nil && info == nil {
+		// Falha mesmo, não há JSON útil
 		return nil, err
 	}
 
@@ -223,25 +224,30 @@ func (s *Service) GetSelfTestProgress(ctx context.Context, req *smartdiskGrpc.Sm
 		RemainingPercent: 0,
 	}
 
-	// Prefer parsed self-test entries.
-	for _, test := range info.SelfTests {
-		if test.RemainingPercent > 0 || containsInProgress(test.Status) {
-			pctDone := clampPercent(100 - test.RemainingPercent)
-			progress = &smartdiskGrpc.SelfTestProgress{
-				Device:           req.GetDevice(),
-				Status:           test.Status,
-				ProgressPercent:  pctDone,
-				RemainingPercent: clampPercent(test.RemainingPercent),
+	// 1) Tentar primeiro via SelfTests parseados
+	if info != nil {
+		for _, test := range info.SelfTests {
+			if test.RemainingPercent > 0 || containsInProgress(test.Status) {
+				rem := clampPercent(test.RemainingPercent)
+				progress.Status = test.Status
+				progress.RemainingPercent = rem
+				progress.ProgressPercent = clampPercent(100 - rem)
+				return progress, nil
 			}
-			return progress, nil
 		}
 	}
 
-	// Fallback: if smartctl responded with a running test error, parse remaining from the message.
+	// 2) Fallback: tentar extrair do erro do smartctl (que inclui o JSON)
 	if pct, ok := parseRemainingFromError(err); ok {
 		progress.Status = "in progress"
 		progress.RemainingPercent = pct
 		progress.ProgressPercent = clampPercent(100 - pct)
+		return progress, nil
+	}
+
+	// 3) Se houver erro mas não conseguimos percentagens, podes opcionalmente marcar como "unknown"
+	if err != nil {
+		progress.Status = "unknown"
 	}
 
 	return progress, nil
@@ -269,15 +275,19 @@ func parseRemainingFromError(err error) (int64, bool) {
 	if err == nil {
 		return 0, false
 	}
-	re := regexp.MustCompile(`([0-9]+)%\s*remaining`)
+
+	// Aceita "90% remaining", "90 % remaining", "90% of test remaining", etc.
+	re := regexp.MustCompile(`([0-9]{1,3})\s*%[^0-9]*remaining`)
 	m := re.FindStringSubmatch(err.Error())
 	if len(m) < 2 {
 		return 0, false
 	}
+
 	value, convErr := strconv.ParseInt(m[1], 10, 64)
 	if convErr != nil {
 		return 0, false
 	}
+
 	return clampPercent(value), true
 }
 
