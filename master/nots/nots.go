@@ -13,19 +13,16 @@ import (
 	"github.com/SherClockHolmes/webpush-go"
 )
 
+var mailto = "mailto:push.hyperhive@gmail.com"
+
 // NotsService envia push notifications Web Push simples.
-
-// SendWebPush envia uma notificação simples (title, body, url) para 1 subscrição.
-// Se `critical` for true, a payload inclui essa flag para o SW tratar com vibração/renotify.
-func SendWebPush(sub db.PushSubscription, title, body, relURL string, critical bool) (err error) {
-
+func SendWebPush(sub db.PushSubscription, title, body, relURL string, critical bool) error {
 	if env512.VapidPublicKey == "" || env512.VapidPrivateKey == "" {
 		err := fmt.Errorf("VAPID keys not set; call InitVAPIDFromEnv() at startup")
 		logger.Error(err.Error())
 		return err
 	}
 
-	// payload minimal – só o essencial, incluir ícone estático
 	base := map[string]string{
 		"title": title,
 		"body":  body,
@@ -42,7 +39,6 @@ func SendWebPush(sub db.PushSubscription, title, body, relURL string, critical b
 		return fmt.Errorf("marshal payload: %w", err)
 	}
 
-	// Pequeno safety para não mandar textos gigantes.
 	const safeLimit = 1500
 	if len(payload) > safeLimit {
 		runes := []rune(body)
@@ -75,24 +71,24 @@ func SendWebPush(sub db.PushSubscription, title, body, relURL string, critical b
 	}
 
 	resp, err := webpush.SendNotification(payload, subscription, &webpush.Options{
-		Subscriber:      "mailto:noreply@hyperhive.local",
+		Subscriber:      mailto,
 		VAPIDPublicKey:  env512.VapidPublicKey,
 		VAPIDPrivateKey: env512.VapidPrivateKey,
 		TTL:             60,
-
-		// IMPORTANTE: reduzir para caber no Firefox Android (evitar 413).
-		RecordSize: 3000, // se quiseres ser extra seguro, usa 2900
+		RecordSize:      3000,
 	})
 	if err != nil {
-		logger.Error(fmt.Sprintf("send notification: %v", err))
+		logger.Error(fmt.Sprintf("send notification: %v (endpoint=%s)", err, sub.Endpoint))
 		return fmt.Errorf("send notification: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// (opcional) logar corpo em caso de erro para debug
 	if resp.StatusCode >= 400 {
 		b, _ := io.ReadAll(resp.Body)
-		logger.Error(fmt.Sprintf("webpush error status=%d body=%s", resp.StatusCode, string(b)))
+		logger.Error(fmt.Sprintf(
+			"webpush error status=%d endpoint=%s body=%s",
+			resp.StatusCode, sub.Endpoint, string(b),
+		))
 		return fmt.Errorf("webpush error status=%d", resp.StatusCode)
 	}
 
