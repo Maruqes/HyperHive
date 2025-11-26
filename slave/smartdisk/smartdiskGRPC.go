@@ -268,7 +268,8 @@ func (s *Service) CancelSelfTest(ctx context.Context, req *smartdiskGrpc.CancelS
 
 func containsInProgress(status string) bool {
 	status = strings.ToLower(strings.TrimSpace(status))
-	return strings.Contains(status, "in progress") || strings.Contains(status, "progress")
+	// Accept variants like "in progress", "progress", "inprogress"
+	return strings.Contains(status, "in progress") || strings.Contains(status, "progress") || strings.Contains(status, "inprogress")
 }
 
 func parseRemainingFromError(err error) (int64, bool) {
@@ -276,19 +277,29 @@ func parseRemainingFromError(err error) (int64, bool) {
 		return 0, false
 	}
 
-	// Aceita "90% remaining", "90 % remaining", "90% of test remaining", etc.
-	re := regexp.MustCompile(`([0-9]{1,3})\s*%[^0-9]*remaining`)
-	m := re.FindStringSubmatch(err.Error())
-	if len(m) < 2 {
-		return 0, false
+	text := err.Error()
+
+	// Try multiple case-insensitive patterns to capture variations such as:
+	// "90% remaining", "90 % remaining", "90% of test remaining",
+	// "Remaining: 90%", "90 percent remaining", etc.
+	patterns := []string{
+		`(?i)([0-9]{1,3})\s*(?:%|percent)\b[^0-9A-Za-z%]*remaining`,
+		`(?i)remaining[^0-9A-Za-z%]*[:\-\s]*([0-9]{1,3})\s*(?:%|percent)`,
+		`(?i)([0-9]{1,3})\s*(?:%|percent)\b`,
 	}
 
-	value, convErr := strconv.ParseInt(m[1], 10, 64)
-	if convErr != nil {
-		return 0, false
+	for _, p := range patterns {
+		re := regexp.MustCompile(p)
+		m := re.FindStringSubmatch(text)
+		if len(m) >= 2 {
+			value, convErr := strconv.ParseInt(m[1], 10, 64)
+			if convErr == nil {
+				return clampPercent(value), true
+			}
+		}
 	}
 
-	return clampPercent(value), true
+	return 0, false
 }
 
 func clampPercent(v int64) int64 {
