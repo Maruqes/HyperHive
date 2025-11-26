@@ -145,6 +145,22 @@ func StartApi() {
 
 	r := chi.NewRouter()
 
+	// Strip a leading "/api" from any incoming request path
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			p := r.URL.Path
+			if len(p) >= 4 && p[:4] == "/api" {
+				newPath := p[4:]
+				if newPath == "" {
+					newPath = "/"
+				}
+				r = r.Clone(r.Context())
+				r.URL.Path = newPath
+			}
+			next.ServeHTTP(w, r)
+		})
+	})
+
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -208,13 +224,5 @@ func StartApi() {
 		setupBTRFS(r)
 		setupNotsAPI(r)
 	})
-
-	// Return the requested path as plain text for any unmatched endpoint
-	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(r.URL.Path))
-	})
-
 	http.ListenAndServe(":9595", r)
 }
