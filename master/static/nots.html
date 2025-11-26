@@ -121,6 +121,16 @@
 			statusEl.style.color = isError ? '#b91c1c' : '#065f46';
 		}
 
+		function getPlatformInfo() {
+			const ua = navigator.userAgent || navigator.vendor || window.opera;
+			const isIOS = /iPad|iPhone|iPod/.test(ua);
+			const isChromeIOS = isIOS && /CriOS/.test(ua);  // Chrome no iOS
+			const isEdgeIOS = isIOS && /EdgiOS/.test(ua);   // Edge no iOS
+			const isFirefoxIOS = isIOS && /FxiOS/.test(ua); // Firefox no iOS
+			const isSafari = /^((?!Chrome|CriOS|EdgiOS|FxiOS).)*Safari/i.test(ua);
+			return { isIOS, isChromeIOS, isEdgeIOS, isFirefoxIOS, isSafari };
+		}
+
 		async function fetchPublicKey() {
 			if (PUBLIC_VAPID_KEY) return PUBLIC_VAPID_KEY;
 			const res = await fetch('/notification/public-key');
@@ -133,8 +143,28 @@
 
 		async function enableNotifications() {
 			try {
-				if (!('serviceWorker' in navigator)) throw new Error('Service workers are not supported by this browser.');
-				if (!('PushManager' in window)) throw new Error('Web Push is not supported by this browser.');
+				const { isIOS, isChromeIOS, isEdgeIOS } = getPlatformInfo();
+
+				if (!('serviceWorker' in navigator)) {
+					throw new Error('Service workers are not supported by this browser.');
+				}
+
+				// iOS edge case: running inside browser tab (Chrome/Edge) sem PushManager
+				if (!('PushManager' in window)) {
+					if (isIOS && (isChromeIOS || isEdgeIOS)) {
+						throw new Error(
+							'On iPhone, Chrome/Edge only support push when this site is installed on the Home Screen. ' +
+							'Use the Share menu → "Add to Home Screen", open HyperHive from the icon, and then tap "Enable Notifications" again.'
+						);
+					}
+					if (isIOS) {
+						throw new Error(
+							'On iPhone/iPad, web push only works for apps added to the Home Screen. ' +
+							'Open this site in Safari, choose "Add to Home Screen", then open the app from the icon and try again.'
+						);
+					}
+					throw new Error('Web Push is not supported by this browser.');
+				}
 
 				await fetchPublicKey();
 
@@ -223,6 +253,7 @@
 			return outputArray;
 		}
 	</script>
+
 </body>
 
 </html>

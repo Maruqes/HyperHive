@@ -4,6 +4,7 @@ import (
 	"512SvMan/db"
 	"512SvMan/env512"
 	"512SvMan/extra"
+	"512SvMan/nots"
 	"512SvMan/protocol"
 	"512SvMan/virsh"
 	"context"
@@ -24,7 +25,14 @@ import (
 
 var copyFileMu sync.Mutex
 
-func copyFile(origin, dest, vmName string) error {
+func copyFile(origin, dest, vmName string) (err error) {
+
+	defer func() {
+		if err != nil {
+			nots.SendGlobalNotification("Problem CopyFile", fmt.Sprint(err.Error()), "/", true)
+		}
+	}()
+
 	copyFileMu.Lock()
 	defer copyFileMu.Unlock()
 
@@ -98,16 +106,27 @@ func copyFile(origin, dest, vmName string) error {
 	return nil
 }
 
+// helper to send important notifications
+func sendImportantNotification(title string, err error) {
+	if err == nil {
+		return
+	}
+	nots.SendGlobalNotification(title, fmt.Sprint(err.Error()), "/", true)
+}
+
 // returns file path or error
 // checks if nfsShareId exists also and creates finalFile path
 func (v *VirshService) ImportVmHelper(nfsId int, filename string) (string, error) {
 	//get nfs share
 	nfsShare, err := db.GetNFSShareByID(nfsId)
 	if err != nil {
+		sendImportantNotification("ImportVmHelper: GetNFSShareByID failed", err)
 		return "", fmt.Errorf("failed to get NFS share by ID: %v", err)
 	}
 	if nfsShare == nil {
-		return "", fmt.Errorf("NFS share with ID %d not found", nfsId)
+		err := fmt.Errorf("NFS share with ID %d not found", nfsId)
+		sendImportantNotification("ImportVmHelper: NFS share not found", err)
+		return "", err
 	}
 
 	var folder string
@@ -121,11 +140,14 @@ func (v *VirshService) ImportVmHelper(nfsId int, filename string) (string, error
 	//if folder exists return err else create it
 	exists, err := os.Stat(folder)
 	if err == nil && exists.IsDir() {
-		return "", fmt.Errorf("folder %s already exists", folder)
+		err := fmt.Errorf("folder %s already exists", folder)
+		sendImportantNotification("ImportVmHelper: folder exists", err)
+		return "", err
 	}
 
 	err = os.MkdirAll(folder, 0777)
 	if err != nil {
+		sendImportantNotification("ImportVmHelper: failed to create folder", fmt.Errorf("%s: %v", folder, err))
 		return "", fmt.Errorf("failed to create folder %s: %v", folder, err)
 	}
 
@@ -142,16 +164,25 @@ func (v *VirshService) ImportVmHelper(nfsId int, filename string) (string, error
 func (v *VirshService) BackupVM(vmName string, nfsID int, automatic bool) error {
 	//check if vmName exists and is turned off, check if nfsID exists
 	vm, err := v.GetVmByName(vmName)
-	if err != nil || vm == nil {
-		return fmt.Errorf("problem getting vm it may not exist")
+	if err != nil {
+		sendImportantNotification("BackupVM: GetVmByName failed", err)
+		return fmt.Errorf("problem getting vm: %v", err)
+	}
+	if vm == nil {
+		err := fmt.Errorf("vm %s not found", vmName)
+		sendImportantNotification("BackupVM: VM not found", err)
+		return err
 	}
 
 	nfsShare, err := db.GetNFSShareByID(nfsID)
 	if err != nil {
+		sendImportantNotification("BackupVM: GetNFSShareByID failed", err)
 		return fmt.Errorf("failed to get NFS share by ID: %v", err)
 	}
 	if nfsShare == nil {
-		return fmt.Errorf("%s", "NFS share not found with ID"+strconv.Itoa(nfsID))
+		err := fmt.Errorf("NFS share not found with ID %d", nfsID)
+		sendImportantNotification("BackupVM: NFS share not found", err)
+		return err
 	}
 
 	// nfsShare.Target + "/backUpFolder" + uuid.string
@@ -170,6 +201,7 @@ func (v *VirshService) BackupVM(vmName string, nfsID int, automatic bool) error 
 	if err != nil {
 		//check if err is already exists
 		if !os.IsNotExist(err) {
+			sendImportantNotification("BackupVM: unexpected stat error for backup folder", err)
 			return fmt.Errorf("the uuid existed?!?!?! 0 in a quadrillion chance")
 		}
 	}
@@ -177,6 +209,7 @@ func (v *VirshService) BackupVM(vmName string, nfsID int, automatic bool) error 
 	//create folder
 	err = os.Mkdir(backUpFolder, 0o777)
 	if err != nil {
+		sendImportantNotification("BackupVM: failed to create backup folder", err)
 		return fmt.Errorf("could not create the backUpFolder folder")
 	}
 
@@ -192,12 +225,15 @@ func (v *VirshService) BackupVM(vmName string, nfsID int, automatic bool) error 
 
 		conn := protocol.GetConnectionByMachineName(vm.MachineName)
 		if conn == nil || conn.Connection == nil {
-			return fmt.Errorf("conn of vm is nill shuld not hapen")
+			err := fmt.Errorf("connection for vm %s is nil (slave %s likely down)", vmName, vm.MachineName)
+			sendImportantNotification("BackupVM: connection missing", err)
+			return err
 		}
 
 		logger.Info("Frezzing")
 		err := virsh.FreezeDisk(conn.Connection, vm)
 		if err != nil {
+			sendImportantNotification("BackupVM: FreezeDisk failed", err)
 			return err
 		}
 
@@ -212,18 +248,21 @@ func (v *VirshService) BackupVM(vmName string, nfsID int, automatic bool) error 
 		logger.Info("Copying")
 		err = copyFile(vm.DiskPath, backup.Path, vmName)
 		if err != nil {
+			sendImportantNotification("BackupVM: copyFile failed", err)
 			return err
 		}
 
 	} else {
 		err = copyFile(vm.DiskPath, backup.Path, vmName)
 		if err != nil {
+			sendImportantNotification("BackupVM: copyFile failed", err)
 			return err
 		}
 	}
 
 	err = db.InsertVirshBackup(backup)
 	if err != nil {
+		sendImportantNotification("BackupVM: InsertVirshBackup failed", err)
 		return fmt.Errorf("problems writing to db backup: %v", err)
 	}
 
@@ -233,11 +272,14 @@ func (v *VirshService) BackupVM(vmName string, nfsID int, automatic bool) error 
 func (v *VirshService) DeleteBackup(bakId int) error {
 	bakup, err := db.GetVirshBackupById(bakId)
 	if err != nil {
+		sendImportantNotification("DeleteBackup: GetVirshBackupById failed", err)
 		return err
 	}
 
 	if bakup == nil {
-		return fmt.Errorf("backupId not found")
+		err := fmt.Errorf("backupId %d not found", bakId)
+		sendImportantNotification("DeleteBackup: backup not found", err)
+		return err
 	}
 
 	dir := filepath.Dir(bakup.Path)
@@ -247,16 +289,19 @@ func (v *VirshService) DeleteBackup(bakId int) error {
 
 	err = db.DeleteVirshBackupById(bakId)
 	if err != nil {
+		sendImportantNotification("DeleteBackup: DeleteVirshBackupById failed", err)
 		return err
 	}
 
 	err = os.Remove(bakup.Path)
 	if err != nil && !os.IsNotExist(err) {
+		sendImportantNotification("DeleteBackup: failed to remove backup file", err)
 		return err
 	}
 
 	// remove the folder that contained the backup
 	if err := os.RemoveAll(dir); err != nil {
+		sendImportantNotification("DeleteBackup: failed to remove backup folder", err)
 		return fmt.Errorf("failed to remove backup folder %s: %v", dir, err)
 	}
 
@@ -267,32 +312,43 @@ func (v *VirshService) DeleteBackup(bakId int) error {
 func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName string, nfsId int, coldReq *grpcVirsh.ColdMigrationRequest) error {
 	originConn := protocol.GetConnectionByMachineName(slaveName)
 	if originConn == nil {
-		return fmt.Errorf("origin machine %s not found", slaveName)
+		err := fmt.Errorf("origin machine %s not found", slaveName)
+		sendImportantNotification("UseBackup: origin machine not found", err)
+		return err
 	}
 
 	backup, err := db.GetVirshBackupById(bakID)
 	if err != nil {
+		sendImportantNotification("UseBackup: GetVirshBackupById failed", err)
 		return fmt.Errorf("failed to get backup by ID: %v", err)
 	}
 	if backup == nil {
-		return fmt.Errorf("backup with ID %d not found", bakID)
+		err := fmt.Errorf("backup with ID %d not found", bakID)
+		sendImportantNotification("UseBackup: backup not found", err)
+		return err
 	}
 
 	exists, err := virsh.DoesVMExist(coldReq.VmName)
 	if err != nil {
+		sendImportantNotification("UseBackup: DoesVMExist failed", err)
 		return fmt.Errorf("error checking if VM exists: %v", err)
 	}
 	if exists {
-		return fmt.Errorf("a VM with the name %s already exists", coldReq.VmName)
+		err := fmt.Errorf("a VM with the name %s already exists", coldReq.VmName)
+		sendImportantNotification("UseBackup: target VM name already exists", err)
+		return err
 	}
 
 	// Get NFS share
 	nfsShare, err := db.GetNFSShareByID(nfsId)
 	if err != nil {
+		sendImportantNotification("UseBackup: GetNFSShareByID failed", err)
 		return fmt.Errorf("failed to get NFS share by ID: %v", err)
 	}
 	if nfsShare == nil {
-		return fmt.Errorf("NFS share with ID %d not found", nfsId)
+		err := fmt.Errorf("NFS share with ID %d not found", nfsId)
+		sendImportantNotification("UseBackup: NFS share not found", err)
+		return err
 	}
 
 	// Create new folder for the VM
@@ -306,12 +362,15 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 	// Check if folder exists
 	_, err = os.Stat(newFolder)
 	if err == nil {
-		return fmt.Errorf("folder %s already exists", newFolder)
+		err := fmt.Errorf("folder %s already exists", newFolder)
+		sendImportantNotification("UseBackup: folder already exists", err)
+		return err
 	}
 
 	// Create folder
 	err = os.MkdirAll(newFolder, 0777)
 	if err != nil {
+		sendImportantNotification("UseBackup: failed to create new folder", err)
 		return fmt.Errorf("failed to create folder %s: %v", newFolder, err)
 	}
 
@@ -319,6 +378,7 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 	err = copyFile(backup.Path, newDiskPath, coldReq.VmName)
 	if err != nil {
 		os.RemoveAll(newFolder)
+		sendImportantNotification("UseBackup: failed to copy backup file", err)
 		return fmt.Errorf("failed to copy backup file: %v", err)
 	}
 
@@ -332,6 +392,7 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 	)
 
 	if err != nil {
+		sendImportantNotification("UseBackup: ColdMigrateVm failed", err)
 		return err
 	}
 
@@ -346,7 +407,9 @@ func (v *VirshService) CreateAutoBak(bak db.AutomaticBackup) error {
 	}
 
 	if !exists {
-		return fmt.Errorf("vm does not exist")
+		err := fmt.Errorf("vm %s does not exist", bak.VmName)
+		sendImportantNotification("CreateAutoBak: VM does not exist", err)
+		return err
 	}
 
 	err = bak.MaxTime.Validate()
@@ -383,6 +446,7 @@ func (v *VirshService) CreateAutoBak(bak db.AutomaticBackup) error {
 	//add to database
 	err = db.AddAutomaticBackup(&bak)
 	if err != nil {
+		sendImportantNotification("CreateAutoBak: AddAutomaticBackup failed", err)
 		return fmt.Errorf("failed to add automatic backup: %v", err)
 	}
 
@@ -405,7 +469,9 @@ func (v *VirshService) UpdateAutoBak(id int, bak db.AutomaticBackup) error {
 		return fmt.Errorf("error checking if VM exists: %v", err)
 	}
 	if !exists {
-		return fmt.Errorf("vm does not exist")
+		err := fmt.Errorf("vm %s does not exist", bak.VmName)
+		sendImportantNotification("UpdateAutoBak: VM does not exist", err)
+		return err
 	}
 
 	err = bak.MaxTime.Validate()
@@ -444,6 +510,7 @@ func (v *VirshService) UpdateAutoBak(id int, bak db.AutomaticBackup) error {
 	//update in database
 	err = db.UpdateAutomaticBackup(&bak)
 	if err != nil {
+		sendImportantNotification("UpdateAutoBak: UpdateAutomaticBackup failed", err)
 		return fmt.Errorf("failed to update automatic backup: %v", err)
 	}
 
@@ -457,12 +524,15 @@ func (v *VirshService) DeleteAutoBak(id int) error {
 		return fmt.Errorf("failed to get automatic backup by ID: %v", err)
 	}
 	if existingBak == nil {
-		return fmt.Errorf("automatic backup with ID %d not found", id)
+		err := fmt.Errorf("automatic backup with ID %d not found", id)
+		sendImportantNotification("DeleteAutoBak: not found", err)
+		return err
 	}
 
 	//remove from database
 	err = db.RemoveAutomaticBackupById(id)
 	if err != nil {
+		sendImportantNotification("DeleteAutoBak: RemoveAutomaticBackupById failed", err)
 		return fmt.Errorf("failed to delete automatic backup: %v", err)
 	}
 
@@ -476,7 +546,9 @@ func (v *VirshService) EnableAutoBak(id int) error {
 		return fmt.Errorf("failed to get automatic backup by ID: %v", err)
 	}
 	if existingBak == nil {
-		return fmt.Errorf("automatic backup with ID %d not found", id)
+		err := fmt.Errorf("automatic backup with ID %d not found", id)
+		sendImportantNotification("EnableAutoBak: not found", err)
+		return err
 	}
 
 	//check if already enabled
@@ -487,6 +559,7 @@ func (v *VirshService) EnableAutoBak(id int) error {
 	//enable in database
 	err = db.EnableAutomaticBackupById(id)
 	if err != nil {
+		sendImportantNotification("EnableAutoBak: EnableAutomaticBackupById failed", err)
 		return fmt.Errorf("failed to enable automatic backup: %v", err)
 	}
 
@@ -500,7 +573,9 @@ func (v *VirshService) DisableAutoBak(id int) error {
 		return fmt.Errorf("failed to get automatic backup by ID: %v", err)
 	}
 	if existingBak == nil {
-		return fmt.Errorf("automatic backup with ID %d not found", id)
+		err := fmt.Errorf("automatic backup with ID %d not found", id)
+		sendImportantNotification("DisableAutoBak: not found", err)
+		return err
 	}
 
 	//check if already disabled
@@ -511,6 +586,7 @@ func (v *VirshService) DisableAutoBak(id int) error {
 	//disable in database
 	err = db.DisableAutomaticBackupById(id)
 	if err != nil {
+		sendImportantNotification("DisableAutoBak: DisableAutomaticBackupById failed", err)
 		return fmt.Errorf("failed to disable automatic backup: %v", err)
 	}
 
@@ -522,17 +598,20 @@ func (v *VirshService) DisableAutoBak(id int) error {
 // ja elimina backups antigos e mantem MaxBackupsRetain
 func (v *VirshService) createAutoBak(bak db.AutomaticBackup) error {
 	if err := v.BackupVM(bak.VmName, bak.NfsMountId, true); err != nil {
+		sendImportantNotification("createAutoBak: BackupVM failed", err)
 		return err
 	}
 
 	completedAt := time.Now().UTC().Format(time.RFC3339)
 	if err := db.UpdateAutomaticBackupTimes(bak.Id, &completedAt); err != nil {
+		sendImportantNotification("createAutoBak: UpdateAutomaticBackupTimes failed", err)
 		return fmt.Errorf("failed to update backup timestamp: %v", err)
 	}
 
 	//eliminar baks antigos
 	baksVm, err := db.GetAutomaticBackups(bak.VmName)
 	if err != nil {
+		sendImportantNotification("createAutoBak: GetAutomaticBackups failed", err)
 		return err
 	}
 
@@ -559,6 +638,7 @@ func (v *VirshService) createAutoBak(bak db.AutomaticBackup) error {
 			err := v.DeleteBackup(baksVm[i].Id)
 			if err != nil {
 				logger.Errorf("failed to delete old backup %d: %v", baksVm[i].Id, err)
+				sendImportantNotification(fmt.Sprintf("createAutoBak: failed to delete old backup %d", baksVm[i].Id), err)
 			}
 		}
 	}
@@ -593,6 +673,7 @@ func (v *VirshService) LoopAutomaticBaks() {
 			baks, err := db.GetEnabledAutomaticBackupsAt(currentClock)
 			if err != nil {
 				logger.Error("Error getting automatic backups: " + err.Error())
+				sendImportantNotification("LoopAutomaticBaks: GetEnabledAutomaticBackupsAt failed", err)
 				time.Sleep(time.Minute * time.Duration(timeDiff))
 				continue
 			}
@@ -613,6 +694,7 @@ func (v *VirshService) LoopAutomaticBaks() {
 				machineCon := protocol.GetConnectionByMachineName(vm.MachineName)
 				if machineCon == nil || machineCon.Connection == nil {
 					logger.Errorf("Failed to get connection for VM %s, slave %s is down", bak.VmName, vm.MachineName)
+					sendImportantNotification("LoopAutomaticBaks: slave down for VM", fmt.Errorf("VM %s on slave %s is down", bak.VmName, vm.MachineName))
 					continue
 				}
 
@@ -646,6 +728,7 @@ func (v *VirshService) LoopAutomaticBaks() {
 					err = v.createAutoBak(bak)
 					if err != nil {
 						logger.Errorf("Failed to create automatic backup for VM %s: %v", bak.VmName, err)
+						sendImportantNotification("LoopAutomaticBaks: createAutoBak failed", fmt.Errorf("VM %s: %v", bak.VmName, err))
 					}
 				}
 			}
