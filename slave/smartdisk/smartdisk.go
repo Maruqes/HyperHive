@@ -100,43 +100,41 @@ type SelfTestResult struct {
 // RunSelfTest triggers a SMART self-test (short or extended). smartctl returns
 // a non-zero exit code when the device reports problems, so the caller should
 // inspect the returned error message for context.
-func RunSelfTest(device string, test SelfTestType) (err error) {
-	var output []byte
-	// record test flag early so defer can include it even if validation fails
+func RunSelfTest(device string, test SelfTestType) error {
 	testFlag := string(test)
 	if test == SelfTestExtended {
 		testFlag = "long"
 	}
 
-	defer func() {
-		title := "SMART self-test"
-		success := err == nil
-		var msg string
-		outStr := strings.TrimSpace(string(output))
-		if success {
-			// don't include smartctl output on success
-			msg = fmt.Sprintf("Self-test %s started on %s.", testFlag, device)
-		} else {
-			// include smartctl output on failure when available
-			if outStr != "" {
-				msg = fmt.Sprintf("Self-test %s failed to start on %s: %v. smartctl output: %s", testFlag, device, err, outStr)
-			} else {
-				msg = fmt.Sprintf("Self-test %s failed to start on %s: %v.", testFlag, device, err)
-			}
-		}
-		// last param: critical/urgent flag (true for failures)
-		extra.SendNotifications(title, msg, "/", !success)
-	}()
-
-	if device, err = validateDevicePath(device); err != nil {
+	if device, err := validateDevicePath(device); err != nil {
+		extra.SendNotifications(
+			"SMART self-test",
+			fmt.Sprintf("Self-test %s failed to start on %s: %v.", testFlag, device, err),
+			"/",
+			true,
+		)
 		return err
 	}
 
 	cmd := exec.Command("smartctl", "-t", testFlag, device)
-	output, err = cmd.CombinedOutput()
+	output, err := cmd.CombinedOutput()
+	outStr := strings.TrimSpace(string(output))
 	if err != nil {
-		return fmt.Errorf("smartctl self-test (%s): %w: %s", testFlag, err, strings.TrimSpace(string(output)))
+		extra.SendNotifications(
+			"SMART self-test",
+			fmt.Sprintf("Self-test %s failed to start on %s: %v. smartctl output: %s", testFlag, device, err, outStr),
+			"/",
+			true,
+		)
+		return fmt.Errorf("smartctl self-test (%s): %w: %s", testFlag, err, outStr)
 	}
+
+	extra.SendNotifications(
+		"SMART self-test",
+		fmt.Sprintf("Self-test %s started on %s.", testFlag, device),
+		"/",
+		false,
+	)
 	return nil
 }
 
