@@ -184,9 +184,11 @@
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify(subscription),
 				});
-				if (!resp.ok) {
-					const text = await resp.text();
-					throw new Error('Subscribe failed: ' + text);
+
+				if (resp.status >= 400) {
+					const body = await resp.text();
+					console.error(`webpush error status=${resp.status} endpoint=${subscription.endpoint} body=${body}`);
+					throw new Error('webpush error status=' + resp.status);
 				}
 
 				setStatus('Subscribed ✔');
