@@ -291,6 +291,23 @@ func summarizeSMART(device string, resp *smartctlResponse) *SmartDiskInfo {
 func extractSelfTests(resp *smartctlResponse) []SelfTestResult {
 	var results []SelfTestResult
 
+	// 1) Estado ATA atual (ata_smart_data.self_test.status)
+	if resp.ATASMARTData != nil {
+		st := resp.ATASMARTData.SelfTest.Status
+		if st.String != "" {
+			results = append(results, SelfTestResult{
+				Type:   "current",
+				Status: st.String,
+				// Se remaining == 0 e a string disser "completed", podemos marcar como passed
+				Passed: st.RemainingPercent == 0 &&
+					strings.Contains(strings.ToLower(st.String), "completed"),
+				RemainingPercent: st.RemainingPercent,
+				LifetimeHours:    0, // não vem neste field
+			})
+		}
+	}
+
+	// 2) Log histórico ATA (como já tinhas)
 	if resp.ATASMARTSelfTestLog != nil && resp.ATASMARTSelfTestLog.Standard != nil {
 		for _, entry := range resp.ATASMARTSelfTestLog.Standard.Table {
 			results = append(results, SelfTestResult{
@@ -303,6 +320,7 @@ func extractSelfTests(resp *smartctlResponse) []SelfTestResult {
 		}
 	}
 
+	// 3) NVMe (como já tinhas)
 	if resp.NVMeSelfTestLog != nil {
 		for _, entry := range resp.NVMeSelfTestLog.Data {
 			results = append(results, SelfTestResult{
@@ -536,6 +554,7 @@ type smartctlResponse struct {
 	ATASMARTAttributes    *ataSmartAttributes  `json:"ata_smart_attributes"`
 	ATASMARTErrorLog      *ataSmartErrorLog    `json:"ata_smart_error_log"`
 	ATASMARTSelfTestLog   *ataSmartSelfTestLog `json:"ata_smart_self_test_log"`
+	ATASMARTData          *ataSmartData        `json:"ata_smart_data"` // <-- NOVO
 	NVMESmartHealth       *nvmeSmartHealth     `json:"nvme_smart_health_information_log"`
 	NVMeSelfTestLog       *nvmeSelfTestLog     `json:"nvme_self_test_log"`
 	NVMeErrorLog          *nvmeErrorLog        `json:"nvme_error_log"`
@@ -587,6 +606,15 @@ type ataSmartSelfTestLog struct {
 	Standard *struct {
 		Table []ataSelfTestEntry `json:"table"`
 	} `json:"standard"`
+}
+type ataSmartData struct {
+	SelfTest struct {
+		Status struct {
+			Value            int64  `json:"value"`
+			String           string `json:"string"`
+			RemainingPercent int64  `json:"remaining_percent"`
+		} `json:"status"`
+	} `json:"self_test"`
 }
 
 type ataSelfTestEntry struct {

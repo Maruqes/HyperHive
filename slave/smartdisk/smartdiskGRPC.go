@@ -225,15 +225,13 @@ func (s *Service) GetSelfTestProgress(ctx context.Context, req *smartdiskGrpc.Sm
 	}
 
 	// 1) Tentar primeiro via SelfTests parseados
-	if info != nil {
-		for _, test := range info.SelfTests {
-			if test.RemainingPercent > 0 || containsInProgress(test.Status) {
-				rem := clampPercent(test.RemainingPercent)
-				progress.Status = test.Status
-				progress.RemainingPercent = rem
-				progress.ProgressPercent = clampPercent(100 - rem)
-				return progress, nil
-			}
+	for _, test := range info.SelfTests {
+		if test.RemainingPercent > 0 || containsInProgress(test.Status) {
+			rem := clampPercent(test.RemainingPercent)         // 60
+			progress.Status = test.Status                      // "in progress, 60% remaining"
+			progress.RemainingPercent = rem                    // 60
+			progress.ProgressPercent = clampPercent(100 - rem) // 40
+			return progress, nil
 		}
 	}
 
@@ -316,16 +314,23 @@ func parseRemainingFromText(text string) (int64, bool) {
 // for remaining percentage. This helps when JSON output doesn't include the
 // self-test entry for an in-progress test.
 func getRemainingFromSmartctlText(device string) (int64, bool) {
-	device, err := validateDevicePath(device)
-	if err != nil {
-		return 0, false
-	}
 	cmd := exec.Command("smartctl", "-a", device)
-	out, _ := cmd.CombinedOutput()
-	if len(out) == 0 {
+	out, err := cmd.CombinedOutput()
+	if err != nil && len(out) == 0 {
 		return 0, false
 	}
-	return parseRemainingFromText(string(out))
+
+	re := regexp.MustCompile(`([0-9]{1,3})\s*%[^0-9]*remaining`)
+	m := re.FindStringSubmatch(string(out))
+	if len(m) < 2 {
+		return 0, false
+	}
+
+	v, convErr := strconv.ParseInt(m[1], 10, 64)
+	if convErr != nil {
+		return 0, false
+	}
+	return clampPercent(v), true
 }
 
 func clampPercent(v int64) int64 {
