@@ -266,6 +266,7 @@ func (v *VirshService) BackupVM(vmName string, nfsID int, automatic bool) error 
 		return fmt.Errorf("problems writing to db backup: %v", err)
 	}
 
+	nots.SendGlobalNotification("Backup successful", fmt.Sprintf("Backup %s created at %s", vmName, backup.Path), "/", false)
 	return nil
 }
 

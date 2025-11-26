@@ -209,5 +209,12 @@ func StartApi() {
 		setupNotsAPI(r)
 	})
 
+	// Return the requested path as plain text for any unmatched endpoint
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(r.URL.Path))
+	})
+
 	http.ListenAndServe(":9595", r)
 }

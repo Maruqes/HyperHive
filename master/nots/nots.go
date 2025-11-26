@@ -97,21 +97,16 @@ func SendWebPush(sub db.PushSubscription, title, body, relURL string, critical b
 
 // SendGlobalNotification envia uma notificação simples para TODAS as subscrições.
 func SendGlobalNotification(title, body, relURL string, critical bool) (err error) {
-	defer func() {
-		// Here "err" refers to the named return variable
-		if err == nil {
-			errDb := db.DbSaveNot(db.Not{
-				Title:     title,
-				Body:      body,
-				RelURL:    relURL,
-				Critical:  critical,
-				CreatedAt: time.Now(),
-			})
-			if errDb != nil {
-				logger.Error(fmt.Sprintf("could not save notification into db: %v", errDb))
-			}
-		}
-	}()
+	err = db.DbSaveNot(db.Not{
+		Title:     title,
+		Body:      body,
+		RelURL:    relURL,
+		Critical:  critical,
+		CreatedAt: time.Now(),
+	})
+	if err != nil {
+		logger.Error(fmt.Sprintf("save notification: %v", err))
+	}
 
 	subs, err := db.DbGetAllSubscriptions()
 	if err != nil {
