@@ -759,6 +759,7 @@ func main() {
 
 	conn := protocol.ConnectGRPC()
 	env512.SetConn(conn)
+	extra.SendNotifications(fmt.Sprint("%s connected", env512.MachineName), "Machine connected", "/", false)
 	defer conn.Close()
 	select {}
 }

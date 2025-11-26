@@ -212,7 +212,6 @@ func ConnectGRPC() *grpc.ClientConn {
 		logger.Info("master acknowledged slave", "message", outR.GetOk())
 		go monitorConnection(conn)
 		go PingMaster(conn)
-		extra.SendNotifications(fmt.Sprint("%s connected", env512.MachineName), "Machine connected", "/", false)
 		return conn
 	}
 }
