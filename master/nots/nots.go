@@ -13,7 +13,7 @@ import (
 	"github.com/SherClockHolmes/webpush-go"
 )
 
-var mailto = "mailto:https://hyperhive.maruqes.com"
+var mailto = "mailto:push.hyperhive@gmail.com"
 
 // NotsService envia push notifications Web Push simples.
 func SendWebPush(sub db.PushSubscription, title, body, relURL string, critical bool) error {
