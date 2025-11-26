@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"512SvMan/nots"
 	"context"
 	"fmt"
 	"time"
@@ -71,10 +72,10 @@ func GetConnectionByMachineName(machineName string) *ConnectionsStruct {
 	return nil
 }
 
-func removeConnection(addr string) *ConnectionsStruct {
+func removeConnection(addr string, machineName string) *ConnectionsStruct {
 	connectionsMu.Lock()
 	defer connectionsMu.Unlock()
-
+	nots.SendGlobalNotification(fmt.Sprintf("Lost connection to %s", machineName), "Lost connection after many attempts", "/", true)
 	for i, c := range connections {
 		if c.Addr == addr {
 			removed := c

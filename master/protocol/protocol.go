@@ -57,7 +57,7 @@ func tryRestoreConnection(addr, machine string) bool {
 func CheckConnectionStateRemove(connection ConnectionsStruct) {
 	if connection.Connection == nil {
 		log.Printf("connection for slave %s is nil, removing", connection.Addr)
-		if removed := removeConnection(connection.Addr); removed != nil && removed.Connection != nil {
+		if removed := removeConnection(connection.Addr, connection.MachineName); removed != nil && removed.Connection != nil {
 			_ = removed.Connection.Close()
 		}
 		if !tryRestoreConnection(connection.Addr, connection.MachineName) {
@@ -80,7 +80,7 @@ func CheckConnectionStateRemove(connection ConnectionsStruct) {
 	}
 
 	log.Printf("removing slave %s from connections", connection.Addr)
-	if removed := removeConnection(connection.Addr); removed != nil && removed.Connection != nil {
+	if removed := removeConnection(connection.Addr, connection.MachineName); removed != nil && removed.Connection != nil {
 		_ = removed.Connection.Close()
 	}
 	if !tryRestoreConnection(connection.Addr, connection.MachineName) {
@@ -155,7 +155,7 @@ func NewSlaveConnection(addr, machineName string) error {
 
 	if recievedNewSlaveFunc != nil {
 		if err := recievedNewSlaveFunc(addr, machineName, conn); err != nil {
-			if removed := removeConnection(addr); removed != nil && removed.Connection != nil {
+			if removed := removeConnection(addr, machineName); removed != nil && removed.Connection != nil {
 				_ = removed.Connection.Close()
 			}
 			_ = conn.Close()
