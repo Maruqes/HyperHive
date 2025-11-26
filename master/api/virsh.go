@@ -2,6 +2,7 @@ package api
 
 import (
 	"512SvMan/db"
+	"512SvMan/env512"
 	"512SvMan/protocol"
 	"512SvMan/services"
 	"encoding/json"
@@ -171,6 +172,7 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 		}
 		vmMap["isLive"] = vm.IsLive
 		vmMap["autoStart"] = autoStart
+		vmMap["novnclink"] = env512.MAIN_LINK + fmt.Sprintf("/novnc/vnc.html?path=/novnc/ws%%3Fvm%%3D%v%%26slave%%3D%v", vmMap["name"], vmMap["machineName"])
 		payload = append(payload, vmMap)
 	}
 
