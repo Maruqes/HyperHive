@@ -86,15 +86,23 @@ func tokenFromRequest(r *http.Request) string {
 	return normalizeTokenValue(cookieValue)
 }
 
+func tryGetFromURLparam(r *http.Request) string {
+	return normalizeTokenValue(r.URL.Query().Get("token"))
+}
+
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := tokenFromRequest(r)
-		
+
 		// Also check query parameters for token
 		if token == "" {
 			token = normalizeTokenValue(r.URL.Query().Get("token"))
 		}
-		
+
+		if token == "" {
+			token = tryGetFromURLparam(r)
+		}
+
 		if token == "" {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
