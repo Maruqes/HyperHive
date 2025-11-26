@@ -53,6 +53,24 @@ func SendWebsocketMessage(message string, msgType extraGrpc.WebSocketsMessageTyp
 	return err
 }
 
+func SendNotifications(title, body, relURL string, critical bool) error {
+	if env512.Conn == nil {
+		return fmt.Errorf("gRPC connection not set")
+	}
+	msg := &extraGrpc.Notification{
+		Title:    title,
+		Body:     body,
+		RelURL:   relURL,
+		Critical: critical,
+	}
+	h := extraGrpc.NewExtraServiceClient(env512.Conn)
+	_, err := h.SendNotifications(context.Background(), msg)
+	if err != nil {
+		logger.Error("SendNotifications: %v", err)
+	}
+	return err
+}
+
 func ExecWithOutToSocketCMD(ctx context.Context, msgType extraGrpc.WebSocketsMessageType, cmd *exec.Cmd) []error {
 	var (
 		errors   []error

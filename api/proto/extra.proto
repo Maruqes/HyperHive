@@ -31,6 +31,13 @@ message UpdateRequest {
 	bool restartAfter = 2;
 }
 
+message Notification {
+  string title = 1;
+  string body = 2;
+  string relURL = 3;
+  bool critical = 4;
+}
+
 //master service
 service ExtraService {
   //master
@@ -39,4 +46,6 @@ service ExtraService {
   //master
   rpc CheckForUpdates(Empty) returns (AllUpdates);
   rpc PerformUpdate(UpdateRequest) returns (Empty);
+
+  rpc SendNotifications(Notification)returns (Empty);
 }

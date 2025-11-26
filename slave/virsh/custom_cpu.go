@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 
+	"slave/extra"
+
 	libvirt "libvirt.org/go/libvirt"
 )
 
@@ -83,50 +85,66 @@ func isValidVMName(vmName string) error {
 	return nil
 }
 
-func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
-	err := isValidVMName(opts.Name)
-	if err != nil {
+func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (xmlPath string, err error) {
+	// notify on failure when this function returns with an error
+	defer func() {
+		if err != nil {
+			_ = extra.SendNotifications("VM creation failed", fmt.Sprintf("Failed to create VM %s: %v", opts.Name, err), "/", true)
+		}
+	}()
+
+	if e := isValidVMName(opts.Name); e != nil {
+		err = e
 		return "", err
 	}
 
 	if opts.DiskAlreadyExists {
 		if opts.ISOPath != "" {
-			return "", fmt.Errorf("how the hell i want to create a vm with an already DiskAlreadyExists")
+			err = fmt.Errorf("how the hell i want to create a vm with an already DiskAlreadyExists")
+			return "", err
 		}
 	}
 
 	//make sure DiskFolder exists
 	if opts.DiskFolder != "" {
-		if err := os.MkdirAll(opts.DiskFolder, 0o777); err != nil {
-			return "", fmt.Errorf("creating disk folder: %w", err)
+		if e := os.MkdirAll(opts.DiskFolder, 0o777); e != nil {
+			err = fmt.Errorf("creating disk folder: %w", e)
+			return "", err
 		}
-		if err := os.Chmod(opts.DiskFolder, 0o777); err != nil {
-			return "", fmt.Errorf("chmod disk folder: %w", err)
+		if e := os.Chmod(opts.DiskFolder, 0o777); e != nil {
+			err = fmt.Errorf("chmod disk folder: %w", e)
+			return "", err
 		}
 	}
 
 	disk := strings.TrimSpace(opts.DiskPath)
 	if disk == "" {
-		return "", fmt.Errorf("disk path is required")
+		err = fmt.Errorf("disk path is required")
+		return "", err
 	}
 	parentDir := strings.TrimSpace(filepath.Dir(disk))
 	if parentDir == "" || parentDir == "." {
-		return "", fmt.Errorf("disk path must include a directory")
+		err = fmt.Errorf("disk path must include a directory")
+		return "", err
 	}
-	if err := os.MkdirAll(parentDir, 0o777); err != nil {
-		return "", fmt.Errorf("create disk directory: %w", err)
+	if e := os.MkdirAll(parentDir, 0o777); e != nil {
+		err = fmt.Errorf("create disk directory: %w", e)
+		return "", err
 	}
-	if err := os.Chmod(parentDir, 0o777); err != nil {
-		return "", fmt.Errorf("chmod disk directory: %w", err)
+	if e := os.Chmod(parentDir, 0o777); e != nil {
+		err = fmt.Errorf("chmod disk directory: %w", e)
+		return "", err
 	}
-	if err := ensureParentDirExists(disk); err != nil {
-		return "", fmt.Errorf("disk directory: %w", err)
+	if e := ensureParentDirExists(disk); e != nil {
+		err = fmt.Errorf("disk directory: %w", e)
+		return "", err
 	}
 
 	if !opts.DiskAlreadyExists {
 		// detect/create disk & get its format
-		if _, err := EnsureDiskAndDetectFormat(disk, opts.DiskSizeGB); err != nil {
-			return "", fmt.Errorf("disk: %w", err)
+		if _, e := EnsureDiskAndDetectFormat(disk, opts.DiskSizeGB); e != nil {
+			err = fmt.Errorf("disk: %w", e)
+			return "", err
 		}
 	}
 
@@ -134,8 +152,9 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	hasISO := false
 	isoTrim := strings.TrimSpace(opts.ISOPath)
 	if isoTrim != "" {
-		if err := ensureFileExists(isoTrim); err != nil {
-			return "", fmt.Errorf("iso path: %w", err)
+		if e := ensureFileExists(isoTrim); e != nil {
+			err = fmt.Errorf("iso path: %w", e)
+			return "", err
 		}
 		hasISO = true
 	}
@@ -144,10 +163,12 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	virtioISOTrim := strings.TrimSpace(opts.VirtioISOPath)
 	if opts.IsWindows {
 		if virtioISOTrim == "" {
-			return "", fmt.Errorf("virtio iso path is required for Windows VMs")
+			err = fmt.Errorf("virtio iso path is required for Windows VMs")
+			return "", err
 		}
-		if err := ensureFileExists(virtioISOTrim); err != nil {
-			return "", fmt.Errorf("virtio iso path: %w", err)
+		if e := ensureFileExists(virtioISOTrim); e != nil {
+			err = fmt.Errorf("virtio iso path: %w", e)
+			return "", err
 		}
 		hasVirtioISO = true
 	}
@@ -159,7 +180,8 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 
 	conn, err := libvirt.NewConnect(connURI)
 	if err != nil {
-		return "", fmt.Errorf("connect: %w", err)
+		err = fmt.Errorf("connect: %w", err)
+		return "", err
 	}
 	defer conn.Close()
 
@@ -168,7 +190,8 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 		machineAttr = fmt.Sprintf(" machine='%s'", opts.Machine)
 	}
 	if opts.VCPUs <= 0 {
-		return "", fmt.Errorf("vcpu count must be at least 1")
+		err = fmt.Errorf("vcpu count must be at least 1")
+		return "", err
 	}
 	cpuXML := strings.TrimSpace(opts.CPUXml)
 	if cpuXML == "" {
@@ -176,12 +199,14 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 	}
 	cpuXML, err = ensureTopologyInCPUXML(cpuXML, opts.VCPUs)
 	if err != nil {
-		return "", fmt.Errorf("set cpu topology: %w", err)
+		err = fmt.Errorf("set cpu topology: %w", err)
+		return "", err
 	}
 
 	err = validateCPUXML(cpuXML)
 	if err != nil {
-		return "", fmt.Errorf("invalid CPU XML: %w", err)
+		err = fmt.Errorf("invalid CPU XML: %w", err)
+		return "", err
 	}
 
 	cdromXML := ""
@@ -238,7 +263,8 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 
 	cputuneXML, err := buildCPUTuneXML(opts.VCPUs)
 	if err != nil {
-		return "", fmt.Errorf("cputune: %w", err)
+		err = fmt.Errorf("cputune: %w", err)
+		return "", err
 	}
 
 	bootDev := "hd"
@@ -313,19 +339,21 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (string, error) {
 		cpuXML, driverType, disk, cdromXML, virtioCDROMXML, networkXML, virtioSerialControllerXML, guestAgentChannelXML, spiceChannelXML, inputDevicesXML, vncGraphicsXML, spiceGraphicsXML, videoXML,
 	)
 
-	xmlPath, err := WriteDomainXMLToDisk(opts.Name, domainXML, disk)
+	xmlPath, err = WriteDomainXMLToDisk(opts.Name, domainXML, disk)
 	if err != nil {
 		return "", err
 	}
 
 	dom, err := conn.DomainDefineXML(domainXML)
 	if err != nil {
-		return "", fmt.Errorf("define: %w", err)
+		err = fmt.Errorf("define: %w", err)
+		return "", err
 	}
 	defer dom.Free()
 
-	if err := dom.Create(); err != nil {
-		return "", fmt.Errorf("start: %w", err)
+	if e := dom.Create(); e != nil {
+		err = fmt.Errorf("start: %w", e)
+		return "", err
 	}
 	return xmlPath, nil
 }

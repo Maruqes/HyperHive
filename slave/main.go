@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"slave/btrfs"
 	"slave/env512"
+	"slave/extra"
 	"slave/logs512"
 	"slave/nfs"
 	"slave/protocol"
@@ -65,7 +66,6 @@ func applyDirtyRatioSettings(ratio, background int) error {
 	if setBackground > 100 {
 		return fmt.Errorf("dirty background ratio %d must be between 1 and 100", setBackground)
 	}
-
 
 	return writeSysctlValue(vmDirtyBackgroundRatioPath, setBackground)
 }
@@ -448,7 +448,33 @@ func set_host_uuid_source() error {
 	return nil
 }
 
-func ensureVirtioISO() (string, error) {
+func ensureVirtioISO() (destPath string, err error) {
+	start := time.Now()
+	var didDownload bool
+	var resultNote string
+	defer func() {
+		title := "Ensure VirtIO ISO"
+		success := err == nil
+		elapsed := time.Since(start).Round(time.Millisecond)
+		if elapsed == 0 {
+			elapsed = time.Since(start)
+		}
+		var msg string
+		if success {
+			state := resultNote
+			if state == "" {
+				if didDownload {
+					state = "downloaded"
+				} else {
+					state = "ready"
+				}
+			}
+			msg = fmt.Sprintf("VirtIO ISO %s at %s (took %s)", state, destPath, elapsed)
+		} else {
+			msg = fmt.Sprintf("Failed to ensure VirtIO ISO: %v", err)
+		}
+		extra.SendNotifications(title, msg, "/", !success)
+	}()
 	wd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("get working dir: %w", err)
@@ -469,6 +495,7 @@ func ensureVirtioISO() (string, error) {
 		return "", fmt.Errorf("create libvirt boot dir: %w", err)
 	}
 	dest := filepath.Join(libvirtDir, virtioISOName)
+	destPath = dest
 	metaPath := dest + ".etag"
 
 	remoteInfo, headErr := fetchRemoteVirtioInfo()
@@ -516,7 +543,7 @@ func ensureVirtioISO() (string, error) {
 
 		// Download with progress tracking
 		startTime := time.Now()
-		var downloaded int64
+		var downloadedBytes int64
 		lastLogTime := startTime
 		lastLogBytes := int64(0)
 
@@ -528,32 +555,32 @@ func ensureVirtioISO() (string, error) {
 					tmpFile.Close()
 					return "", fmt.Errorf("save virtio iso: %w", writeErr)
 				}
-				downloaded += int64(n)
+				downloadedBytes += int64(n)
 
 				// Log progress every 2 seconds or at completion
 				now := time.Now()
 				if now.Sub(lastLogTime) >= 2*time.Second || err == io.EOF {
 					elapsed := now.Sub(startTime).Seconds()
 					if elapsed > 0 {
-						avgSpeed := float64(downloaded) / elapsed / (1024 * 1024)                                         // MB/s
-						instantSpeed := float64(downloaded-lastLogBytes) / now.Sub(lastLogTime).Seconds() / (1024 * 1024) // MB/s
+						avgSpeed := float64(downloadedBytes) / elapsed / (1024 * 1024)                                         // MB/s
+						instantSpeed := float64(downloadedBytes-lastLogBytes) / now.Sub(lastLogTime).Seconds() / (1024 * 1024) // MB/s
 
 						if totalSize > 0 {
-							percentage := float64(downloaded) / float64(totalSize) * 100
+							percentage := float64(downloadedBytes) / float64(totalSize) * 100
 							logger.Info(fmt.Sprintf("Downloading VirtIO ISO: %.1f%% (%.2f/%.2f MB) - Speed: %.2f MB/s (avg: %.2f MB/s)",
 								percentage,
-								float64(downloaded)/(1024*1024),
+								float64(downloadedBytes)/(1024*1024),
 								float64(totalSize)/(1024*1024),
 								instantSpeed,
 								avgSpeed))
 						} else {
 							logger.Info(fmt.Sprintf("Downloading VirtIO ISO: %.2f MB - Speed: %.2f MB/s (avg: %.2f MB/s)",
-								float64(downloaded)/(1024*1024),
+								float64(downloadedBytes)/(1024*1024),
 								instantSpeed,
 								avgSpeed))
 						}
 						lastLogTime = now
-						lastLogBytes = downloaded
+						lastLogBytes = downloadedBytes
 					}
 				}
 			}
@@ -568,9 +595,9 @@ func ensureVirtioISO() (string, error) {
 		}
 
 		totalTime := time.Since(startTime).Seconds()
-		avgSpeed := float64(downloaded) / totalTime / (1024 * 1024)
+		avgSpeed := float64(downloadedBytes) / totalTime / (1024 * 1024)
 		logger.Info(fmt.Sprintf("VirtIO ISO download completed: %.2f MB in %.1fs (avg: %.2f MB/s)",
-			float64(downloaded)/(1024*1024), totalTime, avgSpeed))
+			float64(downloadedBytes)/(1024*1024), totalTime, avgSpeed))
 
 		if err := tmpFile.Close(); err != nil {
 			return "", fmt.Errorf("finalize virtio iso: %w", err)
@@ -584,10 +611,13 @@ func ensureVirtioISO() (string, error) {
 		}
 
 		logger.Info("VirtIO ISO saved to " + target)
+		didDownload = true
+		resultNote = "downloaded"
 	} else if errors.Is(destErr, os.ErrNotExist) {
 		return "", fmt.Errorf("virtio iso missing and remote head failed")
 	} else {
 		logger.Info("VirtIO ISO already up to date at " + dest)
+		resultNote = "already up to date"
 	}
 
 	// ensure cache copy exists for troubleshooting

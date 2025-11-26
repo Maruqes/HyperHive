@@ -2,6 +2,8 @@ package nfs
 
 import (
 	"context"
+	"fmt"
+	"slave/extra"
 
 	pb "github.com/Maruqes/512SvMan/api/proto/nfs"
 	"github.com/Maruqes/512SvMan/logger"
@@ -31,6 +33,7 @@ func (s *NFSService) MountFolder(ctx context.Context, req *pb.FolderMount) (*pb.
 		HostNormalMount: req.HostNormalMount,
 	})
 	if err != nil {
+		extra.SendNotifications("Could not Mount", fmt.Sprintf("Could not Mount %s", req.Target), "/", true)
 		logger.Error("MountFolder failed", "error", err)
 		return &pb.MountResponse{Ok: false}, err
 	}

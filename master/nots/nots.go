@@ -1,5 +1,5 @@
 // services/nots.go
-package services
+package nots
 
 import (
 	"512SvMan/db"
@@ -14,11 +14,10 @@ import (
 )
 
 // NotsService envia push notifications Web Push simples.
-type NotsService struct{}
 
 // SendWebPush envia uma notificação simples (title, body, url) para 1 subscrição.
 // Se `critical` for true, a payload inclui essa flag para o SW tratar com vibração/renotify.
-func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL string, critical bool) (err error) {
+func SendWebPush(sub db.PushSubscription, title, body, relURL string, critical bool) (err error) {
 
 	if env512.VapidPublicKey == "" || env512.VapidPrivateKey == "" {
 		err := fmt.Errorf("VAPID keys not set; call InitVAPIDFromEnv() at startup")
@@ -101,7 +100,7 @@ func (s *NotsService) SendWebPush(sub db.PushSubscription, title, body, relURL s
 }
 
 // SendGlobalNotification envia uma notificação simples para TODAS as subscrições.
-func (s *NotsService) SendGlobalNotification(title, body, relURL string, critical bool) (err error) {
+func SendGlobalNotification(title, body, relURL string, critical bool) (err error) {
 	defer func() {
 		// Here "err" refers to the named return variable
 		if err == nil {
@@ -127,7 +126,7 @@ func (s *NotsService) SendGlobalNotification(title, body, relURL string, critica
 	for _, sub := range subs {
 		// se quiseres serial, tira o go
 		go func(sub db.PushSubscription) {
-			if err := s.SendWebPush(sub, title, body, relURL, critical); err != nil {
+			if err := SendWebPush(sub, title, body, relURL, critical); err != nil {
 				logger.Error(fmt.Sprintf("failed to send to %s: %v", sub.Endpoint, err))
 			}
 		}(sub)
@@ -136,6 +135,6 @@ func (s *NotsService) SendGlobalNotification(title, body, relURL string, critica
 }
 
 // GetNotsSince returns nots created at or after `since`.
-func (s *NotsService) GetNotsSince(since time.Time) ([]db.Not, error) {
+func GetNotsSince(since time.Time) ([]db.Not, error) {
 	return db.DbGetNotsFrom(since)
 }

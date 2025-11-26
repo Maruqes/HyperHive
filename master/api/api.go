@@ -4,6 +4,7 @@ import (
 	"512SvMan/api/npmapi"
 	"512SvMan/db"
 	"512SvMan/env512"
+	"512SvMan/nots"
 	"512SvMan/npm"
 	"512SvMan/services"
 	ws "512SvMan/websocket"
@@ -121,8 +122,7 @@ func delete_all_subscriptions(w http.ResponseWriter, r *http.Request) {
 // POST /notification/test → envia notificação para TODOS
 func test_nots(w http.ResponseWriter, r *http.Request) {
 
-	notService := services.NotsService{}
-	if err := notService.SendGlobalNotification("HyperHive", "Isto é uma notificação de teste.", "/", true); err != nil {
+	if err := nots.SendGlobalNotification("HyperHive", "Isto é uma notificação de teste.", "/", true); err != nil {
 		http.Error(w, "failed to send notifications: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

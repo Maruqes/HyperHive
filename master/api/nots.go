@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"512SvMan/services"
+	"512SvMan/nots"
 )
 
 // listNots handles GET /nots?since=<RFC3339|YYYY-MM-DD> and returns nots from that date until now.
@@ -30,8 +30,7 @@ func listNots(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	svc := services.NotsService{}
-	nots, err := svc.GetNotsSince(since)
+	nots, err := nots.GetNotsSince(since)
 	if err != nil {
 		http.Error(w, "failed to load nots", http.StatusInternalServerError)
 		return

@@ -105,6 +105,8 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 	cmd := exec.Command("virsh", baseArgs...)
 	cmd.Env = env
 	logger.Info("Executing: " + cmd.String())
+	// notify migration start
+	extra.SendNotifications("VM migration started", fmt.Sprintf("Starting migration of %s to %s", name, destURI), "/", false)
 	errors := extra.ExecWithOutToSocketCMD(ctx, extraGrpc.WebSocketsMessageType_MigrateVm, cmd)
 	if errors != nil {
 		//convert []error to a single error
@@ -112,8 +114,14 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 		for _, e := range errors {
 			errMsgs = append(errMsgs, e.Error())
 		}
+		// send failure notification
+		extra.SendNotifications("VM migration failed", fmt.Sprintf("Migration of %s to %s failed: %s", name, destURI, strings.Join(errMsgs, "; ")), "/", true)
+
 		return fmt.Errorf("virsh migrate: %s", strings.Join(errMsgs, "; "))
 	}
+
+	// success
+	extra.SendNotifications("VM migration succeeded", fmt.Sprintf("Migration of %s to %s completed successfully", name, destURI), "/", false)
 
 	return nil
 }

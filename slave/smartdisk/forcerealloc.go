@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"slave/extra"
 	"strconv"
 	"strings"
 	"sync"
@@ -272,21 +273,49 @@ func (m *ForceReallocManager) start(device string, mode ForceReallocMode) (*forc
 		delete(m.jobs, device)
 		m.mu.Unlock()
 		cancel()
+		// notify start failure
+		title := "Force realloc start failed"
+		msg := fmt.Sprintf("Failed to start badblocks on %s: %v", device, err)
+		extra.SendNotifications(title, msg, "/", true)
 		return nil, fmt.Errorf("falha ao iniciar badblocks em %s: %w", device, err)
 	}
 
-	// esperar em background
+	// notify started
+	modeStr := "non-destructive"
+	if mode == ForceReallocModeDestructive {
+		modeStr = "destructive"
+	}
+	extra.SendNotifications("Force realloc started", fmt.Sprintf("%s realloc started on %s", strings.Title(modeStr), device), "/", false)
+
+	// wait in background and notify on completion
 	go func() {
 		err := cmd.Wait()
-		// processar qualquer linha incompleta restante
+		// process any remaining line
 		lineBuf.flush()
+
 		job.mu.Lock()
 		job.status.Completed = true
 		job.status.Err = err
 		job.status.Elapsed = time.Since(job.status.StartedAt)
+		// copy status values we want to include in notification
+		completedErr := job.status.Err
+		lastLine := job.status.LastLine
+		elapsed := job.status.Elapsed
 		job.mu.Unlock()
-		// limpar contexto
+
+		// clear context
 		cancel()
+
+		// send notification about completion
+		title := "Force realloc finished"
+		success := completedErr == nil
+		var body string
+		if success {
+			body = fmt.Sprintf("Badblocks %s completed on %s successfully (elapsed: %s)", modeStr, device, elapsed)
+		} else {
+			body = fmt.Sprintf("Badblocks %s failed on %s: %v. Last output: %s", modeStr, device, completedErr, lastLine)
+		}
+		extra.SendNotifications(title, body, "/", !success)
 	}()
 
 	return job, nil

@@ -1110,7 +1110,31 @@ func fastHTTPClient() *http.Client {
 	}
 }
 
-func downloadFile(ctx context.Context, url, destPath string) error {
+func downloadFile(ctx context.Context, url, destPath string) (err error) {
+	start := time.Now()
+	fileName := filepath.Base(destPath)
+	defer func() {
+		elapsed := time.Since(start).Round(time.Second)
+		if elapsed == 0 {
+			elapsed = time.Since(start)
+		}
+		if err != nil {
+			extra.SendNotifications(
+				"ISO download failed",
+				fmt.Sprintf("Failed to download %s from %s to %s: %v", fileName, url, destPath, err),
+				"/",
+				true,
+			)
+		} else {
+			extra.SendNotifications(
+				"ISO download succeeded",
+				fmt.Sprintf("Downloaded %s to %s in %s", fileName, destPath, elapsed),
+				"/",
+				false,
+			)
+		}
+	}()
+
 	// FAIL-FAST se o ficheiro já existe
 	if _, err := os.Stat(destPath); err == nil {
 		return fmt.Errorf("file already exists: %s", destPath)
@@ -1194,6 +1218,12 @@ func DownloadISO(ctx context.Context, url, isoName, downloadFolder string) (stri
 	}
 
 	isoPath := filepath.Join(downloadFolder, isoName)
+	extra.SendNotifications(
+		"ISO download started",
+		fmt.Sprintf("Downloading %s from %s to %s", isoName, url, isoPath),
+		"/",
+		false,
+	)
 
 	err := downloadFile(ctx, url, isoPath)
 	if err != nil {
