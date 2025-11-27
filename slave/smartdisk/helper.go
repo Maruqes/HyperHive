@@ -59,7 +59,6 @@ func checkSmartDiskProblems(device string, info *SmartDiskInfo) {
 	if info.HealthStatus != "" {
 		switch strings.ToLower(info.HealthStatus) {
 		case "failing", "critical":
-			// One-liner: disk is in critical/failing state, show recommended action.
 			notify(
 				"SMART critical health",
 				fmt.Sprintf("%s is in %q state (risk=%q). %s",
@@ -68,16 +67,14 @@ func checkSmartDiskProblems(device string, info *SmartDiskInfo) {
 			)
 
 		case "warning":
-			// One-liner: warning health, high/medium risk, show recommended action.
 			notify(
 				"SMART warning health",
 				fmt.Sprintf("%s is in %q state (risk=%q). %s",
 					device, info.HealthStatus, info.PhysicalProblemRisk, info.RecommendedAction),
-				true, // warning but still serious enough to be "critical" notification
+				true,
 			)
 
 		case "caution":
-			// One-liner: caution state, low risk, monitor.
 			notify(
 				"SMART caution health",
 				fmt.Sprintf("%s is in %q state (risk=%q). %s",
@@ -86,12 +83,10 @@ func checkSmartDiskProblems(device string, info *SmartDiskInfo) {
 			)
 
 		case "healthy":
-			// Optional: just log as info, no notification.
 			logger.Infof("[%s] SMART health is healthy (risk=%q). %s",
 				device, info.PhysicalProblemRisk, info.RecommendedAction)
 		}
 	} else if !info.SmartPassed {
-		// Fallback if HealthStatus was not filled, but SmartPassed is false.
 		notify(
 			"SMART overall health FAILED",
 			fmt.Sprintf("%s reported SMART overall-health = FAILED.", device),
@@ -384,25 +379,6 @@ func checkSmartDiskProblems(device string, info *SmartDiskInfo) {
 			"NVMe critical warning",
 			fmt.Sprintf("%s has NVMe critical_warning flag set (0x%x).", device, info.CriticalWarning),
 			true,
-		)
-	}
-
-	// Check unsafe shutdowns count.
-	if info.UnsafeShutdowns > 0 {
-		notify(
-			"NVMe unsafe shutdowns",
-			fmt.Sprintf("%s detected %d unsafe shutdowns.", device, info.UnsafeShutdowns),
-			false,
-		)
-	}
-
-	// DataUnitsRead/DataUnitsWritten/Host*Commands são mais estatísticas que problemas:
-	// aqui só fazemos uma sanity check muito simples (ex.: zero com disco antigo).
-	if info.PowerOnHours > 1000 && info.DataUnitsRead == 0 && info.DataUnitsWritten == 0 {
-		notify(
-			"NVMe lifetime stats suspicious",
-			fmt.Sprintf("%s has 0 DataUnitsRead/Written after %dh on time.", device, info.PowerOnHours),
-			false,
 		)
 	}
 
