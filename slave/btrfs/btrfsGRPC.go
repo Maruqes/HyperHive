@@ -363,7 +363,6 @@ func (s *BTRFSService) GetRaidStats(ctx context.Context, req *btrfsGrpc.UUIDReq)
             GenerationErrs: int32(devStat.GenerationErrs),
             BalanceStatus:  devStat.BalanceStatus,
 
-            // 🔽 novos campos
             DeviceSizeBytes: devStat.DeviceSizeBytes,
             DeviceUsedBytes: devStat.DeviceUsedBytes,
             DeviceMissing:   devStat.DeviceMissing,

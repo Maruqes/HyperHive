@@ -11,6 +11,8 @@ import (
 	"strings"
 	"text/tabwriter"
 	"time"
+
+	"github.com/Maruqes/512SvMan/logger"
 )
 
 type FilesystemDF struct {
@@ -139,15 +141,13 @@ type BtrfsFilesystemInfo struct {
 }
 
 func GetBtrfsFilesystemInfo(mountpoint string) (*BtrfsFilesystemInfo, error) {
-	cmd := exec.Command("btrfs", "filesystem", "show", "-m", mountpoint)
-	out, err := cmd.CombinedOutput()
+	out, err := exec.Command("btrfs", "filesystem", "show", "-m", mountpoint).CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("btrfs filesystem show failed: %w: %s", err, string(out))
 	}
 
 	scanner := bufio.NewScanner(bytes.NewReader(out))
 	fsInfo := &BtrfsFilesystemInfo{}
-
 	var devices []BtrfsDeviceInfo
 
 	for scanner.Scan() {
@@ -163,7 +163,6 @@ func GetBtrfsFilesystemInfo(mountpoint string) (*BtrfsFilesystemInfo, error) {
 			if len(parts) == 2 {
 				labelPart := strings.TrimSpace(strings.TrimPrefix(parts[0], "Label:"))
 				fsInfo.Label = strings.Trim(labelPart, "' ")
-
 				fsInfo.UUID = strings.TrimSpace(parts[1])
 			}
 			continue
@@ -174,25 +173,26 @@ func GetBtrfsFilesystemInfo(mountpoint string) (*BtrfsFilesystemInfo, error) {
 			// Total devices 3 FS bytes used 24.84GiB
 			parts := strings.Fields(line)
 			if len(parts) >= 7 {
-				total, _ := strconv.Atoi(parts[2])
+				total, _ := strconv.Atoi(parts[2]) // "3"
 				fsInfo.TotalDevices = total
-				fsInfo.FSBytesUsed = parseSize(parts[6])
+				fsInfo.FSBytesUsed = parseSize(parts[6]) // "24.84GiB"
 			}
 			continue
 		}
 
-		// Device lines
+		// ✅ Device lines
 		if strings.HasPrefix(line, "devid") {
 			// devid 1 size 3.64TiB used 27.00GiB path /dev/sdb
 			parts := strings.Fields(line)
-			if len(parts) < 10 {
+			if len(parts) < 8 {
+				// formato estranho, ignora
 				continue
 			}
 
-			devID, _ := strconv.ParseInt(parts[1], 10, 64)
-			sizeBytes := parseSize(parts[3])
-			usedBytes := parseSize(parts[6])
-			path := parts[9]
+			devID, _ := strconv.ParseInt(parts[1], 10, 64) // "1"
+			sizeBytes := parseSize(parts[3])               // "3.64TiB"
+			usedBytes := parseSize(parts[5])               // "27.00GiB"
+			path := parts[7]                               // "/dev/sdb" ou "MISSING"
 			missing := path == "MISSING"
 
 			devices = append(devices, BtrfsDeviceInfo{
@@ -295,24 +295,20 @@ func GetFileSystemStats(mountPoint string) (*DeviceStats, error) {
 		stats.DeviceStats[i].BalanceStatus = balanceStatus
 	}
 
-	// 🔗 Enriquecer com info do `btrfs filesystem show -m`
+	// info do `btrfs filesystem show -m`
 	fsInfo, err := GetBtrfsFilesystemInfo(mountPoint)
 	if err == nil {
-		// Guardar info global do FS
 		stats.FSUUID = fsInfo.UUID
 		stats.FSLabel = fsInfo.Label
 		stats.TotalDevices = fsInfo.TotalDevices
 
-		// Map por devid para acesso rápido
 		devByID := make(map[int64]BtrfsDeviceInfo, len(fsInfo.Devices))
 		for _, d := range fsInfo.Devices {
 			devByID[d.DevID] = d
 		}
 
-		// Enriquecer cada deviceStat
 		for i := range stats.DeviceStats {
 			ds := &stats.DeviceStats[i]
-
 			if dev, ok := devByID[int64(ds.DevID)]; ok {
 				ds.FSUUID = fsInfo.UUID
 				ds.FSLabel = fsInfo.Label
@@ -321,8 +317,9 @@ func GetFileSystemStats(mountPoint string) (*DeviceStats, error) {
 				ds.DeviceMissing = dev.Missing
 			}
 		}
-	} // se falhar, ficas só com os stats “normais”
-
+	} else {
+		logger.Error("nao deu para ver o btrfs filesystem show -m")
+	}
 	return &stats, nil
 }
 
