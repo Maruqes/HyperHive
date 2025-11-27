@@ -3,6 +3,7 @@ package smartdisk
 import (
 	"fmt"
 	"slave/btrfs"
+	"slave/env512"
 	"slave/extra"
 	"strings"
 	"time"
@@ -36,8 +37,8 @@ func CheckSmartTestNot() {
 func checkSmartDiskProblems(device string, info *SmartDiskInfo) {
 	// Helper: envia notificação + log de erro.
 	notify := func(title, msg string, critical bool) {
-		logger.Errorf("[%s] %s", device, msg)
-		extra.SendNotifications(title, msg, "/", critical)
+		logger.Errorf("%s-[%s] %s", env512.MachineName, device, msg)
+		extra.SendNotifications(env512.MachineName+"-"+title, msg, "/", critical)
 	}
 
 	// Check summary info (model/serial/firmware/capacity) – info only.
@@ -432,25 +433,25 @@ func checkSmartDiskProblems(device string, info *SmartDiskInfo) {
 		)
 	}
 
-		// Check last SMART self-test result.
-		if len(info.SelfTests) != 0 {
-			// Assume slice is ordered from most recent to oldest.
-			last := info.SelfTests[0]
-			statusLower := strings.ToLower(last.Status)
-			// Check if last test is still running.
-			isRunning := strings.Contains(statusLower, "in progress") || strings.Contains(statusLower, "running")
+	// Check last SMART self-test result.
+	if len(info.SelfTests) != 0 {
+		// Assume slice is ordered from most recent to oldest.
+		last := info.SelfTests[0]
+		statusLower := strings.ToLower(last.Status)
+		// Check if last test is still running.
+		isRunning := strings.Contains(statusLower, "in progress") || strings.Contains(statusLower, "running")
 
-			// Check last completed test if not running.
-			if !isRunning && last.RemainingPercent == 0 {
-				if !strings.Contains(statusLower, "completed without error") {
-					notify(
-						"SMART self-test failed",
-						fmt.Sprintf("%s last SMART self-test finished with status %q at %dh power-on.", device, last.Status, last.LifetimeHours),
-						true,
-					)
-				}
+		// Check last completed test if not running.
+		if !isRunning && last.RemainingPercent == 0 {
+			if !strings.Contains(statusLower, "completed without error") {
+				notify(
+					"SMART self-test failed",
+					fmt.Sprintf("%s last SMART self-test finished with status %q at %dh power-on.", device, last.Status, last.LifetimeHours),
+					true,
+				)
 			}
 		}
+	}
 }
 
 func StartSmartTestChecker() {
