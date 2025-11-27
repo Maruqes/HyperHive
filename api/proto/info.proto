@@ -36,6 +36,7 @@ message DiskStruct {
 	uint64 used = 6;
 	double used_percent = 7;
 	repeated string opts = 8;
+	int64 temperature_c = 9;
 }
 
 message DiskIOStruct {

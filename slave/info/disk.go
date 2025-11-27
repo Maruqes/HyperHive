@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"slave/smartdisk"
+
 	"github.com/shirou/gopsutil/v4/disk"
 )
 
@@ -17,14 +19,15 @@ type DiskInfoStruct struct{}
 var DiskInfo DiskInfoStruct
 
 type DiskStruct struct {
-	Device      string   // Device name (e.g., /dev/sda1)
-	MountPoint  string   // Mount point path (e.g., /)
-	Fstype      string   // File system type (e.g., ext4, xfs, ntfs)
-	Total       uint64   // Total size in bytes
-	Free        uint64   // Free space in bytes
-	Used        uint64   // Used space in bytes
-	UsedPercent float64  // Used percentage
-	Opts        []string // Mount options
+	Device       string   // Device name (e.g., /dev/sda1)
+	MountPoint   string   // Mount point path (e.g., /)
+	Fstype       string   // File system type (e.g., ext4, xfs, ntfs)
+	Total        uint64   // Total size in bytes
+	Free         uint64   // Free space in bytes
+	Used         uint64   // Used space in bytes
+	UsedPercent  float64  // Used percentage
+	Opts         []string // Mount options
+	TemperatureC int64    `json:"temperature_c"` // Temperature in Celsius (if available)
 }
 
 func (d *DiskInfoStruct) GetDisks() ([]DiskStruct, error) {
@@ -51,6 +54,13 @@ func (d *DiskInfoStruct) GetDisks() ([]DiskStruct, error) {
 			Used:        usage.Used,
 			UsedPercent: usage.UsedPercent,
 			Opts:        partition.Opts,
+		}
+
+		// try to populate temperature using smartctl parsing available in smartdisk
+		if base := baseDevicePath(partition.Device); base != "" {
+			if info, err := smartdisk.GetSmartInfo(base); err == nil && info != nil {
+				diskInfo.TemperatureC = info.TemperatureC
+			}
 		}
 
 		disks = append(disks, diskInfo)
@@ -303,4 +313,60 @@ func (d *DiskInfoStruct) GetDiskSummary() (*DiskSummary, error) {
 		IO:          ioStats,
 		SystemCache: systemCache,
 	}, nil
+}
+
+// baseDevicePath attempts to map a partition path to its parent block device
+// Examples:
+//   - /dev/sda1  -> /dev/sda
+//   - /dev/nvme0n1p1 -> /dev/nvme0n1
+//   - /dev/mmcblk0p1 -> /dev/mmcblk0
+func baseDevicePath(dev string) string {
+	dev = strings.TrimSpace(dev)
+	if dev == "" {
+		return ""
+	}
+	// only operate on /dev/... paths
+	if !strings.HasPrefix(dev, "/dev/") {
+		return dev
+	}
+	base := dev
+	name := strings.TrimPrefix(dev, "/dev/")
+
+	// nvme style: ...n<id>p<part> (strip trailing p<digits>)
+	if strings.Contains(name, "nvme") {
+		// remove trailing p<digits>
+		if idx := strings.LastIndex(name, "p"); idx != -1 {
+			// ensure digits follow
+			suf := name[idx+1:]
+			if suf != "" {
+				allDigits := true
+				for _, r := range suf {
+					if r < '0' || r > '9' {
+						allDigits = false
+						break
+					}
+				}
+				if allDigits {
+					base = "/dev/" + name[:idx]
+					return base
+				}
+			}
+		}
+	}
+
+	// mmcblk / loop / nvme handled; for other devices strip trailing digits
+	// find last non-digit
+	last := len(name) - 1
+	for last >= 0 && name[last] >= '0' && name[last] <= '9' {
+		last--
+	}
+	// if preceding char is 'p' (e.g., mmcblk0p1) remove it too
+	if last >= 0 && name[last] == 'p' {
+		last--
+	}
+	if last < 0 {
+		return dev
+	}
+	base = "/dev/" + name[:last+1]
+	return base
 }
