@@ -521,9 +521,14 @@ type btrfsErrorEvent struct {
 	DeviceMissing bool   `json:"device_missing"`
 }
 
-func CheckBtrfs(callErrs func(*btrfsErrorEvent, error)) {
+const btrfsCheckInterval = 5 * time.Hour
 
-	raids, _ := GetAllFileSystems()
+func CheckBtrfs(callErrs func(*btrfsErrorEvent, error)) {
+	raids, err := GetAllFileSystems()
+	if err != nil {
+		callErrs(nil, fmt.Errorf("failed to list BTRFS filesystems: %w", err))
+		return
+	}
 	if raids == nil || len(raids.FileSystems) == 0 {
 		return
 	}
@@ -533,6 +538,27 @@ func CheckBtrfs(callErrs func(*btrfsErrorEvent, error)) {
 			continue
 		}
 
+		// 1) Check de espaço usado (RealUsedSpace / RealMaxSpace).
+		// Se uso > 80% emite evento "space_usage_percent".
+		if raid.RealMaxSpace > 0 {
+			used := float64(raid.RealUsedSpace)
+			max := float64(raid.RealMaxSpace)
+			percent := int((used/max)*100.0 + 0.5) // arredondado
+
+			if percent > 80 {
+				evt := &btrfsErrorEvent{
+					Target:        raid.Target,
+					Device:        "",
+					DevID:         0,
+					ErrorType:     "space_usage_percent",
+					Count:         percent,
+					DeviceMissing: false,
+				}
+				callErrs(evt, nil)
+			}
+		}
+
+		// 2) Stats por device.
 		stats, err := GetFileSystemStats(raid.Target)
 		if err != nil {
 			callErrs(nil, fmt.Errorf("failed to get stats for %s: %w", raid.Target, err))
@@ -541,90 +567,141 @@ func CheckBtrfs(callErrs func(*btrfsErrorEvent, error)) {
 		if stats == nil {
 			continue
 		}
+
 		for _, devStat := range stats.DeviceStats {
-			metrics := map[string]int{
-				"corruption_errs": devStat.CorruptionErrs,
-				"flush_io_errs":   devStat.FlushIOErrs,
-				"generation_errs": devStat.GenerationErrs,
-				"read_io_errs":    devStat.ReadIOErrs,
-				"write_io_errs":   devStat.WriteIOErrs,
+			if devStat.DeviceMissing {
+				evt := &btrfsErrorEvent{
+					Target:        raid.Target,
+					Device:        devStat.Device,
+					DevID:         devStat.DevID,
+					ErrorType:     "device_missing",
+					Count:         0,
+					DeviceMissing: true,
+				}
+				callErrs(evt, nil)
 			}
 
-			for name, val := range metrics {
-				if val != 0 {
-					evt := btrfsErrorEvent{
-						Target:        raid.Target,
-						Device:        devStat.Device,
-						DevID:         devStat.DevID,
-						ErrorType:     name,
-						Count:         val,
-						DeviceMissing: devStat.DeviceMissing,
-					}
-					// pass the event to caller; callers can accept either errors or structured events
-					callErrs(&evt, nil)
+			emitMetric := func(name string, count int) {
+				if count == 0 {
+					return
 				}
+				evt := &btrfsErrorEvent{
+					Target:        raid.Target,
+					Device:        devStat.Device,
+					DevID:         devStat.DevID,
+					ErrorType:     name,
+					Count:         count,
+					DeviceMissing: devStat.DeviceMissing,
+				}
+				callErrs(evt, nil)
 			}
+
+			emitMetric("corruption_errs", devStat.CorruptionErrs)
+			emitMetric("flush_io_errs", devStat.FlushIOErrs)
+			emitMetric("generation_errs", devStat.GenerationErrs)
+			emitMetric("read_io_errs", devStat.ReadIOErrs)
+			emitMetric("write_io_errs", devStat.WriteIOErrs)
 		}
 	}
 }
 
-func CheckBtrfsGoLoop(callErrs func(*btrfsErrorEvent, error)) {
+func CheckBtrfsLoop(callErrs func(*btrfsErrorEvent, error)) {
 	go func() {
-		for {
-			CheckBtrfs(callErrs)
-			time.Sleep(30 * time.Second)
-		}
+		CheckBtrfs(callErrs)
+		time.Sleep(btrfsCheckInterval)
 	}()
 }
 
 func StartCheckBTRFSLOOP() {
-	funcToCall := func(event *btrfsErrorEvent, err error) {
+	handler := func(event *btrfsErrorEvent, err error) {
+		// Erros de execução (GetAllFileSystems, GetFileSystemStats, etc.)
 		if err != nil {
-			logger.Error("BTRFS error", "error", err)
+			logger.Error("BTRFS check error", "error", err)
 			return
 		}
-		if event != nil {
-			logger.Warn(
-				"BTRFS device error detected",
-				"target", event.Target,
-				"device", event.Device,
-				"devid", event.DevID,
-				"error_type", event.ErrorType,
-				"count", event.Count,
-				"device_missing", event.DeviceMissing,
+		if event == nil {
+			return
+		}
+
+		logger.Warn(
+			"BTRFS device event detected",
+			"target", event.Target,
+			"device", event.Device,
+			"devid", event.DevID,
+			"error_type", event.ErrorType,
+			"count", event.Count,
+			"device_missing", event.DeviceMissing,
+		)
+
+		var (
+			title    string
+			body     string
+			critical = true // se quiseres podes afinar por tipo
+		)
+
+		switch event.ErrorType {
+		case "device_missing":
+			title = "Device missing: " + event.Device
+			body = fmt.Sprintf(
+				"Device missing: %s (target: %s, devid: %d)",
+				event.Device, event.Target, event.DevID,
 			)
 
-			var body string
-			switch {
-			case event.DeviceMissing:
-				body = fmt.Sprintf("Device missing: %s (target: %s, devid: %d)", event.Device, event.Target, event.DevID)
-				extra.SendNotifications("Device missing: "+event.Device, body, "/", true)
-			
-			case event.ErrorType == "corruption_errs":
-				body = fmt.Sprintf("Corruption error detected on device %s (target: %s, devid: %d, count: %d)", event.Device, event.Target, event.DevID, event.Count)
-				extra.SendNotifications("Corruption error on device: "+event.Device, body, "/", true)
-			
-			case event.ErrorType == "flush_io_errs":
-				body = fmt.Sprintf("Flush I/O error detected on device %s (target: %s, devid: %d, count: %d)", event.Device, event.Target, event.DevID, event.Count)
-				extra.SendNotifications("Flush I/O error on device: "+event.Device, body, "/", true)
-			
-			case event.ErrorType == "generation_errs":
-				body = fmt.Sprintf("Generation error detected on device %s (target: %s, devid: %d, count: %d)", event.Device, event.Target, event.DevID, event.Count)
-				extra.SendNotifications("Generation error on device: "+event.Device, body, "/", true)
-			
-			case event.ErrorType == "read_io_errs":
-				body = fmt.Sprintf("Read I/O error detected on device %s (target: %s, devid: %d, count: %d)", event.Device, event.Target, event.DevID, event.Count)
-				extra.SendNotifications("Read I/O error on device: "+event.Device, body, "/", true)
-			
-			case event.ErrorType == "write_io_errs":
-				body = fmt.Sprintf("Write I/O error detected on device %s (target: %s, devid: %d, count: %d)", event.Device, event.Target, event.DevID, event.Count)
-				extra.SendNotifications("Write I/O error on device: "+event.Device, body, "/", true)
-			default:
-				body = fmt.Sprintf("Unknown BTRFS error on device %s (target: %s, devid: %d, error_type: %s, count: %d, device_missing: %v, err: %v)", event.Device, event.Target, event.DevID, event.ErrorType, event.Count, event.DeviceMissing, err)
-				extra.SendNotifications("Unknown BTRFS error on device: "+event.Device, body, "/", true)
-			}
+		case "space_usage_percent":
+			title = fmt.Sprintf(
+				"Filesystem space usage high: %s (%d%%)",
+				event.Target, event.Count,
+			)
+			body = fmt.Sprintf(
+				"Filesystem %s usage at %d%%",
+				event.Target, event.Count,
+			)
+
+		case "corruption_errs":
+			title = "Corruption error on device: " + event.Device
+			body = fmt.Sprintf(
+				"Corruption error detected on device %s (target: %s, devid: %d, count: %d)",
+				event.Device, event.Target, event.DevID, event.Count,
+			)
+
+		case "flush_io_errs":
+			title = "Flush I/O error on device: " + event.Device
+			body = fmt.Sprintf(
+				"Flush I/O error detected on device %s (target: %s, devid: %d, count: %d)",
+				event.Device, event.Target, event.DevID, event.Count,
+			)
+
+		case "generation_errs":
+			title = "Generation error on device: " + event.Device
+			body = fmt.Sprintf(
+				"Generation error detected on device %s (target: %s, devid: %d, count: %d)",
+				event.Device, event.Target, event.DevID, event.Count,
+			)
+
+		case "read_io_errs":
+			title = "Read I/O error on device: " + event.Device
+			body = fmt.Sprintf(
+				"Read I/O error detected on device %s (target: %s, devid: %d, count: %d)",
+				event.Device, event.Target, event.DevID, event.Count,
+			)
+
+		case "write_io_errs":
+			title = "Write I/O error on device: " + event.Device
+			body = fmt.Sprintf(
+				"Write I/O error detected on device %s (target: %s, devid: %d, count: %d)",
+				event.Device, event.Target, event.DevID, event.Count,
+			)
+
+		default:
+			title = "Unknown BTRFS event on device: " + event.Device
+			body = fmt.Sprintf(
+				"Unknown BTRFS event on device %s (target: %s, devid: %d, error_type: %s, count: %d, device_missing: %v)",
+				event.Device, event.Target, event.DevID, event.ErrorType, event.Count, event.DeviceMissing,
+			)
 		}
+
+		extra.SendNotifications(title, body, "/", critical)
 	}
 
-	CheckBtrfsGoLoop(funcToCall)
+	CheckBtrfsLoop(handler)
 }
