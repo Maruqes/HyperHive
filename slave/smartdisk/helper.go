@@ -432,26 +432,25 @@ func checkSmartDiskProblems(device string, info *SmartDiskInfo) {
 		)
 	}
 
-	// Check last SMART self-test result.
-	if len(info.SelfTests) != 0 {
-		// Aqui assumo que o slice vem ordenado do mais recente para o mais antigo.
-		last := info.SelfTests[0]
-		statusLower := strings.ToLower(last.Status)
+		// Check last SMART self-test result.
+		if len(info.SelfTests) != 0 {
+			// Assume slice is ordered from most recent to oldest.
+			last := info.SelfTests[0]
+			statusLower := strings.ToLower(last.Status)
+			// Check if last test is still running.
+			isRunning := strings.Contains(statusLower, "in progress") || strings.Contains(statusLower, "running")
 
-		// Check if last test is still running.
-		isRunning := strings.Contains(statusLower, "in progress") || strings.Contains(statusLower, "running")
-
-		// Check last completed test if not running.
-		if !isRunning && last.RemainingPercent == 0 {
-			if !strings.Contains(statusLower, "completed without error") {
-				notify(
-					"SMART self-test failed",
-					fmt.Sprintf("%s last SMART self-test finished with status %q.", device, last.Status),
-					true,
-				)
+			// Check last completed test if not running.
+			if !isRunning && last.RemainingPercent == 0 {
+				if !strings.Contains(statusLower, "completed without error") {
+					notify(
+						"SMART self-test failed",
+						fmt.Sprintf("%s last SMART self-test finished with status %q at %dh power-on.", device, last.Status, last.LifetimeHours),
+						true,
+					)
+				}
 			}
 		}
-	}
 }
 
 func StartSmartTestChecker() {
