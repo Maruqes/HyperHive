@@ -84,14 +84,15 @@ func (s *INFOService) GetDiskSummary(ctx context.Context, req *infoGrpc.Empty) (
 	var disks []*infoGrpc.DiskStruct
 	for _, disk := range info.Disks {
 		disks = append(disks, &infoGrpc.DiskStruct{
-			Device:      disk.Device,
-			MountPoint:  disk.MountPoint,
-			Fstype:      disk.Fstype,
-			Total:       disk.Total,
-			Free:        disk.Free,
-			Used:        disk.Used,
-			UsedPercent: disk.UsedPercent,
-			Opts:        disk.Opts,
+			Device:       disk.Device,
+			MountPoint:   disk.MountPoint,
+			Fstype:       disk.Fstype,
+			Total:        disk.Total,
+			Free:         disk.Free,
+			Used:         disk.Used,
+			UsedPercent:  disk.UsedPercent,
+			Opts:         disk.Opts,
+			TemperatureC: disk.TemperatureC,
 		})
 	}
 
