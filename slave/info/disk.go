@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"slave/btrfs"
 	"slave/smartdisk"
 
 	"github.com/shirou/gopsutil/v4/disk"
@@ -38,6 +39,9 @@ func (d *DiskInfoStruct) GetDisks() ([]DiskStruct, error) {
 
 	var disks []DiskStruct
 
+	// track devices we've already added (usually partitions like /dev/sda1)
+	added := make(map[string]struct{})
+
 	for _, partition := range partitions {
 		usage, err := disk.Usage(partition.Mountpoint)
 		if err != nil {
@@ -64,6 +68,64 @@ func (d *DiskInfoStruct) GetDisks() ([]DiskStruct, error) {
 		}
 
 		disks = append(disks, diskInfo)
+		added[partition.Device] = struct{}{}
+	}
+
+	// Now also include physical block devices that are not mounted/visible via disk.Partitions
+	// Use btrfs helpers to list physical disks and to enrich info about btrfs devices.
+	// This is best-effort: failures in btrfs listing won't break the function.
+	var fsByDevice map[string]*btrfs.FileSystem
+	if allFS, err := btrfs.GetAllFileSystems(); err == nil && allFS != nil {
+		fsByDevice = make(map[string]*btrfs.FileSystem)
+		for i := range allFS.FileSystems {
+			fs := &allFS.FileSystems[i]
+			for _, dev := range fs.Devices {
+				if dev.Path != "" {
+					// map the device path to the filesystem
+					fsByDevice[dev.Path] = fs
+				}
+			}
+		}
+	}
+
+	if allDisks, err := btrfs.GetAllDisks(false); err == nil && allDisks != nil {
+		for _, md := range allDisks {
+			path := strings.TrimSpace(md.Path)
+			if path == "" {
+				continue
+			}
+			// skip devices already added from partitions
+			if _, ok := added[path]; ok {
+				continue
+			}
+
+			var diskInfo DiskStruct
+			diskInfo.Device = path
+			// if btrfs knows this device, attach some info
+			if fsByDevice != nil {
+				if fs, ok := fsByDevice[path]; ok {
+					diskInfo.Fstype = fs.FSType
+					if fs.Mounted {
+						diskInfo.MountPoint = fs.Target
+					}
+				}
+			}
+
+			// populate size if available
+			if md.SizeGB > 0 {
+				diskInfo.Total = uint64(md.SizeGB * 1024 * 1024 * 1024)
+			}
+
+			// try smart info on base device
+			if base := baseDevicePath(path); base != "" {
+				if info, err := smartdisk.GetSmartInfo(base); err == nil && info != nil {
+					diskInfo.TemperatureC = info.TemperatureC
+				}
+			}
+
+			disks = append(disks, diskInfo)
+			added[path] = struct{}{}
+		}
 	}
 
 	return disks, nil
