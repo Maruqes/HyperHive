@@ -284,81 +284,155 @@ type usageStats struct {
 }
 
 func GetAllFileSystems() (*FindMntOutput, error) {
-	// Use `btrfs filesystem show` output to discover filesystems and their devices.
+	// Step 1: parse /proc/mounts to get mounted btrfs filesystems (Target, Source, FSType, Options)
+	data, err := os.ReadFile("/proc/mounts")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read /proc/mounts: %w", err)
+	}
+
+	var result FindMntOutput
+	seenUUID := make(map[string]bool)
+
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		// format: source target fstype options ...
+		parts := strings.Fields(line)
+		if len(parts) < 4 {
+			continue
+		}
+		src := parts[0]
+		target := parts[1]
+		fstype := parts[2]
+		options := parts[3]
+
+		if fstype != "btrfs" {
+			continue
+		}
+
+		fs := FileSystem{
+			Target:      target,
+			Source:      src,
+			FSType:      fstype,
+			Options:     options,
+			Mounted:     true,
+			Devices:     []BtrfsDevice{},
+			Compression: extractCompressionFromOptions(options),
+		}
+
+		// Enrich mounted filesystem with btrfs commands
+		if info, err := GetFileSystemInfo(target); err == nil && info != nil {
+			// compute totals
+			var total, used int64
+			for _, bg := range info.FilesystemDF {
+				total += bg.Total
+				used += bg.Used
+			}
+			fs.MaxSpace = total
+			fs.UsedSpace = used
+			fs.RealMaxSpace = total
+			fs.RealUsedSpace = used
+			fs.RaidType = extractRaidProfile(info)
+		} else if err != nil {
+			logger.Error(fmt.Sprintf("GetFileSystemInfo failed for %s: %v", target, err))
+		}
+
+		if binfo, err := GetBtrfsFilesystemInfo(target); err == nil && binfo != nil {
+			fs.UUID = binfo.UUID
+			if fs.Label == "" {
+				fs.Label = binfo.Label
+			}
+			var total uint64
+			for _, d := range binfo.Devices {
+				total += d.Size
+				dev := BtrfsDevice{
+					Name:       filepath.Base(d.Path),
+					Path:       d.Path,
+					Type:       "",
+					Label:      "",
+					UUID:       "",
+					SizeBytes:  int64(d.Size),
+					MountPoint: "",
+					Mounted:    d.Path != "MISSING",
+				}
+				fs.Devices = append(fs.Devices, dev)
+			}
+			fs.RealMaxSpace = int64(total)
+		} else if err != nil {
+			logger.Error(fmt.Sprintf("GetBtrfsFilesystemInfo failed for %s: %v", target, err))
+		}
+
+		if fs.UUID != "" {
+			seenUUID[fs.UUID] = true
+		}
+		result.FileSystems = append(result.FileSystems, fs)
+	}
+
+	// Step 2: include filesystems known to the kernel from `btrfs filesystem show` that are not mounted
 	cmd := exec.Command("btrfs", "filesystem", "show")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		// if no output, return empty structure
+		// if there's no output, just return what we have
 		if len(bytes.TrimSpace(out)) == 0 {
-			return &FindMntOutput{}, nil
+			return &result, nil
 		}
 		return nil, fmt.Errorf("btrfs filesystem show failed: %w: %s", err, string(out))
 	}
 
-	var result FindMntOutput
-	scanner := bytes.NewBuffer(out)
-	lines := strings.Split(scanner.String(), "\n")
-
+	lines := strings.Split(string(out), "\n")
 	var cur *FileSystem
 
 	for _, raw := range lines {
 		line := strings.TrimSpace(raw)
 		if line == "" {
 			if cur != nil {
-				result.FileSystems = append(result.FileSystems, *cur)
+				// if not seen, append
+				if cur.UUID == "" || !seenUUID[cur.UUID] {
+					result.FileSystems = append(result.FileSystems, *cur)
+				}
 				cur = nil
 			}
 			continue
 		}
 
-		// Header with label + uuid
 		if strings.HasPrefix(line, "Label:") || strings.Contains(line, "uuid:") {
-			// begin new filesystem block
 			if cur != nil {
-				result.FileSystems = append(result.FileSystems, *cur)
+				if cur.UUID == "" || !seenUUID[cur.UUID] {
+					result.FileSystems = append(result.FileSystems, *cur)
+				}
 			}
 			cur = &FileSystem{FSType: "btrfs", Devices: []BtrfsDevice{}}
-
-			// try to extract label and uuid: "Label: 'name'  uuid: xxxxx"
 			if strings.HasPrefix(line, "Label:") {
 				parts := strings.Split(line, "uuid:")
 				if len(parts) == 2 {
 					labelPart := strings.TrimSpace(strings.TrimPrefix(parts[0], "Label:"))
 					cur.Label = strings.Trim(labelPart, "' ")
 					cur.UUID = strings.TrimSpace(parts[1])
-				} else {
-					// maybe line contains uuid only
-					if strings.Contains(line, "uuid:") {
-						p := strings.Split(line, "uuid:")
-						cur.UUID = strings.TrimSpace(p[len(p)-1])
-					}
+				} else if strings.Contains(line, "uuid:") {
+					p := strings.Split(line, "uuid:")
+					cur.UUID = strings.TrimSpace(p[len(p)-1])
 				}
 			} else if strings.Contains(line, "uuid:") {
-				// fallback
 				parts := strings.Split(line, "uuid:")
 				cur.UUID = strings.TrimSpace(parts[len(parts)-1])
 			}
 			continue
 		}
 
-		// device lines: start with 'devid'
-		if strings.HasPrefix(line, "devid") {
+		if strings.HasPrefix(line, "devid") && cur != nil {
 			parts := strings.Fields(line)
-			if len(parts) < 8 || cur == nil {
+			if len(parts) < 8 {
 				continue
 			}
-			// last token is path
 			path := parts[len(parts)-1]
 			if path == "MISSING" {
-				// mark missing device
+				continue
 			}
 			sizeBytes := int64(parseSize(parts[3]))
 			dev := BtrfsDevice{
 				Name:      filepath.Base(path),
 				Path:      path,
-				Type:      "",
-				Label:     "",
-				UUID:      "",
 				SizeBytes: sizeBytes,
 				Mounted:   false,
 			}
@@ -367,14 +441,9 @@ func GetAllFileSystems() (*FindMntOutput, error) {
 			continue
 		}
 
-		// Total devices line - attempt to capture FS bytes used
 		if strings.HasPrefix(line, "Total devices") && cur != nil {
-			// format: Total devices 1 FS bytes used 24.84GiB
 			parts := strings.Fields(line)
 			for i := 0; i < len(parts)-1; i++ {
-				if parts[i] == "devices" && i+1 < len(parts) {
-					// skip
-				}
 				if parts[i] == "used" && i+1 < len(parts) {
 					cur.RealUsedSpace = int64(parseSize(parts[i+1]))
 				}
@@ -383,9 +452,25 @@ func GetAllFileSystems() (*FindMntOutput, error) {
 		}
 	}
 
-	// append last block if any
 	if cur != nil {
-		result.FileSystems = append(result.FileSystems, *cur)
+		if cur.UUID == "" || !seenUUID[cur.UUID] {
+			result.FileSystems = append(result.FileSystems, *cur)
+		}
+	}
+
+	// For mounted filesystems, ensure RaidType and Compression were filled (best-effort)
+	for i := range result.FileSystems {
+		if result.FileSystems[i].Mounted {
+			if result.FileSystems[i].RaidType == "" {
+				// try to get raid from filesystem df
+				if info, err := GetFileSystemInfo(result.FileSystems[i].Target); err == nil && info != nil {
+					result.FileSystems[i].RaidType = extractRaidProfile(info)
+				}
+			}
+			if result.FileSystems[i].Compression == "" {
+				result.FileSystems[i].Compression = extractCompressionFromOptions(result.FileSystems[i].Options)
+			}
+		}
 	}
 
 	return &result, nil
