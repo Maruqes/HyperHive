@@ -17,6 +17,7 @@ import (
 	"slave/logs512"
 	"slave/nfs"
 	"slave/protocol"
+	"slave/smartdisk"
 	"slave/virsh"
 	"strings"
 	"time"
@@ -761,5 +762,7 @@ func main() {
 	env512.SetConn(conn)
 	extra.SendNotifications(fmt.Sprintf("%s connected", env512.MachineName), "Machine connected", "/", false)
 	defer conn.Close()
+	btrfs.StartCheckBTRFSLOOP()
+	smartdisk.StartSmartTestChecker()
 	select {}
 }

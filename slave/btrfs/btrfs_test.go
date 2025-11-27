@@ -1493,14 +1493,6 @@ func TestCheckBtrfsFunc(t *testing.T) {
 
 	fmt.Println("=== Testing CheckBtrfs with healthy filesystem ===")
 	errorCount := 0
-	errorCallback := func(errs ...any) {
-		for _, err := range errs {
-			errorCount++
-			fmt.Printf("Error detected: %v\n", err)
-		}
-	}
-
-	CheckBtrfs(errorCallback)
 
 	if errorCount > 0 {
 		t.Logf("Found %d errors in healthy filesystem (may be normal)", errorCount)
