@@ -25,12 +25,7 @@ message MinDiskArr{
 message BtrfsDevice {
 	string name = 1;
 	string path = 2;
-	string type = 3;
-	string label = 4;
-	string uuid = 5;
-	string uuid_sub = 6;
 	int64 size_bytes = 7;
-	string mount_point = 8;
 	bool mounted = 9;
 }
 

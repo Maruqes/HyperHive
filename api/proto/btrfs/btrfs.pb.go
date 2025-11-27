@@ -7,11 +7,12 @@
 package proto
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -193,12 +194,7 @@ type BtrfsDevice struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
-	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
-	Label         string                 `protobuf:"bytes,4,opt,name=label,proto3" json:"label,omitempty"`
-	Uuid          string                 `protobuf:"bytes,5,opt,name=uuid,proto3" json:"uuid,omitempty"`
-	UuidSub       string                 `protobuf:"bytes,6,opt,name=uuid_sub,json=uuidSub,proto3" json:"uuid_sub,omitempty"`
 	SizeBytes     int64                  `protobuf:"varint,7,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
-	MountPoint    string                 `protobuf:"bytes,8,opt,name=mount_point,json=mountPoint,proto3" json:"mount_point,omitempty"`
 	Mounted       bool                   `protobuf:"varint,9,opt,name=mounted,proto3" json:"mounted,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -248,48 +244,12 @@ func (x *BtrfsDevice) GetPath() string {
 	return ""
 }
 
-func (x *BtrfsDevice) GetType() string {
-	if x != nil {
-		return x.Type
-	}
-	return ""
-}
-
-func (x *BtrfsDevice) GetLabel() string {
-	if x != nil {
-		return x.Label
-	}
-	return ""
-}
-
-func (x *BtrfsDevice) GetUuid() string {
-	if x != nil {
-		return x.Uuid
-	}
-	return ""
-}
-
-func (x *BtrfsDevice) GetUuidSub() string {
-	if x != nil {
-		return x.UuidSub
-	}
-	return ""
-}
-
 func (x *BtrfsDevice) GetSizeBytes() int64 {
 	if x != nil {
 		return x.SizeBytes
 	}
 	return 0
 }
-
-func (x *BtrfsDevice) GetMountPoint() string {
-	if x != nil {
-		return x.MountPoint
-	}
-	return ""
-}
-
 func (x *BtrfsDevice) GetMounted() bool {
 	if x != nil {
 		return x.Mounted

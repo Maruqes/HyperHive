@@ -73,15 +73,10 @@ func convertDevices(devices []BtrfsDevice) []*btrfsGrpc.BtrfsDevice {
 	result := make([]*btrfsGrpc.BtrfsDevice, 0, len(devices))
 	for _, dev := range devices {
 		result = append(result, &btrfsGrpc.BtrfsDevice{
-			Name:       dev.Name,
-			Path:       dev.Path,
-			Type:       dev.Type,
-			Label:      dev.Label,
-			Uuid:       dev.UUID,
-			UuidSub:    dev.UUIDSub,
-			SizeBytes:  dev.SizeBytes,
-			MountPoint: dev.MountPoint,
-			Mounted:    dev.Mounted,
+			Name:      dev.Name,
+			Path:      dev.Path,
+			SizeBytes: dev.SizeBytes,
+			Mounted:   dev.Mounted,
 		})
 	}
 	return result
@@ -334,48 +329,47 @@ func (s *BTRFSService) ScrubStats(ctx context.Context, req *btrfsGrpc.UUIDReq) (
 	return grpcStats, nil
 }
 
-
 func (s *BTRFSService) GetRaidStats(ctx context.Context, req *btrfsGrpc.UUIDReq) (*btrfsGrpc.RaidStats, error) {
-    mp, err := GetMountPointFromUUID(req.Uuid)
-    if err != nil {
-        return nil, err
-    }
+	mp, err := GetMountPointFromUUID(req.Uuid)
+	if err != nil {
+		return nil, err
+	}
 
-    stats, err := GetFileSystemStats(mp)
-    if err != nil {
-        return nil, err
-    }
+	stats, err := GetFileSystemStats(mp)
+	if err != nil {
+		return nil, err
+	}
 
-    if stats == nil {
-        return nil, fmt.Errorf("no stats available for filesystem at mount point: %s", mp)
-    }
+	if stats == nil {
+		return nil, fmt.Errorf("no stats available for filesystem at mount point: %s", mp)
+	}
 
-    // Convert device stats to gRPC format
-    deviceStats := make([]*btrfsGrpc.DeviceStat, 0, len(stats.DeviceStats))
-    for _, devStat := range stats.DeviceStats {
-        deviceStats = append(deviceStats, &btrfsGrpc.DeviceStat{
-            Device:         devStat.Device,
-            DevId:          int32(devStat.DevID),
-            WriteIoErrs:    int32(devStat.WriteIOErrs),
-            ReadIoErrs:     int32(devStat.ReadIOErrs),
-            FlushIoErrs:    int32(devStat.FlushIOErrs),
-            CorruptionErrs: int32(devStat.CorruptionErrs),
-            GenerationErrs: int32(devStat.GenerationErrs),
-            BalanceStatus:  devStat.BalanceStatus,
+	// Convert device stats to gRPC format
+	deviceStats := make([]*btrfsGrpc.DeviceStat, 0, len(stats.DeviceStats))
+	for _, devStat := range stats.DeviceStats {
+		deviceStats = append(deviceStats, &btrfsGrpc.DeviceStat{
+			Device:         devStat.Device,
+			DevId:          int32(devStat.DevID),
+			WriteIoErrs:    int32(devStat.WriteIOErrs),
+			ReadIoErrs:     int32(devStat.ReadIOErrs),
+			FlushIoErrs:    int32(devStat.FlushIOErrs),
+			CorruptionErrs: int32(devStat.CorruptionErrs),
+			GenerationErrs: int32(devStat.GenerationErrs),
+			BalanceStatus:  devStat.BalanceStatus,
 
-            DeviceSizeBytes: devStat.DeviceSizeBytes,
-            DeviceUsedBytes: devStat.DeviceUsedBytes,
-            DeviceMissing:   devStat.DeviceMissing,
-            FsUuid:          devStat.FSUUID,
-            FsLabel:         devStat.FSLabel,
-        })
-    }
+			DeviceSizeBytes: devStat.DeviceSizeBytes,
+			DeviceUsedBytes: devStat.DeviceUsedBytes,
+			DeviceMissing:   devStat.DeviceMissing,
+			FsUuid:          devStat.FSUUID,
+			FsLabel:         devStat.FSLabel,
+		})
+	}
 
-    return &btrfsGrpc.RaidStats{
-        Version:      stats.Header.Version,
-        FsUuid:       stats.FSUUID,
-        FsLabel:      stats.FSLabel,
-        TotalDevices: int32(stats.TotalDevices),
-        DeviceStats:  deviceStats,
-    }, nil
+	return &btrfsGrpc.RaidStats{
+		Version:      stats.Header.Version,
+		FsUuid:       stats.FSUUID,
+		FsLabel:      stats.FSLabel,
+		TotalDevices: int32(stats.TotalDevices),
+		DeviceStats:  deviceStats,
+	}, nil
 }

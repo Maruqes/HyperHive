@@ -97,61 +97,77 @@ func findByID(name string) string {
 // - test = true → não filtra por TYPE (permite ver "loop", etc.)
 // - test = false → só TYPE == "disk"
 func GetAllDisks(test bool) ([]MinDisk, error) {
-	// Use only `btrfs` commands to enumerate devices that belong to BTRFS filesystems.
-	// This intentionally limits the scope to devices referenced by btrfs filesystems.
-	cmd := exec.Command("btrfs", "filesystem", "show")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		// If no filesystems are present, return empty slice instead of failing hard
-		if len(bytes.TrimSpace(out)) == 0 {
-			return []MinDisk{}, nil
+	// Map of devices that belong to any BTRFS filesystem
+	btrfsInUse := make(map[string]bool)
+	if devsByUUID, _, _, err := collectBtrfsDevices(); err == nil {
+		for _, devs := range devsByUUID {
+			for _, d := range devs {
+				path := strings.TrimSpace(d.Path)
+				if path != "" {
+					btrfsInUse[path] = true
+				}
+			}
 		}
-		return nil, fmt.Errorf("btrfs filesystem show failed: %w: %s", err, string(out))
+	} else {
+		logger.Debug(fmt.Sprintf("collectBtrfsDevices failed: %v", err))
 	}
 
-	lines := strings.Split(string(out), "\n")
-	seen := make(map[string]bool)
-	var disks []MinDisk
+	// lsblk in JSON with SIZE in bytes (-b) to list all block devices
+	cmd := exec.Command("lsblk", "-d", "-b", "-J", "-o", "NAME,PATH,MODEL,VENDOR,SERIAL,SIZE,ROTA,TYPE,TRAN")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list disks with lsblk: %w", err)
+	}
 
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
+	var parsed struct {
+		Blockdevices []struct {
+			Name   string          `json:"name"`
+			Path   string          `json:"path"`
+			Model  string          `json:"model"`
+			Vendor string          `json:"vendor"`
+			Serial string          `json:"serial"`
+			Size   json.RawMessage `json:"size"` // can be number or string
+			Rota   json.RawMessage `json:"rota"`
+			Type   string          `json:"type"`
+			Tran   string          `json:"tran"`
+		} `json:"blockdevices"`
+	}
+
+	if err := json.Unmarshal(output, &parsed); err != nil {
+		return nil, fmt.Errorf("json parse error: %w", err)
+	}
+
+	var disks []MinDisk
+	for _, d := range parsed.Blockdevices {
+		if d.Type != "disk" && !test {
 			continue
 		}
-		if strings.HasPrefix(line, "devid") {
-			// example: "devid    1 size 3.64TiB used 27.00GiB path /dev/sdb"
-			parts := strings.Fields(line)
-			if len(parts) < 8 {
-				continue
-			}
-			// path is usually the last token
-			path := parts[len(parts)-1]
-			if path == "MISSING" || path == "" {
-				continue
-			}
-			if seen[path] {
-				continue
-			}
-			seen[path] = true
 
-			sizeBytes := int64(parseSize(parts[3]))
-			sizeGB := float64(sizeBytes) / (1024 * 1024 * 1024)
-
-			md := MinDisk{
-				Path:       path,
-				Name:       filepath.Base(path),
-				Model:      "",
-				Vendor:     "",
-				Serial:     "",
-				Rotational: false,
-				SizeGB:     sizeGB,
-				Mounted:    true, // device is referenced by a btrfs fs -> consider in-use
-				ByID:       findByID(filepath.Base(path)),
-				Transport:  "",
-				PCIPath:    "",
-			}
-			disks = append(disks, md)
+		path := d.Path
+		if strings.TrimSpace(path) == "" {
+			path = "/dev/" + d.Name
 		}
+
+		sizeBytes := parseInt64(d.Size)
+		sizeGB := float64(sizeBytes) / (1024 * 1024 * 1024)
+
+		mounted := btrfsInUse[path] || isMounted(path)
+
+		md := MinDisk{
+			Path:       path,
+			Name:       d.Name,
+			Model:      strings.TrimSpace(d.Model),
+			Vendor:     strings.TrimSpace(d.Vendor),
+			Serial:     strings.TrimSpace(d.Serial),
+			Rotational: parseBoolFromInt(d.Rota),
+			SizeGB:     sizeGB,
+			Mounted:    mounted,
+			ByID:       findByID(d.Name),
+			Transport:  strings.TrimSpace(d.Tran),
+			PCIPath:    "/sys/block/" + d.Name + "/device",
+		}
+
+		disks = append(disks, md)
 	}
 
 	return disks, nil
