@@ -1,6 +1,8 @@
 package btrfs
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -90,20 +92,147 @@ func formatBytes(value int64) string {
 	return fmt.Sprintf("%.2f %s", floatVal, units[idx])
 }
 
+type DeviceStat struct {
+	Device         string `json:"device"`
+	DevID          int    `json:"devid"`
+	WriteIOErrs    int    `json:"write_io_errs"`
+	ReadIOErrs     int    `json:"read_io_errs"`
+	FlushIOErrs    int    `json:"flush_io_errs"`
+	CorruptionErrs int    `json:"corruption_errs"`
+	GenerationErrs int    `json:"generation_errs"`
+	BalanceStatus  string `json:"balance_status"`
+
+	FSUUID          string `json:"fs_uuid,omitempty"`
+	FSLabel         string `json:"fs_label,omitempty"`
+	DeviceSizeBytes uint64 `json:"device_size_bytes,omitempty"`
+	DeviceUsedBytes uint64 `json:"device_used_bytes,omitempty"`
+	DeviceMissing   bool   `json:"device_missing,omitempty"`
+}
+
 type DeviceStats struct {
 	Header struct {
 		Version string `json:"version"`
 	} `json:"__header"`
-	DeviceStats []struct {
-		Device         string `json:"device"`
-		DevID          int    `json:"devid"`
-		WriteIOErrs    int    `json:"write_io_errs"`
-		ReadIOErrs     int    `json:"read_io_errs"`
-		FlushIOErrs    int    `json:"flush_io_errs"`
-		CorruptionErrs int    `json:"corruption_errs"`
-		GenerationErrs int    `json:"generation_errs"`
-		BalanceStatus  string `json:"balance_status"`
-	} `json:"device-stats"`
+
+	// Info de FS ao nível global (útil se quiseres)
+	FSUUID       string `json:"fs_uuid,omitempty"`
+	FSLabel      string `json:"fs_label,omitempty"`
+	TotalDevices int    `json:"total_devices,omitempty"`
+
+	DeviceStats []DeviceStat `json:"device-stats"`
+}
+
+type BtrfsDeviceInfo struct {
+	DevID   int64  `json:"devid"`
+	Size    uint64 `json:"size_bytes"`
+	Used    uint64 `json:"used_bytes"`
+	Path    string `json:"path"`
+	Missing bool   `json:"missing"`
+}
+
+type BtrfsFilesystemInfo struct {
+	Label        string            `json:"label"`
+	UUID         string            `json:"uuid"`
+	TotalDevices int               `json:"total_devices"`
+	FSBytesUsed  uint64            `json:"fs_bytes_used"`
+	Devices      []BtrfsDeviceInfo `json:"devices"`
+}
+
+func GetBtrfsFilesystemInfo(mountpoint string) (*BtrfsFilesystemInfo, error) {
+	cmd := exec.Command("btrfs", "filesystem", "show", "-m", mountpoint)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("btrfs filesystem show failed: %w: %s", err, string(out))
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(out))
+	fsInfo := &BtrfsFilesystemInfo{}
+
+	var devices []BtrfsDeviceInfo
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+
+		// Header: Label + UUID
+		if strings.HasPrefix(line, "Label:") {
+			// Label: 'test'  uuid: e0607e63-...
+			parts := strings.Split(line, "uuid:")
+			if len(parts) == 2 {
+				labelPart := strings.TrimSpace(strings.TrimPrefix(parts[0], "Label:"))
+				fsInfo.Label = strings.Trim(labelPart, "' ")
+
+				fsInfo.UUID = strings.TrimSpace(parts[1])
+			}
+			continue
+		}
+
+		// Total devices + FS bytes used
+		if strings.Contains(line, "Total devices") {
+			// Total devices 3 FS bytes used 24.84GiB
+			parts := strings.Fields(line)
+			if len(parts) >= 7 {
+				total, _ := strconv.Atoi(parts[2])
+				fsInfo.TotalDevices = total
+				fsInfo.FSBytesUsed = parseSize(parts[6])
+			}
+			continue
+		}
+
+		// Device lines
+		if strings.HasPrefix(line, "devid") {
+			// devid 1 size 3.64TiB used 27.00GiB path /dev/sdb
+			parts := strings.Fields(line)
+			if len(parts) < 10 {
+				continue
+			}
+
+			devID, _ := strconv.ParseInt(parts[1], 10, 64)
+			sizeBytes := parseSize(parts[3])
+			usedBytes := parseSize(parts[6])
+			path := parts[9]
+			missing := path == "MISSING"
+
+			devices = append(devices, BtrfsDeviceInfo{
+				DevID:   devID,
+				Size:    sizeBytes,
+				Used:    usedBytes,
+				Path:    path,
+				Missing: missing,
+			})
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	fsInfo.Devices = devices
+	return fsInfo, nil
+}
+
+func parseSize(s string) uint64 {
+	s = strings.TrimSpace(s)
+	multipliers := map[string]float64{
+		"TiB": 1024 * 1024 * 1024 * 1024,
+		"GiB": 1024 * 1024 * 1024,
+		"MiB": 1024 * 1024,
+		"KiB": 1024,
+		"B":   1,
+	}
+
+	for unit, mul := range multipliers {
+		if strings.HasSuffix(s, unit) {
+			numStr := strings.TrimSuffix(s, unit)
+			num, _ := strconv.ParseFloat(numStr, 64)
+			return uint64(num * mul)
+		}
+	}
+
+	n, _ := strconv.ParseUint(s, 10, 64)
+	return n
 }
 
 func (d *DeviceStats) Print() {
@@ -113,19 +242,26 @@ func (d *DeviceStats) Print() {
 	}
 
 	fmt.Printf("BTRFS device stats (version %s)\n", d.Header.Version)
+	if d.FSUUID != "" {
+		fmt.Printf("  FS Label: %s  UUID: %s  TotalDevices: %d\n", d.FSLabel, d.FSUUID, d.TotalDevices)
+	}
+
 	if len(d.DeviceStats) == 0 {
 		fmt.Println("  <no devices>")
 		return
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "DEVICE\tDEVID\tWRITE_ERRS\tREAD_ERRS\tFLUSH_ERRS\tCORRUPTION_ERRS\tGENERATION_ERRS\tBALANCE_STATUS")
+	fmt.Fprintln(w, "DEVICE\tDEVID\tSIZE_BYTES\tUSED_BYTES\tMISSING\tWRITE_ERRS\tREAD_ERRS\tFLUSH_ERRS\tCORRUPTION_ERRS\tGENERATION_ERRS\tBALANCE_STATUS")
 	for _, stat := range d.DeviceStats {
 		fmt.Fprintf(
 			w,
-			"%s\t%d\t%d\t%d\t%d\t%d\t%d\t%s\n",
+			"%s\t%d\t%d\t%d\t%v\t%d\t%d\t%d\t%d\t%d\t%s\n",
 			stat.Device,
 			stat.DevID,
+			stat.DeviceSizeBytes,
+			stat.DeviceUsedBytes,
+			stat.DeviceMissing,
 			stat.WriteIOErrs,
 			stat.ReadIOErrs,
 			stat.FlushIOErrs,
@@ -153,11 +289,39 @@ func GetFileSystemStats(mountPoint string) (*DeviceStats, error) {
 		return nil, fmt.Errorf("failed to unmarshal device stats: %w (output: %s)", err, string(output))
 	}
 
-	// Get balance status for each device
+	// Balance status (global por FS)
 	balanceStatus, _ := GetBalanceStatus(mountPoint)
 	for i := range stats.DeviceStats {
 		stats.DeviceStats[i].BalanceStatus = balanceStatus
 	}
+
+	// 🔗 Enriquecer com info do `btrfs filesystem show -m`
+	fsInfo, err := GetBtrfsFilesystemInfo(mountPoint)
+	if err == nil {
+		// Guardar info global do FS
+		stats.FSUUID = fsInfo.UUID
+		stats.FSLabel = fsInfo.Label
+		stats.TotalDevices = fsInfo.TotalDevices
+
+		// Map por devid para acesso rápido
+		devByID := make(map[int64]BtrfsDeviceInfo, len(fsInfo.Devices))
+		for _, d := range fsInfo.Devices {
+			devByID[d.DevID] = d
+		}
+
+		// Enriquecer cada deviceStat
+		for i := range stats.DeviceStats {
+			ds := &stats.DeviceStats[i]
+
+			if dev, ok := devByID[int64(ds.DevID)]; ok {
+				ds.FSUUID = fsInfo.UUID
+				ds.FSLabel = fsInfo.Label
+				ds.DeviceSizeBytes = dev.Size
+				ds.DeviceUsedBytes = dev.Used
+				ds.DeviceMissing = dev.Missing
+			}
+		}
+	} // se falhar, ficas só com os stats “normais”
 
 	return &stats, nil
 }
