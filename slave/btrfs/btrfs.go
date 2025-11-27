@@ -667,6 +667,11 @@ func AddDiskToRaid(diskPath string, target string) error {
 		return fmt.Errorf("%s", "diskpath its not a disk -> "+diskPath)
 	}
 
+	err := wipeDiskSignatures(diskPath)
+	if err != nil {
+		return err
+	}
+
 	//check if is not mounted anywhere
 	if isMounted(diskPath) {
 		return fmt.Errorf("%s", "disk path is already mounted somewhere -> "+diskPath)
