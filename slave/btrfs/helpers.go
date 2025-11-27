@@ -97,93 +97,61 @@ func findByID(name string) string {
 // - test = true → não filtra por TYPE (permite ver "loop", etc.)
 // - test = false → só TYPE == "disk"
 func GetAllDisks(test bool) ([]MinDisk, error) {
-	// Map de devices BTRFS já em uso, para não os sugerir como "livres"
-	btrfsInUse := make(map[string]bool)
-
-	if devsByUUID, _, _, err := collectBtrfsDevices(); err == nil {
-		for _, devs := range devsByUUID {
-			fsMounted := false
-			for _, d := range devs {
-				if strings.TrimSpace(d.MountPoint) != "" || d.Mounted {
-					fsMounted = true
-					break
-				}
-			}
-			if fsMounted {
-				for _, d := range devs {
-					path := strings.TrimSpace(d.Path)
-					if path != "" {
-						btrfsInUse[path] = true
-					}
-				}
-			}
-		}
-	} else {
-		// ajusta ao teu logger real
-		logger.Error(fmt.Sprintf("failed to collect btrfs devices: %v", err))
-	}
-
-	// lsblk em JSON com os campos que queremos, e SIZE em bytes (-b)
-	cmd := exec.Command(
-		"lsblk", "-d", "-b", "-J",
-		"-o", "NAME,PATH,MODEL,VENDOR,SERIAL,SIZE,ROTA,TYPE,TRAN",
-	)
-
-	output, err := cmd.Output()
+	// Use only `btrfs` commands to enumerate devices that belong to BTRFS filesystems.
+	// This intentionally limits the scope to devices referenced by btrfs filesystems.
+	cmd := exec.Command("btrfs", "filesystem", "show")
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list disks with lsblk: %w", err)
+		// If no filesystems are present, return empty slice instead of failing hard
+		if len(bytes.TrimSpace(out)) == 0 {
+			return []MinDisk{}, nil
+		}
+		return nil, fmt.Errorf("btrfs filesystem show failed: %w: %s", err, string(out))
 	}
 
-	// struct para fazer unmarshal ao JSON de lsblk
-	var parsed struct {
-		Blockdevices []struct {
-			Name   string          `json:"name"`
-			Path   string          `json:"path"`
-			Model  string          `json:"model"`
-			Vendor string          `json:"vendor"`
-			Serial string          `json:"serial"`
-			Size   json.RawMessage `json:"size"` // pode ser número ou string
-			Rota   json.RawMessage `json:"rota"` // idem
-			Type   string          `json:"type"`
-			Tran   string          `json:"tran"`
-		} `json:"blockdevices"`
-	}
-
-	if err := json.Unmarshal(output, &parsed); err != nil {
-		return nil, fmt.Errorf("json parse error: %w", err)
-	}
-
+	lines := strings.Split(string(out), "\n")
+	seen := make(map[string]bool)
 	var disks []MinDisk
 
-	for _, d := range parsed.Blockdevices {
-		// manter o comportamento antigo
-		if d.Type != "disk" && !test {
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
 			continue
 		}
+		if strings.HasPrefix(line, "devid") {
+			// example: "devid    1 size 3.64TiB used 27.00GiB path /dev/sdb"
+			parts := strings.Fields(line)
+			if len(parts) < 8 {
+				continue
+			}
+			// path is usually the last token
+			path := parts[len(parts)-1]
+			if path == "MISSING" || path == "" {
+				continue
+			}
+			if seen[path] {
+				continue
+			}
+			seen[path] = true
 
-		path := d.Path
-		if strings.TrimSpace(path) == "" {
-			path = "/dev/" + d.Name
+			sizeBytes := int64(parseSize(parts[3]))
+			sizeGB := float64(sizeBytes) / (1024 * 1024 * 1024)
+
+			md := MinDisk{
+				Path:       path,
+				Name:       filepath.Base(path),
+				Model:      "",
+				Vendor:     "",
+				Serial:     "",
+				Rotational: false,
+				SizeGB:     sizeGB,
+				Mounted:    true, // device is referenced by a btrfs fs -> consider in-use
+				ByID:       findByID(filepath.Base(path)),
+				Transport:  "",
+				PCIPath:    "",
+			}
+			disks = append(disks, md)
 		}
-
-		sizeBytes := parseInt64(d.Size)
-		sizeGB := float64(sizeBytes) / (1024 * 1024 * 1024)
-
-		md := MinDisk{
-			Path:       path,
-			Name:       d.Name,
-			Model:      strings.TrimSpace(d.Model),
-			Vendor:     strings.TrimSpace(d.Vendor),
-			Serial:     strings.TrimSpace(d.Serial),
-			Rotational: parseBoolFromInt(d.Rota),
-			SizeGB:     sizeGB,
-			Mounted:    btrfsInUse[path] || isMounted(path),
-			ByID:       findByID(d.Name),
-			Transport:  strings.TrimSpace(d.Tran),
-			PCIPath:    "/sys/block/" + d.Name + "/device",
-		}
-
-		disks = append(disks, md)
 	}
 
 	return disks, nil
@@ -316,136 +284,111 @@ type usageStats struct {
 }
 
 func GetAllFileSystems() (*FindMntOutput, error) {
-	findmntOutput, err := runFindmnt()
+	// Use `btrfs filesystem show` output to discover filesystems and their devices.
+	cmd := exec.Command("btrfs", "filesystem", "show")
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, err
-	}
-	if findmntOutput == nil {
-		findmntOutput = &FindMntOutput{}
-	}
-
-	devicesByUUID, labelsByUUID, sizeByUUID, err := collectBtrfsDevices()
-	if err != nil {
-		return nil, err
+		// if no output, return empty structure
+		if len(bytes.TrimSpace(out)) == 0 {
+			return &FindMntOutput{}, nil
+		}
+		return nil, fmt.Errorf("btrfs filesystem show failed: %w: %s", err, string(out))
 	}
 
-	usageByUUID := make(map[string]usageStats)
-	seenUUID := make(map[string]bool)
+	var result FindMntOutput
+	scanner := bytes.NewBuffer(out)
+	lines := strings.Split(scanner.String(), "\n")
 
-	// Enrich existing mount information with device/usage data
-	walkFileSystems(findmntOutput.FileSystems, func(fs *FileSystem) {
-		fs.Mounted = true
-		fs.Compression = extractCompressionFromOptions(fs.Options)
-		if fs.UUID == "" {
-			return
-		}
+	var cur *FileSystem
 
-		seenUUID[fs.UUID] = true
-
-		if label := labelsByUUID[fs.UUID]; label != "" && fs.Label == "" {
-			fs.Label = label
-		}
-
-		if fs.Label == "" && fs.Target != "" {
-			fs.Label = getBtrfsLabel(fs.Target)
-		}
-
-		if devs, ok := devicesByUUID[fs.UUID]; ok {
-			fs.Devices = append([]BtrfsDevice(nil), devs...)
-			if total := sizeByUUID[fs.UUID]; total > 0 {
-				fs.RealMaxSpace = total
+	for _, raw := range lines {
+		line := strings.TrimSpace(raw)
+		if line == "" {
+			if cur != nil {
+				result.FileSystems = append(result.FileSystems, *cur)
+				cur = nil
 			}
-		}
-
-		if _, ok := usageByUUID[fs.UUID]; !ok && fs.Target != "" {
-			if usage, err := filesystemUsage(fs.Target); err == nil {
-				usageByUUID[fs.UUID] = usage
-			} else {
-				logger.Error(fmt.Sprintf("failed to inspect filesystem %s: %v", fs.Target, err))
-			}
-		}
-
-		if usage, ok := usageByUUID[fs.UUID]; ok {
-			fs.MaxSpace = usage.maxBytes
-			fs.UsedSpace = usage.usedBytes
-			if fs.RealMaxSpace == 0 {
-				fs.RealMaxSpace = usage.maxBytes
-			}
-			fs.RealUsedSpace = usage.usedBytes
-			if fs.RaidType == "" {
-				fs.RaidType = usage.raidProfile
-			}
-		}
-
-		if fs.RaidType == "" {
-			fs.RaidType = detectRaidProfile(fs.Target, fs.Devices)
-		}
-	})
-
-	// Append devices that are not currently mounted anywhere
-	for uuid, devs := range devicesByUUID {
-		if seenUUID[uuid] {
 			continue
 		}
 
-		var target string
-		mounted := false
-		for _, dev := range devs {
-			mp := strings.TrimSpace(dev.MountPoint)
-			if mp != "" {
-				target = mp
-				mounted = true
-				break
+		// Header with label + uuid
+		if strings.HasPrefix(line, "Label:") || strings.Contains(line, "uuid:") {
+			// begin new filesystem block
+			if cur != nil {
+				result.FileSystems = append(result.FileSystems, *cur)
 			}
-		}
-		if mounted {
-			mounted = isMountPoint(target)
-		}
+			cur = &FileSystem{FSType: "btrfs", Devices: []BtrfsDevice{}}
 
-		source := aggregateDeviceSources(devs)
-		if source == "" && len(devs) > 0 {
-			source = devs[0].Path
-		}
-
-		fs := FileSystem{
-			Target:        target,
-			Source:        source,
-			FSType:        "btrfs",
-			UUID:          uuid,
-			Label:         labelsByUUID[uuid],
-			Compression:   "",
-			Mounted:       mounted,
-			MaxSpace:      0,
-			UsedSpace:     0,
-			RealMaxSpace:  sizeByUUID[uuid],
-			RealUsedSpace: 0,
-			Devices:       append([]BtrfsDevice(nil), devs...),
-		}
-
-		if fs.Label == "" && fs.Target != "" {
-			fs.Label = getBtrfsLabel(fs.Target)
-		}
-
-		if usage, ok := usageByUUID[uuid]; ok {
-			fs.MaxSpace = usage.maxBytes
-			fs.UsedSpace = usage.usedBytes
-			if fs.RealMaxSpace == 0 {
-				fs.RealMaxSpace = usage.maxBytes
+			// try to extract label and uuid: "Label: 'name'  uuid: xxxxx"
+			if strings.HasPrefix(line, "Label:") {
+				parts := strings.Split(line, "uuid:")
+				if len(parts) == 2 {
+					labelPart := strings.TrimSpace(strings.TrimPrefix(parts[0], "Label:"))
+					cur.Label = strings.Trim(labelPart, "' ")
+					cur.UUID = strings.TrimSpace(parts[1])
+				} else {
+					// maybe line contains uuid only
+					if strings.Contains(line, "uuid:") {
+						p := strings.Split(line, "uuid:")
+						cur.UUID = strings.TrimSpace(p[len(p)-1])
+					}
+				}
+			} else if strings.Contains(line, "uuid:") {
+				// fallback
+				parts := strings.Split(line, "uuid:")
+				cur.UUID = strings.TrimSpace(parts[len(parts)-1])
 			}
-			fs.RealUsedSpace = usage.usedBytes
-			if fs.RaidType == "" {
-				fs.RaidType = usage.raidProfile
+			continue
+		}
+
+		// device lines: start with 'devid'
+		if strings.HasPrefix(line, "devid") {
+			parts := strings.Fields(line)
+			if len(parts) < 8 || cur == nil {
+				continue
 			}
+			// last token is path
+			path := parts[len(parts)-1]
+			if path == "MISSING" {
+				// mark missing device
+			}
+			sizeBytes := int64(parseSize(parts[3]))
+			dev := BtrfsDevice{
+				Name:      filepath.Base(path),
+				Path:      path,
+				Type:      "",
+				Label:     "",
+				UUID:      "",
+				SizeBytes: sizeBytes,
+				Mounted:   false,
+			}
+			cur.Devices = append(cur.Devices, dev)
+			cur.RealMaxSpace += sizeBytes
+			continue
 		}
 
-		if fs.RaidType == "" {
-			fs.RaidType = detectRaidProfile(fs.Target, fs.Devices)
+		// Total devices line - attempt to capture FS bytes used
+		if strings.HasPrefix(line, "Total devices") && cur != nil {
+			// format: Total devices 1 FS bytes used 24.84GiB
+			parts := strings.Fields(line)
+			for i := 0; i < len(parts)-1; i++ {
+				if parts[i] == "devices" && i+1 < len(parts) {
+					// skip
+				}
+				if parts[i] == "used" && i+1 < len(parts) {
+					cur.RealUsedSpace = int64(parseSize(parts[i+1]))
+				}
+			}
+			continue
 		}
-
-		findmntOutput.FileSystems = append(findmntOutput.FileSystems, fs)
 	}
 
-	return findmntOutput, nil
+	// append last block if any
+	if cur != nil {
+		result.FileSystems = append(result.FileSystems, *cur)
+	}
+
+	return &result, nil
 }
 
 func GetFileSystemByMountPoint(mountPoint string) (*FileSystem, error) {
@@ -678,8 +621,7 @@ func collectBtrfsDevices() (map[string][]BtrfsDevice, map[string]string, map[str
 		if fstype == "btrfs" {
 			uuid := dev.getUUID()
 			path := dev.getPath()
-			// if uuid != "" && path != "" {
-			if path != "" {
+			if uuid != "" && path != "" {
 				device := BtrfsDevice{
 					Name:       dev.Name,
 					Path:       path,
