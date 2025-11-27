@@ -678,7 +678,8 @@ func collectBtrfsDevices() (map[string][]BtrfsDevice, map[string]string, map[str
 		if fstype == "btrfs" {
 			uuid := dev.getUUID()
 			path := dev.getPath()
-			if uuid != "" && path != "" {
+			// if uuid != "" && path != "" {
+			if path != "" {
 				device := BtrfsDevice{
 					Name:       dev.Name,
 					Path:       path,
