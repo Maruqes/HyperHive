@@ -10,5 +10,3 @@ func (*Network) Remove(url string) error {
 	return nil
 }
 
-}}
-
