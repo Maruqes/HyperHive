@@ -215,23 +215,36 @@ func GetBtrfsFilesystemInfo(mountpoint string) (*BtrfsFilesystemInfo, error) {
 
 func parseSize(s string) uint64 {
 	s = strings.TrimSpace(s)
-	multipliers := map[string]float64{
-		"TiB": 1024 * 1024 * 1024 * 1024,
-		"GiB": 1024 * 1024 * 1024,
-		"MiB": 1024 * 1024,
-		"KiB": 1024,
-		"B":   1,
+
+	type unitInfo struct {
+		suffix string
+		mul    float64
 	}
 
-	for unit, mul := range multipliers {
-		if strings.HasSuffix(s, unit) {
-			numStr := strings.TrimSuffix(s, unit)
-			num, _ := strconv.ParseFloat(numStr, 64)
-			return uint64(num * mul)
+	units := []unitInfo{
+		{"TiB", 1024 * 1024 * 1024 * 1024},
+		{"GiB", 1024 * 1024 * 1024},
+		{"MiB", 1024 * 1024},
+		{"KiB", 1024},
+		{"B", 1},
+	}
+
+	for _, u := range units {
+		if strings.HasSuffix(s, u.suffix) {
+			numStr := strings.TrimSpace(strings.TrimSuffix(s, u.suffix))
+			num, err := strconv.ParseFloat(numStr, 64)
+			if err != nil {
+				return 0
+			}
+			return uint64(num * u.mul)
 		}
 	}
 
-	n, _ := strconv.ParseUint(s, 10, 64)
+	// fallback bruto: número em bytes sem unidade
+	n, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return 0
+	}
 	return n
 }
 
@@ -309,14 +322,19 @@ func GetFileSystemStats(mountPoint string) (*DeviceStats, error) {
 
 		for i := range stats.DeviceStats {
 			ds := &stats.DeviceStats[i]
-			if dev, ok := devByID[int64(ds.DevID)]; ok {
-				ds.FSUUID = fsInfo.UUID
-				ds.FSLabel = fsInfo.Label
-				ds.DeviceSizeBytes = dev.Size
-				ds.DeviceUsedBytes = dev.Used
-				ds.DeviceMissing = dev.Missing
+			dev, ok := devByID[int64(ds.DevID)]
+			if !ok {
+				logger.Warn("no dev match for devid", "devid", ds.DevID)
+				continue
 			}
+
+			ds.FSUUID = fsInfo.UUID
+			ds.FSLabel = fsInfo.Label
+			ds.DeviceSizeBytes = dev.Size
+			ds.DeviceUsedBytes = dev.Used
+			ds.DeviceMissing = dev.Missing
 		}
+
 	} else {
 		logger.Error("nao deu para ver o btrfs filesystem show -m")
 	}
