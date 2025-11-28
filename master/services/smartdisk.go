@@ -159,7 +159,7 @@ func (s *SmartDiskService) DoAutomaticTest() {
 
 		for {
 			s.runDueSchedules()
-			time.Sleep(20 * time.Second)
+			time.Sleep(20 * time.Minute)
 		}
 	}()
 }

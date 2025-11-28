@@ -4,6 +4,7 @@ import (
 	"512SvMan/api"
 	"512SvMan/db"
 	"512SvMan/env512"
+	"512SvMan/info"
 	"512SvMan/logs512"
 	"512SvMan/protocol"
 	"512SvMan/services"
@@ -385,9 +386,11 @@ func main() {
 	protocol.ListenGRPC(newSlave)
 
 	virshService := services.VirshService{}
-	virshService.LoopAutomaticBaks()
 	smartDiskService := services.SmartDiskService{}
+
+	virshService.LoopAutomaticBaks()
 	smartDiskService.DoAutomaticTest()
+	info.LoopNots()
 
 	api.StartApi()
 
