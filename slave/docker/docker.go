@@ -1,54 +1,79 @@
 package docker
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"strings"
+
+	"github.com/Maruqes/512SvMan/logger"
 )
+
+func runCommand(desc string, args ...string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("%s: no command provided", desc)
+	}
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Stdin = os.Stdin
+	var stdoutBuf, stderrBuf bytes.Buffer
+	cmd.Stdout = io.MultiWriter(os.Stdout, &stdoutBuf)
+	cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
+
+	err := cmd.Run()
+
+	cmdStr := strings.Join(cmd.Args, " ")
+	stdoutStr := strings.TrimSpace(stdoutBuf.String())
+	stderrStr := strings.TrimSpace(stderrBuf.String())
+
+	if err != nil {
+		exitInfo := err.Error()
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitInfo = fmt.Sprintf("exit code %d", exitErr.ExitCode())
+		}
+
+		logger.Error(fmt.Sprintf("%s failed (cmd=%s)", desc, cmdStr))
+		if exitInfo != "" {
+			logger.Error(desc + " exit info: " + exitInfo)
+		}
+		if stderrStr != "" {
+			logger.Error(desc + " stderr: " + stderrStr)
+		}
+		if stdoutStr != "" {
+			logger.Error(desc + " stdout: " + stdoutStr)
+		}
+
+		details := []string{fmt.Sprintf("cmd=%s", cmdStr)}
+		if exitInfo != "" {
+			details = append(details, "exit="+exitInfo)
+		}
+		if stderrStr != "" {
+			details = append(details, "stderr="+stderrStr)
+		}
+		if stdoutStr != "" {
+			details = append(details, "stdout="+stdoutStr)
+		}
+
+		return fmt.Errorf("%s failed (%s): %w", desc, strings.Join(details, "; "), err)
+	}
+
+	logger.Info(fmt.Sprintf("%s succeeded (cmd=%s)", desc, cmdStr))
+	return nil
+}
 
 // InstallLatestDocker installs Docker using DNF only. It will attempt to run
 // commands as the current user; if not running as root it will prefix
 // commands with `sudo`.
 func InstallLatestDocker() error {
-	// Ensure dnf exists
-	if _, err := exec.LookPath("dnf"); err != nil {
-		return fmt.Errorf("dnf not found: %w", err)
+	installCmd := "curl -fsSL https://get.docker.com | sh"
+	if err := runCommand("install docker", "sh", "-c", installCmd); err != nil {
+		return fmt.Errorf("failed to install docker via get.docker.com: %w", err)
 	}
 
-	run := func(cmd string, args ...string) error {
-		var c *exec.Cmd
-		if os.Geteuid() != 0 {
-			// Prepend sudo
-			c = exec.Command("sudo", append([]string{cmd}, args...)...)
-		} else {
-			c = exec.Command(cmd, args...)
-		}
-		out, err := c.CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("command %s %v failed: %v: %s", cmd, args, err, string(out))
-		}
-		return nil
+	// Enable + start Docker daemon
+	if err := runCommand("start docker", "systemctl", "enable", "--now", "docker"); err != nil {
+		return fmt.Errorf("failed to start docker: %w", err)
 	}
-
-	// Install dnf-plugins-core (provides config-manager)
-	if err := run("dnf", "-y", "install", "dnf-plugins-core"); err != nil {
-		return err
-	}
-
-	// Add Docker CE repo (Fedora/CentOS style from Docker official)
-	if err := run("dnf", "config-manager", "--add-repo", "https://download.docker.com/linux/fedora/docker-ce.repo"); err != nil {
-		return err
-	}
-
-	// Install Docker packages
-	if err := run("dnf", "-y", "install", "docker-ce", "docker-ce-cli", "containerd.io", "docker-compose-plugin"); err != nil {
-		return err
-	}
-
-	// Enable and start Docker
-	if err := run("systemctl", "enable", "--now", "docker"); err != nil {
-		return err
-	}
-
 	return nil
 }
