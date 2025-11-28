@@ -728,6 +728,10 @@ func main() {
 	if err := docker.InstallLatestDocker(); err != nil {
 		log.Fatalf("docker setup %v", err)
 	}
+	err := docker.NewDockerService()
+	if err != nil {
+		log.Fatalf("docker service %v", err)
+	}
 
 	//varsc
 	if err := env512.Setup(); err != nil {

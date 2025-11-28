@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package docker;
+
+option go_package = "github.com/Maruqes/512SvMan/api/proto/docker;proto";
+
+message Empty{}
+
+message DownloadImage{
+	string imageRef = 1;
+	string registry = 2;
+}
+
+message Remove{
+	string imageId = 1;
+	bool force = 2;
+	bool pruneChild = 3;
+}
+
+
+message ImageSummary {
+	// Number of containers using this image. -1 indicates unset/not calculated.
+	int64 containers = 1;
+
+	// Date/time at which the image was created as a Unix timestamp.
+	int64 created = 2;
+
+	// Content-addressable ID of the image.
+	string id = 3;
+
+	// User-defined key/value metadata.
+	map<string, string> labels = 4;
+
+	// ID of the parent image (may be empty).
+	string parent_id = 5;
+
+	// Descriptor is experimental. Represented as opaque bytes here.
+	bytes descriptor = 6;
+
+	// List of content-addressable digests of locally available image manifests.
+	repeated string repo_digests = 8;
+
+	// List of image names/tags in the local image cache referencing this image.
+	repeated string repo_tags = 9;
+
+	// Total size of image layers shared between this image and others. -1 if unset.
+	int64 shared_size = 10;
+
+	// Total size of the image including all layers.
+	int64 size = 11;
+
+	// Deprecated: omitted in newer APIs; kept for backward compatibility.
+	int64 virtual_size = 12;
+}
+
+message ListOfImages{
+	repeated ImageSummary imgs = 1;
+}
+
+
+service DockerService {
+	rpc ImageDownload(DownloadImage) returns (Empty);
+	rpc ImageRemove(Remove) returns (Empty);
+	rpc ImageList(Empty) returns (ListOfImages);
+}

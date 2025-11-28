@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"slave/btrfs"
+	"slave/docker"
 	"slave/env512"
 	"slave/extra"
 	"slave/info"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	btrfsGrpc "github.com/Maruqes/512SvMan/api/proto/btrfs"
+	dockerGRPC "github.com/Maruqes/512SvMan/api/proto/docker"
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
 	infoGrpc "github.com/Maruqes/512SvMan/api/proto/info"
 	nfsproto "github.com/Maruqes/512SvMan/api/proto/nfs"
@@ -90,6 +92,7 @@ func listenGRPC() {
 	infoGrpc.RegisterInfoServer(s, &info.INFOService{})
 	smartdiskGrpc.RegisterSmartDiskServiceServer(s, &smartdisk.Service{})
 	btrfsGrpc.RegisterBtrFSServiceServer(s, &btrfs.BTRFSService{})
+	dockerGRPC.RegisterDockerServiceServer(s, &docker.DockerService{})
 	logger.Info("client services listening", "port", 50052)
 	if err := s.Serve(lis); err != nil {
 		logger.Error("client gRPC serve failed", "error", err)

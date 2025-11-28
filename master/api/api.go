@@ -223,6 +223,7 @@ func StartApi() {
 		setupWireguardAPI(r)
 		setupBTRFS(r)
 		setupNotsAPI(r)
+		setupDockerAPI(r)
 	})
 	http.ListenAndServe(":9595", r)
 }

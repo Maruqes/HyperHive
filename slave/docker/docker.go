@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Maruqes/512SvMan/logger"
+	"github.com/docker/docker/client"
 )
 
 func runCommand(desc string, args ...string) error {
@@ -75,5 +76,19 @@ func InstallLatestDocker() error {
 	if err := runCommand("start docker", "systemctl", "enable", "--now", "docker"); err != nil {
 		return fmt.Errorf("failed to start docker: %w", err)
 	}
+	return nil
+}
+
+var cli *client.Client
+
+func NewDockerService() error {
+	cliii, err := client.NewClientWithOpts(
+		client.FromEnv,
+		client.WithAPIVersionNegotiation(),
+	)
+	if err != nil {
+		return err
+	}
+	cli = cliii
 	return nil
 }
