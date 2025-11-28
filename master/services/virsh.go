@@ -4,6 +4,7 @@ import (
 	"512SvMan/db"
 	"512SvMan/env512"
 	"512SvMan/nfs"
+	"512SvMan/nots"
 	"512SvMan/protocol"
 	"512SvMan/virsh"
 	"context"
@@ -13,10 +14,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/Maruqes/512SvMan/logger"
@@ -596,11 +599,17 @@ func (v *VirshService) GetAllVms() ([]VmType, []string, error) {
 	var allVms []VmType
 	var warningErrors []string
 
-	con := protocol.GetAllGRPCConnections()
-	for _, conn := range con {
+	var wg *sync.WaitGroup
+
+	var erros []error
+
+	addToAllVms := func(conn *grpc.ClientConn) {
+		defer wg.Done() //settar finishado no waitgroup meus caros
+
 		vms, err := virsh.GetAllVms(conn, &grpcVirsh.Empty{})
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get VMs from a machine: %v", err)
+			erros = append(erros, fmt.Errorf("failed to get VMs from a machine: %v", err))
+			return
 		}
 		for _, warning := range vms.Warnings {
 			logger.Warn(warning)
@@ -609,7 +618,7 @@ func (v *VirshService) GetAllVms() ([]VmType, []string, error) {
 		for _, vm := range vms.Vms {
 			isLive, err := db.DoesVmLiveExist(vm.Name)
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to check if live VM exists in database: %v", err)
+				erros = append(erros, fmt.Errorf("failed to check if live VM exists in database: %v", err))
 			}
 			//if name already in allVms skip
 			found := false
@@ -622,12 +631,21 @@ func (v *VirshService) GetAllVms() ([]VmType, []string, error) {
 			if found {
 				logger.Error("DOUBLE VM IN GetALLVMS")
 				logger.Error("DOUBLE VM IN GetALLVMS")
+				logger.Error("DOUBLE VM IN GetALLVMS")
+				logger.Error("DOUBLE VM IN GetALLVMS")
+				logger.Error("DOUBLE VM IN GetALLVMS")
+				nots.SendGlobalNotification("DOUBLE VM IN GetALLVMS", "DOUBLE VM IN GetALLVMS FRITOUUUUUUU", "/FUDEU", true)
 			}
 			allVms = append(allVms, VmType{Vm: vm, IsLive: isLive})
 		}
-
 	}
 
+	con := protocol.GetAllGRPCConnections()
+	for _, conn := range con {
+		wg.Add(1)
+		go addToAllVms(conn)
+	}
+	wg.Wait()
 	return allVms, warningErrors, nil
 }
 
