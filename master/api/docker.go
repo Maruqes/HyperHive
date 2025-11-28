@@ -57,7 +57,7 @@ func download(w http.ResponseWriter, r *http.Request) {
 }
 
 type removeReq struct {
-	Image      string `json:"image"`
+	ImageID    string `json:"image_id"`
 	Force      bool   `json:"force"`
 	PruneChild bool   `json:"prune_child"`
 }
@@ -73,7 +73,7 @@ func remove(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	svc := services.DockerService{}
-	if err := svc.Remove(machine, req.Image, req.Force, req.PruneChild); err != nil {
+	if err := svc.Remove(machine, req.ImageID, req.Force, req.PruneChild); err != nil {
 		logger.Errorf("docker remove failed: %v", err)
 		http.Error(w, "failed to remove image: "+err.Error(), http.StatusInternalServerError)
 		return
