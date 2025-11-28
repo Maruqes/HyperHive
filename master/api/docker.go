@@ -84,8 +84,10 @@ func remove(w http.ResponseWriter, r *http.Request) {
 
 func setupDockerAPI(r chi.Router) chi.Router {
 	return r.Route("/docker", func(r chi.Router) {
-		r.Get("/{machineName}", List)
-		r.Post("/download/{machineName}", download)
-		r.Delete("/remove/{machineName}", remove)
+		r.Route("/images", func(r chi.Router) {
+			r.Get("/{machineName}", List)
+			r.Post("/download/{machineName}", download)
+			r.Delete("/remove/{machineName}", remove)
+		})
 	})
 }
