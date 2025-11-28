@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slave/btrfs"
+	"slave/docker"
 	"slave/env512"
 	"slave/extra"
 	"slave/logs512"
@@ -723,6 +724,10 @@ func copyFile(src, dst string) error {
 
 func main() {
 	askForSudo()
+
+	if err := docker.InstallLatestDocker(); err != nil {
+		log.Fatalf("docker setup %v", err)
+	}
 
 	//varsc
 	if err := env512.Setup(); err != nil {
