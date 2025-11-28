@@ -599,28 +599,41 @@ func (v *VirshService) GetAllVms() ([]VmType, []string, error) {
 	var allVms []VmType
 	var warningErrors []string
 
-	var wg *sync.WaitGroup
-
 	var erros []error
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
 
 	addToAllVms := func(conn *grpc.ClientConn) {
 		defer wg.Done() //settar finishado no waitgroup meus caros
 
 		vms, err := virsh.GetAllVms(conn, &grpcVirsh.Empty{})
 		if err != nil {
+			mu.Lock()
 			erros = append(erros, fmt.Errorf("failed to get VMs from a machine: %v", err))
+			mu.Unlock()
 			return
 		}
-		for _, warning := range vms.Warnings {
-			logger.Warn(warning)
+
+		if len(vms.Warnings) > 0 {
+			mu.Lock()
+			for _, warning := range vms.Warnings {
+				logger.Warn(warning)
+				warningErrors = append(warningErrors, warning)
+			}
+			mu.Unlock()
 		}
 
 		for _, vm := range vms.Vms {
 			isLive, err := db.DoesVmLiveExist(vm.Name)
 			if err != nil {
+				mu.Lock()
 				erros = append(erros, fmt.Errorf("failed to check if live VM exists in database: %v", err))
+				mu.Unlock()
 			}
-			//if name already in allVms skip
+
+			//if name already in allVms skip (check under mutex)
+			mu.Lock()
 			found := false
 			for _, v := range allVms {
 				if v.Name == vm.Name {
@@ -637,6 +650,7 @@ func (v *VirshService) GetAllVms() ([]VmType, []string, error) {
 				nots.SendGlobalNotification("DOUBLE VM IN GetALLVMS", "DOUBLE VM IN GetALLVMS FRITOUUUUUUU", "/FUDEU", true)
 			}
 			allVms = append(allVms, VmType{Vm: vm, IsLive: isLive})
+			mu.Unlock()
 		}
 	}
 
@@ -646,6 +660,10 @@ func (v *VirshService) GetAllVms() ([]VmType, []string, error) {
 		go addToAllVms(conn)
 	}
 	wg.Wait()
+
+	if len(erros) > 0 {
+		return allVms, warningErrors, fmt.Errorf("encountered %d errors; first: %v", len(erros), erros[0])
+	}
 	return allVms, warningErrors, nil
 }
 
