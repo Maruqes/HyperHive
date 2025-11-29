@@ -37,7 +37,18 @@ func Setup() error {
 	MachineName = os.Getenv("MACHINE_NAME")
 	Qemu_UID = os.Getenv("QEMU_UID")
 	Qemu_GID = os.Getenv("QEMU_GID")
-	PingInterval, _ = strconv.Atoi(os.Getenv("PING_INTERVAL"))
+
+	// Parse PING_INTERVAL; default to 15 seconds on parse error or when unset
+	if s := os.Getenv("PING_INTERVAL"); s == "" {
+		PingInterval = 15
+	} else {
+		if n, err := strconv.Atoi(s); err != nil {
+			PingInterval = 15
+		} else {
+			PingInterval = n
+		}
+	}
+
 	VNC_MIN_PORT, _ = strconv.Atoi(os.Getenv("VNC_MIN_PORT"))
 	VNC_MAX_PORT, _ = strconv.Atoi(os.Getenv("VNC_MAX_PORT"))
 	DirtyRatioPercent, _ = strconv.Atoi(os.Getenv("DIRTY_RATIO_PERCENT"))

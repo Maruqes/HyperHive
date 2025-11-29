@@ -4,6 +4,7 @@ import (
 	"512SvMan/services"
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -36,7 +37,11 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(LoginResponse{Token: token})
+	if err := json.NewEncoder(w).Encode(LoginResponse{Token: token}); err != nil {
+		log.Printf("login: encode response failed: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
 }
 
 func SetTokenInContext(r *http.Request, token string) *http.Request {

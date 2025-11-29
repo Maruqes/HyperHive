@@ -58,7 +58,9 @@ func CheckConnectionStateRemove(connection ConnectionsStruct) {
 	if connection.Connection == nil {
 		log.Printf("connection for slave %s is nil, removing", connection.Addr)
 		if removed := removeConnection(connection.Addr, connection.MachineName); removed != nil && removed.Connection != nil {
-			_ = removed.Connection.Close()
+			if err := removed.Connection.Close(); err != nil {
+				log.Printf("error closing removed connection: %v", err)
+			}
 		}
 		if !tryRestoreConnection(connection.Addr, connection.MachineName) {
 			log.Printf("failed to recreate connection for slave %s after 3 attempts", connection.Addr)
@@ -81,7 +83,9 @@ func CheckConnectionStateRemove(connection ConnectionsStruct) {
 
 	log.Printf("removing slave %s from connections", connection.Addr)
 	if removed := removeConnection(connection.Addr, connection.MachineName); removed != nil && removed.Connection != nil {
-		_ = removed.Connection.Close()
+		if err := removed.Connection.Close(); err != nil {
+			log.Printf("error closing removed connection: %v", err)
+		}
 	}
 	if !tryRestoreConnection(connection.Addr, connection.MachineName) {
 		log.Printf("failed to recreate connection for slave %s after 3 attempts", connection.Addr)
@@ -136,7 +140,9 @@ func NewSlaveConnection(addr, machineName string) error {
 	}
 
 	if err := PingSlave(conn, machineName); err != nil {
-		_ = conn.Close()
+		if cerr := conn.Close(); cerr != nil {
+			log.Printf("error closing connection after failed ping: %v", cerr)
+		}
 		return fmt.Errorf("initial ping to slave %s failed: %w", machineName, err)
 	}
 
@@ -150,15 +156,21 @@ func NewSlaveConnection(addr, machineName string) error {
 		return err
 	}
 	if replaced != nil && replaced.Connection != nil {
-		_ = replaced.Connection.Close()
+		if err := replaced.Connection.Close(); err != nil {
+			log.Printf("error closing replaced connection: %v", err)
+		}
 	}
 
 	if recievedNewSlaveFunc != nil {
 		if err := recievedNewSlaveFunc(addr, machineName, conn); err != nil {
 			if removed := removeConnection(addr, machineName); removed != nil && removed.Connection != nil {
-				_ = removed.Connection.Close()
+				if cerr := removed.Connection.Close(); cerr != nil {
+					log.Printf("error closing removed connection after callback error: %v", cerr)
+				}
 			}
-			_ = conn.Close()
+			if cerr := conn.Close(); cerr != nil {
+				log.Printf("error closing conn after callback error: %v", cerr)
+			}
 			return err
 		}
 	}

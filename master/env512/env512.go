@@ -28,7 +28,16 @@ var (
 
 func Setup() error {
 	godotenv.Load(".env")
-	PingInterval, _ = strconv.Atoi(os.Getenv("PING_INTERVAL"))
+	// Parse PING_INTERVAL; default to 15 seconds on parse error or when unset
+	if s := os.Getenv("PING_INTERVAL"); s == "" {
+		PingInterval = 15
+	} else {
+		if n, err := strconv.Atoi(s); err != nil {
+			PingInterval = 15
+		} else {
+			PingInterval = n
+		}
+	}
 
 	Mode = os.Getenv("MODE")
 	Qemu_UID = os.Getenv("QEMU_UID")
@@ -87,7 +96,7 @@ func Setup() error {
 	if Mode != "dev" {
 		Mode = "prod" //default prod
 	}
-	
+
 	VapidPublicKey = strings.TrimSpace(os.Getenv("VAPID_PUBLIC_KEY"))
 	VapidPrivateKey = strings.TrimSpace(os.Getenv("VAPID_PRIVATE_KEY"))
 

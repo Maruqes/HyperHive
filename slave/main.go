@@ -658,7 +658,9 @@ func ensureVirtioISO() (destPath string, err error) {
 	}
 
 	if headErr == nil && remoteInfo.ETag != "" {
-		_ = os.WriteFile(metaPath, []byte(remoteInfo.ETag+"\n"), 0o644)
+		if err := os.WriteFile(metaPath, []byte(remoteInfo.ETag+"\n"), 0o644); err != nil {
+			logger.Error("write virtio meta failed", "path", metaPath, "error", err)
+		}
 	}
 
 	return dest, nil
