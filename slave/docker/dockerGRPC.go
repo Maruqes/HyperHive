@@ -45,3 +45,94 @@ func (s *DockerService) ImageList(ctx context.Context, req *dockerGRPC.Empty) (*
 	}
 	return &res, nil
 }
+
+func (s *DockerService) ContainerList(ctx context.Context, req *dockerGRPC.Empty) (*dockerGRPC.ListOfContainers, error) {
+	containers, err := our_container.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var res dockerGRPC.ListOfContainers
+
+	for _, conts := range containers {
+		// Ports
+		var ports []*dockerGRPC.Port
+		for _, p := range conts.Ports {
+			ports = append(ports, &dockerGRPC.Port{
+				IP:          p.IP,
+				PrivatePort: uint32(p.PrivatePort),
+				PublicPort:  uint32(p.PublicPort),
+				Type:        p.Type,
+			})
+		}
+
+		// HostConfig
+		// conts.HostConfig is expected to have NetworkMode and optional Annotations
+		hostConf := &dockerGRPC.HostConfig{
+			NetworkMode: string(conts.HostConfig.NetworkMode),
+			Annotations: conts.HostConfig.Annotations,
+		}
+
+		// Network settings
+		networks := make(map[string]*dockerGRPC.EndpointSettings)
+		for name, es := range conts.NetworkSettings.Networks {
+			if es == nil {
+				continue
+			}
+			networks[name] = &dockerGRPC.EndpointSettings{
+				Links:                es.Links,
+				Aliases:              es.Aliases,
+				MacAddress:           es.MacAddress,
+				DriverOpts:           es.DriverOpts,
+				NetworkID:            es.NetworkID,
+				EndpointID:           es.EndpointID,
+				Gateway:              es.Gateway,
+				IPAddress:            es.IPAddress,
+				IPPrefixLen:          int32(es.IPPrefixLen),
+				IPv6Gateway:          es.IPv6Gateway,
+				GlobalIPv6Address:    es.GlobalIPv6Address,
+				GlobalIPv6PrefixLen:  int32(es.GlobalIPv6PrefixLen),
+			}
+		}
+
+		// Container state mapping
+		var state dockerGRPC.ContainerState
+		switch conts.State {
+		case "created", "Created", "CREATED":
+			state = dockerGRPC.ContainerState_CREATED
+		case "running", "Running", "RUNNING":
+			state = dockerGRPC.ContainerState_RUNNING
+		case "paused", "Paused", "PAUSED":
+			state = dockerGRPC.ContainerState_PAUSED
+		case "restarting", "Restarting", "RESTARTING":
+			state = dockerGRPC.ContainerState_RESTARTING
+		case "removing", "Removing", "REMOVING":
+			state = dockerGRPC.ContainerState_REMOVING
+		case "exited", "Exited", "EXITED":
+			state = dockerGRPC.ContainerState_EXITED
+		case "dead", "Dead", "DEAD":
+			state = dockerGRPC.ContainerState_DEAD
+		default:
+			state = dockerGRPC.ContainerState_CONTAINER_STATE_UNSPECIFIED
+		}
+
+		res.Containers = append(res.Containers, &dockerGRPC.ContainerSummary{
+			Id:             conts.ID,
+			Names:          conts.Names,
+			Image:          conts.Image,
+			ImageID:        conts.ImageID,
+			Command:        conts.Command,
+			Created:        conts.Created,
+			Ports:          ports,
+			SizeRw:         conts.SizeRw,
+			SizeRootFs:     conts.SizeRootFs,
+			Labels:         conts.Labels,
+			State:          state,
+			Status:         conts.Status,
+			HostConfig:     hostConf,
+			NetworkSettings: &dockerGRPC.NetworkSettingsSummary{
+				Networks: networks,
+			},
+		})
+	}
+	return &res, nil
+}

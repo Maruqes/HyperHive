@@ -57,9 +57,121 @@ message ListOfImages{
 	repeated ImageSummary imgs = 1;
 }
 
+// Port mapping for a container
+message Port {
+	// Host IP address that the container's port is mapped to
+	string IP = 1;
+
+	// Port on the container
+	uint32 PrivatePort = 2;
+
+	// Port exposed on the host
+	uint32 PublicPort = 3;
+
+	// type
+	string Type = 4;
+}
+
+message EndpointSettings {
+	repeated string Links = 1;
+	repeated string Aliases = 2;
+	string MacAddress = 3;
+	map<string, string> DriverOpts = 4;
+	int32 GwPriority = 5;
+	string NetworkID = 6;
+	string EndpointID = 7;
+	string Gateway = 8;
+	string IPAddress = 9;
+	int32 IPPrefixLen = 10;
+	string IPv6Gateway = 11;
+	string GlobalIPv6Address = 12;
+	int32 GlobalIPv6PrefixLen = 13;
+	repeated string DNSNames = 14;
+}
+
+message NetworkSettingsSummary {
+	map<string, EndpointSettings> Networks = 1;
+}
+
+// HostConfig for container summary
+message HostConfig {
+	string NetworkMode = 1;
+	map<string, string> Annotations = 2;
+}
+
+enum ContainerState {
+	CONTAINER_STATE_UNSPECIFIED = 0;
+	CREATED = 1;
+	RUNNING = 2;
+	PAUSED = 3;
+	RESTARTING = 4;
+	REMOVING = 5;
+	EXITED = 6;
+	DEAD = 7;
+}
+
+message ContainerSummary {
+	string Id = 1;
+	repeated string Names = 2;
+	string Image = 3;
+	string ImageID = 4;
+	string Command = 5;
+	int64 Created = 6;
+	repeated Port Ports = 7;
+	int64 SizeRw = 8;
+	int64 SizeRootFs = 9;
+	map<string, string> Labels = 10;
+	ContainerState State = 11;
+	string Status = 12;
+	HostConfig HostConfig = 13;
+	NetworkSettingsSummary NetworkSettings = 14;
+}
+
+message ListOfContainers {
+	repeated ContainerSummary containers = 1;
+}
+
+// Bindings used when creating a container
+message PortBinding {
+	// Port on the container, e.g. "80/tcp"
+	string ContainerPort = 1;
+
+	// Port on the host, e.g. "8080"
+	string HostPort = 2;
+}
+
+message VolumeBinding {
+	string HostPath = 1;
+	string ContainerPath = 2;
+}
+
+message EnvVar {
+	string Key = 1;
+	string Value = 2;
+}
+
+message ContainerCreate {
+	string Image = 1;
+	string Name = 2;
+	repeated string Command = 3;
+	repeated string EntryPoint = 4;
+
+	repeated PortBinding Ports = 5;
+	repeated VolumeBinding Volumes = 6;
+	repeated EnvVar Envs = 7;
+
+	string Network = 8;
+	string Restart = 9; // "always", "no", "unless-stopped"
+	bool Detach = 10;
+
+	int64 Memory = 11; // bytes
+	double CPUS = 12;  // 0.5, 1, 2...
+}
+
 
 service DockerService {
 	rpc ImageDownload(DownloadImage) returns (Empty);
 	rpc ImageRemove(Remove) returns (Empty);
 	rpc ImageList(Empty) returns (ListOfImages);
+	rpc ContainerList(Empty) returns (ListOfContainers);
 }
