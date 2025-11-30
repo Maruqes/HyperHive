@@ -79,18 +79,18 @@ func (s *DockerService) ContainerList(ctx context.Context, req *dockerGRPC.Empty
 				continue
 			}
 			networks[name] = &dockerGRPC.EndpointSettings{
-				Links:                es.Links,
-				Aliases:              es.Aliases,
-				MacAddress:           es.MacAddress,
-				DriverOpts:           es.DriverOpts,
-				NetworkID:            es.NetworkID,
-				EndpointID:           es.EndpointID,
-				Gateway:              es.Gateway,
-				IPAddress:            es.IPAddress,
-				IPPrefixLen:          int32(es.IPPrefixLen),
-				IPv6Gateway:          es.IPv6Gateway,
-				GlobalIPv6Address:    es.GlobalIPv6Address,
-				GlobalIPv6PrefixLen:  int32(es.GlobalIPv6PrefixLen),
+				Links:               es.Links,
+				Aliases:             es.Aliases,
+				MacAddress:          es.MacAddress,
+				DriverOpts:          es.DriverOpts,
+				NetworkID:           es.NetworkID,
+				EndpointID:          es.EndpointID,
+				Gateway:             es.Gateway,
+				IPAddress:           es.IPAddress,
+				IPPrefixLen:         int32(es.IPPrefixLen),
+				IPv6Gateway:         es.IPv6Gateway,
+				GlobalIPv6Address:   es.GlobalIPv6Address,
+				GlobalIPv6PrefixLen: int32(es.GlobalIPv6PrefixLen),
 			}
 		}
 
@@ -116,23 +116,85 @@ func (s *DockerService) ContainerList(ctx context.Context, req *dockerGRPC.Empty
 		}
 
 		res.Containers = append(res.Containers, &dockerGRPC.ContainerSummary{
-			Id:             conts.ID,
-			Names:          conts.Names,
-			Image:          conts.Image,
-			ImageID:        conts.ImageID,
-			Command:        conts.Command,
-			Created:        conts.Created,
-			Ports:          ports,
-			SizeRw:         conts.SizeRw,
-			SizeRootFs:     conts.SizeRootFs,
-			Labels:         conts.Labels,
-			State:          state,
-			Status:         conts.Status,
-			HostConfig:     hostConf,
+			Id:         conts.ID,
+			Names:      conts.Names,
+			Image:      conts.Image,
+			ImageID:    conts.ImageID,
+			Command:    conts.Command,
+			Created:    conts.Created,
+			Ports:      ports,
+			SizeRw:     conts.SizeRw,
+			SizeRootFs: conts.SizeRootFs,
+			Labels:     conts.Labels,
+			State:      state,
+			Status:     conts.Status,
+			HostConfig: hostConf,
 			NetworkSettings: &dockerGRPC.NetworkSettingsSummary{
 				Networks: networks,
 			},
 		})
 	}
 	return &res, nil
+}
+
+func (s *DockerService) ContainerCreateFunc(ctx context.Context, req *dockerGRPC.ContainerCreate) (*dockerGRPC.Empty, error) {
+
+	var ports []PortBinding
+	var volumes []VolumeBinding
+	var envs []EnvVar
+
+	for _, port := range req.Ports {
+		ports = append(ports, PortBinding{ContainerPort: port.ContainerPort, HostPort: port.HostPort})
+	}
+
+	for _, vol := range req.Volumes {
+		volumes = append(volumes, VolumeBinding{HostPath: vol.HostPath, ContainerPath: vol.ContainerPath})
+	}
+
+	for _, env := range req.Envs {
+		envs = append(envs, EnvVar{Key: env.Key, Value: env.Value})
+	}
+
+	opts := ContainerCreate{
+		Image:      req.Image,
+		Name:       req.Name,
+		Command:    req.Command,
+		EntryPoint: req.EntryPoint,
+
+		Ports:   ports,
+		Volumes: volumes,
+		Envs:    envs,
+
+		Network: req.Network,
+		Restart: req.Restart,
+		Detach:  req.Detach,
+
+		Memory: req.Memory,
+		CPUS:   req.CPUS,
+	}
+
+	err := our_container.Create(ctx, &opts)
+	return &dockerGRPC.Empty{}, err
+}
+
+func (s *DockerService) ContainerRemove(ctx context.Context, req *dockerGRPC.RemoveContainer) (*dockerGRPC.Empty, error) {
+	return &dockerGRPC.Empty{}, our_container.Remove(ctx, req.ContainerID, req.Force)
+}
+func (s *DockerService) ContainerStop(ctx context.Context, req *dockerGRPC.ContainerId) (*dockerGRPC.Empty, error) {
+	return &dockerGRPC.Empty{}, our_container.Stop(ctx, req.ContainerID)
+}
+func (s *DockerService) ContainerStart(ctx context.Context, req *dockerGRPC.ContainerId) (*dockerGRPC.Empty, error) {
+	return &dockerGRPC.Empty{}, our_container.Start(ctx, req.ContainerID)
+}
+func (s *DockerService) ContainerRestart(ctx context.Context, req *dockerGRPC.ContainerId) (*dockerGRPC.Empty, error) {
+	return &dockerGRPC.Empty{}, our_container.Restart(ctx, req.ContainerID)
+}
+func (s *DockerService) ContainerPause(ctx context.Context, req *dockerGRPC.ContainerId) (*dockerGRPC.Empty, error) {
+	return &dockerGRPC.Empty{}, our_container.Pause(ctx, req.ContainerID)
+}
+func (s *DockerService) ContainerUnPause(ctx context.Context, req *dockerGRPC.ContainerId) (*dockerGRPC.Empty, error) {
+	return &dockerGRPC.Empty{}, our_container.Unpause(ctx, req.ContainerID)
+}
+func (s *DockerService) ContainerKill(ctx context.Context, req *dockerGRPC.KillContainer) (*dockerGRPC.Empty, error) {
+	return &dockerGRPC.Empty{}, our_container.Kill(ctx, req.ContainerID, req.Signal)
 }

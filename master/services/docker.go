@@ -10,7 +10,7 @@ import (
 
 type DockerService struct{}
 
-func (s *DockerService) List(machineName string) (*dockerGrpc.ListOfImages, error) {
+func (s *DockerService) ImageList(machineName string) (*dockerGrpc.ListOfImages, error) {
 	machine := protocol.GetConnectionByMachineName(machineName)
 	if machine == nil || machine.Connection == nil {
 		return nil, fmt.Errorf("machine %s is not connected", machineName)
@@ -19,7 +19,7 @@ func (s *DockerService) List(machineName string) (*dockerGrpc.ListOfImages, erro
 	return docker.ImageList(machine.Connection)
 }
 
-func (s *DockerService) Download(machineName, image, registry string) error {
+func (s *DockerService) ImageDownload(machineName, image, registry string) error {
 	machine := protocol.GetConnectionByMachineName(machineName)
 	if machine == nil || machine.Connection == nil {
 		return fmt.Errorf("machine %s is not connected", machineName)
@@ -33,7 +33,7 @@ func (s *DockerService) Download(machineName, image, registry string) error {
 	return docker.ImageDownload(machine.Connection, req)
 }
 
-func (s *DockerService) Remove(machineName, imageID string, force, pruneChild bool) error {
+func (s *DockerService) ImageRemove(machineName, imageID string, force, pruneChild bool) error {
 	machine := protocol.GetConnectionByMachineName(machineName)
 	if machine == nil || machine.Connection == nil {
 		return fmt.Errorf("machine %s is not connected", machineName)

@@ -124,8 +124,8 @@ func (*Container) Create(ctx context.Context, conf *ContainerCreate) error {
 	return nil
 }
 
-func (*Container) Remove(url string) error {
-	return nil
+func (*Container) Remove(ctx context.Context, containerID string, force bool) error {
+	return cli.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: force})
 }
 
 func (*Container) List(ctx context.Context) ([]container.Summary, error) {
@@ -136,10 +136,26 @@ func (*Container) List(ctx context.Context) ([]container.Summary, error) {
 	return containers, nil
 }
 
-func (*Container) Stop(url string) error {
-	return nil
+func (*Container) Stop(ctx context.Context, containerID string) error {
+	return cli.ContainerStop(ctx, containerID, container.StopOptions{})
 }
 
-func (*Container) Start(url string) error {
-	return nil
+func (*Container) Start(ctx context.Context, containerID string) error {
+	return cli.ContainerStart(ctx, containerID, container.StartOptions{})
+}
+
+func (*Container) Kill(ctx context.Context, containerID, signal string) error {
+	return cli.ContainerKill(ctx, containerID, signal)
+}
+
+func (*Container) Restart(ctx context.Context, containerID string) error {
+	return cli.ContainerRestart(ctx, containerID, container.StopOptions{})
+}
+
+func (*Container) Pause(ctx context.Context, containerID string) error {
+	return cli.ContainerPause(ctx, containerID)
+}
+
+func (*Container) Unpause(ctx context.Context, containerID string) error {
+	return cli.ContainerUnpause(ctx, containerID)
 }

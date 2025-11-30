@@ -169,9 +169,32 @@ message ContainerCreate {
 }
 
 
+message ContainerId{
+	string ContainerID = 1;
+}
+
+message RemoveContainer{
+	string ContainerID = 1;
+	bool force = 2;
+}
+
+message KillContainer{
+	string ContainerID = 1;
+	string signal = 2;
+}
 service DockerService {
 	rpc ImageDownload(DownloadImage) returns (Empty);
 	rpc ImageRemove(Remove) returns (Empty);
 	rpc ImageList(Empty) returns (ListOfImages);
+
+
 	rpc ContainerList(Empty) returns (ListOfContainers);
+	rpc ContainerCreateFunc(ContainerCreate) returns (Empty);
+	rpc ContainerRemove(RemoveContainer)returns(Empty);
+	rpc ContainerStop(ContainerId)returns(Empty);
+	rpc ContainerStart(ContainerId)returns(Empty);
+	rpc ContainerRestart(ContainerId)returns(Empty);
+	rpc ContainerPause(ContainerId)returns(Empty);
+	rpc ContainerUnPause(ContainerId)returns(Empty);
+	rpc ContainerKill(KillContainer)returns(Empty);
 }
