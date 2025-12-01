@@ -101,11 +101,27 @@ func (*Container) Create(ctx context.Context, conf *ContainerCreate) error {
 	}
 
 	// ---- NETWORKS ----
-	networkCfg := &network.NetworkingConfig{
-		EndpointsConfig: map[string]*network.EndpointSettings{},
-	}
-	if conf.Network != "" {
-		networkCfg.EndpointsConfig[conf.Network] = &network.EndpointSettings{}
+	var networkCfg *network.NetworkingConfig
+
+	switch conf.Network {
+	case "":
+		// Sem rede explícita -> Docker usa "bridge" por default.
+		// Não é preciso mexer em NetworkMode nem em NetworkingConfig.
+
+	case "host":
+		// Host network mode: partilha stack do host.
+		// Em host mode NÃO se passa NetworkingConfig.
+		hostCfg.NetworkMode = container.NetworkMode("host")
+		networkCfg = nil
+
+	default:
+		// Rede custom (ou "bridge" se quiseres forçar explicitamente)
+		hostCfg.NetworkMode = container.NetworkMode(conf.Network)
+		networkCfg = &network.NetworkingConfig{
+			EndpointsConfig: map[string]*network.EndpointSettings{
+				conf.Network: {},
+			},
+		}
 	}
 
 	// ---- CREATE ----
