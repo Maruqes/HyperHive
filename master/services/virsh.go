@@ -757,6 +757,9 @@ func (v *VirshService) EditVM(name string, cpuCount, memory int, diskSizeGB int)
 	con := protocol.GetAllGRPCConnections()
 	for _, conn := range con {
 		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: name})
+		if err != nil || vm == nil {
+			continue
+		}
 		if cpuCount > 0 {
 			vm.CpuCount = int32(cpuCount)
 		}
@@ -766,14 +769,12 @@ func (v *VirshService) EditVM(name string, cpuCount, memory int, diskSizeGB int)
 		if diskSizeGB > 0 {
 			vm.DiskSizeGB = int32(diskSizeGB)
 		}
-		if err == nil && vm != nil {
-			//found the vm
-			err = virsh.EditVm(conn, vm)
-			if err != nil {
-				return fmt.Errorf("failed to edit VM %s: %v", name, err)
-			}
-			return nil
+		// found the vm
+		err = virsh.EditVm(conn, vm)
+		if err != nil {
+			return fmt.Errorf("failed to edit VM %s: %v", name, err)
 		}
+		return nil
 	}
 	return fmt.Errorf("failed to find VM %s on any machine", name)
 }
