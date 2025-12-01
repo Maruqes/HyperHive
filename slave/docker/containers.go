@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -174,4 +175,38 @@ func (*Container) Pause(ctx context.Context, containerID string) error {
 
 func (*Container) Unpause(ctx context.Context, containerID string) error {
 	return cli.ContainerUnpause(ctx, containerID)
+}
+
+func (*Container) Logs(ctx context.Context, containerID string, follow bool, tail int, since string) (io.ReadCloser, error) {
+	opts := container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     follow,
+		Timestamps: false,
+	}
+
+	if tail == 0 {
+		opts.Since = since
+	} else {
+		opts.Tail = fmt.Sprintf("%d", tail)
+	}
+
+	return cli.ContainerLogs(ctx, containerID, opts)
+}
+
+func (*Container) Update(ctx context.Context, containerID string, memory int64, cpus float64, restart string) (container.UpdateResponse, error) {
+	update := container.UpdateConfig{
+		Resources: container.Resources{
+			Memory:   memory,
+			NanoCPUs: int64(cpus * 1e9),
+		},
+		RestartPolicy: container.RestartPolicy{
+			Name: container.RestartPolicyMode(restart),
+		},
+	}
+	return cli.ContainerUpdate(ctx, containerID, update)
+}
+
+func (*Container) Rename(ctx context.Context, containerID, newName string) error {
+	return cli.ContainerRename(ctx, containerID, newName)
 }

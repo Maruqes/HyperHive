@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"io"
 
 	dockerGRPC "github.com/Maruqes/512SvMan/api/proto/docker"
 )
@@ -197,4 +198,43 @@ func (s *DockerService) ContainerUnPause(ctx context.Context, req *dockerGRPC.Co
 }
 func (s *DockerService) ContainerKill(ctx context.Context, req *dockerGRPC.KillContainer) (*dockerGRPC.Empty, error) {
 	return &dockerGRPC.Empty{}, our_container.Kill(ctx, req.ContainerID, req.Signal)
+}
+
+func (s *DockerService) ContainerLogs(req *dockerGRPC.ContainerLogsRequest, stream dockerGRPC.DockerService_ContainerLogsServer) error {
+	// open logs reader from docker client
+	rc, err := our_container.Logs(stream.Context(), req.ContainerID, req.Follow, int(req.Tail), req.Since)
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	buf := make([]byte, 32*1024)
+	for {
+		n, err := rc.Read(buf)
+		if n > 0 {
+			// send chunk
+			chunk := &dockerGRPC.LogChunk{Data: buf[:n]}
+			if sendErr := stream.Send(chunk); sendErr != nil {
+				return sendErr
+			}
+		}
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+	}
+}
+
+func (s *DockerService) ContainerUpdate(ctx context.Context, req *dockerGRPC.ContainerUpdateRequest) (*dockerGRPC.ContainerUpdateResponse, error) {
+	res, err := our_container.Update(ctx, req.ContainerID, req.Memory, req.CPUS, req.Restart)
+	if err != nil {
+		return nil, err
+	}
+	return &dockerGRPC.ContainerUpdateResponse{Warnings: res.Warnings}, nil
+}
+
+func (s *DockerService) ContainerRename(ctx context.Context, req *dockerGRPC.ContainerRenameRequest) (*dockerGRPC.Empty, error) {
+	return &dockerGRPC.Empty{}, our_container.Rename(ctx, req.ContainerID, req.NewName)
 }

@@ -182,6 +182,35 @@ message KillContainer{
 	string ContainerID = 1;
 	string signal = 2;
 }
+
+// Request to stream container logs
+message ContainerLogsRequest {
+	string ContainerID = 1;
+	bool Follow = 2;
+	int32 Tail = 3; // 0 means use Since
+	string Since = 4; // RFC3339 or duration docker supports
+}
+
+message LogChunk {
+	bytes Data = 1;
+}
+
+message ContainerUpdateRequest {
+	string ContainerID = 1;
+	int64 Memory = 2; // bytes
+	double CPUS = 3;  // e.g., 0.5, 1, 2
+	string Restart = 4; // "always", "no", "unless-stopped"
+}
+
+message ContainerUpdateResponse {
+	repeated string Warnings = 1;
+}
+
+// Request to rename a container
+message ContainerRenameRequest {
+	string ContainerID = 1;
+	string NewName = 2;
+}
 service DockerService {
 	rpc ImageDownload(DownloadImage) returns (Empty);
 	rpc ImageRemove(Remove) returns (Empty);
@@ -197,4 +226,7 @@ service DockerService {
 	rpc ContainerPause(ContainerId)returns(Empty);
 	rpc ContainerUnPause(ContainerId)returns(Empty);
 	rpc ContainerKill(KillContainer)returns(Empty);
+	rpc ContainerLogs(ContainerLogsRequest) returns (stream LogChunk);
+	rpc ContainerUpdate(ContainerUpdateRequest) returns (ContainerUpdateResponse);
+	rpc ContainerRename(ContainerRenameRequest) returns (Empty);
 }

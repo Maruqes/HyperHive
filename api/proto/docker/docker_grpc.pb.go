@@ -31,6 +31,9 @@ const (
 	DockerService_ContainerPause_FullMethodName      = "/docker.DockerService/ContainerPause"
 	DockerService_ContainerUnPause_FullMethodName    = "/docker.DockerService/ContainerUnPause"
 	DockerService_ContainerKill_FullMethodName       = "/docker.DockerService/ContainerKill"
+	DockerService_ContainerLogs_FullMethodName       = "/docker.DockerService/ContainerLogs"
+	DockerService_ContainerUpdate_FullMethodName     = "/docker.DockerService/ContainerUpdate"
+	DockerService_ContainerRename_FullMethodName     = "/docker.DockerService/ContainerRename"
 )
 
 // DockerServiceClient is the client API for DockerService service.
@@ -49,6 +52,9 @@ type DockerServiceClient interface {
 	ContainerPause(ctx context.Context, in *ContainerId, opts ...grpc.CallOption) (*Empty, error)
 	ContainerUnPause(ctx context.Context, in *ContainerId, opts ...grpc.CallOption) (*Empty, error)
 	ContainerKill(ctx context.Context, in *KillContainer, opts ...grpc.CallOption) (*Empty, error)
+	ContainerLogs(ctx context.Context, in *ContainerLogsRequest, opts ...grpc.CallOption) (DockerService_ContainerLogsClient, error)
+	ContainerUpdate(ctx context.Context, in *ContainerUpdateRequest, opts ...grpc.CallOption) (*ContainerUpdateResponse, error)
+	ContainerRename(ctx context.Context, in *ContainerRenameRequest, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type dockerServiceClient struct {
@@ -179,6 +185,59 @@ func (c *dockerServiceClient) ContainerKill(ctx context.Context, in *KillContain
 	return out, nil
 }
 
+func (c *dockerServiceClient) ContainerLogs(ctx context.Context, in *ContainerLogsRequest, opts ...grpc.CallOption) (DockerService_ContainerLogsClient, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &DockerService_ServiceDesc.Streams[0], DockerService_ContainerLogs_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &dockerServiceContainerLogsClient{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type DockerService_ContainerLogsClient interface {
+	Recv() (*LogChunk, error)
+	grpc.ClientStream
+}
+
+type dockerServiceContainerLogsClient struct {
+	grpc.ClientStream
+}
+
+func (x *dockerServiceContainerLogsClient) Recv() (*LogChunk, error) {
+	m := new(LogChunk)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *dockerServiceClient) ContainerUpdate(ctx context.Context, in *ContainerUpdateRequest, opts ...grpc.CallOption) (*ContainerUpdateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ContainerUpdateResponse)
+	err := c.cc.Invoke(ctx, DockerService_ContainerUpdate_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dockerServiceClient) ContainerRename(ctx context.Context, in *ContainerRenameRequest, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, DockerService_ContainerRename_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DockerServiceServer is the server API for DockerService service.
 // All implementations must embed UnimplementedDockerServiceServer
 // for forward compatibility
@@ -195,6 +254,9 @@ type DockerServiceServer interface {
 	ContainerPause(context.Context, *ContainerId) (*Empty, error)
 	ContainerUnPause(context.Context, *ContainerId) (*Empty, error)
 	ContainerKill(context.Context, *KillContainer) (*Empty, error)
+	ContainerLogs(*ContainerLogsRequest, DockerService_ContainerLogsServer) error
+	ContainerUpdate(context.Context, *ContainerUpdateRequest) (*ContainerUpdateResponse, error)
+	ContainerRename(context.Context, *ContainerRenameRequest) (*Empty, error)
 	mustEmbedUnimplementedDockerServiceServer()
 }
 
@@ -237,6 +299,15 @@ func (UnimplementedDockerServiceServer) ContainerUnPause(context.Context, *Conta
 }
 func (UnimplementedDockerServiceServer) ContainerKill(context.Context, *KillContainer) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ContainerKill not implemented")
+}
+func (UnimplementedDockerServiceServer) ContainerLogs(*ContainerLogsRequest, DockerService_ContainerLogsServer) error {
+	return status.Errorf(codes.Unimplemented, "method ContainerLogs not implemented")
+}
+func (UnimplementedDockerServiceServer) ContainerUpdate(context.Context, *ContainerUpdateRequest) (*ContainerUpdateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ContainerUpdate not implemented")
+}
+func (UnimplementedDockerServiceServer) ContainerRename(context.Context, *ContainerRenameRequest) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ContainerRename not implemented")
 }
 func (UnimplementedDockerServiceServer) mustEmbedUnimplementedDockerServiceServer() {}
 
@@ -467,6 +538,63 @@ func _DockerService_ContainerKill_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DockerService_ContainerLogs_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ContainerLogsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(DockerServiceServer).ContainerLogs(m, &dockerServiceContainerLogsServer{ServerStream: stream})
+}
+
+type DockerService_ContainerLogsServer interface {
+	Send(*LogChunk) error
+	grpc.ServerStream
+}
+
+type dockerServiceContainerLogsServer struct {
+	grpc.ServerStream
+}
+
+func (x *dockerServiceContainerLogsServer) Send(m *LogChunk) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _DockerService_ContainerUpdate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ContainerUpdateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DockerServiceServer).ContainerUpdate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DockerService_ContainerUpdate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DockerServiceServer).ContainerUpdate(ctx, req.(*ContainerUpdateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DockerService_ContainerRename_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ContainerRenameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DockerServiceServer).ContainerRename(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DockerService_ContainerRename_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DockerServiceServer).ContainerRename(ctx, req.(*ContainerRenameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DockerService_ServiceDesc is the grpc.ServiceDesc for DockerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -522,7 +650,21 @@ var DockerService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "ContainerKill",
 			Handler:    _DockerService_ContainerKill_Handler,
 		},
+		{
+			MethodName: "ContainerUpdate",
+			Handler:    _DockerService_ContainerUpdate_Handler,
+		},
+		{
+			MethodName: "ContainerRename",
+			Handler:    _DockerService_ContainerRename_Handler,
+		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "ContainerLogs",
+			Handler:       _DockerService_ContainerLogs_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "docker.proto",
 }
