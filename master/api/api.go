@@ -10,6 +10,7 @@ import (
 	ws "512SvMan/websocket"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
@@ -36,6 +37,24 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
+}
+
+func applyCORSHeaders(w http.ResponseWriter, r *http.Request) {
+	origin := strings.TrimSpace(r.Header.Get("Origin"))
+	allowOrigin := "*"
+	if origin != "" {
+		allowOrigin = origin
+	}
+
+	h := w.Header()
+	h.Set("Access-Control-Allow-Origin", allowOrigin)
+	if origin != "" {
+		h.Add("Vary", "Origin")
+	}
+	h.Set("Access-Control-Allow-Credentials", "true")
+	h.Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	h.Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Requested-With, Accept")
+	h.Set("Access-Control-Max-Age", "600")
 }
 
 var baseURL string
@@ -163,10 +182,8 @@ func StartApi() {
 
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "*")
-			if r.Method == "OPTIONS" {
+			applyCORSHeaders(w, r)
+			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusOK)
 				return
 			}
