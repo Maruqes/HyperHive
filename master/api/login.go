@@ -105,12 +105,20 @@ func authMiddleware(next http.Handler) http.Handler {
 		}
 
 		if token == "" {
+			// Ensure CORS headers are present on early error responses
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "*")
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
 
 		loginService := services.LoginService{}
 		if !loginService.IsLoginValid(baseURL, token) {
+			// Ensure CORS headers are present on early error responses
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "*")
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
