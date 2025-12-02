@@ -21,7 +21,7 @@ func CreateVmLiveTable() error {
 
 func AddVmLive(name string) error {
 	query := `
-	INSERT INTO vm_live (name)
+	INSERT OR IGNORE INTO vm_live (name)
 	VALUES (?);
 	`
 	_, err := DB.Exec(query, name)

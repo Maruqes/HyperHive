@@ -299,17 +299,11 @@ func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, mach
 	}
 
 	if machine.Live {
-		err = db.AddVmLive(machine.VmName)
-		if err != nil {
-			return fmt.Errorf("failed to add live VM to database: %v", err)
-		}
+		db.AddVmLive(machine.VmName)
 	}
 
 	//flush after also for redundancy
-	err = nfs.Sync(originConn.Connection)
-	if err != nil {
-		return err
-	}
+	nfs.Sync(originConn.Connection)
 
 	return nil
 }
