@@ -3,10 +3,12 @@ package logs512
 import (
 	"512SvMan/db"
 	"512SvMan/env512"
+	"512SvMan/extra"
 	"fmt"
 	"io"
 	"time"
 
+	proto "github.com/Maruqes/512SvMan/api/proto/extra"
 	logsGrpc "github.com/Maruqes/512SvMan/api/proto/logsserve"
 	"github.com/Maruqes/512SvMan/logger"
 )
@@ -48,5 +50,9 @@ func (s *LogsServer) RecordLog(stream logsGrpc.LogsServe_RecordLogServer) error 
 }
 
 func LoggerCallBack(urgency int, msg string, fields ...interface{}) {
-	db.InsertLog(time.Now().Format(time.RFC3339), urgency, fmt.Sprintf(msg, fields...))
+	finalMsg := fmt.Sprintf(msg, fields...)
+	extra.SendWebsocketMessage(proto.WebSocketsMessageType_Logs, finalMsg, fmt.Sprintf("%d", urgency))
+	msg = finalMsg
+	fields = nil
+	db.InsertLog(time.Now().Format(time.RFC3339), urgency, msg)
 }

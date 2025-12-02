@@ -8,11 +8,14 @@ enum WebSocketsMessageType {
   DownloadIso = 0;
   MigrateVm = 1;
   BackUpVM = 2;
+  ContainerLogs = 3;
+  Logs = 4;
 }
 
 message WebsocketMessage {
   WebSocketsMessageType type = 1;
   string message = 2;
+  string extra = 3;
 }
 message Empty {}
 

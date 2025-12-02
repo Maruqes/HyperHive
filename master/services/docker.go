@@ -3,6 +3,7 @@ package services
 import (
 	"512SvMan/docker"
 	"512SvMan/protocol"
+	"context"
 	"fmt"
 
 	dockerGrpc "github.com/Maruqes/512SvMan/api/proto/docker"
@@ -142,4 +143,63 @@ func (s *DockerService) ContainerKill(machineName, containerID, signal string) e
 	}
 
 	return docker.ContainerKill(machine.Connection, req)
+}
+
+func (s *DockerService) ContainerLogs(ctx context.Context, machineName, containerID string, tail int32) error {
+	machine := protocol.GetConnectionByMachineName(machineName)
+	if machine == nil || machine.Connection == nil {
+		return fmt.Errorf("machine %s is not connected", machineName)
+	}
+
+	req := &dockerGrpc.ContainerLogsRequest{
+		ContainerID: containerID,
+		Follow:      true,
+		Tail:        tail,
+	}
+
+	return docker.ContainerLogs(ctx, machine.Connection, req)
+}
+
+func (s *DockerService) ContainerUpdate(machineName, containerID string, memory int64, cpus float64, restart string) error {
+	machine := protocol.GetConnectionByMachineName(machineName)
+	if machine == nil || machine.Connection == nil {
+		return fmt.Errorf("machine %s is not connected", machineName)
+	}
+
+	req := &dockerGrpc.ContainerUpdateRequest{
+		ContainerID: containerID,
+		Memory:      memory,
+		CPUS:        cpus,
+		Restart:     restart,
+	}
+
+	return docker.ContainerUpdate(machine.Connection, req)
+}
+
+func (s *DockerService) ContainerRename(machineName, containerID, newName string) error {
+	machine := protocol.GetConnectionByMachineName(machineName)
+	if machine == nil || machine.Connection == nil {
+		return fmt.Errorf("machine %s is not connected", machineName)
+	}
+
+	req := &dockerGrpc.ContainerRenameRequest{
+		ContainerID: containerID,
+		NewName:     newName,
+	}
+
+	return docker.ContainerRename(machine.Connection, req)
+}
+
+func (s *DockerService) ContainerExec(machineName, containerID string, commands []string) error {
+	machine := protocol.GetConnectionByMachineName(machineName)
+	if machine == nil || machine.Connection == nil {
+		return fmt.Errorf("machine %s is not connected", machineName)
+	}
+
+	req := &dockerGrpc.ExecMsg{
+		ContainerId: containerID,
+		Commands:    commands,
+	}
+
+	return docker.ContainerExec(machine.Connection, req)
 }

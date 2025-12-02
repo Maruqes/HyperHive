@@ -9,8 +9,10 @@ require (
 	github.com/coreos/go-systemd/v22 v22.6.0
 	github.com/docker/cli v29.1.0+incompatible
 	github.com/docker/docker v28.5.2+incompatible
+	github.com/docker/go-connections v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
+	github.com/moby/moby v28.5.2+incompatible
 	github.com/shirou/gopsutil/v4 v4.25.9
 	google.golang.org/grpc v1.76.0
 	libvirt.org/go/libvirt v1.11006.0
@@ -22,7 +24,6 @@ require (
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.9.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect

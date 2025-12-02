@@ -59,43 +59,47 @@ func (s *clientServer) Notify(ctx context.Context, req *pb.NotifyRequest) (*pb.N
 }
 
 func listenGRPC() {
+	for {
+		lis, err := net.Listen("tcp", ":50052")
+		if err != nil {
+			logger.Error("failed to start client listener", "addr", ":50052", "error", err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
 
-	lis, err := net.Listen("tcp", ":50052")
-	if err != nil {
-		logger.Error("failed to start client listener", "addr", ":50052", "error", err)
-		os.Exit(1)
-	}
+		enf := keepalive.EnforcementPolicy{
+			MinTime:             5 * time.Second, // aceita pings >= 5s de intervalo (mais agressivo)
+			PermitWithoutStream: true,
+		}
 
-	enf := keepalive.EnforcementPolicy{
-		MinTime:             5 * time.Second, // aceita pings >= 5s de intervalo (mais agressivo)
-		PermitWithoutStream: true,
-	}
+		srvParams := keepalive.ServerParameters{
+			MaxConnectionIdle:     0,                // 0 ⇒ não fecha por idle
+			MaxConnectionAge:      0,                // 0 ⇒ não recicla conexão por idade
+			MaxConnectionAgeGrace: 0,                // sem período de graça
+			Time:                  20 * time.Second, // servidor pinga a cada 20s (mais frequente)
+			Timeout:               10 * time.Second, // espera 10s pela resposta
+		}
 
-	srvParams := keepalive.ServerParameters{
-		MaxConnectionIdle:     0,                // 0 ⇒ não fecha por idle
-		MaxConnectionAge:      0,                // 0 ⇒ não recicla conexão por idade
-		MaxConnectionAgeGrace: 0,                // sem período de graça
-		Time:                  20 * time.Second, // servidor pinga a cada 20s (mais frequente)
-		Timeout:               10 * time.Second, // espera 10s pela resposta
-	}
+		s := grpc.NewServer(
+			grpc.KeepaliveEnforcementPolicy(enf),
+			grpc.KeepaliveParams(srvParams),
+		)
 
-	s := grpc.NewServer(
-		grpc.KeepaliveEnforcementPolicy(enf),
-		grpc.KeepaliveParams(srvParams),
-	)
-
-	//registar services
-	pb.RegisterClientServiceServer(s, &clientServer{})
-	nfsproto.RegisterNFSServiceServer(s, &nfsservice.NFSService{})
-	grpcVirsh.RegisterSlaveVirshServiceServer(s, &virsh.SlaveVirshService{})
-	extraGrpc.RegisterExtraServiceServer(s, &extra.ExtraService{})
-	infoGrpc.RegisterInfoServer(s, &info.INFOService{})
-	smartdiskGrpc.RegisterSmartDiskServiceServer(s, &smartdisk.Service{})
-	btrfsGrpc.RegisterBtrFSServiceServer(s, &btrfs.BTRFSService{})
-	dockerGRPC.RegisterDockerServiceServer(s, &docker.DockerService{})
-	logger.Info("client services listening", "port", 50052)
-	if err := s.Serve(lis); err != nil {
-		logger.Error("client gRPC serve failed", "error", err)
+		//registar services
+		pb.RegisterClientServiceServer(s, &clientServer{})
+		nfsproto.RegisterNFSServiceServer(s, &nfsservice.NFSService{})
+		grpcVirsh.RegisterSlaveVirshServiceServer(s, &virsh.SlaveVirshService{})
+		extraGrpc.RegisterExtraServiceServer(s, &extra.ExtraService{})
+		infoGrpc.RegisterInfoServer(s, &info.INFOService{})
+		smartdiskGrpc.RegisterSmartDiskServiceServer(s, &smartdisk.Service{})
+		btrfsGrpc.RegisterBtrFSServiceServer(s, &btrfs.BTRFSService{})
+		dockerGRPC.RegisterDockerServiceServer(s, &docker.DockerService{})
+		logger.Info("client services listening", "port", 50052)
+		if err := s.Serve(lis); err != nil {
+			logger.Error("client gRPC serve failed", "error", err)
+		}
+		_ = lis.Close()
+		time.Sleep(2 * time.Second)
 	}
 }
 
@@ -174,6 +178,12 @@ func ConnectGRPC() *grpc.ClientConn {
 		go listenGRPC()
 	})
 
+	const (
+		minRetryDelay = 5 * time.Second
+		maxRetryDelay = 1 * time.Minute
+	)
+	retryDelay := minRetryDelay
+
 	for {
 		logger.Info("connecting to master", "target", target)
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -196,7 +206,13 @@ func ConnectGRPC() *grpc.ClientConn {
 		cancel()
 		if err != nil {
 			logger.Error("failed to dial master", "target", target, "error", err)
-			time.Sleep(15 * time.Second)
+			time.Sleep(retryDelay)
+			if retryDelay < maxRetryDelay {
+				retryDelay *= 2
+				if retryDelay > maxRetryDelay {
+					retryDelay = maxRetryDelay
+				}
+			}
 			continue
 		}
 
@@ -208,10 +224,17 @@ func ConnectGRPC() *grpc.ClientConn {
 		if err != nil {
 			logger.Error("SetConnection request failed", "error", err)
 			conn.Close()
-			time.Sleep(3 * time.Minute)
+			time.Sleep(retryDelay)
+			if retryDelay < maxRetryDelay {
+				retryDelay *= 2
+				if retryDelay > maxRetryDelay {
+					retryDelay = maxRetryDelay
+				}
+			}
 			continue
 		}
 
+		retryDelay = minRetryDelay
 		logger.Info("master acknowledged slave", "message", outR.GetOk())
 		go monitorConnection(conn)
 		go PingMaster(conn)

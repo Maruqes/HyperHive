@@ -71,7 +71,7 @@ func copyFile(origin, dest, vmName string) (err error) {
 
 			// Calculate and log progress
 			progress := float64(copied) / float64(totalSize) * 100
-			extra.SendWebsocketMessage(extraGrpc.WebSocketsMessageType_BackUpVM, fmt.Sprintf("Backup progress for %s: %.2f%%", vmName, progress))
+			extra.SendWebsocketMessage(extraGrpc.WebSocketsMessageType_BackUpVM, fmt.Sprintf("Backup progress for %s: %.2f%%", vmName, progress), "")
 		}
 		if err == io.EOF {
 			break

@@ -1,8 +1,8 @@
 package docker
 
 import (
+	"bufio"
 	"context"
-	"io"
 
 	dockerGRPC "github.com/Maruqes/512SvMan/api/proto/docker"
 )
@@ -206,25 +206,17 @@ func (s *DockerService) ContainerLogs(req *dockerGRPC.ContainerLogsRequest, stre
 	if err != nil {
 		return err
 	}
-	defer rc.Close()
+	scanner := bufio.NewScanner(rc)
 
-	buf := make([]byte, 32*1024)
-	for {
-		n, err := rc.Read(buf)
-		if n > 0 {
-			// send chunk
-			chunk := &dockerGRPC.LogChunk{Data: buf[:n]}
-			if sendErr := stream.Send(chunk); sendErr != nil {
-				return sendErr
-			}
-		}
+	for scanner.Scan() {
+		line := scanner.Text()
+		err := stream.Send(&dockerGRPC.LogChunk{Data: []byte(line)})
 		if err != nil {
-			if err == io.EOF {
-				return nil
-			}
 			return err
 		}
 	}
+
+	return nil
 }
 
 func (s *DockerService) ContainerUpdate(ctx context.Context, req *dockerGRPC.ContainerUpdateRequest) (*dockerGRPC.ContainerUpdateResponse, error) {
@@ -237,4 +229,8 @@ func (s *DockerService) ContainerUpdate(ctx context.Context, req *dockerGRPC.Con
 
 func (s *DockerService) ContainerRename(ctx context.Context, req *dockerGRPC.ContainerRenameRequest) (*dockerGRPC.Empty, error) {
 	return &dockerGRPC.Empty{}, our_container.Rename(ctx, req.ContainerID, req.NewName)
+}
+
+func (s *DockerService) ContainerExec(ctx context.Context, req *dockerGRPC.ExecMsg) (*dockerGRPC.Empty, error) {
+	return &dockerGRPC.Empty{}, our_container.Exec(ctx, req.ContainerId, req.Commands)
 }

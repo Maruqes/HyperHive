@@ -24,10 +24,11 @@ type ExtraServiceServer struct {
 	extraGrpc.UnimplementedExtraServiceServer
 }
 
-func SendWebsocketMessage(Type extraGrpc.WebSocketsMessageType, Message string) {
+func SendWebsocketMessage(Type extraGrpc.WebSocketsMessageType, Message, Extra string) {
 	websocketMsg := websocket.Message{
-		Type: Type.String(),
-		Data: Message,
+		Type:  Type.String(),
+		Data:  Message,
+		Extra: Extra,
 	}
 	websocket.BroadcastMessage(websocketMsg)
 }
@@ -41,6 +42,6 @@ func (s *ExtraServiceServer) SendNotifications(ctx context.Context, req *extraGr
 }
 
 func (s *ExtraServiceServer) SendWebsocketMessage(ctx context.Context, req *extraGrpc.WebsocketMessage) (*extraGrpc.Empty, error) {
-	SendWebsocketMessage(req.Type, req.Message)
+	SendWebsocketMessage(req.Type, req.Message, req.Extra)
 	return &extraGrpc.Empty{}, nil
 }

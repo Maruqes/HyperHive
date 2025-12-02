@@ -10,8 +10,9 @@ import (
 )
 
 type Message struct {
-	Type string `json:"type"`
-	Data string `json:"data"`
+	Type  string `json:"type"`
+	Data  string `json:"data"`
+	Extra string `json:"extra"`
 }
 
 var connections []*websocket.Conn

@@ -211,6 +211,12 @@ message ContainerRenameRequest {
 	string ContainerID = 1;
 	string NewName = 2;
 }
+
+message ExecMsg{
+	string ContainerId = 1;
+	repeated string Commands = 2;
+}
+
 service DockerService {
 	rpc ImageDownload(DownloadImage) returns (Empty);
 	rpc ImageRemove(Remove) returns (Empty);
@@ -229,4 +235,5 @@ service DockerService {
 	rpc ContainerLogs(ContainerLogsRequest) returns (stream LogChunk);
 	rpc ContainerUpdate(ContainerUpdateRequest) returns (ContainerUpdateResponse);
 	rpc ContainerRename(ContainerRenameRequest) returns (Empty);
+	rpc ContainerExec(ExecMsg)returns(Empty);
 }

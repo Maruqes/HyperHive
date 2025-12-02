@@ -67,6 +67,12 @@ func runCommand(desc string, args ...string) error {
 // commands as the current user; if not running as root it will prefix
 // commands with `sudo`.
 func InstallLatestDocker() error {
+	// If docker binary already exists, skip installation.
+	if _, err := exec.LookPath("docker"); err == nil {
+		logger.Info("docker already installed; skipping installation")
+		return nil
+	}
+
 	installCmd := "curl -fsSL https://get.docker.com | sh"
 	if err := runCommand("install docker", "sh", "-c", installCmd); err != nil {
 		return fmt.Errorf("failed to install docker via get.docker.com: %w", err)

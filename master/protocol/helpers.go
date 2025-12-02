@@ -72,14 +72,14 @@ func GetConnectionByMachineName(machineName string) *ConnectionsStruct {
 	return nil
 }
 
-func removeConnection(addr string, machineName string) *ConnectionsStruct {
+func removeConnection(addr string, machineName string, expectedEntry time.Time) *ConnectionsStruct {
 	connectionsMu.Lock()
 	defer connectionsMu.Unlock()
-	nots.SendGlobalNotification(fmt.Sprintf("Lost connection to %s", machineName), "Lost connection after many attempts", "/", true)
 	for i, c := range connections {
-		if c.Addr == addr {
+		if c.Addr == addr && (expectedEntry.IsZero() || c.EntryTime.Equal(expectedEntry)) {
 			removed := c
 			connections = append(connections[:i], connections[i+1:]...)
+			nots.SendGlobalNotification(fmt.Sprintf("Lost connection to %s", machineName), "Lost connection after many attempts", "/", true)
 			return removed
 		}
 	}

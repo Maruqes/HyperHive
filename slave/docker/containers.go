@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -185,10 +186,12 @@ func (*Container) Logs(ctx context.Context, containerID string, follow bool, tai
 		Timestamps: false,
 	}
 
-	if tail == 0 {
-		opts.Since = since
-	} else {
+	if tail < 0 {
+		opts.Tail = "all"
+	} else if tail > 0 {
 		opts.Tail = fmt.Sprintf("%d", tail)
+	} else if since != "" {
+		opts.Since = since
 	}
 
 	return cli.ContainerLogs(ctx, containerID, opts)
@@ -209,4 +212,40 @@ func (*Container) Update(ctx context.Context, containerID string, memory int64, 
 
 func (*Container) Rename(ctx context.Context, containerID, newName string) error {
 	return cli.ContainerRename(ctx, containerID, newName)
+}
+
+func (*Container) Exec(ctx context.Context, containerID string, command []string) error {
+	// Transforma o comando numa string
+	joined := strings.Join(command, " ")
+
+	// Envia a saída para o PID 1 → vai para docker logs
+	redirectCmd := []string{
+		"sh", "-c",
+		fmt.Sprintf("%s 1>/proc/1/fd/1 2>/proc/1/fd/2", joined),
+	}
+
+	execCfg := container.ExecOptions{
+		Cmd:          redirectCmd,
+		AttachStdout: false,
+		AttachStderr: false,
+		Tty:          false,
+	}
+
+	execID, err := cli.ContainerExecCreate(ctx, containerID, execCfg)
+	if err != nil {
+		return fmt.Errorf("exec create failed: %w", err)
+	}
+
+	resp, err := cli.ContainerExecAttach(ctx, execID.ID, container.ExecAttachOptions{
+		Tty: false,
+	})
+	if err != nil {
+		return fmt.Errorf("exec attach failed: %w", err)
+	}
+	defer resp.Close()
+
+	// Não precisas de ler nada, só deixar correr
+	io.Copy(io.Discard, resp.Reader)
+
+	return nil
 }

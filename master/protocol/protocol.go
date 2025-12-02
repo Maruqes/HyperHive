@@ -39,6 +39,11 @@ func init() {
 	connections = make([]*ConnectionsStruct, 0)
 }
 func tryRestoreConnection(addr, machine string) bool {
+	// If a fresh connection already exists, skip restoration attempts.
+	if existing := GetConnectionByAddr(addr); existing != nil {
+		return true
+	}
+
 	for attempt := 0; attempt < 3; attempt++ {
 		if err := NewSlaveConnection(addr, machine); err == nil {
 			log.Printf("reconnected slave %s (%s) on attempt %d", machine, addr, attempt+1)
@@ -47,6 +52,9 @@ func tryRestoreConnection(addr, machine string) bool {
 			log.Printf("reconnect attempt %d for slave %s failed: %v", attempt+1, addr, err)
 			if attempt < 2 {
 				time.Sleep(2 * time.Second)
+				if existing := GetConnectionByAddr(addr); existing != nil {
+					return true
+				}
 			}
 		}
 	}
@@ -57,12 +65,13 @@ func tryRestoreConnection(addr, machine string) bool {
 func CheckConnectionStateRemove(connection ConnectionsStruct) {
 	if connection.Connection == nil {
 		log.Printf("connection for slave %s is nil, removing", connection.Addr)
-		if removed := removeConnection(connection.Addr, connection.MachineName); removed != nil && removed.Connection != nil {
+		removed := removeConnection(connection.Addr, connection.MachineName, connection.EntryTime)
+		if removed != nil && removed.Connection != nil {
 			if err := removed.Connection.Close(); err != nil {
 				log.Printf("error closing removed connection: %v", err)
 			}
 		}
-		if !tryRestoreConnection(connection.Addr, connection.MachineName) {
+		if removed != nil && !tryRestoreConnection(connection.Addr, connection.MachineName) {
 			log.Printf("failed to recreate connection for slave %s after 3 attempts", connection.Addr)
 		}
 		return
@@ -82,12 +91,13 @@ func CheckConnectionStateRemove(connection ConnectionsStruct) {
 	}
 
 	log.Printf("removing slave %s from connections", connection.Addr)
-	if removed := removeConnection(connection.Addr, connection.MachineName); removed != nil && removed.Connection != nil {
+	removed := removeConnection(connection.Addr, connection.MachineName, connection.EntryTime)
+	if removed != nil && removed.Connection != nil {
 		if err := removed.Connection.Close(); err != nil {
 			log.Printf("error closing removed connection: %v", err)
 		}
 	}
-	if !tryRestoreConnection(connection.Addr, connection.MachineName) {
+	if removed != nil && !tryRestoreConnection(connection.Addr, connection.MachineName) {
 		log.Printf("failed to recreate connection for slave %s after 3 attempts", connection.Addr)
 	}
 }
@@ -163,7 +173,7 @@ func NewSlaveConnection(addr, machineName string) error {
 
 	if recievedNewSlaveFunc != nil {
 		if err := recievedNewSlaveFunc(addr, machineName, conn); err != nil {
-			if removed := removeConnection(addr, machineName); removed != nil && removed.Connection != nil {
+			if removed := removeConnection(addr, machineName, entry.EntryTime); removed != nil && removed.Connection != nil {
 				if cerr := removed.Connection.Close(); cerr != nil {
 					log.Printf("error closing removed connection after callback error: %v", cerr)
 				}

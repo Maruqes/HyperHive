@@ -204,6 +204,37 @@ func containerUnpause(w http.ResponseWriter, r *http.Request) {
 		return svc.ContainerUnpause(machine, containerID)
 	})
 }
+func containerLogs(w http.ResponseWriter, r *http.Request) {
+	machine := chi.URLParam(r, "machineName")
+	if machine == "" {
+		http.Error(w, "machine name is required", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		ContainerID string `json:"container_id"`
+		Tail        int    `json:"tail"` // e.g. "all" or number of lines as string
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if req.ContainerID == "" {
+		http.Error(w, "container_id is required", http.StatusBadRequest)
+		return
+	}
+
+	svc := services.DockerService{}
+	if err := svc.ContainerLogs(r.Context(), machine, req.ContainerID, int32(req.Tail)); err != nil {
+		logger.Errorf("docker container logs failed: %v", err)
+		http.Error(w, "failed to get container logs: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
 
 func containerKill(w http.ResponseWriter, r *http.Request) {
 	machine := chi.URLParam(r, "machineName")
@@ -266,6 +297,111 @@ func handleContainerIDAction(w http.ResponseWriter, r *http.Request, action func
 
 	w.WriteHeader(http.StatusOK)
 }
+func containerUpdate(w http.ResponseWriter, r *http.Request) {
+	machine := chi.URLParam(r, "machineName")
+	if machine == "" {
+		http.Error(w, "machine name is required", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		ContainerID string  `json:"container_id"`
+		Memory      int64   `json:"memory"`
+		CPUS        float64 `json:"cpus"`
+		Restart     string  `json:"restart"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if req.ContainerID == "" {
+		http.Error(w, "container_id is required", http.StatusBadRequest)
+		return
+	}
+
+	svc := services.DockerService{}
+	if err := svc.ContainerUpdate(machine, req.ContainerID, req.Memory, req.CPUS, req.Restart); err != nil {
+		logger.Errorf("docker container update failed: %v", err)
+		http.Error(w, "failed to update container: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func containerRename(w http.ResponseWriter, r *http.Request) {
+	machine := chi.URLParam(r, "machineName")
+	if machine == "" {
+		http.Error(w, "machine name is required", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		ContainerID string `json:"container_id"`
+		NewName     string `json:"new_name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if req.ContainerID == "" {
+		http.Error(w, "container_id is required", http.StatusBadRequest)
+		return
+	}
+	if req.NewName == "" {
+		http.Error(w, "new_name is required", http.StatusBadRequest)
+		return
+	}
+
+	svc := services.DockerService{}
+	if err := svc.ContainerRename(machine, req.ContainerID, req.NewName); err != nil {
+		logger.Errorf("docker container rename failed: %v", err)
+		http.Error(w, "failed to rename container: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func containerExec(w http.ResponseWriter, r *http.Request) {
+	machine := chi.URLParam(r, "machineName")
+	if machine == "" {
+		http.Error(w, "machine name is required", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		ContainerID string   `json:"container_id"`
+		Commands    []string `json:"commands"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if req.ContainerID == "" {
+		http.Error(w, "container_id is required", http.StatusBadRequest)
+		return
+	}
+	if len(req.Commands) == 0 {
+		http.Error(w, "commands are required", http.StatusBadRequest)
+		return
+	}
+
+	svc := services.DockerService{}
+	if err := svc.ContainerExec(machine, req.ContainerID, req.Commands); err != nil {
+		logger.Errorf("docker container exec failed: %v", err)
+		http.Error(w, "failed to exec in container: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
 
 func setupDockerAPI(r chi.Router) chi.Router {
 	return r.Route("/docker", func(r chi.Router) {
@@ -285,6 +421,10 @@ func setupDockerAPI(r chi.Router) chi.Router {
 			r.Post("/pause/{machineName}", containerPause)
 			r.Post("/unpause/{machineName}", containerUnpause)
 			r.Post("/kill/{machineName}", containerKill)
+			r.Post("/logs/{machineName}", containerLogs)
+			r.Post("/update/{machineName}", containerUpdate)
+			r.Post("/rename/{machineName}", containerRename)
+			r.Post("/exec/{machineName}", containerExec)
 		})
 	})
 }

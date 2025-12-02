@@ -1180,7 +1180,7 @@ func downloadFile(ctx context.Context, url, destPath string) (err error) {
 					resp.BytesComplete(),
 					resp.Size(),
 					100*resp.Progress(),
-					float64(resp.BytesPerSecond())/1024/1024),
+					float64(resp.BytesPerSecond())/1024/1024), "",
 				extraGrpc.WebSocketsMessageType_DownloadIso,
 			)
 		case <-resp.Done:
