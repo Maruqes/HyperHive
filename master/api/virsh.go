@@ -117,7 +117,9 @@ func migrateLiveVM(w http.ResponseWriter, r *http.Request) {
 
 	virshServices := services.VirshService{}
 
-	err = virshServices.MigrateVm(r.Context(), migReq.OriginMachine, migReq.DestinationMachine, vmName, migReq.Live, migReq.TimeoutSeconds)
+	ctx := keepAliveCtx(r)
+
+	err = virshServices.MigrateVm(ctx, migReq.OriginMachine, migReq.DestinationMachine, vmName, migReq.Live, migReq.TimeoutSeconds)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -210,7 +212,8 @@ func startVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshServices := services.VirshService{}
-	err := virshServices.StartVM(r.Context(), vmName)
+	ctx := keepAliveCtx(r)
+	err := virshServices.StartVM(ctx, vmName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -647,8 +650,10 @@ func importVM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx := keepAliveCtx(r)
+
 	err = virshService.ColdMigrateVm(
-		r.Context(),
+		ctx,
 		vmReq.Slave_name,
 		&grpcVirsh.ColdMigrationRequest{
 			VmName:      vmReq.VmName,
@@ -801,7 +806,8 @@ func useBackup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshServices := services.VirshService{}
-	err = virshServices.UseBackup(r.Context(), backupIdInt,
+	ctx := keepAliveCtx(r)
+	err = virshServices.UseBackup(ctx, backupIdInt,
 		vmReq.Slave_name, vmReq.NfsShareId,
 		&grpcVirsh.ColdMigrationRequest{
 			VmName:      vmReq.VmName,
@@ -1063,7 +1069,8 @@ func moveDisk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshService := services.VirshService{}
-	err = virshService.MoveDisk(r.Context(), vm_name, destNfs, newName)
+	ctx := keepAliveCtx(r)
+	err = virshService.MoveDisk(ctx, vm_name, destNfs, newName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1086,7 +1093,8 @@ func coldMigrate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshService := services.VirshService{}
-	err := virshService.ColdMigrate(r.Context(), vm_name, dest_machine_name)
+	ctx := keepAliveCtx(r)
+	err := virshService.ColdMigrate(ctx, vm_name, dest_machine_name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1133,7 +1141,8 @@ func cloneVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshService := services.VirshService{}
-	err = virshService.CloneVM(r.Context(), vm_name, newName, dest_machine_name, destNfs)
+	ctx := keepAliveCtx(r)
+	err = virshService.CloneVM(ctx, vm_name, newName, dest_machine_name, destNfs)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

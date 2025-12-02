@@ -114,7 +114,8 @@ func runSmartDiskSelfTest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	service := services.SmartDiskService{}
-	message, err := service.RunSelfTest(r.Context(), machineName, req.Device, protoType)
+	ctx := keepAliveCtx(r)
+	message, err := service.RunSelfTest(ctx, machineName, req.Device, protoType)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -163,7 +164,8 @@ func cancelSmartDiskSelfTest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	service := services.SmartDiskService{}
-	msg, err := service.CancelSelfTest(r.Context(), machineName, req.Device)
+	ctx := keepAliveCtx(r)
+	msg, err := service.CancelSelfTest(ctx, machineName, req.Device)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -186,7 +188,8 @@ func startForceReallocFullWipe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	service := services.SmartDiskService{}
-	message, err := service.StartFullWipe(r.Context(), machineName, req.Device)
+	ctx := keepAliveCtx(r)
+	message, err := service.StartFullWipe(ctx, machineName, req.Device)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -208,7 +211,8 @@ func startForceReallocNonDestructive(w http.ResponseWriter, r *http.Request) {
 	}
 
 	service := services.SmartDiskService{}
-	message, err := service.StartNonDestructiveRealloc(r.Context(), machineName, req.Device)
+	ctx := keepAliveCtx(r)
+	message, err := service.StartNonDestructiveRealloc(ctx, machineName, req.Device)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -260,7 +264,8 @@ func cancelForceRealloc(w http.ResponseWriter, r *http.Request) {
 	}
 
 	service := services.SmartDiskService{}
-	msg, err := service.CancelRealloc(r.Context(), machineName, req.Device)
+	ctx := keepAliveCtx(r)
+	msg, err := service.CancelRealloc(ctx, machineName, req.Device)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
