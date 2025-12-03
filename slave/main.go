@@ -724,8 +724,22 @@ func copyFile(src, dst string) error {
 	return os.Chmod(dst, 0o644)
 }
 
+func desligar_swap() error {
+	cmd := exec.Command("swapoff", "-a")
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("erro a correr swapoff -a: %w (output: %s)", err, string(out))
+	}
+
+	return nil
+}
 func main() {
 	askForSudo()
+
+	if err := desligar_swap(); err != nil {
+		log.Fatalf("error turing off swap %v", err)
+	}
 
 	if err := docker.InstallLatestDocker(); err != nil {
 		log.Fatalf("docker setup %v", err)

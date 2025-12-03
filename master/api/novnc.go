@@ -4,7 +4,6 @@ import (
 	"512SvMan/env512"
 	"512SvMan/protocol"
 	"512SvMan/services"
-	"512SvMan/virsh"
 	"context"
 	"fmt"
 	"io"
@@ -14,7 +13,6 @@ import (
 	"os/exec"
 	"time"
 
-	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 	"github.com/Maruqes/512SvMan/logger"
 	"github.com/evangwt/go-vncproxy"
 	"github.com/go-chi/chi/v5"
@@ -34,19 +32,8 @@ func initNoVNC() {
 			// map token -> VNC backend
 			// e.g., token=vm1 -> localhost:5901 (adjust as needed)
 			vmName := r.URL.Query().Get("vm")
-			slaveName := r.URL.Query().Get("slave")
-			if vmName == "" || slaveName == "" {
-				logger.Error("novnc: missing vm or slave parameter")
-				return "", http.ErrNoLocation
-			}
-
-			slaveMachine := protocol.GetConnectionByMachineName(slaveName)
-			if slaveMachine == nil {
-				logger.Error("novnc: slave machine not found")
-				return "", http.ErrNoLocation
-			}
-
-			vm, err := virsh.GetVmByName(slaveMachine.Connection, &grpcVirsh.GetVmByNameRequest{Name: vmName})
+			virshService := services.VirshService{}
+			vm, err := virshService.GetVmByName(vmName)
 			if err != nil {
 				logger.Error("novnc: failed to get VM by name")
 				return "", http.ErrNoLocation
@@ -55,8 +42,14 @@ func initNoVNC() {
 				logger.Error("novnc: VM not found or VNC not configured")
 				return "", http.ErrNoLocation
 			}
-			logger.Infof("novnc: connecting to VM %s on slave %s at %s:%s", vmName, slaveName, slaveMachine.Addr, vm.NovncPort)
-			return slaveMachine.Addr + ":" + vm.NovncPort, nil
+
+			slaveHeHe := protocol.GetConnectionByMachineName(vm.MachineName)
+			if slaveHeHe == nil || slaveHeHe.Connection == nil {
+				logger.Error("novnc: failed to get slave what the fuck")
+				return "", http.ErrNoLocation
+			}
+			logger.Infof("novnc: connecting to VM %s on slave %s at %s:%s", vmName, slaveHeHe.MachineName, slaveHeHe.Addr, vm.NovncPort)
+			return slaveHeHe.Addr + ":" + vm.NovncPort, nil
 		},
 	})
 }
