@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/Maruqes/512SvMan/api v0.0.0
 	github.com/Maruqes/512SvMan/logger v0.0.0-00010101000000-000000000000
+	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/evangwt/go-vncproxy v1.1.0
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/google/uuid v1.6.0
@@ -12,6 +13,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/oschwald/geoip2-golang v1.9.0
+	github.com/vishvananda/netlink v1.3.1
 	golang.org/x/net v0.42.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10
 	google.golang.org/grpc v1.76.0
@@ -20,7 +22,6 @@ require (
 )
 
 require (
-	github.com/SherClockHolmes/webpush-go v1.4.0 // indirect
 	github.com/evangwt/go-bufcopy v0.1.1 // indirect
 	github.com/golang-jwt/jwt/v5 v5.2.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
@@ -30,6 +31,7 @@ require (
 	github.com/mdlayher/socket v0.5.1 // indirect
 	github.com/oschwald/maxminddb-golang v1.11.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/vishvananda/netns v0.0.5 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.40.0 // indirect

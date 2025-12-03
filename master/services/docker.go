@@ -5,8 +5,11 @@ import (
 	"512SvMan/protocol"
 	"context"
 	"fmt"
+	"log"
+	"net"
 
 	dockerGrpc "github.com/Maruqes/512SvMan/api/proto/docker"
+	"github.com/vishvananda/netlink"
 )
 
 type DockerService struct{}
@@ -240,18 +243,146 @@ func (s *DockerService) NetworkList(machineName string) (*dockerGrpc.NetworkList
 	return docker.NetworkList(machine.Connection)
 }
 
+type NetworkParams struct {
+	Gateway string
+	Parent  string
+	Subnet  string
+}
+
+func getNetParamsFromIface(ifaceName string) (*NetworkParams, error) {
+	params := &NetworkParams{Parent: ifaceName}
+
+	iface, err := net.InterfaceByName(ifaceName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get interface %s: %w", ifaceName, err)
+	}
+
+	addrs, err := iface.Addrs()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get interface addresses for %s: %w", ifaceName, err)
+	}
+
+	for _, a := range addrs {
+		ipNet, ok := a.(*net.IPNet)
+		if !ok {
+			continue
+		}
+		if ipNet.IP.To4() == nil {
+			continue
+		}
+
+		networkIP := ipNet.IP.Mask(ipNet.Mask)
+		_, subnet, err := net.ParseCIDR(networkIP.String() + "/" + maskToPrefix(ipNet.Mask))
+		if err != nil {
+			return nil, fmt.Errorf("failed to calculate subnet for %s: %w", ifaceName, err)
+		}
+
+		params.Subnet = subnet.String()
+		break
+	}
+
+	if params.Subnet == "" {
+		log.Printf("no IPv4 subnet found for interface %s", ifaceName)
+	}
+
+	// 1) tentar gateway pela própria interface
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		log.Printf("failed to get netlink handle for interface %s: %v", ifaceName, err)
+	} else {
+		routes, err := netlink.RouteList(link, netlink.FAMILY_V4)
+		if err != nil {
+			log.Printf("failed to list IPv4 routes for interface %s: %v", ifaceName, err)
+		} else {
+			for _, r := range routes {
+				// default route dessa interface (0.0.0.0/0)
+				if r.Dst == nil && r.Gw != nil {
+					params.Gateway = r.Gw.String()
+					log.Printf("found per-interface gateway %s for %s", params.Gateway, ifaceName)
+					break
+				}
+			}
+		}
+	}
+
+	// 2) se ainda não temos gateway, tentar o default route global
+	if params.Gateway == "" {
+		routes, err := netlink.RouteList(nil, netlink.FAMILY_V4)
+		if err != nil {
+			log.Printf("failed to list global IPv4 routes: %v", err)
+		} else {
+			for _, r := range routes {
+				if r.Dst == nil && r.Gw != nil {
+					params.Gateway = r.Gw.String()
+					log.Printf("using global default gateway %s for interface %s", params.Gateway, ifaceName)
+					break
+				}
+			}
+		}
+	}
+
+	// 3) fallback: se ainda não há gateway mas temos subnet, assumir .1
+	if params.Gateway == "" && params.Subnet != "" {
+		_, ipnet, err := net.ParseCIDR(params.Subnet)
+		if err != nil {
+			log.Printf("failed to parse subnet %s for guessing gateway: %v", params.Subnet, err)
+		} else {
+			gw := make(net.IP, len(ipnet.IP))
+			copy(gw, ipnet.IP)
+
+			if ip4 := gw.To4(); ip4 != nil {
+				// assume first usable IP (.1)
+				ip4[3]++
+				params.Gateway = ip4.String()
+				log.Printf("guessed gateway %s for interface %s from subnet %s", params.Gateway, ifaceName, params.Subnet)
+			}
+		}
+	}
+
+	if params.Gateway == "" {
+		log.Printf("no IPv4 gateway found or guessed for interface %s", ifaceName)
+	}
+
+	return params, nil
+}
+
+func maskToPrefix(mask net.IPMask) string {
+	ones, _ := mask.Size()
+	return fmt.Sprintf("%d", ones)
+}
+
 func (s *DockerService) NetworkCreate(machineName, name, networkType string) error {
 	machine := protocol.GetConnectionByMachineName(machineName)
 	if machine == nil || machine.Connection == nil {
 		return fmt.Errorf("machine %s is not connected", machineName)
 	}
 
-	// TODO: Build the full NetworkCreateRequest with params based on networkType
-	req := &dockerGrpc.NetworkCreateRequest{
-		Name: name,
-		// Params will be populated here
+	var params dockerGrpc.NetworkCreateParams
+	switch networkType {
+	case "bridge":
+		params.Type = dockerGrpc.NetworkType_BRIDGE
+	case "macvlan":
+		params.Type = dockerGrpc.NetworkType_MACVLAN
+
+		netParams, err := getNetParamsFromIface("512rede")
+		if err != nil {
+			return err
+		}
+
+		if netParams != nil {
+			params.Gateway = netParams.Gateway
+			params.Parent = netParams.Parent
+			params.Subnet = netParams.Subnet
+			log.Printf("macvlan parameters resolved from %s: gateway=%s parent=%s subnet=%s", netParams.Parent, params.Gateway, params.Parent, params.Subnet)
+		}
+	default:
+		return fmt.Errorf("unknown network type %q: supported values are \"bridge\" or \"macvlan\"", networkType)
 	}
 
+	req := &dockerGrpc.NetworkCreateRequest{
+		Name:   name,
+		Params: &params,
+	}
 	return docker.NetworkCreate(machine.Connection, req)
 }
 

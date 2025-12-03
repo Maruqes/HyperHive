@@ -3,6 +3,7 @@ package docker
 import (
 	"bufio"
 	"context"
+	"strings"
 
 	dockerGRPC "github.com/Maruqes/512SvMan/api/proto/docker"
 )
@@ -301,7 +302,7 @@ func (s *DockerService) VolumeList(ctx context.Context, req *dockerGRPC.Empty) (
 }
 
 func (s *DockerService) NetworkCreate(ctx context.Context, req *dockerGRPC.NetworkCreateRequest) (*dockerGRPC.Empty, error) {
-	return &dockerGRPC.Empty{}, our_network.Create(ctx, req.Name, NetworkCreateParams{Type: NetworkType(req.Params.Type.String()), Subnet: req.Params.Subnet, Gateway: req.Params.Gateway, Parent: req.Params.Parent})
+	return &dockerGRPC.Empty{}, our_network.Create(ctx, req.Name, NetworkCreateParams{Type: NetworkType(strings.ToLower(req.Params.Type.String())), Subnet: req.Params.Subnet, Gateway: req.Params.Gateway, Parent: req.Params.Parent})
 }
 
 func (s *DockerService) NetworkRemove(ctx context.Context, req *dockerGRPC.NetworkRemoveRequest) (*dockerGRPC.Empty, error) {
