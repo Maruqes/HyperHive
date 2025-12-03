@@ -403,6 +403,164 @@ func containerExec(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func listVolumes(w http.ResponseWriter, r *http.Request) {
+	machine := chi.URLParam(r, "machineName")
+	if machine == "" {
+		http.Error(w, "machine name is required", http.StatusBadRequest)
+		return
+	}
+
+	svc := services.DockerService{}
+	res, err := svc.VolumeList(machine)
+	if err != nil {
+		logger.Errorf("docker volume list failed: %v", err)
+		http.Error(w, "failed to list volumes: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(res)
+	if err != nil {
+		http.Error(w, "failed to marshal response", http.StatusInternalServerError)
+		return
+	}
+
+	_, _ = w.Write(data)
+}
+
+func volumeCreateBindMount(w http.ResponseWriter, r *http.Request) {
+	machine := chi.URLParam(r, "machineName")
+	if machine == "" {
+		http.Error(w, "machine name is required", http.StatusBadRequest)
+		return
+	}
+
+	var req dockerGrpc.VolumeCreateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	svc := services.DockerService{}
+	if err := svc.VolumeCreateBindMount(machine, &req); err != nil {
+		logger.Errorf("docker volume create failed: %v", err)
+		http.Error(w, "failed to create volume: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+func volumeRemove(w http.ResponseWriter, r *http.Request) {
+	machine := chi.URLParam(r, "machineName")
+	if machine == "" {
+		http.Error(w, "machine name is required", http.StatusBadRequest)
+		return
+	}
+
+	var req dockerGrpc.VolumeRemoveRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	svc := services.DockerService{}
+	if err := svc.VolumeRemove(machine, &req); err != nil {
+		logger.Errorf("docker volume remove failed: %v", err)
+		http.Error(w, "failed to remove volume: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func listNetworks(w http.ResponseWriter, r *http.Request) {
+	machine := chi.URLParam(r, "machineName")
+	if machine == "" {
+		http.Error(w, "machine name is required", http.StatusBadRequest)
+		return
+	}
+
+	svc := services.DockerService{}
+	res, err := svc.NetworkList(machine)
+	if err != nil {
+		logger.Errorf("docker network list failed: %v", err)
+		http.Error(w, "failed to list networks: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(res)
+	if err != nil {
+		http.Error(w, "failed to marshal response", http.StatusInternalServerError)
+		return
+	}
+
+	_, _ = w.Write(data)
+}
+
+func networkCreate(w http.ResponseWriter, r *http.Request) {
+	machine := chi.URLParam(r, "machineName")
+	if machine == "" {
+		http.Error(w, "machine name is required", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		Name string `json:"name"`
+		Type string `json:"type"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if req.Name == "" {
+		http.Error(w, "name is required", http.StatusBadRequest)
+		return
+	}
+	if req.Type == "" {
+		http.Error(w, "type is required", http.StatusBadRequest)
+		return
+	}
+
+	svc := services.DockerService{}
+	if err := svc.NetworkCreate(machine, req.Name, req.Type); err != nil {
+		logger.Errorf("docker network create failed: %v", err)
+		http.Error(w, "failed to create network: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+func networkRemove(w http.ResponseWriter, r *http.Request) {
+	machine := chi.URLParam(r, "machineName")
+	if machine == "" {
+		http.Error(w, "machine name is required", http.StatusBadRequest)
+		return
+	}
+
+	var req dockerGrpc.NetworkRemoveRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	svc := services.DockerService{}
+	if err := svc.NetworkRemove(machine, &req); err != nil {
+		logger.Errorf("docker network remove failed: %v", err)
+		http.Error(w, "failed to remove network: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func setupDockerAPI(r chi.Router) chi.Router {
 	return r.Route("/docker", func(r chi.Router) {
 		r.Route("/images", func(r chi.Router) {
@@ -425,6 +583,18 @@ func setupDockerAPI(r chi.Router) chi.Router {
 			r.Post("/update/{machineName}", containerUpdate)
 			r.Post("/rename/{machineName}", containerRename)
 			r.Post("/exec/{machineName}", containerExec)
+		})
+
+		r.Route("/volumes", func(r chi.Router) {
+			r.Get("/{machineName}", listVolumes)
+			r.Post("/create/{machineName}", volumeCreateBindMount)
+			r.Delete("/remove/{machineName}", volumeRemove)
+		})
+
+		r.Route("/networks", func(r chi.Router) {
+			r.Get("/{machineName}", listNetworks)
+			r.Post("/create/{machineName}", networkCreate)
+			r.Delete("/remove/{machineName}", networkRemove)
 		})
 	})
 }

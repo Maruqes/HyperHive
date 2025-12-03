@@ -203,3 +203,63 @@ func (s *DockerService) ContainerExec(machineName, containerID string, commands 
 
 	return docker.ContainerExec(machine.Connection, req)
 }
+
+func (s *DockerService) VolumeList(machineName string) (*dockerGrpc.ListVolumesResponse, error) {
+	machine := protocol.GetConnectionByMachineName(machineName)
+	if machine == nil || machine.Connection == nil {
+		return nil, fmt.Errorf("machine %s is not connected", machineName)
+	}
+
+	return docker.VolumeList(machine.Connection)
+}
+
+func (s *DockerService) VolumeCreateBindMount(machineName string, req *dockerGrpc.VolumeCreateRequest) error {
+	machine := protocol.GetConnectionByMachineName(machineName)
+	if machine == nil || machine.Connection == nil {
+		return fmt.Errorf("machine %s is not connected", machineName)
+	}
+
+	return docker.VolumeCreateBindMount(machine.Connection, req)
+}
+
+func (s *DockerService) VolumeRemove(machineName string, req *dockerGrpc.VolumeRemoveRequest) error {
+	machine := protocol.GetConnectionByMachineName(machineName)
+	if machine == nil || machine.Connection == nil {
+		return fmt.Errorf("machine %s is not connected", machineName)
+	}
+
+	return docker.VolumeRemove(machine.Connection, req)
+}
+
+func (s *DockerService) NetworkList(machineName string) (*dockerGrpc.NetworkListResponse, error) {
+	machine := protocol.GetConnectionByMachineName(machineName)
+	if machine == nil || machine.Connection == nil {
+		return nil, fmt.Errorf("machine %s is not connected", machineName)
+	}
+
+	return docker.NetworkList(machine.Connection)
+}
+
+func (s *DockerService) NetworkCreate(machineName, name, networkType string) error {
+	machine := protocol.GetConnectionByMachineName(machineName)
+	if machine == nil || machine.Connection == nil {
+		return fmt.Errorf("machine %s is not connected", machineName)
+	}
+
+	// TODO: Build the full NetworkCreateRequest with params based on networkType
+	req := &dockerGrpc.NetworkCreateRequest{
+		Name: name,
+		// Params will be populated here
+	}
+
+	return docker.NetworkCreate(machine.Connection, req)
+}
+
+func (s *DockerService) NetworkRemove(machineName string, req *dockerGrpc.NetworkRemoveRequest) error {
+	machine := protocol.GetConnectionByMachineName(machineName)
+	if machine == nil || machine.Connection == nil {
+		return fmt.Errorf("machine %s is not connected", machineName)
+	}
+
+	return docker.NetworkRemove(machine.Connection, req)
+}

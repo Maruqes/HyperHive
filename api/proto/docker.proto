@@ -217,12 +217,132 @@ message ExecMsg{
 	repeated string Commands = 2;
 }
 
+message UsageData {
+	int64 RefCount = 1;
+
+	int64 Size = 2;
+}
+
+message Volume {
+	string CreatedAt = 1;
+	string Driver = 2;
+	map<string, string> Labels = 3;
+	string Mountpoint = 4;
+	string Name = 5;
+	map<string, string> Options = 6;
+	string Scope = 7;
+	map<string, string> Status = 8;
+	UsageData UsageData = 9;
+	// Disk space info for the underlying mount
+	DiskSpace DiskSpace = 10;
+}
+
+message ListVolumesResponse {
+	repeated Volume Volumes = 1;
+	repeated string Warnings = 2;
+}
+
+// Disk space metrics for a volume
+message DiskSpace {
+	int64 Total = 1;
+	int64 Free = 2;
+	int64 Used = 3;
+}
+
+message VolumeCreateRequest {
+	string Name = 1;
+	string Folder = 2;
+	map<string, string> Labels = 3;
+}
+
+message VolumeRemoveRequest {
+	string VolumeId = 1; 
+	bool Force = 2;
+}
+
+// ----------------------
+// Networks API
+// ----------------------
+enum NetworkType {
+	NETWORK_TYPE_UNSPECIFIED = 0;
+	BRIDGE = 1;
+	MACVLAN = 2;
+}
+
+message IPAMConfig {
+	string Subnet = 1;
+	string Gateway = 2;
+}
+
+message IPAM {
+	string Driver = 1;
+	map<string, string> Options = 2;
+	repeated IPAMConfig Config = 3;
+}
+
+message NetworkCreateParams {
+	NetworkType Type = 1; // bridge or macvlan
+	string Subnet = 2;    // macvlan only
+	string Gateway = 3;   // macvlan only
+	string Parent = 4;    // macvlan only, e.g., eth0
+}
+
+message NetworkCreateRequest {
+	string Name = 1;
+	NetworkCreateParams Params = 2;
+}
+
+message NetworkRemoveRequest {
+	string Name = 1;
+}
+
+message EndpointResource {
+	string Name = 1;
+	string EndpointID = 2;
+	string MacAddress = 3;
+	string IPv4Address = 4;
+	string IPv6Address = 5;
+}
+
+message ConfigReference { string Network = 1; }
+
+message PeerInfo { string Name = 1; string IP = 2; }
+
+message Task { string Name = 1; string EndpointID = 2; string EndpointIP = 3; map<string,string> Info = 4; }
+
+message ServiceInfo { string VIP = 1; repeated string Ports = 2; int32 LocalLBIndex = 3; repeated Task Tasks = 4; }
+
+message NetworkSummary {
+	string Name = 1;
+	string Id = 2;
+	string Scope = 3;
+	string Driver = 4;
+	bool EnableIPv4 = 5;
+	bool EnableIPv6 = 6;
+	IPAM IPAM = 7;
+	bool Internal = 8;
+	bool Attachable = 9;
+	bool Ingress = 10;
+	ConfigReference ConfigFrom = 11;
+	bool ConfigOnly = 12;
+	map<string, EndpointResource> Containers = 13;
+	map<string, string> Options = 14;
+	map<string, string> Labels = 15;
+	repeated PeerInfo Peers = 16;
+	map<string, ServiceInfo> Services = 17;
+}
+
+
+
+message NetworkListResponse { repeated NetworkSummary Networks = 1; }
+
 service DockerService {
 	rpc ImageDownload(DownloadImage) returns (Empty);
 	rpc ImageRemove(Remove) returns (Empty);
 	rpc ImageList(Empty) returns (ListOfImages);
 
 
+	// Containers :D:D:D IUUUPIIIIIIIIIIII
 	rpc ContainerList(Empty) returns (ListOfContainers);
 	rpc ContainerCreateFunc(ContainerCreate) returns (Empty);
 	rpc ContainerRemove(RemoveContainer)returns(Empty);
@@ -236,4 +356,15 @@ service DockerService {
 	rpc ContainerUpdate(ContainerUpdateRequest) returns (ContainerUpdateResponse);
 	rpc ContainerRename(ContainerRenameRequest) returns (Empty);
 	rpc ContainerExec(ExecMsg)returns(Empty);
+
+	// Volumes pa puder juntar po novo super mariooooo
+	//eu fico por baixo ela ...
+	rpc VolumeList(Empty) returns (ListVolumesResponse);
+	rpc VolumeCreateBindMount(VolumeCreateRequest) returns (Empty);
+	rpc VolumeRemove(VolumeRemoveRequest) returns (Empty);
+
+	// Networks
+	rpc NetworkCreate(NetworkCreateRequest) returns (Empty);
+	rpc NetworkRemove(NetworkRemoveRequest) returns (Empty);
+	rpc NetworkList(Empty) returns (NetworkListResponse);
 }

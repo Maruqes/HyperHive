@@ -234,3 +234,172 @@ func (s *DockerService) ContainerRename(ctx context.Context, req *dockerGRPC.Con
 func (s *DockerService) ContainerExec(ctx context.Context, req *dockerGRPC.ExecMsg) (*dockerGRPC.Empty, error) {
 	return &dockerGRPC.Empty{}, our_container.Exec(ctx, req.ContainerId, req.Commands)
 }
+
+func (s *DockerService) VolumeCreateBindMount(ctx context.Context, req *dockerGRPC.VolumeCreateRequest) (*dockerGRPC.Empty, error) {
+	return &dockerGRPC.Empty{}, our_volume.CreateBindMountVolume(ctx, &VolumeCreateRequest{
+		Name:   req.Name,
+		Folder: req.Folder,
+		Labels: req.Labels,
+	})
+}
+
+func (s *DockerService) VolumeRemove(ctx context.Context, req *dockerGRPC.VolumeRemoveRequest) (*dockerGRPC.Empty, error) {
+	return &dockerGRPC.Empty{}, our_volume.Remove(ctx, req.VolumeId, req.Force)
+}
+
+func (s *DockerService) VolumeList(ctx context.Context, req *dockerGRPC.Empty) (*dockerGRPC.ListVolumesResponse, error) {
+	var res dockerGRPC.ListVolumesResponse
+
+	volumes, err := our_volume.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range volumes.Volumes {
+		// Convert Status map[string]interface{} to map[string]string
+		status := make(map[string]string)
+		for k, val := range v.Status {
+			if str, ok := val.(string); ok {
+				status[k] = str
+			}
+		}
+
+		var usageData *dockerGRPC.UsageData
+		if v.UsageData != nil {
+			usageData = &dockerGRPC.UsageData{
+				RefCount: int64(v.UsageData.RefCount),
+				Size:     int64(v.UsageData.Size),
+			}
+		}
+
+		// Get disk space information for the mountpoint
+		total, free, used, err := our_volume.GetDiskSpace(v.Mountpoint)
+		var diskSpace *dockerGRPC.DiskSpace
+		if err == nil {
+			diskSpace = &dockerGRPC.DiskSpace{
+				Total: int64(total),
+				Free:  int64(free),
+				Used:  int64(used),
+			}
+		}
+
+		res.Volumes = append(res.Volumes, &dockerGRPC.Volume{
+			CreatedAt:  v.CreatedAt,
+			Driver:     v.Driver,
+			Labels:     v.Labels,
+			Mountpoint: v.Mountpoint,
+			Name:       v.Name,
+			Options:    v.Options,
+			Scope:      v.Scope,
+			Status:     status,
+			UsageData:  usageData,
+			DiskSpace:  diskSpace,
+		})
+	}
+
+	return &res, nil
+}
+
+func (s *DockerService) NetworkCreate(ctx context.Context, req *dockerGRPC.NetworkCreateRequest) (*dockerGRPC.Empty, error) {
+	return &dockerGRPC.Empty{}, our_network.Create(ctx, req.Name, NetworkCreateParams{Type: NetworkType(req.Params.Type.String()), Subnet: req.Params.Subnet, Gateway: req.Params.Gateway, Parent: req.Params.Parent})
+}
+
+func (s *DockerService) NetworkRemove(ctx context.Context, req *dockerGRPC.NetworkRemoveRequest) (*dockerGRPC.Empty, error) {
+	return &dockerGRPC.Empty{}, our_network.Remove(ctx, req.Name)
+}
+
+func (s *DockerService) NetworkList(ctx context.Context, req *dockerGRPC.Empty) (*dockerGRPC.NetworkListResponse, error) {
+	var res dockerGRPC.NetworkListResponse
+
+	networks, err := our_network.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, net := range networks {
+		// Map IPAM
+		var ipam *dockerGRPC.IPAM
+		if net.IPAM.Driver != "" || len(net.IPAM.Config) > 0 {
+			var ipamConfigs []*dockerGRPC.IPAMConfig
+			for _, cfg := range net.IPAM.Config {
+				ipamConfigs = append(ipamConfigs, &dockerGRPC.IPAMConfig{
+					Subnet:  cfg.Subnet,
+					Gateway: cfg.Gateway,
+				})
+			}
+			ipam = &dockerGRPC.IPAM{
+				Driver: net.IPAM.Driver,
+				Config: ipamConfigs,
+			}
+		}
+
+		// Map ConfigFrom
+		var configFrom *dockerGRPC.ConfigReference
+		if net.ConfigFrom.Network != "" {
+			configFrom = &dockerGRPC.ConfigReference{
+				Network: net.ConfigFrom.Network,
+			}
+		}
+
+		// Map Containers (EndpointResource)
+		containers := make(map[string]*dockerGRPC.EndpointResource)
+		for id, endpoint := range net.Containers {
+			containers[id] = &dockerGRPC.EndpointResource{
+				Name:        endpoint.Name,
+				EndpointID:  endpoint.EndpointID,
+				MacAddress:  endpoint.MacAddress,
+				IPv4Address: endpoint.IPv4Address,
+				IPv6Address: endpoint.IPv6Address,
+			}
+		}
+
+		// Map Peers
+		var peers []*dockerGRPC.PeerInfo
+		for _, peer := range net.Peers {
+			peers = append(peers, &dockerGRPC.PeerInfo{
+				Name: peer.Name,
+				IP:   peer.IP,
+			})
+		}
+
+		// Map Services
+		services := make(map[string]*dockerGRPC.ServiceInfo)
+		for name, svc := range net.Services {
+			var tasks []*dockerGRPC.Task
+			for _, task := range svc.Tasks {
+				tasks = append(tasks, &dockerGRPC.Task{
+					Name:       task.Name,
+					EndpointID: task.EndpointID,
+					EndpointIP: task.EndpointIP,
+					Info:       task.Info,
+				})
+			}
+			services[name] = &dockerGRPC.ServiceInfo{
+				VIP:          svc.VIP,
+				Ports:        svc.Ports,
+				LocalLBIndex: int32(svc.LocalLBIndex),
+				Tasks:        tasks,
+			}
+		}
+
+		res.Networks = append(res.Networks, &dockerGRPC.NetworkSummary{
+			Name:       net.Name,
+			Id:         net.ID,
+			Scope:      net.Scope,
+			Driver:     net.Driver,
+			IPAM:       ipam,
+			Internal:   net.Internal,
+			Attachable: net.Attachable,
+			Ingress:    net.Ingress,
+			ConfigFrom: configFrom,
+			ConfigOnly: net.ConfigOnly,
+			Containers: containers,
+			Options:    net.Options,
+			Labels:     net.Labels,
+			Peers:      peers,
+			Services:   services,
+		})
+	}
+
+	return &res, nil
+}
