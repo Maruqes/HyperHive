@@ -25,6 +25,7 @@ var vp *vncproxy.Proxy
 
 // http://localhost:9595/novnc/vnc.html?path=/novnc/ws?token=vm1
 // http://localhost:9595/novnc/vnc.html?path=/novnc/ws%3Fvm%3Dplsfunfa%26slave%3Dslave1    change plsfunfa and slave1
+// https://hyperhive.maruqes.com/novnc/vnc.html?path=/novnc/ws%3Fvm%3Dlivetest
 func initNoVNC() {
 	vp = vncproxy.New(&vncproxy.Config{
 		LogLevel: vncproxy.DebugLevel,

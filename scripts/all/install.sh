@@ -169,6 +169,11 @@ else
     echo -e "${YELLOW}dnf not found; skipping installation of libmaxminddb-devel and ncurses-devel.${NC}"
 fi
 
+# Explicit installation command requested
+if command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y ncurses-devel || echo -e "${YELLOW}Could not explicitly install ncurses-devel with dnf.${NC}"
+fi
+
 
 echo -e "${BOLD}[4/4] Updating Firewall and Permissions...${NC}"
 echo ""
