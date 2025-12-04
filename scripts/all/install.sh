@@ -28,6 +28,163 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 BOLD='\033[1m'
 
+DEFAULT_LIBVIRT_NET="default"
+LIBVIRT_DEFAULT_XML="/usr/share/libvirt/networks/default.xml"
+LIBVIRT_BRIDGE="virbr0"
+LIBVIRT_ZONE="libvirt"
+SYSCTL_DEFAULT_NET_CONF="/etc/sysctl.d/99-hyperhive-default-net.conf"
+
+ensure_default_network_defined() {
+    if sudo_run virsh net-info "$DEFAULT_LIBVIRT_NET" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    if [[ ! -f "$LIBVIRT_DEFAULT_XML" ]]; then
+        echo -e "${RED}Default network XML not found at $LIBVIRT_DEFAULT_XML. Install libvirt-daemon-config-network.${NC}"
+        return 1
+    fi
+
+    if sudo_run virsh net-define "$LIBVIRT_DEFAULT_XML" >/dev/null 2>&1; then
+        echo -e "${YELLOW}Defined libvirt network '$DEFAULT_LIBVIRT_NET'.${NC}"
+        return 0
+    fi
+
+    echo -e "${RED}Failed to define libvirt network '$DEFAULT_LIBVIRT_NET'.${NC}"
+    return 1
+}
+
+default_network_is_active() {
+    local info active
+    if ! info=$(sudo_run virsh net-info "$DEFAULT_LIBVIRT_NET" 2>/dev/null); then
+        return 1
+    fi
+    active=$(printf '%s\n' "$info" | awk -F ':' '/Active/ {gsub(/^[ \t]+/, "", $2); print tolower($2)}')
+    [[ "$active" == "yes" ]]
+}
+
+ensure_default_network_running() {
+    if ! default_network_is_active; then
+        if sudo_run virsh net-start "$DEFAULT_LIBVIRT_NET" >/dev/null 2>&1; then
+            echo -e "${YELLOW}Started libvirt network '$DEFAULT_LIBVIRT_NET'.${NC}"
+        else
+            echo -e "${RED}Failed to start libvirt network '$DEFAULT_LIBVIRT_NET'.${NC}"
+            return 1
+        fi
+    fi
+
+    if sudo_run virsh net-autostart "$DEFAULT_LIBVIRT_NET" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    echo -e "${RED}Failed to mark libvirt network '$DEFAULT_LIBVIRT_NET' as autostart.${NC}"
+    return 1
+}
+
+ensure_bridge_device() {
+    if sudo_run ip link show "$LIBVIRT_BRIDGE" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    echo -e "${YELLOW}virbr0 missing; restarting libvirt networking...${NC}"
+    for svc in virtnetworkd libvirtd; do
+        if ! sudo_run systemctl restart "$svc" >/dev/null 2>&1; then
+            echo -e "${RED}Failed to restart $svc${NC}"
+        fi
+    done
+
+    ensure_default_network_running
+
+    if sudo_run ip link show "$LIBVIRT_BRIDGE" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    echo -e "${RED}virbr0 is still missing after restarting libvirt services.${NC}"
+    return 1
+}
+
+ensure_ip_forwarding() {
+    sudo_run bash -c "echo 'net.ipv4.ip_forward=1' > '$SYSCTL_DEFAULT_NET_CONF'"
+    if sudo_run sysctl -w net.ipv4.ip_forward=1 >/dev/null 2>&1; then
+        return 0
+    fi
+    echo -e "${RED}Failed to enable net.ipv4.ip_forward.${NC}"
+    return 1
+}
+
+firewalld_running() {
+    command -v firewall-cmd >/dev/null 2>&1 && sudo_run firewall-cmd --state >/dev/null 2>&1
+}
+
+ensure_firewalld_zone_exists() {
+    if ! firewalld_running; then
+        return 0
+    fi
+
+    local zones
+    if zones=$(sudo_run firewall-cmd --get-zones 2>/dev/null); then
+        if echo "$zones" | tr ' ' '\n' | grep -Fxq "$LIBVIRT_ZONE"; then
+            return 0
+        fi
+    fi
+
+    sudo_run firewall-cmd --permanent --new-zone="$LIBVIRT_ZONE" >/dev/null 2>&1
+    sudo_run firewall-cmd --reload >/dev/null 2>&1
+}
+
+ensure_firewalld_interface_binding() {
+    if ! firewalld_running; then
+        return 0
+    fi
+
+    local list
+    if list=$(sudo_run firewall-cmd --permanent --zone="$LIBVIRT_ZONE" --list-interfaces 2>/dev/null); then
+        if ! echo "$list" | tr ' ' '\n' | grep -Fxq "$LIBVIRT_BRIDGE"; then
+            sudo_run firewall-cmd --permanent --zone="$LIBVIRT_ZONE" --add-interface="$LIBVIRT_BRIDGE" >/dev/null 2>&1
+        fi
+    fi
+
+    if list=$(sudo_run firewall-cmd --zone="$LIBVIRT_ZONE" --list-interfaces 2>/dev/null); then
+        if ! echo "$list" | tr ' ' '\n' | grep -Fxq "$LIBVIRT_BRIDGE"; then
+            sudo_run firewall-cmd --zone="$LIBVIRT_ZONE" --add-interface="$LIBVIRT_BRIDGE" >/dev/null 2>&1
+        fi
+    fi
+}
+
+ensure_firewalld_masquerade() {
+    if ! firewalld_running; then
+        return 0
+    fi
+
+    if ! sudo_run firewall-cmd --permanent --zone="$LIBVIRT_ZONE" --query-masquerade >/dev/null 2>&1; then
+        sudo_run firewall-cmd --permanent --zone="$LIBVIRT_ZONE" --add-masquerade >/dev/null 2>&1
+    fi
+
+    if ! sudo_run firewall-cmd --zone="$LIBVIRT_ZONE" --query-masquerade >/dev/null 2>&1; then
+        sudo_run firewall-cmd --zone="$LIBVIRT_ZONE" --add-masquerade >/dev/null 2>&1
+    fi
+
+    sudo_run firewall-cmd --reload >/dev/null 2>&1
+}
+
+ensure_default_network_connectivity() {
+    echo ""
+    echo -e "${BOLD}[4.b] Ensuring libvirt default network connectivity...${NC}"
+    if ! command -v virsh >/dev/null 2>&1; then
+        echo -e "${YELLOW}virsh not found; skipping default network configuration.${NC}"
+        return 0
+    fi
+
+    ensure_default_network_defined
+    ensure_default_network_running
+    ensure_bridge_device
+    ensure_ip_forwarding
+    ensure_firewalld_zone_exists
+    ensure_firewalld_interface_binding
+    ensure_firewalld_masquerade
+
+    echo -e "${YELLOW}✓ Default libvirt network ready.${NC}"
+}
+
 clear
 
 echo -e "${RED}${BOLD}"
@@ -209,6 +366,8 @@ if command -v firewall-cmd >/dev/null 2>&1; then
 else
     echo -e "${YELLOW}firewall-cmd not found; skipping firewall configuration.${NC}"
 fi
+
+ensure_default_network_connectivity
 
 CURRENT_USER="${SUDO_USER:-$(id -un)}"
 if getent group kvm >/dev/null 2>&1; then
