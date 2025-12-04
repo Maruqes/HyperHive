@@ -174,7 +174,11 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 		}
 		vmMap["isLive"] = vm.IsLive
 		vmMap["autoStart"] = autoStart
-		vmMap["novnclink"] = env512.MAIN_LINK + fmt.Sprintf("/novnc/vnc.html?path=/novnc/ws%%3Fvm%%3D%v%%26slave%%3D%v", vmMap["name"], vmMap["machineName"])
+		vmMap["novnclink"] = env512.MAIN_LINK + fmt.Sprintf("/novnc/vnc.html?path=/novnc/ws%%3Fvm%%3D%v", vmMap["name"])
+		nfsID, err := virshServices.GetNfsByVM(vmMap["name"].(string))
+		if err == nil {
+			vmMap["nfs_id"] = nfsID
+		}
 		payload = append(payload, vmMap)
 	}
 
