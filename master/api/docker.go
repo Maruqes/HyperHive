@@ -561,6 +561,145 @@ func networkRemove(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func gitClone(w http.ResponseWriter, r *http.Request) {
+	machine := chi.URLParam(r, "machineName")
+	if machine == "" {
+		http.Error(w, "machine name is required", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		Link        string            `json:"link"`
+		FolderToRun string            `json:"folder_to_run"`
+		Name        string            `json:"name"`
+		Id          string            `json:"id"`
+		Env         map[string]string `json:"env"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if req.Link == "" {
+		http.Error(w, "git link is required", http.StatusBadRequest)
+		return
+	}
+	if req.Name == "" {
+		http.Error(w, "name is required", http.StatusBadRequest)
+		return
+	}
+	if req.Id == "" {
+		http.Error(w, "id is required", http.StatusBadRequest)
+		return
+	}
+
+	svc := services.DockerService{}
+	err := svc.GitClone(machine, req.Link, req.FolderToRun, req.Name, req.Id, req.Env)
+	if err != nil {
+		http.Error(w, "git clone failed "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func gitList(w http.ResponseWriter, r *http.Request) {
+	machine := chi.URLParam(r, "machineName")
+	if machine == "" {
+		http.Error(w, "machine name is required", http.StatusBadRequest)
+		return
+	}
+
+	svc := services.DockerService{}
+	res, err := svc.GitList(machine)
+	if err != nil {
+		http.Error(w, "git list failed "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(res)
+	if err != nil {
+		http.Error(w, "failed to marshal response", http.StatusInternalServerError)
+		return
+	}
+
+	_, _ = w.Write(data)
+}
+
+func gitRemove(w http.ResponseWriter, r *http.Request) {
+	machine := chi.URLParam(r, "machineName")
+	if machine == "" {
+		http.Error(w, "machine name is required", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if req.Name == "" {
+		http.Error(w, "name is required", http.StatusBadRequest)
+		return
+	}
+
+	svc := services.DockerService{}
+	err := svc.GitRemove(machine, req.Name)
+	if err != nil {
+		http.Error(w, "git remove failed "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func gitUpdate(w http.ResponseWriter, r *http.Request) {
+	machine := chi.URLParam(r, "machineName")
+	if machine == "" {
+		http.Error(w, "machine name is required", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		Name string            `json:"name"`
+		Id   string            `json:"id"`
+		Env  map[string]string `json:"env"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if req.Name == "" {
+		http.Error(w, "name is required", http.StatusBadRequest)
+		return
+	}
+	if req.Id == "" {
+		http.Error(w, "id is required", http.StatusBadRequest)
+		return
+	}
+
+	svc := services.DockerService{}
+	envVars, err := svc.GitUpdate(machine, req.Name, req.Id, req.Env)
+	if err != nil {
+		http.Error(w, "git update failed "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	resp, marshalErr := json.Marshal(envVars)
+	if marshalErr != nil {
+		http.Error(w, "failed to marshal response", http.StatusInternalServerError)
+		return
+	}
+	_, _ = w.Write(resp)
+}
+
 func setupDockerAPI(r chi.Router) chi.Router {
 	return r.Route("/docker", func(r chi.Router) {
 		r.Route("/images", func(r chi.Router) {
@@ -595,6 +734,13 @@ func setupDockerAPI(r chi.Router) chi.Router {
 			r.Get("/{machineName}", listNetworks)
 			r.Post("/create/{machineName}", networkCreate)
 			r.Delete("/remove/{machineName}", networkRemove)
+		})
+
+		r.Route("/git", func(r chi.Router) {
+			r.Get("/{machineName}", gitList)
+			r.Post("/clone/{machineName}", gitClone)
+			r.Delete("/remove/{machineName}", gitRemove)
+			r.Post("/update/{machineName}", gitUpdate)
 		})
 	})
 }

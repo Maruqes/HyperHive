@@ -735,11 +735,22 @@ func desligar_swap() error {
 	return nil
 }
 
+func install_git() error {
+	if err := exec.Command("dnf", "install", "-y", "git").Run(); err != nil {
+		return fmt.Errorf("failed to install git: %w", err)
+	}
+	return nil
+}
+
 func main() {
 	askForSudo()
 
 	if err := desligar_swap(); err != nil {
 		log.Fatalf("error turing off swap %v", err)
+	}
+
+	if err := install_git(); err != nil {
+		log.Fatalf("error install git %v", err)
 	}
 
 	if err := docker.InstallLatestDocker(); err != nil {

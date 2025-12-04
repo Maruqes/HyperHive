@@ -1,6 +1,7 @@
 package services
 
 import (
+	"512SvMan/db"
 	"512SvMan/docker"
 	"512SvMan/protocol"
 	"context"
@@ -393,4 +394,89 @@ func (s *DockerService) NetworkRemove(machineName string, req *dockerGrpc.Networ
 	}
 
 	return docker.NetworkRemove(machine.Connection, req)
+}
+
+func (s *DockerService) GitClone(machineName string, link, folderToRun, name, id string, envVars map[string]string) error {
+	machine := protocol.GetConnectionByMachineName(machineName)
+	if machine == nil || machine.Connection == nil {
+		return fmt.Errorf("machine %s is not connected", machineName)
+	}
+
+	if err := docker.GitClone(machine.Connection, &dockerGrpc.GitCloneReq{Url: link, FolderToRun: folderToRun, Name: name, Id: id, EnvVars: envVars}); err != nil {
+		return err
+	}
+	if err := db.UpsertDockerRepo(machineName, name, folderToRun, envVars); err != nil {
+		return fmt.Errorf("store git repo reference: %w", err)
+	}
+	return nil
+}
+
+func (s *DockerService) GitList(machineName string) (*dockerGrpc.GitListReq, error) {
+	machine := protocol.GetConnectionByMachineName(machineName)
+	if machine == nil || machine.Connection == nil {
+		return nil, fmt.Errorf("machine %s is not connected", machineName)
+	}
+
+	return docker.GitList(machine.Connection)
+}
+
+func (s *DockerService) GitRemove(machineName string, name string) error {
+	machine := protocol.GetConnectionByMachineName(machineName)
+	if machine == nil || machine.Connection == nil {
+		return fmt.Errorf("machine %s is not connected", machineName)
+	}
+
+	repo, err := db.GetDockerRepo(machineName, name)
+	if err != nil {
+		return fmt.Errorf("lookup git repo: %w", err)
+	}
+
+	var folderToRun string
+	var id string
+	if repo != nil {
+		folderToRun = ""
+		id = ""
+	}
+
+	if err := docker.GitRemove(machine.Connection, &dockerGrpc.GitRemoveReq{Name: name, FolderToRun: folderToRun, Id: id}); err != nil {
+		return err
+	}
+
+	if repo != nil {
+		if err := db.DeleteDockerRepo(machineName, name); err != nil {
+			return fmt.Errorf("delete git repo record: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (s *DockerService) GitUpdate(machineName, name, id string, envVars map[string]string) (map[string]string, error) {
+	machine := protocol.GetConnectionByMachineName(machineName)
+	if machine == nil || machine.Connection == nil {
+		return nil, fmt.Errorf("machine %s is not connected", machineName)
+	}
+
+	repo, err := db.GetDockerRepo(machineName, name)
+	if err != nil {
+		return nil, fmt.Errorf("lookup git repo: %w", err)
+	}
+	if repo == nil {
+		return nil, fmt.Errorf("git repo %s not found for machine %s", name, machineName)
+	}
+
+	finalEnv := repo.EnvVars
+	if envVars != nil {
+		finalEnv = envVars
+	}
+
+	if err := docker.GitUpdate(machine.Connection, &dockerGrpc.GitUpdateReq{FolderToRun: repo.FolderToRun, Name: name, Id: id, EnvVars: finalEnv}); err != nil {
+		return nil, err
+	}
+
+	if err := db.UpsertDockerRepo(machineName, name, repo.FolderToRun, finalEnv); err != nil {
+		return nil, fmt.Errorf("store git repo reference: %w", err)
+	}
+
+	return finalEnv, nil
 }

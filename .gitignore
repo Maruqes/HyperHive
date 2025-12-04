@@ -52,3 +52,4 @@ novnc
 master/novnc
 certs/
 downloads/
+slave/docker_git

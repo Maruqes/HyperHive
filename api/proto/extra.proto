@@ -10,6 +10,7 @@ enum WebSocketsMessageType {
   BackUpVM = 2;
   ContainerLogs = 3;
   Logs = 4;
+  DockerCompose = 5;
 }
 
 message WebsocketMessage {

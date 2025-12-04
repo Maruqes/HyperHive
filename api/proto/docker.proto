@@ -334,6 +334,36 @@ message NetworkSummary {
 
 
 
+message GitListReq {
+	message Elem {
+		string Name = 1;
+		string RepoLink = 2;
+	}
+	repeated Elem Elems = 1;
+}
+
+message GitRemoveReq {
+	string Name = 1;
+	string FolderToRun = 2;
+	string Id = 3;
+}
+
+
+message GitCloneReq{
+	string url = 1; 
+	string FolderToRun = 2;
+	string Name = 3;
+	string Id = 4;
+	map<string, string> EnvVars = 5;
+}
+
+message GitUpdateReq {
+	string Name = 1;
+	string FolderToRun = 2;
+	string Id = 3;
+	map<string, string> EnvVars = 4;
+}
+
 message NetworkListResponse { repeated NetworkSummary Networks = 1; }
 
 service DockerService {
@@ -367,4 +397,10 @@ service DockerService {
 	rpc NetworkCreate(NetworkCreateRequest) returns (Empty);
 	rpc NetworkRemove(NetworkRemoveRequest) returns (Empty);
 	rpc NetworkList(Empty) returns (NetworkListResponse);
+
+	//git compose
+	rpc GitClone(GitCloneReq)returns(Empty);
+	rpc GitList(Empty)returns(GitListReq);
+	rpc GitRemove(GitRemoveReq)returns(Empty);
+	rpc GitUpdate(GitUpdateReq)returns(Empty);
 }

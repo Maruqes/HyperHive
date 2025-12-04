@@ -404,3 +404,33 @@ func (s *DockerService) NetworkList(ctx context.Context, req *dockerGRPC.Empty) 
 
 	return &res, nil
 }
+
+func (s *DockerService) GitClone(ctx context.Context, req *dockerGRPC.GitCloneReq) (*dockerGRPC.Empty, error) {
+	return &dockerGRPC.Empty{}, our_git.GitClone(ctx, req.Url, req.FolderToRun, req.Name, req.Id, req.EnvVars)
+}
+
+func (s *DockerService) GitList(ctx context.Context, req *dockerGRPC.Empty) (*dockerGRPC.GitListReq, error) {
+	var res dockerGRPC.GitListReq
+
+	list, err := our_git.GitList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, item := range list.Elems {
+		res.Elems = append(res.Elems, &dockerGRPC.GitListReq_Elem{
+			Name:     item.Name,
+			RepoLink: item.RepoLink,
+		})
+	}
+
+	return &res, nil
+}
+
+func (s *DockerService) GitRemove(ctx context.Context, req *dockerGRPC.GitRemoveReq) (*dockerGRPC.Empty, error) {
+	return &dockerGRPC.Empty{}, our_git.GitRemove(ctx, req.Name, req.FolderToRun, req.Id)
+}
+
+func (s *DockerService) GitUpdate(ctx context.Context, req *dockerGRPC.GitUpdateReq) (*dockerGRPC.Empty, error) {
+	return &dockerGRPC.Empty{}, our_git.GitUpdate(ctx, req.Name, req.FolderToRun, req.Id, req.EnvVars)
+}

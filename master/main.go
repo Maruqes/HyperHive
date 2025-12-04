@@ -364,6 +364,11 @@ func main() {
 		log.Fatalf("create btrfs auto table: %v", err)
 	}
 
+	err = db.CreateDockerRepoTable()
+	if err != nil {
+		log.Fatalf("create docker repo table: %v", err)
+	}
+
 	err = db.DbCreatePushSubscriptionsTable()
 	if err != nil {
 		log.Fatalf("create push subs table: %v", err)
