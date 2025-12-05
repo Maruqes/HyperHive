@@ -431,21 +431,24 @@ func (s *DockerService) GitRemove(machineName string, name string) error {
 		return fmt.Errorf("lookup git repo: %w", err)
 	}
 
-	var folderToRun string
-	var id string
-	if repo != nil {
-		folderToRun = ""
-		id = ""
+	req := &dockerGrpc.GitRemoveReq{
+		Name:        name,
+		FolderToRun: "",
+		Id:          "",
+		EnvVars:     make(map[string]string),
 	}
 
-	if err := docker.GitRemove(machine.Connection, &dockerGrpc.GitRemoveReq{Name: name, FolderToRun: folderToRun, Id: id}); err != nil {
+	if repo != nil {
+		req.FolderToRun = repo.FolderToRun
+		req.EnvVars = repo.EnvVars
+	}
+
+	if err := docker.GitRemove(machine.Connection, req); err != nil {
 		return err
 	}
 
-	if repo != nil {
-		if err := db.DeleteDockerRepo(machineName, name); err != nil {
-			return fmt.Errorf("delete git repo record: %w", err)
-		}
+	if err := db.DeleteDockerRepo(machineName, name); err != nil {
+		return fmt.Errorf("delete git repo record: %w", err)
 	}
 
 	return nil
