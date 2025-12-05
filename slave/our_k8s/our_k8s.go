@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slave/env512"
 	"strings"
 )
 
@@ -39,6 +40,12 @@ type JoinClusterOptions struct {
 }
 
 var TOKEN string
+
+// this functions tells us if we are the "slave" running on master server
+// remember that master server needs also to run slave client for this to work properly
+func AreWeMasterSlave() bool {
+	return env512.SlaveIP == env512.MasterIP
+}
 
 func InstallK3sServer(ctx context.Context, opts ServerInstallOptions) (string, error) {
 	if opts.NodeIP == "" {

@@ -19,14 +19,15 @@ type K8sService struct {
 }
 
 func (s *K8sService) GetToken(ctx context.Context, req *k8sGrpc.Empty) (*k8sGrpc.Token, error) {
-	if TOKEN != "" {
+	if TOKEN != "" && AreWeMasterSlave() {
+		//somos o master slave e temos token
 		return &k8sGrpc.Token{Token: TOKEN, NodeIp: env512.SlaveIP}, nil
 	}
 	return &k8sGrpc.Token{Token: "", NodeIp: env512.SlaveIP}, nil
 }
 
 func (s *K8sService) GetConnectionFile(ctx context.Context, req *k8sGrpc.Empty) (*k8sGrpc.ConnectionFile, error) {
-	if TOKEN == "" {
+	if TOKEN == "" && !AreWeMasterSlave() {
 		return &k8sGrpc.ConnectionFile{File: ""}, nil
 	}
 	cmd := exec.CommandContext(ctx, "sudo", "k3s", "kubectl", "config", "view", "--raw")
@@ -35,6 +36,10 @@ func (s *K8sService) GetConnectionFile(ctx context.Context, req *k8sGrpc.Empty) 
 		return nil, status.Errorf(codes.Internal, "fetch kubeconfig: %v", err)
 	}
 	return &k8sGrpc.ConnectionFile{File: string(out)}, nil
+}
+
+func (s *K8sService) IsMasterSlave(ctx context.Context, req *k8sGrpc.Empty) (*k8sGrpc.IsMasterSlaveRes, error) {
+	return &k8sGrpc.IsMasterSlaveRes{WeAreMasterSlave: AreWeMasterSlave()}, nil
 }
 
 func (s *K8sService) SetConnectionToCluster(ctx context.Context, req *k8sGrpc.ConnectionToCluster) (*k8sGrpc.Empty, error) {
@@ -47,7 +52,7 @@ func (s *K8sService) SetConnectionToCluster(ctx context.Context, req *k8sGrpc.Co
 		return nil, status.Error(codes.InvalidArgument, "token is required")
 	}
 
-	serverURL := strings.TrimSpace(req.GetUrl())
+	var serverURL string
 	serverIP := strings.TrimSpace(req.GetServerIp())
 	if serverURL == "" {
 		if serverIP == "" {

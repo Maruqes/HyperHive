@@ -752,7 +752,7 @@ func main() {
 		log.Fatalf("env setup: %v", err)
 	}
 
-	if env512.SlaveIP == env512.MasterIP {
+	if ourk8s.AreWeMasterSlave() {
 		//this is the slave running on master
 		token, err := ourk8s.InstallK3sServer(context.Background(), ourk8s.ServerInstallOptions{
 			NodeIP:         env512.SlaveIP,
