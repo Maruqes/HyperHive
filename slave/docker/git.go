@@ -44,17 +44,19 @@ func ExecWithSocket(ctx context.Context, msgType proto.WebSocketsMessageType, ex
 	}()
 
 	// Scanner for stderr
+	errS := ""
 	go func() {
 		stderrScanner := bufio.NewScanner(stderr)
 		for stderrScanner.Scan() {
 			line := stderrScanner.Text()
 			extra.SendWebsocketMessage(line, extraS, msgType)
+			errS = errS + line
 		}
 	}()
 
 	// Wait for command to finish
 	if err := cmd.Wait(); err != nil {
-		return err
+		return fmt.Errorf("%s + %s", err.Error(), errS)
 	}
 
 	return nil
@@ -94,17 +96,19 @@ func ExecWithSocketAndEnv(ctx context.Context, msgType proto.WebSocketsMessageTy
 	}()
 
 	// Scanner for stderr
+	errS := ""
 	go func() {
 		stderrScanner := bufio.NewScanner(stderr)
 		for stderrScanner.Scan() {
 			line := stderrScanner.Text()
 			extra.SendWebsocketMessage(line, extraS, msgType)
+			errS = errS + line
 		}
 	}()
 
 	// Wait for command to finish
 	if err := cmd.Wait(); err != nil {
-		return err
+		return fmt.Errorf("%s + %s", err.Error(), errS)
 	}
 
 	return nil
@@ -112,6 +116,11 @@ func ExecWithSocketAndEnv(ctx context.Context, msgType proto.WebSocketsMessageTy
 
 func (g *Git) GitClone(ctx context.Context, link, folderToRun, name, id string, envVars map[string]string) error {
 	gitFolder := name
+
+	// Make sure the directory exists
+	if err := os.MkdirAll(allGitDir, os.ModePerm); err != nil {
+		return err
+	}
 
 	// Check if name is only letters and numbers
 	for _, char := range name {
@@ -132,11 +141,6 @@ func (g *Git) GitClone(ctx context.Context, link, folderToRun, name, id string, 
 	}
 
 	cloneDir := filepath.Join(allGitDir, gitFolder)
-
-	// Make sure the directory exists
-	if err := os.MkdirAll(allGitDir, os.ModePerm); err != nil {
-		return err
-	}
 
 	// Execute git clone command
 	if err := ExecWithSocket(ctx, proto.WebSocketsMessageType_DockerCompose, id, "git", "clone", link, cloneDir); err != nil {
@@ -194,18 +198,24 @@ func (g *Git) GitList(ctx context.Context) (*GitList, error) {
 	return &res, nil
 }
 
-func (g *Git) GitRemove(ctx context.Context, name, folderToRun string, id string) error {
+func (g *Git) GitRemove(ctx context.Context, name, folderToRun string, id string, envVars map[string]string) error {
 	for _, char := range name {
 		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9')) {
 			return fmt.Errorf("invalid name: %s; only letters and numbers are allowed", name)
 		}
 	}
 
-	folderPath := filepath.Join(allGitDir, name)
+	if folderToRun == "" {
+		folderPath := filepath.Join(allGitDir, name)
+		return os.RemoveAll(folderPath)
+	}
 
-	// Try to run docker compose down, ignore errors
+	folderPath := filepath.Join(allGitDir, name)
 	composeFile := filepath.Join(folderPath, folderToRun)
-	ExecWithSocket(ctx, proto.WebSocketsMessageType_DockerCompose, id, "docker", "compose", "-f", composeFile, "down")
+
+	if err := ExecWithSocketAndEnv(ctx, proto.WebSocketsMessageType_DockerCompose, id, envVars, "docker", "compose", "-f", composeFile, "down"); err != nil {
+		return fmt.Errorf("docker compose down: %w", err)
+	}
 
 	if err := os.RemoveAll(folderPath); err != nil {
 		return err

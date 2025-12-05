@@ -346,6 +346,7 @@ message GitRemoveReq {
 	string Name = 1;
 	string FolderToRun = 2;
 	string Id = 3;
+	map<string, string> EnvVars = 4;
 }
 
 

@@ -428,7 +428,7 @@ func (s *DockerService) GitList(ctx context.Context, req *dockerGRPC.Empty) (*do
 }
 
 func (s *DockerService) GitRemove(ctx context.Context, req *dockerGRPC.GitRemoveReq) (*dockerGRPC.Empty, error) {
-	return &dockerGRPC.Empty{}, our_git.GitRemove(ctx, req.Name, req.FolderToRun, req.Id)
+	return &dockerGRPC.Empty{}, our_git.GitRemove(ctx, req.Name, req.FolderToRun, req.Id, req.EnvVars)
 }
 
 func (s *DockerService) GitUpdate(ctx context.Context, req *dockerGRPC.GitUpdateReq) (*dockerGRPC.Empty, error) {
