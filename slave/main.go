@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -17,6 +18,7 @@ import (
 	"slave/extra"
 	"slave/logs512"
 	"slave/nfs"
+	ourk8s "slave/our_k8s"
 	"slave/protocol"
 	"slave/smartdisk"
 	"slave/virsh"
@@ -745,6 +747,27 @@ func install_git() error {
 func main() {
 	askForSudo()
 
+	//varsc
+	if err := env512.Setup(); err != nil {
+		log.Fatalf("env setup: %v", err)
+	}
+
+	if env512.SlaveIP == env512.MasterIP {
+		//this is the slave running on master
+		token, err := ourk8s.InstallK3sServer(context.Background(), ourk8s.ServerInstallOptions{
+			NodeIP:         env512.SlaveIP,
+			TLSSANs:        []string{env512.SlaveIP},
+			DisableTraefik: false,
+			Version:        env512.K3sVersion,
+			ExtraArgs:      []string{},
+		})
+		if err != nil {
+			log.Fatalf("install k3s server: %v", err)
+		}
+		ourk8s.TOKEN = token
+		fmt.Println(token)
+	}
+
 	if err := desligar_swap(); err != nil {
 		log.Fatalf("error turing off swap %v", err)
 	}
@@ -759,11 +782,6 @@ func main() {
 	err := docker.NewDockerService()
 	if err != nil {
 		log.Fatalf("docker service %v", err)
-	}
-
-	//varsc
-	if err := env512.Setup(); err != nil {
-		log.Fatalf("env setup: %v", err)
 	}
 
 	if err := applyDirtyRatioSettings(env512.DirtyRatioPercent, env512.DirtyBackgroundRatioPercent); err != nil {

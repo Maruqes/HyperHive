@@ -23,6 +23,7 @@ var (
 	VirtioISOPath               string
 	DirtyRatioPercent           int
 	DirtyBackgroundRatioPercent int
+	K3sVersion                  string
 )
 
 func SetConn(conn *grpc.ClientConn) {
@@ -37,6 +38,7 @@ func Setup() error {
 	MachineName = os.Getenv("MACHINE_NAME")
 	Qemu_UID = os.Getenv("QEMU_UID")
 	Qemu_GID = os.Getenv("QEMU_GID")
+	K3sVersion = os.Getenv("K3S_VERSION")
 
 	// Parse PING_INTERVAL; default to 15 seconds on parse error or when unset
 	if s := os.Getenv("PING_INTERVAL"); s == "" {

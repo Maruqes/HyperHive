@@ -10,8 +10,14 @@ Choose the right install guide, follow the runtime setup, and make sure required
 - [Runtime Configuration & Autostart](RUNTIME-SETUP.md) — configure `.env`, build binaries, and register PM2 services.
 
 ## Network Ports
-- `50051` — master gRPC endpoint.
-- `50052` — slave gRPC endpoint.
+- `50051/tcp` — master gRPC endpoint.
+- `50052/tcp` — slave gRPC endpoint.
+- `6443/tcp` — k3s API server exposed by the master node.
+- `8472/udp` — k3s overlay network (flannel/VXLAN) between agents.
+- `51512/udp` (+ optional `51512/tcp`) — WireGuard tunnel managed by HyperHive.
+- `80/tcp` and `443/tcp` — public-facing HTTP/HTTPS handled by Nginx Proxy Manager.
+- `81/tcp` — local-only NPM admin UI/API (`127.0.0.1:81` by default).
+- `VNC_MIN_PORT`-`VNC_MAX_PORT`/tcp — runtime VNC range for virtual machines (set in `.env`).
 
 If a slave lives outside the internal network, ensure these ports are reachable through firewalls/VPNs and adjust NAT rules as needed.
 

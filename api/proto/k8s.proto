@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package k8s;
+
+option go_package = "github.com/Maruqes/512SvMan/api/proto/k8s;proto";
+
+message Empty{}
+message Token{ 
+	string token = 1;
+	string nodeIp = 2;
+}
+
+message ConnectionToCluster{
+	string url = 1;
+	string serverIp = 2;
+	string token = 3;
+}
+
+message ConnectionFile{
+	string file = 1;
+}
+
+//its youu that i lie with 
+service K8sService {
+	rpc GetToken(Empty)returns (Token);
+	rpc GetConnectionFile(Empty)returns(ConnectionFile);
+	rpc SetConnectionToCluster(ConnectionToCluster)returns(Empty);
+}
