@@ -146,11 +146,6 @@ func JoinExistingCluster(ctx context.Context, opts JoinClusterOptions) error {
 		return fmt.Errorf("configure firewall: %w", err)
 	}
 
-	version := opts.Version
-	if version == "" {
-		version = "stable"
-	}
-
 	agentArgs := []string{"agent"}
 	if opts.NodeIP != "" {
 		agentArgs = append(agentArgs, "--node-ip", opts.NodeIP)
@@ -171,18 +166,23 @@ func JoinExistingCluster(ctx context.Context, opts JoinClusterOptions) error {
 
 	var stderrBuf bytes.Buffer
 	cmd := exec.CommandContext(ctx, "bash", "-c", "curl -sfL https://get.k3s.io | sh -")
-	cmd.Env = append(os.Environ(),
-		fmt.Sprintf("INSTALL_K3S_VERSION=%s", version),
+
+	envVars := []string{
 		fmt.Sprintf("INSTALL_K3S_EXEC=%s", strings.Join(agentArgs, " ")),
-		"K3S_URL="+opts.ServerURL,
-		"K3S_TOKEN="+opts.Token,
-	)
+		"K3S_URL=" + opts.ServerURL,
+		"K3S_TOKEN=" + opts.Token,
+	}
+	if opts.Version != "" {
+		envVars = append(envVars, fmt.Sprintf("INSTALL_K3S_VERSION=%s", opts.Version))
+	}
+
+	cmd.Env = append(os.Environ(), envVars...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = &stderrBuf
 
 	if err := cmd.Run(); err != nil {
 		stderrOutput := stderrBuf.String()
-		return fmt.Errorf("join k3s cluster: installer script failed: %w\nK3S_VERSION: %s\nK3S_URL: %s\nAgent args: %v\nStderr: %s", err, version, opts.ServerURL, agentArgs, stderrOutput)
+		return fmt.Errorf("join k3s cluster: installer script failed: %w\nK3S_VERSION: %s\nK3S_URL: %s\nAgent args: %v\nStderr: %s", err, opts.Version, opts.ServerURL, agentArgs, stderrOutput)
 	}
 	return nil
 }
