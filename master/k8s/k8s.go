@@ -12,9 +12,14 @@ func GetToken(conn *grpc.ClientConn) (*k8sGrpc.Token, error) {
 	return client.GetToken(context.Background(), &k8sGrpc.Empty{})
 }
 
-func GetConnectionFile(conn *grpc.ClientConn) (*k8sGrpc.ConnectionFile, error) {
+func GetConnectionFile(conn *grpc.ClientConn, ip string) (*k8sGrpc.ConnectionFile, error) {
 	client := k8sGrpc.NewK8SServiceClient(conn)
-	return client.GetConnectionFile(context.Background(), &k8sGrpc.Empty{})
+	return client.GetConnectionFile(context.Background(), &k8sGrpc.ConnectionFileIp{Ip: ip})
+}
+
+func GetTLSSANIps(conn *grpc.ClientConn) (*k8sGrpc.TLSSANSIps, error) {
+	client := k8sGrpc.NewK8SServiceClient(conn)
+	return client.GetTLSSANIps(context.Background(), &k8sGrpc.Empty{})
 }
 
 func SetConnectionToCluster(conn *grpc.ClientConn, con *k8sGrpc.ConnectionToCluster) (*k8sGrpc.Empty, error) {

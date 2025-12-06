@@ -230,6 +230,7 @@ func StartApi() {
 		setupBTRFS(r)
 		setupNotsAPI(r)
 		setupDockerAPI(r)
+		setupK8sAPI(r)
 	})
 	http.ListenAndServe(":9595", r)
 }

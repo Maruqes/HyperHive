@@ -23,10 +23,19 @@ message IsMasterSlaveRes{
 	bool weAreMasterSlave = 1;
 }
 
+message ConnectionFileIp{
+	string ip = 1;
+}
+
+message TLSSANSIps{
+	repeated string ips = 1;
+}
+
 //its youu that i lie with 
 service K8sService {
 	rpc GetToken(Empty)returns (Token);
-	rpc GetConnectionFile(Empty)returns(ConnectionFile);
+	rpc GetConnectionFile(ConnectionFileIp)returns(ConnectionFile);
+	rpc GetTLSSANIps(Empty)returns(TLSSANSIps);
 	rpc SetConnectionToCluster(ConnectionToCluster)returns(Empty);
 	rpc IsMasterSlave(Empty)returns(IsMasterSlaveRes);
 }

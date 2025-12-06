@@ -20,13 +20,22 @@ func (s *K8sService) GetToken(machineName string) (*k8sGrpc.Token, error) {
 	return k8s.GetToken(conn.Connection)
 }
 
-func (s *K8sService) GetConnectionFile(machineName string) (*k8sGrpc.ConnectionFile, error) {
+func (s *K8sService) GetConnectionFile(machineName, ip string) (*k8sGrpc.ConnectionFile, error) {
 	conn := protocol.GetConnectionByMachineName(machineName)
 	if conn == nil {
 		return nil, fmt.Errorf("no connection found for machine: %s", machineName)
 	}
 
-	return k8s.GetConnectionFile(conn.Connection)
+	return k8s.GetConnectionFile(conn.Connection, ip)
+}
+
+func (s *K8sService) GetTLSSANIps(machineName string) (*k8sGrpc.TLSSANSIps, error) {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil {
+		return nil, fmt.Errorf("no connection found for machine: %s", machineName)
+	}
+
+	return k8s.GetTLSSANIps(conn.Connection)
 }
 
 func (s *K8sService) IsMasterSlave(machineName string) (bool, error) {

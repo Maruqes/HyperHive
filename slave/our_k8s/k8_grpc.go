@@ -26,7 +26,7 @@ func (s *K8sService) GetToken(ctx context.Context, req *k8sGrpc.Empty) (*k8sGrpc
 	return &k8sGrpc.Token{Token: "", NodeIp: env512.SlaveIP}, nil
 }
 
-func (s *K8sService) GetConnectionFile(ctx context.Context, req *k8sGrpc.Empty) (*k8sGrpc.ConnectionFile, error) {
+func (s *K8sService) GetConnectionFile(ctx context.Context, req *k8sGrpc.ConnectionFileIp) (*k8sGrpc.ConnectionFile, error) {
 	if TOKEN == "" && !AreWeMasterSlave() {
 		return &k8sGrpc.ConnectionFile{File: ""}, nil
 	}
@@ -35,7 +35,26 @@ func (s *K8sService) GetConnectionFile(ctx context.Context, req *k8sGrpc.Empty) 
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "fetch kubeconfig: %v", err)
 	}
-	return &k8sGrpc.ConnectionFile{File: string(out)}, nil
+
+	// replace 0.0.0.0 with req.Ip
+	kubeconfig := strings.ReplaceAll(string(out), "0.0.0.0", req.GetIp())
+	return &k8sGrpc.ConnectionFile{File: kubeconfig}, nil
+}
+
+func (s *K8sService) GetTLSSANIps(ctx context.Context, req *k8sGrpc.Empty) (*k8sGrpc.TLSSANSIps, error) {
+	if TOKEN == "" && !AreWeMasterSlave() {
+		return &k8sGrpc.TLSSANSIps{Ips: []string{}}, nil
+	}
+
+	tlsSANs := []string{env512.SlaveIP}
+	for _, ip := range env512.ExtraK8sIPs {
+		if ip == "" || ip == env512.SlaveIP {
+			continue
+		}
+		tlsSANs = append(tlsSANs, ip)
+	}
+
+	return &k8sGrpc.TLSSANSIps{Ips: tlsSANs}, nil
 }
 
 func (s *K8sService) IsMasterSlave(ctx context.Context, req *k8sGrpc.Empty) (*k8sGrpc.IsMasterSlaveRes, error) {

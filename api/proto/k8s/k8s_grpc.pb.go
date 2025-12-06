@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion8
 const (
 	K8SService_GetToken_FullMethodName               = "/k8s.K8sService/GetToken"
 	K8SService_GetConnectionFile_FullMethodName      = "/k8s.K8sService/GetConnectionFile"
+	K8SService_GetTLSSANIps_FullMethodName           = "/k8s.K8sService/GetTLSSANIps"
 	K8SService_SetConnectionToCluster_FullMethodName = "/k8s.K8sService/SetConnectionToCluster"
 	K8SService_IsMasterSlave_FullMethodName          = "/k8s.K8sService/IsMasterSlave"
 )
@@ -30,7 +31,8 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type K8SServiceClient interface {
 	GetToken(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Token, error)
-	GetConnectionFile(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ConnectionFile, error)
+	GetConnectionFile(ctx context.Context, in *ConnectionFileIp, opts ...grpc.CallOption) (*ConnectionFile, error)
+	GetTLSSANIps(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TLSSANSIps, error)
 	SetConnectionToCluster(ctx context.Context, in *ConnectionToCluster, opts ...grpc.CallOption) (*Empty, error)
 	IsMasterSlave(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*IsMasterSlaveRes, error)
 }
@@ -53,10 +55,20 @@ func (c *k8SServiceClient) GetToken(ctx context.Context, in *Empty, opts ...grpc
 	return out, nil
 }
 
-func (c *k8SServiceClient) GetConnectionFile(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ConnectionFile, error) {
+func (c *k8SServiceClient) GetConnectionFile(ctx context.Context, in *ConnectionFileIp, opts ...grpc.CallOption) (*ConnectionFile, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ConnectionFile)
 	err := c.cc.Invoke(ctx, K8SService_GetConnectionFile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *k8SServiceClient) GetTLSSANIps(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TLSSANSIps, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TLSSANSIps)
+	err := c.cc.Invoke(ctx, K8SService_GetTLSSANIps_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +100,8 @@ func (c *k8SServiceClient) IsMasterSlave(ctx context.Context, in *Empty, opts ..
 // for forward compatibility
 type K8SServiceServer interface {
 	GetToken(context.Context, *Empty) (*Token, error)
-	GetConnectionFile(context.Context, *Empty) (*ConnectionFile, error)
+	GetConnectionFile(context.Context, *ConnectionFileIp) (*ConnectionFile, error)
+	GetTLSSANIps(context.Context, *Empty) (*TLSSANSIps, error)
 	SetConnectionToCluster(context.Context, *ConnectionToCluster) (*Empty, error)
 	IsMasterSlave(context.Context, *Empty) (*IsMasterSlaveRes, error)
 	mustEmbedUnimplementedK8SServiceServer()
@@ -101,8 +114,11 @@ type UnimplementedK8SServiceServer struct {
 func (UnimplementedK8SServiceServer) GetToken(context.Context, *Empty) (*Token, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetToken not implemented")
 }
-func (UnimplementedK8SServiceServer) GetConnectionFile(context.Context, *Empty) (*ConnectionFile, error) {
+func (UnimplementedK8SServiceServer) GetConnectionFile(context.Context, *ConnectionFileIp) (*ConnectionFile, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetConnectionFile not implemented")
+}
+func (UnimplementedK8SServiceServer) GetTLSSANIps(context.Context, *Empty) (*TLSSANSIps, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTLSSANIps not implemented")
 }
 func (UnimplementedK8SServiceServer) SetConnectionToCluster(context.Context, *ConnectionToCluster) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetConnectionToCluster not implemented")
@@ -142,7 +158,7 @@ func _K8SService_GetToken_Handler(srv interface{}, ctx context.Context, dec func
 }
 
 func _K8SService_GetConnectionFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Empty)
+	in := new(ConnectionFileIp)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -154,7 +170,25 @@ func _K8SService_GetConnectionFile_Handler(srv interface{}, ctx context.Context,
 		FullMethod: K8SService_GetConnectionFile_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(K8SServiceServer).GetConnectionFile(ctx, req.(*Empty))
+		return srv.(K8SServiceServer).GetConnectionFile(ctx, req.(*ConnectionFileIp))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _K8SService_GetTLSSANIps_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(K8SServiceServer).GetTLSSANIps(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: K8SService_GetTLSSANIps_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(K8SServiceServer).GetTLSSANIps(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -209,6 +243,10 @@ var K8SService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetConnectionFile",
 			Handler:    _K8SService_GetConnectionFile_Handler,
+		},
+		{
+			MethodName: "GetTLSSANIps",
+			Handler:    _K8SService_GetTLSSANIps_Handler,
 		},
 		{
 			MethodName: "SetConnectionToCluster",
