@@ -754,9 +754,16 @@ func main() {
 
 	if ourk8s.AreWeMasterSlave() {
 		//this is the slave running on master
+		tlsSANs := []string{env512.SlaveIP}
+		for _, ip := range env512.ExtraK8sIPs {
+			if ip == "" || ip == env512.SlaveIP {
+				continue
+			}
+			tlsSANs = append(tlsSANs, ip)
+		}
 		token, err := ourk8s.InstallK3sServer(context.Background(), ourk8s.ServerInstallOptions{
 			NodeIP:         env512.SlaveIP,
-			TLSSANs:        []string{env512.SlaveIP},
+			TLSSANs:        tlsSANs,
 			DisableTraefik: false,
 			Version:        env512.K3sVersion,
 			ExtraArgs:      []string{},

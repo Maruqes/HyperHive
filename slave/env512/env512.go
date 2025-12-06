@@ -3,6 +3,7 @@ package env512
 import (
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
@@ -17,6 +18,7 @@ var (
 	VNC_MIN_PORT                int
 	VNC_MAX_PORT                int
 	OTHER_SLAVES                []string
+	ExtraK8sIPs                 []string
 	Conn                        *grpc.ClientConn
 	Qemu_UID                    string
 	Qemu_GID                    string
@@ -39,6 +41,16 @@ func Setup() error {
 	Qemu_UID = os.Getenv("QEMU_UID")
 	Qemu_GID = os.Getenv("QEMU_GID")
 	K3sVersion = os.Getenv("K3S_VERSION")
+
+	if extra := os.Getenv("EXTRA_K8S_IPS"); extra != "" {
+		for _, ip := range strings.Split(extra, ",") {
+			clean := strings.TrimSpace(ip)
+			if clean == "" {
+				continue
+			}
+			ExtraK8sIPs = append(ExtraK8sIPs, clean)
+		}
+	}
 
 	// Parse PING_INTERVAL; default to 15 seconds on parse error or when unset
 	if s := os.Getenv("PING_INTERVAL"); s == "" {
