@@ -764,7 +764,7 @@ func main() {
 		token, err := ourk8s.InstallK3sServer(context.Background(), ourk8s.ServerInstallOptions{
 			NodeIP:         env512.SlaveIP,
 			TLSSANs:        tlsSANs,
-			DisableTraefik: false,
+			DisableTraefik: true,
 			Version:        env512.K3sVersion,
 			ExtraArgs:      []string{},
 		})
