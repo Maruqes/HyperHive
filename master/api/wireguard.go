@@ -105,24 +105,21 @@ func newPeer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	peerID, err := db.InsertWireguardPeer(req.Name, clientCIDR, clientPubKey)
+	_, err = db.InsertWireguardPeer(req.Name, clientCIDR, clientPubKey)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("persist peer: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	response := createPeerResponse{
-		Peer: peerPayload{
-			ID:        peerID,
-			Name:      req.Name,
-			ClientIP:  clientCIDR,
-			PublicKey: clientPubKey,
-		},
-		Config:   config,
-		Endpoint: endpoint,
+	filename := strings.TrimSpace(req.Name)
+	if filename == "" {
+		filename = "wireguard"
 	}
+	filename = strings.ReplaceAll(filename, " ", "-") + ".conf"
 
-	writeJSON(w, response)
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	_, _ = w.Write([]byte(config))
 }
 
 func getPeers(w http.ResponseWriter, r *http.Request) {
