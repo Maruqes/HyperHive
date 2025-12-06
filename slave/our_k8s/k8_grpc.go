@@ -38,7 +38,6 @@ func (s *K8sService) GetConnectionFile(ctx context.Context, req *k8sGrpc.Connect
 
 	// replace 0.0.0.0 with req.Ip and fix spacing in server URL
 	kubeconfig := strings.ReplaceAll(string(out), "0.0.0.0", req.GetIp())
-	kubeconfig = strings.ReplaceAll(kubeconfig, ": //", "://")
 	return &k8sGrpc.ConnectionFile{File: kubeconfig}, nil
 }
 
