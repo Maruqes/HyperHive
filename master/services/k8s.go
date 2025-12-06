@@ -53,19 +53,6 @@ func (s *K8sService) SetConnectionToCluster(machineName string, serverIp, token 
 	return err
 }
 
-func (s *K8sService) getToken(machineName string) *k8sGrpc.Token {
-	con := protocol.GetConnectionByMachineName(machineName)
-	if con == nil || con.Connection == nil {
-		return nil
-	}
-
-	token, err := k8s.GetToken(con.Connection)
-	if err != nil {
-		logger.Errorf("%v", err)
-	}
-	return token
-}
-
 // funcoes para ver status do cluster, algumas infos basicas talvez
 var ErrSlaveMasterNotConnected error = fmt.Errorf("slave master is not connected yet or there are bugs on the damm code")
 
@@ -79,7 +66,11 @@ func (s *K8sService) ConnectSlaveToCluster() error {
 	var slaveMaster protocol.ConnectionsStruct
 
 	for _, con := range allCons {
-		tok := s.getToken(con.MachineName)
+		tok, err := s.GetToken(con.MachineName)
+		if err != nil {
+			logger.Errorf("%v", err)
+			continue
+		}
 		if tok.Token != "" {
 			tokenFound = tok
 			slaveMaster = con
