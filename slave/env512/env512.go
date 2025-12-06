@@ -43,14 +43,12 @@ func Setup() error {
 	K3sVersion = os.Getenv("K3S_VERSION")
 
 	if extra := os.Getenv("EXTRA_K8S_IPS"); extra != "" {
-		extra = strings.TrimSpace(extra)
-		if extra != "" {
-			for _, ip := range strings.Split(extra, ",") {
-				clean := strings.TrimSpace(ip)
-				if clean != "" {
-					ExtraK8sIPs = append(ExtraK8sIPs, clean)
-				}
+		for _, ip := range strings.Split(extra, ",") {
+			clean := strings.TrimSpace(ip)
+			if clean == "" {
+				continue
 			}
+			ExtraK8sIPs = append(ExtraK8sIPs, clean)
 		}
 	}
 
