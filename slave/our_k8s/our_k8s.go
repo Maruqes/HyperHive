@@ -1,6 +1,7 @@
 package ourk8s
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -98,16 +99,18 @@ func InstallK3sServer(ctx context.Context, opts ServerInstallOptions) (string, e
 	}
 	serverArgs = append(serverArgs, opts.ExtraArgs...)
 
+	var stderrBuf bytes.Buffer
 	cmd := exec.CommandContext(ctx, "bash", "-c", "curl -sfL https://get.k3s.io | sh -")
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("INSTALL_K3S_EXEC=%s", strings.Join(serverArgs, " ")),
 	)
 
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stderr = &stderrBuf
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("install k3s server: run installer script: %w", err)
+		stderrOutput := stderrBuf.String()
+		return "", fmt.Errorf("install k3s server: run installer script failed: %w\nServer args: %v\nStderr: %s", err, serverArgs, stderrOutput)
 	}
 
 	token, err := readK3sToken()
@@ -119,18 +122,18 @@ func InstallK3sServer(ctx context.Context, opts ServerInstallOptions) (string, e
 
 func JoinExistingCluster(ctx context.Context, opts JoinClusterOptions) error {
 	if opts.ServerURL == "" {
-		return errors.New("server URL is required")
+		return fmt.Errorf("join k3s cluster: server URL is required")
 	}
 	if opts.Token == "" {
-		return errors.New("cluster token is required")
+		return fmt.Errorf("join k3s cluster: cluster token is required")
 	}
 
 	if installed, err := isK3sInstalled(); err != nil {
-		return err
+		return fmt.Errorf("join k3s cluster: check k3s installation: %w", err)
 	} else if installed {
 		ready, err := isClusterReady(ctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("join k3s cluster: check cluster readiness: %w", err)
 		}
 		if ready {
 			return ErrNodeAlreadyInCluster
@@ -166,6 +169,7 @@ func JoinExistingCluster(ctx context.Context, opts JoinClusterOptions) error {
 	}
 	agentArgs = append(agentArgs, opts.ExtraArgs...)
 
+	var stderrBuf bytes.Buffer
 	cmd := exec.CommandContext(ctx, "bash", "-c", "curl -sfL https://get.k3s.io | sh -")
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("INSTALL_K3S_VERSION=%s", version),
@@ -173,28 +177,37 @@ func JoinExistingCluster(ctx context.Context, opts JoinClusterOptions) error {
 		"K3S_URL="+opts.ServerURL,
 		"K3S_TOKEN="+opts.Token,
 	)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = &stderrBuf
 
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		stderrOutput := stderrBuf.String()
+		return fmt.Errorf("join k3s cluster: installer script failed: %w\nK3S_VERSION: %s\nK3S_URL: %s\nAgent args: %v\nStderr: %s", err, version, opts.ServerURL, agentArgs, stderrOutput)
+	}
+	return nil
 }
 
 func PrepareLocalKubeconfig(serverEndpoint, destination string) error {
 	if serverEndpoint == "" {
-		return errors.New("server endpoint is required to prepare kubeconfig")
+		return fmt.Errorf("prepare kubeconfig: server endpoint is required")
 	}
 	if destination == "" {
-		return errors.New("destination path is required to prepare kubeconfig")
+		return fmt.Errorf("prepare kubeconfig: destination path is required")
 	}
 
 	data, err := os.ReadFile(k3sKubeconfigPath)
 	if err != nil {
-		return fmt.Errorf("read k3s kubeconfig: %w", err)
+		return fmt.Errorf("prepare kubeconfig: read k3s kubeconfig at %s: %w", k3sKubeconfigPath, err)
 	}
 
 	adjusted := strings.Replace(string(data), "https://127.0.0.1:6443", serverEndpoint, 1)
 	if err := os.MkdirAll(filepath.Dir(destination), 0o700); err != nil {
-		return fmt.Errorf("create kubeconfig directory: %w", err)
+		return fmt.Errorf("prepare kubeconfig: create directory %s: %w", filepath.Dir(destination), err)
 	}
-	return os.WriteFile(destination, []byte(adjusted), 0o600)
+	if err := os.WriteFile(destination, []byte(adjusted), 0o600); err != nil {
+		return fmt.Errorf("prepare kubeconfig: write kubeconfig to %s: %w", destination, err)
+	}
+	return nil
 }
 
 func isK3sInstalled() (bool, error) {
@@ -215,13 +228,19 @@ func isClusterReady(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("stat %s: %w", k3sBinaryPath, err)
 	}
 
+	var stderrBuf bytes.Buffer
 	cmd := exec.CommandContext(ctx, k3sBinaryPath, "kubectl", "cluster-info")
+	cmd.Stderr = &stderrBuf
 	if err := cmd.Run(); err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
+			stderrOutput := stderrBuf.String()
+			if stderrOutput != "" {
+				return false, fmt.Errorf("cluster not ready: kubectl error: %s", stderrOutput)
+			}
 			return false, nil
 		}
-		return false, fmt.Errorf("check cluster: %w", err)
+		return false, fmt.Errorf("check cluster: run kubectl cluster-info: %w", err)
 	}
 	return true, nil
 }
@@ -262,13 +281,25 @@ func ensureFirewallPorts(ctx context.Context, ports []portSpec) error {
 			continue
 		}
 		portArg := fmt.Sprintf("%s/%s", p.Port, strings.ToLower(p.Protocol))
-		if err := exec.CommandContext(ctx, "firewall-cmd", "--permanent", "--add-port", portArg).Run(); err != nil {
-			return fmt.Errorf("add permanent port %s: %w", portArg, err)
+		var stderrBuf bytes.Buffer
+		cmd := exec.CommandContext(ctx, "firewall-cmd", "--permanent", "--add-port", portArg)
+		cmd.Stderr = &stderrBuf
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("ensure firewall ports: add permanent port %s: %w (stderr: %s)", portArg, err, stderrBuf.String())
 		}
-		if err := exec.CommandContext(ctx, "firewall-cmd", "--add-port", portArg).Run(); err != nil {
-			return fmt.Errorf("add runtime port %s: %w", portArg, err)
+		stderrBuf.Reset()
+		cmd = exec.CommandContext(ctx, "firewall-cmd", "--add-port", portArg)
+		cmd.Stderr = &stderrBuf
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("ensure firewall ports: add runtime port %s: %w (stderr: %s)", portArg, err, stderrBuf.String())
 		}
 	}
 
-	return exec.CommandContext(ctx, "firewall-cmd", "--reload").Run()
+	var stderrBuf bytes.Buffer
+	cmd := exec.CommandContext(ctx, "firewall-cmd", "--reload")
+	cmd.Stderr = &stderrBuf
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("ensure firewall ports: reload firewall: %w (stderr: %s)", err, stderrBuf.String())
+	}
+	return nil
 }
