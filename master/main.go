@@ -52,6 +52,13 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 		return err
 	}
 
+	k8sService := services.K8sService{}
+	err = k8sService.ConnectSlaveToCluster()
+	if err != nil && err != services.ErrSlaveMasterNotConnected {
+		logger.Errorf("k8s startup failed: %v", err)
+		return err
+	}
+
 	return nil
 }
 
