@@ -4,6 +4,7 @@ import (
 	"512SvMan/k8s"
 	"512SvMan/protocol"
 	"fmt"
+	"strings"
 
 	k8sGrpc "github.com/Maruqes/512SvMan/api/proto/k8s"
 	"github.com/Maruqes/512SvMan/logger"
@@ -83,6 +84,7 @@ func (s *K8sService) GetConnectionFileAny(ip string) (*k8sGrpc.ConnectionFile, e
 			lastErr = fmt.Errorf("empty connection file from %s", c.MachineName)
 			continue
 		}
+		resp.File = strings.ReplaceAll(resp.File, "\\n", "\n")
 		return resp, nil
 	}
 

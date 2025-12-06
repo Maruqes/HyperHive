@@ -45,7 +45,9 @@ func getConnectionFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = writeProto(w, resp)
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", "attachment; filename=connection-file")
+	_, _ = w.Write([]byte(resp.File))
 }
 
 func setupK8sAPI(r chi.Router) chi.Router {
