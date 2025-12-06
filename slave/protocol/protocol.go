@@ -12,6 +12,7 @@ import (
 	"slave/info"
 	"slave/logs512"
 	nfsservice "slave/nfs"
+	ourk8s "slave/our_k8s"
 	smartdisk "slave/smartdisk"
 	"slave/virsh"
 	"sync"
@@ -22,6 +23,7 @@ import (
 	dockerGRPC "github.com/Maruqes/512SvMan/api/proto/docker"
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
 	infoGrpc "github.com/Maruqes/512SvMan/api/proto/info"
+	k8s "github.com/Maruqes/512SvMan/api/proto/k8s"
 	nfsproto "github.com/Maruqes/512SvMan/api/proto/nfs"
 	pb "github.com/Maruqes/512SvMan/api/proto/protocol"
 	smartdiskGrpc "github.com/Maruqes/512SvMan/api/proto/smartdisk"
@@ -94,6 +96,7 @@ func listenGRPC() {
 		smartdiskGrpc.RegisterSmartDiskServiceServer(s, &smartdisk.Service{})
 		btrfsGrpc.RegisterBtrFSServiceServer(s, &btrfs.BTRFSService{})
 		dockerGRPC.RegisterDockerServiceServer(s, &docker.DockerService{})
+		k8s.RegisterK8SServiceServer(s, &ourk8s.K8sService{})
 		logger.Info("client services listening", "port", 50052)
 		if err := s.Serve(lis); err != nil {
 			logger.Error("client gRPC serve failed", "error", err)
