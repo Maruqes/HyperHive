@@ -38,6 +38,60 @@ func (s *K8sService) GetTLSSANIps(machineName string) (*k8sGrpc.TLSSANSIps, erro
 	return k8s.GetTLSSANIps(conn.Connection)
 }
 
+func (s *K8sService) GetTLSSANIpsAny() (*k8sGrpc.TLSSANSIps, error) {
+	conns := protocol.GetConnectionsSnapshot()
+	if len(conns) == 0 {
+		return nil, fmt.Errorf("no connected machines available")
+	}
+
+	var lastErr error
+	for _, c := range conns {
+		resp, err := s.GetTLSSANIps(c.MachineName)
+		if err != nil {
+			logger.Debugf("k8s tls sans failed for %s: %v", c.MachineName, err)
+			lastErr = err
+			continue
+		}
+		if resp == nil || len(resp.Ips) == 0 {
+			lastErr = fmt.Errorf("empty tls sans from %s", c.MachineName)
+			continue
+		}
+		return resp, nil
+	}
+
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	return nil, fmt.Errorf("no tls sans available")
+}
+
+func (s *K8sService) GetConnectionFileAny(ip string) (*k8sGrpc.ConnectionFile, error) {
+	conns := protocol.GetConnectionsSnapshot()
+	if len(conns) == 0 {
+		return nil, fmt.Errorf("no connected machines available")
+	}
+
+	var lastErr error
+	for _, c := range conns {
+		resp, err := s.GetConnectionFile(c.MachineName, ip)
+		if err != nil {
+			logger.Debugf("k8s connection file failed for %s: %v", c.MachineName, err)
+			lastErr = err
+			continue
+		}
+		if resp == nil || resp.File == "" {
+			lastErr = fmt.Errorf("empty connection file from %s", c.MachineName)
+			continue
+		}
+		return resp, nil
+	}
+
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	return nil, fmt.Errorf("no connection file available")
+}
+
 func (s *K8sService) IsMasterSlave(machineName string) (bool, error) {
 	conn := protocol.GetConnectionByMachineName(machineName)
 	if conn == nil {
