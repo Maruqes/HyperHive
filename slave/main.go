@@ -397,14 +397,35 @@ func ensureFirewalldAllowsAll() error {
 		return nil
 	}
 
-	if err := exec.Command("firewall-cmd", "--panic-off").Run(); err != nil {
-		return fmt.Errorf("firewalld panic-off: %w", err)
+	run := func(desc string, args ...string) error {
+		cmd := exec.Command("firewall-cmd", args...)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("%s: %w (output: %s)", desc, err, strings.TrimSpace(string(out)))
+		}
+		return nil
 	}
-	if err := exec.Command("firewall-cmd", "--permanent", "--set-default-zone=trusted").Run(); err != nil {
-		return fmt.Errorf("set firewalld default zone (permanent): %w", err)
+
+	const trustedZone = "trusted"
+
+	if err := run("firewalld panic-off", "--panic-off"); err != nil {
+		return err
 	}
-	if err := exec.Command("firewall-cmd", "--set-default-zone=trusted").Run(); err != nil {
-		return fmt.Errorf("set firewalld default zone (runtime): %w", err)
+
+	currentZoneOut, err := exec.Command("firewall-cmd", "--get-default-zone").Output()
+	currentZone := strings.TrimSpace(string(currentZoneOut))
+	if err != nil {
+		currentZone = ""
+	}
+
+	if currentZone != trustedZone {
+		if err := run("set firewalld default zone (permanent)", "--permanent", "--set-default-zone="+trustedZone); err != nil {
+			return err
+		}
+	}
+
+	if err := run("set firewalld default zone (runtime)", "--set-default-zone="+trustedZone); err != nil {
+		return err
 	}
 
 	return nil
@@ -451,7 +472,7 @@ func setupAll() error {
 	}
 
 	if err := ensureFirewalldAllowsAll(); err != nil {
-		return fmt.Errorf("configure firewalld to allow traffic: %w", err)
+		logger.Warn("firewalld allow-all best effort failed", "error", err)
 	}
 
 	if err := ensureFirewallPortsOpen(
