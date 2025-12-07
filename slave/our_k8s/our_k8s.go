@@ -117,6 +117,12 @@ func InstallK3sServer(ctx context.Context, opts ServerInstallOptions) (string, e
 	if err != nil {
 		return "", fmt.Errorf("install k3s server: read token after install: %w", err)
 	}
+
+	// Configure firewall to allow k3s interfaces
+	if err := AllowFirewalldAcceptAll(ctx); err != nil {
+		return "", fmt.Errorf("install k3s server: configure k3s firewall rules: %w", err)
+	}
+
 	return token, nil
 }
 
@@ -184,6 +190,12 @@ func JoinExistingCluster(ctx context.Context, opts JoinClusterOptions) error {
 		stderrOutput := stderrBuf.String()
 		return fmt.Errorf("join k3s cluster: installer script failed: %w\nK3S_VERSION: %s\nK3S_URL: %s\nAgent args: %v\nStderr: %s", err, opts.Version, opts.ServerURL, agentArgs, stderrOutput)
 	}
+
+	// Configure firewall to allow k3s interfaces
+	if err := AllowFirewalldAcceptAll(ctx); err != nil {
+		return fmt.Errorf("join k3s cluster: configure k3s firewall rules: %w", err)
+	}
+
 	return nil
 }
 
@@ -281,18 +293,18 @@ func ensureFirewallPorts(ctx context.Context, ports []portSpec) error {
 			continue
 		}
 		portArg := fmt.Sprintf("%s/%s", p.Port, strings.ToLower(p.Protocol))
+
+		// Add permanent rule
 		var stderrBuf bytes.Buffer
 		cmd := exec.CommandContext(ctx, "firewall-cmd", "--permanent", "--add-port", portArg)
 		cmd.Stderr = &stderrBuf
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("ensure firewall ports: add permanent port %s: %w (stderr: %s)", portArg, err, stderrBuf.String())
-		}
+		_ = cmd.Run() // Ignore errors, may already exist
+
+		// Add runtime rule
 		stderrBuf.Reset()
 		cmd = exec.CommandContext(ctx, "firewall-cmd", "--add-port", portArg)
 		cmd.Stderr = &stderrBuf
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("ensure firewall ports: add runtime port %s: %w (stderr: %s)", portArg, err, stderrBuf.String())
-		}
+		_ = cmd.Run() // Ignore errors, may already exist
 	}
 
 	var stderrBuf bytes.Buffer
@@ -301,5 +313,63 @@ func ensureFirewallPorts(ctx context.Context, ports []portSpec) error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("ensure firewall ports: reload firewall: %w (stderr: %s)", err, stderrBuf.String())
 	}
+	return nil
+}
+
+func AllowFirewalldAcceptAll(ctx context.Context) error {
+	if _, err := exec.LookPath("firewall-cmd"); err != nil {
+		// firewalld not installed
+		return nil
+	}
+
+	run := func(args ...string) error {
+		var stderr bytes.Buffer
+		cmd := exec.CommandContext(ctx, "firewall-cmd", args...)
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("firewall-cmd %v: %w (stderr: %s)", args, err, strings.TrimSpace(stderr.String()))
+		}
+		return nil
+	}
+
+	output := func(args ...string) (string, error) {
+		var stderr bytes.Buffer
+		cmd := exec.CommandContext(ctx, "firewall-cmd", args...)
+		cmd.Stderr = &stderr
+		out, err := cmd.Output()
+		if err != nil {
+			return "", fmt.Errorf("firewall-cmd %v: %w (stderr: %s)", args, err, strings.TrimSpace(stderr.String()))
+		}
+		return strings.TrimSpace(string(out)), nil
+	}
+
+	// 1) Descobrir zonas existentes
+	zonesOut, err := output("--get-zones")
+	zones := []string{"public", "dmz", "external", "internal", "work", "home", "trusted"}
+	if err == nil && zonesOut != "" {
+		zones = strings.Fields(zonesOut)
+	}
+
+	// 2) Tornar TUDO ACCEPT (permanente)
+	//    Isto é o coração do "aceito tudoooo".
+	for _, zone := range zones {
+		_ = run("--permanent", "--zone", zone, "--set-target=ACCEPT")
+	}
+
+	// 3) Meter a default zone em trusted (permanente)
+	_ = run("--permanent", "--set-default-zone=trusted")
+
+	// 4) Aplicar config permanente
+	if err := run("--reload"); err != nil {
+		return err
+	}
+
+	// 5) Garantir também em runtime (por segurança)
+	//    Após reload normalmente já fica certo, mas isto evita casos estranhos.
+	_ = run("--set-default-zone=trusted")
+	for _, zone := range zones {
+		_ = run("--zone", zone, "--set-target=ACCEPT")
+	}
+
 	return nil
 }
