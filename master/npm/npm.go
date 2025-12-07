@@ -16,10 +16,6 @@ import (
 
 const (
 	image      = "jc21/nginx-proxy-manager:2.13.5"
-	container  = "npm-from-go"
-	hostHTTP   = "127.0.0.1:80"      // -> container 80
-	hostAdmin  = "127.0.0.1:81"      // -> container 81 (API/UI)
-	hostHTTPS  = "127.0.0.1:443"     // -> container 443
 	adminEmail = "admin@example.com" // change if you set INITIAL_ADMIN_EMAIL
 	adminPass  = "changeme"          // change if you set INITIAL_ADMIN_PASSWORD
 
@@ -126,6 +122,7 @@ func PullImage() error {
 		composeContent := fmt.Sprintf(`version: "3"
 services:
   app:
+    container_name: npm
 	image: %s
 	restart: unless-stopped
 	network_mode: "host"
