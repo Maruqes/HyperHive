@@ -209,7 +209,7 @@ func ensureGoAccessRunning(ctx context.Context, workDir string) error {
 
 	outputPath := filepath.Join(statsDir, "goaccess.html")
 
-	logFormat := `[%d:%t %^] %^ %s %^ %^ %m %^ %v "%U" [Client %h] [Length %b] [Gzip %^] [Sent-to %^] "%u" "%R"`
+	logFormat := `[%d:%t %^] %^ %^ %s %^ %m %^ %v "%U" [Client %h] [Length %b] [Gzip %^] [Sent-to %^] "%u" "%R"`
 
 	// Get GeoIP database
 	geoIPDBPath, err := ensureGeoIPDatabase(ctx, workDir)
