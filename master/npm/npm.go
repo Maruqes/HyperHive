@@ -122,13 +122,13 @@ func PullImage() error {
 		composeContent := fmt.Sprintf(`version: "3"
 services:
   app:
-	container_name: npm
-	image: %s
-	restart: unless-stopped
-	network_mode: "host"
-	volumes:
-	  - %s:/data
-	  - %s:/etc/letsencrypt
+    container_name: npm
+    image: %s
+    restart: unless-stopped
+    network_mode: "host"
+    volumes:
+      - %s:/data
+      - %s:/etc/letsencrypt
 `, image, data, ssl)
 
 		if err := os.WriteFile(composeFile, []byte(composeContent), 0o644); err != nil {
