@@ -382,6 +382,58 @@ func regeneratePublicKey(keyFile string) error {
 INSTALL THINGS THAT ARE NEEDED TO THE FULL APP FUNCTIONALITY
 sudo dnf install -y xmlstarlet
 */
+func firewalldUsable() bool {
+	if _, err := exec.LookPath("firewall-cmd"); err != nil {
+		return false
+	}
+	if err := exec.Command("firewall-cmd", "--state").Run(); err != nil {
+		return false
+	}
+	return true
+}
+
+func ensureFirewalldAllowsAll() error {
+	if !firewalldUsable() {
+		return nil
+	}
+
+	if err := exec.Command("firewall-cmd", "--panic-off").Run(); err != nil {
+		return fmt.Errorf("firewalld panic-off: %w", err)
+	}
+	if err := exec.Command("firewall-cmd", "--permanent", "--set-default-zone=trusted").Run(); err != nil {
+		return fmt.Errorf("set firewalld default zone (permanent): %w", err)
+	}
+	if err := exec.Command("firewall-cmd", "--set-default-zone=trusted").Run(); err != nil {
+		return fmt.Errorf("set firewalld default zone (runtime): %w", err)
+	}
+
+	return nil
+}
+
+func ensureFirewallPortsOpen(ports ...string) error {
+	if !firewalldUsable() {
+		return nil
+	}
+
+	for _, port := range ports {
+		if strings.TrimSpace(port) == "" {
+			continue
+		}
+		if err := exec.Command("firewall-cmd", "--permanent", "--add-port="+port).Run(); err != nil {
+			return fmt.Errorf("add permanent firewall rule for %s: %w", port, err)
+		}
+		if err := exec.Command("firewall-cmd", "--add-port="+port).Run(); err != nil {
+			return fmt.Errorf("add runtime firewall rule for %s: %w", port, err)
+		}
+	}
+
+	if err := exec.Command("firewall-cmd", "--reload").Run(); err != nil {
+		return fmt.Errorf("reload firewalld: %w", err)
+	}
+
+	return nil
+}
+
 func setupAll() error {
 	if err := btrfs.InstallBTRFS(); err != nil {
 		log.Fatal("Error installing zfs: ", err)
@@ -398,20 +450,16 @@ func setupAll() error {
 		return fmt.Errorf("setup ssh keys: %w", err)
 	}
 
-	//allow port 500511
-
-	// with firewalld, open VNC port range only for this boot (runtime only)
-	portRange := fmt.Sprintf("%d-%d/tcp", env512.VNC_MIN_PORT, env512.VNC_MAX_PORT)
-	if err := exec.Command("firewall-cmd", "--add-port="+portRange).Run(); err != nil {
-		return fmt.Errorf("failed to add runtime firewall rule for vnc ports: %w", err)
+	if err := ensureFirewalldAllowsAll(); err != nil {
+		return fmt.Errorf("configure firewalld to allow traffic: %w", err)
 	}
 
-	//adicionar porta 50051 e 50052
-	if err := exec.Command("firewall-cmd", "--add-port=50051/tcp").Run(); err != nil {
-		return fmt.Errorf("failed to add runtime firewall rule for port 50051: %w", err)
-	}
-	if err := exec.Command("firewall-cmd", "--add-port=50052/tcp").Run(); err != nil {
-		return fmt.Errorf("failed to add runtime firewall rule for port 50052: %w", err)
+	if err := ensureFirewallPortsOpen(
+		fmt.Sprintf("%d-%d/tcp", env512.VNC_MIN_PORT, env512.VNC_MAX_PORT),
+		"50051/tcp",
+		"50052/tcp",
+	); err != nil {
+		return fmt.Errorf("open firewall ports: %w", err)
 	}
 
 	return nil

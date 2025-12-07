@@ -5,10 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"slave/env512"
+	"sort"
 	"strings"
 )
 
@@ -117,6 +119,9 @@ func InstallK3sServer(ctx context.Context, opts ServerInstallOptions) (string, e
 	if err != nil {
 		return "", fmt.Errorf("install k3s server: read token after install: %w", err)
 	}
+	if err := AllowK3sInterfaces(ctx); err != nil {
+		return "", fmt.Errorf("install k3s server: allow k3s interfaces: %w", err)
+	}
 	return token, nil
 }
 
@@ -183,6 +188,9 @@ func JoinExistingCluster(ctx context.Context, opts JoinClusterOptions) error {
 	if err := cmd.Run(); err != nil {
 		stderrOutput := stderrBuf.String()
 		return fmt.Errorf("join k3s cluster: installer script failed: %w\nK3S_VERSION: %s\nK3S_URL: %s\nAgent args: %v\nStderr: %s", err, opts.Version, opts.ServerURL, agentArgs, stderrOutput)
+	}
+	if err := AllowK3sInterfaces(ctx); err != nil {
+		return fmt.Errorf("join k3s cluster: allow k3s interfaces: %w", err)
 	}
 	return nil
 }
@@ -266,6 +274,16 @@ type portSpec struct {
 	Protocol string
 }
 
+func runFirewallCmd(ctx context.Context, args ...string) (string, error) {
+	var stderrBuf bytes.Buffer
+	cmd := exec.CommandContext(ctx, "firewall-cmd", args...)
+	cmd.Stderr = &stderrBuf
+	if err := cmd.Run(); err != nil {
+		return strings.TrimSpace(stderrBuf.String()), err
+	}
+	return strings.TrimSpace(stderrBuf.String()), nil
+}
+
 func ensureFirewallPorts(ctx context.Context, ports []portSpec) error {
 	if len(ports) == 0 {
 		return nil
@@ -281,25 +299,143 @@ func ensureFirewallPorts(ctx context.Context, ports []portSpec) error {
 			continue
 		}
 		portArg := fmt.Sprintf("%s/%s", p.Port, strings.ToLower(p.Protocol))
-		var stderrBuf bytes.Buffer
-		cmd := exec.CommandContext(ctx, "firewall-cmd", "--permanent", "--add-port", portArg)
-		cmd.Stderr = &stderrBuf
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("ensure firewall ports: add permanent port %s: %w (stderr: %s)", portArg, err, stderrBuf.String())
+		if stderrOutput, err := runFirewallCmd(ctx, "--permanent", "--add-port", portArg); err != nil {
+			return fmt.Errorf("ensure firewall ports: add permanent port %s: %w (stderr: %s)", portArg, err, stderrOutput)
 		}
-		stderrBuf.Reset()
-		cmd = exec.CommandContext(ctx, "firewall-cmd", "--add-port", portArg)
-		cmd.Stderr = &stderrBuf
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("ensure firewall ports: add runtime port %s: %w (stderr: %s)", portArg, err, stderrBuf.String())
+		if stderrOutput, err := runFirewallCmd(ctx, "--add-port", portArg); err != nil {
+			return fmt.Errorf("ensure firewall ports: add runtime port %s: %w (stderr: %s)", portArg, err, stderrOutput)
 		}
 	}
 
-	var stderrBuf bytes.Buffer
-	cmd := exec.CommandContext(ctx, "firewall-cmd", "--reload")
-	cmd.Stderr = &stderrBuf
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("ensure firewall ports: reload firewall: %w (stderr: %s)", err, stderrBuf.String())
+	if stderrOutput, err := runFirewallCmd(ctx, "--reload"); err != nil {
+		return fmt.Errorf("ensure firewall ports: reload firewall: %w (stderr: %s)", err, stderrOutput)
 	}
 	return nil
+}
+
+func AllowK3sInterfaces(ctx context.Context) error {
+	if _, err := exec.LookPath("firewall-cmd"); err != nil {
+		return nil
+	}
+	if err := exec.CommandContext(ctx, "firewall-cmd", "--state").Run(); err != nil {
+		return nil
+	}
+
+	const trustedZone = "trusted"
+
+	if stderrOutput, err := runFirewallCmd(ctx, "--panic-off"); err != nil {
+		return fmt.Errorf("ensure firewalld panic mode is off: %w (stderr: %s)", err, stderrOutput)
+	}
+	if stderrOutput, err := runFirewallCmd(ctx, "--permanent", "--set-default-zone="+trustedZone); err != nil {
+		return fmt.Errorf("set firewalld default zone (permanent): %w (stderr: %s)", err, stderrOutput)
+	}
+	if stderrOutput, err := runFirewallCmd(ctx, "--set-default-zone="+trustedZone); err != nil {
+		return fmt.Errorf("set firewalld default zone (runtime): %w (stderr: %s)", err, stderrOutput)
+	}
+
+	k3sIfaces := collectK3sInterfaces()
+	if len(k3sIfaces) == 0 {
+		return nil
+	}
+
+	var added bool
+	for _, iface := range k3sIfaces {
+		if iface == "" || !interfaceExists(iface) {
+			continue
+		}
+		if stderrOutput, err := runFirewallCmd(ctx, "--permanent", "--zone", trustedZone, "--add-interface", iface); err != nil {
+			return fmt.Errorf("allow k3s interface %s (permanent): %w (stderr: %s)", iface, err, stderrOutput)
+		}
+		if stderrOutput, err := runFirewallCmd(ctx, "--zone", trustedZone, "--add-interface", iface); err != nil {
+			return fmt.Errorf("allow k3s interface %s (runtime): %w (stderr: %s)", iface, err, stderrOutput)
+		}
+		added = true
+	}
+
+	if added {
+		if stderrOutput, err := runFirewallCmd(ctx, "--reload"); err != nil {
+			return fmt.Errorf("reload firewalld after allowing k3s interfaces: %w (stderr: %s)", err, stderrOutput)
+		}
+	}
+
+	return nil
+}
+
+func collectK3sInterfaces() []string {
+	names := map[string]struct{}{
+		"cni0":          {},
+		"flannel.1":     {},
+		"kube-bridge":   {},
+		"kube-dummy-if": {},
+		"kube-ipvs0":    {},
+	}
+	prefixes := []string{"cni", "flannel", "kube", "vxlan"}
+
+	if nodeIface := findInterfaceByIP(env512.SlaveIP); nodeIface != "" {
+		names[nodeIface] = struct{}{}
+	}
+
+	ifaces, err := net.Interfaces()
+	if err == nil {
+		for _, iface := range ifaces {
+			name := strings.TrimSpace(iface.Name)
+			if name == "" || name == "lo" {
+				continue
+			}
+			for _, prefix := range prefixes {
+				if strings.HasPrefix(name, prefix) {
+					names[name] = struct{}{}
+					break
+				}
+			}
+		}
+	}
+
+	sorted := make([]string, 0, len(names))
+	for name := range names {
+		sorted = append(sorted, name)
+	}
+	sort.Strings(sorted)
+	return sorted
+}
+
+func findInterfaceByIP(ipStr string) string {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return ""
+	}
+
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return ""
+	}
+
+	for _, iface := range ifaces {
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, addr := range addrs {
+			var addrIP net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				addrIP = v.IP
+			case *net.IPAddr:
+				addrIP = v.IP
+			}
+			if addrIP != nil && addrIP.Equal(ip) {
+				return iface.Name
+			}
+		}
+	}
+
+	return ""
+}
+
+func interfaceExists(name string) bool {
+	if name == "" {
+		return false
+	}
+	_, err := net.InterfaceByName(name)
+	return err == nil
 }
