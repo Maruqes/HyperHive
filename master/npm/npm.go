@@ -122,7 +122,7 @@ func PullImage() error {
 		composeContent := fmt.Sprintf(`version: "3"
 services:
   app:
-    container_name: npm
+	container_name: npm
 	image: %s
 	restart: unless-stopped
 	network_mode: "host"
