@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -15,6 +16,29 @@ import (
 type Container struct{}
 
 var our_container *Container
+
+var (
+	ErrProtectedContainer = errors.New("operation not allowed on protected container")
+	protectedContainers   = []string{"npm", "hyperhive-frontend"}
+)
+
+// isProtectedContainer checks if a container is protected by ID or name
+func isProtectedContainer(ctx context.Context, containerID string) (bool, error) {
+	info, err := cli.ContainerInspect(ctx, containerID)
+	if err != nil {
+		return false, fmt.Errorf("failed to inspect container: %w", err)
+	}
+
+	// Remove leading slash from container name
+	containerName := strings.TrimPrefix(info.Name, "/")
+
+	for _, protected := range protectedContainers {
+		if strings.Contains(strings.ToLower(containerName), strings.ToLower(protected)) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
 
 type PortBinding struct {
 	ContainerPort string // "80/tcp"
@@ -143,6 +167,11 @@ func (*Container) Create(ctx context.Context, conf *ContainerCreate) error {
 }
 
 func (*Container) Remove(ctx context.Context, containerID string, force bool) error {
+	if protected, err := isProtectedContainer(ctx, containerID); err != nil {
+		return err
+	} else if protected {
+		return ErrProtectedContainer
+	}
 	return cli.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: force})
 }
 
@@ -155,26 +184,56 @@ func (*Container) List(ctx context.Context) ([]container.Summary, error) {
 }
 
 func (*Container) Stop(ctx context.Context, containerID string) error {
+	if protected, err := isProtectedContainer(ctx, containerID); err != nil {
+		return err
+	} else if protected {
+		return ErrProtectedContainer
+	}
 	return cli.ContainerStop(ctx, containerID, container.StopOptions{})
 }
 
 func (*Container) Start(ctx context.Context, containerID string) error {
+	if protected, err := isProtectedContainer(ctx, containerID); err != nil {
+		return err
+	} else if protected {
+		return ErrProtectedContainer
+	}
 	return cli.ContainerStart(ctx, containerID, container.StartOptions{})
 }
 
 func (*Container) Kill(ctx context.Context, containerID, signal string) error {
+	if protected, err := isProtectedContainer(ctx, containerID); err != nil {
+		return err
+	} else if protected {
+		return ErrProtectedContainer
+	}
 	return cli.ContainerKill(ctx, containerID, signal)
 }
 
 func (*Container) Restart(ctx context.Context, containerID string) error {
+	if protected, err := isProtectedContainer(ctx, containerID); err != nil {
+		return err
+	} else if protected {
+		return ErrProtectedContainer
+	}
 	return cli.ContainerRestart(ctx, containerID, container.StopOptions{})
 }
 
 func (*Container) Pause(ctx context.Context, containerID string) error {
+	if protected, err := isProtectedContainer(ctx, containerID); err != nil {
+		return err
+	} else if protected {
+		return ErrProtectedContainer
+	}
 	return cli.ContainerPause(ctx, containerID)
 }
 
 func (*Container) Unpause(ctx context.Context, containerID string) error {
+	if protected, err := isProtectedContainer(ctx, containerID); err != nil {
+		return err
+	} else if protected {
+		return ErrProtectedContainer
+	}
 	return cli.ContainerUnpause(ctx, containerID)
 }
 
@@ -198,6 +257,11 @@ func (*Container) Logs(ctx context.Context, containerID string, follow bool, tai
 }
 
 func (*Container) Update(ctx context.Context, containerID string, memory int64, cpus float64, restart string) (container.UpdateResponse, error) {
+	if protected, err := isProtectedContainer(ctx, containerID); err != nil {
+		return container.UpdateResponse{}, err
+	} else if protected {
+		return container.UpdateResponse{}, ErrProtectedContainer
+	}
 	update := container.UpdateConfig{
 		Resources: container.Resources{
 			Memory:   memory,
@@ -211,10 +275,20 @@ func (*Container) Update(ctx context.Context, containerID string, memory int64, 
 }
 
 func (*Container) Rename(ctx context.Context, containerID, newName string) error {
+	if protected, err := isProtectedContainer(ctx, containerID); err != nil {
+		return err
+	} else if protected {
+		return ErrProtectedContainer
+	}
 	return cli.ContainerRename(ctx, containerID, newName)
 }
 
 func (*Container) Exec(ctx context.Context, containerID string, command []string) error {
+	if protected, err := isProtectedContainer(ctx, containerID); err != nil {
+		return err
+	} else if protected {
+		return ErrProtectedContainer
+	}
 	// Transforma o comando numa string
 	joined := strings.Join(command, " ")
 
