@@ -118,11 +118,6 @@ func InstallK3sServer(ctx context.Context, opts ServerInstallOptions) (string, e
 		return "", fmt.Errorf("install k3s server: read token after install: %w", err)
 	}
 
-	// Configure firewall to allow k3s interfaces
-	if err := AllowFirewalldAcceptAll(ctx); err != nil {
-		return "", fmt.Errorf("install k3s server: configure k3s firewall rules: %w", err)
-	}
-
 	return token, nil
 }
 
@@ -191,11 +186,7 @@ func JoinExistingCluster(ctx context.Context, opts JoinClusterOptions) error {
 		return fmt.Errorf("join k3s cluster: installer script failed: %w\nK3S_VERSION: %s\nK3S_URL: %s\nAgent args: %v\nStderr: %s", err, opts.Version, opts.ServerURL, agentArgs, stderrOutput)
 	}
 
-	// Configure firewall to allow k3s interfaces
-	if err := AllowFirewalldAcceptAll(ctx); err != nil {
-		return fmt.Errorf("join k3s cluster: configure k3s firewall rules: %w", err)
-	}
-
+	
 	return nil
 }
 
