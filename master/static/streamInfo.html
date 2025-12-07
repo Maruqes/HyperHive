@@ -1077,8 +1077,8 @@
 					</table>
 				</div>
 			</div>
-			</div>
 		</div>
+	</div>
 	</div>
 
 	<!-- Connection Drill-Down Modal -->
@@ -1101,787 +1101,806 @@
 			</div>
 			<div class="drill-modal-body modal-body">
 
-			<!-- Level 1: Server List -->
-			<div id="drillLevel1" class="drill-level">
-				<h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Select Server</h3>
-				<div class="table-container" style="max-height: 500px;">
-					<table class="min-w-full divide-y divide-slate-700">
-						<thead class="bg-slate-900 sticky top-0">
-							<tr>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Server</th>
-								<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Connections
-								</th>
-								<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Unique IPs
-								</th>
-								<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Traffic
-								</th>
-							</tr>
-						</thead>
-						<tbody id="drillServerList" class="divide-y divide-slate-700"></tbody>
-					</table>
+				<!-- Level 1: Server List -->
+				<div id="drillLevel1" class="drill-level">
+					<h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Select Server</h3>
+					<div class="table-container" style="max-height: 500px;">
+						<table class="min-w-full divide-y divide-slate-700">
+							<thead class="bg-slate-900 sticky top-0">
+								<tr>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Server
+									</th>
+									<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">
+										Connections
+									</th>
+									<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Unique
+										IPs
+									</th>
+									<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Traffic
+									</th>
+								</tr>
+							</thead>
+							<tbody id="drillServerList" class="divide-y divide-slate-700"></tbody>
+						</table>
+					</div>
 				</div>
-			</div>
 
-			<!-- Level 2: IP List for Selected Server -->
-			<div id="drillLevel2" class="drill-level" style="display:none;">
-				<div class="flex justify-between items-center mb-3">
-					<h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider">Select IP</h3>
-					<button onclick="drillDownBack(1)" class="text-xs text-cyan-400 hover:text-cyan-300">← Back to
-						Servers</button>
-				</div>
-				<div class="grid grid-cols-3 gap-3 mb-4">
-					<div class="drill-stat-card">
-						<p>Total IPs</p>
-						<p class="text-blue-400" id="drillIPCount">-</p>
+				<!-- Level 2: IP List for Selected Server -->
+				<div id="drillLevel2" class="drill-level" style="display:none;">
+					<div class="flex justify-between items-center mb-3">
+						<h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider">Select IP</h3>
+						<button onclick="drillDownBack(1)" class="text-xs text-cyan-400 hover:text-cyan-300">← Back to
+							Servers</button>
 					</div>
-					<div class="drill-stat-card">
-						<p>Total Connections</p>
-						<p class="text-green-400" id="drillIPConnections">-</p>
+					<div class="grid grid-cols-3 gap-3 mb-4">
+						<div class="drill-stat-card">
+							<p>Total IPs</p>
+							<p class="text-blue-400" id="drillIPCount">-</p>
+						</div>
+						<div class="drill-stat-card">
+							<p>Total Connections</p>
+							<p class="text-green-400" id="drillIPConnections">-</p>
+						</div>
+						<div class="drill-stat-card">
+							<p>Total Traffic</p>
+							<p class="text-purple-400" id="drillIPTraffic">-</p>
+						</div>
 					</div>
-					<div class="drill-stat-card">
-						<p>Total Traffic</p>
-						<p class="text-purple-400" id="drillIPTraffic">-</p>
+					<div class="table-container" style="max-height: 400px;">
+						<table class="min-w-full divide-y divide-slate-700">
+							<thead class="bg-slate-900 sticky top-0">
+								<tr>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">IP
+										Address
+									</th>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Country
+									</th>
+									<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">
+										Connections
+									</th>
+									<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Traffic
+									</th>
+								</tr>
+							</thead>
+							<tbody id="drillIPList" class="divide-y divide-slate-700"></tbody>
+						</table>
 					</div>
 				</div>
-				<div class="table-container" style="max-height: 400px;">
-					<table class="min-w-full divide-y divide-slate-700">
-						<thead class="bg-slate-900 sticky top-0">
-							<tr>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">IP Address
-								</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Country</th>
-								<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Connections
-								</th>
-								<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Traffic
-								</th>
-							</tr>
-						</thead>
-						<tbody id="drillIPList" class="divide-y divide-slate-700"></tbody>
-					</table>
-				</div>
-			</div>
 
-			<!-- Level 3: Individual Connections for Selected IP -->
-			<div id="drillLevel3" class="drill-level" style="display:none;">
-				<div class="flex justify-between items-center mb-3">
-					<h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider">Connection Details</h3>
-					<button onclick="drillDownBack(2)" class="text-xs text-cyan-400 hover:text-cyan-300">← Back to
-						IPs</button>
-				</div>
-				<div class="grid grid-cols-4 gap-3 mb-4">
-					<div class="drill-stat-card">
-						<p>Total Sessions</p>
-						<p class="text-indigo-400" id="drillConnCount">-</p>
+				<!-- Level 3: Individual Connections for Selected IP -->
+				<div id="drillLevel3" class="drill-level" style="display:none;">
+					<div class="flex justify-between items-center mb-3">
+						<h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider">Connection Details</h3>
+						<button onclick="drillDownBack(2)" class="text-xs text-cyan-400 hover:text-cyan-300">← Back to
+							IPs</button>
 					</div>
-					<div class="drill-stat-card">
-						<p>Success Rate</p>
-						<p class="text-green-400" id="drillSuccessRate">-</p>
+					<div class="grid grid-cols-4 gap-3 mb-4">
+						<div class="drill-stat-card">
+							<p>Total Sessions</p>
+							<p class="text-indigo-400" id="drillConnCount">-</p>
+						</div>
+						<div class="drill-stat-card">
+							<p>Success Rate</p>
+							<p class="text-green-400" id="drillSuccessRate">-</p>
+						</div>
+						<div class="drill-stat-card">
+							<p>Avg Session</p>
+							<p class="text-yellow-400" id="drillAvgSession">-</p>
+						</div>
+						<div class="drill-stat-card">
+							<p>Total Data</p>
+							<p class="text-purple-400" id="drillTotalData">-</p>
+						</div>
 					</div>
-					<div class="drill-stat-card">
-						<p>Avg Session</p>
-						<p class="text-yellow-400" id="drillAvgSession">-</p>
+					<div class="table-container" style="max-height: 400px;">
+						<table class="min-w-full divide-y divide-slate-700">
+							<thead class="bg-slate-900 sticky top-0">
+								<tr>
+									<th class="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase">
+										Timestamp
+									</th>
+									<th class="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase">Protocol
+									</th>
+									<th class="px-3 py-2 text-center text-xs font-medium text-gray-400 uppercase">Status
+									</th>
+									<th class="px-3 py-2 text-right text-xs font-medium text-gray-400 uppercase">Sent
+									</th>
+									<th class="px-3 py-2 text-right text-xs font-medium text-gray-400 uppercase">
+										Received
+									</th>
+									<th class="px-3 py-2 text-right text-xs font-medium text-gray-400 uppercase">Session
+										Time</th>
+									<th class="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase">Proxy
+									</th>
+								</tr>
+							</thead>
+							<tbody id="drillConnectionList" class="divide-y divide-slate-700"></tbody>
+						</table>
 					</div>
-					<div class="drill-stat-card">
-						<p>Total Data</p>
-						<p class="text-purple-400" id="drillTotalData">-</p>
-					</div>
-				</div>
-				<div class="table-container" style="max-height: 400px;">
-					<table class="min-w-full divide-y divide-slate-700">
-						<thead class="bg-slate-900 sticky top-0">
-							<tr>
-								<th class="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase">Timestamp
-								</th>
-								<th class="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase">Protocol
-								</th>
-								<th class="px-3 py-2 text-center text-xs font-medium text-gray-400 uppercase">Status
-								</th>
-								<th class="px-3 py-2 text-right text-xs font-medium text-gray-400 uppercase">Sent</th>
-								<th class="px-3 py-2 text-right text-xs font-medium text-gray-400 uppercase">Received
-								</th>
-								<th class="px-3 py-2 text-right text-xs font-medium text-gray-400 uppercase">Session
-									Time</th>
-								<th class="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase">Proxy</th>
-							</tr>
-						</thead>
-						<tbody id="drillConnectionList" class="divide-y divide-slate-700"></tbody>
-					</table>
 				</div>
 			</div>
 		</div>
-	</div>
 
-	<script>
-		let charts = {};
-		let isLoadingData = false;
-		let hasLoadedOnce = false;
-		let worldGeoDataPromise = null;
-		let geoMapSvg = null;
-		let geoMapGroup = null;
-		let geoMapZoom = null;
-		let countryDetailState = { name: null, controller: null };
-		let serverActivityState = { selected: null, controller: null, loadingServer: null, data: null };
-		let globalEntryCache = { key: null, data: null };
-		let trendData = { daily: [], hourly: [], timeline: [] };
-		let drillDownState = { level: 1, server: null, ip: null, allData: null };
-		Chart.defaults.color = '#9ca3af';
-		Chart.defaults.borderColor = '#374151';
-		function formatBytes(b) { if (b === 0) return '0 B'; const k = 1024, s = ['B', 'KB', 'MB', 'GB', 'TB'], i = Math.floor(Math.log(b) / Math.log(k)); return parseFloat((b / Math.pow(k, i)).toFixed(2)) + ' ' + s[i] }
-		function formatTime(t) { return new Date(t).toLocaleString() }
-		function formatTimestamp(ts) { const d = new Date(ts); return isNaN(d.getTime()) ? ts : d.toLocaleString() }
-		function formatCompactTimestamp(ts) { const d = new Date(ts); if (isNaN(d.getTime())) return ts; return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit' }) }
-		function formatSeconds(v) { return (typeof v === 'number' && isFinite(v)) ? v.toFixed(2) + 's' : '0.00s' }
-		function getEntriesCacheKey() {
-			const params = getDateParams();
-			return params && params.length > 0 ? params : '__all__';
-		}
-		function extractUpstreamPort(upstreamAddr) {
-			if (!upstreamAddr) return '';
-			// Extract port from upstream_addr like "10.0.0.1:8080" or "example.com:443"
-			const match = upstreamAddr.match(/:(\d+)$/);
-			return match ? match[1] : '';
-		}
-		async function fetchDetailedEntries() {
-			const key = getEntriesCacheKey();
-			if (globalEntryCache.key === key && Array.isArray(globalEntryCache.data)) {
-				return globalEntryCache.data;
-			}
-			const response = await fetch('/streamInfo/data' + (key === '__all__' ? '' : key));
-			if (!response.ok) {
-				throw new Error('Failed to load detailed entries');
-			}
-			const payload = await response.json();
-			const entries = Array.isArray(payload)
-				? payload
-				: (Array.isArray(payload.entries) ? payload.entries : []);
-			globalEntryCache = { key, data: entries };
-			return entries;
-		}
-		function setModalLoadingState(title, context) {
-			const modal = document.getElementById('serverModal');
-			const modalServerName = document.getElementById('modalServerName');
-			const modalContext = document.getElementById('serverModalContext');
-			if (modalServerName) modalServerName.textContent = title || 'IP Breakdown';
-			if (modalContext) modalContext.textContent = context || 'Detailed IP statistics';
-			document.getElementById('modalTotalIPs').textContent = '-';
-			document.getElementById('modalTotalConnections').textContent = '-';
-			document.getElementById('modalTotalTraffic').textContent = '-';
-			document.getElementById('modalIPTable').innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">Loading...</td></tr>';
-			modal.classList.add('active');
-		}
-		function renderEntriesModal(entries, options = {}) {
-			const modal = document.getElementById('serverModal');
-			const modalTotalIPs = document.getElementById('modalTotalIPs');
-			const modalTotalConnections = document.getElementById('modalTotalConnections');
-			const modalTotalTraffic = document.getElementById('modalTotalTraffic');
-			const modalIPTable = document.getElementById('modalIPTable');
-
-			// Modal is already shown by setModalLoadingState, just update content
-
-			if (!entries || entries.length === 0) {
-				modalTotalIPs.textContent = '0';
-				modalTotalConnections.textContent = '0';
-				modalTotalTraffic.textContent = '0 B';
-				modalIPTable.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">No data available</td></tr>';
-				return;
-			}
-			const ipStats = {};
-			entries.forEach(entry => {
-				const ip = entry.client_ip || 'Unknown';
-				if (!ipStats[ip]) {
-					ipStats[ip] = {
-						ip,
-						country: entry.country || 'Unknown',
-						connections: 0,
-						totalBytes: 0
-					};
-				}
-				ipStats[ip].connections++;
-				ipStats[ip].totalBytes += (entry.bytes_sent || 0) + (entry.bytes_received || 0);
-			});
-			const ipArray = Object.values(ipStats).sort((a, b) => b.totalBytes - a.totalBytes);
-			const totalConnections = ipArray.reduce((sum, ip) => sum + ip.connections, 0);
-			const totalBytes = ipArray.reduce((sum, ip) => sum + ip.totalBytes, 0);
-			modalTotalIPs.textContent = ipArray.length.toLocaleString();
-			modalTotalConnections.textContent = totalConnections.toLocaleString();
-			modalTotalTraffic.textContent = formatBytes(totalBytes);
-			modalIPTable.innerHTML = ipArray.map(ip =>
-				'<tr class="table-row">' +
-				'<td class="px-4 py-3 whitespace-nowrap text-sm font-mono text-gray-200">' + ip.ip + '</td>' +
-				'<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-400">' + ip.country + '</td>' +
-				'<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-200 text-right">' + ip.connections.toLocaleString() + '</td>' +
-				'<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(ip.totalBytes) + '</td>' +
-				'</tr>'
-			).join('');
-		}
-		async function showGlobalEntries(options = {}) {
-			const title = options.title || 'IP Breakdown';
-			const context = options.context || 'Detailed IP statistics';
-			const filter = options.filter || null;
-			setModalLoadingState(title, context);
-			try {
-				const entries = await fetchDetailedEntries();
-				const filtered = typeof filter === 'function' ? entries.filter(filter) : entries;
-				renderEntriesModal(filtered, { title, context });
-			} catch (error) {
-				console.error('Global detail error:', error);
-				document.getElementById('modalIPTable').innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-red-400">Unable to load data</td></tr>';
-			}
-		}
-		function loadWorldGeoData() {
-			if (!worldGeoDataPromise) {
-				worldGeoDataPromise = fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
-					.then(r => r.json())
-					.then(world => topojson.feature(world, world.objects.countries))
-					.catch(err => {
-						console.error('Failed to load world map data', err);
-						worldGeoDataPromise = null;
-						throw err;
-					});
-			}
-			return worldGeoDataPromise;
-		}
-		function destroyChart(n) { if (charts[n]) { charts[n].destroy(); charts[n] = null } }
-		function getDateParams() { const start = document.getElementById('startDate').value; const end = document.getElementById('endDate').value; let params = []; if (start) params.push('start=' + start); if (end) params.push('end=' + end); return params.length > 0 ? '?' + params.join('&') : '' }
-		async function loadData(options = {}) {
-			if (isLoadingData) return;
-			isLoadingData = true;
-
-			const { silent = hasLoadedOnce } = options;
-			const loadingEl = document.getElementById('loading');
-			const dashboardEl = document.getElementById('dashboard');
-			const lastUpdateEl = document.getElementById('lastUpdate');
-			const showFullLoader = !silent;
-
-			if (showFullLoader) {
-				loadingEl.classList.remove('hidden');
-				dashboardEl.classList.add('hidden');
-			} else if (lastUpdateEl) {
-				lastUpdateEl.textContent = 'Refreshing data…';
-			}
-
-			try {
+		<script>
+			let charts = {};
+			let isLoadingData = false;
+			let hasLoadedOnce = false;
+			let worldGeoDataPromise = null;
+			let geoMapSvg = null;
+			let geoMapGroup = null;
+			let geoMapZoom = null;
+			let countryDetailState = { name: null, controller: null };
+			let serverActivityState = { selected: null, controller: null, loadingServer: null, data: null };
+			let globalEntryCache = { key: null, data: null };
+			let trendData = { daily: [], hourly: [], timeline: [] };
+			let drillDownState = { level: 1, server: null, ip: null, allData: null };
+			Chart.defaults.color = '#9ca3af';
+			Chart.defaults.borderColor = '#374151';
+			function formatBytes(b) { if (b === 0) return '0 B'; const k = 1024, s = ['B', 'KB', 'MB', 'GB', 'TB'], i = Math.floor(Math.log(b) / Math.log(k)); return parseFloat((b / Math.pow(k, i)).toFixed(2)) + ' ' + s[i] }
+			function formatTime(t) { return new Date(t).toLocaleString() }
+			function formatTimestamp(ts) { const d = new Date(ts); return isNaN(d.getTime()) ? ts : d.toLocaleString() }
+			function formatCompactTimestamp(ts) { const d = new Date(ts); if (isNaN(d.getTime())) return ts; return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit' }) }
+			function formatSeconds(v) { return (typeof v === 'number' && isFinite(v)) ? v.toFixed(2) + 's' : '0.00s' }
+			function getEntriesCacheKey() {
 				const params = getDateParams();
-				const flowParams = params ? (params + '&limit=50') : '?limit=50';
-				const [dateInfo, summary, flow, daily, hourly, topCountries, topPorts, topTalkers, protocol, upstream, timeline, anomalies, countryHeat] = await Promise.all([
-					fetch('/streamInfo/daterange' + params).then(r => r.json()),
-					fetch('/streamInfo/summary' + params).then(r => r.json()),
-					fetch('/streamInfo/flow' + flowParams).then(r => r.json()),
-					fetch('/streamInfo/stats/daily' + params).then(r => r.json()),
-					fetch('/streamInfo/stats/hourly' + params).then(r => r.json()),
-					fetch('/streamInfo/top/countries' + params).then(r => r.json()),
-					fetch('/streamInfo/top/ports' + params).then(r => r.json()),
-					fetch('/streamInfo/top/talkers' + params).then(r => r.json()),
-					fetch('/streamInfo/traffic/by-protocol' + params).then(r => r.json()),
-					fetch('/streamInfo/upstream' + params).then(r => r.json()),
-					fetch('/streamInfo/timeline' + params).then(r => r.json()),
-					fetch('/streamInfo/anomalies' + params).then(r => r.json()),
-					fetch('/streamInfo/traffic/by-country' + params).then(r => r.json())
-				]);
+				return params && params.length > 0 ? params : '__all__';
+			}
+			function extractUpstreamPort(upstreamAddr) {
+				if (!upstreamAddr) return '';
+				// Extract port from upstream_addr like "10.0.0.1:8080" or "example.com:443"
+				const match = upstreamAddr.match(/:(\d+)$/);
+				return match ? match[1] : '';
+			}
+			async function fetchDetailedEntries() {
+				const key = getEntriesCacheKey();
+				if (globalEntryCache.key === key && Array.isArray(globalEntryCache.data)) {
+					return globalEntryCache.data;
+				}
+				const response = await fetch('/streamInfo/data' + (key === '__all__' ? '' : key));
+				if (!response.ok) {
+					throw new Error('Failed to load detailed entries');
+				}
+				const payload = await response.json();
+				const entries = Array.isArray(payload)
+					? payload
+					: (Array.isArray(payload.entries) ? payload.entries : []);
+				globalEntryCache = { key, data: entries };
+				return entries;
+			}
+			function setModalLoadingState(title, context) {
+				const modal = document.getElementById('serverModal');
+				const modalServerName = document.getElementById('modalServerName');
+				const modalContext = document.getElementById('serverModalContext');
+				if (modalServerName) modalServerName.textContent = title || 'IP Breakdown';
+				if (modalContext) modalContext.textContent = context || 'Detailed IP statistics';
+				document.getElementById('modalTotalIPs').textContent = '-';
+				document.getElementById('modalTotalConnections').textContent = '-';
+				document.getElementById('modalTotalTraffic').textContent = '-';
+				document.getElementById('modalIPTable').innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">Loading...</td></tr>';
+				modal.classList.add('active');
+			}
+			function renderEntriesModal(entries, options = {}) {
+				const modal = document.getElementById('serverModal');
+				const modalTotalIPs = document.getElementById('modalTotalIPs');
+				const modalTotalConnections = document.getElementById('modalTotalConnections');
+				const modalTotalTraffic = document.getElementById('modalTotalTraffic');
+				const modalIPTable = document.getElementById('modalIPTable');
 
-				const renderCharts = () => {
+				// Modal is already shown by setModalLoadingState, just update content
+
+				if (!entries || entries.length === 0) {
+					modalTotalIPs.textContent = '0';
+					modalTotalConnections.textContent = '0';
+					modalTotalTraffic.textContent = '0 B';
+					modalIPTable.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">No data available</td></tr>';
+					return;
+				}
+				const ipStats = {};
+				entries.forEach(entry => {
+					const ip = entry.client_ip || 'Unknown';
+					if (!ipStats[ip]) {
+						ipStats[ip] = {
+							ip,
+							country: entry.country || 'Unknown',
+							connections: 0,
+							totalBytes: 0
+						};
+					}
+					ipStats[ip].connections++;
+					ipStats[ip].totalBytes += (entry.bytes_sent || 0) + (entry.bytes_received || 0);
+				});
+				const ipArray = Object.values(ipStats).sort((a, b) => b.totalBytes - a.totalBytes);
+				const totalConnections = ipArray.reduce((sum, ip) => sum + ip.connections, 0);
+				const totalBytes = ipArray.reduce((sum, ip) => sum + ip.totalBytes, 0);
+				modalTotalIPs.textContent = ipArray.length.toLocaleString();
+				modalTotalConnections.textContent = totalConnections.toLocaleString();
+				modalTotalTraffic.textContent = formatBytes(totalBytes);
+				modalIPTable.innerHTML = ipArray.map(ip =>
+					'<tr class="table-row">' +
+					'<td class="px-4 py-3 whitespace-nowrap text-sm font-mono text-gray-200">' + ip.ip + '</td>' +
+					'<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-400">' + ip.country + '</td>' +
+					'<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-200 text-right">' + ip.connections.toLocaleString() + '</td>' +
+					'<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(ip.totalBytes) + '</td>' +
+					'</tr>'
+				).join('');
+			}
+			async function showGlobalEntries(options = {}) {
+				const title = options.title || 'IP Breakdown';
+				const context = options.context || 'Detailed IP statistics';
+				const filter = options.filter || null;
+				setModalLoadingState(title, context);
+				try {
+					const entries = await fetchDetailedEntries();
+					const filtered = typeof filter === 'function' ? entries.filter(filter) : entries;
+					renderEntriesModal(filtered, { title, context });
+				} catch (error) {
+					console.error('Global detail error:', error);
+					document.getElementById('modalIPTable').innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-red-400">Unable to load data</td></tr>';
+				}
+			}
+			function loadWorldGeoData() {
+				if (!worldGeoDataPromise) {
+					worldGeoDataPromise = fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+						.then(r => r.json())
+						.then(world => topojson.feature(world, world.objects.countries))
+						.catch(err => {
+							console.error('Failed to load world map data', err);
+							worldGeoDataPromise = null;
+							throw err;
+						});
+				}
+				return worldGeoDataPromise;
+			}
+			function destroyChart(n) { if (charts[n]) { charts[n].destroy(); charts[n] = null } }
+			function getDateParams() { const start = document.getElementById('startDate').value; const end = document.getElementById('endDate').value; let params = []; if (start) params.push('start=' + start); if (end) params.push('end=' + end); return params.length > 0 ? '?' + params.join('&') : '' }
+
+			async function fetchJSON(url) {
+				const response = await fetch(url);
+				if (!response.ok) {
+					throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+				}
+				return response.json();
+			}
+
+			async function loadData(options = {}) {
+				if (isLoadingData) return;
+				isLoadingData = true;
+
+				const { silent = hasLoadedOnce } = options;
+				const loadingEl = document.getElementById('loading');
+				const dashboardEl = document.getElementById('dashboard');
+				const lastUpdateEl = document.getElementById('lastUpdate');
+				const showFullLoader = !silent;
+
+				if (showFullLoader) {
+					loadingEl.classList.remove('hidden');
+					dashboardEl.classList.add('hidden');
+				} else if (lastUpdateEl) {
+					lastUpdateEl.textContent = 'Refreshing data…';
+				}
+
+				try {
+					const params = getDateParams();
+					const flowParams = params ? (params + '&limit=50') : '?limit=50';
+					const [dateInfo, summary, flow, daily, hourly, topCountries, topPorts, topTalkers, protocol, upstream, timeline, anomalies, countryHeat] = await Promise.all([
+						fetchJSON('/streamInfo/daterange' + params),
+						fetchJSON('/streamInfo/summary' + params),
+						fetchJSON('/streamInfo/flow' + flowParams),
+						fetchJSON('/streamInfo/stats/daily' + params),
+						fetchJSON('/streamInfo/stats/hourly' + params),
+						fetchJSON('/streamInfo/top/countries' + params),
+						fetchJSON('/streamInfo/top/ports' + params),
+						fetchJSON('/streamInfo/top/talkers' + params),
+						fetchJSON('/streamInfo/traffic/by-protocol' + params),
+						fetchJSON('/streamInfo/upstream' + params),
+						fetchJSON('/streamInfo/timeline' + params),
+						fetchJSON('/streamInfo/anomalies' + params),
+						fetchJSON('/streamInfo/traffic/by-country' + params)
+					]);
+
+					const renderCharts = () => {
+						if (showFullLoader) {
+							loadingEl.classList.add('hidden');
+							dashboardEl.classList.remove('hidden');
+						}
+						updateDateInfo(dateInfo);
+						updateSummaryCards(summary);
+						updateSankeyChart(flow);
+						updateDailyChart(daily);
+						updateHourlyChart(hourly);
+						updateCountriesChart(topCountries);
+						updatePortsChart(topPorts);
+						updateTopTalkersTable(topTalkers);
+						updateProtocolTable(protocol);
+						updateUpstreamTable(upstream);
+						updateTimelineChart(timeline);
+						updateAnomalyPanel(anomalies);
+						updateFailureHotspots(timeline);
+						updateBurstDetector(timeline);
+						updateGeoHeatMap(countryHeat);
+						updateServerActivityOptions(upstream);
+						hasLoadedOnce = true;
+						if (lastUpdateEl) {
+							lastUpdateEl.textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+						}
+					};
+
+					if (typeof requestAnimationFrame === 'function') {
+						requestAnimationFrame(renderCharts);
+					} else {
+						setTimeout(renderCharts, 0);
+					}
+				} catch (e) {
+					console.error('Error loading data:', e);
+					if (showFullLoader) {
+						alert('Failed to load data. Please try again.');
+					} else if (lastUpdateEl) {
+						lastUpdateEl.textContent = 'Refresh failed at ' + new Date().toLocaleTimeString();
+					}
+				} finally {
 					if (showFullLoader) {
 						loadingEl.classList.add('hidden');
 						dashboardEl.classList.remove('hidden');
 					}
-					updateDateInfo(dateInfo);
-					updateSummaryCards(summary);
-					updateSankeyChart(flow);
-					updateDailyChart(daily);
-					updateHourlyChart(hourly);
-					updateCountriesChart(topCountries);
-					updatePortsChart(topPorts);
-					updateTopTalkersTable(topTalkers);
-					updateProtocolTable(protocol);
-					updateUpstreamTable(upstream);
-					updateTimelineChart(timeline);
-					updateAnomalyPanel(anomalies);
-					updateFailureHotspots(timeline);
-					updateBurstDetector(timeline);
-					updateGeoHeatMap(countryHeat);
-					updateServerActivityOptions(upstream);
-					hasLoadedOnce = true;
-					if (lastUpdateEl) {
-						lastUpdateEl.textContent = 'Last updated: ' + new Date().toLocaleTimeString();
-					}
-				};
-
-				if (typeof requestAnimationFrame === 'function') {
-					requestAnimationFrame(renderCharts);
-				} else {
-					setTimeout(renderCharts, 0);
+					isLoadingData = false;
 				}
-			} catch (e) {
-				console.error('Error loading data:', e);
-				if (showFullLoader) {
-					alert('Failed to load data. Please try again.');
-				} else if (lastUpdateEl) {
-					lastUpdateEl.textContent = 'Refresh failed at ' + new Date().toLocaleTimeString();
-				}
-			} finally {
-				if (showFullLoader) {
-					loadingEl.classList.add('hidden');
-					dashboardEl.classList.remove('hidden');
-				}
-				isLoadingData = false;
 			}
-		}
-		function updateDateInfo(d) { document.getElementById('datasetDays').textContent = d.total_days || '-'; document.getElementById('datasetRange').textContent = (d.min_date && d.max_date) ? (d.min_date + ' to ' + d.max_date) : '-'; document.getElementById('datasetTotal').textContent = (d.total_entries || 0).toLocaleString() }
-		function updateSummaryCards(d) { document.getElementById('totalConns').textContent = d.total_connections.toLocaleString(); document.getElementById('uniqueIPs').textContent = d.unique_ips.toLocaleString(); document.getElementById('uniqueCountries').textContent = d.unique_countries; document.getElementById('totalBytes').textContent = formatBytes(d.total_bytes); document.getElementById('avgSession').textContent = d.avg_session_time_seconds.toFixed(2); document.getElementById('failedConns').textContent = d.failed_connections.toLocaleString(); document.getElementById('dateRange').textContent = d.date_range; const sr = ((d.successful_connections / d.total_connections) * 100).toFixed(1); document.getElementById('successRate').textContent = sr + '%' }
-		function updateSankeyChart(data, attempt = 0) {
-			const container = document.getElementById('sankeyChart');
-			container.innerHTML = '';
-			console.log('Sankey data:', data);
-			if (!data || data.length === 0) {
-				container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af">No flow data available</div>';
-				return
-			}
-			try {
-				document.getElementById('flowCount').textContent = data.length;
-
-				// Check if d3.sankey is available
-				if (typeof d3.sankey !== 'function') {
-					console.error('d3.sankey is not available!');
-					// Fallback to simple bar chart visualization
-					container.innerHTML = '<div style="padding:20px;color:#9ca3af;text-align:center">Loading Sankey library...</div>';
-					setTimeout(() => updateSankeyChart(data), 1000);
-					return;
+			function updateDateInfo(d) { document.getElementById('datasetDays').textContent = d.total_days || '-'; document.getElementById('datasetRange').textContent = (d.min_date && d.max_date) ? (d.min_date + ' to ' + d.max_date) : '-'; document.getElementById('datasetTotal').textContent = (d.total_entries || 0).toLocaleString() }
+			function updateSummaryCards(d) { document.getElementById('totalConns').textContent = d.total_connections.toLocaleString(); document.getElementById('uniqueIPs').textContent = d.unique_ips.toLocaleString(); document.getElementById('uniqueCountries').textContent = d.unique_countries; document.getElementById('totalBytes').textContent = formatBytes(d.total_bytes); document.getElementById('avgSession').textContent = d.avg_session_time_seconds.toFixed(2); document.getElementById('failedConns').textContent = d.failed_connections.toLocaleString(); document.getElementById('dateRange').textContent = d.date_range; const sr = ((d.successful_connections / d.total_connections) * 100).toFixed(1); document.getElementById('successRate').textContent = sr + '%' }
+			function updateSankeyChart(data, attempt = 0) {
+				const container = document.getElementById('sankeyChart');
+				container.innerHTML = '';
+				console.log('Sankey data:', data);
+				if (!data || data.length === 0) {
+					container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af">No flow data available</div>';
+					return
 				}
+				try {
+					document.getElementById('flowCount').textContent = data.length;
 
-				const margin = { top: 20, right: 150, bottom: 20, left: 150 };
-				let availableWidth = container.offsetWidth;
-
-				if (availableWidth <= (margin.left + margin.right)) {
-					if (attempt < 5) {
-						const retry = () => updateSankeyChart(data, attempt + 1);
-						if (typeof requestAnimationFrame === 'function') {
-							requestAnimationFrame(retry);
-						} else {
-							setTimeout(retry, 50);
-						}
+					// Check if d3.sankey is available
+					if (typeof d3.sankey !== 'function') {
+						console.error('d3.sankey is not available!');
+						// Fallback to simple bar chart visualization
+						container.innerHTML = '<div style="padding:20px;color:#9ca3af;text-align:center">Loading Sankey library...</div>';
+						setTimeout(() => updateSankeyChart(data), 1000);
 						return;
 					}
 
-					const parentWidth = container.parentElement ? container.parentElement.offsetWidth : 0;
-					const dashboardWidth = document.getElementById('dashboard') ? document.getElementById('dashboard').offsetWidth : 0;
-					availableWidth = Math.max(parentWidth, dashboardWidth, window.innerWidth || 0, 600);
+					const margin = { top: 20, right: 150, bottom: 20, left: 150 };
+					let availableWidth = container.offsetWidth;
+
+					if (availableWidth <= (margin.left + margin.right)) {
+						if (attempt < 5) {
+							const retry = () => updateSankeyChart(data, attempt + 1);
+							if (typeof requestAnimationFrame === 'function') {
+								requestAnimationFrame(retry);
+							} else {
+								setTimeout(retry, 50);
+							}
+							return;
+						}
+
+						const parentWidth = container.parentElement ? container.parentElement.offsetWidth : 0;
+						const dashboardWidth = document.getElementById('dashboard') ? document.getElementById('dashboard').offsetWidth : 0;
+						availableWidth = Math.max(parentWidth, dashboardWidth, window.innerWidth || 0, 600);
+					}
+
+					const width = Math.max(availableWidth - margin.left - margin.right, 200);
+					const height = 600 - margin.top - margin.bottom;
+
+					const svg = d3.select('#sankeyChart')
+						.append('svg')
+						.attr('width', width + margin.left + margin.right)
+						.attr('height', height + margin.top + margin.bottom)
+						.append('g')
+						.attr('transform', `translate(${margin.left},${margin.top})`);
+
+					// Build nodes and links
+					const nodes = [];
+					const nodeMap = new Map();
+
+					data.forEach(d => {
+						if (!nodeMap.has(d.source)) {
+							nodeMap.set(d.source, nodes.length);
+							nodes.push({ name: d.source });
+						}
+						if (!nodeMap.has(d.destination)) {
+							nodeMap.set(d.destination, nodes.length);
+							nodes.push({ name: d.destination });
+						}
+					});
+
+					const links = data.map(d => ({
+						source: nodeMap.get(d.source),
+						target: nodeMap.get(d.destination),
+						value: d.connections,
+						bytes: d.total_bytes
+					}));
+
+					console.log('Creating sankey with nodes:', nodes.length, 'links:', links.length);
+
+					// Create sankey generator
+					const sankeyGenerator = d3.sankey()
+						.nodeWidth(20)
+						.nodePadding(20)
+						.extent([[0, 0], [width, height]]);
+
+					// Generate the sankey diagram
+					const graph = sankeyGenerator({
+						nodes: nodes.map(d => Object.assign({}, d)),
+						links: links.map(d => Object.assign({}, d))
+					});
+
+					console.log('Sankey graph generated:', graph);
+
+					// Color scale
+					const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+					// Draw links
+					const link = svg.append('g')
+						.selectAll('.link')
+						.data(graph.links)
+						.join('path')
+						.attr('class', 'link')
+						.attr('d', d3.sankeyLinkHorizontal())
+						.attr('stroke', d => color(graph.nodes[d.source.index].name))
+						.attr('stroke-width', d => Math.max(1, d.width))
+						.attr('fill', 'none')
+						.attr('opacity', 0.5)
+						.on('mouseover', function () {
+							d3.select(this).attr('opacity', 0.8);
+						})
+						.on('mouseout', function () {
+							d3.select(this).attr('opacity', 0.5);
+						})
+						.on('click', function (event, d) {
+							const sourceName = graph.nodes[d.source.index].name;
+							const targetName = graph.nodes[d.target.index].name;
+							handleFlowClick({ source: sourceName, target: targetName });
+						});
+
+					// Add link titles
+					link.append('title')
+						.text(d => `${graph.nodes[d.source.index].name} → ${graph.nodes[d.target.index].name}\n${d.value} connections\n${formatBytes(d.bytes)}`);
+
+					// Draw nodes
+					const node = svg.append('g')
+						.selectAll('.node')
+						.data(graph.nodes)
+						.join('g')
+						.attr('class', 'node');
+
+					node.append('rect')
+						.attr('x', d => d.x0)
+						.attr('y', d => d.y0)
+						.attr('height', d => d.y1 - d.y0)
+						.attr('width', d => d.x1 - d.x0)
+						.attr('fill', d => color(d.name))
+						.attr('opacity', 0.8)
+						.attr('stroke', '#000')
+						.attr('stroke-width', 1)
+						.on('click', function (event, d) {
+							const name = d.name;
+							handleFlowClick({ node: name });
+						});
+
+					node.append('title')
+						.text(d => `${d.name}\n${d.value || 0} connections`);
+
+					// Add node labels
+					node.append('text')
+						.attr('x', d => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6)
+						.attr('y', d => (d.y1 + d.y0) / 2)
+						.attr('dy', '0.35em')
+						.attr('text-anchor', d => d.x0 < width / 2 ? 'start' : 'end')
+						.attr('fill', '#e5e7eb')
+						.attr('font-size', '14px')
+						.attr('font-weight', 'bold')
+						.text(d => d.name);
+
+					console.log('Sankey chart created successfully');
+				} catch (e) {
+					console.error('Sankey error:', e);
+					container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ef4444">Error: ' + e.message + '</div>';
 				}
-
-				const width = Math.max(availableWidth - margin.left - margin.right, 200);
-				const height = 600 - margin.top - margin.bottom;
-
-				const svg = d3.select('#sankeyChart')
-					.append('svg')
-					.attr('width', width + margin.left + margin.right)
-					.attr('height', height + margin.top + margin.bottom)
-					.append('g')
-					.attr('transform', `translate(${margin.left},${margin.top})`);
-
-				// Build nodes and links
-				const nodes = [];
-				const nodeMap = new Map();
-
-				data.forEach(d => {
-					if (!nodeMap.has(d.source)) {
-						nodeMap.set(d.source, nodes.length);
-						nodes.push({ name: d.source });
-					}
-					if (!nodeMap.has(d.destination)) {
-						nodeMap.set(d.destination, nodes.length);
-						nodes.push({ name: d.destination });
-					}
-				});
-
-				const links = data.map(d => ({
-					source: nodeMap.get(d.source),
-					target: nodeMap.get(d.destination),
-					value: d.connections,
-					bytes: d.total_bytes
-				}));
-
-				console.log('Creating sankey with nodes:', nodes.length, 'links:', links.length);
-
-				// Create sankey generator
-				const sankeyGenerator = d3.sankey()
-					.nodeWidth(20)
-					.nodePadding(20)
-					.extent([[0, 0], [width, height]]);
-
-				// Generate the sankey diagram
-				const graph = sankeyGenerator({
-					nodes: nodes.map(d => Object.assign({}, d)),
-					links: links.map(d => Object.assign({}, d))
-				});
-
-				console.log('Sankey graph generated:', graph);
-
-				// Color scale
-				const color = d3.scaleOrdinal(d3.schemeCategory10);
-
-				// Draw links
-				const link = svg.append('g')
-					.selectAll('.link')
-					.data(graph.links)
-					.join('path')
-					.attr('class', 'link')
-					.attr('d', d3.sankeyLinkHorizontal())
-					.attr('stroke', d => color(graph.nodes[d.source.index].name))
-					.attr('stroke-width', d => Math.max(1, d.width))
-					.attr('fill', 'none')
-					.attr('opacity', 0.5)
-					.on('mouseover', function () {
-						d3.select(this).attr('opacity', 0.8);
-					})
-					.on('mouseout', function () {
-						d3.select(this).attr('opacity', 0.5);
-					})
-					.on('click', function (event, d) {
-						const sourceName = graph.nodes[d.source.index].name;
-						const targetName = graph.nodes[d.target.index].name;
-						handleFlowClick({ source: sourceName, target: targetName });
-					});
-
-				// Add link titles
-				link.append('title')
-					.text(d => `${graph.nodes[d.source.index].name} → ${graph.nodes[d.target.index].name}\n${d.value} connections\n${formatBytes(d.bytes)}`);
-
-				// Draw nodes
-				const node = svg.append('g')
-					.selectAll('.node')
-					.data(graph.nodes)
-					.join('g')
-					.attr('class', 'node');
-
-				node.append('rect')
-					.attr('x', d => d.x0)
-					.attr('y', d => d.y0)
-					.attr('height', d => d.y1 - d.y0)
-					.attr('width', d => d.x1 - d.x0)
-					.attr('fill', d => color(d.name))
-					.attr('opacity', 0.8)
-					.attr('stroke', '#000')
-					.attr('stroke-width', 1)
-					.on('click', function (event, d) {
-						const name = d.name;
-						handleFlowClick({ node: name });
-					});
-
-				node.append('title')
-					.text(d => `${d.name}\n${d.value || 0} connections`);
-
-				// Add node labels
-				node.append('text')
-					.attr('x', d => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6)
-					.attr('y', d => (d.y1 + d.y0) / 2)
-					.attr('dy', '0.35em')
-					.attr('text-anchor', d => d.x0 < width / 2 ? 'start' : 'end')
-					.attr('fill', '#e5e7eb')
-					.attr('font-size', '14px')
-					.attr('font-weight', 'bold')
-					.text(d => d.name);
-
-				console.log('Sankey chart created successfully');
-			} catch (e) {
-				console.error('Sankey error:', e);
-				container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ef4444">Error: ' + e.message + '</div>';
 			}
-		}
-		function handleFlowClick(selection) {
-			if (!selection) return;
-			const filters = [];
-			let title = 'Flow Details';
-			let context = 'IP breakdown for this flow';
+			function handleFlowClick(selection) {
+				if (!selection) return;
+				const filters = [];
+				let title = 'Flow Details';
+				let context = 'IP breakdown for this flow';
 
-			// Helper to match country including "Unknown" cases
-			const matchCountry = (entryCountry, targetCountry) => {
-				const normalizeCountry = (c) => (!c || c === '' || c === 'Unknown') ? 'Unknown' : c;
-				return normalizeCountry(entryCountry) === normalizeCountry(targetCountry);
-			};
+				// Helper to match country including "Unknown" cases
+				const matchCountry = (entryCountry, targetCountry) => {
+					const normalizeCountry = (c) => (!c || c === '' || c === 'Unknown') ? 'Unknown' : c;
+					return normalizeCountry(entryCountry) === normalizeCountry(targetCountry);
+				};
 
-			if (selection.source && selection.target) {
-				title = selection.source + ' → ' + selection.target;
-				context = 'Flow from ' + selection.source + ' to ' + selection.target;
-				const targetPort = selection.target.replace('Port ', '');
-				filters.push(entry => matchCountry(entry.country, selection.source) && extractUpstreamPort(entry.upstream_addr) === targetPort);
-			} else if (selection.source) {
-				title = 'Country ' + selection.source;
-				context = 'All flows originating from ' + selection.source;
-				filters.push(entry => matchCountry(entry.country, selection.source));
-			} else if (selection.target) {
-				const port = selection.target.replace('Port ', '');
-				title = 'Destination ' + selection.target;
-				context = 'All flows targeting ' + selection.target;
-				filters.push(entry => extractUpstreamPort(entry.upstream_addr) === port);
-			} else if (selection.node) {
-				if (selection.node.startsWith('Port ')) {
-					const port = selection.node.replace('Port ', '');
-					title = 'Destination ' + selection.node;
-					context = 'All flows targeting ' + selection.node;
+				if (selection.source && selection.target) {
+					title = selection.source + ' → ' + selection.target;
+					context = 'Flow from ' + selection.source + ' to ' + selection.target;
+					const targetPort = selection.target.replace('Port ', '');
+					filters.push(entry => matchCountry(entry.country, selection.source) && extractUpstreamPort(entry.upstream_addr) === targetPort);
+				} else if (selection.source) {
+					title = 'Country ' + selection.source;
+					context = 'All flows originating from ' + selection.source;
+					filters.push(entry => matchCountry(entry.country, selection.source));
+				} else if (selection.target) {
+					const port = selection.target.replace('Port ', '');
+					title = 'Destination ' + selection.target;
+					context = 'All flows targeting ' + selection.target;
 					filters.push(entry => extractUpstreamPort(entry.upstream_addr) === port);
+				} else if (selection.node) {
+					if (selection.node.startsWith('Port ')) {
+						const port = selection.node.replace('Port ', '');
+						title = 'Destination ' + selection.node;
+						context = 'All flows targeting ' + selection.node;
+						filters.push(entry => extractUpstreamPort(entry.upstream_addr) === port);
+					} else {
+						title = 'Country ' + selection.node;
+						context = 'All flows originating from ' + selection.node;
+						filters.push(entry => matchCountry(entry.country, selection.node));
+					}
+				}
+				const filterFn = filters.length > 0
+					? entry => filters.every(fn => fn(entry))
+					: null;
+				showGlobalEntries({
+					title,
+					context,
+					filter: filterFn
+				});
+			}
+			function updateDailyChart(d) {
+				trendData.daily = Array.isArray(d) ? d.slice() : [];
+				const labels = d.map(x => x.date);
+				const connections = d.map(x => x.connections);
+				const uniqueIPs = d.map(x => x.unique_ips);
+				if (!charts.daily) {
+					const ctx = document.getElementById('dailyChart').getContext('2d');
+					charts.daily = new Chart(ctx, {
+						type: 'line',
+						data: {
+							labels,
+							datasets: [
+								{ label: 'Connections', data: connections, borderColor: 'rgb(59,130,246)', backgroundColor: 'rgba(59,130,246,0.1)', tension: 0.4, fill: true },
+								{ label: 'Unique IPs', data: uniqueIPs, borderColor: 'rgb(34,197,94)', backgroundColor: 'rgba(34,197,94,0.1)', tension: 0.4, fill: true }
+							]
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							animation: { duration: 700 },
+							plugins: { legend: { position: 'top', labels: { color: '#e5e7eb' } } },
+							scales: { y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } },
+							onClick: (evt, elements) => handleTrendChartClick('daily', elements)
+						}
+					});
 				} else {
-					title = 'Country ' + selection.node;
-					context = 'All flows originating from ' + selection.node;
-					filters.push(entry => matchCountry(entry.country, selection.node));
+					const chart = charts.daily;
+					chart.data.labels = labels;
+					chart.data.datasets[0].data = connections;
+					chart.data.datasets[1].data = uniqueIPs;
+					chart.update();
 				}
 			}
-			const filterFn = filters.length > 0
-				? entry => filters.every(fn => fn(entry))
-				: null;
-			showGlobalEntries({
-				title,
-				context,
-				filter: filterFn
-			});
-		}
-		function updateDailyChart(d) {
-			trendData.daily = Array.isArray(d) ? d.slice() : [];
-			const labels = d.map(x => x.date);
-			const connections = d.map(x => x.connections);
-			const uniqueIPs = d.map(x => x.unique_ips);
-			if (!charts.daily) {
-				const ctx = document.getElementById('dailyChart').getContext('2d');
-				charts.daily = new Chart(ctx, {
-					type: 'line',
-					data: {
-						labels,
-						datasets: [
-							{ label: 'Connections', data: connections, borderColor: 'rgb(59,130,246)', backgroundColor: 'rgba(59,130,246,0.1)', tension: 0.4, fill: true },
-							{ label: 'Unique IPs', data: uniqueIPs, borderColor: 'rgb(34,197,94)', backgroundColor: 'rgba(34,197,94,0.1)', tension: 0.4, fill: true }
-						]
-					},
-					options: {
-						responsive: true,
-						maintainAspectRatio: false,
-						animation: { duration: 700 },
-						plugins: { legend: { position: 'top', labels: { color: '#e5e7eb' } } },
-						scales: { y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } },
-						onClick: (evt, elements) => handleTrendChartClick('daily', elements)
-					}
-				});
-			} else {
-				const chart = charts.daily;
-				chart.data.labels = labels;
-				chart.data.datasets[0].data = connections;
-				chart.data.datasets[1].data = uniqueIPs;
-				chart.update();
-			}
-		}
-		function updateHourlyChart(d) {
-			trendData.hourly = Array.isArray(d) ? d.slice() : [];
-			const labels = d.map(x => x.hour + ':00');
-			const connections = d.map(x => x.connections);
-			if (!charts.hourly) {
-				const ctx = document.getElementById('hourlyChart').getContext('2d');
-				charts.hourly = new Chart(ctx, {
-					type: 'bar',
-					data: { labels, datasets: [{ label: 'Connections', data: connections, backgroundColor: 'rgba(147,51,234,0.6)', borderColor: 'rgb(147,51,234)', borderWidth: 1 }] },
-					options: {
-						responsive: true,
-						maintainAspectRatio: false,
-						animation: { duration: 700 },
-						plugins: { legend: { display: false } },
-						scales: { y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } },
-						onClick: (evt, elements) => handleTrendChartClick('hourly', elements)
-					}
-				});
-			} else {
-				const chart = charts.hourly;
-				chart.data.labels = labels;
-				chart.data.datasets[0].data = connections;
-				chart.update();
-			}
-		}
-		function updateCountriesChart(d) {
-			const labels = d.map(x => x.country);
-			const totals = d.map(x => x.total_bytes);
-			if (!charts.countries) {
-				const ctx = document.getElementById('countriesChart').getContext('2d');
-				charts.countries = new Chart(ctx, {
-					type: 'doughnut',
-					data: { labels, datasets: [{ data: totals, backgroundColor: ['rgba(59,130,246,0.8)', 'rgba(34,197,94,0.8)', 'rgba(251,146,60,0.8)', 'rgba(239,68,68,0.8)', 'rgba(147,51,234,0.8)', 'rgba(236,72,153,0.8)', 'rgba(14,165,233,0.8)', 'rgba(132,204,22,0.8)', 'rgba(250,204,21,0.8)', 'rgba(168,85,247,0.8)'], borderColor: '#1e293b', borderWidth: 2 }] },
-					options: { responsive: true, maintainAspectRatio: false, animation: { duration: 700 }, plugins: { legend: { position: 'right', labels: { color: '#e5e7eb', padding: 10 } }, tooltip: { callbacks: { label: function (c) { return c.label + ': ' + formatBytes(c.parsed) } } } } }
-				});
-			} else {
-				const chart = charts.countries;
-				chart.data.labels = labels;
-				chart.data.datasets[0].data = totals;
-				chart.update();
-			}
-		}
-		function updatePortsChart(d) {
-			const labels = d.map(x => 'Port ' + x.port);
-			const connections = d.map(x => x.connections);
-			if (!charts.ports) {
-				const ctx = document.getElementById('portsChart').getContext('2d');
-				charts.ports = new Chart(ctx, {
-					type: 'bar',
-					data: { labels, datasets: [{ label: 'Connections', data: connections, backgroundColor: 'rgba(34,197,94,0.6)', borderColor: 'rgb(34,197,94)', borderWidth: 1 }] },
-					options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', animation: { duration: 700 }, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, y: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } }
-				});
-			} else {
-				const chart = charts.ports;
-				chart.data.labels = labels;
-				chart.data.datasets[0].data = connections;
-				chart.update();
-			}
-		}
-		async function updateGeoHeatMap(countryData) {
-			const container = document.getElementById('geoMap');
-			const statusEl = document.getElementById('geoMapStatus');
-			const summaryEl = document.getElementById('geoMapSummary');
-			if (!container) return;
-
-			const resetStatus = (text) => {
-				if (statusEl) {
-					statusEl.textContent = text || '';
-					statusEl.style.display = text ? 'block' : 'none';
+			function updateHourlyChart(d) {
+				trendData.hourly = Array.isArray(d) ? d.slice() : [];
+				const labels = d.map(x => x.hour + ':00');
+				const connections = d.map(x => x.connections);
+				if (!charts.hourly) {
+					const ctx = document.getElementById('hourlyChart').getContext('2d');
+					charts.hourly = new Chart(ctx, {
+						type: 'bar',
+						data: { labels, datasets: [{ label: 'Connections', data: connections, backgroundColor: 'rgba(147,51,234,0.6)', borderColor: 'rgb(147,51,234)', borderWidth: 1 }] },
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							animation: { duration: 700 },
+							plugins: { legend: { display: false } },
+							scales: { y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } },
+							onClick: (evt, elements) => handleTrendChartClick('hourly', elements)
+						}
+					});
+				} else {
+					const chart = charts.hourly;
+					chart.data.labels = labels;
+					chart.data.datasets[0].data = connections;
+					chart.update();
 				}
-			};
-
-			if (!Array.isArray(countryData) || countryData.length === 0) {
-				if (summaryEl) summaryEl.textContent = 'No data';
-				container.querySelectorAll('svg').forEach(el => el.remove());
-				container.querySelectorAll('.geo-map-legend').forEach(el => el.remove());
-				geoMapSvg = null;
-				geoMapGroup = null;
-				resetStatus('No country data');
-				return;
 			}
+			function updateCountriesChart(d) {
+				const labels = d.map(x => x.country);
+				const totals = d.map(x => x.total_bytes);
+				if (!charts.countries) {
+					const ctx = document.getElementById('countriesChart').getContext('2d');
+					charts.countries = new Chart(ctx, {
+						type: 'doughnut',
+						data: { labels, datasets: [{ data: totals, backgroundColor: ['rgba(59,130,246,0.8)', 'rgba(34,197,94,0.8)', 'rgba(251,146,60,0.8)', 'rgba(239,68,68,0.8)', 'rgba(147,51,234,0.8)', 'rgba(236,72,153,0.8)', 'rgba(14,165,233,0.8)', 'rgba(132,204,22,0.8)', 'rgba(250,204,21,0.8)', 'rgba(168,85,247,0.8)'], borderColor: '#1e293b', borderWidth: 2 }] },
+						options: { responsive: true, maintainAspectRatio: false, animation: { duration: 700 }, plugins: { legend: { position: 'right', labels: { color: '#e5e7eb', padding: 10 } }, tooltip: { callbacks: { label: function (c) { return c.label + ': ' + formatBytes(c.parsed) } } } } }
+					});
+				} else {
+					const chart = charts.countries;
+					chart.data.labels = labels;
+					chart.data.datasets[0].data = totals;
+					chart.update();
+				}
+			}
+			function updatePortsChart(d) {
+				const labels = d.map(x => 'Port ' + x.port);
+				const connections = d.map(x => x.connections);
+				if (!charts.ports) {
+					const ctx = document.getElementById('portsChart').getContext('2d');
+					charts.ports = new Chart(ctx, {
+						type: 'bar',
+						data: { labels, datasets: [{ label: 'Connections', data: connections, backgroundColor: 'rgba(34,197,94,0.6)', borderColor: 'rgb(34,197,94)', borderWidth: 1 }] },
+						options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', animation: { duration: 700 }, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }, y: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } } } }
+					});
+				} else {
+					const chart = charts.ports;
+					chart.data.labels = labels;
+					chart.data.datasets[0].data = connections;
+					chart.update();
+				}
+			}
+			async function updateGeoHeatMap(countryData) {
+				const container = document.getElementById('geoMap');
+				const statusEl = document.getElementById('geoMapStatus');
+				const summaryEl = document.getElementById('geoMapSummary');
+				if (!container) return;
 
-			try {
-				const geojson = await loadWorldGeoData();
-				const metrics = {};
-				let totalBytes = 0;
-				countryData.forEach(item => {
-					const key = (item.country || 'Unknown').toLowerCase();
-					const bytes = (item.total_bytes) || ((item.bytes_sent || 0) + (item.bytes_received || 0));
-					metrics[key] = (metrics[key] || 0) + bytes;
-					totalBytes += bytes;
-				});
+				const resetStatus = (text) => {
+					if (statusEl) {
+						statusEl.textContent = text || '';
+						statusEl.style.display = text ? 'block' : 'none';
+					}
+				};
 
-				const values = Object.values(metrics);
-				const maxValue = values.length ? Math.max(...values) : 0;
-				const colorScale = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, maxValue || 1]);
-				const width = container.clientWidth || 800;
-				const height = container.clientHeight || 500;
+				if (!Array.isArray(countryData) || countryData.length === 0) {
+					if (summaryEl) summaryEl.textContent = 'No data';
+					container.querySelectorAll('svg').forEach(el => el.remove());
+					container.querySelectorAll('.geo-map-legend').forEach(el => el.remove());
+					geoMapSvg = null;
+					geoMapGroup = null;
+					resetStatus('No country data');
+					return;
+				}
 
-				container.querySelectorAll('svg').forEach(el => el.remove());
-				container.querySelectorAll('.geo-map-legend').forEach(el => el.remove());
-				container.querySelectorAll('.geo-map-controls').forEach(el => el.remove());
-
-				geoMapSvg = d3.select(container)
-					.append('svg')
-					.attr('width', width)
-					.attr('height', height);
-
-				// Create globe projection
-				const projection = d3.geoOrthographic()
-					.scale(Math.min(width, height) / 2.2)
-					.translate([width / 2, height / 2])
-					.clipAngle(90);
-
-				const path = d3.geoPath().projection(projection);
-
-				// Add sphere (ocean background)
-				geoMapSvg.append('path')
-					.datum({ type: 'Sphere' })
-					.attr('class', 'sphere')
-					.attr('d', path)
-					.attr('fill', 'url(#oceanGradient)')
-					.attr('stroke', 'rgba(59, 130, 246, 0.4)')
-					.attr('stroke-width', 2);
-
-				// Add ocean gradient
-				const defs = geoMapSvg.append('defs');
-				const gradient = defs.append('radialGradient')
-					.attr('id', 'oceanGradient');
-				gradient.append('stop')
-					.attr('offset', '0%')
-					.attr('stop-color', '#1e3a5f');
-				gradient.append('stop')
-					.attr('offset', '100%')
-					.attr('stop-color', '#0a1929');
-
-				// Add graticule (grid lines)
-				const graticule = d3.geoGraticule();
-				geoMapSvg.append('path')
-					.datum(graticule)
-					.attr('class', 'graticule')
-					.attr('d', path)
-					.attr('fill', 'none')
-					.attr('stroke', 'rgba(148, 163, 184, 0.15)')
-					.attr('stroke-width', 0.5);
-
-				geoMapGroup = geoMapSvg.append('g').attr('class', 'map-layer');
-
-				// Add countries
-				const countries = geoMapGroup.selectAll('path.country')
-					.data(geojson.features)
-					.join('path')
-					.attr('class', 'country')
-					.attr('d', path)
-					.attr('fill', d => {
-						const name = ((d.properties && d.properties.name) || '').toLowerCase();
-						const value = metrics[name] || 0;
-						return value > 0 ? colorScale(value) : '#1e293b';
-					})
-					.attr('stroke', 'rgba(148, 163, 184, 0.3)')
-					.attr('stroke-width', 0.5)
-					.on('click', (event, d) => {
-						event.stopPropagation();
-						const name = d.properties && d.properties.name ? d.properties.name : 'Unknown';
-						loadCountryDetail(name);
-					})
-					.on('mouseenter', function (event, d) {
-						const name = d.properties && d.properties.name ? d.properties.name : 'Unknown';
-						const value = metrics[(name || '').toLowerCase()] || 0;
-						d3.select(this).attr('stroke-width', 1.5);
-						showGlobeTooltip(event, name + ': ' + formatBytes(value));
-					})
-					.on('mouseleave', function () {
-						d3.select(this).attr('stroke-width', 0.5);
-						hideGlobeTooltip();
+				try {
+					const geojson = await loadWorldGeoData();
+					const metrics = {};
+					let totalBytes = 0;
+					countryData.forEach(item => {
+						const key = (item.country || 'Unknown').toLowerCase();
+						const bytes = (item.total_bytes) || ((item.bytes_sent || 0) + (item.bytes_received || 0));
+						metrics[key] = (metrics[key] || 0) + bytes;
+						totalBytes += bytes;
 					});
 
-				// Add drag rotation
-				let rotation = { x: 0, y: 0 };
-				const drag = d3.drag()
-					.on('start', function (event) {
-						rotation.x = event.x;
-						rotation.y = event.y;
-					})
-					.on('drag', function (event) {
-						const rotate = projection.rotate();
-						const k = 75 / projection.scale();
-						projection.rotate([
-							rotate[0] + (event.x - rotation.x) * k,
-							rotate[1] - (event.y - rotation.y) * k
-						]);
-						rotation.x = event.x;
-						rotation.y = event.y;
+					const values = Object.values(metrics);
+					const maxValue = values.length ? Math.max(...values) : 0;
+					const colorScale = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, maxValue || 1]);
+					const width = container.clientWidth || 800;
+					const height = container.clientHeight || 500;
 
+					container.querySelectorAll('svg').forEach(el => el.remove());
+					container.querySelectorAll('.geo-map-legend').forEach(el => el.remove());
+					container.querySelectorAll('.geo-map-controls').forEach(el => el.remove());
+
+					geoMapSvg = d3.select(container)
+						.append('svg')
+						.attr('width', width)
+						.attr('height', height);
+
+					// Create globe projection
+					const projection = d3.geoOrthographic()
+						.scale(Math.min(width, height) / 2.2)
+						.translate([width / 2, height / 2])
+						.clipAngle(90);
+
+					const path = d3.geoPath().projection(projection);
+
+					// Add sphere (ocean background)
+					geoMapSvg.append('path')
+						.datum({ type: 'Sphere' })
+						.attr('class', 'sphere')
+						.attr('d', path)
+						.attr('fill', 'url(#oceanGradient)')
+						.attr('stroke', 'rgba(59, 130, 246, 0.4)')
+						.attr('stroke-width', 2);
+
+					// Add ocean gradient
+					const defs = geoMapSvg.append('defs');
+					const gradient = defs.append('radialGradient')
+						.attr('id', 'oceanGradient');
+					gradient.append('stop')
+						.attr('offset', '0%')
+						.attr('stop-color', '#1e3a5f');
+					gradient.append('stop')
+						.attr('offset', '100%')
+						.attr('stop-color', '#0a1929');
+
+					// Add graticule (grid lines)
+					const graticule = d3.geoGraticule();
+					geoMapSvg.append('path')
+						.datum(graticule)
+						.attr('class', 'graticule')
+						.attr('d', path)
+						.attr('fill', 'none')
+						.attr('stroke', 'rgba(148, 163, 184, 0.15)')
+						.attr('stroke-width', 0.5);
+
+					geoMapGroup = geoMapSvg.append('g').attr('class', 'map-layer');
+
+					// Add countries
+					const countries = geoMapGroup.selectAll('path.country')
+						.data(geojson.features)
+						.join('path')
+						.attr('class', 'country')
+						.attr('d', path)
+						.attr('fill', d => {
+							const name = ((d.properties && d.properties.name) || '').toLowerCase();
+							const value = metrics[name] || 0;
+							return value > 0 ? colorScale(value) : '#1e293b';
+						})
+						.attr('stroke', 'rgba(148, 163, 184, 0.3)')
+						.attr('stroke-width', 0.5)
+						.on('click', (event, d) => {
+							event.stopPropagation();
+							const name = d.properties && d.properties.name ? d.properties.name : 'Unknown';
+							loadCountryDetail(name);
+						})
+						.on('mouseenter', function (event, d) {
+							const name = d.properties && d.properties.name ? d.properties.name : 'Unknown';
+							const value = metrics[(name || '').toLowerCase()] || 0;
+							d3.select(this).attr('stroke-width', 1.5);
+							showGlobeTooltip(event, name + ': ' + formatBytes(value));
+						})
+						.on('mouseleave', function () {
+							d3.select(this).attr('stroke-width', 0.5);
+							hideGlobeTooltip();
+						});
+
+					// Add drag rotation
+					let rotation = { x: 0, y: 0 };
+					const drag = d3.drag()
+						.on('start', function (event) {
+							rotation.x = event.x;
+							rotation.y = event.y;
+						})
+						.on('drag', function (event) {
+							const rotate = projection.rotate();
+							const k = 75 / projection.scale();
+							projection.rotate([
+								rotate[0] + (event.x - rotation.x) * k,
+								rotate[1] - (event.y - rotation.y) * k
+							]);
+							rotation.x = event.x;
+							rotation.y = event.y;
+
+							geoMapSvg.selectAll('path').attr('d', path);
+						});
+
+					geoMapSvg.call(drag);
+
+					// Add mouse wheel zoom
+					geoMapSvg.on('wheel', function (event) {
+						event.preventDefault();
+						const currentScale = projection.scale();
+						const minScale = Math.min(width, height) / 2.2;
+						const maxScale = minScale * 4;
+						const delta = event.deltaY > 0 ? 0.9 : 1.1;
+						const newScale = Math.max(minScale, Math.min(maxScale, currentScale * delta));
+
+						projection.scale(newScale);
 						geoMapSvg.selectAll('path').attr('d', path);
 					});
 
-				geoMapSvg.call(drag);
-
-				// Add mouse wheel zoom
-				geoMapSvg.on('wheel', function (event) {
-					event.preventDefault();
-					const currentScale = projection.scale();
-					const minScale = Math.min(width, height) / 2.2;
-					const maxScale = minScale * 4;
-					const delta = event.deltaY > 0 ? 0.9 : 1.1;
-					const newScale = Math.max(minScale, Math.min(maxScale, currentScale * delta));
-
-					projection.scale(newScale);
-					geoMapSvg.selectAll('path').attr('d', path);
-				});
-
-				// Add control buttons
-				const controls = document.createElement('div');
-				controls.className = 'geo-map-controls';
-				controls.innerHTML = `
+					// Add control buttons
+					const controls = document.createElement('div');
+					controls.className = 'geo-map-controls';
+					controls.innerHTML = `
 					<button onclick="rotateGlobe(-15, 0)" title="Rotate Left">←</button>
 					<button onclick="rotateGlobe(15, 0)" title="Rotate Right">→</button>
 					<button onclick="rotateGlobe(0, 15)" title="Rotate Up">↑</button>
@@ -1890,891 +1909,905 @@
 					<button onclick="zoomGlobe(0.8)" title="Zoom Out">−</button>
 					<button onclick="resetGlobe()" title="Reset View">⟲</button>
 				`;
-				container.appendChild(controls);
+					container.appendChild(controls);
 
-				// Store projection and dimensions for controls
-				window.globeProjection = projection;
-				window.globePath = path;
-				window.globeContainer = { width, height };
+					// Store projection and dimensions for controls
+					window.globeProjection = projection;
+					window.globePath = path;
+					window.globeContainer = { width, height };
 
-				const legend = document.createElement('div');
-				legend.className = 'geo-map-legend';
-				legend.innerHTML = '<div>traffic</div><div style="height:6px;border-radius:999px;margin:6px 0;background:linear-gradient(90deg,#0ea5e9,#f97316,#dc2626);"></div><div style="display:flex;justify-content:space-between;font-size:0.6rem;text-transform:none;letter-spacing:0;"><span>low</span><span>' + formatBytes(maxValue || 0) + '</span></div>';
-				container.appendChild(legend);
+					const legend = document.createElement('div');
+					legend.className = 'geo-map-legend';
+					legend.innerHTML = '<div>traffic</div><div style="height:6px;border-radius:999px;margin:6px 0;background:linear-gradient(90deg,#0ea5e9,#f97316,#dc2626);"></div><div style="display:flex;justify-content:space-between;font-size:0.6rem;text-transform:none;letter-spacing:0;"><span>low</span><span>' + formatBytes(maxValue || 0) + '</span></div>';
+					container.appendChild(legend);
 
-				if (summaryEl) {
-					summaryEl.textContent = formatBytes(totalBytes) + ' total';
-				}
-				resetStatus('');
-				highlightCountry(countryDetailState.name);
-			} catch (error) {
-				console.error('Heat map render failed:', error);
-				if (summaryEl) summaryEl.textContent = 'Error';
-				resetStatus('Map unavailable');
-			}
-		}
-		function rotateGlobe(deltaLon, deltaLat) {
-			if (!window.globeProjection || !window.globePath) return;
-			const rotate = window.globeProjection.rotate();
-			window.globeProjection.rotate([rotate[0] + deltaLon, rotate[1] + deltaLat]);
-			if (geoMapSvg) {
-				geoMapSvg.selectAll('path').attr('d', window.globePath);
-			}
-		}
-
-		function zoomGlobe(factor) {
-			if (!window.globeProjection || !window.globePath || !window.globeContainer) return;
-
-			const currentScale = window.globeProjection.scale();
-			const { width, height } = window.globeContainer;
-			const minScale = Math.min(width, height) / 2.2;
-			const maxScale = minScale * 4;
-			const newScale = Math.max(minScale, Math.min(maxScale, currentScale * factor));
-
-			window.globeProjection.scale(newScale);
-			if (geoMapSvg) {
-				geoMapSvg.selectAll('path').attr('d', window.globePath);
-			}
-		}
-
-		function resetGlobe() {
-			if (!window.globeProjection || !window.globePath || !window.globeContainer) return;
-			const { width, height } = window.globeContainer;
-			const defaultScale = Math.min(width, height) / 2.2;
-
-			window.globeProjection.rotate([0, 0]);
-			window.globeProjection.scale(defaultScale);
-			if (geoMapSvg) {
-				geoMapSvg.selectAll('path').attr('d', window.globePath);
-			}
-		}
-
-		function showGlobeTooltip(event, text) {
-			let tooltip = document.querySelector('.geo-map-tooltip');
-			if (!tooltip) {
-				tooltip = document.createElement('div');
-				tooltip.className = 'geo-map-tooltip';
-				document.body.appendChild(tooltip);
-			}
-			tooltip.textContent = text;
-			tooltip.style.display = 'block';
-			tooltip.style.left = (event.pageX + 10) + 'px';
-			tooltip.style.top = (event.pageY + 10) + 'px';
-		}
-
-		function hideGlobeTooltip() {
-			const tooltip = document.querySelector('.geo-map-tooltip');
-			if (tooltip) {
-				tooltip.style.display = 'none';
-			}
-		}
-
-		function abortCountryDetailFetch() {
-			if (countryDetailState.controller) {
-				countryDetailState.controller.abort();
-				countryDetailState.controller = null;
-			}
-		}
-		function highlightCountry(country) {
-			if (!geoMapGroup) return;
-			const normalized = country ? country.toLowerCase() : null;
-			geoMapGroup.selectAll('path.country')
-				.classed('selected', d => {
-					if (!normalized) {
-						return false;
+					if (summaryEl) {
+						summaryEl.textContent = formatBytes(totalBytes) + ' total';
 					}
-					const name = d.properties && d.properties.name ? d.properties.name.toLowerCase() : '';
-					return name === normalized;
-				});
-		}
-		function clearCountryDetail(message = 'Click the map to load details.') {
-			abortCountryDetailFetch();
-			const nameEl = document.getElementById('countryDetailName');
-			const metaEl = document.getElementById('countryDetailMeta');
-			const statsEl = document.getElementById('countryDetailStats');
-			const tableEl = document.getElementById('countryDetailIPTable');
-			if (nameEl) nameEl.textContent = 'Select a country';
-			if (metaEl) metaEl.textContent = message;
-			if (statsEl) statsEl.classList.add('hidden');
-			if (tableEl) tableEl.innerHTML = '<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-slate-500">No country selected.</td></tr>';
-			countryDetailState.name = null;
-			highlightCountry(null);
-		}
-		function setCountryDetailLoading(name) {
-			const nameEl = document.getElementById('countryDetailName');
-			const metaEl = document.getElementById('countryDetailMeta');
-			const statsEl = document.getElementById('countryDetailStats');
-			const tableEl = document.getElementById('countryDetailIPTable');
-			if (nameEl) nameEl.textContent = name;
-			if (metaEl) metaEl.textContent = 'Loading telemetry…';
-			if (statsEl) statsEl.classList.add('hidden');
-			if (tableEl) tableEl.innerHTML = '<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-slate-500">Loading…</td></tr>';
-			highlightCountry(name);
-		}
-		function setCountryDetailError(name, message) {
-			const metaEl = document.getElementById('countryDetailMeta');
-			const tableEl = document.getElementById('countryDetailIPTable');
-			if (metaEl) metaEl.textContent = message;
-			if (tableEl) tableEl.innerHTML = '<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-red-400">' + message + '</td></tr>';
-			const statsEl = document.getElementById('countryDetailStats');
-			if (statsEl) statsEl.classList.add('hidden');
-			countryDetailState.name = name || null;
-			highlightCountry(name);
-		}
-		function renderCountryDetail(data) {
-			const nameEl = document.getElementById('countryDetailName');
-			const metaEl = document.getElementById('countryDetailMeta');
-			const statsEl = document.getElementById('countryDetailStats');
-			const tableEl = document.getElementById('countryDetailIPTable');
-			if (!data || !nameEl || !metaEl || !statsEl || !tableEl) {
-				return;
-			}
-			countryDetailState.name = data.country;
-			nameEl.textContent = data.country || 'Unknown';
-			metaEl.textContent = (data.connections || 0).toLocaleString() + ' connections · ' + (data.unique_upstreams || 0) + ' upstreams';
-			statsEl.classList.remove('hidden');
-			document.getElementById('countryDetailUniqueIPs').textContent = (data.unique_ips || 0).toLocaleString();
-			document.getElementById('countryDetailBytes').textContent = formatBytes(data.total_bytes || 0);
-			document.getElementById('countryDetailAvg').textContent = formatSeconds(data.avg_session_time_seconds || 0);
-			document.getElementById('countryDetailMedian').textContent = formatSeconds(data.median_session_time_seconds || 0);
-			if (!data.top_ips || data.top_ips.length === 0) {
-				tableEl.innerHTML = '<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-slate-500">No IP data available.</td></tr>';
-			} else {
-				tableEl.innerHTML = data.top_ips.map(ip => '<tr class="table-row">' +
-					'<td class="px-4 py-3 text-sm font-mono text-slate-200">' + ip.ip + '</td>' +
-					'<td class="px-4 py-3 text-sm text-right text-slate-200">' + (ip.connections || 0).toLocaleString() + '</td>' +
-					'<td class="px-4 py-3 text-sm text-right text-slate-200">' + formatBytes(ip.total_bytes || 0) + '</td>' +
-					'<td class="px-4 py-3 text-sm text-right text-slate-400">' + formatSeconds(ip.avg_session_seconds || 0) + '</td>' +
-					'</tr>').join('');
-			}
-			highlightCountry(data.country);
-		}
-		async function loadCountryDetail(country) {
-			if (!country || country.toLowerCase() === 'unknown') {
-				clearCountryDetail('No telemetry for that region.');
-				return;
-			}
-			abortCountryDetailFetch();
-			setCountryDetailLoading(country);
-			try {
-				const controller = new AbortController();
-				countryDetailState.controller = controller;
-				const params = getDateParams();
-				const response = await fetch('/streamInfo/country/' + encodeURIComponent(country) + (params || ''), { signal: controller.signal });
-				if (!response.ok) {
-					throw new Error('Failed to load country detail');
+					resetStatus('');
+					highlightCountry(countryDetailState.name);
+				} catch (error) {
+					console.error('Heat map render failed:', error);
+					if (summaryEl) summaryEl.textContent = 'Error';
+					resetStatus('Map unavailable');
 				}
-				const data = await response.json();
-				if (controller.signal.aborted) return;
-				countryDetailState.controller = null;
-				renderCountryDetail(data);
-			} catch (error) {
-				if (error.name === 'AbortError') return;
-				countryDetailState.controller = null;
-				console.error('Country detail error:', error);
-				setCountryDetailError(country, 'No telemetry available.');
 			}
-		}
-		function updateTimelineChart(d) {
-			trendData.timeline = Array.isArray(d) ? d.slice() : [];
-			const summaryEl = document.getElementById('timelineSummary');
-			if (!Array.isArray(d) || d.length === 0) {
+			function rotateGlobe(deltaLon, deltaLat) {
+				if (!window.globeProjection || !window.globePath) return;
+				const rotate = window.globeProjection.rotate();
+				window.globeProjection.rotate([rotate[0] + deltaLon, rotate[1] + deltaLat]);
+				if (geoMapSvg) {
+					geoMapSvg.selectAll('path').attr('d', window.globePath);
+				}
+			}
+
+			function zoomGlobe(factor) {
+				if (!window.globeProjection || !window.globePath || !window.globeContainer) return;
+
+				const currentScale = window.globeProjection.scale();
+				const { width, height } = window.globeContainer;
+				const minScale = Math.min(width, height) / 2.2;
+				const maxScale = minScale * 4;
+				const newScale = Math.max(minScale, Math.min(maxScale, currentScale * factor));
+
+				window.globeProjection.scale(newScale);
+				if (geoMapSvg) {
+					geoMapSvg.selectAll('path').attr('d', window.globePath);
+				}
+			}
+
+			function resetGlobe() {
+				if (!window.globeProjection || !window.globePath || !window.globeContainer) return;
+				const { width, height } = window.globeContainer;
+				const defaultScale = Math.min(width, height) / 2.2;
+
+				window.globeProjection.rotate([0, 0]);
+				window.globeProjection.scale(defaultScale);
+				if (geoMapSvg) {
+					geoMapSvg.selectAll('path').attr('d', window.globePath);
+				}
+			}
+
+			function showGlobeTooltip(event, text) {
+				let tooltip = document.querySelector('.geo-map-tooltip');
+				if (!tooltip) {
+					tooltip = document.createElement('div');
+					tooltip.className = 'geo-map-tooltip';
+					document.body.appendChild(tooltip);
+				}
+				tooltip.textContent = text;
+				tooltip.style.display = 'block';
+				tooltip.style.left = (event.pageX + 10) + 'px';
+				tooltip.style.top = (event.pageY + 10) + 'px';
+			}
+
+			function hideGlobeTooltip() {
+				const tooltip = document.querySelector('.geo-map-tooltip');
+				if (tooltip) {
+					tooltip.style.display = 'none';
+				}
+			}
+
+			function abortCountryDetailFetch() {
+				if (countryDetailState.controller) {
+					countryDetailState.controller.abort();
+					countryDetailState.controller = null;
+				}
+			}
+			function highlightCountry(country) {
+				if (!geoMapGroup) return;
+				const normalized = country ? country.toLowerCase() : null;
+				geoMapGroup.selectAll('path.country')
+					.classed('selected', d => {
+						if (!normalized) {
+							return false;
+						}
+						const name = d.properties && d.properties.name ? d.properties.name.toLowerCase() : '';
+						return name === normalized;
+					});
+			}
+			function clearCountryDetail(message = 'Click the map to load details.') {
+				abortCountryDetailFetch();
+				const nameEl = document.getElementById('countryDetailName');
+				const metaEl = document.getElementById('countryDetailMeta');
+				const statsEl = document.getElementById('countryDetailStats');
+				const tableEl = document.getElementById('countryDetailIPTable');
+				if (nameEl) nameEl.textContent = 'Select a country';
+				if (metaEl) metaEl.textContent = message;
+				if (statsEl) statsEl.classList.add('hidden');
+				if (tableEl) tableEl.innerHTML = '<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-slate-500">No country selected.</td></tr>';
+				countryDetailState.name = null;
+				highlightCountry(null);
+			}
+			function setCountryDetailLoading(name) {
+				const nameEl = document.getElementById('countryDetailName');
+				const metaEl = document.getElementById('countryDetailMeta');
+				const statsEl = document.getElementById('countryDetailStats');
+				const tableEl = document.getElementById('countryDetailIPTable');
+				if (nameEl) nameEl.textContent = name;
+				if (metaEl) metaEl.textContent = 'Loading telemetry…';
+				if (statsEl) statsEl.classList.add('hidden');
+				if (tableEl) tableEl.innerHTML = '<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-slate-500">Loading…</td></tr>';
+				highlightCountry(name);
+			}
+			function setCountryDetailError(name, message) {
+				const metaEl = document.getElementById('countryDetailMeta');
+				const tableEl = document.getElementById('countryDetailIPTable');
+				if (metaEl) metaEl.textContent = message;
+				if (tableEl) tableEl.innerHTML = '<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-red-400">' + message + '</td></tr>';
+				const statsEl = document.getElementById('countryDetailStats');
+				if (statsEl) statsEl.classList.add('hidden');
+				countryDetailState.name = name || null;
+				highlightCountry(name);
+			}
+			function renderCountryDetail(data) {
+				const nameEl = document.getElementById('countryDetailName');
+				const metaEl = document.getElementById('countryDetailMeta');
+				const statsEl = document.getElementById('countryDetailStats');
+				const tableEl = document.getElementById('countryDetailIPTable');
+				if (!data || !nameEl || !metaEl || !statsEl || !tableEl) {
+					return;
+				}
+				countryDetailState.name = data.country;
+				nameEl.textContent = data.country || 'Unknown';
+				metaEl.textContent = (data.connections || 0).toLocaleString() + ' connections · ' + (data.unique_upstreams || 0) + ' upstreams';
+				statsEl.classList.remove('hidden');
+				document.getElementById('countryDetailUniqueIPs').textContent = (data.unique_ips || 0).toLocaleString();
+				document.getElementById('countryDetailBytes').textContent = formatBytes(data.total_bytes || 0);
+				document.getElementById('countryDetailAvg').textContent = formatSeconds(data.avg_session_time_seconds || 0);
+				document.getElementById('countryDetailMedian').textContent = formatSeconds(data.median_session_time_seconds || 0);
+				if (!data.top_ips || data.top_ips.length === 0) {
+					tableEl.innerHTML = '<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-slate-500">No IP data available.</td></tr>';
+				} else {
+					tableEl.innerHTML = data.top_ips.map(ip => '<tr class="table-row">' +
+						'<td class="px-4 py-3 text-sm font-mono text-slate-200">' + ip.ip + '</td>' +
+						'<td class="px-4 py-3 text-sm text-right text-slate-200">' + (ip.connections || 0).toLocaleString() + '</td>' +
+						'<td class="px-4 py-3 text-sm text-right text-slate-200">' + formatBytes(ip.total_bytes || 0) + '</td>' +
+						'<td class="px-4 py-3 text-sm text-right text-slate-400">' + formatSeconds(ip.avg_session_seconds || 0) + '</td>' +
+						'</tr>').join('');
+				}
+				highlightCountry(data.country);
+			}
+			async function loadCountryDetail(country) {
+				if (!country || country.toLowerCase() === 'unknown') {
+					clearCountryDetail('No telemetry for that region.');
+					return;
+				}
+				abortCountryDetailFetch();
+				setCountryDetailLoading(country);
+				try {
+					const controller = new AbortController();
+					countryDetailState.controller = controller;
+					const params = getDateParams();
+					const response = await fetch('/streamInfo/country/' + encodeURIComponent(country) + (params || ''), { signal: controller.signal });
+					if (!response.ok) {
+						throw new Error('Failed to load country detail');
+					}
+					const data = await response.json();
+					if (controller.signal.aborted) return;
+					countryDetailState.controller = null;
+					renderCountryDetail(data);
+				} catch (error) {
+					if (error.name === 'AbortError') return;
+					countryDetailState.controller = null;
+					console.error('Country detail error:', error);
+					setCountryDetailError(country, 'No telemetry available.');
+				}
+			}
+			function updateTimelineChart(d) {
+				trendData.timeline = Array.isArray(d) ? d.slice() : [];
+				const summaryEl = document.getElementById('timelineSummary');
+				if (!Array.isArray(d) || d.length === 0) {
+					if (summaryEl) {
+						summaryEl.textContent = 'No timeline data in selected window.';
+					}
+					if (charts.timeline) {
+						charts.timeline.destroy();
+						charts.timeline = null;
+					}
+					return;
+				}
+				const labels = d.map(point => formatCompactTimestamp(point.timestamp));
+				const connections = d.map(point => point.connections);
+				const failureRate = d.map(point => (point.failure_rate || 0) * 100);
+				const latest = d[d.length - 1];
 				if (summaryEl) {
-					summaryEl.textContent = 'No timeline data in selected window.';
+					const failText = ((latest.failure_rate || 0) * 100).toFixed(1) + '% fail';
+					summaryEl.textContent = formatTimestamp(latest.timestamp) + ' · ' + latest.connections.toLocaleString() + ' conns · ' + failText;
 				}
-				if (charts.timeline) {
-					charts.timeline.destroy();
-					charts.timeline = null;
-				}
-				return;
-			}
-			const labels = d.map(point => formatCompactTimestamp(point.timestamp));
-			const connections = d.map(point => point.connections);
-			const failureRate = d.map(point => (point.failure_rate || 0) * 100);
-			const latest = d[d.length - 1];
-			if (summaryEl) {
-				const failText = ((latest.failure_rate || 0) * 100).toFixed(1) + '% fail';
-				summaryEl.textContent = formatTimestamp(latest.timestamp) + ' · ' + latest.connections.toLocaleString() + ' conns · ' + failText;
-			}
-			if (!charts.timeline) {
-				const ctx = document.getElementById('timelineChart').getContext('2d');
-				charts.timeline = new Chart(ctx, {
-					type: 'bar',
-					data: {
-						labels,
-						datasets: [
-							{
-								type: 'bar',
-								label: 'Connections',
-								data: connections,
-								backgroundColor: 'rgba(14,165,233,0.35)',
-								borderColor: 'rgba(14,165,233,0.9)',
-								borderWidth: 1,
-								yAxisID: 'y'
-							},
-							{
-								type: 'line',
-								label: 'Failure %',
-								data: failureRate,
-								borderColor: 'rgba(248,113,113,1)',
-								backgroundColor: 'rgba(248,113,113,0.15)',
-								yAxisID: 'y1',
-								tension: 0.35,
-								pointRadius: 2,
-								pointHoverRadius: 4,
-								fill: false
-							}
-						]
-					},
-					options: {
-						responsive: true,
-						maintainAspectRatio: false,
-						interaction: { mode: 'index', intersect: false },
-						scales: {
-							x: {
-								ticks: { maxRotation: 0, color: '#94a3b8' },
-								grid: { color: '#1f2937' }
-							},
-							y: {
-								beginAtZero: true,
-								position: 'left',
-								grid: { color: '#1f2937' },
-								ticks: {
-									color: '#94a3b8',
-									callback: value => Number(value).toLocaleString()
+				if (!charts.timeline) {
+					const ctx = document.getElementById('timelineChart').getContext('2d');
+					charts.timeline = new Chart(ctx, {
+						type: 'bar',
+						data: {
+							labels,
+							datasets: [
+								{
+									type: 'bar',
+									label: 'Connections',
+									data: connections,
+									backgroundColor: 'rgba(14,165,233,0.35)',
+									borderColor: 'rgba(14,165,233,0.9)',
+									borderWidth: 1,
+									yAxisID: 'y'
+								},
+								{
+									type: 'line',
+									label: 'Failure %',
+									data: failureRate,
+									borderColor: 'rgba(248,113,113,1)',
+									backgroundColor: 'rgba(248,113,113,0.15)',
+									yAxisID: 'y1',
+									tension: 0.35,
+									pointRadius: 2,
+									pointHoverRadius: 4,
+									fill: false
 								}
-							},
-							y1: {
-								beginAtZero: true,
-								position: 'right',
-								grid: { display: false },
-								ticks: {
-									color: '#fca5a5',
-									callback: value => value + '%'
-								}
-							}
+							]
 						},
-						plugins: {
-							legend: { labels: { color: '#cbd5f5' } },
-							tooltip: {
-								callbacks: {
-									label: context => {
-										const label = context.dataset.label || '';
-										const value = context.parsed.y !== undefined ? context.parsed.y : context.parsed;
-										if (context.dataset.label === 'Failure %') {
-											return label + ': ' + Number(value).toFixed(2) + '%';
-										}
-										return label + ': ' + Number(value).toLocaleString();
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							interaction: { mode: 'index', intersect: false },
+							scales: {
+								x: {
+									ticks: { maxRotation: 0, color: '#94a3b8' },
+									grid: { color: '#1f2937' }
+								},
+								y: {
+									beginAtZero: true,
+									position: 'left',
+									grid: { color: '#1f2937' },
+									ticks: {
+										color: '#94a3b8',
+										callback: value => Number(value).toLocaleString()
+									}
+								},
+								y1: {
+									beginAtZero: true,
+									position: 'right',
+									grid: { display: false },
+									ticks: {
+										color: '#fca5a5',
+										callback: value => value + '%'
 									}
 								}
-							}
-						},
-						onClick: (evt, elements) => handleTrendChartClick('timeline', elements)
-					}
-				});
-			} else {
-				const chart = charts.timeline;
-				chart.data.labels = labels;
-				chart.data.datasets[0].data = connections;
-				chart.data.datasets[1].data = failureRate;
-				chart.update();
-			}
-		}
-		function updateAnomalyPanel(events) {
-			const container = document.getElementById('anomalyList');
-			const badge = document.getElementById('anomalyCount');
-			if (!container) return;
-			if (!Array.isArray(events) || events.length === 0) {
-				if (badge) {
-					badge.textContent = 'No signals';
-				}
-				container.innerHTML = '<div class="p-4 text-xs text-slate-500 font-mono">Timeline looks steady.</div>';
-				return;
-			}
-			if (badge) {
-				badge.textContent = events.length + ' signals';
-			}
-			container.innerHTML = events.map(event => {
-				const ts = formatTimestamp(event.timestamp);
-				const failPct = ((event.failure_rate || 0) * 100).toFixed(1);
-				const bytes = formatBytes(event.total_bytes || 0);
-				const signals = (event.signals && event.signals.length ? event.signals : ['Anomaly detected']).map(signal => '<li>' + signal + '</li>').join('');
-				return '<div class="border border-slate-700 rounded-lg p-3 bg-slate-900/40">' +
-					'<div class="flex justify-between text-[0.65rem] uppercase tracking-[0.2em] text-slate-500"><span>' + ts + '</span><span>score ' + (event.score || 0).toFixed(2) + '</span></div>' +
-					'<p class="text-sm text-slate-200 mt-2">' + Number(event.connections || 0).toLocaleString() + ' conns · ' + failPct + '% fail · ' + bytes + '</p>' +
-					'<ul class="list-disc ml-4 mt-2 text-xs text-slate-400 space-y-1">' + signals + '</ul>' +
-					'</div>';
-			}).join('');
-		}
-		function setServerActivityStatus(text) {
-			const statusEl = document.getElementById('serverActivityStatus');
-			if (statusEl) statusEl.textContent = text;
-		}
-		function destroyServerActivityCharts() {
-			serverActivityState.data = null;
-			if (charts.serverDaily) {
-				charts.serverDaily.destroy();
-				charts.serverDaily = null;
-			}
-			if (charts.serverHourly) {
-				charts.serverHourly.destroy();
-				charts.serverHourly = null;
-			}
-		}
-		function updateServerActivityOptions(upstreams) {
-			const select = document.getElementById('serverActivitySelect');
-			if (!select) return;
-			const previous = serverActivityState.selected;
-			if (!Array.isArray(upstreams) || upstreams.length === 0) {
-				select.innerHTML = '<option value="">No upstreams</option>';
-				serverActivityState.selected = null;
-				setServerActivityStatus('No upstream telemetry available.');
-				destroyServerActivityCharts();
-				return;
-			}
-			select.innerHTML = upstreams.map(item => {
-				const value = item.upstream_addr || '';
-				return '<option value="' + value + '">' + value + '</option>';
-			}).join('');
-			if (previous && upstreams.some(item => item.upstream_addr === previous)) {
-				serverActivityState.selected = previous;
-			} else {
-				serverActivityState.selected = upstreams[0].upstream_addr;
-			}
-			select.value = serverActivityState.selected || '';
-
-			// Auto-load activity for selected server
-			if (serverActivityState.selected) {
-				refreshServerActivity(false);
-			}
-		}
-		function handleServerActivityChange(value) {
-			serverActivityState.selected = value || null;
-			refreshServerActivity(true);
-		}
-		function refreshServerActivity(force = false) {
-			const server = serverActivityState.selected;
-			if (!server) {
-				setServerActivityStatus('Select a server.');
-				destroyServerActivityCharts();
-				return;
-			}
-			loadServerActivity(server, { force });
-		}
-		function loadServerActivity(server, options = {}) {
-			const { force = false } = options;
-			if (!server || server.trim() === '') {
-				setServerActivityStatus('No server selected.');
-				destroyServerActivityCharts();
-				return;
-			}
-			if (!force && serverActivityState.loadingServer === server) {
-				return;
-			}
-			if (serverActivityState.controller) {
-				serverActivityState.controller.abort();
-			}
-			serverActivityState.loadingServer = server;
-			const controller = new AbortController();
-			serverActivityState.controller = controller;
-			setServerActivityStatus('Loading telemetry for ' + server + ' …');
-			const params = getDateParams();
-			const url = '/streamInfo/server/' + encodeURIComponent(server) + '/activity' + (params || '');
-			console.log('Fetching server activity:', url);
-			fetch(url, { signal: controller.signal })
-				.then(response => {
-					if (!response.ok) {
-						if (response.status === 404) {
-							return response.json().then(err => {
-								throw new Error(err.error || 'No data found for this server');
-							}).catch(() => {
-								throw new Error('No data found for this server');
-							});
+							},
+							plugins: {
+								legend: { labels: { color: '#cbd5f5' } },
+								tooltip: {
+									callbacks: {
+										label: context => {
+											const label = context.dataset.label || '';
+											const value = context.parsed.y !== undefined ? context.parsed.y : context.parsed;
+											if (context.dataset.label === 'Failure %') {
+												return label + ': ' + Number(value).toFixed(2) + '%';
+											}
+											return label + ': ' + Number(value).toLocaleString();
+										}
+									}
+								}
+							},
+							onClick: (evt, elements) => handleTrendChartClick('timeline', elements)
 						}
-						throw new Error('Failed to load server activity (HTTP ' + response.status + ')');
+					});
+				} else {
+					const chart = charts.timeline;
+					chart.data.labels = labels;
+					chart.data.datasets[0].data = connections;
+					chart.data.datasets[1].data = failureRate;
+					chart.update();
+				}
+			}
+			function updateAnomalyPanel(events) {
+				const container = document.getElementById('anomalyList');
+				const badge = document.getElementById('anomalyCount');
+				if (!container) return;
+				if (!Array.isArray(events) || events.length === 0) {
+					if (badge) {
+						badge.textContent = 'No signals';
 					}
-					return response.json();
-				})
-				.then(data => {
-					if (controller.signal.aborted) return;
-					serverActivityState.controller = null;
-					serverActivityState.loadingServer = null;
-					renderServerActivityCharts(data);
-				})
-				.catch(error => {
-					if (error.name === 'AbortError') return;
-					console.error('Server activity error:', error);
-					serverActivityState.controller = null;
-					serverActivityState.loadingServer = null;
-					setServerActivityStatus(error.message || 'Unable to load server telemetry.');
+					container.innerHTML = '<div class="p-4 text-xs text-slate-500 font-mono">Timeline looks steady.</div>';
+					return;
+				}
+				if (badge) {
+					badge.textContent = events.length + ' signals';
+				}
+				container.innerHTML = events.map(event => {
+					const ts = formatTimestamp(event.timestamp);
+					const failPct = ((event.failure_rate || 0) * 100).toFixed(1);
+					const bytes = formatBytes(event.total_bytes || 0);
+					const signals = (event.signals && event.signals.length ? event.signals : ['Anomaly detected']).map(signal => '<li>' + signal + '</li>').join('');
+					return '<div class="border border-slate-700 rounded-lg p-3 bg-slate-900/40">' +
+						'<div class="flex justify-between text-[0.65rem] uppercase tracking-[0.2em] text-slate-500"><span>' + ts + '</span><span>score ' + (event.score || 0).toFixed(2) + '</span></div>' +
+						'<p class="text-sm text-slate-200 mt-2">' + Number(event.connections || 0).toLocaleString() + ' conns · ' + failPct + '% fail · ' + bytes + '</p>' +
+						'<ul class="list-disc ml-4 mt-2 text-xs text-slate-400 space-y-1">' + signals + '</ul>' +
+						'</div>';
+				}).join('');
+			}
+			function setServerActivityStatus(text) {
+				const statusEl = document.getElementById('serverActivityStatus');
+				if (statusEl) statusEl.textContent = text;
+			}
+			function destroyServerActivityCharts() {
+				serverActivityState.data = null;
+				if (charts.serverDaily) {
+					charts.serverDaily.destroy();
+					charts.serverDaily = null;
+				}
+				if (charts.serverHourly) {
+					charts.serverHourly.destroy();
+					charts.serverHourly = null;
+				}
+			}
+			function updateServerActivityOptions(upstreams) {
+				const select = document.getElementById('serverActivitySelect');
+				if (!select) return;
+				const previous = serverActivityState.selected;
+				if (!Array.isArray(upstreams) || upstreams.length === 0) {
+					select.innerHTML = '<option value="">No upstreams</option>';
+					serverActivityState.selected = null;
+					setServerActivityStatus('No upstream telemetry available.');
 					destroyServerActivityCharts();
-				});
-		}
-		function renderServerActivityCharts(data) {
-			if (!data || (!Array.isArray(data.daily) && !Array.isArray(data.hourly))) {
-				setServerActivityStatus('No data returned for this server.');
-				destroyServerActivityCharts();
-				return;
-			}
-			serverActivityState.data = data;
-			const server = data.upstream || serverActivityState.selected || 'server';
-			const statusText = 'Server ' + server + ': ' + (Array.isArray(data.daily) ? data.daily.length : 0) + ' days';
-			setServerActivityStatus(statusText);
-			const dailyLabels = (data.daily || []).map(item => item.date);
-			const dailyConnections = (data.daily || []).map(item => item.connections);
-			if (!charts.serverDaily) {
-				const ctx = document.getElementById('serverDailyChart').getContext('2d');
-				charts.serverDaily = new Chart(ctx, {
-					type: 'line',
-					data: {
-						labels: dailyLabels,
-						datasets: [{
-							label: 'Connections',
-							data: dailyConnections,
-							borderColor: 'rgba(129, 140, 248, 0.9)',
-							backgroundColor: 'rgba(129, 140, 248, 0.1)',
-							tension: 0.35,
-							fill: true
-						}]
-					},
-					options: {
-						responsive: true,
-						maintainAspectRatio: false,
-						scales: {
-							x: { ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } },
-							y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } }
-						},
-						plugins: { legend: { display: false } },
-						onClick: (evt, elements) => handleServerActivityPointClick('daily', elements)
-					}
-				});
-			} else {
-				charts.serverDaily.data.labels = dailyLabels;
-				charts.serverDaily.data.datasets[0].data = dailyConnections;
-				charts.serverDaily.update();
-			}
-			const hourlyLabels = (data.hourly || []).map(item => item.hour + ':00');
-			const hourlyConnections = (data.hourly || []).map(item => item.connections);
-			if (!charts.serverHourly) {
-				const ctx = document.getElementById('serverHourlyChart').getContext('2d');
-				charts.serverHourly = new Chart(ctx, {
-					type: 'bar',
-					data: {
-						labels: hourlyLabels,
-						datasets: [{
-							label: 'Connections',
-							data: hourlyConnections,
-							backgroundColor: 'rgba(14,165,233,0.5)',
-							borderColor: 'rgba(14,165,233,0.9)',
-							borderWidth: 1
-						}]
-					},
-					options: {
-						responsive: true,
-						maintainAspectRatio: false,
-						scales: {
-							x: { ticks: { color: '#94a3b8', maxRotation: 0 }, grid: { color: '#1f2937' } },
-							y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } }
-						},
-						plugins: { legend: { display: false } },
-						onClick: (evt, elements) => handleServerActivityPointClick('hourly', elements)
-					}
-				});
-			} else {
-				charts.serverHourly.data.labels = hourlyLabels;
-				charts.serverHourly.data.datasets[0].data = hourlyConnections;
-				charts.serverHourly.update();
-			}
-		}
-		function handleServerActivityPointClick(type, elements) {
-			if (!elements || elements.length === 0) {
-				return;
-			}
-			const data = serverActivityState.data;
-			const server = serverActivityState.selected;
-			if (!data || !server) {
-				return;
-			}
-			const idx = elements[0].index;
-			if (type === 'daily') {
-				const bucket = data.daily && data.daily[idx];
-				if (!bucket || !bucket.date) return;
-				showServerDetails(server, {
-					context: 'IP breakdown for ' + bucket.date,
-					scope: { type: 'daily', day: bucket.date }
-				});
-			} else if (type === 'hourly') {
-				const bucket = data.hourly && data.hourly[idx];
-				if (!bucket) return;
-				showServerDetails(server, {
-					context: 'IP breakdown for hour ' + bucket.hour + ':00',
-					scope: { type: 'hourly', hour: bucket.hour }
-				});
-			}
-		}
-		function handleTrendChartClick(type, elements) {
-			const dataset = trendData[type] || [];
-			if (!elements || elements.length === 0) return;
-			const idx = elements[0].index;
-			const bucket = dataset[idx];
-			if (!bucket) return;
-			if (type === 'daily' && bucket.date) {
-				const day = bucket.date;
-				showGlobalEntries({
-					title: 'Activity · ' + day,
-					context: 'IPs active on ' + day,
-					filter: entry => entry.timestamp && entry.timestamp.slice(0, 10) === day
-				});
-			} else if (type === 'hourly' && typeof bucket.hour === 'number') {
-				const hourLabel = String(bucket.hour).padStart(2, '0');
-				showGlobalEntries({
-					title: 'Hour ' + hourLabel + ':00',
-					context: 'IPs active across all days during hour ' + hourLabel + ':00',
-					filter: entry => entry.timestamp && entry.timestamp.slice(11, 13) === hourLabel
-				});
-			} else if (type === 'timeline' && bucket.timestamp) {
-				const prefix = bucket.timestamp.slice(0, 13);
-				showGlobalEntries({
-					title: 'Timeline · ' + formatTimestamp(bucket.timestamp),
-					context: 'IPs contributing to this timeline bucket',
-					filter: entry => entry.timestamp && entry.timestamp.startsWith(prefix)
-				});
-			}
-		}
-		function handleGlobalTrendButton(type) {
-			if (type === 'daily') {
-				showGlobalEntries({
-					title: 'Activity Overview',
-					context: 'All IPs represented in the Activity chart'
-				});
-			} else if (type === 'hourly') {
-				showGlobalEntries({
-					title: 'Hourly Distribution Overview',
-					context: 'All IPs represented in the Hourly Distribution chart'
-				});
-			} else if (type === 'timeline') {
-				showGlobalEntries({
-					title: 'Timeline Overview',
-					context: 'All IPs represented in the Timeline telemetry chart'
-				});
-			}
-		}
-		function updateFailureHotspots(points) {
-			const table = document.getElementById('failureHotspotsTable');
-			if (!table) return;
-			if (!Array.isArray(points) || points.length === 0) {
-				table.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-500">No timeline data.</td></tr>';
-				return;
-			}
-			const ranked = points
-				.filter(p => (p.connections || 0) > 0)
-				.map(p => ({
-					ts: formatCompactTimestamp(p.timestamp),
-					failRate: ((p.failure_rate || 0) * 100),
-					connections: p.connections || 0,
-					uniqueIPs: p.unique_ips || 0
-				}))
-				.sort((a, b) => b.failRate - a.failRate)
-				.slice(0, 5);
-			if (ranked.length === 0 || ranked[0].failRate === 0) {
-				table.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-500">Failure rates are quiet.</td></tr>';
-				return;
-			}
-			table.innerHTML = ranked.map(row =>
-				'<tr class="table-row">' +
-				'<td class="px-6 py-3 text-sm text-slate-200">' + row.ts + '</td>' +
-				'<td class="px-6 py-3 text-sm text-right text-slate-200">' + row.connections.toLocaleString() + '</td>' +
-				'<td class="px-6 py-3 text-sm text-right text-amber-300 font-semibold">' + row.failRate.toFixed(1) + '%</td>' +
-				'<td class="px-6 py-3 text-sm text-right text-slate-400">' + row.uniqueIPs + '</td>' +
-				'</tr>'
-			).join('');
-		}
-		function updateBurstDetector(points) {
-			const table = document.getElementById('burstDetectorTable');
-			if (!table) return;
-			if (!Array.isArray(points) || points.length < 2) {
-				table.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-500">Need more timeline samples.</td></tr>';
-				return;
-			}
-			const bursts = [];
-			for (let i = 1; i < points.length; i++) {
-				const prev = points[i - 1];
-				const curr = points[i];
-				const delta = (curr.connections || 0) - (prev.connections || 0);
-				if (delta <= 0) continue;
-				const pctChange = prev.connections > 0 ? (delta / prev.connections) * 100 : 100;
-				bursts.push({
-					ts: formatCompactTimestamp(curr.timestamp),
-					delta,
-					pctChange,
-					upstreams: curr.unique_upstreams || 0
-				});
-			}
-			if (bursts.length === 0) {
-				table.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-500">No spikes detected.</td></tr>';
-				return;
-			}
-			bursts.sort((a, b) => b.delta - a.delta || b.pctChange - a.pctChange);
-			const top = bursts.slice(0, 5);
-			table.innerHTML = top.map(row =>
-				'<tr class="table-row">' +
-				'<td class="px-6 py-3 text-sm text-slate-200">' + row.ts + '</td>' +
-				'<td class="px-6 py-3 text-sm text-right text-cyan-300 font-semibold">+' + row.delta.toLocaleString() + '</td>' +
-				'<td class="px-6 py-3 text-sm text-right text-slate-200">' + row.pctChange.toFixed(1) + '%</td>' +
-				'<td class="px-6 py-3 text-sm text-right text-slate-400">' + row.upstreams + '</td>' +
-				'</tr>'
-			).join('');
-		}
-		function updateTopTalkersTable(d) { document.getElementById('topTalkersTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.ip + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">' + (i.country || 'Unknown') + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right font-semibold">' + formatBytes(i.total_bytes) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.connections + '</td></tr>').join('') }
-		function updateProtocolTable(d) { document.getElementById('protocolTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-200">' + i.protocol + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td></tr>').join('') }
-		function updateUpstreamTable(d) { document.getElementById('upstreamTable').innerHTML = d.map(i => '<tr class="table-row clickable" onclick="showServerDetails(\'' + i.upstream_addr.replace(/'/g, "\\'") + '\')"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.upstream_addr + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.avg_session_time_seconds.toFixed(2) + 's</td><td class="px-6 py-4 whitespace-nowrap text-sm ' + (i.failed_connections > 0 ? 'text-red-400' : 'text-gray-400') + ' text-right">' + i.failed_connections + '</td></tr>').join('') }
+					return;
+				}
+				select.innerHTML = upstreams.map(item => {
+					const value = item.upstream_addr || '';
+					return '<option value="' + value + '">' + value + '</option>';
+				}).join('');
+				if (previous && upstreams.some(item => item.upstream_addr === previous)) {
+					serverActivityState.selected = previous;
+				} else {
+					serverActivityState.selected = upstreams[0].upstream_addr;
+				}
+				select.value = serverActivityState.selected || '';
 
-		function matchesServerEntryScope(entry, scope) {
-			if (!scope || !scope.type) {
-				return true;
+				// Auto-load activity for selected server
+				if (serverActivityState.selected) {
+					refreshServerActivity(false);
+				}
 			}
-			if (!entry.timestamp) {
-				return false;
+			function handleServerActivityChange(value) {
+				serverActivityState.selected = value || null;
+				refreshServerActivity(true);
 			}
-			if (scope.type === 'daily' && scope.day) {
-				return entry.timestamp.slice(0, 10) === scope.day;
+			function refreshServerActivity(force = false) {
+				const server = serverActivityState.selected;
+				if (!server) {
+					setServerActivityStatus('Select a server.');
+					destroyServerActivityCharts();
+					return;
+				}
+				loadServerActivity(server, { force });
 			}
-			if (scope.type === 'hourly' && typeof scope.hour === 'number') {
-				const hourStr = entry.timestamp.slice(11, 13);
-				const hour = parseInt(hourStr, 10);
-				if (Number.isNaN(hour)) {
+			function loadServerActivity(server, options = {}) {
+				const { force = false } = options;
+				if (!server || server.trim() === '') {
+					setServerActivityStatus('No server selected.');
+					destroyServerActivityCharts();
+					return;
+				}
+				if (!force && serverActivityState.loadingServer === server) {
+					return;
+				}
+				if (serverActivityState.controller) {
+					serverActivityState.controller.abort();
+				}
+				serverActivityState.loadingServer = server;
+				const controller = new AbortController();
+				serverActivityState.controller = controller;
+				setServerActivityStatus('Loading telemetry for ' + server + ' …');
+				const params = getDateParams();
+				const url = '/streamInfo/server/' + encodeURIComponent(server) + '/activity' + (params || '');
+				console.log('Fetching server activity:', url);
+				fetch(url, { signal: controller.signal })
+					.then(response => {
+						if (!response.ok) {
+							if (response.status === 404) {
+								return response.json().then(err => {
+									throw new Error(err.error || 'No data found for this server');
+								}).catch(() => {
+									throw new Error('No data found for this server');
+								});
+							}
+							throw new Error('Failed to load server activity (HTTP ' + response.status + ')');
+						}
+						return response.json();
+					})
+					.then(data => {
+						if (controller.signal.aborted) return;
+						serverActivityState.controller = null;
+						serverActivityState.loadingServer = null;
+						renderServerActivityCharts(data);
+					})
+					.catch(error => {
+						if (error.name === 'AbortError') return;
+						console.error('Server activity error:', error);
+						serverActivityState.controller = null;
+						serverActivityState.loadingServer = null;
+						setServerActivityStatus(error.message || 'Unable to load server telemetry.');
+						destroyServerActivityCharts();
+					});
+			}
+			function renderServerActivityCharts(data) {
+				if (!data || (!Array.isArray(data.daily) && !Array.isArray(data.hourly))) {
+					setServerActivityStatus('No data returned for this server.');
+					destroyServerActivityCharts();
+					return;
+				}
+				serverActivityState.data = data;
+				const server = data.upstream || serverActivityState.selected || 'server';
+				const statusText = 'Server ' + server + ': ' + (Array.isArray(data.daily) ? data.daily.length : 0) + ' days';
+				setServerActivityStatus(statusText);
+				const dailyLabels = (data.daily || []).map(item => item.date);
+				const dailyConnections = (data.daily || []).map(item => item.connections);
+				if (!charts.serverDaily) {
+					const ctx = document.getElementById('serverDailyChart').getContext('2d');
+					charts.serverDaily = new Chart(ctx, {
+						type: 'line',
+						data: {
+							labels: dailyLabels,
+							datasets: [{
+								label: 'Connections',
+								data: dailyConnections,
+								borderColor: 'rgba(129, 140, 248, 0.9)',
+								backgroundColor: 'rgba(129, 140, 248, 0.1)',
+								tension: 0.35,
+								fill: true
+							}]
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							scales: {
+								x: { ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } },
+								y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } }
+							},
+							plugins: { legend: { display: false } },
+							onClick: (evt, elements) => handleServerActivityPointClick('daily', elements)
+						}
+					});
+				} else {
+					charts.serverDaily.data.labels = dailyLabels;
+					charts.serverDaily.data.datasets[0].data = dailyConnections;
+					charts.serverDaily.update();
+				}
+				const hourlyLabels = (data.hourly || []).map(item => item.hour + ':00');
+				const hourlyConnections = (data.hourly || []).map(item => item.connections);
+				if (!charts.serverHourly) {
+					const ctx = document.getElementById('serverHourlyChart').getContext('2d');
+					charts.serverHourly = new Chart(ctx, {
+						type: 'bar',
+						data: {
+							labels: hourlyLabels,
+							datasets: [{
+								label: 'Connections',
+								data: hourlyConnections,
+								backgroundColor: 'rgba(14,165,233,0.5)',
+								borderColor: 'rgba(14,165,233,0.9)',
+								borderWidth: 1
+							}]
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							scales: {
+								x: { ticks: { color: '#94a3b8', maxRotation: 0 }, grid: { color: '#1f2937' } },
+								y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1f2937' } }
+							},
+							plugins: { legend: { display: false } },
+							onClick: (evt, elements) => handleServerActivityPointClick('hourly', elements)
+						}
+					});
+				} else {
+					charts.serverHourly.data.labels = hourlyLabels;
+					charts.serverHourly.data.datasets[0].data = hourlyConnections;
+					charts.serverHourly.update();
+				}
+			}
+			function handleServerActivityPointClick(type, elements) {
+				if (!elements || elements.length === 0) {
+					return;
+				}
+				const data = serverActivityState.data;
+				const server = serverActivityState.selected;
+				if (!data || !server) {
+					return;
+				}
+				const idx = elements[0].index;
+				if (type === 'daily') {
+					const bucket = data.daily && data.daily[idx];
+					if (!bucket || !bucket.date) return;
+					showServerDetails(server, {
+						context: 'IP breakdown for ' + bucket.date,
+						scope: { type: 'daily', day: bucket.date }
+					});
+				} else if (type === 'hourly') {
+					const bucket = data.hourly && data.hourly[idx];
+					if (!bucket) return;
+					showServerDetails(server, {
+						context: 'IP breakdown for hour ' + bucket.hour + ':00',
+						scope: { type: 'hourly', hour: bucket.hour }
+					});
+				}
+			}
+			function handleTrendChartClick(type, elements) {
+				const dataset = trendData[type] || [];
+				if (!elements || elements.length === 0) return;
+				const idx = elements[0].index;
+				const bucket = dataset[idx];
+				if (!bucket) return;
+				if (type === 'daily' && bucket.date) {
+					const day = bucket.date;
+					showGlobalEntries({
+						title: 'Activity · ' + day,
+						context: 'IPs active on ' + day,
+						filter: entry => entry.timestamp && entry.timestamp.slice(0, 10) === day
+					});
+				} else if (type === 'hourly' && typeof bucket.hour === 'number') {
+					const hourLabel = String(bucket.hour).padStart(2, '0');
+					showGlobalEntries({
+						title: 'Hour ' + hourLabel + ':00',
+						context: 'IPs active across all days during hour ' + hourLabel + ':00',
+						filter: entry => entry.timestamp && entry.timestamp.slice(11, 13) === hourLabel
+					});
+				} else if (type === 'timeline' && bucket.timestamp) {
+					const prefix = bucket.timestamp.slice(0, 13);
+					showGlobalEntries({
+						title: 'Timeline · ' + formatTimestamp(bucket.timestamp),
+						context: 'IPs contributing to this timeline bucket',
+						filter: entry => entry.timestamp && entry.timestamp.startsWith(prefix)
+					});
+				}
+			}
+			function handleGlobalTrendButton(type) {
+				if (type === 'daily') {
+					showGlobalEntries({
+						title: 'Activity Overview',
+						context: 'All IPs represented in the Activity chart'
+					});
+				} else if (type === 'hourly') {
+					showGlobalEntries({
+						title: 'Hourly Distribution Overview',
+						context: 'All IPs represented in the Hourly Distribution chart'
+					});
+				} else if (type === 'timeline') {
+					showGlobalEntries({
+						title: 'Timeline Overview',
+						context: 'All IPs represented in the Timeline telemetry chart'
+					});
+				}
+			}
+			function updateFailureHotspots(points) {
+				const table = document.getElementById('failureHotspotsTable');
+				if (!table) return;
+				if (!Array.isArray(points) || points.length === 0) {
+					table.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-500">No timeline data.</td></tr>';
+					return;
+				}
+				const ranked = points
+					.filter(p => (p.connections || 0) > 0)
+					.map(p => ({
+						ts: formatCompactTimestamp(p.timestamp),
+						failRate: ((p.failure_rate || 0) * 100),
+						connections: p.connections || 0,
+						uniqueIPs: p.unique_ips || 0
+					}))
+					.sort((a, b) => b.failRate - a.failRate)
+					.slice(0, 5);
+				if (ranked.length === 0 || ranked[0].failRate === 0) {
+					table.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-500">Failure rates are quiet.</td></tr>';
+					return;
+				}
+				table.innerHTML = ranked.map(row =>
+					'<tr class="table-row">' +
+					'<td class="px-6 py-3 text-sm text-slate-200">' + row.ts + '</td>' +
+					'<td class="px-6 py-3 text-sm text-right text-slate-200">' + row.connections.toLocaleString() + '</td>' +
+					'<td class="px-6 py-3 text-sm text-right text-amber-300 font-semibold">' + row.failRate.toFixed(1) + '%</td>' +
+					'<td class="px-6 py-3 text-sm text-right text-slate-400">' + row.uniqueIPs + '</td>' +
+					'</tr>'
+				).join('');
+			}
+			function updateBurstDetector(points) {
+				const table = document.getElementById('burstDetectorTable');
+				if (!table) return;
+				if (!Array.isArray(points) || points.length < 2) {
+					table.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-500">Need more timeline samples.</td></tr>';
+					return;
+				}
+				const bursts = [];
+				for (let i = 1; i < points.length; i++) {
+					const prev = points[i - 1];
+					const curr = points[i];
+					const delta = (curr.connections || 0) - (prev.connections || 0);
+					if (delta <= 0) continue;
+					const pctChange = prev.connections > 0 ? (delta / prev.connections) * 100 : 100;
+					bursts.push({
+						ts: formatCompactTimestamp(curr.timestamp),
+						delta,
+						pctChange,
+						upstreams: curr.unique_upstreams || 0
+					});
+				}
+				if (bursts.length === 0) {
+					table.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-xs text-slate-500">No spikes detected.</td></tr>';
+					return;
+				}
+				bursts.sort((a, b) => b.delta - a.delta || b.pctChange - a.pctChange);
+				const top = bursts.slice(0, 5);
+				table.innerHTML = top.map(row =>
+					'<tr class="table-row">' +
+					'<td class="px-6 py-3 text-sm text-slate-200">' + row.ts + '</td>' +
+					'<td class="px-6 py-3 text-sm text-right text-cyan-300 font-semibold">+' + row.delta.toLocaleString() + '</td>' +
+					'<td class="px-6 py-3 text-sm text-right text-slate-200">' + row.pctChange.toFixed(1) + '%</td>' +
+					'<td class="px-6 py-3 text-sm text-right text-slate-400">' + row.upstreams + '</td>' +
+					'</tr>'
+				).join('');
+			}
+			function updateTopTalkersTable(d) { document.getElementById('topTalkersTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.ip + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">' + (i.country || 'Unknown') + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right font-semibold">' + formatBytes(i.total_bytes) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.connections + '</td></tr>').join('') }
+			function updateProtocolTable(d) { document.getElementById('protocolTable').innerHTML = d.map(i => '<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-200">' + i.protocol + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td></tr>').join('') }
+			function updateUpstreamTable(d) { document.getElementById('upstreamTable').innerHTML = d.map(i => '<tr class="table-row clickable" onclick="showServerDetails(\'' + i.upstream_addr.replace(/'/g, "\\'") + '\')"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">' + i.upstream_addr + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + i.connections.toLocaleString() + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.unique_ips + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">' + formatBytes(i.total_bytes) + '</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">' + i.avg_session_time_seconds.toFixed(2) + 's</td><td class="px-6 py-4 whitespace-nowrap text-sm ' + (i.failed_connections > 0 ? 'text-red-400' : 'text-gray-400') + ' text-right">' + i.failed_connections + '</td></tr>').join('') }
+
+			function matchesServerEntryScope(entry, scope) {
+				if (!scope || !scope.type) {
+					return true;
+				}
+				if (!entry.timestamp) {
 					return false;
 				}
-				return hour === scope.hour;
+				if (scope.type === 'daily' && scope.day) {
+					return entry.timestamp.slice(0, 10) === scope.day;
+				}
+				if (scope.type === 'hourly' && typeof scope.hour === 'number') {
+					const hourStr = entry.timestamp.slice(11, 13);
+					const hour = parseInt(hourStr, 10);
+					if (Number.isNaN(hour)) {
+						return false;
+					}
+					return hour === scope.hour;
+				}
+				return true;
 			}
-			return true;
-		}
 
-		async function showServerDetails(server, options = {}) {
-			const titleText = options.title || server || 'IP Breakdown';
-			const contextText = options.context || 'IP breakdown pulled directly from stream-proxy log.';
-			setModalLoadingState(titleText, contextText);
-			try {
-				const entries = await fetchDetailedEntries();
-				const scope = options.scope || null;
-				const entryFilter = options.entryFilter || null;
-				const targetServer = server && server !== '*' ? server : null;
-				const filteredEntries = entries.filter(entry => {
-					if (targetServer && entry.upstream_addr !== targetServer) {
-						return false;
-					}
-					if (scope && !matchesServerEntryScope(entry, scope)) {
-						return false;
-					}
-					if (entryFilter && !entryFilter(entry)) {
-						return false;
-					}
-					return true;
-				});
-				renderEntriesModal(filteredEntries, { title: titleText, context: contextText });
-			} catch (error) {
-				console.error('Error loading server details:', error);
-				document.getElementById('modalIPTable').innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-red-400">Error loading data</td></tr>';
+			async function showServerDetails(server, options = {}) {
+				const titleText = options.title || server || 'IP Breakdown';
+				const contextText = options.context || 'IP breakdown pulled directly from stream-proxy log.';
+				setModalLoadingState(titleText, contextText);
+				try {
+					const entries = await fetchDetailedEntries();
+					const scope = options.scope || null;
+					const entryFilter = options.entryFilter || null;
+					const targetServer = server && server !== '*' ? server : null;
+					const filteredEntries = entries.filter(entry => {
+						if (targetServer && entry.upstream_addr !== targetServer) {
+							return false;
+						}
+						if (scope && !matchesServerEntryScope(entry, scope)) {
+							return false;
+						}
+						if (entryFilter && !entryFilter(entry)) {
+							return false;
+						}
+						return true;
+					});
+					renderEntriesModal(filteredEntries, { title: titleText, context: contextText });
+				} catch (error) {
+					console.error('Error loading server details:', error);
+					document.getElementById('modalIPTable').innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-red-400">Error loading data</td></tr>';
+				}
 			}
-		}
 
-		function closeServerModal() {
-			const modal = document.getElementById('serverModal');
-			if (modal) {
+			function closeServerModal() {
+				const modal = document.getElementById('serverModal');
+				if (modal) {
+					modal.classList.remove('active');
+				}
+				const modalContext = document.getElementById('serverModalContext');
+				if (modalContext) {
+					modalContext.textContent = 'IP breakdown pulled directly from stream-proxy log.';
+				}
+			}
+
+			// Close modal when clicking outside
+			window.onclick = function (event) {
+				const modal = document.getElementById('serverModal');
+				if (event.target === modal) {
+					closeServerModal();
+				}
+			}
+			function refreshData(options = {}) {
+				if (isLoadingData) return;
+				loadData({ silent: true, ...options });
+			}
+			async function initializeDateRange() {
+				try {
+					const response = await fetch('/streamInfo/daterange');
+					if (!response.ok) {
+						throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+					}
+					const dateInfo = await response.json();
+					if (dateInfo.min_date && dateInfo.max_date) {
+						document.getElementById('startDate').value = dateInfo.min_date;
+						document.getElementById('endDate').value = dateInfo.max_date;
+					}
+				} catch (e) {
+					console.error('Error loading date range:', e);
+				}
+			}
+
+			// Drill-Down Analysis Functions
+			async function openDrillDownModal() {
+				const modal = document.getElementById('drillDownModal');
+				modal.classList.add('active');
+				drillDownState = { level: 1, server: null, ip: null, allData: null };
+				updateDrillDownBreadcrumb();
+				await loadDrillDownServers();
+			}
+
+			function closeDrillDownModal() {
+				const modal = document.getElementById('drillDownModal');
 				modal.classList.remove('active');
+				drillDownState = { level: 1, server: null, ip: null, allData: null };
 			}
-			const modalContext = document.getElementById('serverModalContext');
-			if (modalContext) {
-				modalContext.textContent = 'IP breakdown pulled directly from stream-proxy log.';
+
+			function updateDrillDownBreadcrumb() {
+				const breadcrumb = document.getElementById('drillDownBreadcrumb');
+				const title = document.getElementById('drillDownTitle');
+				if (drillDownState.level === 1) {
+					title.textContent = 'Server Analysis';
+					breadcrumb.textContent = 'Select a server to begin';
+				} else if (drillDownState.level === 2) {
+					title.textContent = drillDownState.server;
+					breadcrumb.textContent = 'Server → Select IP';
+				} else if (drillDownState.level === 3) {
+					title.textContent = drillDownState.ip;
+					breadcrumb.textContent = 'Server → ' + drillDownState.server + ' → IP → Connections';
+				}
 			}
-		}
 
-		// Close modal when clicking outside
-		window.onclick = function (event) {
-			const modal = document.getElementById('serverModal');
-			if (event.target === modal) {
-				closeServerModal();
+			async function loadDrillDownServers() {
+				try {
+					const params = getDateParams();
+					const data = await fetchJSON('/streamInfo/data' + params);
+					drillDownState.allData = Array.isArray(data) ? data : (data.entries || []);
+
+					// Aggregate by server
+					const serverStats = {};
+					drillDownState.allData.forEach(entry => {
+						const server = entry.upstream_addr || 'Unknown';
+						if (!serverStats[server]) {
+							serverStats[server] = { server, connections: 0, ips: new Set(), traffic: 0 };
+						}
+						serverStats[server].connections++;
+						serverStats[server].ips.add(entry.client_ip);
+						serverStats[server].traffic += (entry.bytes_sent || 0) + (entry.bytes_received || 0);
+					});
+
+					const servers = Object.values(serverStats).map(s => ({
+						...s,
+						unique_ips: s.ips.size
+					})).sort((a, b) => b.connections - a.connections);
+
+					const tbody = document.getElementById('drillServerList');
+					tbody.innerHTML = servers.map(s =>
+						'<tr class="table-row clickable" onclick="drillDownToIPs(\'' + s.server.replace(/'/g, "\\'") + '\')">' +
+						'<td class="px-4 py-3 text-sm font-mono text-gray-200">' + s.server + '</td>' +
+						'<td class="px-4 py-3 text-sm text-gray-200 text-right">' + s.connections.toLocaleString() + '</td>' +
+						'<td class="px-4 py-3 text-sm text-gray-400 text-right">' + s.unique_ips + '</td>' +
+						'<td class="px-4 py-3 text-sm text-gray-200 text-right">' + formatBytes(s.traffic) + '</td>' +
+						'</tr>'
+					).join('');
+
+					showDrillLevel(1);
+				} catch (error) {
+					console.error('Failed to load servers:', error);
+				}
 			}
-		}
-		function refreshData(options = {}) {
-			if (isLoadingData) return;
-			loadData({ silent: true, ...options });
-		}
-		async function initializeDateRange() { try { const dateInfo = await fetch('/streamInfo/daterange').then(r => r.json()); if (dateInfo.min_date && dateInfo.max_date) { document.getElementById('startDate').value = dateInfo.min_date; document.getElementById('endDate').value = dateInfo.max_date } } catch (e) { console.error('Error loading date range:', e) } }
 
-		// Drill-Down Analysis Functions
-		async function openDrillDownModal() {
-			const modal = document.getElementById('drillDownModal');
-			modal.classList.add('active');
-			drillDownState = { level: 1, server: null, ip: null, allData: null };
-			updateDrillDownBreadcrumb();
-			await loadDrillDownServers();
-		}
+			function drillDownToIPs(server) {
+				drillDownState.level = 2;
+				drillDownState.server = server;
+				updateDrillDownBreadcrumb();
 
-		function closeDrillDownModal() {
-			const modal = document.getElementById('drillDownModal');
-			modal.classList.remove('active');
-			drillDownState = { level: 1, server: null, ip: null, allData: null };
-		}
+				// Filter data for this server
+				const serverEntries = drillDownState.allData.filter(e => e.upstream_addr === server);
 
-		function updateDrillDownBreadcrumb() {
-			const breadcrumb = document.getElementById('drillDownBreadcrumb');
-			const title = document.getElementById('drillDownTitle');
-			if (drillDownState.level === 1) {
-				title.textContent = 'Server Analysis';
-				breadcrumb.textContent = 'Select a server to begin';
-			} else if (drillDownState.level === 2) {
-				title.textContent = drillDownState.server;
-				breadcrumb.textContent = 'Server → Select IP';
-			} else if (drillDownState.level === 3) {
-				title.textContent = drillDownState.ip;
-				breadcrumb.textContent = 'Server → ' + drillDownState.server + ' → IP → Connections';
-			}
-		}
-
-		async function loadDrillDownServers() {
-			try {
-				const params = getDateParams();
-				const data = await fetch('/streamInfo/data' + params).then(r => r.json());
-				drillDownState.allData = Array.isArray(data) ? data : (data.entries || []);
-
-				// Aggregate by server
-				const serverStats = {};
-				drillDownState.allData.forEach(entry => {
-					const server = entry.upstream_addr || 'Unknown';
-					if (!serverStats[server]) {
-						serverStats[server] = { server, connections: 0, ips: new Set(), traffic: 0 };
+				// Aggregate by IP
+				const ipStats = {};
+				serverEntries.forEach(entry => {
+					const ip = entry.client_ip || 'Unknown';
+					if (!ipStats[ip]) {
+						ipStats[ip] = {
+							ip,
+							country: entry.country || 'Unknown',
+							connections: 0,
+							traffic: 0
+						};
 					}
-					serverStats[server].connections++;
-					serverStats[server].ips.add(entry.client_ip);
-					serverStats[server].traffic += (entry.bytes_sent || 0) + (entry.bytes_received || 0);
+					ipStats[ip].connections++;
+					ipStats[ip].traffic += (entry.bytes_sent || 0) + (entry.bytes_received || 0);
 				});
 
-				const servers = Object.values(serverStats).map(s => ({
-					...s,
-					unique_ips: s.ips.size
-				})).sort((a, b) => b.connections - a.connections);
+				const ips = Object.values(ipStats).sort((a, b) => b.traffic - a.traffic);
+				const totalConns = ips.reduce((sum, ip) => sum + ip.connections, 0);
+				const totalTraffic = ips.reduce((sum, ip) => sum + ip.traffic, 0);
 
-				const tbody = document.getElementById('drillServerList');
-				tbody.innerHTML = servers.map(s =>
-					'<tr class="table-row clickable" onclick="drillDownToIPs(\'' + s.server.replace(/'/g, "\\'") + '\')">' +
-					'<td class="px-4 py-3 text-sm font-mono text-gray-200">' + s.server + '</td>' +
-					'<td class="px-4 py-3 text-sm text-gray-200 text-right">' + s.connections.toLocaleString() + '</td>' +
-					'<td class="px-4 py-3 text-sm text-gray-400 text-right">' + s.unique_ips + '</td>' +
-					'<td class="px-4 py-3 text-sm text-gray-200 text-right">' + formatBytes(s.traffic) + '</td>' +
+				document.getElementById('drillIPCount').textContent = ips.length.toLocaleString();
+				document.getElementById('drillIPConnections').textContent = totalConns.toLocaleString();
+				document.getElementById('drillIPTraffic').textContent = formatBytes(totalTraffic);
+
+				const tbody = document.getElementById('drillIPList');
+				tbody.innerHTML = ips.map(ip =>
+					'<tr class="table-row clickable" onclick="drillDownToConnections(\'' + ip.ip.replace(/'/g, "\\'") + '\')">' +
+					'<td class="px-4 py-3 text-sm font-mono text-gray-200">' + ip.ip + '</td>' +
+					'<td class="px-4 py-3 text-sm text-gray-400">' + ip.country + '</td>' +
+					'<td class="px-4 py-3 text-sm text-gray-200 text-right">' + ip.connections.toLocaleString() + '</td>' +
+					'<td class="px-4 py-3 text-sm text-gray-200 text-right">' + formatBytes(ip.traffic) + '</td>' +
 					'</tr>'
 				).join('');
 
-				showDrillLevel(1);
-			} catch (error) {
-				console.error('Failed to load servers:', error);
+				showDrillLevel(2);
 			}
-		}
 
-		function drillDownToIPs(server) {
-			drillDownState.level = 2;
-			drillDownState.server = server;
-			updateDrillDownBreadcrumb();
+			function drillDownToConnections(ip) {
+				drillDownState.level = 3;
+				drillDownState.ip = ip;
+				updateDrillDownBreadcrumb();
 
-			// Filter data for this server
-			const serverEntries = drillDownState.allData.filter(e => e.upstream_addr === server);
+				// Filter connections for this server + IP
+				const connections = drillDownState.allData.filter(e =>
+					e.upstream_addr === drillDownState.server && e.client_ip === ip
+				);
 
-			// Aggregate by IP
-			const ipStats = {};
-			serverEntries.forEach(entry => {
-				const ip = entry.client_ip || 'Unknown';
-				if (!ipStats[ip]) {
-					ipStats[ip] = {
-						ip,
-						country: entry.country || 'Unknown',
-						connections: 0,
-						traffic: 0
-					};
+				const successCount = connections.filter(c => c.status === 200).length;
+				const successRate = connections.length > 0 ? ((successCount / connections.length) * 100).toFixed(1) : '0';
+				const avgSession = connections.length > 0
+					? (connections.reduce((sum, c) => sum + (c.session_time_seconds || 0), 0) / connections.length).toFixed(2)
+					: '0';
+				const totalData = connections.reduce((sum, c) => sum + (c.bytes_sent || 0) + (c.bytes_received || 0), 0);
+
+				document.getElementById('drillConnCount').textContent = connections.length.toLocaleString();
+				document.getElementById('drillSuccessRate').textContent = successRate + '%';
+				document.getElementById('drillAvgSession').textContent = avgSession + 's';
+				document.getElementById('drillTotalData').textContent = formatBytes(totalData);
+
+				const tbody = document.getElementById('drillConnectionList');
+				tbody.innerHTML = connections.map(c =>
+					'<tr class="table-row">' +
+					'<td class="px-3 py-2 text-xs font-mono text-gray-200">' + formatTimestamp(c.timestamp) + '</td>' +
+					'<td class="px-3 py-2 text-xs text-gray-400">' + (c.protocol || '-') + '</td>' +
+					'<td class="px-3 py-2 text-xs text-center ' + (c.status === 200 ? 'text-green-400' : 'text-red-400') + '">' + (c.status || '-') + '</td>' +
+					'<td class="px-3 py-2 text-xs text-gray-200 text-right">' + formatBytes(c.bytes_sent || 0) + '</td>' +
+					'<td class="px-3 py-2 text-xs text-gray-200 text-right">' + formatBytes(c.bytes_received || 0) + '</td>' +
+					'<td class="px-3 py-2 text-xs text-gray-400 text-right">' + formatSeconds(c.session_time_seconds) + '</td>' +
+					'<td class="px-3 py-2 text-xs font-mono text-gray-400">' + (c.proxy_addr || '-') + '</td>' +
+					'</tr>'
+				).join('');
+
+				showDrillLevel(3);
+			}
+
+			function drillDownBack(toLevel) {
+				drillDownState.level = toLevel;
+				if (toLevel === 1) {
+					drillDownState.server = null;
+					drillDownState.ip = null;
+				} else if (toLevel === 2) {
+					drillDownState.ip = null;
 				}
-				ipStats[ip].connections++;
-				ipStats[ip].traffic += (entry.bytes_sent || 0) + (entry.bytes_received || 0);
-			});
-
-			const ips = Object.values(ipStats).sort((a, b) => b.traffic - a.traffic);
-			const totalConns = ips.reduce((sum, ip) => sum + ip.connections, 0);
-			const totalTraffic = ips.reduce((sum, ip) => sum + ip.traffic, 0);
-
-			document.getElementById('drillIPCount').textContent = ips.length.toLocaleString();
-			document.getElementById('drillIPConnections').textContent = totalConns.toLocaleString();
-			document.getElementById('drillIPTraffic').textContent = formatBytes(totalTraffic);
-
-			const tbody = document.getElementById('drillIPList');
-			tbody.innerHTML = ips.map(ip =>
-				'<tr class="table-row clickable" onclick="drillDownToConnections(\'' + ip.ip.replace(/'/g, "\\'") + '\')">' +
-				'<td class="px-4 py-3 text-sm font-mono text-gray-200">' + ip.ip + '</td>' +
-				'<td class="px-4 py-3 text-sm text-gray-400">' + ip.country + '</td>' +
-				'<td class="px-4 py-3 text-sm text-gray-200 text-right">' + ip.connections.toLocaleString() + '</td>' +
-				'<td class="px-4 py-3 text-sm text-gray-200 text-right">' + formatBytes(ip.traffic) + '</td>' +
-				'</tr>'
-			).join('');
-
-			showDrillLevel(2);
-		}
-
-		function drillDownToConnections(ip) {
-			drillDownState.level = 3;
-			drillDownState.ip = ip;
-			updateDrillDownBreadcrumb();
-
-			// Filter connections for this server + IP
-			const connections = drillDownState.allData.filter(e =>
-				e.upstream_addr === drillDownState.server && e.client_ip === ip
-			);
-
-			const successCount = connections.filter(c => c.status === 200).length;
-			const successRate = connections.length > 0 ? ((successCount / connections.length) * 100).toFixed(1) : '0';
-			const avgSession = connections.length > 0
-				? (connections.reduce((sum, c) => sum + (c.session_time_seconds || 0), 0) / connections.length).toFixed(2)
-				: '0';
-			const totalData = connections.reduce((sum, c) => sum + (c.bytes_sent || 0) + (c.bytes_received || 0), 0);
-
-			document.getElementById('drillConnCount').textContent = connections.length.toLocaleString();
-			document.getElementById('drillSuccessRate').textContent = successRate + '%';
-			document.getElementById('drillAvgSession').textContent = avgSession + 's';
-			document.getElementById('drillTotalData').textContent = formatBytes(totalData);
-
-			const tbody = document.getElementById('drillConnectionList');
-			tbody.innerHTML = connections.map(c =>
-				'<tr class="table-row">' +
-				'<td class="px-3 py-2 text-xs font-mono text-gray-200">' + formatTimestamp(c.timestamp) + '</td>' +
-				'<td class="px-3 py-2 text-xs text-gray-400">' + (c.protocol || '-') + '</td>' +
-				'<td class="px-3 py-2 text-xs text-center ' + (c.status === 200 ? 'text-green-400' : 'text-red-400') + '">' + (c.status || '-') + '</td>' +
-				'<td class="px-3 py-2 text-xs text-gray-200 text-right">' + formatBytes(c.bytes_sent || 0) + '</td>' +
-				'<td class="px-3 py-2 text-xs text-gray-200 text-right">' + formatBytes(c.bytes_received || 0) + '</td>' +
-				'<td class="px-3 py-2 text-xs text-gray-400 text-right">' + formatSeconds(c.session_time_seconds) + '</td>' +
-				'<td class="px-3 py-2 text-xs font-mono text-gray-400">' + (c.proxy_addr || '-') + '</td>' +
-				'</tr>'
-			).join('');
-
-			showDrillLevel(3);
-		}
-
-		function drillDownBack(toLevel) {
-			drillDownState.level = toLevel;
-			if (toLevel === 1) {
-				drillDownState.server = null;
-				drillDownState.ip = null;
-			} else if (toLevel === 2) {
-				drillDownState.ip = null;
+				updateDrillDownBreadcrumb();
+				showDrillLevel(toLevel);
 			}
-			updateDrillDownBreadcrumb();
-			showDrillLevel(toLevel);
-		}
 
-		function showDrillLevel(level) {
-			document.getElementById('drillLevel1').style.display = level === 1 ? 'block' : 'none';
-			document.getElementById('drillLevel2').style.display = level === 2 ? 'block' : 'none';
-			document.getElementById('drillLevel3').style.display = level === 3 ? 'block' : 'none';
-		}
+			function showDrillLevel(level) {
+				document.getElementById('drillLevel1').style.display = level === 1 ? 'block' : 'none';
+				document.getElementById('drillLevel2').style.display = level === 2 ? 'block' : 'none';
+				document.getElementById('drillLevel3').style.display = level === 3 ? 'block' : 'none';
+			}
 
-		// Add button to open drill-down from upstream table
-		window.openDrillDown = openDrillDownModal;
+			// Add button to open drill-down from upstream table
+			window.openDrillDown = openDrillDownModal;
 
-		window.addEventListener('DOMContentLoaded', () => { clearCountryDetail(); initializeDateRange(); loadData() }); setInterval(refreshData, 20000);
-	</script>
+			window.addEventListener('DOMContentLoaded', () => { clearCountryDetail(); initializeDateRange(); loadData() }); setInterval(refreshData, 20000);
+		</script>
 </body>

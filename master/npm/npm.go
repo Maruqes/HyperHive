@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	image      = "jc21/nginx-proxy-manager:latest"
+	image      = "jc21/nginx-proxy-manager:2.13.5"
 	container  = "npm-from-go"
 	hostHTTP   = "127.0.0.1:80"      // -> container 80
 	hostAdmin  = "127.0.0.1:81"      // -> container 81 (API/UI)
