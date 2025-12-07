@@ -821,7 +821,7 @@ func main() {
 		log.Fatalf("env setup: %v", err)
 	}
 
-	if err := ourk8s.AllowFirewalldAcceptAll(ctx); err != nil {
+	if err := ourk8s.AllowFirewalldAcceptAll(context.Background()); err != nil {
 		log.Panicf("join k3s cluster: configure k3s firewall rules: %w", err)
 	}
 
