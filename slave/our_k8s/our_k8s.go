@@ -278,6 +278,16 @@ type portSpec struct {
 	Protocol string
 }
 
+func runFirewallCmd(ctx context.Context, args ...string) (string, error) {
+	var stderrBuf bytes.Buffer
+	cmd := exec.CommandContext(ctx, "firewall-cmd", args...)
+	cmd.Stderr = &stderrBuf
+	if err := cmd.Run(); err != nil {
+		return strings.TrimSpace(stderrBuf.String()), err
+	}
+	return strings.TrimSpace(stderrBuf.String()), nil
+}
+
 func ensureFirewallPorts(ctx context.Context, ports []portSpec) error {
 	if len(ports) == 0 {
 		return nil
@@ -307,11 +317,8 @@ func ensureFirewallPorts(ctx context.Context, ports []portSpec) error {
 		_ = cmd.Run() // Ignore errors, may already exist
 	}
 
-	var stderrBuf bytes.Buffer
-	cmd := exec.CommandContext(ctx, "firewall-cmd", "--reload")
-	cmd.Stderr = &stderrBuf
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("ensure firewall ports: reload firewall: %w (stderr: %s)", err, stderrBuf.String())
+	if stderrOutput, err := runFirewallCmd(ctx, "--reload"); err != nil {
+		return fmt.Errorf("ensure firewall ports: reload firewall: %w (stderr: %s)", err, stderrOutput)
 	}
 	return nil
 }
