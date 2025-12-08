@@ -370,7 +370,10 @@ func vncPasswordFromDomainXML(xmlData string) (string, error) {
 	}
 	for _, g := range d.Devices.Graphics {
 		if strings.EqualFold(strings.TrimSpace(g.Type), "vnc") {
-			return strings.TrimSpace(g.Passwd), nil
+			passwd := strings.TrimSpace(g.Passwd)
+			if passwd != "" {
+				return passwd, nil
+			}
 		}
 	}
 	return "", nil
