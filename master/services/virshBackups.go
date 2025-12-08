@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -112,6 +113,31 @@ func sendImportantNotification(title string, err error) {
 		return
 	}
 	nots.SendGlobalNotification(title, fmt.Sprint(err.Error()), "/", true)
+}
+
+// validate and remove a backup directory while avoiding accidental broad deletes
+func removeBackupDirectory(dir string) error {
+	if err := validateBackupDirectory(dir); err != nil {
+		return err
+	}
+
+	if err := os.RemoveAll(dir); err != nil {
+		return fmt.Errorf("failed to remove backup folder %s: %v", dir, err)
+	}
+
+	return nil
+}
+
+func validateBackupDirectory(dir string) error {
+	if dir == "" || dir == "/" || dir == "." {
+		return fmt.Errorf("refusing to remove unsafe directory: %q", dir)
+	}
+
+	// guard against deleting unrelated folders
+	if !strings.HasPrefix(filepath.Base(dir), "backup-") {
+		return fmt.Errorf("refusing to remove non-backup directory: %q", dir)
+	}
+	return nil
 }
 
 // returns file path or error
@@ -284,8 +310,9 @@ func (v *VirshService) DeleteBackup(bakId int) error {
 	}
 
 	dir := filepath.Dir(bakup.Path)
-	if dir == "" || dir == "/" || dir == "." {
-		return fmt.Errorf("refusing to remove unsafe directory: %q", dir)
+
+	if err := validateBackupDirectory(dir); err != nil {
+		return err
 	}
 
 	err = db.DeleteVirshBackupById(bakId)
@@ -294,16 +321,20 @@ func (v *VirshService) DeleteBackup(bakId int) error {
 		return err
 	}
 
-	err = os.Remove(bakup.Path)
-	if err != nil && !os.IsNotExist(err) {
-		sendImportantNotification("DeleteBackup: failed to remove backup file", err)
-		return err
+	fileErr := os.Remove(bakup.Path)
+	if fileErr != nil && !os.IsNotExist(fileErr) {
+		sendImportantNotification("DeleteBackup: failed to remove backup file", fileErr)
 	}
 
-	// remove the folder that contained the backup
-	if err := os.RemoveAll(dir); err != nil {
-		sendImportantNotification("DeleteBackup: failed to remove backup folder", err)
-		return fmt.Errorf("failed to remove backup folder %s: %v", dir, err)
+	// remove the folder that contained the backup (even if the file removal had issues)
+	dirErr := removeBackupDirectory(dir)
+	if dirErr != nil {
+		sendImportantNotification("DeleteBackup: failed to remove backup folder", dirErr)
+		return dirErr
+	}
+
+	if fileErr != nil && !os.IsNotExist(fileErr) {
+		return fileErr
 	}
 
 	return nil
