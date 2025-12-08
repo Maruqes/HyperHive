@@ -243,7 +243,7 @@ func (s *DockerService) VolumeCreateBindMount(machineName string, req *dockerGrp
 			target = "/"
 		}
 		folderPath := fmt.Sprintf("%s/docker/%s", target, req.Name)
-		if err := os.MkdirAll(folderPath, 0755); err != nil {
+		if err := os.MkdirAll(folderPath, 0777); err != nil {
 			return fmt.Errorf("failed to create folder %s: %w", folderPath, err)
 		}
 		req.Folder = folderPath
