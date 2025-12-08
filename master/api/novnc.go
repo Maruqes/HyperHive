@@ -375,10 +375,10 @@ func serveGuestPage(w http.ResponseWriter, r *http.Request) {
 	<title>Password Required</title>
 	<script>
 		window.onload = function() {
-			var password = prompt("Insere a password para a VM: %s");
+			var password = prompt("Enter password for VM: %s");
 
 			if (password === null) {
-				alert("Operação cancelada.");
+				alert("Operation cancelled.");
 				return;
 			}
 
@@ -393,7 +393,7 @@ func serveGuestPage(w http.ResponseWriter, r *http.Request) {
 				if (response.ok) {
 					window.location.href = '/novnc/vnc.html?path=/novnc/ws%%3Fvm%%3D%s';
 				} else {
-					alert('Falha ao enviar a password.');
+					alert('Failed to send password.');
 				}
 			});
 		}
