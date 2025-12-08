@@ -149,6 +149,18 @@ func setupFrontEnd(w http.ResponseWriter, r *http.Request) {
 		ForwardHost:           "127.0.0.1",
 		ForwardPort:           8079,
 		AllowWebsocketUpgrade: true,
+		ID:                    0,
+		CachingEnabled:        false,
+		BlockExploits:         false,
+		AccessListID:          "0",
+		CertificateID:         0,
+		Meta:                  nil,
+		AdvancedConfig:        "",
+		Http2Support:          false,
+		HstsEnabled:           false,
+		HstsSubdomains:        false,
+		SslForced:             false,
+		Enabled:               false,
 	}
 
 	if payload.CertificateId > 0 {
