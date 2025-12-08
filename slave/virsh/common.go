@@ -909,7 +909,7 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 	}
 
 	// Parse XML for VNC port
-	xmlDesc, err := dom.GetXMLDesc(0)
+	xmlDesc, err := dom.GetXMLDesc(libvirt.DOMAIN_XML_SECURE)
 	if err != nil {
 		return nil, fmt.Errorf("xml: %w", err)
 	}
@@ -1065,7 +1065,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 		}
 
 		xmlDesc := ""
-		if xml, err := dom.GetXMLDesc(0); err != nil {
+		if xml, err := dom.GetXMLDesc(libvirt.DOMAIN_XML_SECURE); err != nil {
 			warnings = append(warnings, fmt.Sprintf("%s: xml: %v", name, err))
 		} else {
 			xmlDesc = xml
