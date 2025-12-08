@@ -153,6 +153,8 @@ func StartApi() {
 
 	npmapi.SetBaseURL(baseURL)
 
+	startRateLimiterCleanup()
+
 	r := chi.NewRouter()
 
 	// Strip a leading "/api" from any incoming request path
@@ -181,6 +183,8 @@ func StartApi() {
 			next.ServeHTTP(w, r)
 		})
 	})
+
+	r.Use(rateLimitMiddleware)
 
 	r.Post("/login", loginHandler)
 

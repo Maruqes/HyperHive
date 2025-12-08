@@ -140,6 +140,12 @@ func setupFrontEnd(w http.ResponseWriter, r *http.Request) {
 			ForwardHost:   "127.0.0.1",
 			ForwardPort:   9595,
 		},
+		{
+			Path:          "/guest_api",
+			ForwardScheme: "http",
+			ForwardHost:   "127.0.0.1",
+			ForwardPort:   9595,
+		},
 	}
 
 	proxy := npm.Proxy{

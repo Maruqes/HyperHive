@@ -321,9 +321,8 @@ func checkMap(r *http.Request, requestedVM string) (bool, string) {
 // checks for normal auth and token for vm
 func authMiddlewareNOVNC(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authorized, token := isAuthorized(r)
+		r, authorized := ensureAuthorizedContext(r)
 		if authorized {
-			r = SetTokenInContext(r, token)
 			next.ServeHTTP(w, r)
 			return
 		}
