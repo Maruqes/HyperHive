@@ -37,6 +37,11 @@ type downloadReq struct {
 	Registry string `json:"registry"`
 }
 
+type ColumeCreate struct {
+	dockerGrpc.VolumeCreateRequest
+	NfsID int `json:"nfs_id"`
+}
+
 func download(w http.ResponseWriter, r *http.Request) {
 	machine := chi.URLParam(r, "machineName")
 
@@ -435,7 +440,7 @@ func volumeCreateBindMount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dockerGrpc.VolumeCreateRequest
+	var req ColumeCreate
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
@@ -443,7 +448,7 @@ func volumeCreateBindMount(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	svc := services.DockerService{}
-	if err := svc.VolumeCreateBindMount(machine, &req); err != nil {
+	if err := svc.VolumeCreateBindMount(machine, &req.VolumeCreateRequest, req.NfsID); err != nil {
 		logger.Errorf("docker volume create failed: %v", err)
 		http.Error(w, "failed to create volume: "+err.Error(), http.StatusInternalServerError)
 		return

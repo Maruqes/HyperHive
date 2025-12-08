@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
+	"strings"
 
 	dockerGrpc "github.com/Maruqes/512SvMan/api/proto/docker"
 	"github.com/vishvananda/netlink"
@@ -217,10 +219,37 @@ func (s *DockerService) VolumeList(machineName string) (*dockerGrpc.ListVolumesR
 	return docker.VolumeList(machine.Connection)
 }
 
-func (s *DockerService) VolumeCreateBindMount(machineName string, req *dockerGrpc.VolumeCreateRequest) error {
+func (s *DockerService) VolumeCreateBindMount(machineName string, req *dockerGrpc.VolumeCreateRequest, nfsID int) error {
 	machine := protocol.GetConnectionByMachineName(machineName)
 	if machine == nil || machine.Connection == nil {
 		return fmt.Errorf("machine %s is not connected", machineName)
+	}
+
+	if nfsID != 0 {
+		if req.GetName() == "" {
+			return fmt.Errorf("volume name is required when nfs_id is provided")
+		}
+
+		nfsShare, err := db.GetNFSShareByID(nfsID)
+		if err != nil {
+			return fmt.Errorf("failed to get NFS share by ID %d: %w", nfsID, err)
+		}
+		if nfsShare == nil {
+			return fmt.Errorf("nfs share with ID %d not found", nfsID)
+		}
+		if nfsShare.MachineName != machineName {
+			return fmt.Errorf("nfs share %d does not belong to machine %s", nfsID, machineName)
+		}
+
+		target := strings.TrimRight(nfsShare.Target, "/")
+		if target == "" {
+			target = "/"
+		}
+		folderPath := fmt.Sprintf("%s/docker/%s", target, req.Name)
+		if err := os.MkdirAll(folderPath, 0755); err != nil {
+			return fmt.Errorf("failed to create folder %s: %w", folderPath, err)
+		}
+		req.Folder = folderPath
 	}
 
 	return docker.VolumeCreateBindMount(machine.Connection, req)
