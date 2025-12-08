@@ -13,24 +13,47 @@ HYPERHIVE_DIR="$(dirname "$SCRIPT_DIR")"
 echo -e "${YELLOW}HyperHive Update Script${NC}"
 echo "================================"
 echo ""
-echo "Select component to update:"
-echo "  0 - Master"
-echo "  1 - Slave"
-echo ""
-read -p "Enter your choice (0 or 1): " choice
+# Allow passing the choice as the first argument: ./update.sh 0|1|master|slave
+if [ "$#" -gt 0 ]; then
+    case "$1" in
+        0|master|Master)
+            UPDATE_MODE="master"
+            ;;
+        1|slave|Slave)
+            UPDATE_MODE="slave"
+            ;;
+        -h|--help|help)
+            echo "Usage: $0 [0|1|master|slave]"
+            echo "  0 or master - update master (and slave when master is chosen)"
+            echo "  1 or slave  - update only slave"
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Invalid argument: $1${NC}"
+            echo "Usage: $0 [0|1|master|slave]"
+            exit 1
+            ;;
+    esac
+else
+    echo "Select component to update:"
+    echo "  0 - Master"
+    echo "  1 - Slave"
+    echo ""
+    read -p "Enter your choice (0 or 1): " choice
 
-case $choice in
-    0)
-        UPDATE_MODE="master"
-        ;;
-    1)
-        UPDATE_MODE="slave"
-        ;;
-    *)
-        echo -e "${RED}Invalid choice. Please enter 0 for Master or 1 for Slave.${NC}"
-        exit 1
-        ;;
-esac
+    case $choice in
+        0)
+            UPDATE_MODE="master"
+            ;;
+        1)
+            UPDATE_MODE="slave"
+            ;;
+        *)
+            echo -e "${RED}Invalid choice. Please enter 0 for Master or 1 for Slave.${NC}"
+            exit 1
+            ;;
+    esac
+fi
 
 echo ""
 echo -e "${GREEN}Updating ${UPDATE_MODE}...${NC}"
