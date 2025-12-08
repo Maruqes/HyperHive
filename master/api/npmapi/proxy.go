@@ -154,7 +154,7 @@ func setupFrontEnd(w http.ResponseWriter, r *http.Request) {
 		BlockExploits:         false,
 		AccessListID:          "0",
 		CertificateID:         0,
-		Meta:                  nil,
+		Meta:                  make(map[string]interface{}),
 		AdvancedConfig:        "",
 		Http2Support:          false,
 		HstsEnabled:           false,
