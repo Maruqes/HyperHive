@@ -349,6 +349,10 @@ func vncPortFromDomainXML(xmlData string) (int, error) {
 }
 
 func vncPasswordFromDomainXML(xmlData string) (string, error) {
+	if strings.TrimSpace(xmlData) == "" {
+		return "", nil
+	}
+
 	type graphics struct {
 		Type   string `xml:"type,attr"`
 		Passwd string `xml:"passwd,attr"`

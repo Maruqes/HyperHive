@@ -54,10 +54,12 @@ func protectedRoutes(w http.ResponseWriter, r *http.Request) {
 
 func SetCookieInBrowser(w http.ResponseWriter, token string, maxAge int) {
 	http.SetCookie(w, &http.Cookie{
-		Name:   "Authorization",
-		Value:  token,
-		MaxAge: maxAge,
-		Path:   "/",
+		Name:     "Authorization",
+		Value:    token,
+		MaxAge:   maxAge,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
 	})
 }
 
@@ -190,10 +192,12 @@ func StartApi() {
 		http.ServeFile(w, r, "static/notification-icon.png")
 	})
 
+	setupNoVNCAPI(r)
+	guestNoVNCApi(r)
+
 	//create a group protected by auth middleware
 	r.Group(func(r chi.Router) {
 		r.Use(authMiddleware)
-		setupNoVNCAPI(r)
 
 		//NOTIFICATION heere HEHEHE
 		r.Route("/notification", func(r chi.Router) {

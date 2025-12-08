@@ -91,27 +91,26 @@ func tokenFromRequest(r *http.Request) string {
 	return normalizeTokenValue(cookieValue)
 }
 
-func tryGetFromURLparam(r *http.Request) string {
-	return normalizeTokenValue(r.URL.Query().Get("token"))
+func isAuthorized(r *http.Request) (bool, string) {
+	token := tokenFromRequest(r)
+
+	// Also check query parameters for token
+	if token == "" {
+		token = normalizeTokenValue(r.URL.Query().Get("token"))
+	}
+
+	if token == "" {
+		return false, ""
+	}
+
+	loginService := services.LoginService{}
+	return loginService.IsLoginValid(baseURL, token), token
 }
 
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token := tokenFromRequest(r)
-
-		// Also check query parameters for token
-		if token == "" {
-			token = normalizeTokenValue(r.URL.Query().Get("token"))
-		}
-
-		if token == "" {
-			applyCORSHeaders(w, r)
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
-
-		loginService := services.LoginService{}
-		if !loginService.IsLoginValid(baseURL, token) {
+		authorized, token := isAuthorized(r)
+		if !authorized {
 			applyCORSHeaders(w, r)
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
