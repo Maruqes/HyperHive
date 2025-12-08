@@ -107,27 +107,17 @@ func isAuthorized(r *http.Request) (bool, string) {
 	return loginService.IsLoginValid(baseURL, token), token
 }
 
-func ensureAuthorizedContext(r *http.Request) (*http.Request, bool) {
-	if token := GetTokenFromContext(r); token != "" {
-		return r, true
-	}
-
-	authorized, token := isAuthorized(r)
-	if !authorized {
-		return r, false
-	}
-
-	return SetTokenInContext(r, token), true
-}
-
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r, authorized := ensureAuthorizedContext(r)
+		authorized, token := isAuthorized(r)
 		if !authorized {
 			applyCORSHeaders(w, r)
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
+
+		// Add token to request context
+		r = SetTokenInContext(r, token)
 
 		// continue to the next handler
 		next.ServeHTTP(w, r)
