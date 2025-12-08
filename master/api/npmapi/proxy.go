@@ -115,6 +115,54 @@ func enableProxy(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func setupFrontEnd(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Domain        string `json:"domain"`
+		CertificateId int    `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	loginToken := GetTokenFromContext(r)
+	locations := []npm.Location{
+		{
+			Path:          "/api",
+			ForwardScheme: "http",
+			ForwardHost:   "127.0.0.1",
+			ForwardPort:   9595,
+		},
+		{
+			Path:          "/novnc",
+			ForwardScheme: "http",
+			ForwardHost:   "127.0.0.1",
+			ForwardPort:   9595,
+		},
+	}
+
+	proxy := npm.Proxy{
+		DomainNames:           []string{"hyperhive." + payload.Domain},
+		Locations:             locations,
+		ForwardScheme:         "http",
+		ForwardHost:           "127.0.0.1",
+		ForwardPort:           8079,
+		AllowWebsocketUpgrade: true,
+	}
+
+	if payload.CertificateId > 0 {
+		proxy.CertificateID = payload.CertificateId
+		proxy.SslForced = true
+	}
+
+	if _, err := npm.CreateProxy(baseURL, loginToken, proxy); err != nil {
+		http.Error(w, "failed to setup frontend: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 func SetupProxyAPI(r chi.Router) chi.Router {
 	return r.Route("/proxy", func(r chi.Router) {
 		r.Get("/list", listProxies)
@@ -123,5 +171,7 @@ func SetupProxyAPI(r chi.Router) chi.Router {
 		r.Delete("/delete", deleteProxy)
 		r.Post("/disable", disableProxy)
 		r.Post("/enable", enableProxy)
+
+		r.Post("/setupFrontEnd", setupFrontEnd)
 	})
 }

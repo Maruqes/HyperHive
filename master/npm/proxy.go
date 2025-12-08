@@ -51,12 +51,19 @@ type Proxy struct {
 	CertificateID         int            `json:"certificate_id"`
 	Meta                  map[string]any `json:"meta"`
 	AdvancedConfig        string         `json:"advanced_config"`
-	Locations             []any          `json:"locations"`
+	Locations             []Location     `json:"locations"`
 	Http2Support          bool           `json:"http2_support"`
 	HstsEnabled           bool           `json:"hsts_enabled"`
 	HstsSubdomains        bool           `json:"hsts_subdomains"`
 	SslForced             bool           `json:"ssl_forced"`
 	Enabled               bool           `json:"enabled"`
+}
+
+type Location struct {
+	Path           string `json:"path"`
+	ForwardScheme  string `json:"forward_scheme"`
+	ForwardHost    string `json:"forward_host"`
+	ForwardPort    int    `json:"forward_port"`
 }
 
 /*
