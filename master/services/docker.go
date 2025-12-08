@@ -237,9 +237,6 @@ func (s *DockerService) VolumeCreateBindMount(machineName string, req *dockerGrp
 		if nfsShare == nil {
 			return fmt.Errorf("nfs share with ID %d not found", nfsID)
 		}
-		if nfsShare.MachineName != machineName {
-			return fmt.Errorf("nfs share %d does not belong to machine %s", nfsID, machineName)
-		}
 
 		target := strings.TrimRight(nfsShare.Target, "/")
 		if target == "" {
