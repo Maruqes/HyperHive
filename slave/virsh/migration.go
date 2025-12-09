@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slave/extra"
-	"strconv"
 	"strings"
 	"time"
 
@@ -58,28 +56,6 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 	if opts.Timeout < 0 {
 		return fmt.Errorf("timeout must be non-negative")
 	}
-	baseArgs := []string{
-		"-c", connURI,
-		"migrate",
-		"--persistent",
-		"--verbose",
-		"--undefinesource",
-		"--p2p",
-		"--tunnelled",
-		"--auto-converge",
-		"--bandwidth", "0",
-		"--abort-on-error",
-	}
-
-	if opts.Timeout > 0 {
-		baseArgs = append(baseArgs, "--timeout", strconv.FormatInt(int64(opts.Timeout), 10))
-	}
-
-	if opts.Live {
-		baseArgs = append(baseArgs, "--live")
-	}
-
-	baseArgs = append(baseArgs, name, destURI)
 
 	var sshOpts []string
 	if opts.SSH.SkipHostKeyCheck {
@@ -98,14 +74,11 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 		sshOpts = append(sshOpts, opts.SSH.AdditionalSSHOptions...)
 	}
 
-	env := os.Environ()
 	if len(sshOpts) > 0 {
-		env = append(env, fmt.Sprintf("LIBVIRT_SSH_OPTS=%s", strings.Join(sshOpts, " ")))
+		_ = os.Setenv("LIBVIRT_SSH_OPTS", strings.Join(sshOpts, " "))
 	}
 
-	cmd := exec.CommandContext(ctx, "virsh", baseArgs...)
-	cmd.Env = env
-	logger.Info("Executing: " + cmd.String())
+	logger.Info("Starting libvirt migration (API) from %s to %s for %s", connURI, destURI, name)
 
 	// notify migration start (websocket + push)
 	extra.SendWebsocketMessage("migration started", name, extraGrpc.WebSocketsMessageType_MigrateVm)
@@ -151,7 +124,27 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 			}
 		}
 	}()
-	errRun := extra.RunCmdLogged(ctx, cmd)
+	flags := libvirt.MIGRATE_PERSIST_DEST | libvirt.MIGRATE_UNDEFINE_SOURCE | libvirt.MIGRATE_PEER2PEER | libvirt.MIGRATE_TUNNELLED | libvirt.MIGRATE_AUTO_CONVERGE | libvirt.MIGRATE_ABORT_ON_ERROR
+	if opts.Live {
+		flags |= libvirt.MIGRATE_LIVE
+	}
+
+	// run migrate respecting context; abort job on cancellation
+	migrateErrCh := make(chan error, 1)
+	go func() {
+		migrateErrCh <- dom.MigrateToURI2(destURI, "", "", flags, "", 0)
+	}()
+
+	var errRun error
+	select {
+	case <-ctx.Done():
+		logger.Error("migration context canceled, aborting job")
+		if abortErr := dom.AbortJob(); abortErr != nil {
+			logger.Error("AbortJob failed: %v", abortErr)
+		}
+		errRun = ctx.Err()
+	case errRun = <-migrateErrCh:
+	}
 	close(doneCmd)
 	if errRun != nil {
 		errMsg := errRun.Error()
