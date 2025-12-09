@@ -594,6 +594,7 @@ func (v *VirshService) GetAllVms() ([]VmType, []string, error) {
 	var warningErrors []string
 
 	var erros []error
+	startAll := time.Now()
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -601,8 +602,13 @@ func (v *VirshService) GetAllVms() ([]VmType, []string, error) {
 	addToAllVms := func(conn *grpc.ClientConn) {
 		defer wg.Done() //settar finishado no waitgroup meus caros
 
+		connStart := time.Now()
+		target := conn.Target()
+		logger.Infof("GetAllVms: start fetch from %s", target)
+
 		vms, err := virsh.GetAllVms(conn, &grpcVirsh.Empty{})
 		if err != nil {
+			logger.Infof("GetAllVms: error from %s after %s: %v", target, time.Since(connStart).Round(time.Millisecond), err)
 			mu.Lock()
 			erros = append(erros, fmt.Errorf("failed to get VMs from a machine: %v", err))
 			mu.Unlock()
@@ -617,6 +623,7 @@ func (v *VirshService) GetAllVms() ([]VmType, []string, error) {
 			}
 			mu.Unlock()
 		}
+		logger.Infof("GetAllVms: fetched %d VMs from %s in %s", len(vms.Vms), target, time.Since(connStart).Round(time.Millisecond))
 
 		for _, vm := range vms.Vms {
 			isLive, err := db.DoesVmLiveExist(vm.Name)
@@ -654,6 +661,7 @@ func (v *VirshService) GetAllVms() ([]VmType, []string, error) {
 		go addToAllVms(conn)
 	}
 	wg.Wait()
+	logger.Infof("GetAllVms: completed in %s (total vms=%d, warnings=%d, errors=%d)", time.Since(startAll).Round(time.Millisecond), len(allVms), len(warningErrors), len(erros))
 
 	if len(erros) > 0 {
 		return allVms, warningErrors, fmt.Errorf("encountered %d errors; first: %v", len(erros), erros[0])
