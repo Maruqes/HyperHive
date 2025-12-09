@@ -10,7 +10,10 @@ import (
 	ws "512SvMan/websocket"
 	"encoding/json"
 	"net/http"
+	"strings"
+	"time"
 
+	"github.com/Maruqes/512SvMan/logger"
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
 )
@@ -44,6 +47,37 @@ func applyCORSHeaders(w http.ResponseWriter, r *http.Request) {
 	h.Set("Access-Control-Allow-Methods", "*")
 	h.Set("Access-Control-Allow-Headers", "*")
 	h.Set("Access-Control-Max-Age", "600")
+}
+
+// statusRecorder captures the HTTP status code for logging.
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *statusRecorder) WriteHeader(code int) {
+	r.status = code
+	r.ResponseWriter.WriteHeader(code)
+}
+
+// latencyLogger measures and logs how long each request takes without touching handlers.
+func latencyLogger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		start := time.Now()
+		next.ServeHTTP(rec, r)
+		dur := time.Since(start)
+
+		route := r.URL.Path
+		if rc := chi.RouteContext(r.Context()); rc != nil {
+			if len(rc.RoutePatterns) > 0 {
+				// Join patterns to reveal placeholders like /virsh/{id}/start
+				route = strings.Join(rc.RoutePatterns, "")
+			}
+		}
+
+		logger.Infof("%s %s -> %d in %s", r.Method, route, rec.status, dur.Round(time.Millisecond))
+	})
 }
 
 var baseURL string
@@ -171,6 +205,8 @@ func StartApi() {
 			next.ServeHTTP(w, r)
 		})
 	})
+
+	r.Use(latencyLogger)
 
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
