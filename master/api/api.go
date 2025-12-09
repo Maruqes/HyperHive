@@ -10,6 +10,7 @@ import (
 	ws "512SvMan/websocket"
 	"encoding/json"
 	"net/http"
+	_ "net/http/pprof"
 	"strings"
 	"time"
 
@@ -279,5 +280,24 @@ func StartApi() {
 		setupDockerAPI(r)
 		setupK8sAPI(r)
 	})
-	http.ListenAndServe(":9595", r)
+
+	go func() {
+		// Expose pprof on localhost for live debugging of stuck goroutines.
+		if err := http.ListenAndServe("127.0.0.1:6060", nil); err != nil {
+			logger.Errorf("pprof server error: %v", err)
+		}
+	}()
+
+	srv := &http.Server{
+		Addr:              ":9595",
+		Handler:           r,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+
+	if err := srv.ListenAndServe(); err != nil {
+		logger.Errorf("api server error: %v", err)
+	}
 }
