@@ -10,6 +10,7 @@ import (
 	"slave/extra"
 	"strconv"
 	"strings"
+	"time"
 
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
 	"github.com/Maruqes/512SvMan/logger"
@@ -105,9 +106,53 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 	cmd := exec.Command("virsh", baseArgs...)
 	cmd.Env = env
 	logger.Info("Executing: " + cmd.String())
+
+	// notify migration start (websocket + push)
+	extra.SendWebsocketMessage("migration started", name, extraGrpc.WebSocketsMessageType_MigrateVm)
 	// notify migration start
 	extra.SendNotifications("VM migration started", fmt.Sprintf("Starting migration of %s to %s", name, destURI), "/", false)
+
+	// best-effort live progress using libvirt job info while virsh runs
+	progressCtx, cancelProgress := context.WithCancel(ctx)
+	defer cancelProgress()
+	doneCmd := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-progressCtx.Done():
+				return
+			case <-doneCmd:
+				return
+			case <-ticker.C:
+				info, infoErr := dom.GetJobInfo()
+				if infoErr != nil {
+					logger.Error("migration progress (GetJobInfo): %v", infoErr)
+					return
+				}
+
+				pct := int64(-1)
+				if info.MemTotal > 0 {
+					pct = int64(info.MemProcessed * 100 / info.MemTotal)
+				} else if info.DataTotal > 0 {
+					pct = int64(info.DataProcessed * 100 / info.DataTotal)
+				}
+
+				if pct >= 0 {
+					if pct > 100 {
+						pct = 100
+					}
+					msg := fmt.Sprintf("migration progress: %d%%", pct)
+					if err := extra.SendWebsocketMessage(msg, name, extraGrpc.WebSocketsMessageType_MigrateVm); err != nil {
+						logger.Error("SendWebsocketMessage progress: %v", err)
+					}
+				}
+			}
+		}
+	}()
 	errors := extra.ExecWithOutToSocketCMD(ctx, extraGrpc.WebSocketsMessageType_MigrateVm, cmd)
+	close(doneCmd)
 	if errors != nil {
 		//convert []error to a single error
 		var errMsgs []string
@@ -121,6 +166,7 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 	}
 
 	// success
+	extra.SendWebsocketMessage("migration finished", name, extraGrpc.WebSocketsMessageType_MigrateVm)
 	extra.SendNotifications("VM migration succeeded", fmt.Sprintf("Migration of %s to %s completed successfully", name, destURI), "/", false)
 
 	return nil
