@@ -141,6 +141,7 @@ func test_nots(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"status":"sent"}`))
 }
 
+// as the world caves in
 func StartApi() {
 	hostAdmin := "127.0.0.1:81"
 	baseURL = "http://" + hostAdmin

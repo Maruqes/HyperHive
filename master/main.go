@@ -14,6 +14,8 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -403,6 +405,14 @@ func main() {
 	virshService.LoopAutomaticBaks()
 	smartDiskService.DoAutomaticTest()
 	info.LoopNots()
+
+	go func() {
+		addr := "127.0.0.1:6060"
+		logger.Info("pprof listening on http://" + addr + "/debug/pprof/")
+		if err := http.ListenAndServe(addr, nil); err != nil {
+			logger.Errorf("pprof server error: %v", err)
+		}
+	}()
 
 	api.StartApi()
 
