@@ -152,7 +152,6 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 		UseEnumNumbers:  true,
 	}
 
-	beforeLoop := time.Now()
 	var wg sync.WaitGroup
 	var firstErr error
 	var firstErrMu sync.Mutex
@@ -170,11 +169,9 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 	}
 
 	processVM := func(idx int, vm services.VmType) {
-		loopStart := time.Now()
 
 		autoStart, err := db.DoesAutoStartExist(vm.Name)
 		if err != nil {
-			logger.Infof("getAllVms: autoStart lookup fail for %s after %s: %v", vm.Name, time.Since(loopStart).Round(time.Millisecond), err)
 			setFirstErr(err)
 			return
 		}
@@ -187,13 +184,11 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 		if vm.Vm != nil {
 			raw, err := opts.Marshal(vm.Vm)
 			if err != nil {
-				logger.Infof("getAllVms: marshal fail for %s after %s: %v", vm.Name, time.Since(loopStart).Round(time.Millisecond), err)
 				setFirstErr(err)
 				return
 			}
 
 			if err := json.Unmarshal(raw, &vmMap); err != nil {
-				logger.Infof("getAllVms: unmarshal fail for %s after %s: %v", vm.Name, time.Since(loopStart).Round(time.Millisecond), err)
 				setFirstErr(err)
 				return
 			}
@@ -206,7 +201,6 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 				vmMap["nfs_id"] = nfsID
 			}
 		}
-		logger.Infof("getAllVms: processed %s in %s", vm.Name, time.Since(loopStart).Round(time.Millisecond))
 
 		payload[idx] = vmMap
 	}
@@ -226,7 +220,6 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.Infof("getAllVms: loop done in %s", time.Since(beforeLoop).Round(time.Millisecond))
 
 	data, err := json.Marshal(payload)
 	if err != nil {
@@ -234,7 +227,6 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	logger.Infof("getAllVms: responding after %s (payload %d bytes)", time.Since(start).Round(time.Millisecond), len(data))
 	w.Write(data)
 }
 

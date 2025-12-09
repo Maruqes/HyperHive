@@ -623,7 +623,6 @@ func (v *VirshService) GetAllVms() ([]VmType, []string, error) {
 			}
 			mu.Unlock()
 		}
-		logger.Infof("GetAllVms: fetched %d VMs from %s in %s", len(vms.Vms), target, time.Since(connStart).Round(time.Millisecond))
 
 		for _, vm := range vms.Vms {
 			isLive, err := db.DoesVmLiveExist(vm.Name)
