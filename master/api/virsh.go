@@ -13,8 +13,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
+	"github.com/Maruqes/512SvMan/logger"
 	"github.com/go-chi/chi/v5"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -132,13 +134,17 @@ func migrateLiveVM(w http.ResponseWriter, r *http.Request) {
 func getAllVms(w http.ResponseWriter, r *http.Request) {
 
 	virshServices := services.VirshService{}
+	start := time.Now()
+	logger.Infof("getAllVms: start")
 
 	res, _, err := virshServices.GetAllVms()
 	if err != nil {
+		logger.Infof("getAllVms: GetAllVms error after %s: %v", time.Since(start).Round(time.Millisecond), err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+	logger.Infof("getAllVms: got %d VMs in %s", len(res), time.Since(start).Round(time.Millisecond))
 
 	opts := protojson.MarshalOptions{
 		EmitUnpopulated: true,
@@ -146,11 +152,14 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 	}
 
 	payload := make([]map[string]interface{}, 0, len(res))
+	beforeLoop := time.Now()
 	for _, vm := range res {
+		loopStart := time.Now()
 
 		//autostart
 		autoStart, err := db.DoesAutoStartExist(vm.Name)
 		if err != nil {
+			logger.Infof("getAllVms: autoStart lookup fail for %s after %s: %v", vm.Name, time.Since(loopStart).Round(time.Millisecond), err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -163,11 +172,13 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 		if vm.Vm != nil {
 			raw, err := opts.Marshal(vm.Vm)
 			if err != nil {
+				logger.Infof("getAllVms: marshal fail for %s after %s: %v", vm.Name, time.Since(loopStart).Round(time.Millisecond), err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
 			if err := json.Unmarshal(raw, &vmMap); err != nil {
+				logger.Infof("getAllVms: unmarshal fail for %s after %s: %v", vm.Name, time.Since(loopStart).Round(time.Millisecond), err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -179,14 +190,18 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			vmMap["nfs_id"] = nfsID
 		}
+		logger.Infof("getAllVms: processed %s in %s", vm.Name, time.Since(loopStart).Round(time.Millisecond))
 		payload = append(payload, vmMap)
 	}
+	logger.Infof("getAllVms: loop done in %s", time.Since(beforeLoop).Round(time.Millisecond))
 
 	data, err := json.Marshal(payload)
 	if err != nil {
+		logger.Infof("getAllVms: marshal payload fail after %s: %v", time.Since(start).Round(time.Millisecond), err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	logger.Infof("getAllVms: responding after %s (payload %d bytes)", time.Since(start).Round(time.Millisecond), len(data))
 	w.Write(data)
 }
 
