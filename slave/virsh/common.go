@@ -13,6 +13,7 @@ import (
 	"slave/env512"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
@@ -1005,8 +1006,6 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 }
 
 func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
-	var warnings []string
-
 	connURI := "qemu:///system"
 	conn, err := libvirt.NewConnect(connURI)
 	if err != nil {
@@ -1019,129 +1018,170 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 		return nil, nil, fmt.Errorf("list domains: %w", err)
 	}
 
-	var vms []*grpcVirsh.Vm
+	const maxWorkers = 8
+	type vmResult struct {
+		idx      int
+		vm       *grpcVirsh.Vm
+		warnings []string
+	}
+
+	sem := make(chan struct{}, maxWorkers)
+	resCh := make(chan vmResult, len(doms))
+	var wg sync.WaitGroup
+
 	for i := range doms {
 		dom := doms[i]
+		idx := i
+		wg.Add(1)
+		go func(idx int, dom libvirt.Domain) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
 
-		name, err := dom.GetName()
-		if err != nil {
-			warnings = append(warnings, fmt.Sprintf("get name: %v", err))
-			continue
-		}
+			var warns []string
 
-		info := &grpcVirsh.Vm{
-			MachineName: env512.MachineName,
-			Name:        name,
-			NovncPort:   "0",
-			State:       grpcVirsh.VmState_UNKNOWN,
-		}
-
-		state := libvirt.DOMAIN_NOSTATE
-		stateKnown := false
-		if s, _, err := dom.GetState(); err != nil {
-			warnings = append(warnings, fmt.Sprintf("%s: state: %v", name, err))
-		} else {
-			state = s
-			stateKnown = true
-			info.State = domainStateToString(state)
-		}
-
-		var (
-			totalMemMB int32
-			usedMemMB  int32
-			cpuPct     int32
-			vcpuCount  int32
-		)
-
-		if stateKnown && state == libvirt.DOMAIN_RUNNING {
-			if totalKiB, usedKiB, err := getMemStats(&dom); err == nil {
-				totalMemMB = int32(totalKiB / 1024)
-				usedMemMB = int32(usedKiB / 1024)
+			name, err := dom.GetName()
+			if err != nil {
+				warns = append(warns, fmt.Sprintf("get name: %v", err))
+				resCh <- vmResult{idx: idx, warnings: warns}
+				dom.Free()
+				return
 			}
-			if pct, vcpus, err := cpuPercentOver(&dom, 500*time.Millisecond); err == nil {
-				cpuPct = int32(pct + 0.5)
-				vcpuCount = int32(vcpus)
+
+			info := &grpcVirsh.Vm{
+				MachineName: env512.MachineName,
+				Name:        name,
+				NovncPort:   "0",
+				State:       grpcVirsh.VmState_UNKNOWN,
 			}
-		}
 
-		xmlDesc := ""
-		if xml, err := dom.GetXMLDesc(libvirt.DOMAIN_XML_SECURE); err != nil {
-			warnings = append(warnings, fmt.Sprintf("%s: xml: %v", name, err))
-		} else {
-			xmlDesc = xml
-		}
-
-		port := 0
-		spicePort := 0
-		networkName := ""
-		vncPassword := ""
-		cpuXML := ""
-		if xmlDesc != "" {
-			if p, err := vncPortFromDomainXML(xmlDesc); err != nil {
-				warnings = append(warnings, fmt.Sprintf("%s: parse vnc port: %v", name, err))
+			state := libvirt.DOMAIN_NOSTATE
+			stateKnown := false
+			if s, _, err := dom.GetState(); err != nil {
+				warns = append(warns, fmt.Sprintf("%s: state: %v", name, err))
 			} else {
-				port = p
+				state = s
+				stateKnown = true
+				info.State = domainStateToString(state)
 			}
-			if spice, err := spicePortFromDomainXML(xmlDesc); err != nil {
-				warnings = append(warnings, fmt.Sprintf("%s: parse spice port: %v", name, err))
-			} else {
-				spicePort = spice
-			}
-			if netName, err := networkFromDomainXML(xmlDesc); err != nil {
-				warnings = append(warnings, fmt.Sprintf("%s: parse network: %v", name, err))
-			} else {
-				networkName = netName
-			}
-			if pwd, err := vncPasswordFromDomainXML(xmlDesc); err != nil {
-				warnings = append(warnings, fmt.Sprintf("%s: parse vnc password: %v", name, err))
-			} else {
-				vncPassword = pwd
-			}
-			cpuXML = extractCPUXML(xmlDesc)
-			if parsedCPUs, parsedMemMB, err := definedResourcesFromDomainXML(xmlDesc); err != nil {
-				warnings = append(warnings, fmt.Sprintf("%s: defined resources: %v", name, err))
-			} else {
-				info.DefinedCPUS = parsedCPUs
-				info.DefinedRam = parsedMemMB
-			}
-		}
 
-		diskInfoPath := ""
-		diskSizeGB := int32(0)
-		var diskInfo *DiskInfo
-		if di, err := GetPrimaryDiskInfo(&dom); err != nil {
-			warnings = append(warnings, fmt.Sprintf("%s: get disk info: %v", name, err))
-			logger.Error("failed to get diskInfo err: " + err.Error())
-		} else if di != nil {
-			diskInfo = di
-			diskInfoPath = diskInfo.Path
-			diskSizeGB = int32(diskInfo.SizeGB)
-		}
+			var (
+				totalMemMB int32
+				usedMemMB  int32
+				cpuPct     int32
+				vcpuCount  int32
+			)
 
-		ips, _ := ipsForDomain(&dom)
+			if stateKnown && state == libvirt.DOMAIN_RUNNING {
+				if totalKiB, usedKiB, err := getMemStats(&dom); err == nil {
+					totalMemMB = int32(totalKiB / 1024)
+					usedMemMB = int32(usedKiB / 1024)
+				}
+				if pct, vcpus, err := cpuPercentOver(&dom, 500*time.Millisecond); err == nil {
+					cpuPct = int32(pct + 0.5)
+					vcpuCount = int32(vcpus)
+				}
+			}
 
-		info.NovncPort = strconv.Itoa(port)
-		info.CpuCount = vcpuCount
-		info.MemoryMB = totalMemMB
-		info.CurrentCpuUsage = cpuPct
-		info.CurrentMemoryUsageMB = usedMemMB
-		info.DiskSizeGB = diskSizeGB
-		info.DiskPath = diskInfoPath
-		info.Ip = ips
-		info.Network = networkName
-		info.VNCPassword = vncPassword
-		info.CPUXML = cpuXML
-		info.SpritePort = strconv.Itoa(spicePort)
-		if diskInfo != nil {
-			info.AllocatedGb = int32(diskInfo.AllocatedGB)
-		} else {
-			info.AllocatedGb = 0
-		}
+			xmlDesc := ""
+			if xml, err := dom.GetXMLDesc(libvirt.DOMAIN_XML_SECURE); err != nil {
+				warns = append(warns, fmt.Sprintf("%s: xml: %v", name, err))
+			} else {
+				xmlDesc = xml
+			}
 
-		vms = append(vms, info)
-		dom.Free()
+			port := 0
+			spicePort := 0
+			networkName := ""
+			vncPassword := ""
+			cpuXML := ""
+			if xmlDesc != "" {
+				if p, err := vncPortFromDomainXML(xmlDesc); err != nil {
+					warns = append(warns, fmt.Sprintf("%s: parse vnc port: %v", name, err))
+				} else {
+					port = p
+				}
+				if spice, err := spicePortFromDomainXML(xmlDesc); err != nil {
+					warns = append(warns, fmt.Sprintf("%s: parse spice port: %v", name, err))
+				} else {
+					spicePort = spice
+				}
+				if netName, err := networkFromDomainXML(xmlDesc); err != nil {
+					warns = append(warns, fmt.Sprintf("%s: parse network: %v", name, err))
+				} else {
+					networkName = netName
+				}
+				if pwd, err := vncPasswordFromDomainXML(xmlDesc); err != nil {
+					warns = append(warns, fmt.Sprintf("%s: parse vnc password: %v", name, err))
+				} else {
+					vncPassword = pwd
+				}
+				cpuXML = extractCPUXML(xmlDesc)
+				if parsedCPUs, parsedMemMB, err := definedResourcesFromDomainXML(xmlDesc); err != nil {
+					warns = append(warns, fmt.Sprintf("%s: defined resources: %v", name, err))
+				} else {
+					info.DefinedCPUS = parsedCPUs
+					info.DefinedRam = parsedMemMB
+				}
+			}
+
+			diskInfoPath := ""
+			diskSizeGB := int32(0)
+			var diskInfo *DiskInfo
+			if di, err := GetPrimaryDiskInfo(&dom); err != nil {
+				warns = append(warns, fmt.Sprintf("%s: get disk info: %v", name, err))
+				logger.Error("failed to get diskInfo err: " + err.Error())
+			} else if di != nil {
+				diskInfo = di
+				diskInfoPath = diskInfo.Path
+				diskSizeGB = int32(diskInfo.SizeGB)
+			}
+
+			ips, _ := ipsForDomain(&dom)
+
+			info.NovncPort = strconv.Itoa(port)
+			info.CpuCount = vcpuCount
+			info.MemoryMB = totalMemMB
+			info.CurrentCpuUsage = cpuPct
+			info.CurrentMemoryUsageMB = usedMemMB
+			info.DiskSizeGB = diskSizeGB
+			info.DiskPath = diskInfoPath
+			info.Ip = ips
+			info.Network = networkName
+			info.VNCPassword = vncPassword
+			info.CPUXML = cpuXML
+			info.SpritePort = strconv.Itoa(spicePort)
+			if diskInfo != nil {
+				info.AllocatedGb = int32(diskInfo.AllocatedGB)
+			} else {
+				info.AllocatedGb = 0
+			}
+
+			resCh <- vmResult{idx: idx, vm: info, warnings: warns}
+			dom.Free()
+		}(idx, dom)
 	}
-	return vms, warnings, nil
+
+	wg.Wait()
+	close(resCh)
+
+	allWarnings := make([]string, 0)
+	vmByIdx := make([]*grpcVirsh.Vm, len(doms))
+	for res := range resCh {
+		allWarnings = append(allWarnings, res.warnings...)
+		if res.vm != nil {
+			vmByIdx[res.idx] = res.vm
+		}
+	}
+
+	vms := make([]*grpcVirsh.Vm, 0, len(doms))
+	for _, vm := range vmByIdx {
+		if vm != nil {
+			vms = append(vms, vm)
+		}
+	}
+
+	return vms, allWarnings, nil
 }
 
 func EditVm(name string, newCPU, newMemMiB int, newDiskSizeGB ...int) error {
