@@ -161,12 +161,25 @@ func setupFrontEnd(w http.ResponseWriter, r *http.Request) {
 		AccessListID:          "0",
 		CertificateID:         0,
 		Meta:                  make(map[string]interface{}),
-		AdvancedConfig:        "",
 		Http2Support:          false,
 		HstsEnabled:           false,
 		HstsSubdomains:        false,
 		SslForced:             false,
-		Enabled:               false,
+		Enabled:               true,
+		AdvancedConfig: `
+# --- TIMEOUTS ALTOS (NA PRÁTICA, QUASE ILIMITADOS) ---
+proxy_connect_timeout 36000s;
+proxy_send_timeout 36000s;
+proxy_read_timeout 36000s;
+send_timeout 36000s;
+
+# --- SEM LIMITES DE TAMANHO ---
+client_max_body_size 0;
+
+# --- SEM BUFFERING (STREAMS / LOGS / LONG POLLING) ---
+proxy_buffering off;
+proxy_request_buffering off;
+`,
 	}
 
 	if payload.CertificateId > 0 {

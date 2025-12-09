@@ -43,7 +43,9 @@ func (s *ExtraService) PerformUpdate(ctx context.Context, req *extraGrpc.UpdateR
 
 func SendWebsocketMessage(message, extra string, msgType extraGrpc.WebSocketsMessageType) error {
 	if env512.Conn == nil {
-		return fmt.Errorf("gRPC connection not set")
+		err := fmt.Errorf("gRPC connection not set")
+		logger.Error("SendWebsocketMessage: %v", err)
+		return err
 	}
 	h := extraGrpc.NewExtraServiceClient(env512.Conn)
 	_, err := h.SendWebsocketMessage(context.Background(), &extraGrpc.WebsocketMessage{Message: message, Type: msgType, Extra: extra})
@@ -55,7 +57,9 @@ func SendWebsocketMessage(message, extra string, msgType extraGrpc.WebSocketsMes
 
 func SendNotifications(title, body, relURL string, critical bool) error {
 	if env512.Conn == nil {
-		return fmt.Errorf("gRPC connection not set")
+		err := fmt.Errorf("gRPC connection not set")
+		logger.Error("SendNotifications: %v", err)
+		return err
 	}
 	msg := &extraGrpc.Notification{
 		Title:    title,
@@ -130,7 +134,9 @@ func ExecWithOutToSocketCMD(ctx context.Context, msgType extraGrpc.WebSocketsMes
 				continue
 			}
 			logger.Info(line)
-			_ = SendWebsocketMessage(line, "", msgType)
+			if sendErr := SendWebsocketMessage(line, "", msgType); sendErr != nil {
+				appendErr(sendErr)
+			}
 			if isErr {
 				appendErr(fmt.Errorf("stderr: %s", line))
 			}
