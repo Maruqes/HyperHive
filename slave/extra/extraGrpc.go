@@ -3,12 +3,11 @@ package extra
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
-	"io"
 	"os/exec"
 	"slave/env512"
 	"strings"
-	"sync"
 
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
 	"github.com/Maruqes/512SvMan/logger"
@@ -75,112 +74,65 @@ func SendNotifications(title, body, relURL string, critical bool) error {
 	return err
 }
 
-func ExecWithOutToSocketCMD(ctx context.Context, msgType extraGrpc.WebSocketsMessageType, cmd *exec.Cmd) []error {
-	var (
-		errors   []error
-		errorsMu sync.Mutex
-		wg       sync.WaitGroup
-	)
-
-	//helper function
-	appendErr := func(err error) {
-		if err == nil {
-			return
-		}
-		errorsMu.Lock()
-		errors = append(errors, err)
-		errorsMu.Unlock()
-	}
-
-	//std out
+// RunCmdLogged streams stdout/stderr to the logger and returns an error when the
+// command fails or the context is canceled. Use exec.CommandContext to honor ctx.
+func RunCmdLogged(ctx context.Context, cmd *exec.Cmd) error {
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return []error{err}
+		return err
 	}
-	//std err
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return []error{err}
+		return err
 	}
 
-	//start command
 	if err := cmd.Start(); err != nil {
-		return []error{err}
+		return err
 	}
 
-	splitCRLF := func(data []byte, atEOF bool) (advance int, token []byte, splitErr error) {
-		for i := 0; i < len(data); i++ {
-			if data[i] == '\n' || data[i] == '\r' {
-				advance = i + 1
-				if data[i] == '\r' && i+1 < len(data) && data[i+1] == '\n' {
-					advance++
-				}
-				return advance, data[:i], nil
-			}
-		}
-		if atEOF && len(data) > 0 {
-			return len(data), data, nil
-		}
-		return 0, nil, nil
-	}
-
-	stream := func(r io.Reader, isErr bool) {
-		defer wg.Done()
-		scanner := bufio.NewScanner(r)
-		scanner.Split(splitCRLF)
-		for scanner.Scan() {
-			line := strings.TrimRight(scanner.Text(), "\r")
-			if len(line) == 0 {
+	scan := func(r *bufio.Scanner, prefix string, collectErr *error) {
+		for r.Scan() {
+			line := strings.TrimRight(r.Text(), "\r")
+			if line == "" {
 				continue
 			}
-			logger.Info(line)
-			if sendErr := SendWebsocketMessage(line, "", msgType); sendErr != nil {
-				appendErr(sendErr)
-			}
-			if isErr {
-				appendErr(fmt.Errorf("stderr: %s", line))
+			if prefix != "" {
+				logger.Info("%s%s", prefix, line)
+			} else {
+				logger.Info(line)
 			}
 		}
-		if scanErr := scanner.Err(); scanErr != nil {
-			wrappedErr := fmt.Errorf("stream read error: %w", scanErr)
-			logger.Error("%v", wrappedErr)
-			appendErr(wrappedErr)
+		if scanErr := r.Err(); scanErr != nil {
+			logger.Error("cmd stream error: %v", scanErr)
+			*collectErr = errors.Join(*collectErr, scanErr)
 		}
 	}
 
-	wg.Add(2)
-	go stream(stdout, false)
-	go stream(stderr, true)
+	errAgg := error(nil)
+	stdoutScanner := bufio.NewScanner(stdout)
+	stderrScanner := bufio.NewScanner(stderr)
 
-	waitDone := make(chan struct{})
+	done := make(chan struct{})
 	go func() {
-		select {
-		case <-ctx.Done():
-			if cmd.Process != nil {
-				if killErr := cmd.Process.Kill(); killErr != nil {
-					appendErr(fmt.Errorf("failed to kill process: %w", killErr))
-				}
-			}
-		case <-waitDone:
-		}
+		scan(stdoutScanner, "", &errAgg)
+		done <- struct{}{}
+	}()
+	go func() {
+		scan(stderrScanner, "stderr: ", &errAgg)
+		done <- struct{}{}
 	}()
 
+	for i := 0; i < 2; i++ {
+		<-done
+	}
+
 	waitErr := cmd.Wait()
-	close(waitDone)
-
-	wg.Wait()
-
-	if err := ctx.Err(); err != nil {
-		appendErr(err)
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		errAgg = errors.Join(errAgg, ctxErr)
 	}
 	if waitErr != nil {
-		appendErr(waitErr)
+		errAgg = errors.Join(errAgg, waitErr)
 	}
 
-	return errors
-}
-
-func ExecWithOutToSocket(ctx context.Context, msgType extraGrpc.WebSocketsMessageType, command string, args ...string) []error {
-	cmd := exec.CommandContext(ctx, command, args...)
-	return ExecWithOutToSocketCMD(ctx, msgType, cmd)
+	return errAgg
 }

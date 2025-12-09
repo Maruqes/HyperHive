@@ -103,7 +103,7 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 		env = append(env, fmt.Sprintf("LIBVIRT_SSH_OPTS=%s", strings.Join(sshOpts, " ")))
 	}
 
-	cmd := exec.Command("virsh", baseArgs...)
+	cmd := exec.CommandContext(ctx, "virsh", baseArgs...)
 	cmd.Env = env
 	logger.Info("Executing: " + cmd.String())
 
@@ -151,18 +151,12 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 			}
 		}
 	}()
-	errors := extra.ExecWithOutToSocketCMD(ctx, extraGrpc.WebSocketsMessageType_MigrateVm, cmd)
+	errRun := extra.RunCmdLogged(ctx, cmd)
 	close(doneCmd)
-	if errors != nil {
-		//convert []error to a single error
-		var errMsgs []string
-		for _, e := range errors {
-			errMsgs = append(errMsgs, e.Error())
-		}
-		// send failure notification
-		extra.SendNotifications("VM migration failed", fmt.Sprintf("Migration of %s to %s failed: %s", name, destURI, strings.Join(errMsgs, "; ")), "/", true)
-
-		return fmt.Errorf("virsh migrate: %s", strings.Join(errMsgs, "; "))
+	if errRun != nil {
+		errMsg := errRun.Error()
+		extra.SendNotifications("VM migration failed", fmt.Sprintf("Migration of %s to %s failed: %s", name, destURI, errMsg), "/", true)
+		return fmt.Errorf("virsh migrate: %s", errMsg)
 	}
 
 	// success
