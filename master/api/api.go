@@ -63,6 +63,12 @@ func (r *statusRecorder) WriteHeader(code int) {
 // latencyLogger measures and logs how long each request takes without touching handlers.
 func latencyLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip WebSocket upgrade path to avoid interfering with hijacked connections.
+		if r.URL.Path == "/ws" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		start := time.Now()
 		next.ServeHTTP(rec, r)
