@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
@@ -151,16 +152,30 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 		UseEnumNumbers:  true,
 	}
 
-	payload := make([]map[string]interface{}, 0, len(res))
 	beforeLoop := time.Now()
-	for _, vm := range res {
+	var wg sync.WaitGroup
+	var firstErr error
+	var firstErrMu sync.Mutex
+	payload := make([]map[string]interface{}, len(res))
+
+	setFirstErr := func(err error) {
+		if err == nil {
+			return
+		}
+		firstErrMu.Lock()
+		if firstErr == nil {
+			firstErr = err
+		}
+		firstErrMu.Unlock()
+	}
+
+	processVM := func(idx int, vm services.VmType) {
 		loopStart := time.Now()
 
-		//autostart
 		autoStart, err := db.DoesAutoStartExist(vm.Name)
 		if err != nil {
 			logger.Infof("getAllVms: autoStart lookup fail for %s after %s: %v", vm.Name, time.Since(loopStart).Round(time.Millisecond), err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			setFirstErr(err)
 			return
 		}
 
@@ -173,26 +188,44 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 			raw, err := opts.Marshal(vm.Vm)
 			if err != nil {
 				logger.Infof("getAllVms: marshal fail for %s after %s: %v", vm.Name, time.Since(loopStart).Round(time.Millisecond), err)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				setFirstErr(err)
 				return
 			}
 
 			if err := json.Unmarshal(raw, &vmMap); err != nil {
 				logger.Infof("getAllVms: unmarshal fail for %s after %s: %v", vm.Name, time.Since(loopStart).Round(time.Millisecond), err)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				setFirstErr(err)
 				return
 			}
 		}
 		vmMap["isLive"] = vm.IsLive
 		vmMap["autoStart"] = autoStart
 		vmMap["novnclink"] = env512.MAIN_LINK + fmt.Sprintf("/novnc/vnc.html?path=/novnc/ws%%3Fvm%%3D%v", vmMap["name"])
-		nfsID, err := virshServices.GetNfsByVM(vmMap["name"].(string))
-		if err == nil {
-			vmMap["nfs_id"] = nfsID
+		if vm.Vm != nil {
+			if nfsID, err := virshServices.GetNfsByVM(vm.Vm); err == nil {
+				vmMap["nfs_id"] = nfsID
+			}
 		}
 		logger.Infof("getAllVms: processed %s in %s", vm.Name, time.Since(loopStart).Round(time.Millisecond))
-		payload = append(payload, vmMap)
+
+		payload[idx] = vmMap
 	}
+
+	for i, vm := range res {
+		wg.Add(1)
+		go func(idx int, vm services.VmType) {
+			defer wg.Done()
+			processVM(idx, vm)
+		}(i, vm)
+	}
+
+	wg.Wait()
+
+	if firstErr != nil {
+		http.Error(w, firstErr.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	logger.Infof("getAllVms: loop done in %s", time.Since(beforeLoop).Round(time.Millisecond))
 
 	data, err := json.Marshal(payload)

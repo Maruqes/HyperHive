@@ -685,18 +685,14 @@ func (v *VirshService) GetAllVmsByOnNfsShare(nfsSharePathTarget string) ([]VmTyp
 	return vmsOnShare, nil
 }
 
-func (v *VirshService) GetNfsByVM(vmName string) (int, error) {
-	vm, err := v.GetVmByName(vmName)
-	if err != nil {
-		return 0, err
-	}
+func (v *VirshService) GetNfsByVM(vm *grpcVirsh.Vm) (int, error) {
 	if vm == nil {
-		return 0, fmt.Errorf("vm %s not found", vmName)
+		return 0, fmt.Errorf("vm not found problem in GetNfsByVM")
 	}
 
 	diskPath := strings.TrimSpace(vm.DiskPath)
 	if diskPath == "" {
-		return 0, fmt.Errorf("vm %s has no disk path", vmName)
+		return 0, fmt.Errorf("vm %s has no disk path", vm.Name)
 	}
 
 	shares, err := db.GetAllNFShares()
@@ -740,7 +736,7 @@ func (v *VirshService) GetNfsByVM(vmName string) (int, error) {
 	}
 
 	if !found {
-		return 0, fmt.Errorf("failed to resolve NFS share for VM %s", vmName)
+		return 0, fmt.Errorf("failed to resolve NFS share for VM %s", vm.Name)
 	}
 
 	return matchedID, nil
@@ -1021,7 +1017,7 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 	if vm.State != grpcVirsh.VmState_SHUTOFF {
 		return fmt.Errorf("vm %s needs to be shutdown", vmName)
 	}
-	vmNfs, err := v.GetNfsByVM(vmName)
+	vmNfs, err := v.GetNfsByVM(vm)
 	if err != nil {
 		return err
 	}
