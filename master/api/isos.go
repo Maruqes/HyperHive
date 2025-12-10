@@ -60,8 +60,7 @@ func downloadIso(w http.ResponseWriter, r *http.Request) {
 
 	//download iso
 	nfsService := services.NFSService{}
-	ctx := keepAliveCtx(r)
-	_, err = nfsService.DownloadISO(ctx, req.URL, req.ISOName, *nfsShare)
+	_, err = nfsService.DownloadISO(r.Context(), req.URL, req.ISOName, *nfsShare)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

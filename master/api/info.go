@@ -708,9 +708,7 @@ func stressCPU(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := keepAliveCtx(r)
-
-	_, err := infoService.StressCPU(ctx, machineName, &infoGrpc.StressCPUParams{
+	_, err := infoService.StressCPU(r.Context(), machineName, &infoGrpc.StressCPUParams{
 		NumVCPU:    params.NumVCPU,
 		NumSeconds: params.NumSeconds,
 	})
@@ -741,9 +739,7 @@ func testRamMEM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := keepAliveCtx(r)
-
-	result, err := infoService.TestRamMEM(ctx, machineName, &infoGrpc.TestRamMEMParams{
+	result, err := infoService.TestRamMEM(r.Context(), machineName, &infoGrpc.TestRamMEMParams{
 		NumGigs:     params.NumGigs,
 		NumOfPasses: params.NumOfPasses,
 	})

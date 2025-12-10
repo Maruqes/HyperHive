@@ -57,10 +57,7 @@ func goAccessHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ensure GoAccess is running
-	ctx := keepAliveCtx(r)
-
-	if err := ensureGoAccessRunning(ctx, workDir); err != nil {
+	if err := ensureGoAccessRunning(r.Context(), workDir); err != nil {
 		http.Error(w, fmt.Sprintf("failed to start GoAccess: %v", err), http.StatusInternalServerError)
 		return
 	}
