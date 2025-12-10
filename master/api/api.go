@@ -16,6 +16,7 @@ import (
 
 	"github.com/Maruqes/512SvMan/logger"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/gorilla/websocket"
 )
 
@@ -196,6 +197,12 @@ func StartApi() {
 	npmapi.SetBaseURL(baseURL)
 
 	r := chi.NewRouter()
+
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)                 // apanha panics
+	r.Use(middleware.Timeout(30 * time.Second)) // mata handlers lentos
 
 	// Strip a leading "/api" from any incoming request path
 	r.Use(func(next http.Handler) http.Handler {
