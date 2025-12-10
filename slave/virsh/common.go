@@ -584,7 +584,8 @@ func domainStateToString(state libvirt.DomainState) grpcVirsh.VmState {
 }
 
 func getMemStats(dom *libvirt.Domain) (totalKiB, usedKiB uint64, err error) {
-	stats, err := dom.MemoryStats(0, 0)
+	// Request all known stats; passing 0 yields no data.
+	stats, err := dom.MemoryStats(uint32(libvirt.DOMAIN_MEMORY_STAT_NR), 0)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -604,26 +605,38 @@ func getMemStats(dom *libvirt.Domain) (totalKiB, usedKiB uint64, err error) {
 		}
 	}
 
-	if available > 0 && unused > 0 && available >= unused {
-		return available, available - unused, nil
-	}
-
-	if actual > 0 && unused > 0 && actual >= unused {
-		return actual, actual - unused, nil
-	}
-
-	if rss > 0 {
-		if actual > 0 {
-			return actual, rss, nil
+	switch {
+	case available > 0 && unused > 0 && available >= unused:
+		totalKiB = available
+		usedKiB = available - unused
+	case actual > 0 && unused > 0 && actual >= unused:
+		totalKiB = actual
+		usedKiB = actual - unused
+	case rss > 0:
+		totalKiB = actual
+		if totalKiB == 0 {
+			totalKiB = available
 		}
-		return rss, rss, nil
+		usedKiB = rss
+	case actual > 0:
+		totalKiB = actual
+		usedKiB = actual
 	}
 
-	info, err := dom.GetInfo()
-	if err != nil {
-		return 0, 0, err
+	if totalKiB == 0 || usedKiB == 0 {
+		info, err := dom.GetInfo()
+		if err != nil {
+			return 0, 0, err
+		}
+		if totalKiB == 0 {
+			totalKiB = info.Memory
+		}
+		if usedKiB == 0 {
+			usedKiB = info.Memory
+		}
 	}
-	return info.Memory, 0, nil
+
+	return totalKiB, usedKiB, nil
 }
 
 func sampleCPUTime(dom *libvirt.Domain) (ns uint64, vcpus int, err error) {
