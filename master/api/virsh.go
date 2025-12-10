@@ -1189,6 +1189,7 @@ func cloneVM(w http.ResponseWriter, r *http.Request) {
 }
 
 func websocketusInfoVms() {
+	start := time.Now()
 	virshService := services.VirshService{}
 	vm, warn, err := virshService.GetAllVms(context.Background())
 	if err != nil {
@@ -1206,6 +1207,7 @@ func websocketusInfoVms() {
 		return
 	}
 	extra.SendWebsocketMessage(proto.WebSocketsMessageType_VMInfo, string(data), "")
+	logger.Infof("websocketusInfoVms completed in %s", time.Since(start).Round(time.Millisecond))
 }
 
 func setupVirshAPI(r chi.Router) chi.Router {
