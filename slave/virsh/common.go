@@ -950,7 +950,9 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 	var totalMemMB int32
 	// Only do live sampling when actually running
 	if state == libvirt.DOMAIN_RUNNING {
-		if totalKiB, usedKiB, err := getMemStats(dom); err == nil {
+		if totalKiB, usedKiB, err := getMemStats(dom); err != nil {
+			logger.Error(fmt.Sprintf("%s: getMemStats: %v", name, err))
+		} else {
 			totalMemMB = int32(totalKiB / 1024)
 			usedMemMB = int32(usedKiB / 1024)
 		}
@@ -1074,7 +1076,9 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 			)
 
 			if stateKnown && state == libvirt.DOMAIN_RUNNING {
-				if totalKiB, usedKiB, err := getMemStats(&dom); err == nil {
+				if totalKiB, usedKiB, err := getMemStats(&dom); err != nil {
+					logger.Error(fmt.Sprintf("%s: getMemStats: %v", name, err))
+				} else {
 					totalMemMB = int32(totalKiB / 1024)
 					usedMemMB = int32(usedKiB / 1024)
 				}
