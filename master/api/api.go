@@ -65,8 +65,8 @@ func (r *statusRecorder) WriteHeader(code int) {
 // latencyLogger measures and logs how long each request takes without touching handlers.
 func latencyLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip WebSocket upgrade path to avoid interfering with hijacked connections.
-		if r.URL.Path == "/ws" {
+		// Skip WebSocket upgrades to avoid wrapping hijacked writers.
+		if isWebSocketRequest(r) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -86,6 +86,27 @@ func latencyLogger(next http.Handler) http.Handler {
 
 		logger.Infof("%s %s -> %d in %s", r.Method, route, rec.status, dur.Round(time.Millisecond))
 	})
+}
+
+func isWebSocketRequest(r *http.Request) bool {
+	connectionHeader := strings.ToLower(r.Header.Get("Connection"))
+	upgradeHeader := strings.ToLower(r.Header.Get("Upgrade"))
+
+	return strings.Contains(connectionHeader, "upgrade") && upgradeHeader == "websocket"
+}
+
+func websocketSafeTimeout(timeout time.Duration) func(http.Handler) http.Handler {
+	base := middleware.Timeout(timeout)
+	return func(next http.Handler) http.Handler {
+		wrapped := base(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if isWebSocketRequest(r) {
+				next.ServeHTTP(w, r)
+				return
+			}
+			wrapped.ServeHTTP(w, r)
+		})
+	}
 }
 
 var baseURL string
@@ -201,8 +222,8 @@ func StartApi() {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)                 // apanha panics
-	r.Use(middleware.Timeout(30 * time.Second)) // mata handlers lentos
+	r.Use(middleware.Recoverer)                   // apanha panics
+	r.Use(websocketSafeTimeout(30 * time.Second)) // mata handlers lentos
 
 	// Strip a leading "/api" from any incoming request path
 	r.Use(func(next http.Handler) http.Handler {
