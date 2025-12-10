@@ -305,6 +305,11 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (xmlPath string, err error
 	<input type='tablet' bus='usb'/>
 	<input type='mouse' bus='ps2'/>`
 
+	memballoonXML := `
+	<memballoon model='virtio'>
+	  <stats period='1'/>
+	</memballoon>`
+
 	domainXML := fmt.Sprintf(`
 <domain type='kvm'>
   <seclabel type='none'/>
@@ -328,6 +333,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (xmlPath string, err error
 	  <source file='%s'/>
 	  <target dev='vda' bus='virtio'/>
 	</disk>%s%s%s%s%s%s%s%s%s
+	%s
 	<sound model='ich9'/>
 	%s
   </devices>
@@ -336,7 +342,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (xmlPath string, err error
 		cputuneXML,
 		machineAttr,
 		bootDev,
-		cpuXML, driverType, disk, cdromXML, virtioCDROMXML, networkXML, virtioSerialControllerXML, guestAgentChannelXML, spiceChannelXML, inputDevicesXML, vncGraphicsXML, spiceGraphicsXML, videoXML,
+		cpuXML, driverType, disk, cdromXML, virtioCDROMXML, networkXML, virtioSerialControllerXML, guestAgentChannelXML, spiceChannelXML, inputDevicesXML, vncGraphicsXML, spiceGraphicsXML, memballoonXML, videoXML,
 	)
 
 	xmlPath, err = WriteDomainXMLToDisk(opts.Name, domainXML, disk)
