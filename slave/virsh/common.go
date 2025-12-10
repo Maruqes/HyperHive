@@ -583,60 +583,46 @@ func domainStateToString(state libvirt.DomainState) grpcVirsh.VmState {
 	}
 }
 
-func getMemStats(dom *libvirt.Domain) (totalKiB, usedKiB uint64, err error) {
-	// Request all known stats; passing 0 yields no data.
-	stats, err := dom.MemoryStats(uint32(libvirt.DOMAIN_MEMORY_STAT_NR), 0)
+func getMemStats(dom *libvirt.Domain) (totalKiB, usedKiB, rssKiB uint64, err error) {
+	const maxStats = 16
+	stats, err := dom.MemoryStats(maxStats, 0)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, fmt.Errorf("MemoryStats: %w", err)
 	}
 
-	var actual, unused, available, rss uint64
-
-	for _, st := range stats {
-		switch st.Tag {
+	var actualBalloon, rss, unused uint64
+	for _, s := range stats {
+		switch s.Tag {
 		case int32(libvirt.DOMAIN_MEMORY_STAT_ACTUAL_BALLOON):
-			actual = st.Val
-		case int32(libvirt.DOMAIN_MEMORY_STAT_UNUSED):
-			unused = st.Val
-		case int32(libvirt.DOMAIN_MEMORY_STAT_AVAILABLE):
-			available = st.Val
+			actualBalloon = s.Val
 		case int32(libvirt.DOMAIN_MEMORY_STAT_RSS):
-			rss = st.Val
+			rss = s.Val
+		case int32(libvirt.DOMAIN_MEMORY_STAT_UNUSED):
+			unused = s.Val
 		}
 	}
 
+	if actualBalloon == 0 {
+		if info, err2 := dom.GetInfo(); err2 == nil {
+			actualBalloon = uint64(info.Memory)
+		}
+	}
+
+	var used uint64
 	switch {
-	case available > 0 && unused > 0 && available >= unused:
-		totalKiB = available
-		usedKiB = available - unused
-	case actual > 0 && unused > 0 && actual >= unused:
-		totalKiB = actual
-		usedKiB = actual - unused
+	case unused > 0 && unused <= actualBalloon:
+		used = actualBalloon - unused
 	case rss > 0:
-		totalKiB = actual
-		if totalKiB == 0 {
-			totalKiB = available
-		}
-		usedKiB = rss
-	case actual > 0:
-		totalKiB = actual
-		usedKiB = actual
+		used = rss
+	default:
+		used = actualBalloon
 	}
 
-	if totalKiB == 0 || usedKiB == 0 {
-		info, err := dom.GetInfo()
-		if err != nil {
-			return 0, 0, err
-		}
-		if totalKiB == 0 {
-			totalKiB = info.Memory
-		}
-		if usedKiB == 0 {
-			usedKiB = info.Memory
-		}
+	if rss == 0 {
+		rss = used
 	}
 
-	return totalKiB, usedKiB, nil
+	return actualBalloon, used, rss, nil
 }
 
 func sampleCPUTime(dom *libvirt.Domain) (ns uint64, vcpus int, err error) {
@@ -961,13 +947,13 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 	var cpuPct int32
 	var vcpuCount int32
 	var totalMemMB int32
+	var realHostMemUsageMB int32
 	// Only do live sampling when actually running
 	if state == libvirt.DOMAIN_RUNNING {
-		if totalKiB, usedKiB, err := getMemStats(dom); err != nil {
-			logger.Error(fmt.Sprintf("%s: getMemStats: %v", name, err))
-		} else {
+		if totalKiB, usedKiB, rssKiB, err := getMemStats(dom); err == nil {
 			totalMemMB = int32(totalKiB / 1024)
 			usedMemMB = int32(usedKiB / 1024)
+			realHostMemUsageMB = int32(rssKiB / 1024)
 		}
 		if pct, vcpus, err := cpuPercentOver(dom, 500*time.Millisecond); err == nil {
 			cpuPct = int32(pct + 0.5)
@@ -1021,6 +1007,7 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		DefinedRam:           definedMemMB,
 		SpritePort:           strconv.Itoa(spicePort),
 		AllocatedGb:          int32(diskInfo.AllocatedGB),
+		RealHostMemUsage:     realHostMemUsageMB,
 	}
 	return info, nil
 }
@@ -1082,18 +1069,18 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 			}
 
 			var (
-				totalMemMB int32
-				usedMemMB  int32
-				cpuPct     int32
-				vcpuCount  int32
+				totalMemMB         int32
+				usedMemMB          int32
+				cpuPct             int32
+				vcpuCount          int32
+				realHostMemUsageMB int32
 			)
 
 			if stateKnown && state == libvirt.DOMAIN_RUNNING {
-				if totalKiB, usedKiB, err := getMemStats(&dom); err != nil {
-					logger.Error(fmt.Sprintf("%s: getMemStats: %v", name, err))
-				} else {
+				if totalKiB, usedKiB, rssKiB, err := getMemStats(&dom); err == nil {
 					totalMemMB = int32(totalKiB / 1024)
 					usedMemMB = int32(usedKiB / 1024)
+					realHostMemUsageMB = int32(rssKiB / 1024)
 				}
 				if pct, vcpus, err := cpuPercentOver(&dom, 500*time.Millisecond); err == nil {
 					cpuPct = int32(pct + 0.5)
@@ -1162,6 +1149,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 			info.MemoryMB = totalMemMB
 			info.CurrentCpuUsage = cpuPct
 			info.CurrentMemoryUsageMB = usedMemMB
+			info.RealHostMemUsage = realHostMemUsageMB
 			info.DiskSizeGB = diskSizeGB
 			info.DiskPath = diskInfoPath
 			info.Ip = ips
