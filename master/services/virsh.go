@@ -352,7 +352,17 @@ func (v *VirshService) MigrateVm(ctx context.Context, originMachine string, dest
 		return fmt.Errorf("VM %s is not running on origin machine %s", vmName, originMachine)
 	}
 
-	return virsh.MigrateVm(ctx, originConn.Connection, vmName, destConn.Addr, live, timeoutSeconds)
+	ctxTimeout, cancel := context.WithTimeout(ctx, time.Hour)
+	defer cancel()
+
+	go func() {
+		err := virsh.MigrateVm(ctxTimeout, originConn.Connection, vmName, destConn.Addr, live, timeoutSeconds)
+		if err != nil {
+			logger.Errorf("%v", err)
+		}
+	}()
+
+	return nil
 }
 
 func (v *VirshService) UpdateCpuXml(ctx context.Context, machine_name string, vmName string, cpuXml string) error {
