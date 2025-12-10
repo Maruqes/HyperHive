@@ -238,7 +238,9 @@ func containerLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	_, _ = w.Write([]byte(`{"status":"streaming","note":"logs will arrive via websocket"}`))
 }
 
 func containerKill(w http.ResponseWriter, r *http.Request) {

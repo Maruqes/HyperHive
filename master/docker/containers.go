@@ -3,11 +3,15 @@ package docker
 import (
 	"512SvMan/extra"
 	"context"
+	"errors"
+	"io"
 
 	dockerGrpc "github.com/Maruqes/512SvMan/api/proto/docker"
 	proto "github.com/Maruqes/512SvMan/api/proto/extra"
 	"github.com/Maruqes/512SvMan/logger"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func ContainerList(conn *grpc.ClientConn) (*dockerGrpc.ListOfContainers, error) {
@@ -86,20 +90,30 @@ func ContainerKill(conn *grpc.ClientConn, req *dockerGrpc.KillContainer) error {
 }
 
 func ContainerLogs(ctx context.Context, conn *grpc.ClientConn, req *dockerGrpc.ContainerLogsRequest) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	client := dockerGrpc.NewDockerServiceClient(conn)
-	logs, err := client.ContainerLogs(context.Background(), req)
+	logs, err := client.ContainerLogs(ctx, req)
 	if err != nil {
 		return err
 	}
 
-	go func() {
-		<-ctx.Done()
-		logger.Info("finished sending logs")
-	}()
 	extracontainerid := req.ContainerID
 	for {
 		msg, err := logs.Recv()
 		if err != nil {
+			// Treat cancellations/timeouts as a clean shutdown instead of an error
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return nil
+			}
+			if st, ok := status.FromError(err); ok && (st.Code() == codes.Canceled || st.Code() == codes.DeadlineExceeded) {
+				return nil
+			}
 			return err
 		}
 		logger.Info(string(msg.Data))

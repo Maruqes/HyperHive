@@ -5,17 +5,22 @@ import (
 	"512SvMan/docker"
 	"512SvMan/protocol"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	dockerGrpc "github.com/Maruqes/512SvMan/api/proto/docker"
+	"github.com/Maruqes/512SvMan/logger"
 	"github.com/vishvananda/netlink"
 )
 
 type DockerService struct{}
+
+const containerLogsTimeout = 10 * time.Minute
 
 func (s *DockerService) ImageList(machineName string) (*dockerGrpc.ListOfImages, error) {
 	machine := protocol.GetConnectionByMachineName(machineName)
@@ -157,13 +162,30 @@ func (s *DockerService) ContainerLogs(ctx context.Context, machineName, containe
 		return fmt.Errorf("machine %s is not connected", machineName)
 	}
 
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+	}
+
 	req := &dockerGrpc.ContainerLogsRequest{
 		ContainerID: containerID,
 		Follow:      true,
 		Tail:        tail,
 	}
 
-	return docker.ContainerLogs(ctx, machine.Connection, req)
+	streamCtx, cancel := context.WithTimeout(context.Background(), containerLogsTimeout)
+
+	go func() {
+		defer cancel()
+		if err := docker.ContainerLogs(streamCtx, machine.Connection, req); err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+			logger.Errorf("docker container logs stream failed for %s on %s: %v", containerID, machineName, err)
+		}
+	}()
+
+	return nil
 }
 
 func (s *DockerService) ContainerUpdate(machineName, containerID string, memory int64, cpus float64, restart string) error {
