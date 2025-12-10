@@ -11,6 +11,7 @@ enum WebSocketsMessageType {
   ContainerLogs = 3;
   Logs = 4;
   DockerCompose = 5;
+  VMInfo = 6;
 }
 
 message WebsocketMessage {
@@ -20,19 +21,16 @@ message WebsocketMessage {
 }
 message Empty {}
 
-
 message UpdateInfo {
-	string name = 1;
-	string version = 2;
+  string name = 1;
+  string version = 2;
 }
 
-message AllUpdates {
-	repeated UpdateInfo updates = 1;
-}
+message AllUpdates { repeated UpdateInfo updates = 1; }
 
 message UpdateRequest {
-	string name = 1; //if empty means all
-	bool restartAfter = 2;
+  string name = 1; // if empty means all
+  bool restartAfter = 2;
 }
 
 message Notification {
@@ -42,14 +40,14 @@ message Notification {
   bool critical = 4;
 }
 
-//master service
+// master service
 service ExtraService {
-  //master
+  // master
   rpc SendWebsocketMessage(WebsocketMessage) returns (Empty);
 
-  //master
+  // master
   rpc CheckForUpdates(Empty) returns (AllUpdates);
   rpc PerformUpdate(UpdateRequest) returns (Empty);
 
-  rpc SendNotifications(Notification)returns (Empty);
+  rpc SendNotifications(Notification) returns (Empty);
 }

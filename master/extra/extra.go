@@ -3,6 +3,8 @@ package extra
 import (
 	"512SvMan/nots"
 	"512SvMan/websocket"
+	"time"
+
 	"context"
 
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
@@ -22,6 +24,22 @@ func PerformUpdate(conn *grpc.ClientConn, update *extraGrpc.UpdateRequest) (*ext
 
 type ExtraServiceServer struct {
 	extraGrpc.UnimplementedExtraServiceServer
+}
+
+var funcCall []func()
+
+func RegisterCallFunction(f func()) {
+	funcCall = append(funcCall, f)
+}
+func StartHeartbeat(interval time.Duration) {
+	go func() {
+		for {
+			time.Sleep(interval)
+			for _, f := range funcCall {
+				f()
+			}
+		}
+	}()
 }
 
 func SendWebsocketMessage(Type extraGrpc.WebSocketsMessageType, Message, Extra string) {

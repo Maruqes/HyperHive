@@ -4,6 +4,7 @@ import (
 	"512SvMan/api/npmapi"
 	"512SvMan/db"
 	"512SvMan/env512"
+	"512SvMan/extra"
 	"512SvMan/nots"
 	"512SvMan/npm"
 	"512SvMan/services"
@@ -315,6 +316,9 @@ func StartApi() {
 			logger.Errorf("pprof server error: %v", err)
 		}
 	}()
+
+	// Periodic heartbeat on websocket so clients can verify liveness.
+	extra.StartHeartbeat(5 * time.Second)
 
 	srv := &http.Server{
 		Addr:              ":9595",

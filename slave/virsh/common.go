@@ -1018,14 +1018,12 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 		return nil, nil, fmt.Errorf("list domains: %w", err)
 	}
 
-	const maxWorkers = 8
 	type vmResult struct {
 		idx      int
 		vm       *grpcVirsh.Vm
 		warnings []string
 	}
 
-	sem := make(chan struct{}, maxWorkers)
 	resCh := make(chan vmResult, len(doms))
 	var wg sync.WaitGroup
 
@@ -1035,8 +1033,6 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 		wg.Add(1)
 		go func(idx int, dom libvirt.Domain) {
 			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
 
 			var warns []string
 

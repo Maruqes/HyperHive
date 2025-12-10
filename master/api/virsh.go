@@ -3,8 +3,10 @@ package api
 import (
 	"512SvMan/db"
 	"512SvMan/env512"
+	"512SvMan/extra"
 	"512SvMan/protocol"
 	"512SvMan/services"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	proto "github.com/Maruqes/512SvMan/api/proto/extra"
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 	"github.com/Maruqes/512SvMan/logger"
 	"github.com/go-chi/chi/v5"
@@ -1185,25 +1188,28 @@ func cloneVM(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// LEMBRETE VM CREATION TEM DE CRIAR A PROPRIA PASTA, INDEPENDENTEMENTE SE É IMPORT LIVE NORMAL
-/*
-apis que criam vms
+func websocketusInfoVms() {
+	virshService := services.VirshService{}
+	vm, warn, err := virshService.GetAllVms(context.Background())
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
 
-/createvm
-/createlivevm
-
-devem conseguir criar live/normal
-/import
-/useBackup
-
-
-Temos 3 funcoes que criam vms
-	virsh.CreateVM           cria vm normal
-	virsh.CreateLiveVM       cria vm normal mas com live
-	virsh.ColdMigrateVm      cria vm a partir de um qcow existente
-*/
+	if len(warn) > 0 {
+		for _, w := range warn {
+			logger.Warn(w)
+		}
+	}
+	data, err := json.Marshal(vm)
+	if err != nil {
+		return
+	}
+	extra.SendWebsocketMessage(proto.WebSocketsMessageType_VMInfo, string(data), "")
+}
 
 func setupVirshAPI(r chi.Router) chi.Router {
+	extra.RegisterCallFunction(websocketusInfoVms)
 	return r.Route("/virsh", func(r chi.Router) {
 		r.Get("/getcpudisablefeatures", getCpuFeatures)
 		r.Get("/getallvms", getAllVms)
