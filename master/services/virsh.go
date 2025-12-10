@@ -352,7 +352,7 @@ func (v *VirshService) MigrateVm(ctx context.Context, originMachine string, dest
 		return fmt.Errorf("VM %s is not running on origin machine %s", vmName, originMachine)
 	}
 
-	ctxTimeout, cancel := context.WithTimeout(ctx, time.Hour)
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Hour)
 	defer cancel()
 
 	go func() {
