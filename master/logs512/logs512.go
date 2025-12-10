@@ -4,6 +4,7 @@ import (
 	"512SvMan/db"
 	"512SvMan/env512"
 	"512SvMan/extra"
+	"context"
 	"fmt"
 	"io"
 	"time"
@@ -54,5 +55,5 @@ func LoggerCallBack(urgency int, msg string, fields ...interface{}) {
 	extra.SendWebsocketMessage(proto.WebSocketsMessageType_Logs, finalMsg, fmt.Sprintf("%d", urgency))
 	msg = finalMsg
 	fields = nil
-	db.InsertLog(time.Now().Format(time.RFC3339), urgency, msg)
+	db.InsertLog(context.Background(),time.Now().Format(time.RFC3339), urgency, msg)
 }

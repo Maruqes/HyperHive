@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 )
@@ -13,7 +14,7 @@ type ISO struct {
 	Name        string
 }
 
-func CreateISOTable() error {
+func CreateISOTable(ctx context.Context) error {
 	query := `
 	CREATE TABLE IF NOT EXISTS isos (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -22,25 +23,25 @@ func CreateISOTable() error {
 		file_path TEXT NOT NULL
 	);
 	`
-	_, err := DB.Exec(query)
+	_, err := DB.ExecContext(ctx, query)
 	return err
 }
 
-func AddISO(machineName, filePath, name string) error {
+func AddISO(ctx context.Context, machineName, filePath, name string) error {
 	query := `
 	INSERT INTO isos (machine_name, file_path, name)
 	VALUES (?, ?, ?);
 	`
-	_, err := DB.Exec(query, machineName, filePath, name)
+	_, err := DB.ExecContext(ctx, query, machineName, filePath, name)
 	return err
 }
 
-func GetAllISOs() ([]ISO, error) {
+func GetAllISOs(ctx context.Context) ([]ISO, error) {
 	const query = `
 	SELECT id, machine_name, file_path, name
 	FROM isos;
 	`
-	rows, err := DB.Query(query)
+	rows, err := DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +57,7 @@ func GetAllISOs() ([]ISO, error) {
 	}
 	return isos, nil
 }
-func GetIsoByID(id int) (*ISO, error) {
+func GetIsoByID(ctx context.Context, id int) (*ISO, error) {
 	const query = `
 	SELECT id, machine_name, file_path, name
 	FROM isos
@@ -64,7 +65,7 @@ func GetIsoByID(id int) (*ISO, error) {
 	`
 
 	var iso ISO
-	err := DB.QueryRow(query, id).Scan(&iso.Id, &iso.MachineName, &iso.FilePath, &iso.Name)
+	err := DB.QueryRowContext(ctx, query, id).Scan(&iso.Id, &iso.MachineName, &iso.FilePath, &iso.Name)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sql.ErrNoRows
 	}
@@ -74,7 +75,7 @@ func GetIsoByID(id int) (*ISO, error) {
 	return &iso, nil
 }
 
-func GetIsoByName(name string) (*ISO, error) {
+func GetIsoByName(ctx context.Context, name string) (*ISO, error) {
 	const query = `
 	SELECT id, machine_name, file_path, name
 	FROM isos
@@ -82,7 +83,7 @@ func GetIsoByName(name string) (*ISO, error) {
 	`
 
 	var iso ISO
-	err := DB.QueryRow(query, name).Scan(&iso.Id, &iso.MachineName, &iso.FilePath, &iso.Name)
+	err := DB.QueryRowContext(ctx, query, name).Scan(&iso.Id, &iso.MachineName, &iso.FilePath, &iso.Name)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sql.ErrNoRows
 	}
@@ -92,11 +93,11 @@ func GetIsoByName(name string) (*ISO, error) {
 	return &iso, nil
 }
 
-func RemoveISOByID(id int) error {
+func RemoveISOByID(ctx context.Context, id int) error {
 	query := `
 	DELETE FROM isos
 	WHERE id = ?;
 	`
-	_, err := DB.Exec(query, id)
+	_, err := DB.ExecContext(ctx, query, id)
 	return err
 }

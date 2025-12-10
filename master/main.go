@@ -10,6 +10,7 @@ import (
 	"512SvMan/services"
 	"512SvMan/wireguard"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -38,7 +39,7 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 
 	logger.Info("Mounting all NFS")
 	nfsService := services.NFSService{}
-	err = nfsService.UpdateNFSShit()
+	err = nfsService.UpdateNFSShit(context.Background())
 	if err != nil {
 		logger.Errorf("UpdateNFS failed: %v", err)
 		return err
@@ -48,7 +49,7 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 
 	logger.Info("Auto starting vms")
 	virshServices := services.VirshService{}
-	err = virshServices.StartAutoStartVms()
+	err = virshServices.StartAutoStartVms(context.Background())
 	if err != nil {
 		logger.Errorf("UpdateNFS failed: %v", err)
 		return err
@@ -262,6 +263,7 @@ func installWireGuard() error {
 
 func main() {
 	askForSudo()
+	ctx := context.Background()
 
 	err := setupFirewallD()
 	if err != nil {
@@ -289,101 +291,101 @@ func main() {
 		log.Fatalf("install wireguard: %v", err)
 	}
 
-	db.InitDB()
-	err = db.CreateWireguardPeerTable()
+	db.InitDB(ctx)
+	err = db.CreateWireguardPeerTable(ctx)
 	if err != nil {
 		log.Fatalf("create wireguard peer table: %v", err)
 	}
 
-	if err := wireguard.AutoStartVPN(); err != nil {
+	if err := wireguard.AutoStartVPN(ctx); err != nil {
 		log.Fatalf("start wireguard vpn: %v", err)
 	}
 
 	//create all tables if not exists
-	err = db.CreateNFSTable()
+	err = db.CreateNFSTable(ctx)
 	if err != nil {
 		log.Fatalf("create NFS table: %v", err)
 	}
 
-	err = db.CreateVmLiveTable()
+	err = db.CreateVmLiveTable(ctx)
 	if err != nil {
 		log.Fatalf("create vm_live table: %v", err)
 	}
 
-	err = db.CreateLogsTable()
+	err = db.CreateLogsTable(ctx)
 	if err != nil {
 		log.Fatalf("create logs table: %v", err)
 	}
 
-	err = db.CreateISOTable()
+	err = db.CreateISOTable(ctx)
 	if err != nil {
 		log.Fatalf("create ISO table: %v", err)
 	}
 
-	err = db.CreateCPUSnapshotsTable()
+	err = db.CreateCPUSnapshotsTable(ctx)
 	if err != nil {
 		log.Fatalf("create cpu snapshots table: %v", err)
 	}
 
-	err = db.CreateMemSnapshotsTable()
+	err = db.CreateMemSnapshotsTable(ctx)
 	if err != nil {
 		log.Fatalf("create mem snapshots table: %v", err)
 	}
 
-	err = db.CreateDiskSnapshotsTable()
+	err = db.CreateDiskSnapshotsTable(ctx)
 	if err != nil {
 		log.Fatalf("create disk snapshots table: %v", err)
 	}
 
-	err = db.CreateNetworkSnapshotsTable()
+	err = db.CreateNetworkSnapshotsTable(ctx)
 	if err != nil {
 		log.Fatalf("create network snapshots table: %v", err)
 	}
 
-	err = db.CreateStreamDailyMetricsTable()
+	err = db.CreateStreamDailyMetricsTable(ctx)
 	if err != nil {
 		log.Fatalf("create stream metrics table: %v", err)
 	}
 
-	err = db.InitSmartDiskDB()
+	err = db.InitSmartDiskDB(ctx)
 	if err != nil {
 		log.Fatalf("create stream metrics table: %v", err)
 	}
 
 	infoCollector := &services.InfoService{}
-	go infoCollector.GetSlaveData()
+	go infoCollector.GetSlaveData(ctx)
 
-	err = db.CreateTableBackups()
+	err = db.CreateTableBackups(ctx)
 	if err != nil {
 		log.Fatalf("create backups table: %v", err)
 	}
 
-	err = db.CreateTableAutoStart()
+	err = db.CreateTableAutoStart(ctx)
 	if err != nil {
 		log.Fatalf("create autostart table: %v", err)
 	}
 
-	err = db.CreateTableAutomaticBackup()
+	err = db.CreateTableAutomaticBackup(ctx)
 	if err != nil {
 		log.Fatalf("create autostart table: %v", err)
 	}
 
-	err = db.CreateBtrfsTable()
+	err = db.CreateBtrfsTable(ctx)
 	if err != nil {
 		log.Fatalf("create btrfs auto table: %v", err)
 	}
 
-	err = db.CreateDockerRepoTable()
+	err = db.CreateDockerRepoTable(ctx)
 	if err != nil {
 		log.Fatalf("create docker repo table: %v", err)
 	}
 
-	err = db.DbCreatePushSubscriptionsTable()
+	err = db.DbCreatePushSubscriptionsTable(ctx)
 	if err != nil {
 		log.Fatalf("create push subs table: %v", err)
 	}
 
-	err = db.DbCreateNotsTable()
+	err = db.DbCreateNotsTable(ctx)
 	if err != nil {
 		log.Fatalf("create nots table: %v", err)
 	}
@@ -402,7 +404,7 @@ func main() {
 	virshService := services.VirshService{}
 	smartDiskService := services.SmartDiskService{}
 
-	virshService.LoopAutomaticBaks()
+	virshService.LoopAutomaticBaks(context.Background())
 	smartDiskService.DoAutomaticTest()
 	info.LoopNots()
 

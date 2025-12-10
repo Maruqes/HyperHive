@@ -1,6 +1,9 @@
 package db
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type PushSubscription struct {
 	Endpoint       string `json:"endpoint"`
@@ -22,7 +25,7 @@ type Not struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-func DbCreatePushSubscriptionsTable() error {
+func DbCreatePushSubscriptionsTable(ctx context.Context) error {
 	const q = `
 		CREATE TABLE IF NOT EXISTS push_subscriptions (
 			endpoint TEXT PRIMARY KEY,
@@ -30,11 +33,11 @@ func DbCreatePushSubscriptionsTable() error {
 			auth TEXT NOT NULL
 		);
 	`
-	_, err := DB.Exec(q)
+	_, err := DB.ExecContext(ctx, q)
 	return err
 }
 
-func DbSaveSubscription(sub PushSubscription) error {
+func DbSaveSubscription(ctx context.Context, sub PushSubscription) error {
 	const q = `
 		INSERT INTO push_subscriptions (endpoint, p256dh, auth)
 		VALUES ($1, $2, $3)
@@ -43,12 +46,12 @@ func DbSaveSubscription(sub PushSubscription) error {
 			auth   = EXCLUDED.auth;
 	`
 
-	_, err := DB.Exec(q, sub.Endpoint, sub.Keys.P256dh, sub.Keys.Auth)
+	_, err := DB.ExecContext(ctx, q, sub.Endpoint, sub.Keys.P256dh, sub.Keys.Auth)
 	return err
 }
 
-func DbGetAllSubscriptions() ([]PushSubscription, error) {
-	rows, err := DB.Query(`SELECT endpoint, p256dh, auth FROM push_subscriptions`)
+func DbGetAllSubscriptions(ctx context.Context) ([]PushSubscription, error) {
+	rows, err := DB.QueryContext(ctx, `SELECT endpoint, p256dh, auth FROM push_subscriptions`)
 	if err != nil {
 		return nil, err
 	}
@@ -70,14 +73,14 @@ func DbGetAllSubscriptions() ([]PushSubscription, error) {
 }
 
 // DbDeleteAllSubscriptions removes all rows from push_subscriptions.
-func DbDeleteAllSubscriptions() error {
+func DbDeleteAllSubscriptions(ctx context.Context) error {
 	const q = `DELETE FROM push_subscriptions`
-	_, err := DB.Exec(q)
+	_, err := DB.ExecContext(ctx, q)
 	return err
 }
 
 // DbCreateNotsTable creates the `nots` table if it does not exist.
-func DbCreateNotsTable() error {
+func DbCreateNotsTable(ctx context.Context) error {
 	const q = `
 CREATE TABLE IF NOT EXISTS nots (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,13 +91,13 @@ CREATE TABLE IF NOT EXISTS nots (
 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 `
-	_, err := DB.Exec(q)
+	_, err := DB.ExecContext(ctx, q)
 	return err
 }
 
 // DbSaveNot inserts a notification and then deletes notifications older than 3 months.
-func DbSaveNot(n Not) error {
-	tx, err := DB.Begin()
+func DbSaveNot(ctx context.Context, n Not) error {
+	tx, err := DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -134,12 +137,12 @@ func DbSaveNot(n Not) error {
 }
 
 // DbGetRecentNots returns notifications ordered by newest first.
-func DbGetRecentNots(limit int) ([]Not, error) {
+func DbGetRecentNots(ctx context.Context, limit int) ([]Not, error) {
 	if limit <= 0 {
 		limit = 100
 	}
 	q := `SELECT title, body, relurl, critical, created_at FROM nots ORDER BY datetime(created_at) DESC LIMIT ?`
-	rows, err := DB.Query(q, limit)
+	rows, err := DB.QueryContext(ctx, q, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -171,9 +174,9 @@ func DbGetRecentNots(limit int) ([]Not, error) {
 }
 
 // DbGetNotsFrom returns notifications created at or after `since`, ordered newest first.
-func DbGetNotsFrom(since time.Time) ([]Not, error) {
+func DbGetNotsFrom(ctx context.Context, since time.Time) ([]Not, error) {
 	q := `SELECT title, body, relurl, critical, created_at FROM nots WHERE datetime(created_at) >= datetime(?) ORDER BY datetime(created_at) DESC`
-	rows, err := DB.Query(q, formatSnapshotTime(since))
+	rows, err := DB.QueryContext(ctx, q, formatSnapshotTime(since))
 	if err != nil {
 		return nil, err
 	}

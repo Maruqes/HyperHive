@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -28,7 +29,7 @@ type CountryBreakdown struct {
 }
 
 // CreateStreamDailyMetricsTable ensures the metrics table exists.
-func CreateStreamDailyMetricsTable() error {
+func CreateStreamDailyMetricsTable(ctx context.Context) error {
 	const query = `
 	CREATE TABLE IF NOT EXISTS stream_daily_metrics (
 		day TEXT PRIMARY KEY,
@@ -41,23 +42,23 @@ func CreateStreamDailyMetricsTable() error {
 		updated_at TEXT NOT NULL
 	);
 	`
-	_, err := DB.Exec(query)
+	_, err := DB.ExecContext(ctx, query)
 	return err
 }
 
 // UpsertStreamDailyMetrics stores the provided metrics, replacing existing rows.
-func UpsertStreamDailyMetrics(metrics []DailyStreamMetric) error {
+func UpsertStreamDailyMetrics(ctx context.Context, metrics []DailyStreamMetric) error {
 	if len(metrics) == 0 {
 		return nil
 	}
 
-	tx, err := DB.Begin()
+	tx, err := DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.Prepare(`
+	stmt, err := tx.PrepareContext(ctx, `
 	INSERT INTO stream_daily_metrics (
 		day, unique_visitors, total_connections, bytes_sent, bytes_received,
 		avg_session_seconds, country_breakdown, updated_at
@@ -82,7 +83,8 @@ func UpsertStreamDailyMetrics(metrics []DailyStreamMetric) error {
 		if marshalErr != nil {
 			return marshalErr
 		}
-		if _, err := stmt.Exec(
+		if _, err := stmt.ExecContext(
+			ctx,
 			metric.Day,
 			metric.UniqueVisitors,
 			metric.TotalConnections,
@@ -100,11 +102,11 @@ func UpsertStreamDailyMetrics(metrics []DailyStreamMetric) error {
 }
 
 // GetStreamDailyMetrics fetches the most recent per-day stats, ordered descending by day.
-func GetStreamDailyMetrics(limit int) ([]DailyStreamMetric, error) {
+func GetStreamDailyMetrics(ctx context.Context, limit int) ([]DailyStreamMetric, error) {
 	if limit <= 0 {
 		limit = 30
 	}
-	rows, err := DB.Query(`
+	rows, err := DB.QueryContext(ctx, `
 		SELECT day, unique_visitors, total_connections,
 			bytes_sent, bytes_received, avg_session_seconds,
 			country_breakdown, updated_at

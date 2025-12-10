@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"log"
 
@@ -9,10 +10,13 @@ import (
 
 var DB *sql.DB
 
-func InitDB() {
+func InitDB(ctx context.Context) {
 	var err error
 	DB, err = sql.Open("sqlite3", "./data.db")
 	if err != nil {
+		log.Fatal(err)
+	}
+	if err := DB.PingContext(ctx); err != nil {
 		log.Fatal(err)
 	}
 }

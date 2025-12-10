@@ -443,7 +443,7 @@ func getCPUHistory(w http.ResponseWriter, r *http.Request) {
 		machines := protocol.GetAllMachineNames()
 		response := make(map[string][]snapshotResponse)
 		for _, name := range machines {
-			snaps, err := infoService.GetCPUHistory(name, duration, numberOfRows)
+			snaps, err := infoService.GetCPUHistory(r.Context(), name, duration, numberOfRows)
 			if err != nil {
 				continue
 			}
@@ -470,7 +470,7 @@ func getCPUHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	snaps, err := infoService.GetCPUHistory(machineName, duration, numberOfRows)
+	snaps, err := infoService.GetCPUHistory(r.Context(), machineName, duration, numberOfRows)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -509,7 +509,7 @@ func getMemHistory(w http.ResponseWriter, r *http.Request) {
 		machines := protocol.GetAllMachineNames()
 		response := make(map[string][]snapshotResponse)
 		for _, name := range machines {
-			snaps, err := infoService.GetMemHistory(name, duration, numberOfRows)
+			snaps, err := infoService.GetMemHistory(r.Context(), name, duration, numberOfRows)
 			if err != nil {
 				continue
 			}
@@ -536,7 +536,7 @@ func getMemHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	snaps, err := infoService.GetMemHistory(machineName, duration, numberOfRows)
+	snaps, err := infoService.GetMemHistory(r.Context(), machineName, duration, numberOfRows)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -575,7 +575,7 @@ func getDiskHistory(w http.ResponseWriter, r *http.Request) {
 		machines := protocol.GetAllMachineNames()
 		response := make(map[string][]snapshotResponse)
 		for _, name := range machines {
-			snaps, err := infoService.GetDiskHistory(name, duration, numberOfRows)
+			snaps, err := infoService.GetDiskHistory(r.Context(), name, duration, numberOfRows)
 			if err != nil {
 				continue
 			}
@@ -602,7 +602,7 @@ func getDiskHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	snaps, err := infoService.GetDiskHistory(machineName, duration, numberOfRows)
+	snaps, err := infoService.GetDiskHistory(r.Context(), machineName, duration, numberOfRows)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -641,7 +641,7 @@ func getNetworkHistory(w http.ResponseWriter, r *http.Request) {
 		machines := protocol.GetAllMachineNames()
 		response := make(map[string][]snapshotResponse)
 		for _, name := range machines {
-			snaps, err := infoService.GetNetworkHistory(name, duration, numberOfRows)
+			snaps, err := infoService.GetNetworkHistory(r.Context(), name, duration, numberOfRows)
 			if err != nil {
 				continue
 			}
@@ -668,7 +668,7 @@ func getNetworkHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	snaps, err := infoService.GetNetworkHistory(machineName, duration, numberOfRows)
+	snaps, err := infoService.GetNetworkHistory(r.Context(), machineName, duration, numberOfRows)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

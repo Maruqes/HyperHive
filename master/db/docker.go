@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -15,7 +16,7 @@ type DockerRepo struct {
 	EnvVars     map[string]string
 }
 
-func CreateDockerRepoTable() error {
+func CreateDockerRepoTable(ctx context.Context) error {
 	const query = `
 	CREATE TABLE IF NOT EXISTS docker_repos (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,12 +27,12 @@ func CreateDockerRepoTable() error {
 		UNIQUE(machine_name, name)
 	);
 	`
-	if _, err := DB.Exec(query); err != nil {
+	if _, err := DB.ExecContext(ctx, query); err != nil {
 		return err
 	}
 
 	// Ensure env_vars column exists for older installations.
-	if _, err := DB.Exec(`ALTER TABLE docker_repos ADD COLUMN env_vars TEXT NOT NULL DEFAULT '{}'`); err != nil {
+	if _, err := DB.ExecContext(ctx, `ALTER TABLE docker_repos ADD COLUMN env_vars TEXT NOT NULL DEFAULT '{}'`); err != nil {
 		if !strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
 			return err
 		}
@@ -39,7 +40,7 @@ func CreateDockerRepoTable() error {
 	return nil
 }
 
-func UpsertDockerRepo(machineName, name, folderToRun string, envVars map[string]string) error {
+func UpsertDockerRepo(ctx context.Context, machineName, name, folderToRun string, envVars map[string]string) error {
 	env, err := marshalEnvVars(envVars)
 	if err != nil {
 		return fmt.Errorf("encode env vars: %w", err)
@@ -52,14 +53,14 @@ func UpsertDockerRepo(machineName, name, folderToRun string, envVars map[string]
 		folder_to_run = excluded.folder_to_run,
 		env_vars = excluded.env_vars;
 	`
-	_, err = DB.Exec(query, machineName, name, folderToRun, env)
+	_, err = DB.ExecContext(ctx, query, machineName, name, folderToRun, env)
 	if err != nil {
 		return fmt.Errorf("upsert docker repo: %w", err)
 	}
 	return nil
 }
 
-func GetDockerRepo(machineName, name string) (*DockerRepo, error) {
+func GetDockerRepo(ctx context.Context, machineName, name string) (*DockerRepo, error) {
 	const query = `
 	SELECT id, machine_name, name, folder_to_run, env_vars
 	FROM docker_repos
@@ -70,7 +71,7 @@ func GetDockerRepo(machineName, name string) (*DockerRepo, error) {
 		repo   DockerRepo
 		envRaw sql.NullString
 	)
-	err := DB.QueryRow(query, machineName, name).Scan(&repo.ID, &repo.MachineName, &repo.Name, &repo.FolderToRun, &envRaw)
+	err := DB.QueryRowContext(ctx, query, machineName, name).Scan(&repo.ID, &repo.MachineName, &repo.Name, &repo.FolderToRun, &envRaw)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -90,12 +91,12 @@ func GetDockerRepo(machineName, name string) (*DockerRepo, error) {
 	return &repo, nil
 }
 
-func DeleteDockerRepo(machineName, name string) error {
+func DeleteDockerRepo(ctx context.Context, machineName, name string) error {
 	const query = `
 	DELETE FROM docker_repos
 	WHERE machine_name = ? AND name = ?;
 	`
-	if _, err := DB.Exec(query, machineName, name); err != nil {
+	if _, err := DB.ExecContext(ctx, query, machineName, name); err != nil {
 		return fmt.Errorf("delete docker repo: %w", err)
 	}
 	return nil

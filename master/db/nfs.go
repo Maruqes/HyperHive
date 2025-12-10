@@ -1,6 +1,9 @@
 package db
 
-import "database/sql"
+import (
+	"context"
+	"database/sql"
+)
 
 //this file will inclide all NFS related database functions
 
@@ -14,7 +17,7 @@ type NFSShare struct {
 	HostNormalMount bool   // whether to mount as normal on host
 }
 
-func CreateNFSTable() error {
+func CreateNFSTable(ctx context.Context) error {
 	query := `
 	CREATE TABLE IF NOT EXISTS nfs_shares (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -27,34 +30,34 @@ func CreateNFSTable() error {
 		UNIQUE(machine_name, folder_path)
 	);
 	`
-	_, err := DB.Exec(query)
+	_, err := DB.ExecContext(ctx, query)
 	return err
 }
 
-func AddNFSShare(machineName, folderPath, source, target, name string, hostNormalMount bool) error {
+func AddNFSShare(ctx context.Context, machineName, folderPath, source, target, name string, hostNormalMount bool) error {
 	query := `
 	INSERT INTO nfs_shares (machine_name, folder_path, source, target, name, host_normal_mount)
 	VALUES (?, ?, ?, ?, ?, ?);
 	`
-	_, err := DB.Exec(query, machineName, folderPath, source, target, name, hostNormalMount)
+	_, err := DB.ExecContext(ctx, query, machineName, folderPath, source, target, name, hostNormalMount)
 	return err
 }
 
-func RemoveNFSShare(machineName, folderPath string) error {
+func RemoveNFSShare(ctx context.Context, machineName, folderPath string) error {
 	query := `
 	DELETE FROM nfs_shares
 	WHERE machine_name = ? AND folder_path = ?;
 	`
-	_, err := DB.Exec(query, machineName, folderPath)
+	_, err := DB.ExecContext(ctx, query, machineName, folderPath)
 	return err
 }
 
-func GetAllNFShares() ([]NFSShare, error) {
+func GetAllNFShares(ctx context.Context) ([]NFSShare, error) {
 	const query = `
 	SELECT id, machine_name, folder_path, source, target, name, host_normal_mount
 	FROM nfs_shares;
 	`
-	rows, err := DB.Query(query)
+	rows, err := DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -74,14 +77,14 @@ func GetAllNFShares() ([]NFSShare, error) {
 	return shares, nil
 }
 
-func DoesExistNFSShare(machineName, folderPath string) (bool, error) {
+func DoesExistNFSShare(ctx context.Context, machineName, folderPath string) (bool, error) {
 	const query = `
 	SELECT COUNT(*)
 	FROM nfs_shares
 	WHERE machine_name = ? AND folder_path = ?;
 	`
 	var count int
-	err := DB.QueryRow(query, machineName, folderPath).Scan(&count)
+	err := DB.QueryRowContext(ctx, query, machineName, folderPath).Scan(&count)
 	if err != nil {
 		return false, err
 	}
@@ -89,12 +92,12 @@ func DoesExistNFSShare(machineName, folderPath string) (bool, error) {
 }
 
 // retorna todas as maquinas que tem pastas compartilhadas
-func GetAllMachineNamesWithShares() ([]string, error) {
+func GetAllMachineNamesWithShares(ctx context.Context) ([]string, error) {
 	const query = `
 	SELECT DISTINCT machine_name
 	FROM nfs_shares;
 	`
-	rows, err := DB.Query(query)
+	rows, err := DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -113,13 +116,13 @@ func GetAllMachineNamesWithShares() ([]string, error) {
 	}
 	return machineNames, nil
 }
-func GetNFSharesByMachineName(machineName string) ([]NFSShare, error) {
+func GetNFSharesByMachineName(ctx context.Context, machineName string) ([]NFSShare, error) {
 	const query = `
 	SELECT machine_name, folder_path, source, target, name, host_normal_mount
 	FROM nfs_shares
 	WHERE machine_name = ?;
 	`
-	rows, err := DB.Query(query, machineName)
+	rows, err := DB.QueryContext(ctx, query, machineName)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +142,7 @@ func GetNFSharesByMachineName(machineName string) ([]NFSShare, error) {
 	return shares, nil
 }
 
-func GetNFSShareByMachineAndFolder(machineName, folderPath string) (*NFSShare, error) {
+func GetNFSShareByMachineAndFolder(ctx context.Context, machineName, folderPath string) (*NFSShare, error) {
 	const query = `
 	SELECT id, machine_name, folder_path, source, target, name, host_normal_mount
 	FROM nfs_shares
@@ -147,7 +150,7 @@ func GetNFSShareByMachineAndFolder(machineName, folderPath string) (*NFSShare, e
 	`
 
 	var share NFSShare
-	err := DB.QueryRow(query, machineName, folderPath).Scan(
+	err := DB.QueryRowContext(ctx, query, machineName, folderPath).Scan(
 		&share.Id,
 		&share.MachineName,
 		&share.FolderPath,
@@ -165,14 +168,14 @@ func GetNFSShareByMachineAndFolder(machineName, folderPath string) (*NFSShare, e
 	return &share, nil
 }
 
-func GetNFSShareByID(id int) (*NFSShare, error) {
+func GetNFSShareByID(ctx context.Context, id int) (*NFSShare, error) {
 	const query = `
 	SELECT id, machine_name, folder_path, source, target, name, host_normal_mount
 	FROM nfs_shares
 	WHERE id = ?;
 	`
 	var share NFSShare
-	err := DB.QueryRow(query, id).Scan(&share.Id, &share.MachineName, &share.FolderPath, &share.Source, &share.Target, &share.Name, &share.HostNormalMount)
+	err := DB.QueryRowContext(ctx, query, id).Scan(&share.Id, &share.MachineName, &share.FolderPath, &share.Source, &share.Target, &share.Name, &share.HostNormalMount)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil

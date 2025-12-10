@@ -142,9 +142,9 @@ func validateBackupDirectory(dir string) error {
 
 // returns file path or error
 // checks if nfsShareId exists also and creates finalFile path
-func (v *VirshService) ImportVmHelper(nfsId int, filename string) (string, error) {
+func (v *VirshService) ImportVmHelper(ctx context.Context, nfsId int, filename string) (string, error) {
 	//get nfs share
-	nfsShare, err := db.GetNFSShareByID(nfsId)
+	nfsShare, err := db.GetNFSShareByID(ctx, nfsId)
 	if err != nil {
 		sendImportantNotification("ImportVmHelper: GetNFSShareByID failed", err)
 		return "", fmt.Errorf("failed to get NFS share by ID: %v", err)
@@ -187,7 +187,7 @@ func (v *VirshService) ImportVmHelper(nfsId int, filename string) (string, error
 // Virtual machine needs to have "qemu-guest-agent" for live
 // Virtual machine needs to have "qemu-guest-agent" for live
 // Virtual machine needs to have "qemu-guest-agent" for live
-func (v *VirshService) BackupVM(vmName string, nfsID int, automatic bool) error {
+func (v *VirshService) BackupVM(ctx context.Context, vmName string, nfsID int, automatic bool) error {
 	//check if vmName exists and is turned off, check if nfsID exists
 	vm, err := v.GetVmByName(vmName)
 	if err != nil {
@@ -200,7 +200,7 @@ func (v *VirshService) BackupVM(vmName string, nfsID int, automatic bool) error 
 		return err
 	}
 
-	nfsShare, err := db.GetNFSShareByID(nfsID)
+	nfsShare, err := db.GetNFSShareByID(ctx, nfsID)
 	if err != nil {
 		sendImportantNotification("BackupVM: GetNFSShareByID failed", err)
 		return fmt.Errorf("failed to get NFS share by ID: %v", err)
@@ -286,7 +286,7 @@ func (v *VirshService) BackupVM(vmName string, nfsID int, automatic bool) error 
 		}
 	}
 
-	err = db.InsertVirshBackup(backup)
+	err = db.InsertVirshBackup(ctx, backup)
 	if err != nil {
 		sendImportantNotification("BackupVM: InsertVirshBackup failed", err)
 		return fmt.Errorf("problems writing to db backup: %v", err)
@@ -296,8 +296,8 @@ func (v *VirshService) BackupVM(vmName string, nfsID int, automatic bool) error 
 	return nil
 }
 
-func (v *VirshService) DeleteBackup(bakId int) error {
-	bakup, err := db.GetVirshBackupById(bakId)
+func (v *VirshService) DeleteBackup(ctx context.Context, bakId int) error {
+	bakup, err := db.GetVirshBackupById(ctx, bakId)
 	if err != nil {
 		sendImportantNotification("DeleteBackup: GetVirshBackupById failed", err)
 		return err
@@ -315,7 +315,7 @@ func (v *VirshService) DeleteBackup(bakId int) error {
 		return err
 	}
 
-	err = db.DeleteVirshBackupById(bakId)
+	err = db.DeleteVirshBackupById(ctx, bakId)
 	if err != nil {
 		sendImportantNotification("DeleteBackup: DeleteVirshBackupById failed", err)
 		return err
@@ -349,7 +349,7 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 		return err
 	}
 
-	backup, err := db.GetVirshBackupById(bakID)
+	backup, err := db.GetVirshBackupById(ctx, bakID)
 	if err != nil {
 		sendImportantNotification("UseBackup: GetVirshBackupById failed", err)
 		return fmt.Errorf("failed to get backup by ID: %v", err)
@@ -372,7 +372,7 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 	}
 
 	// Get NFS share
-	nfsShare, err := db.GetNFSShareByID(nfsId)
+	nfsShare, err := db.GetNFSShareByID(ctx, nfsId)
 	if err != nil {
 		sendImportantNotification("UseBackup: GetNFSShareByID failed", err)
 		return fmt.Errorf("failed to get NFS share by ID: %v", err)
@@ -431,7 +431,7 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 	return nil
 }
 
-func (v *VirshService) CreateAutoBak(bak db.AutomaticBackup) error {
+func (v *VirshService) CreateAutoBak(ctx context.Context, bak db.AutomaticBackup) error {
 	//check vmName
 	exists, err := virsh.DoesVMExist(bak.VmName)
 	if err != nil {
@@ -459,7 +459,7 @@ func (v *VirshService) CreateAutoBak(bak db.AutomaticBackup) error {
 	}
 
 	//check nfs mount
-	nfsShare, err := db.GetNFSShareByID(bak.NfsMountId)
+	nfsShare, err := db.GetNFSShareByID(ctx, bak.NfsMountId)
 	if err != nil {
 		return fmt.Errorf("failed to get NFS share by ID: %v", err)
 	}
@@ -476,7 +476,7 @@ func (v *VirshService) CreateAutoBak(bak db.AutomaticBackup) error {
 	}
 
 	//add to database
-	err = db.AddAutomaticBackup(&bak)
+	err = db.AddAutomaticBackup(ctx, &bak)
 	if err != nil {
 		sendImportantNotification("CreateAutoBak: AddAutomaticBackup failed", err)
 		return fmt.Errorf("failed to add automatic backup: %v", err)
@@ -485,9 +485,9 @@ func (v *VirshService) CreateAutoBak(bak db.AutomaticBackup) error {
 	return nil
 }
 
-func (v *VirshService) UpdateAutoBak(id int, bak db.AutomaticBackup) error {
+func (v *VirshService) UpdateAutoBak(ctx context.Context, id int, bak db.AutomaticBackup) error {
 	//check if automatic backup exists
-	existingBak, err := db.GetAutomaticBackupById(id)
+	existingBak, err := db.GetAutomaticBackupById(ctx, id)
 	if err != nil {
 		return fmt.Errorf("failed to get automatic backup by ID: %v", err)
 	}
@@ -520,7 +520,7 @@ func (v *VirshService) UpdateAutoBak(id int, bak db.AutomaticBackup) error {
 		return fmt.Errorf("time window between MinTime and MaxTime must be at least 45 minutes")
 	}
 	//check nfs mount
-	nfsShare, err := db.GetNFSShareByID(bak.NfsMountId)
+	nfsShare, err := db.GetNFSShareByID(ctx, bak.NfsMountId)
 	if err != nil {
 		return fmt.Errorf("failed to get NFS share by ID: %v", err)
 	}
@@ -540,7 +540,7 @@ func (v *VirshService) UpdateAutoBak(id int, bak db.AutomaticBackup) error {
 	bak.Id = id
 
 	//update in database
-	err = db.UpdateAutomaticBackup(&bak)
+	err = db.UpdateAutomaticBackup(ctx, &bak)
 	if err != nil {
 		sendImportantNotification("UpdateAutoBak: UpdateAutomaticBackup failed", err)
 		return fmt.Errorf("failed to update automatic backup: %v", err)
@@ -549,9 +549,9 @@ func (v *VirshService) UpdateAutoBak(id int, bak db.AutomaticBackup) error {
 	return nil
 }
 
-func (v *VirshService) DeleteAutoBak(id int) error {
+func (v *VirshService) DeleteAutoBak(ctx context.Context, id int) error {
 	//check if automatic backup exists
-	existingBak, err := db.GetAutomaticBackupById(id)
+	existingBak, err := db.GetAutomaticBackupById(ctx, id)
 	if err != nil {
 		return fmt.Errorf("failed to get automatic backup by ID: %v", err)
 	}
@@ -562,7 +562,7 @@ func (v *VirshService) DeleteAutoBak(id int) error {
 	}
 
 	//remove from database
-	err = db.RemoveAutomaticBackupById(id)
+	err = db.RemoveAutomaticBackupById(ctx, id)
 	if err != nil {
 		sendImportantNotification("DeleteAutoBak: RemoveAutomaticBackupById failed", err)
 		return fmt.Errorf("failed to delete automatic backup: %v", err)
@@ -571,9 +571,9 @@ func (v *VirshService) DeleteAutoBak(id int) error {
 	return nil
 }
 
-func (v *VirshService) EnableAutoBak(id int) error {
+func (v *VirshService) EnableAutoBak(ctx context.Context,id int) error {
 	//check if automatic backup exists
-	existingBak, err := db.GetAutomaticBackupById(id)
+	existingBak, err := db.GetAutomaticBackupById(ctx,id)
 	if err != nil {
 		return fmt.Errorf("failed to get automatic backup by ID: %v", err)
 	}
@@ -589,7 +589,7 @@ func (v *VirshService) EnableAutoBak(id int) error {
 	}
 
 	//enable in database
-	err = db.EnableAutomaticBackupById(id)
+	err = db.EnableAutomaticBackupById(ctx,id)
 	if err != nil {
 		sendImportantNotification("EnableAutoBak: EnableAutomaticBackupById failed", err)
 		return fmt.Errorf("failed to enable automatic backup: %v", err)
@@ -598,9 +598,9 @@ func (v *VirshService) EnableAutoBak(id int) error {
 	return nil
 }
 
-func (v *VirshService) DisableAutoBak(id int) error {
+func (v *VirshService) DisableAutoBak(ctx context.Context,id int) error {
 	//check if automatic backup exists
-	existingBak, err := db.GetAutomaticBackupById(id)
+	existingBak, err := db.GetAutomaticBackupById(ctx,id)
 	if err != nil {
 		return fmt.Errorf("failed to get automatic backup by ID: %v", err)
 	}
@@ -616,7 +616,7 @@ func (v *VirshService) DisableAutoBak(id int) error {
 	}
 
 	//disable in database
-	err = db.DisableAutomaticBackupById(id)
+	err = db.DisableAutomaticBackupById(ctx,id)
 	if err != nil {
 		sendImportantNotification("DisableAutoBak: DisableAutomaticBackupById failed", err)
 		return fmt.Errorf("failed to disable automatic backup: %v", err)
@@ -628,20 +628,20 @@ func (v *VirshService) DisableAutoBak(id int) error {
 // fazer backups
 // se sucesso eliminar com GetAutomaticBackups
 // ja elimina backups antigos e mantem MaxBackupsRetain
-func (v *VirshService) createAutoBak(bak db.AutomaticBackup) error {
-	if err := v.BackupVM(bak.VmName, bak.NfsMountId, true); err != nil {
+func (v *VirshService) createAutoBak(ctx context.Context, bak db.AutomaticBackup) error {
+	if err := v.BackupVM(ctx, bak.VmName, bak.NfsMountId, true); err != nil {
 		sendImportantNotification("createAutoBak: BackupVM failed", err)
 		return err
 	}
 
 	completedAt := time.Now().UTC().Format(time.RFC3339)
-	if err := db.UpdateAutomaticBackupTimes(bak.Id, &completedAt); err != nil {
+	if err := db.UpdateAutomaticBackupTimes(ctx,bak.Id, &completedAt); err != nil {
 		sendImportantNotification("createAutoBak: UpdateAutomaticBackupTimes failed", err)
 		return fmt.Errorf("failed to update backup timestamp: %v", err)
 	}
 
 	//eliminar baks antigos
-	baksVm, err := db.GetAutomaticBackups(bak.VmName)
+	baksVm, err := db.GetAutomaticBackups(ctx,bak.VmName)
 	if err != nil {
 		sendImportantNotification("createAutoBak: GetAutomaticBackups failed", err)
 		return err
@@ -667,7 +667,7 @@ func (v *VirshService) createAutoBak(bak db.AutomaticBackup) error {
 	// Delete oldest backups if we exceed MaxBackupsRetain
 	if len(baksVm) > bak.MaxBackupsRetain {
 		for i := bak.MaxBackupsRetain; i < len(baksVm); i++ {
-			err := v.DeleteBackup(baksVm[i].Id)
+			err := v.DeleteBackup(ctx,baksVm[i].Id)
 			if err != nil {
 				logger.Errorf("failed to delete old backup %d: %v", baksVm[i].Id, err)
 				sendImportantNotification(fmt.Sprintf("createAutoBak: failed to delete old backup %d", baksVm[i].Id), err)
@@ -677,7 +677,7 @@ func (v *VirshService) createAutoBak(bak db.AutomaticBackup) error {
 
 	return nil
 }
-func (v *VirshService) LoopAutomaticBaks() {
+func (v *VirshService) LoopAutomaticBaks(ctx context.Context) {
 	// Prevent multiple instances from running simultaneously
 	if !v.backupLoopRunning.CompareAndSwap(false, true) {
 		logger.Warn("Automatic backup loop already running")
@@ -693,7 +693,7 @@ func (v *VirshService) LoopAutomaticBaks() {
 				// Optionally restart the loop after a delay
 				time.Sleep(time.Minute * 5)
 				v.backupLoopRunning.Store(false)
-				v.LoopAutomaticBaks()
+				v.LoopAutomaticBaks(ctx)
 			}
 		}()
 
@@ -702,7 +702,7 @@ func (v *VirshService) LoopAutomaticBaks() {
 			nowTime := time.Now()
 			currentClock := db.Clock{Hours: nowTime.Hour(), Minutes: nowTime.Minute()}
 
-			baks, err := db.GetEnabledAutomaticBackupsAt(currentClock)
+			baks, err := db.GetEnabledAutomaticBackupsAt(ctx,currentClock)
 			if err != nil {
 				logger.Error("Error getting automatic backups: " + err.Error())
 				sendImportantNotification("LoopAutomaticBaks: GetEnabledAutomaticBackupsAt failed", err)
@@ -757,7 +757,7 @@ func (v *VirshService) LoopAutomaticBaks() {
 
 				if shouldBackup {
 					logger.Infof("Creating automatic backup for VM %s", bak.VmName)
-					err = v.createAutoBak(bak)
+					err = v.createAutoBak(ctx, bak)
 					if err != nil {
 						logger.Errorf("Failed to create automatic backup for VM %s: %v", bak.VmName, err)
 						sendImportantNotification("LoopAutomaticBaks: createAutoBak failed", fmt.Errorf("VM %s: %v", bak.VmName, err))

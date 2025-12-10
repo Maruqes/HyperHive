@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 )
@@ -14,7 +15,7 @@ type WireguardPeer struct {
 }
 
 // CreateWireguardPeerTable ensures the wireguard_peers table exists.
-func CreateWireguardPeerTable() error {
+func CreateWireguardPeerTable(ctx context.Context) error {
 	const query = `
 	CREATE TABLE IF NOT EXISTS wireguard_peers (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,19 +24,19 @@ func CreateWireguardPeerTable() error {
 		public_key TEXT NOT NULL DEFAULT ''
 	);
 	`
-	if _, err := DB.Exec(query); err != nil {
+	if _, err := DB.ExecContext(ctx, query); err != nil {
 		return err
 	}
 	return nil
 }
 
 // InsertWireguardPeer inserts a new peer record and returns its ID.
-func InsertWireguardPeer(name, clientIP, publicKey string) (int, error) {
+func InsertWireguardPeer(ctx context.Context, name, clientIP, publicKey string) (int, error) {
 	const query = `
 	INSERT INTO wireguard_peers (name, client_ip, public_key)
 	VALUES (?, ?, ?);
 	`
-	result, err := DB.Exec(query, name, clientIP, publicKey)
+	result, err := DB.ExecContext(ctx, query, name, clientIP, publicKey)
 	if err != nil {
 		return 0, fmt.Errorf("insert wireguard peer: %w", err)
 	}
@@ -47,14 +48,14 @@ func InsertWireguardPeer(name, clientIP, publicKey string) (int, error) {
 }
 
 // GetWireguardPeerByID fetches a peer by its ID.
-func GetWireguardPeerByID(id int) (*WireguardPeer, error) {
+func GetWireguardPeerByID(ctx context.Context, id int) (*WireguardPeer, error) {
 	const query = `
 	SELECT id, name, client_ip, public_key
 	FROM wireguard_peers
 	WHERE id = ?;
 	`
 	var peer WireguardPeer
-	err := DB.QueryRow(query, id).Scan(&peer.Id, &peer.Name, &peer.ClientIP, &peer.PublicKey)
+	err := DB.QueryRowContext(ctx, query, id).Scan(&peer.Id, &peer.Name, &peer.ClientIP, &peer.PublicKey)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -65,13 +66,13 @@ func GetWireguardPeerByID(id int) (*WireguardPeer, error) {
 }
 
 // GetAllWireguardPeers returns every peer stored in the table.
-func GetAllWireguardPeers() ([]WireguardPeer, error) {
+func GetAllWireguardPeers(ctx context.Context) ([]WireguardPeer, error) {
 	const query = `
 	SELECT id, name, client_ip, public_key
 	FROM wireguard_peers
 	ORDER BY id ASC;
 	`
-	rows, err := DB.Query(query)
+	rows, err := DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("get all wireguard peers: %w", err)
 	}
@@ -92,13 +93,13 @@ func GetAllWireguardPeers() ([]WireguardPeer, error) {
 }
 
 // UpdateWireguardPeer updates the name/client IP for a given peer ID.
-func UpdateWireguardPeer(id int, name, clientIP, publicKey string) error {
+func UpdateWireguardPeer(ctx context.Context, id int, name, clientIP, publicKey string) error {
 	const query = `
 	UPDATE wireguard_peers
 	SET name = ?, client_ip = ?, public_key = ?
 	WHERE id = ?;
 	`
-	_, err := DB.Exec(query, name, clientIP, publicKey, id)
+	_, err := DB.ExecContext(ctx, query, name, clientIP, publicKey, id)
 	if err != nil {
 		return fmt.Errorf("update wireguard peer: %w", err)
 	}
@@ -106,12 +107,12 @@ func UpdateWireguardPeer(id int, name, clientIP, publicKey string) error {
 }
 
 // DeleteWireguardPeer removes a peer by ID.
-func DeleteWireguardPeer(id int) error {
+func DeleteWireguardPeer(ctx context.Context, id int) error {
 	const query = `
 	DELETE FROM wireguard_peers
 	WHERE id = ?;
 	`
-	_, err := DB.Exec(query, id)
+	_, err := DB.ExecContext(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("delete wireguard peer: %w", err)
 	}
@@ -119,11 +120,11 @@ func DeleteWireguardPeer(id int) error {
 }
 
 // DeleteAllWireguardPeers truncates the table.
-func DeleteAllWireguardPeers() error {
+func DeleteAllWireguardPeers(ctx context.Context) error {
 	const query = `
 	DELETE FROM wireguard_peers;
 	`
-	if _, err := DB.Exec(query); err != nil {
+	if _, err := DB.ExecContext(ctx, query); err != nil {
 		return fmt.Errorf("delete all wireguard peers: %w", err)
 	}
 	return nil

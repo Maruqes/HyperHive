@@ -165,7 +165,7 @@ func (v *VirshService) GetCpuDisableFeatures(conns []string) (string, error) {
 }
 
 // vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword
-func (v *VirshService) CreateVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXML string, autoStart bool, isWindows bool) error {
+func (v *VirshService) CreateVM(ctx context.Context, machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXML string, autoStart bool, isWindows bool) error {
 
 	exists, err := virsh.DoesVMExist(name)
 	if err != nil {
@@ -181,7 +181,7 @@ func (v *VirshService) CreateVM(machine_name string, name string, memory int32, 
 	}
 
 	//get disk path from nfsShareId
-	nfsShare, err := db.GetNFSShareByID(nfsShareId)
+	nfsShare, err := db.GetNFSShareByID(ctx, nfsShareId)
 	if err != nil {
 		return fmt.Errorf("failed to get NFS share by ID: %v", err)
 	}
@@ -190,7 +190,7 @@ func (v *VirshService) CreateVM(machine_name string, name string, memory int32, 
 	}
 
 	//get iso path from isoID
-	iso, err := db.GetIsoByID(isoID)
+	iso, err := db.GetIsoByID(ctx, isoID)
 	if err != nil {
 		return fmt.Errorf("failed to get ISO by ID: %v", err)
 	}
@@ -221,14 +221,14 @@ func (v *VirshService) CreateVM(machine_name string, name string, memory int32, 
 		return err
 	}
 
-	if err := v.AutoStart(name, autoStart); err != nil {
+	if err := v.AutoStart(ctx, name, autoStart); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXml string, autoStart bool, isWindows bool) error {
-	exists, err := db.DoesVmLiveExist(name)
+func (v *VirshService) CreateLiveVM(ctx context.Context, machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXml string, autoStart bool, isWindows bool) error {
+	exists, err := db.DoesVmLiveExist(ctx, name)
 	if err != nil {
 		return fmt.Errorf("failed to check if live VM exists in database: %v", err)
 	}
@@ -237,7 +237,7 @@ func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int
 	}
 
 	//get disk path from nfsShareId
-	nfsShare, err := db.GetNFSShareByID(nfsShareId)
+	nfsShare, err := db.GetNFSShareByID(ctx, nfsShareId)
 	if err != nil {
 		return fmt.Errorf("failed to get NFS share by ID: %v", err)
 	}
@@ -249,13 +249,13 @@ func (v *VirshService) CreateLiveVM(machine_name string, name string, memory int
 		return fmt.Errorf("cant have live VM on a HostNormalMount NFS true, use a nfs where HostNormalMount is false")
 	}
 
-	err = v.CreateVM(machine_name, name, memory, vcpu, nfsShareId, diskSizeGB, isoID, network, VNCPassword, cpuXml, autoStart, isWindows)
+	err = v.CreateVM(ctx, machine_name, name, memory, vcpu, nfsShareId, diskSizeGB, isoID, network, VNCPassword, cpuXml, autoStart, isWindows)
 	if err != nil {
 		return err
 	}
 
 	//add to db
-	err = db.AddVmLive(name)
+	err = db.AddVmLive(ctx, name)
 	if err != nil {
 		return fmt.Errorf("failed to add live VM to database: %v", err)
 	}
@@ -299,7 +299,7 @@ func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, mach
 	}
 
 	if machine.Live {
-		db.AddVmLive(machine.VmName)
+		db.AddVmLive(ctx, machine.VmName)
 	}
 
 	//flush after also for redundancy
@@ -309,7 +309,7 @@ func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, mach
 }
 
 func (v *VirshService) MigrateVm(ctx context.Context, originMachine string, destMachine string, vmName string, live bool, timeoutSeconds int) error {
-	exists, err := db.DoesVmLiveExist(vmName)
+	exists, err := db.DoesVmLiveExist(ctx, vmName)
 	if err != nil {
 		return fmt.Errorf("failed to check if live VM exists in database: %v", err)
 	}
@@ -355,14 +355,14 @@ func (v *VirshService) MigrateVm(ctx context.Context, originMachine string, dest
 	return virsh.MigrateVm(ctx, originConn.Connection, vmName, destConn.Addr, live, timeoutSeconds)
 }
 
-func (v *VirshService) UpdateCpuXml(machine_name string, vmName string, cpuXml string) error {
+func (v *VirshService) UpdateCpuXml(ctx context.Context, machine_name string, vmName string, cpuXml string) error {
 	slaveMachine := protocol.GetConnectionByMachineName(machine_name)
 	if slaveMachine == nil {
 		return fmt.Errorf("machine %s not found", machine_name)
 	}
 
 	//it needs to be live vm
-	exists, err := db.DoesVmLiveExist(vmName)
+	exists, err := db.DoesVmLiveExist(ctx, vmName)
 	if err != nil {
 		return fmt.Errorf("failed to check if live VM exists in database: %v", err)
 	}
@@ -410,7 +410,7 @@ func (v *VirshService) GetCpuXML(machine_name string, vmName string) (string, er
 	return cpuXml, nil
 }
 
-func (v *VirshService) DeleteVM(name string) error {
+func (v *VirshService) DeleteVM(ctx context.Context, name string) error {
 	//find vm by name
 	exists, err := virsh.DoesVMExist(name)
 	if err != nil {
@@ -431,24 +431,24 @@ func (v *VirshService) DeleteVM(name string) error {
 			}
 
 			//remove from db if live vm
-			exists, err := db.DoesVmLiveExist(name)
+			exists, err := db.DoesVmLiveExist(ctx, name)
 			if err != nil {
 				return fmt.Errorf("failed to check if live VM exists in database: %v", err)
 			}
 			if exists {
-				err = db.RemoveVmLive(name)
+				err = db.RemoveVmLive(ctx, name)
 				if err != nil {
 					return fmt.Errorf("failed to remove live VM from database: %v", err)
 				}
 			}
 
 			// remove automatic backup schedule for this VM, if present
-			if err := db.RemoveAutomaticBackup(name); err != nil {
+			if err := db.RemoveAutomaticBackup(ctx, name); err != nil {
 				return fmt.Errorf("failed to remove automatic backup for VM %s: %v", name, err)
 			}
 
 			// remove autostart entry for this VM, if present
-			if err := db.RemoveAutoStart(name); err != nil {
+			if err := db.RemoveAutoStart(ctx, name); err != nil {
 				return fmt.Errorf("failed to remove autostart for VM %s: %v", name, err)
 			}
 
@@ -589,7 +589,7 @@ type VmType struct {
 	IsLive bool
 }
 
-func (v *VirshService) GetAllVms() ([]VmType, []string, error) {
+func (v *VirshService) GetAllVms(ctx context.Context) ([]VmType, []string, error) {
 	var allVms []VmType
 	var warningErrors []string
 
@@ -625,7 +625,7 @@ func (v *VirshService) GetAllVms() ([]VmType, []string, error) {
 		}
 
 		for _, vm := range vms.Vms {
-			isLive, err := db.DoesVmLiveExist(vm.Name)
+			isLive, err := db.DoesVmLiveExist(ctx, vm.Name)
 			if err != nil {
 				mu.Lock()
 				erros = append(erros, fmt.Errorf("failed to check if live VM exists in database: %v", err))
@@ -669,8 +669,8 @@ func (v *VirshService) GetAllVms() ([]VmType, []string, error) {
 }
 
 // nfsSharePathTarget -> /mnt/...
-func (v *VirshService) GetAllVmsByOnNfsShare(nfsSharePathTarget string) ([]VmType, error) {
-	allVms, _, err := v.GetAllVms()
+func (v *VirshService) GetAllVmsByOnNfsShare(ctx context.Context, nfsSharePathTarget string) ([]VmType, error) {
+	allVms, _, err := v.GetAllVms(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -684,7 +684,7 @@ func (v *VirshService) GetAllVmsByOnNfsShare(nfsSharePathTarget string) ([]VmTyp
 	return vmsOnShare, nil
 }
 
-func (v *VirshService) GetNfsByVM(vm *grpcVirsh.Vm) (int, error) {
+func (v *VirshService) GetNfsByVM(ctx context.Context, vm *grpcVirsh.Vm) (int, error) {
 	if vm == nil {
 		return 0, fmt.Errorf("vm not found problem in GetNfsByVM")
 	}
@@ -694,7 +694,7 @@ func (v *VirshService) GetNfsByVM(vm *grpcVirsh.Vm) (int, error) {
 		return 0, fmt.Errorf("vm %s has no disk path", vm.Name)
 	}
 
-	shares, err := db.GetAllNFShares()
+	shares, err := db.GetAllNFShares(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get NFS shares: %v", err)
 	}
@@ -873,7 +873,7 @@ func (v *VirshService) ResumeVM(name string) error {
 	return fmt.Errorf("failed to find VM %s on any machine", name)
 }
 
-func (v *VirshService) AutoStart(vmName string, autoStart bool) error {
+func (v *VirshService) AutoStart(ctx context.Context, vmName string, autoStart bool) error {
 	vm, err := v.GetVmByName(vmName)
 	if err != nil {
 		return err
@@ -885,28 +885,28 @@ func (v *VirshService) AutoStart(vmName string, autoStart bool) error {
 
 	if autoStart {
 		// Check if VM already exists in auto_start table
-		exists, err := db.DoesAutoStartExist(vmName)
+		exists, err := db.DoesAutoStartExist(ctx, vmName)
 		if err != nil {
 			return fmt.Errorf("failed to check if VM exists in auto_start: %v", err)
 		}
 
 		// Only add if it doesn't exist
 		if !exists {
-			err = db.AddAutoStart(vmName)
+			err = db.AddAutoStart(ctx, vmName)
 			if err != nil {
 				return fmt.Errorf("failed to add VM to auto_start: %v", err)
 			}
 		}
 	} else {
 		// Check if VM exists in auto_start table before removing
-		exists, err := db.DoesAutoStartExist(vmName)
+		exists, err := db.DoesAutoStartExist(ctx, vmName)
 		if err != nil {
 			return fmt.Errorf("failed to check if VM exists in auto_start: %v", err)
 		}
 
 		// Only remove if it exists
 		if exists {
-			err = db.RemoveAutoStart(vmName)
+			err = db.RemoveAutoStart(ctx, vmName)
 			if err != nil {
 				return fmt.Errorf("failed to remove VM from auto_start: %v", err)
 			}
@@ -916,8 +916,8 @@ func (v *VirshService) AutoStart(vmName string, autoStart bool) error {
 	return nil
 }
 
-func (v *VirshService) StartAutoStartVms() error {
-	autoStart, err := db.GetAllAutoStart()
+func (v *VirshService) StartAutoStartVms(ctx context.Context) error {
+	autoStart, err := db.GetAllAutoStart(ctx)
 	if err != nil {
 		return err
 	}
@@ -973,10 +973,10 @@ func (v *VirshService) StartAutoStartVms() error {
 	return nil
 }
 
-func (v *VirshService) isVmLive(vmName string) (bool, error) {
+func (v *VirshService) isVmLive(ctx context.Context, vmName string) (bool, error) {
 	// Check if it's a live VM before deleting
 	liveQuestion := false
-	_, err := db.GetVmLiveByName(vmName)
+	_, err := db.GetVmLiveByName(ctx, vmName)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return false, err
@@ -1016,7 +1016,7 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 	if vm.State != grpcVirsh.VmState_SHUTOFF {
 		return fmt.Errorf("vm %s needs to be shutdown", vmName)
 	}
-	vmNfs, err := v.GetNfsByVM(vm)
+	vmNfs, err := v.GetNfsByVM(ctx, vm)
 	if err != nil {
 		return err
 	}
@@ -1025,14 +1025,14 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 	}
 
 	// Check if it's a live VM before deleting
-	liveQuestion, err := v.isVmLive(vmName)
+	liveQuestion, err := v.isVmLive(ctx, vmName)
 	if err != nil {
 		return err
 	}
 
 	//create folder for new vm
 	//checks if nfsShareId exists also and creates finalFile path
-	finalFile, err := v.ImportVmHelper(nfsId, newName)
+	finalFile, err := v.ImportVmHelper(ctx, nfsId, newName)
 	if err != nil {
 		return err
 	}
@@ -1072,7 +1072,7 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 	}
 
 	//remove vm
-	err = v.DeleteVM(vmName)
+	err = v.DeleteVM(ctx, vmName)
 	if err != nil {
 		return err
 	}
@@ -1095,7 +1095,7 @@ func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinati
 		return fmt.Errorf("vm %s needs to be shutdown", vmName)
 	}
 
-	liveQuestion, err := v.isVmLive(vmName)
+	liveQuestion, err := v.isVmLive(ctx, vmName)
 	if err != nil {
 		return err
 	}
@@ -1175,14 +1175,14 @@ func (v *VirshService) CloneVM(ctx context.Context, vmName string, newName strin
 		return fmt.Errorf("a VM with the name %s already exists", newName)
 	}
 
-	liveQuestion, err := v.isVmLive(vmName)
+	liveQuestion, err := v.isVmLive(ctx, vmName)
 	if err != nil {
 		return err
 	}
 
 	//create folder for new vm
 	//checks if nfsShareId exists also and creates finalFile path
-	finalFile, err := v.ImportVmHelper(nfsId, newName)
+	finalFile, err := v.ImportVmHelper(ctx, nfsId, newName)
 	if err != nil {
 		return err
 	}

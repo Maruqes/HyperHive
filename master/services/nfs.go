@@ -74,7 +74,7 @@ func ShortID(n int) (string, error) {
 	return b.String(), nil
 }
 
-func (s *NFSService) CreateSharePoint() error {
+func (s *NFSService) CreateSharePoint(ctx context.Context) error {
 	//find connection by machine name
 	conn := protocol.GetConnectionByMachineName(s.SharePoint.MachineName)
 	if conn == nil || conn.Connection == nil {
@@ -123,13 +123,13 @@ func (s *NFSService) CreateSharePoint() error {
 		return err
 	}
 
-	err := db.AddNFSShare(mount.MachineName, mount.FolderPath, mount.Source, mount.Target, s.SharePoint.Name, mount.HostNormalMount)
+	err := db.AddNFSShare(ctx, mount.MachineName, mount.FolderPath, mount.Source, mount.Target, s.SharePoint.Name, mount.HostNormalMount)
 	if err != nil {
 		logger.Errorf("AddNFSShare failed: %v", err)
 		return err
 	}
 
-	err = s.SyncSharedFolder()
+	err = s.SyncSharedFolder(ctx)
 	if err != nil {
 		logger.Errorf("SyncSharedFolder failed: %v", err)
 		return err
@@ -143,15 +143,15 @@ func (s *NFSService) CreateSharePoint() error {
 	return nil
 }
 
-func forcedelete(s *NFSService) error {
+func forcedelete(ctx context.Context, s *NFSService) error {
 	//check if exists in db
-	if exists, err := db.DoesExistNFSShare(s.SharePoint.MachineName, s.SharePoint.FolderPath); err != nil {
+	if exists, err := db.DoesExistNFSShare(ctx, s.SharePoint.MachineName, s.SharePoint.FolderPath); err != nil {
 		return fmt.Errorf("failed to check if NFS share exists: %v", err)
 	} else if !exists {
 		return fmt.Errorf("NFS share does not exist")
 	}
 
-	nfsShare, err := db.GetNFSShareByMachineAndFolder(s.SharePoint.MachineName, s.SharePoint.FolderPath)
+	nfsShare, err := db.GetNFSShareByMachineAndFolder(ctx, s.SharePoint.MachineName, s.SharePoint.FolderPath)
 	if err != nil {
 		return fmt.Errorf("failed to resolve NFS share: %v", err)
 	}
@@ -168,37 +168,37 @@ func forcedelete(s *NFSService) error {
 	}
 
 	virshService := VirshService{}
-	vms, err := virshService.GetAllVmsByOnNfsShare(mount.Target)
+	vms, err := virshService.GetAllVmsByOnNfsShare(ctx, mount.Target)
 	if err != nil {
 		return fmt.Errorf("failed to get VMs on NFS share: %v", err)
 	}
 	for _, vm := range vms {
-		if err := virshService.DeleteVM(vm.Name); err != nil {
+		if err := virshService.DeleteVM(ctx, vm.Name); err != nil {
 			return fmt.Errorf("failed to delete VM %s on NFS share: %v", vm.Name, err)
 		}
 	}
 
-	backups, err := db.GetVirshBackupsByNfsMountID(nfsShare.Id)
+	backups, err := db.GetVirshBackupsByNfsMountID(ctx, nfsShare.Id)
 	if err != nil {
 		return fmt.Errorf("failed to query backups using NFS share: %v", err)
 	}
 	for _, bak := range backups {
-		if err := virshService.DeleteBackup(bak.Id); err != nil {
+		if err := virshService.DeleteBackup(ctx, bak.Id); err != nil {
 			return fmt.Errorf("failed to delete backup %d for VM %s: %v", bak.Id, bak.Name, err)
 		}
 	}
 
-	autoBackups, err := db.GetAutomaticBackupsByNfsMountID(nfsShare.Id)
+	autoBackups, err := db.GetAutomaticBackupsByNfsMountID(ctx, nfsShare.Id)
 	if err != nil {
 		return fmt.Errorf("failed to query automatic backups using NFS share: %v", err)
 	}
 	for _, bak := range autoBackups {
-		if err := virshService.DeleteAutoBak(bak.Id); err != nil {
+		if err := virshService.DeleteAutoBak(ctx, bak.Id); err != nil {
 			return fmt.Errorf("failed to remove automatic backup %d for VM %s: %v", bak.Id, bak.VmName, err)
 		}
 	}
 
-	isos, err := db.GetAllISOs()
+	isos, err := db.GetAllISOs(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get ISOs: %v", err)
 	}
@@ -207,7 +207,7 @@ func forcedelete(s *NFSService) error {
 			if err := os.Remove(iso.FilePath); err != nil && !os.IsNotExist(err) {
 				return fmt.Errorf("failed to remove ISO file %s: %v", iso.FilePath, err)
 			}
-			if err := db.RemoveISOByID(iso.Id); err != nil {
+			if err := db.RemoveISOByID(ctx, iso.Id); err != nil {
 				return fmt.Errorf("failed to remove ISO %s on NFS share: %v", iso.Name, err)
 			}
 		}
@@ -230,17 +230,17 @@ func forcedelete(s *NFSService) error {
 		}
 	}
 
-	if err := db.RemoveNFSShare(mount.MachineName, mount.FolderPath); err != nil {
+	if err := db.RemoveNFSShare(ctx, mount.MachineName, mount.FolderPath); err != nil {
 		return fmt.Errorf("failed to remove NFS share from database: %v", err)
 	}
 
 	return nil
 }
 
-func (s *NFSService) DeleteSharePoint(force bool) error {
+func (s *NFSService) DeleteSharePoint(ctx context.Context, force bool) error {
 
 	if force {
-		return forcedelete(s)
+		return forcedelete(ctx, s)
 	}
 
 	conn := protocol.GetConnectionByMachineName(s.SharePoint.MachineName)
@@ -249,7 +249,7 @@ func (s *NFSService) DeleteSharePoint(force bool) error {
 	}
 
 	//check if exists in db
-	if exists, err := db.DoesExistNFSShare(s.SharePoint.MachineName, s.SharePoint.FolderPath); err != nil {
+	if exists, err := db.DoesExistNFSShare(ctx, s.SharePoint.MachineName, s.SharePoint.FolderPath); err != nil {
 		return fmt.Errorf("failed to check if NFS share exists: %v", err)
 	} else if !exists {
 		return fmt.Errorf("NFS share does not exist")
@@ -266,7 +266,7 @@ func (s *NFSService) DeleteSharePoint(force bool) error {
 
 	//get vms and isos and delete them first
 	virshService := VirshService{}
-	vms, err := virshService.GetAllVmsByOnNfsShare(mount.Target)
+	vms, err := virshService.GetAllVmsByOnNfsShare(ctx, mount.Target)
 	if err != nil {
 		return fmt.Errorf("failed to get VMs on NFS share: %v", err)
 	}
@@ -279,7 +279,7 @@ func (s *NFSService) DeleteSharePoint(force bool) error {
 	}
 
 	//check if any iso is on this nfs share
-	isos, err := db.GetAllISOs()
+	isos, err := db.GetAllISOs(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get ISOs: %v", err)
 	}
@@ -289,7 +289,7 @@ func (s *NFSService) DeleteSharePoint(force bool) error {
 		}
 	}
 
-	nfsShare, err := db.GetNFSShareByMachineAndFolder(mount.MachineName, mount.FolderPath)
+	nfsShare, err := db.GetNFSShareByMachineAndFolder(ctx, mount.MachineName, mount.FolderPath)
 	if err != nil {
 		return fmt.Errorf("failed to resolve NFS share: %v", err)
 	}
@@ -297,7 +297,7 @@ func (s *NFSService) DeleteSharePoint(force bool) error {
 		return fmt.Errorf("cannot resolve NFS share for deletion")
 	}
 
-	backups, err := db.GetVirshBackupsByNfsMountID(nfsShare.Id)
+	backups, err := db.GetVirshBackupsByNfsMountID(ctx, nfsShare.Id)
 	if err != nil {
 		return fmt.Errorf("failed to query backups using NFS share: %v", err)
 	}
@@ -309,7 +309,7 @@ func (s *NFSService) DeleteSharePoint(force bool) error {
 		return fmt.Errorf("cannot delete NFS share, there are backups using it: %v", backupNames)
 	}
 
-	autoBackups, err := db.GetAutomaticBackupsByNfsMountID(nfsShare.Id)
+	autoBackups, err := db.GetAutomaticBackupsByNfsMountID(ctx, nfsShare.Id)
 	if err != nil {
 		return fmt.Errorf("failed to query automatic backups using NFS share: %v", err)
 	}
@@ -337,7 +337,7 @@ func (s *NFSService) DeleteSharePoint(force bool) error {
 		}
 	}
 
-	err = db.RemoveNFSShare(mount.MachineName, mount.FolderPath)
+	err = db.RemoveNFSShare(ctx, mount.MachineName, mount.FolderPath)
 	if err != nil {
 		return fmt.Errorf("failed to remove NFS share from database: %v", err)
 	}
@@ -377,8 +377,8 @@ func (s *NFSService) GetAllSharedFolders() ([]db.NFSShare, error) {
 }
 
 // get all shared folders for each slave and make sure they are shared
-func (s *NFSService) SyncSharedFolder() error {
-	slavesShared, err := db.GetAllMachineNamesWithShares()
+func (s *NFSService) SyncSharedFolder(ctx context.Context) error {
+	slavesShared, err := db.GetAllMachineNamesWithShares(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get all machine names with shares: %v", err)
 	}
@@ -392,7 +392,7 @@ func (s *NFSService) SyncSharedFolder() error {
 			continue
 		}
 
-		shares, err := db.GetNFSharesByMachineName(machineName)
+		shares, err := db.GetNFSharesByMachineName(ctx, machineName)
 		if err != nil {
 			logger.Error("failed to get NFS shares by machine name:", err)
 			continue
@@ -482,8 +482,8 @@ func (s *NFSService) MountAllSharedFolders() error {
 	return nil
 }
 
-func (s *NFSService) UpdateNFSShit() error {
-	err := s.SyncSharedFolder()
+func (s *NFSService) UpdateNFSShit(ctx context.Context) error {
+	err := s.SyncSharedFolder(ctx)
 	if err != nil {
 		logger.Errorf("SyncSharedFolder failed: %v", err)
 	}

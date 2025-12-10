@@ -4,6 +4,7 @@ import (
 	"512SvMan/btrfs"
 	"512SvMan/db"
 	"512SvMan/protocol"
+	"context"
 	"fmt"
 	"strings"
 
@@ -130,7 +131,7 @@ func (s *BTRFSService) RemoveRaid(machineName string, uuid string) error {
 		return err
 	}
 
-	_, err = db.DeleteBtrfsByUUID(uuid, machineName)
+	_, err = db.DeleteBtrfsByUUID(context.Background(), uuid, machineName)
 	if err != nil {
 		return err
 	}
@@ -344,7 +345,7 @@ func (s *BTRFSService) AddAutomaticMount(machineName, uuid, mountPoint, compress
 		return 0, err
 	}
 
-	existing, err := db.GetBtrfsByUUIDAndMount(machineName, uuid, mountPoint)
+	existing, err := db.GetBtrfsByUUIDAndMount(context.Background(), machineName, uuid, mountPoint)
 	if err != nil {
 		return 0, err
 	}
@@ -352,7 +353,7 @@ func (s *BTRFSService) AddAutomaticMount(machineName, uuid, mountPoint, compress
 		return 0, fmt.Errorf("automatic mount already exists for machine %s uuid %s at %s", machineName, uuid, mountPoint)
 	}
 
-	return db.InsertBtrfs(uuid, mountPoint, compression, machineName)
+	return db.InsertBtrfs(context.Background(), uuid, mountPoint, compression, machineName)
 }
 
 func (s *BTRFSService) RemoveAutomaticMount(id int) (int64, error) {
@@ -360,7 +361,7 @@ func (s *BTRFSService) RemoveAutomaticMount(id int) (int64, error) {
 		return 0, fmt.Errorf("invalid id %d", id)
 	}
 
-	rows, err := db.DeleteBtrfs(id)
+	rows, err := db.DeleteBtrfs(context.Background(), id)
 	if err != nil {
 		return 0, err
 	}
@@ -373,13 +374,13 @@ func (s *BTRFSService) RemoveAutomaticMount(id int) (int64, error) {
 func (s *BTRFSService) ListAutomaticMounts(machineName string) ([]db.Btrfs, error) {
 	machineName = strings.TrimSpace(machineName)
 	if machineName == "" {
-		return db.GetAllBtrfs()
+		return db.GetAllBtrfs(context.Background())
 	}
-	return db.GetBtrfsByMachineName(machineName)
+	return db.GetBtrfsByMachineName(context.Background(), machineName)
 }
 
 func (s *BTRFSService) AutoMountRaid(machineName string) error {
-	raids, err := db.GetBtrfsByMachineName(machineName)
+	raids, err := db.GetBtrfsByMachineName(context.Background(), machineName)
 	if err != nil {
 		return err
 	}

@@ -93,20 +93,20 @@ func historySinceDuration(duration time.Duration) time.Time {
 	return time.Now().Add(-duration)
 }
 
-func (s *InfoService) GetCPUHistory(machineName string, duration time.Duration, numberOfRows int) ([]db.CPUSnapshot, error) {
-	return db.GetCPUSnapshotsSince(machineName, historySinceDuration(duration), numberOfRows)
+func (s *InfoService) GetCPUHistory(ctx context.Context, machineName string, duration time.Duration, numberOfRows int) ([]db.CPUSnapshot, error) {
+	return db.GetCPUSnapshotsSince(ctx, machineName, historySinceDuration(duration), numberOfRows)
 }
 
-func (s *InfoService) GetMemHistory(machineName string, duration time.Duration, numberOfRows int) ([]db.MemSnapshot, error) {
-	return db.GetMemSnapshotsSince(machineName, historySinceDuration(duration), numberOfRows)
+func (s *InfoService) GetMemHistory(ctx context.Context, machineName string, duration time.Duration, numberOfRows int) ([]db.MemSnapshot, error) {
+	return db.GetMemSnapshotsSince(ctx, machineName, historySinceDuration(duration), numberOfRows)
 }
 
-func (s *InfoService) GetDiskHistory(machineName string, duration time.Duration, numberOfRows int) ([]db.DiskSnapshot, error) {
-	return db.GetDiskSnapshotsSince(machineName, historySinceDuration(duration), numberOfRows)
+func (s *InfoService) GetDiskHistory(ctx context.Context, machineName string, duration time.Duration, numberOfRows int) ([]db.DiskSnapshot, error) {
+	return db.GetDiskSnapshotsSince(ctx, machineName, historySinceDuration(duration), numberOfRows)
 }
 
-func (s *InfoService) GetNetworkHistory(machineName string, duration time.Duration, numberOfRows int) ([]db.NetworkSnapshot, error) {
-	return db.GetNetworkSnapshotsSince(machineName, historySinceDuration(duration), numberOfRows)
+func (s *InfoService) GetNetworkHistory(ctx context.Context, machineName string, duration time.Duration, numberOfRows int) ([]db.NetworkSnapshot, error) {
+	return db.GetNetworkSnapshotsSince(ctx, machineName, historySinceDuration(duration), numberOfRows)
 }
 
 func (s *InfoService) StressCPU(ctx context.Context, machineName string, params *infoGrpc.StressCPUParams) (*infoGrpc.Empty, error) {
@@ -138,46 +138,52 @@ func (s *InfoService) TestRamMEM(ctx context.Context, machineName string, params
 	return "TestRam is going it may take 10 mins or some hours (1/2/3) see logs to check results", nil
 }
 
-func (s *InfoService) GetSlaveData() {
+func (s *InfoService) GetSlaveData(ctx context.Context) {
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 
-	for {
-		s.collectSlaveSnapshots()
+	// run once immediately, then on each tick until context cancellation
+	s.collectSlaveSnapshots(ctx)
 
-		<-ticker.C
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			s.collectSlaveSnapshots(ctx)
+		}
 	}
 }
 
-func (s *InfoService) collectSlaveSnapshots() {
+func (s *InfoService) collectSlaveSnapshots(ctx context.Context) {
 	machineNames := protocol.GetAllMachineNames()
 	for _, machineName := range machineNames {
-		s.collectMachineSnapshots(machineName)
+		s.collectMachineSnapshots(ctx, machineName)
 	}
 }
 
-func (s *InfoService) collectMachineSnapshots(machineName string) {
+func (s *InfoService) collectMachineSnapshots(ctx context.Context, machineName string) {
 	if info, err := s.GetCPUInfo(machineName); err != nil {
 		logger.Debugf("cpu snapshot skipped for %s: %v", machineName, err)
-	} else if err := db.InsertCPUSnapshot(machineName, time.Now(), info); err != nil {
+	} else if err := db.InsertCPUSnapshot(ctx, machineName, time.Now(), info); err != nil {
 		logger.Errorf("failed to persist cpu snapshot for %s: %v", machineName, err)
 	}
 
 	if info, err := s.GetMemSummary(machineName); err != nil {
 		logger.Debugf("mem snapshot skipped for %s: %v", machineName, err)
-	} else if err := db.InsertMemSnapshot(machineName, time.Now(), info); err != nil {
+	} else if err := db.InsertMemSnapshot(ctx, machineName, time.Now(), info); err != nil {
 		logger.Errorf("failed to persist mem snapshot for %s: %v", machineName, err)
 	}
 
 	if info, err := s.GetDiskSummary(machineName); err != nil {
 		logger.Debugf("disk snapshot skipped for %s: %v", machineName, err)
-	} else if err := db.InsertDiskSnapshot(machineName, time.Now(), info); err != nil {
+	} else if err := db.InsertDiskSnapshot(ctx, machineName, time.Now(), info); err != nil {
 		logger.Errorf("failed to persist disk snapshot for %s: %v", machineName, err)
 	}
 
 	if info, err := s.GetNetworkSummary(machineName); err != nil {
 		logger.Debugf("network snapshot skipped for %s: %v", machineName, err)
-	} else if err := db.InsertNetworkSnapshot(machineName, time.Now(), info); err != nil {
+	} else if err := db.InsertNetworkSnapshot(ctx, machineName, time.Now(), info); err != nil {
 		logger.Errorf("failed to persist network snapshot for %s: %v", machineName, err)
 	}
 }

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"time"
@@ -23,7 +24,7 @@ type SmartDiskSchedule struct {
 // *sql.DB is not passed explicitly. Set this in your application startup.
 
 // InitSmartDiskDB creates the table used to store recurring smartdisk schedules.
-func InitSmartDiskDB() error {
+func InitSmartDiskDB(ctx context.Context) error {
 	if DB == nil {
 		return errors.New("no database provided")
 	}
@@ -39,21 +40,21 @@ func InitSmartDiskDB() error {
 		device TEXT,
 		machine_name TEXT
 	);`
-	_, err := DB.Exec(stmt)
+	_, err := DB.ExecContext(ctx, stmt)
 	if err != nil {
 		return err
 	}
 
 	// If table existed before this change, attempt to add the columns.
 	// SQLite's ALTER TABLE ADD COLUMN will return an error if the column exists; ignore those errors.
-	_, _ = DB.Exec(`ALTER TABLE smartdisk_repeat ADD COLUMN active INTEGER NOT NULL DEFAULT 1`)
-	_, _ = DB.Exec(`ALTER TABLE smartdisk_repeat ADD COLUMN device TEXT`)
-	_, _ = DB.Exec(`ALTER TABLE smartdisk_repeat ADD COLUMN machine_name TEXT`)
+	_, _ = DB.ExecContext(ctx, `ALTER TABLE smartdisk_repeat ADD COLUMN active INTEGER NOT NULL DEFAULT 1`)
+	_, _ = DB.ExecContext(ctx, `ALTER TABLE smartdisk_repeat ADD COLUMN device TEXT`)
+	_, _ = DB.ExecContext(ctx, `ALTER TABLE smartdisk_repeat ADD COLUMN machine_name TEXT`)
 	return nil
 }
 
 // AddSchedule inserts a weekly repeating schedule and returns the new row id.
-func AddSchedule(weekDay time.Weekday, hour int, testType, device, machineName string, active bool) (int64, error) {
+func AddSchedule(ctx context.Context, weekDay time.Weekday, hour int, testType, device, machineName string, active bool) (int64, error) {
 	if DB == nil {
 		return 0, errors.New("no database provided")
 	}
@@ -61,7 +62,7 @@ func AddSchedule(weekDay time.Weekday, hour int, testType, device, machineName s
 	if active {
 		activeInt = 1
 	}
-	res, err := DB.Exec(`INSERT INTO smartdisk_repeat (week_day, hour, type_of_test, active, device, machine_name) VALUES (?, ?, ?, ?, ?, ?)`, int(weekDay), hour, testType, activeInt, device, machineName)
+	res, err := DB.ExecContext(ctx, `INSERT INTO smartdisk_repeat (week_day, hour, type_of_test, active, device, machine_name) VALUES (?, ?, ?, ?, ?, ?)`, int(weekDay), hour, testType, activeInt, device, machineName)
 	if err != nil {
 		return 0, err
 	}
@@ -69,11 +70,11 @@ func AddSchedule(weekDay time.Weekday, hour int, testType, device, machineName s
 }
 
 // GetSchedules returns all saved schedules.
-func GetSchedules() ([]SmartDiskSchedule, error) {
+func GetSchedules(ctx context.Context) ([]SmartDiskSchedule, error) {
 	if DB == nil {
 		return nil, errors.New("no database provided")
 	}
-	rows, err := DB.Query(`SELECT id, week_day, hour, type_of_test, last_run, active, device, machine_name FROM smartdisk_repeat`)
+	rows, err := DB.QueryContext(ctx, `SELECT id, week_day, hour, type_of_test, last_run, active, device, machine_name FROM smartdisk_repeat`)
 	if err != nil {
 		return nil, err
 	}
@@ -103,11 +104,11 @@ func GetSchedules() ([]SmartDiskSchedule, error) {
 }
 
 // UpdateLastRun sets last_run for a schedule.
-func UpdateLastRun(id int64, t time.Time) error {
+func UpdateLastRun(ctx context.Context, id int64, t time.Time) error {
 	if DB == nil {
 		return errors.New("no database provided")
 	}
-	_, err := DB.Exec(`UPDATE smartdisk_repeat SET last_run = ? WHERE id = ?`, t, id)
+	_, err := DB.ExecContext(ctx, `UPDATE smartdisk_repeat SET last_run = ? WHERE id = ?`, t, id)
 	return err
 }
 
@@ -128,12 +129,12 @@ func NextRun(s SmartDiskSchedule, from time.Time) time.Time {
 	return candidate
 }
 
-func GetDueSchedules(now time.Time) ([]SmartDiskSchedule, error) {
+func GetDueSchedules(ctx context.Context, now time.Time) ([]SmartDiskSchedule, error) {
 	if DB == nil {
 		return nil, errors.New("no database provided")
 	}
 
-	schedules, err := GetSchedules()
+	schedules, err := GetSchedules(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -167,11 +168,11 @@ func sameDay(a, b time.Time) bool {
 }
 
 // GetScheduleByID returns a single schedule by id.
-func GetScheduleByID(id int64) (SmartDiskSchedule, error) {
+func GetScheduleByID(ctx context.Context, id int64) (SmartDiskSchedule, error) {
 	if DB == nil {
 		return SmartDiskSchedule{}, errors.New("no database provided")
 	}
-	row := DB.QueryRow(`SELECT id, week_day, hour, type_of_test, last_run, active, device, machine_name FROM smartdisk_repeat WHERE id = ?`, id)
+	row := DB.QueryRowContext(ctx, `SELECT id, week_day, hour, type_of_test, last_run, active, device, machine_name FROM smartdisk_repeat WHERE id = ?`, id)
 	var s SmartDiskSchedule
 	var weekDayInt int
 	var activeInt int
@@ -192,7 +193,7 @@ func GetScheduleByID(id int64) (SmartDiskSchedule, error) {
 }
 
 // UpdateSchedule updates all editable fields of a schedule.
-func UpdateSchedule(s SmartDiskSchedule) error {
+func UpdateSchedule(ctx context.Context, s SmartDiskSchedule) error {
 	if DB == nil {
 		return errors.New("no database provided")
 	}
@@ -200,21 +201,21 @@ func UpdateSchedule(s SmartDiskSchedule) error {
 	if s.Active {
 		activeInt = 1
 	}
-	_, err := DB.Exec(`UPDATE smartdisk_repeat SET week_day = ?, hour = ?, type_of_test = ?, active = ?, device = ?, machine_name = ? WHERE id = ?`, int(s.WeekDay), s.Hour, s.TestType, activeInt, s.Device, s.MachineName, s.ID)
+	_, err := DB.ExecContext(ctx, `UPDATE smartdisk_repeat SET week_day = ?, hour = ?, type_of_test = ?, active = ?, device = ?, machine_name = ? WHERE id = ?`, int(s.WeekDay), s.Hour, s.TestType, activeInt, s.Device, s.MachineName, s.ID)
 	return err
 }
 
 // DeleteSchedule removes a schedule by id.
-func DeleteSchedule(id int64) error {
+func DeleteSchedule(ctx context.Context, id int64) error {
 	if DB == nil {
 		return errors.New("no database provided")
 	}
-	_, err := DB.Exec(`DELETE FROM smartdisk_repeat WHERE id = ?`, id)
+	_, err := DB.ExecContext(ctx, `DELETE FROM smartdisk_repeat WHERE id = ?`, id)
 	return err
 }
 
 // SetActive sets the active flag for a schedule.
-func SetActive(id int64, active bool) error {
+func SetActive(ctx context.Context, id int64, active bool) error {
 	if DB == nil {
 		return errors.New("no database provided")
 	}
@@ -222,6 +223,6 @@ func SetActive(id int64, active bool) error {
 	if active {
 		activeInt = 1
 	}
-	_, err := DB.Exec(`UPDATE smartdisk_repeat SET active = ? WHERE id = ?`, activeInt, id)
+	_, err := DB.ExecContext(ctx, `UPDATE smartdisk_repeat SET active = ? WHERE id = ?`, activeInt, id)
 	return err
 }

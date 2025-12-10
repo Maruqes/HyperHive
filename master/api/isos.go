@@ -37,7 +37,7 @@ func downloadIso(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	suposedIso, err := db.GetIsoByName(req.ISOName)
+	suposedIso, err := db.GetIsoByName(r.Context(), req.ISOName)
 	if err != nil && err != sql.ErrNoRows {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -48,7 +48,7 @@ func downloadIso(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//find nfs share by id
-	nfsShare, err := db.GetNFSShareByID(req.NfsShareID)
+	nfsShare, err := db.GetNFSShareByID(r.Context(), req.NfsShareID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -72,7 +72,7 @@ func downloadIso(w http.ResponseWriter, r *http.Request) {
 	}
 	isoPath := nfsShare.Target + "/" + req.ISOName
 
-	err = db.AddISO(nfsShare.MachineName, isoPath, req.ISOName)
+	err = db.AddISO(r.Context(), nfsShare.MachineName, isoPath, req.ISOName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -83,7 +83,7 @@ func downloadIso(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAllISOs(w http.ResponseWriter, r *http.Request) {
-	isos, err := db.GetAllISOs()
+	isos, err := db.GetAllISOs(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -126,7 +126,7 @@ func removeISOByID(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	iso, err := db.GetIsoByID(id)
+	iso, err := db.GetIsoByID(r.Context(), id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "ISO not found", http.StatusNotFound)
@@ -143,7 +143,7 @@ func removeISOByID(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("failed to remove ISO file: %v", err), http.StatusInternalServerError)
 		return
 	}
-	if err := db.RemoveISOByID(id); err != nil {
+	if err := db.RemoveISOByID(r.Context(), id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

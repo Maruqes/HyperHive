@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 )
 
@@ -9,40 +10,40 @@ type VmLive struct {
 	Name string
 }
 
-func CreateVmLiveTable() error {
+func CreateVmLiveTable(ctx context.Context) error {
 	query := `
 	CREATE TABLE IF NOT EXISTS vm_live (
 		name TEXT PRIMARY KEY
 	);
 	`
-	_, err := DB.Exec(query)
+	_, err := DB.ExecContext(ctx, query)
 	return err
 }
 
-func AddVmLive(name string) error {
+func AddVmLive(ctx context.Context, name string) error {
 	query := `
 	INSERT OR IGNORE INTO vm_live (name)
 	VALUES (?);
 	`
-	_, err := DB.Exec(query, name)
+	_, err := DB.ExecContext(ctx, query, name)
 	return err
 }
 
-func RemoveVmLive(name string) error {
+func RemoveVmLive(ctx context.Context, name string) error {
 	query := `
 	DELETE FROM vm_live
 	WHERE name = ?;
 	`
-	_, err := DB.Exec(query, name)
+	_, err := DB.ExecContext(ctx, query, name)
 	return err
 }
 
-func GetAllVmLive() ([]VmLive, error) {
+func GetAllVmLive(ctx context.Context) ([]VmLive, error) {
 	const query = `
 	SELECT name
 	FROM vm_live;
 	`
-	rows, err := DB.Query(query)
+	rows, err := DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -58,13 +59,13 @@ func GetAllVmLive() ([]VmLive, error) {
 	}
 	return vms, nil
 }
-func GetVmLiveByName(name string) (*VmLive, error) {
+func GetVmLiveByName(ctx context.Context, name string) (*VmLive, error) {
 	const query = `
 	SELECT name
 	FROM vm_live
 	WHERE name = ?;
 	`
-	row := DB.QueryRow(query, name)
+	row := DB.QueryRowContext(ctx, query, name)
 	var vm VmLive
 	err := row.Scan(&vm.Name)
 	if err != nil {
@@ -73,14 +74,14 @@ func GetVmLiveByName(name string) (*VmLive, error) {
 	return &vm, nil
 }
 
-func DoesVmLiveExist(name string) (bool, error) {
+func DoesVmLiveExist(ctx context.Context, name string) (bool, error) {
 	const query = `
 	SELECT COUNT(*)
 	FROM vm_live
 	WHERE name = ?;
 	`
 	var count int
-	err := DB.QueryRow(query, name).Scan(&count)
+	err := DB.QueryRowContext(ctx, query, name).Scan(&count)
 	if err != nil {
 		return false, err
 	}
@@ -92,14 +93,14 @@ type AutoStart struct {
 	VmName string
 }
 
-func CreateTableAutoStart() error {
+func CreateTableAutoStart(ctx context.Context) error {
 	query := `
 	CREATE TABLE IF NOT EXISTS auto_start (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		vm_name TEXT NOT NULL UNIQUE
 	);
 	`
-	_, err := DB.Exec(query)
+	_, err := DB.ExecContext(ctx, query)
 	if err != nil {
 		return err
 	}
@@ -107,39 +108,39 @@ func CreateTableAutoStart() error {
 	return err
 }
 
-func AddAutoStart(vmName string) error {
+func AddAutoStart(ctx context.Context, vmName string) error {
 	query := `
 	INSERT INTO auto_start (vm_name)
 	VALUES (?);
 	`
-	_, err := DB.Exec(query, vmName)
+	_, err := DB.ExecContext(ctx, query, vmName)
 	return err
 }
 
-func RemoveAutoStart(vmName string) error {
+func RemoveAutoStart(ctx context.Context, vmName string) error {
 	query := `
 	DELETE FROM auto_start
 	WHERE vm_name = ?;
 	`
-	_, err := DB.Exec(query, vmName)
+	_, err := DB.ExecContext(ctx, query, vmName)
 	return err
 }
 
-func RemoveAutoStartById(id int) error {
+func RemoveAutoStartById(ctx context.Context, id int) error {
 	query := `
 	DELETE FROM auto_start
 	WHERE id = ?;
 	`
-	_, err := DB.Exec(query, id)
+	_, err := DB.ExecContext(ctx, query, id)
 	return err
 }
 
-func GetAllAutoStart() ([]AutoStart, error) {
+func GetAllAutoStart(ctx context.Context) ([]AutoStart, error) {
 	const query = `
 	SELECT id, vm_name
 	FROM auto_start;
 	`
-	rows, err := DB.Query(query)
+	rows, err := DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -156,13 +157,13 @@ func GetAllAutoStart() ([]AutoStart, error) {
 	return vms, nil
 }
 
-func GetAutoStartByName(vmName string) (*AutoStart, error) {
+func GetAutoStartByName(ctx context.Context, vmName string) (*AutoStart, error) {
 	const query = `
 	SELECT id, vm_name
 	FROM auto_start
 	WHERE vm_name = ?;
 	`
-	row := DB.QueryRow(query, vmName)
+	row := DB.QueryRowContext(ctx, query, vmName)
 	var vm AutoStart
 	err := row.Scan(&vm.Id, &vm.VmName)
 	if err != nil {
@@ -174,13 +175,13 @@ func GetAutoStartByName(vmName string) (*AutoStart, error) {
 	return &vm, nil
 }
 
-func GetAutoStartById(id int) (*AutoStart, error) {
+func GetAutoStartById(ctx context.Context, id int) (*AutoStart, error) {
 	const query = `
 	SELECT id, vm_name
 	FROM auto_start
 	WHERE id = ?;
 	`
-	row := DB.QueryRow(query, id)
+	row := DB.QueryRowContext(ctx, query, id)
 	var vm AutoStart
 	err := row.Scan(&vm.Id, &vm.VmName)
 	if err != nil {
@@ -192,14 +193,14 @@ func GetAutoStartById(id int) (*AutoStart, error) {
 	return &vm, nil
 }
 
-func DoesAutoStartExist(vmName string) (bool, error) {
+func DoesAutoStartExist(ctx context.Context, vmName string) (bool, error) {
 	const query = `
 	SELECT COUNT(*)
 	FROM auto_start
 	WHERE vm_name = ?;
 	`
 	var count int
-	err := DB.QueryRow(query, vmName).Scan(&count)
+	err := DB.QueryRowContext(ctx, query, vmName).Scan(&count)
 	if err != nil {
 		return false, err
 	}

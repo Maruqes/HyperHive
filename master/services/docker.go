@@ -219,7 +219,7 @@ func (s *DockerService) VolumeList(machineName string) (*dockerGrpc.ListVolumesR
 	return docker.VolumeList(machine.Connection)
 }
 
-func (s *DockerService) VolumeCreateBindMount(machineName string, req *dockerGrpc.VolumeCreateRequest, nfsID int) error {
+func (s *DockerService) VolumeCreateBindMount(ctx context.Context, machineName string, req *dockerGrpc.VolumeCreateRequest, nfsID int) error {
 	machine := protocol.GetConnectionByMachineName(machineName)
 	if machine == nil || machine.Connection == nil {
 		return fmt.Errorf("machine %s is not connected", machineName)
@@ -230,7 +230,7 @@ func (s *DockerService) VolumeCreateBindMount(machineName string, req *dockerGrp
 			return fmt.Errorf("volume name is required when nfs_id is provided")
 		}
 
-		nfsShare, err := db.GetNFSShareByID(nfsID)
+		nfsShare, err := db.GetNFSShareByID(ctx, nfsID)
 		if err != nil {
 			return fmt.Errorf("failed to get NFS share by ID %d: %w", nfsID, err)
 		}
@@ -422,7 +422,7 @@ func (s *DockerService) NetworkRemove(machineName string, req *dockerGrpc.Networ
 	return docker.NetworkRemove(machine.Connection, req)
 }
 
-func (s *DockerService) GitClone(machineName string, link, folderToRun, name, id string, envVars map[string]string) error {
+func (s *DockerService) GitClone(ctx context.Context, machineName string, link, folderToRun, name, id string, envVars map[string]string) error {
 	machine := protocol.GetConnectionByMachineName(machineName)
 	if machine == nil || machine.Connection == nil {
 		return fmt.Errorf("machine %s is not connected", machineName)
@@ -431,7 +431,7 @@ func (s *DockerService) GitClone(machineName string, link, folderToRun, name, id
 	if err := docker.GitClone(machine.Connection, &dockerGrpc.GitCloneReq{Url: link, FolderToRun: folderToRun, Name: name, Id: id, EnvVars: envVars}); err != nil {
 		return err
 	}
-	if err := db.UpsertDockerRepo(machineName, name, folderToRun, envVars); err != nil {
+	if err := db.UpsertDockerRepo(ctx, machineName, name, folderToRun, envVars); err != nil {
 		return fmt.Errorf("store git repo reference: %w", err)
 	}
 	return nil
@@ -446,13 +446,13 @@ func (s *DockerService) GitList(machineName string) (*dockerGrpc.GitListReq, err
 	return docker.GitList(machine.Connection)
 }
 
-func (s *DockerService) GitRemove(machineName string, name string) error {
+func (s *DockerService) GitRemove(ctx context.Context, machineName string, name string) error {
 	machine := protocol.GetConnectionByMachineName(machineName)
 	if machine == nil || machine.Connection == nil {
 		return fmt.Errorf("machine %s is not connected", machineName)
 	}
 
-	repo, err := db.GetDockerRepo(machineName, name)
+	repo, err := db.GetDockerRepo(ctx, machineName, name)
 	if err != nil {
 		return fmt.Errorf("lookup git repo: %w", err)
 	}
@@ -473,20 +473,20 @@ func (s *DockerService) GitRemove(machineName string, name string) error {
 		return err
 	}
 
-	if err := db.DeleteDockerRepo(machineName, name); err != nil {
+	if err := db.DeleteDockerRepo(ctx, machineName, name); err != nil {
 		return fmt.Errorf("delete git repo record: %w", err)
 	}
 
 	return nil
 }
 
-func (s *DockerService) GitUpdate(machineName, name, id string, envVars map[string]string) (map[string]string, error) {
+func (s *DockerService) GitUpdate(ctx context.Context, machineName, name, id string, envVars map[string]string) (map[string]string, error) {
 	machine := protocol.GetConnectionByMachineName(machineName)
 	if machine == nil || machine.Connection == nil {
 		return nil, fmt.Errorf("machine %s is not connected", machineName)
 	}
 
-	repo, err := db.GetDockerRepo(machineName, name)
+	repo, err := db.GetDockerRepo(ctx, machineName, name)
 	if err != nil {
 		return nil, fmt.Errorf("lookup git repo: %w", err)
 	}
@@ -503,7 +503,7 @@ func (s *DockerService) GitUpdate(machineName, name, id string, envVars map[stri
 		return nil, err
 	}
 
-	if err := db.UpsertDockerRepo(machineName, name, repo.FolderToRun, finalEnv); err != nil {
+	if err := db.UpsertDockerRepo(ctx, machineName, name, repo.FolderToRun, finalEnv); err != nil {
 		return nil, fmt.Errorf("store git repo reference: %w", err)
 	}
 

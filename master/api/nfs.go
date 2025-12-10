@@ -72,7 +72,7 @@ func createShare(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	err := nfsService.CreateSharePoint()
+	err := nfsService.CreateSharePoint(r.Context())
 	if err != nil {
 		logger.Errorf("CreateSharePoint failed: %v", err)
 		http.Error(w, "failed to create share point: "+err.Error(), http.StatusInternalServerError)
@@ -96,7 +96,7 @@ func deleteShare(w http.ResponseWriter, r *http.Request) {
 		force = true
 	}
 
-	err := nfsService.DeleteSharePoint(force)
+	err := nfsService.DeleteSharePoint(r.Context(), force)
 	if err != nil {
 		logger.Errorf("DeleteSharePoint failed: %v", err)
 		http.Error(w, "failed to delete share point: "+err.Error(), http.StatusInternalServerError)

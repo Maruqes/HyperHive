@@ -448,7 +448,7 @@ func volumeCreateBindMount(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	svc := services.DockerService{}
-	if err := svc.VolumeCreateBindMount(machine, &req.VolumeCreateRequest, req.NfsID); err != nil {
+	if err := svc.VolumeCreateBindMount(r.Context(), machine, &req.VolumeCreateRequest, req.NfsID); err != nil {
 		logger.Errorf("docker volume create failed: %v", err)
 		http.Error(w, "failed to create volume: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -600,7 +600,7 @@ func gitClone(w http.ResponseWriter, r *http.Request) {
 	}
 
 	svc := services.DockerService{}
-	err := svc.GitClone(machine, req.Link, req.FolderToRun, req.Name, req.Id, req.Env)
+	err := svc.GitClone(r.Context(), machine, req.Link, req.FolderToRun, req.Name, req.Id, req.Env)
 	if err != nil {
 		http.Error(w, "git clone failed "+err.Error(), http.StatusBadRequest)
 		return
@@ -654,7 +654,7 @@ func gitRemove(w http.ResponseWriter, r *http.Request) {
 	}
 
 	svc := services.DockerService{}
-	err := svc.GitRemove(machine, req.Name)
+	err := svc.GitRemove(r.Context(), machine, req.Name)
 	if err != nil {
 		http.Error(w, "git remove failed "+err.Error(), http.StatusBadRequest)
 		return
@@ -690,7 +690,7 @@ func gitUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	svc := services.DockerService{}
-	envVars, err := svc.GitUpdate(machine, req.Name, req.Id, req.Env)
+	envVars, err := svc.GitUpdate(r.Context(), machine, req.Name, req.Id, req.Env)
 	if err != nil {
 		http.Error(w, "git update failed "+err.Error(), http.StatusBadRequest)
 		return

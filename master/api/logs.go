@@ -38,7 +38,7 @@ func listLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logsService := services.LogsService{}
-	logs, err := logsService.GetLogs(limitInt, levelInt)
+	logs, err := logsService.GetLogs(r.Context(), limitInt, levelInt)
 	if err != nil {
 		http.Error(w, "Failed to get logs", http.StatusInternalServerError)
 		return

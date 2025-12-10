@@ -53,7 +53,7 @@ func createVPN(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db.DeleteAllWireguardPeers(); err != nil {
+	if err := db.DeleteAllWireguardPeers(r.Context()); err != nil {
 		http.Error(w, fmt.Sprintf("truncate wireguard peers: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -87,7 +87,7 @@ func newPeer(w http.ResponseWriter, r *http.Request) {
 		endpoint = fmt.Sprintf("%s:%d", env512.MASTER_INTERNET_IP, wireguard.ListenPort())
 	}
 
-	clientIP, err := wireguard.NextAvailableClientIP()
+	clientIP, err := wireguard.NextAvailableClientIP(r.Context())
 	if err != nil {
 		http.Error(w, fmt.Sprintf("select client ip: %v", err), http.StatusInternalServerError)
 		return
@@ -105,7 +105,7 @@ func newPeer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.InsertWireguardPeer(req.Name, clientCIDR, clientPubKey)
+	_, err = db.InsertWireguardPeer(r.Context(), req.Name, clientCIDR, clientPubKey)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("persist peer: %v", err), http.StatusInternalServerError)
 		return
@@ -123,7 +123,7 @@ func newPeer(w http.ResponseWriter, r *http.Request) {
 }
 
 func getPeers(w http.ResponseWriter, r *http.Request) {
-	peers, err := db.GetAllWireguardPeers()
+	peers, err := db.GetAllWireguardPeers(r.Context())
 	if err != nil {
 		http.Error(w, fmt.Sprintf("list peers: %v", err), http.StatusInternalServerError)
 		return
@@ -167,7 +167,7 @@ func deletePeer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	peer, err := db.GetWireguardPeerByID(id)
+	peer, err := db.GetWireguardPeerByID(r.Context(), id)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("lookup peer: %v", err), http.StatusInternalServerError)
 		return
@@ -182,7 +182,7 @@ func deletePeer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db.DeleteWireguardPeer(id); err != nil {
+	if err := db.DeleteWireguardPeer(r.Context(), id); err != nil {
 		http.Error(w, fmt.Sprintf("delete peer: %v", err), http.StatusInternalServerError)
 		return
 	}

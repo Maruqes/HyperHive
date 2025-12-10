@@ -4,6 +4,7 @@ package nots
 import (
 	"512SvMan/db"
 	"512SvMan/env512"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -97,7 +98,9 @@ func SendWebPush(sub db.PushSubscription, title, body, relURL string, critical b
 
 // SendGlobalNotification envia uma notificação simples para TODAS as subscrições.
 func SendGlobalNotification(title, body, relURL string, critical bool) (err error) {
-	err = db.DbSaveNot(db.Not{
+	ctx := context.Background()
+
+	err = db.DbSaveNot(ctx, db.Not{
 		Title:     title,
 		Body:      body,
 		RelURL:    relURL,
@@ -108,7 +111,7 @@ func SendGlobalNotification(title, body, relURL string, critical bool) (err erro
 		logger.Error(fmt.Sprintf("save notification: %v", err))
 	}
 
-	subs, err := db.DbGetAllSubscriptions()
+	subs, err := db.DbGetAllSubscriptions(ctx)
 	if err != nil {
 		logger.Error(fmt.Sprintf("load subs: %v", err))
 		return err
@@ -127,5 +130,5 @@ func SendGlobalNotification(title, body, relURL string, critical bool) (err erro
 
 // GetNotsSince returns nots created at or after `since`.
 func GetNotsSince(since time.Time) ([]db.Not, error) {
-	return db.DbGetNotsFrom(since)
+	return db.DbGetNotsFrom(context.Background(), since)
 }

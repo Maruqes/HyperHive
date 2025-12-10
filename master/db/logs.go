@@ -1,6 +1,9 @@
 package db
 
-import "database/sql"
+import (
+	"context"
+	"database/sql"
+)
 
 /*
 CREATE TABLE IF NOT EXISTS logs (
@@ -12,7 +15,7 @@ CREATE TABLE IF NOT EXISTS logs (
 );
 */
 
-func CreateLogsTable() error {
+func CreateLogsTable(ctx context.Context) error {
 	query := `
 	CREATE TABLE IF NOT EXISTS logs (
 		id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -21,16 +24,16 @@ func CreateLogsTable() error {
 		content       TEXT NOT NULL
 	);
 	`
-	_, err := DB.Exec(query)
+	_, err := DB.ExecContext(ctx, query)
 	return err
 }
 
-func InsertLog(ts string, level int, content string) error {
+func InsertLog(ctx context.Context, ts string, level int, content string) error {
 	query := `
 	INSERT INTO logs (ts, level, content)
 	VALUES (?, ?, ?);
 	`
-	_, err := DB.Exec(query, ts, level, content)
+	_, err := DB.ExecContext(ctx, query, ts, level, content)
 	return err
 }
 
@@ -41,7 +44,7 @@ type LogEntry struct {
 	Content string `json:"content"`
 }
 
-func GetLogs(limit int, level int) ([]LogEntry, error) {
+func GetLogs(ctx context.Context, limit int, level int) ([]LogEntry, error) {
 	//level 0=info,1=error,2=warn,3=debug
 	//if 0 gets 0123
 	//if 1 gets 123
@@ -50,9 +53,9 @@ func GetLogs(limit int, level int) ([]LogEntry, error) {
 	var rows *sql.Rows
 	var err error
 	if level == 0 {
-		rows, err = DB.Query("SELECT id, ts, level, content FROM logs ORDER BY ts DESC LIMIT ?", limit)
+		rows, err = DB.QueryContext(ctx, "SELECT id, ts, level, content FROM logs ORDER BY ts DESC LIMIT ?", limit)
 	} else {
-		rows, err = DB.Query("SELECT id, ts, level, content FROM logs WHERE level >= ? ORDER BY ts DESC LIMIT ?", level, limit)
+		rows, err = DB.QueryContext(ctx, "SELECT id, ts, level, content FROM logs WHERE level >= ? ORDER BY ts DESC LIMIT ?", level, limit)
 	}
 	if err != nil {
 		return nil, err

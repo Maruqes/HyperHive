@@ -152,7 +152,7 @@ func subscribe_nots(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	if err := db.DbSaveSubscription(sub); err != nil {
+	if err := db.DbSaveSubscription(r.Context(), sub); err != nil {
 		http.Error(w, "failed to save subscription: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -163,7 +163,7 @@ func subscribe_nots(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /notification/subscriptions -> remove all stored push subscriptions
 func delete_all_subscriptions(w http.ResponseWriter, r *http.Request) {
-	if err := db.DbDeleteAllSubscriptions(); err != nil {
+	if err := db.DbDeleteAllSubscriptions(r.Context()); err != nil {
 		http.Error(w, "failed to delete subscriptions: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

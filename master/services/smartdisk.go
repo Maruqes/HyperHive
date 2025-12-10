@@ -167,7 +167,7 @@ func (s *SmartDiskService) DoAutomaticTest() {
 func (s *SmartDiskService) runDueSchedules() {
 	now := time.Now()
 
-	schedules, err := db.GetDueSchedules(now)
+	schedules, err := db.GetDueSchedules(context.Background(), now)
 	if err != nil {
 		logger.Errorf("DoAutomaticTest: failed to get due schedules: %v", err)
 		return
@@ -215,7 +215,7 @@ func (s *SmartDiskService) runSchedule(now time.Time, sch db.SmartDiskSchedule) 
 		return
 	}
 
-	if err := db.UpdateLastRun(sch.ID, now); err != nil {
+	if err := db.UpdateLastRun(context.Background(), sch.ID, now); err != nil {
 		logger.Errorf("DoAutomaticTest: failed to update last_run for schedule id=%d: %v", sch.ID, err)
 		return
 	}

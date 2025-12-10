@@ -74,14 +74,14 @@ func createVM(w http.ResponseWriter, r *http.Request) {
 
 	virshServices := services.VirshService{}
 	if vmReq.Live {
-		err = virshServices.CreateLiveVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml, vmReq.AutoStart, vmReq.IsWindows)
+		err = virshServices.CreateLiveVM(r.Context(), vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml, vmReq.AutoStart, vmReq.IsWindows)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 	} else {
-		err = virshServices.CreateVM(vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, "", vmReq.AutoStart, vmReq.IsWindows)
+		err = virshServices.CreateVM(r.Context(), vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, "", vmReq.AutoStart, vmReq.IsWindows)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -138,7 +138,7 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	logger.Infof("getAllVms: start")
 
-	res, _, err := virshServices.GetAllVms()
+	res, _, err := virshServices.GetAllVms(r.Context())
 	if err != nil {
 		logger.Infof("getAllVms: GetAllVms error after %s: %v", time.Since(start).Round(time.Millisecond), err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -170,7 +170,7 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 
 	processVM := func(idx int, vm services.VmType) {
 
-		autoStart, err := db.DoesAutoStartExist(vm.Name)
+		autoStart, err := db.DoesAutoStartExist(r.Context(), vm.Name)
 		if err != nil {
 			setFirstErr(err)
 			return
@@ -197,7 +197,7 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 		vmMap["autoStart"] = autoStart
 		vmMap["novnclink"] = env512.MAIN_LINK + fmt.Sprintf("/novnc/vnc.html?path=/novnc/ws%%3Fvm%%3D%v", vmMap["name"])
 		if vm.Vm != nil {
-			if nfsID, err := virshServices.GetNfsByVM(vm.Vm); err == nil {
+			if nfsID, err := virshServices.GetNfsByVM(r.Context(), vm.Vm); err == nil {
 				vmMap["nfs_id"] = nfsID
 			}
 		}
@@ -220,7 +220,6 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	data, err := json.Marshal(payload)
 	if err != nil {
 		logger.Infof("getAllVms: marshal payload fail after %s: %v", time.Since(start).Round(time.Millisecond), err)
@@ -238,7 +237,7 @@ func deleteVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshServices := services.VirshService{}
-	err := virshServices.DeleteVM(vmName)
+	err := virshServices.DeleteVM(r.Context(), vmName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -399,7 +398,7 @@ func updateCpuXml(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshServices := services.VirshService{}
-	err = virshServices.UpdateCpuXml(cpuReq.MachineName, vmName, cpuReq.CpuXml)
+	err = virshServices.UpdateCpuXml(r.Context(), cpuReq.MachineName, vmName, cpuReq.CpuXml)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -668,7 +667,7 @@ func importVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//checks if nfsShareId exists also and creates finalFile path
-	finalFile, err := virshService.ImportVmHelper(vmReq.NfsShareId, vmReq.VmName)
+	finalFile, err := virshService.ImportVmHelper(r.Context(), vmReq.NfsShareId, vmReq.VmName)
 	if err != nil {
 		http.Error(w, "error preparing import: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -751,7 +750,7 @@ func backupVM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = virshServices.BackupVM(vmName, nfsIdInt, false)
+	err = virshServices.BackupVM(r.Context(), vmName, nfsIdInt, false)
 	if err != nil {
 		http.Error(w, "was not possible to backup your vm err: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -766,7 +765,7 @@ func caniseefileorfolder(path string) bool {
 }
 
 func getAllBackups(w http.ResponseWriter, r *http.Request) {
-	virshBackups, err := db.GetAllVirshBackups()
+	virshBackups, err := db.GetAllVirshBackups(r.Context())
 	if err != nil {
 		http.Error(w, "error getting all backups "+err.Error(), http.StatusInternalServerError)
 		return
@@ -810,7 +809,7 @@ func downloadBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bak, err := db.GetVirshBackupById(backupIdInt)
+	bak, err := db.GetVirshBackupById(r.Context(), backupIdInt)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -884,7 +883,7 @@ func deleteBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	virshServices := services.VirshService{}
-	err = virshServices.DeleteBackup(backupIdInt)
+	err = virshServices.DeleteBackup(r.Context(), backupIdInt)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -910,7 +909,7 @@ func autoStart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshServices := services.VirshService{}
-	err := virshServices.AutoStart(vmName, m.AutoStart)
+	err := virshServices.AutoStart(r.Context(), vmName, m.AutoStart)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -936,7 +935,7 @@ func createAutoBak(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshServices := services.VirshService{}
-	err := virshServices.CreateAutoBak(db.AutomaticBackup{
+	err := virshServices.CreateAutoBak(r.Context(), db.AutomaticBackup{
 		VmName:           req.VmName,
 		FrequencyDays:    req.FrequencyDays,
 		MaxTime:          req.MaxTime,
@@ -954,7 +953,7 @@ func createAutoBak(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 func getAutoBak(w http.ResponseWriter, r *http.Request) {
-	baks, err := db.GetAllAutomaticBackups()
+	baks, err := db.GetAllAutomaticBackups(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -997,7 +996,7 @@ func updateAutoBak(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshServices := services.VirshService{}
-	err = virshServices.UpdateAutoBak(autoBakIdInt, db.AutomaticBackup{
+	err = virshServices.UpdateAutoBak(r.Context(), autoBakIdInt, db.AutomaticBackup{
 		VmName:           req.VmName,
 		FrequencyDays:    req.FrequencyDays,
 		MaxTime:          req.MaxTime,
@@ -1028,7 +1027,7 @@ func deleteAutoBak(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshServices := services.VirshService{}
-	err = virshServices.DeleteAutoBak(autoBakIdInt)
+	err = virshServices.DeleteAutoBak(r.Context(), autoBakIdInt)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1050,7 +1049,7 @@ func enableAutoBak(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshServices := services.VirshService{}
-	err = virshServices.EnableAutoBak(autoBakIdInt)
+	err = virshServices.EnableAutoBak(r.Context(), autoBakIdInt)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1072,7 +1071,7 @@ func disableAutoBak(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshServices := services.VirshService{}
-	err = virshServices.DisableAutoBak(autoBakIdInt)
+	err = virshServices.DisableAutoBak(r.Context(), autoBakIdInt)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

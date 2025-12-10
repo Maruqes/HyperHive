@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -15,7 +16,7 @@ type VirshBackup struct {
 	Automatic bool
 }
 
-func CreateTableBackups() error {
+func CreateTableBackups(ctx context.Context) error {
 	query := `
 	CREATE TABLE IF NOT EXISTS virsh_backups (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,13 +27,13 @@ func CreateTableBackups() error {
 		automatic BOOLEAN DEFAULT 0
 	);
 	`
-	_, err := DB.Exec(query)
+	_, err := DB.ExecContext(ctx, query)
 	return err
 }
 
-func InsertVirshBackup(b *VirshBackup) error {
+func InsertVirshBackup(ctx context.Context, b *VirshBackup) error {
 	query := `INSERT INTO virsh_backups (name, path, nfsmount_id, automatic) VALUES (?, ?, ?, ?)`
-	result, err := DB.Exec(query, b.Name, b.Path, b.NfsId, b.Automatic)
+	result, err := DB.ExecContext(ctx, query, b.Name, b.Path, b.NfsId, b.Automatic)
 	if err != nil {
 		return fmt.Errorf("failed to insert virsh backup: %v", err)
 	}
@@ -44,8 +45,8 @@ func InsertVirshBackup(b *VirshBackup) error {
 	return nil
 }
 
-func GetAllVirshBackups() ([]VirshBackup, error) {
-	rows, err := DB.Query("SELECT id, name, path, nfsmount_id, created_at, automatic FROM virsh_backups")
+func GetAllVirshBackups(ctx context.Context) ([]VirshBackup, error) {
+	rows, err := DB.QueryContext(ctx, "SELECT id, name, path, nfsmount_id, created_at, automatic FROM virsh_backups")
 	if err != nil {
 		return nil, fmt.Errorf("failed to query all backups: %v", err)
 	}
@@ -63,14 +64,14 @@ func GetAllVirshBackups() ([]VirshBackup, error) {
 	return backups, nil
 }
 
-func GetVirshBackupsByNfsMountID(nfsMountID int) ([]VirshBackup, error) {
+func GetVirshBackupsByNfsMountID(ctx context.Context, nfsMountID int) ([]VirshBackup, error) {
 	const query = `
 	SELECT id, name, path, nfsmount_id, created_at, automatic
 	FROM virsh_backups
 	WHERE nfsmount_id = ?;
 	`
 
-	rows, err := DB.Query(query, nfsMountID)
+	rows, err := DB.QueryContext(ctx, query, nfsMountID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query backups by NFS mount: %v", err)
 	}
@@ -88,9 +89,9 @@ func GetVirshBackupsByNfsMountID(nfsMountID int) ([]VirshBackup, error) {
 	return backups, nil
 }
 
-func GetVirshBackupById(id int) (*VirshBackup, error) {
+func GetVirshBackupById(ctx context.Context, id int) (*VirshBackup, error) {
 	query := `SELECT id, name, path, nfsmount_id, created_at, automatic FROM virsh_backups WHERE id = ?`
-	row := DB.QueryRow(query, id)
+	row := DB.QueryRowContext(ctx, query, id)
 
 	var b VirshBackup
 	if err := row.Scan(&b.Id, &b.Name, &b.Path, &b.NfsId, &b.CreatedAt, &b.Automatic); err != nil {
@@ -103,22 +104,22 @@ func GetVirshBackupById(id int) (*VirshBackup, error) {
 	return &b, nil
 }
 
-func DeleteVirshBackupById(id int) error {
+func DeleteVirshBackupById(ctx context.Context, id int) error {
 	query := `DELETE FROM virsh_backups WHERE id = ?`
-	_, err := DB.Exec(query, id)
+	_, err := DB.ExecContext(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete virsh backup: %v", err)
 	}
 	return nil
 }
 
-func GetAutomaticBackups(vmName string) ([]*VirshBackup, error) {
+func GetAutomaticBackups(ctx context.Context, vmName string) ([]*VirshBackup, error) {
 	query := `SELECT id, name, path, nfsmount_id, created_at, automatic 
 			  FROM virsh_backups 
 			  WHERE name = ? AND automatic = 1 
 			  ORDER BY created_at DESC`
 
-	rows, err := DB.Query(query, vmName)
+	rows, err := DB.QueryContext(ctx, query, vmName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query automatic backups: %v", err)
 	}
@@ -136,7 +137,7 @@ func GetAutomaticBackups(vmName string) ([]*VirshBackup, error) {
 	return backups, nil
 }
 
-func CreateTableAutomaticBackup() error {
+func CreateTableAutomaticBackup(ctx context.Context) error {
 	query := `
 	CREATE TABLE IF NOT EXISTS automatic_backup (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -150,7 +151,7 @@ func CreateTableAutomaticBackup() error {
 		last_backup_time DATETIME
 	);
 	`
-	_, err := DB.Exec(query)
+	_, err := DB.ExecContext(ctx, query)
 	return err
 }
 
@@ -228,12 +229,12 @@ type AutomaticBackup struct {
 	LastBackupTime   *string
 }
 
-func AddAutomaticBackup(ab *AutomaticBackup) error {
+func AddAutomaticBackup(ctx context.Context, ab *AutomaticBackup) error {
 	query := `
 	INSERT INTO automatic_backup (vm_name, frequency_days, min_time, max_time, nfsmount_id, max_backups_retain, enabled)
 	VALUES (?, ?, ?, ?, ?, ?, ?);
 	`
-	result, err := DB.Exec(query, ab.VmName, ab.FrequencyDays, ab.MinTime.String(), ab.MaxTime.String(), ab.NfsMountId, ab.MaxBackupsRetain, ab.Enabled)
+	result, err := DB.ExecContext(ctx, query, ab.VmName, ab.FrequencyDays, ab.MinTime.String(), ab.MaxTime.String(), ab.NfsMountId, ab.MaxBackupsRetain, ab.Enabled)
 	if err != nil {
 		return err
 	}
@@ -245,92 +246,92 @@ func AddAutomaticBackup(ab *AutomaticBackup) error {
 	return nil
 }
 
-func UpdateAutomaticBackup(ab *AutomaticBackup) error {
+func UpdateAutomaticBackup(ctx context.Context, ab *AutomaticBackup) error {
 	query := `
 	UPDATE automatic_backup
 	SET frequency_days = ?, min_time = ?, max_time = ?, nfsmount_id = ?, 
 	    max_backups_retain = ?, enabled = ?
 	WHERE id = ?;
 	`
-	_, err := DB.Exec(query, ab.FrequencyDays, ab.MinTime.String(), ab.MaxTime.String(), ab.NfsMountId, ab.MaxBackupsRetain, ab.Enabled, ab.Id)
+	_, err := DB.ExecContext(ctx, query, ab.FrequencyDays, ab.MinTime.String(), ab.MaxTime.String(), ab.NfsMountId, ab.MaxBackupsRetain, ab.Enabled, ab.Id)
 	return err
 }
 
-func UpdateAutomaticBackupTimes(id int, lastBackup *string) error {
+func UpdateAutomaticBackupTimes(ctx context.Context, id int, lastBackup *string) error {
 	query := `
 	UPDATE automatic_backup
 	SET last_backup_time = ?
 	WHERE id = ?;
 	`
-	_, err := DB.Exec(query, lastBackup, id)
+	_, err := DB.ExecContext(ctx, query, lastBackup, id)
 	return err
 }
 
-func RemoveAutomaticBackup(vmName string) error {
+func RemoveAutomaticBackup(ctx context.Context, vmName string) error {
 	query := `
 	DELETE FROM automatic_backup
 	WHERE vm_name = ?;
 	`
-	_, err := DB.Exec(query, vmName)
+	_, err := DB.ExecContext(ctx, query, vmName)
 	return err
 }
 
-func RemoveAutomaticBackupById(id int) error {
+func RemoveAutomaticBackupById(ctx context.Context, id int) error {
 	query := `
 	DELETE FROM automatic_backup
 	WHERE id = ?;
 	`
-	_, err := DB.Exec(query, id)
+	_, err := DB.ExecContext(ctx, query, id)
 	return err
 }
 
-func EnableAutomaticBackup(vmName string) error {
+func EnableAutomaticBackup(ctx context.Context, vmName string) error {
 	query := `
 	UPDATE automatic_backup
 	SET enabled = 1
 	WHERE vm_name = ?;
 	`
-	_, err := DB.Exec(query, vmName)
+	_, err := DB.ExecContext(ctx, query, vmName)
 	return err
 }
 
-func DisableAutomaticBackup(vmName string) error {
+func DisableAutomaticBackup(ctx context.Context, vmName string) error {
 	query := `
 	UPDATE automatic_backup
 	SET enabled = 0
 	WHERE vm_name = ?;
 	`
-	_, err := DB.Exec(query, vmName)
+	_, err := DB.ExecContext(ctx, query, vmName)
 	return err
 }
 
-func EnableAutomaticBackupById(id int) error {
+func EnableAutomaticBackupById(ctx context.Context, id int) error {
 	query := `
 	UPDATE automatic_backup
 	SET enabled = 1
 	WHERE id = ?;
 	`
-	_, err := DB.Exec(query, id)
+	_, err := DB.ExecContext(ctx, query, id)
 	return err
 }
 
-func DisableAutomaticBackupById(id int) error {
+func DisableAutomaticBackupById(ctx context.Context, id int) error {
 	query := `
 	UPDATE automatic_backup
 	SET enabled = 0
 	WHERE id = ?;
 	`
-	_, err := DB.Exec(query, id)
+	_, err := DB.ExecContext(ctx, query, id)
 	return err
 }
 
-func GetAllAutomaticBackups() ([]AutomaticBackup, error) {
+func GetAllAutomaticBackups(ctx context.Context) ([]AutomaticBackup, error) {
 	const query = `
 	SELECT id, vm_name, frequency_days, min_time, max_time, nfsmount_id, 
 	       max_backups_retain, enabled, last_backup_time
 	FROM automatic_backup;
 	`
-	rows, err := DB.Query(query)
+	rows, err := DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -351,7 +352,7 @@ func GetAllAutomaticBackups() ([]AutomaticBackup, error) {
 	return backups, nil
 }
 
-func GetAutomaticBackupsByNfsMountID(nfsMountID int) ([]AutomaticBackup, error) {
+func GetAutomaticBackupsByNfsMountID(ctx context.Context, nfsMountID int) ([]AutomaticBackup, error) {
 	const query = `
 	SELECT id, vm_name, frequency_days, min_time, max_time, nfsmount_id, 
 	       max_backups_retain, enabled, last_backup_time
@@ -359,7 +360,7 @@ func GetAutomaticBackupsByNfsMountID(nfsMountID int) ([]AutomaticBackup, error) 
 	WHERE nfsmount_id = ?;
 	`
 
-	rows, err := DB.Query(query, nfsMountID)
+	rows, err := DB.QueryContext(ctx, query, nfsMountID)
 	if err != nil {
 		return nil, err
 	}
@@ -380,14 +381,14 @@ func GetAutomaticBackupsByNfsMountID(nfsMountID int) ([]AutomaticBackup, error) 
 	return backups, nil
 }
 
-func GetAutomaticBackupByName(vmName string) (*AutomaticBackup, error) {
+func GetAutomaticBackupByName(ctx context.Context, vmName string) (*AutomaticBackup, error) {
 	const query = `
 	SELECT id, vm_name, frequency_days, min_time, max_time, nfsmount_id, 
 	       max_backups_retain, enabled, last_backup_time
 	FROM automatic_backup
 	WHERE vm_name = ?;
 	`
-	row := DB.QueryRow(query, vmName)
+	row := DB.QueryRowContext(ctx, query, vmName)
 	var ab AutomaticBackup
 	var minTimeStr, maxTimeStr string
 	err := row.Scan(&ab.Id, &ab.VmName, &ab.FrequencyDays, &minTimeStr, &maxTimeStr,
@@ -403,14 +404,14 @@ func GetAutomaticBackupByName(vmName string) (*AutomaticBackup, error) {
 	return &ab, nil
 }
 
-func GetAutomaticBackupById(id int) (*AutomaticBackup, error) {
+func GetAutomaticBackupById(ctx context.Context, id int) (*AutomaticBackup, error) {
 	const query = `
 	SELECT id, vm_name, frequency_days, min_time, max_time, nfsmount_id, 
 	       max_backups_retain, enabled, last_backup_time
 	FROM automatic_backup
 	WHERE id = ?;
 	`
-	row := DB.QueryRow(query, id)
+	row := DB.QueryRowContext(ctx, query, id)
 	var ab AutomaticBackup
 	var minTimeStr, maxTimeStr string
 	err := row.Scan(&ab.Id, &ab.VmName, &ab.FrequencyDays, &minTimeStr, &maxTimeStr,
@@ -426,14 +427,14 @@ func GetAutomaticBackupById(id int) (*AutomaticBackup, error) {
 	return &ab, nil
 }
 
-func GetEnabledAutomaticBackups() ([]AutomaticBackup, error) {
+func GetEnabledAutomaticBackups(ctx context.Context) ([]AutomaticBackup, error) {
 	const query = `
 	SELECT id, vm_name, frequency_days, min_time, max_time, nfsmount_id, 
 	       max_backups_retain, enabled, last_backup_time
 	FROM automatic_backup
 	WHERE enabled = 1;
 	`
-	rows, err := DB.Query(query)
+	rows, err := DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -454,7 +455,7 @@ func GetEnabledAutomaticBackups() ([]AutomaticBackup, error) {
 	return backups, nil
 }
 
-func GetEnabledAutomaticBackupsAt(clock Clock) ([]AutomaticBackup, error) {
+func GetEnabledAutomaticBackupsAt(ctx context.Context, clock Clock) ([]AutomaticBackup, error) {
 	const query = `
 	SELECT id, vm_name, frequency_days, min_time, max_time, nfsmount_id, 
 		   max_backups_retain, enabled, last_backup_time
@@ -466,7 +467,7 @@ func GetEnabledAutomaticBackupsAt(clock Clock) ([]AutomaticBackup, error) {
 		(min_time > max_time AND (min_time <= ? OR max_time >= ?))
 	  );
 	`
-	rows, err := DB.Query(query, clock.String(), clock.String(), clock.String(), clock.String())
+	rows, err := DB.QueryContext(ctx, query, clock.String(), clock.String(), clock.String(), clock.String())
 	if err != nil {
 		return nil, err
 	}
@@ -487,14 +488,14 @@ func GetEnabledAutomaticBackupsAt(clock Clock) ([]AutomaticBackup, error) {
 	return backups, nil
 }
 
-func DoesAutomaticBackupExist(vmName string) (bool, error) {
+func DoesAutomaticBackupExist(ctx context.Context, vmName string) (bool, error) {
 	const query = `
 	SELECT COUNT(*)
 	FROM automatic_backup
 	WHERE vm_name = ?;
 	`
 	var count int
-	err := DB.QueryRow(query, vmName).Scan(&count)
+	err := DB.QueryRowContext(ctx, query, vmName).Scan(&count)
 	if err != nil {
 		return false, err
 	}

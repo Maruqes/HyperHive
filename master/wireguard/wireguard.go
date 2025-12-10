@@ -3,6 +3,7 @@ package wireguard
 import (
 	"512SvMan/db"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -405,12 +406,12 @@ func SetupInterface() error {
 	return nil
 }
 
-func AutoStartVPN() error {
+func AutoStartVPN(ctx context.Context) error {
 	if err := SetupInterface(); err != nil {
 		return err
 	}
 
-	peers, err := db.GetAllWireguardPeers()
+	peers, err := db.GetAllWireguardPeers(ctx)
 	if err != nil {
 		return fmt.Errorf("load wireguard peers: %w", err)
 	}
@@ -436,7 +437,7 @@ func AutoStartVPN() error {
 	return nil
 }
 
-func NextAvailableClientIP() (string, error) {
+func NextAvailableClientIP(ctx context.Context) (string, error) {
 	serverIP, network, err := net.ParseCIDR(ServerCIDR)
 	if err != nil {
 		return "", fmt.Errorf("parse server cidr %q: %w", ServerCIDR, err)
@@ -452,7 +453,7 @@ func NextAvailableClientIP() (string, error) {
 		startHost = 1
 	}
 
-	peers, err := db.GetAllWireguardPeers()
+	peers, err := db.GetAllWireguardPeers(ctx)
 	if err != nil {
 		return "", fmt.Errorf("list wireguard peers: %w", err)
 	}
