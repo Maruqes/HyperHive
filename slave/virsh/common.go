@@ -584,41 +584,46 @@ func domainStateToString(state libvirt.DomainState) grpcVirsh.VmState {
 }
 
 func getMemStats(dom *libvirt.Domain) (totalKiB, usedKiB uint64, err error) {
-	const maxStats = 16
-	stats, err := dom.MemoryStats(maxStats, 0)
+	stats, err := dom.MemoryStats(0, 0)
 	if err != nil {
-		return 0, 0, fmt.Errorf("MemoryStats: %w", err)
+		return 0, 0, err
 	}
 
-	var actualBalloon, rss, unused uint64
-	for _, s := range stats {
-		switch s.Tag {
+	var actual, unused, available, rss uint64
+
+	for _, st := range stats {
+		switch st.Tag {
 		case int32(libvirt.DOMAIN_MEMORY_STAT_ACTUAL_BALLOON):
-			actualBalloon = s.Val
-		case int32(libvirt.DOMAIN_MEMORY_STAT_RSS):
-			rss = s.Val
+			actual = st.Val
 		case int32(libvirt.DOMAIN_MEMORY_STAT_UNUSED):
-			unused = s.Val
+			unused = st.Val
+		case int32(libvirt.DOMAIN_MEMORY_STAT_AVAILABLE):
+			available = st.Val
+		case int32(libvirt.DOMAIN_MEMORY_STAT_RSS):
+			rss = st.Val
 		}
 	}
 
-	if actualBalloon == 0 {
-		if info, err2 := dom.GetInfo(); err2 == nil {
-			actualBalloon = uint64(info.Memory)
+	if available > 0 && unused > 0 && available >= unused {
+		return available, available - unused, nil
+	}
+
+	if actual > 0 && unused > 0 && actual >= unused {
+		return actual, actual - unused, nil
+	}
+
+	if rss > 0 {
+		if actual > 0 {
+			return actual, rss, nil
 		}
+		return rss, rss, nil
 	}
 
-	var used uint64
-	switch {
-	case unused > 0 && unused <= actualBalloon:
-		used = actualBalloon - unused
-	case rss > 0:
-		used = rss
-	default:
-		used = actualBalloon
+	info, err := dom.GetInfo()
+	if err != nil {
+		return 0, 0, err
 	}
-
-	return actualBalloon, used, nil
+	return info.Memory, 0, nil
 }
 
 func sampleCPUTime(dom *libvirt.Domain) (ns uint64, vcpus int, err error) {
@@ -903,8 +908,6 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 	}
 	defer dom.Free()
 
-	domInfo, _ := dom.GetInfo()
-
 	// Get state
 	state, _, err := dom.GetState()
 	if err != nil {
@@ -941,61 +944,20 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		}
 	}
 
-	var definedCPUs int32
-	var definedMemMB int32
-	if parsedCPUs, parsedMemMB, err := definedResourcesFromDomainXML(xmlDesc); err != nil {
-		logger.Error(fmt.Sprintf("%s: parse defined resources: %v", name, err))
-	} else {
-		definedCPUs = parsedCPUs
-		definedMemMB = parsedMemMB
-	}
-
-	if definedCPUs == 0 && domInfo != nil && domInfo.NrVirtCpu > 0 {
-		definedCPUs = int32(domInfo.NrVirtCpu)
-	}
-	if definedMemMB == 0 && domInfo != nil && domInfo.Memory > 0 {
-		definedMemMB = int32(domInfo.Memory / 1024)
-	}
-
 	var usedMemMB int32
 	var cpuPct int32
-	vcpuCount := definedCPUs
-	totalMemMB := definedMemMB
+	var vcpuCount int32
+	var totalMemMB int32
 	// Only do live sampling when actually running
 	if state == libvirt.DOMAIN_RUNNING {
 		if totalKiB, usedKiB, err := getMemStats(dom); err == nil {
 			totalMemMB = int32(totalKiB / 1024)
 			usedMemMB = int32(usedKiB / 1024)
-		} else if domInfo != nil && domInfo.Memory > 0 {
-			totalMemMB = int32(domInfo.Memory / 1024)
-			if usedMemMB == 0 {
-				usedMemMB = totalMemMB
-			}
 		}
 		if pct, vcpus, err := cpuPercentOver(dom, 500*time.Millisecond); err == nil {
 			cpuPct = int32(pct + 0.5)
 			vcpuCount = int32(vcpus)
 		}
-	}
-
-	if vcpuCount == 0 {
-		switch {
-		case domInfo != nil && domInfo.NrVirtCpu > 0:
-			vcpuCount = int32(domInfo.NrVirtCpu)
-		case definedCPUs > 0:
-			vcpuCount = definedCPUs
-		}
-	}
-	if totalMemMB == 0 {
-		switch {
-		case definedMemMB > 0:
-			totalMemMB = definedMemMB
-		case domInfo != nil && domInfo.Memory > 0:
-			totalMemMB = int32(domInfo.Memory / 1024)
-		}
-	}
-	if state == libvirt.DOMAIN_RUNNING && usedMemMB == 0 && totalMemMB > 0 {
-		usedMemMB = totalMemMB
 	}
 
 	//get diskSize and DiskPath
@@ -1014,6 +976,15 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		} else {
 			return nil, fmt.Errorf("cpu xml: %w", err)
 		}
+	}
+
+	var definedCPUs int32
+	var definedMemMB int32
+	if parsedCPUs, parsedMemMB, err := definedResourcesFromDomainXML(xmlDesc); err != nil {
+		logger.Error(fmt.Sprintf("%s: parse defined resources: %v", name, err))
+	} else {
+		definedCPUs = parsedCPUs
+		definedMemMB = parsedMemMB
 	}
 
 	info := &grpcVirsh.Vm{
@@ -1085,8 +1056,6 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 				State:       grpcVirsh.VmState_UNKNOWN,
 			}
 
-			domInfo, _ := dom.GetInfo()
-
 			state := libvirt.DOMAIN_NOSTATE
 			stateKnown := false
 			if s, _, err := dom.GetState(); err != nil {
@@ -1095,6 +1064,24 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 				state = s
 				stateKnown = true
 				info.State = domainStateToString(state)
+			}
+
+			var (
+				totalMemMB int32
+				usedMemMB  int32
+				cpuPct     int32
+				vcpuCount  int32
+			)
+
+			if stateKnown && state == libvirt.DOMAIN_RUNNING {
+				if totalKiB, usedKiB, err := getMemStats(&dom); err == nil {
+					totalMemMB = int32(totalKiB / 1024)
+					usedMemMB = int32(usedKiB / 1024)
+				}
+				if pct, vcpus, err := cpuPercentOver(&dom, 500*time.Millisecond); err == nil {
+					cpuPct = int32(pct + 0.5)
+					vcpuCount = int32(vcpus)
+				}
 			}
 
 			xmlDesc := ""
@@ -1109,8 +1096,6 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 			networkName := ""
 			vncPassword := ""
 			cpuXML := ""
-			var definedCPUs int32
-			var definedMemMB int32
 			if xmlDesc != "" {
 				if p, err := vncPortFromDomainXML(xmlDesc); err != nil {
 					warns = append(warns, fmt.Sprintf("%s: parse vnc port: %v", name, err))
@@ -1136,66 +1121,9 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 				if parsedCPUs, parsedMemMB, err := definedResourcesFromDomainXML(xmlDesc); err != nil {
 					warns = append(warns, fmt.Sprintf("%s: defined resources: %v", name, err))
 				} else {
-					definedCPUs = parsedCPUs
-					definedMemMB = parsedMemMB
 					info.DefinedCPUS = parsedCPUs
 					info.DefinedRam = parsedMemMB
 				}
-			}
-
-			if definedCPUs == 0 && domInfo != nil && domInfo.NrVirtCpu > 0 {
-				definedCPUs = int32(domInfo.NrVirtCpu)
-			}
-			if definedMemMB == 0 && domInfo != nil && domInfo.Memory > 0 {
-				definedMemMB = int32(domInfo.Memory / 1024)
-			}
-			if info.DefinedCPUS == 0 && definedCPUs > 0 {
-				info.DefinedCPUS = definedCPUs
-			}
-			if info.DefinedRam == 0 && definedMemMB > 0 {
-				info.DefinedRam = definedMemMB
-			}
-
-			totalMemMB := definedMemMB
-			usedMemMB := int32(0)
-			cpuPct := int32(0)
-			vcpuCount := definedCPUs
-
-			if stateKnown && state == libvirt.DOMAIN_RUNNING {
-				if totalKiB, usedKiB, err := getMemStats(&dom); err == nil {
-					totalMemMB = int32(totalKiB / 1024)
-					usedMemMB = int32(usedKiB / 1024)
-				} else if domInfo != nil && domInfo.Memory > 0 {
-					totalMemMB = int32(domInfo.Memory / 1024)
-					if usedMemMB == 0 {
-						usedMemMB = totalMemMB
-					}
-				}
-				if pct, vcpus, err := cpuPercentOver(&dom, 500*time.Millisecond); err == nil {
-					cpuPct = int32(pct + 0.5)
-					vcpuCount = int32(vcpus)
-				}
-			}
-
-			if vcpuCount == 0 {
-				switch {
-				case definedCPUs > 0:
-					vcpuCount = definedCPUs
-				case domInfo != nil && domInfo.NrVirtCpu > 0:
-					vcpuCount = int32(domInfo.NrVirtCpu)
-				}
-			}
-
-			if totalMemMB == 0 {
-				switch {
-				case definedMemMB > 0:
-					totalMemMB = definedMemMB
-				case domInfo != nil && domInfo.Memory > 0:
-					totalMemMB = int32(domInfo.Memory / 1024)
-				}
-			}
-			if stateKnown && state == libvirt.DOMAIN_RUNNING && usedMemMB == 0 && totalMemMB > 0 {
-				usedMemMB = totalMemMB
 			}
 
 			diskInfoPath := ""
