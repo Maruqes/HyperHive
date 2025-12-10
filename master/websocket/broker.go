@@ -15,7 +15,12 @@ type Message struct {
 	Extra string `json:"extra"`
 }
 
-var connections []*websocket.Conn
+type wsClient struct {
+	conn *websocket.Conn
+	mu   sync.Mutex // serialize writes per connection
+}
+
+var connections []*wsClient
 var connsMu sync.Mutex
 
 // BroadcastMessage sends a message to all connected WebSocket clients
@@ -28,35 +33,37 @@ func BroadcastMessage(msg Message) {
 
 	// Copy current connections so that slow/broken clients can't block the mutex.
 	connsMu.Lock()
-	snapshot := make([]*websocket.Conn, len(connections))
+	snapshot := make([]*wsClient, len(connections))
 	copy(snapshot, connections)
 	connsMu.Unlock()
 
-	var dead []*websocket.Conn
+	var dead []*wsClient
 
-	for _, conn := range snapshot {
+	for _, client := range snapshot {
 
-		if err := conn.SetWriteDeadline(time.Now().Add(3 * time.Second)); err != nil {
+		client.mu.Lock()
+		if err := client.conn.SetWriteDeadline(time.Now().Add(3 * time.Second)); err != nil {
 			log.Printf("websocket: failed to set write deadline: %v", err)
 		}
 
-		if err := conn.WriteMessage(websocket.TextMessage, msgBytes); err != nil {
-			dead = append(dead, conn)
+		if err := client.conn.WriteMessage(websocket.TextMessage, msgBytes); err != nil {
+			dead = append(dead, client)
 		}
+		client.mu.Unlock()
 	}
 
 	if len(dead) > 0 {
 		// Remove failed connections.
-		toDrop := make(map[*websocket.Conn]struct{}, len(dead))
+		toDrop := make(map[*wsClient]struct{}, len(dead))
 		for _, c := range dead {
 			toDrop[c] = struct{}{}
 		}
 
 		connsMu.Lock()
-		filtered := make([]*websocket.Conn, 0, len(connections))
+		filtered := make([]*wsClient, 0, len(connections))
 		for _, c := range connections {
 			if _, drop := toDrop[c]; drop {
-				_ = c.Close()
+				_ = c.conn.Close()
 				continue
 			}
 			filtered = append(filtered, c)
@@ -73,5 +80,5 @@ func BroadcastMessage(msg Message) {
 func RegisterConnection(conn *websocket.Conn) {
 	connsMu.Lock()
 	defer connsMu.Unlock()
-	connections = append(connections, conn)
+	connections = append(connections, &wsClient{conn: conn})
 }
