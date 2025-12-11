@@ -223,7 +223,7 @@ func StartApi() {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)                   // apanha panics
+	r.Use(middleware.Recoverer) // apanha panics
 	// r.Use(websocketSafeTimeout(30 * time.Second)) // mata handlers lentos
 
 	// Strip a leading "/api" from any incoming request path
@@ -263,6 +263,10 @@ func StartApi() {
 	r.Get("/static/notification-icon.png", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/png")
 		http.ServeFile(w, r, "static/notification-icon.png")
+	})
+	r.Get("/icon.png", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		http.ServeFile(w, r, "static/a.png")
 	})
 
 	setupNoVNCAPI(r)
@@ -323,8 +327,8 @@ func StartApi() {
 	extra.StartHeartbeat(5 * time.Second)
 
 	srv := &http.Server{
-		Addr:              ":9595",
-		Handler:           r,
+		Addr:    ":9595",
+		Handler: r,
 		// ReadHeaderTimeout: 5 * time.Second,
 		// ReadTimeout:       15 * time.Second,
 		// WriteTimeout:      30 * time.Second,
