@@ -438,8 +438,9 @@ func main() {
 	info.LoopNots()
 	err = SpaService.Reapply(ctx)
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Fatalf("%s", err.Error())
 	}
+	go SpaService.Maintain(ctx, 30*time.Second)
 
 	go func() {
 		addr := "127.0.0.1:6060"

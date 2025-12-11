@@ -7,7 +7,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/Maruqes/512SvMan/logger"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -80,6 +82,23 @@ func (s *SPAService) Allow(ctx context.Context, port int, password, ip string, s
 
 func (s *SPAService) List(ctx context.Context) ([]db.SPAPort, error) {
 	return db.ListSPAPorts(ctx)
+}
+
+// Maintain keeps SPA firewall rules applied in case firewalld or iptables reloads wipe them.
+func (s *SPAService) Maintain(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := s.Reapply(ctx); err != nil {
+				logger.Errorf("reapply SPA rules: %v", err)
+			}
+		}
+	}
 }
 
 func (s *SPAService) Reapply(ctx context.Context) error {
