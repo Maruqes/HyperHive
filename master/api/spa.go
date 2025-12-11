@@ -171,6 +171,75 @@ func listSPAHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func serveSPAPageAllow(w http.ResponseWriter, r *http.Request) {
+	portStr := chi.URLParam(r, "port")
+	if portStr == "" {
+		http.Error(w, "missing port", http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	page := fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPA Allow Port %s</title>
+<style>
+body { font-family: Arial, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; color: #0f172a; }
+form { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+input, button { padding: 10px 12px; font-size: 16px; }
+button { background: #0f172a; color: #fff; border: none; cursor: pointer; }
+button:disabled { opacity: 0.6; cursor: not-allowed; }
+.msg { margin-top: 12px; font-family: monospace; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h2>Authorize Access on Port %s</h2>
+<p>Enter the SPA password and how many seconds this IP should be allowed.</p>
+<form id="allow-form">
+  <label>Password<br><input type="password" id="password" required></label>
+  <label>Seconds<br><input type="number" id="seconds" value="28800" min="1" required></label>
+  <button type="submit">Allow my IP</button>
+</form>
+<div class="msg" id="msg"></div>
+<script>
+const form = document.getElementById('allow-form');
+const msg = document.getElementById('msg');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  msg.textContent = '';
+  const password = document.getElementById('password').value;
+  const seconds = parseInt(document.getElementById('seconds').value, 10) || 0;
+  if (!password || seconds <= 0) {
+    msg.textContent = 'Password and positive seconds are required.';
+    return;
+  }
+  const payload = { port: %s, password, seconds };
+  try {
+    const res = await fetch('/spa/allow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      msg.textContent = 'Error ' + res.status + ': ' + text;
+    } else {
+      msg.textContent = 'Success: ' + text;
+    }
+  } catch (err) {
+    msg.textContent = 'Request failed: ' + err;
+  }
+});
+</script>
+</body>
+</html>`, portStr, portStr, portStr)
+
+	_, _ = w.Write([]byte(page))
+}
+
 func setupSPAOpenAPI(r chi.Router) {
 	r.Post("/spa/allow", allowSPAHandler)
 }
@@ -179,4 +248,10 @@ func setupSPAAPI(r chi.Router) {
 	r.Post("/spa", createSPAHandler)
 	r.Get("/spa", listSPAHandler)
 	r.Delete("/spa/{port}", deleteSPAHandler)
+}
+
+func setupSPAPageAPI(r chi.Router) chi.Router {
+	return r.Route("/spa", func(r chi.Router) {
+		r.Get("/pageallow/{port}", serveSPAPageAllow)
+	})
 }
