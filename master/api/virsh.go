@@ -8,6 +8,7 @@ import (
 	"512SvMan/services"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -624,12 +625,49 @@ func readVMRequest(r *http.Request) (*VMRequestImport, error) {
 	return &vmReq, nil
 }
 
+func copyBodyToFile(ctx context.Context, dst io.Writer, src io.Reader, buf []byte, expectedBytes int64) error {
+	var written int64
+
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		nr, er := src.Read(buf)
+		if nr > 0 {
+			nw, ew := dst.Write(buf[:nr])
+			if nw != nr {
+				return io.ErrShortWrite
+			}
+			if ew != nil {
+				return ew
+			}
+			written += int64(nw)
+		}
+
+		if er != nil {
+			if er == io.EOF {
+				break
+			}
+			return er
+		}
+	}
+
+	if expectedBytes > 0 && written != expectedBytes {
+		return fmt.Errorf("incomplete upload: wrote %d of %d bytes", written, expectedBytes)
+	}
+
+	return nil
+}
+
 func importVM(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPut {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+
+	ctx := r.Context()
 
 	vmReq, err := readVMRequest(r)
 	if err != nil {
@@ -644,12 +682,6 @@ func importVM(w http.ResponseWriter, r *http.Request) {
 
 	virshService := services.VirshService{}
 
-	/*
-		check
-		Slave_name  string
-		NfsShareId  int
-		VmName      string
-	*/
 	vm, err := virshService.GetVmByName(vmReq.VmName)
 	if err != nil {
 		http.Error(w, "error checking existing VMs: "+err.Error(), http.StatusInternalServerError)
@@ -667,34 +699,80 @@ func importVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//checks if nfsShareId exists also and creates finalFile path
-	finalFile, err := virshService.ImportVmHelper(r.Context(), vmReq.NfsShareId, vmReq.VmName)
+	finalFile, err := virshService.ImportVmHelper(ctx, vmReq.NfsShareId, vmReq.VmName)
 	if err != nil {
 		http.Error(w, "error preparing import: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	tmpDir := filepath.Dir(finalFile)
 	tmp := finalFile + ".part"
+
+	cleanup := true
+	defer func() {
+		if !cleanup {
+			return
+		}
+		_ = os.Remove(tmp)
+		_ = os.Remove(finalFile)
+		_ = os.RemoveAll(tmpDir)
+	}()
+
 	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
 		http.Error(w, "open error", http.StatusInternalServerError)
 		return
 	}
-	defer f.Close()
+	defer func() {
+		if f != nil {
+			_ = f.Close()
+		}
+	}()
+
+	body := http.MaxBytesReader(w, r.Body, r.ContentLength)
+	defer body.Close()
+
+	readDone := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			body.Close()
+		case <-readDone:
+		}
+	}()
+	defer close(readDone)
 
 	buf := make([]byte, bufSize)
-	if _, err := io.CopyBuffer(f, r.Body, buf); err != nil {
-		http.Error(w, "write error: "+err.Error(), http.StatusInternalServerError)
+	if err := copyBodyToFile(ctx, f, body, buf, r.ContentLength); err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			status = http.StatusRequestTimeout
+		}
+		http.Error(w, "write error: "+err.Error(), status)
 		return
 	}
-	_ = f.Sync()
+	if err := f.Sync(); err != nil {
+		http.Error(w, "sync error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := f.Close(); err != nil {
+		http.Error(w, "close error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	f = nil
 
 	if err := os.Rename(tmp, finalFile); err != nil {
 		http.Error(w, "finalize error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	if err := ctx.Err(); err != nil {
+		http.Error(w, "request canceled: "+err.Error(), http.StatusRequestTimeout)
+		return
+	}
+
 	err = virshService.ColdMigrateVm(
-		r.Context(),
+		ctx,
 		vmReq.Slave_name,
 		&grpcVirsh.ColdMigrationRequest{
 			VmName:      vmReq.VmName,
@@ -712,6 +790,7 @@ func importVM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cleanup = false
 	w.WriteHeader(http.StatusCreated)
 }
 
