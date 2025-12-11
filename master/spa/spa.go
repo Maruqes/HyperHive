@@ -57,8 +57,9 @@ func AllowIP(port int, ip string, seconds int) error {
 	if seconds <= 0 {
 		return fmt.Errorf("timeout seconds must be positive")
 	}
-	if parsed := net.ParseIP(ip); parsed == nil {
-		return fmt.Errorf("invalid IP address %q", ip)
+	parsed := net.ParseIP(ip)
+	if parsed == nil || parsed.To4() == nil {
+		return fmt.Errorf("invalid IPv4 address %q", ip)
 	}
 
 	setName := ipsetName(port)
@@ -71,7 +72,7 @@ func AllowIP(port int, ip string, seconds int) error {
 	}
 
 	secondsStr := strconv.Itoa(seconds)
-	if err := runCommand("ipset", "add", "-exist", setName, ip, "timeout", secondsStr); err != nil {
+	if err := runCommand("ipset", "add", "-exist", setName, parsed.String(), "timeout", secondsStr); err != nil {
 		return fmt.Errorf("add IP to %s: %w", setName, err)
 	}
 	return nil

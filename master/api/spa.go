@@ -89,8 +89,9 @@ func allowSPAHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if net.ParseIP(ip) == nil {
-		http.Error(w, "invalid IP address", http.StatusBadRequest)
+	parsed := net.ParseIP(ip)
+	if parsed == nil || parsed.To4() == nil {
+		http.Error(w, "invalid IPv4 address", http.StatusBadRequest)
 		return
 	}
 
@@ -131,17 +132,24 @@ func clientIP(r *http.Request) (string, error) {
 	if xf := r.Header.Get("X-Forwarded-For"); xf != "" {
 		for _, part := range strings.Split(xf, ",") {
 			trimmed := strings.TrimSpace(part)
-			if trimmed != "" && net.ParseIP(trimmed) != nil {
-				return trimmed, nil
+			if trimmed == "" {
+				continue
+			}
+			if ip := net.ParseIP(trimmed); ip != nil && ip.To4() != nil {
+				return ip.String(), nil
 			}
 		}
 	}
-	if xr := strings.TrimSpace(r.Header.Get("X-Real-IP")); xr != "" && net.ParseIP(xr) != nil {
-		return xr, nil
+	if xr := strings.TrimSpace(r.Header.Get("X-Real-IP")); xr != "" {
+		if ip := net.ParseIP(xr); ip != nil && ip.To4() != nil {
+			return ip.String(), nil
+		}
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err == nil && net.ParseIP(host) != nil {
-		return host, nil
+	if err == nil {
+		if ip := net.ParseIP(host); ip != nil && ip.To4() != nil {
+			return ip.String(), nil
+		}
 	}
 	return "", fmt.Errorf("no valid client ip")
 }
