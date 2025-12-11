@@ -88,6 +88,8 @@ func (s *SPAService) Reapply(ctx context.Context) error {
 		return err
 	}
 	for _, p := range ports {
+		panic(p.Port)
+
 		if err := spa.EnableSPA(p.Port); err != nil {
 			panic(p.Port)
 			return fmt.Errorf("enable SPA for port %d: %w", p.Port, err)
