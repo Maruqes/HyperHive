@@ -69,6 +69,7 @@ func allowSPAHandler(w http.ResponseWriter, r *http.Request) {
 		Port     int    `json:"port"`
 		Password string `json:"password"`
 		Seconds  int    `json:"seconds"`
+		IP       string `json:"ip"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
@@ -83,16 +84,22 @@ func allowSPAHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ip, err := clientIP(r)
-	if err != nil {
-		http.Error(w, "could not determine client IP", http.StatusBadRequest)
-		return
-	}
-
-	parsed := net.ParseIP(ip)
-	if parsed == nil || parsed.To4() == nil {
-		http.Error(w, "invalid IPv4 address", http.StatusBadRequest)
-		return
+	manualIP := strings.TrimSpace(req.IP)
+	var ip string
+	if manualIP != "" {
+		parsed := net.ParseIP(manualIP)
+		if parsed == nil || parsed.To4() == nil {
+			http.Error(w, "invalid IPv4 address", http.StatusBadRequest)
+			return
+		}
+		ip = parsed.String()
+	} else {
+		var err error
+		ip, err = clientIP(r)
+		if err != nil {
+			http.Error(w, "could not determine client IP; provide \"ip\" in the request body", http.StatusBadRequest)
+			return
+		}
 	}
 
 	svc := services.SPAService{}
@@ -214,7 +221,7 @@ func serveSPAPageAllow(w http.ResponseWriter, r *http.Request) {
     </div>
 
     <p class="text-sm text-zinc-300 mb-4 leading-relaxed">
-      Enter the SPA password and for how many seconds this IP should be allowed to access this port.
+      Enter the SPA password and for how many seconds this IP should be allowed to access this port. You can set the IP manually, or leave it blank to auto-detect from your request.
     </p>
 
     <form id="allow-form" class="space-y-3">
@@ -225,6 +232,17 @@ func serveSPAPageAllow(w http.ResponseWriter, r *http.Request) {
           id="password"
           autocomplete="current-password"
           required
+          class="mt-1 block w-full rounded-lg border border-zinc-700 bg-black/40 px-3 py-2 text-sm text-zinc-50 placeholder-zinc-500 outline-none focus:ring-1 focus:ring-zinc-100 focus:border-zinc-100"
+        >
+      </label>
+
+      <label class="block text-xs font-medium text-zinc-100">
+        IP (optional)
+        <input
+          type="text"
+          id="ip"
+          inputmode="numeric"
+          placeholder="Leave blank to auto-detect"
           class="mt-1 block w-full rounded-lg border border-zinc-700 bg-black/40 px-3 py-2 text-sm text-zinc-50 placeholder-zinc-500 outline-none focus:ring-1 focus:ring-zinc-100 focus:border-zinc-100"
         >
       </label>
@@ -284,6 +302,7 @@ func serveSPAPageAllow(w http.ResponseWriter, r *http.Request) {
   <script>
     const form = document.getElementById('allow-form');
     const msg = document.getElementById('msg');
+    const ipInput = document.getElementById('ip');
     const secondsInput = document.getElementById('seconds');
     const presetButtons = document.querySelectorAll('[data-seconds]');
 
@@ -303,6 +322,7 @@ func serveSPAPageAllow(w http.ResponseWriter, r *http.Request) {
       msg.textContent = '';
       const password = document.getElementById('password').value;
       const seconds = parseInt(secondsInput.value, 10) || 0;
+      const ip = ipInput.value.trim();
 
       if (!password || seconds <= 0) {
         msg.textContent = 'Password and positive seconds are required.';
@@ -310,11 +330,14 @@ func serveSPAPageAllow(w http.ResponseWriter, r *http.Request) {
       }
 
       const payload = { port: %s, password, seconds };
+      if (ip) {
+        payload.ip = ip;
+      }
       const submitBtn = form.querySelector('button[type="submit"]');
       submitBtn.disabled = true;
 
       try {
-        const res = await fetch('/api/spa/allow', {
+        const res = await fetch('/api/spa/allow-ip', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -323,7 +346,12 @@ func serveSPAPageAllow(w http.ResponseWriter, r *http.Request) {
         if (!res.ok) {
           msg.textContent = 'Error ' + res.status + ': ' + text;
         } else {
-          msg.textContent = 'Success: ' + text;
+          try {
+            const data = JSON.parse(text);
+            msg.textContent = 'Success: IP ' + data.ip + ' allowed for ' + data.seconds + ' seconds on port ' + data.port;
+          } catch (_) {
+            msg.textContent = 'Success: ' + text;
+          }
         }
       } catch (err) {
         msg.textContent = 'Request failed: ' + err;
@@ -339,7 +367,8 @@ func serveSPAPageAllow(w http.ResponseWriter, r *http.Request) {
 }
 
 func setupSPAOpenAPI(r chi.Router) {
-	r.Post("/spa/allow", allowSPAHandler)
+	r.Post("/spa/allow-ip", allowSPAHandler)
+	r.Post("/spa/allow", allowSPAHandler) // backward compatible
 	r.Get("/spa/pageallow/{port}", serveSPAPageAllow)
 
 }
