@@ -242,16 +242,12 @@ form.addEventListener('submit', async (e) => {
 
 func setupSPAOpenAPI(r chi.Router) {
 	r.Post("/spa/allow", allowSPAHandler)
+	r.Get("/spa/pageallow/{port}", serveSPAPageAllow)
+
 }
 
 func setupSPAAPI(r chi.Router) {
 	r.Post("/spa", createSPAHandler)
 	r.Get("/spa", listSPAHandler)
 	r.Delete("/spa/{port}", deleteSPAHandler)
-}
-
-func setupSPAPageAPI(r chi.Router) chi.Router {
-	return r.Route("/spa", func(r chi.Router) {
-		r.Get("/pageallow/{port}", serveSPAPageAllow)
-	})
 }
