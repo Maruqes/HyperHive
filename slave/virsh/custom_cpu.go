@@ -246,10 +246,10 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (xmlPath string, err error
 	spiceGraphicsXML := fmt.Sprintf(`
 	<graphics type='spice' autoport='yes' port='-1' listen='%s'>
 	  <listen type='address' address='%s'/>
-	  <image compression='auto_glz'/>
-	  <jpeg compression='auto'/>
-	  <zlib compression='auto'/>
-	  <playback compression='on'/>
+	  <image compression='off'/>
+	  <jpeg compression='never'/>
+	  <zlib compression='never'/>
+	  <playback compression='off'/>
 	  <streaming mode='all'/>
 	  <clipboard copypaste='yes'/>
 	  <filetransfer enable='yes'/>
