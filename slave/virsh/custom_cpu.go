@@ -75,12 +75,12 @@ func isValidVMName(vmName string) error {
 	if vmName == "" {
 		return fmt.Errorf("VM name cannot be empty")
 	}
-	matched, err := regexp.MatchString("^[a-zA-Z0-9]+$", vmName)
+	matched, err := regexp.MatchString("^[a-zA-Z0-9-]+$", vmName)
 	if err != nil {
 		return fmt.Errorf("regex error: %w", err)
 	}
 	if !matched {
-		return fmt.Errorf("VM name can only contain letters and numbers")
+		return fmt.Errorf("VM name can only contain letters, numbers and hyphens")
 	}
 	return nil
 }
