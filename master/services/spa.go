@@ -77,3 +77,7 @@ func (s *SPAService) Allow(ctx context.Context, port int, password, ip string, s
 
 	return spa.AllowIP(port, ip, seconds)
 }
+
+func (s *SPAService) List(ctx context.Context) ([]db.SPAPort, error) {
+	return db.ListSPAPorts(ctx)
+}

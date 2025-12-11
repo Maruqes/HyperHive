@@ -75,3 +75,30 @@ func GetSPAPort(ctx context.Context, port int) (*SPAPort, error) {
 	}
 	return &entry, nil
 }
+
+// ListSPAPorts returns all configured SPA ports.
+func ListSPAPorts(ctx context.Context) ([]SPAPort, error) {
+	const query = `
+	SELECT id, port, password_hash, created_at
+	FROM spa_ports
+	ORDER BY created_at ASC;
+	`
+	rows, err := DB.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("list spa ports: %w", err)
+	}
+	defer rows.Close()
+
+	var out []SPAPort
+	for rows.Next() {
+		var entry SPAPort
+		if err := rows.Scan(&entry.ID, &entry.Port, &entry.PasswordHash, &entry.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan spa port: %w", err)
+		}
+		out = append(out, entry)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate spa ports: %w", err)
+	}
+	return out, nil
+}

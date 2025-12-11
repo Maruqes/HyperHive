@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -145,11 +146,37 @@ func clientIP(r *http.Request) (string, error) {
 	return "", fmt.Errorf("no valid client ip")
 }
 
+func listSPAHandler(w http.ResponseWriter, r *http.Request) {
+	svc := services.SPAService{}
+	entries, err := svc.List(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	type spaOut struct {
+		Port      int       `json:"port"`
+		CreatedAt time.Time `json:"created_at"`
+	}
+	out := make([]spaOut, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, spaOut{
+			Port:      e.Port,
+			CreatedAt: e.CreatedAt,
+		})
+	}
+
+	writeJSONWithStatus(w, http.StatusOK, map[string]any{
+		"spa_ports": out,
+	})
+}
+
 func setupSPAOpenAPI(r chi.Router) {
 	r.Post("/spa/allow", allowSPAHandler)
 }
 
 func setupSPAAPI(r chi.Router) {
 	r.Post("/spa", createSPAHandler)
+	r.Get("/spa", listSPAHandler)
 	r.Delete("/spa/{port}", deleteSPAHandler)
 }
