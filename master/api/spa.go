@@ -186,23 +186,91 @@ func serveSPAPageAllow(w http.ResponseWriter, r *http.Request) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SPA Allow Port %s</title>
 <style>
-body { font-family: Arial, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; color: #0f172a; }
-form { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
-input, button { padding: 10px 12px; font-size: 16px; }
-button { background: #0f172a; color: #fff; border: none; cursor: pointer; }
-button:disabled { opacity: 0.6; cursor: not-allowed; }
-.msg { margin-top: 12px; font-family: monospace; white-space: pre-wrap; }
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f9f9f9 0%%, #f1f1f1 100%%);
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+  color: #0f172a;
+}
+.card {
+  width: min(480px, 92vw);
+  background: #ffffff;
+  border: 1px solid #dcdde1;
+  border-radius: 14px;
+  padding: 28px 24px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.08);
+}
+h2 {
+  margin: 0 0 8px 0;
+  font-weight: 600;
+}
+p {
+  margin: 0 0 18px 0;
+  color: #334155;
+}
+form { display: flex; flex-direction: column; gap: 14px; }
+label { font-size: 14px; color: #1f2937; }
+input {
+  width: 100%;
+  margin-top: 6px;
+  padding: 12px 14px;
+  font-size: 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+input:focus {
+  outline: 2px solid #0f172a;
+  outline-offset: 1px;
+}
+button {
+  margin-top: 8px;
+  padding: 12px 14px;
+  font-size: 16px;
+  font-weight: 600;
+  background: #0f172a;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+}
+button:hover { transform: translateY(-1px); }
+button:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; transform: none; }
+.msg {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  white-space: pre-wrap;
+  color: #0f172a;
+}
 </style>
 </head>
 <body>
-<h2>Authorize Access on Port %s</h2>
-<p>Enter the SPA password and how many seconds this IP should be allowed.</p>
-<form id="allow-form">
-  <label>Password<br><input type="password" id="password" required></label>
-  <label>Seconds<br><input type="number" id="seconds" value="28800" min="1" required></label>
-  <button type="submit">Allow my IP</button>
-</form>
-<div class="msg" id="msg"></div>
+<div class="card">
+  <h2>Authorize Access on Port %s</h2>
+  <p>Enter the SPA password and how many seconds this IP should be allowed.</p>
+  <form id="allow-form">
+    <label>Password
+      <input type="password" id="password" autocomplete="current-password" required>
+    </label>
+    <label>Seconds
+      <input type="number" id="seconds" value="28800" min="1" required>
+    </label>
+    <button type="submit">Allow my IP</button>
+  </form>
+  <div class="msg" id="msg"></div>
+</div>
 <script>
 const form = document.getElementById('allow-form');
 const msg = document.getElementById('msg');
