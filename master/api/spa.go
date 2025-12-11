@@ -221,17 +221,43 @@ func serveSPAPageAllow(w http.ResponseWriter, r *http.Request) {
         >
       </label>
 
-      <label class="block text-xs font-medium text-zinc-100">
-        Seconds
-        <input
-          type="number"
-          id="seconds"
-          value="28800"
-          min="1"
-          required
-          class="mt-1 block w-full rounded-lg border border-zinc-700 bg-black/40 px-3 py-2 text-sm text-zinc-50 placeholder-zinc-500 outline-none focus:ring-1 focus:ring-zinc-100 focus:border-zinc-100"
-        >
-      </label>
+      <div>
+        <label class="block text-xs font-medium text-zinc-100">
+          Seconds
+          <input
+            type="number"
+            id="seconds"
+            value="28800"
+            min="1"
+            required
+            class="mt-1 block w-full rounded-lg border border-zinc-700 bg-black/40 px-3 py-2 text-sm text-zinc-50 placeholder-zinc-500 outline-none focus:ring-1 focus:ring-zinc-100 focus:border-zinc-100"
+          >
+        </label>
+
+        <!-- Quick presets -->
+        <div class="mt-2 flex flex-wrap gap-2">
+          <button type="button" data-seconds="3600"
+            class="px-3 py-1.5 rounded-full border border-zinc-700 text-[11px] font-medium text-zinc-200 hover:border-zinc-200 hover:text-zinc-50 transition-colors">
+            1h
+          </button>
+          <button type="button" data-seconds="7200"
+            class="px-3 py-1.5 rounded-full border border-zinc-700 text-[11px] font-medium text-zinc-200 hover:border-zinc-200 hover:text-zinc-50 transition-colors">
+            2h
+          </button>
+          <button type="button" data-seconds="14400"
+            class="px-3 py-1.5 rounded-full border border-zinc-700 text-[11px] font-medium text-zinc-200 hover:border-zinc-200 hover:text-zinc-50 transition-colors">
+            4h
+          </button>
+          <button type="button" data-seconds="28800"
+            class="px-3 py-1.5 rounded-full border border-zinc-700 text-[11px] font-medium text-zinc-200 hover:border-zinc-200 hover:text-zinc-50 transition-colors">
+            8h
+          </button>
+          <button type="button" data-seconds="86400"
+            class="px-3 py-1.5 rounded-full border border-zinc-700 text-[11px] font-medium text-zinc-200 hover:border-zinc-200 hover:text-zinc-50 transition-colors">
+            24h
+          </button>
+        </div>
+      </div>
 
       <button
         type="submit"
@@ -250,12 +276,25 @@ func serveSPAPageAllow(w http.ResponseWriter, r *http.Request) {
   <script>
     const form = document.getElementById('allow-form');
     const msg = document.getElementById('msg');
+    const secondsInput = document.getElementById('seconds');
+    const presetButtons = document.querySelectorAll('[data-seconds]');
+
+    // Botões de preset (1h, 2h, ...)
+    presetButtons.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const secs = btn.getAttribute('data-seconds');
+        if (secs) {
+          secondsInput.value = secs;
+        }
+      });
+    });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       msg.textContent = '';
       const password = document.getElementById('password').value;
-      const seconds = parseInt(document.getElementById('seconds').value, 10) || 0;
+      const seconds = parseInt(secondsInput.value, 10) || 0;
 
       if (!password || seconds <= 0) {
         msg.textContent = 'Password and positive seconds are required.';
@@ -263,8 +302,8 @@ func serveSPAPageAllow(w http.ResponseWriter, r *http.Request) {
       }
 
       const payload = { port: %s, password, seconds };
-
-      form.querySelector('button[type="submit"]').disabled = true;
+      const submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
 
       try {
         const res = await fetch('/spa/allow', {
@@ -281,7 +320,7 @@ func serveSPAPageAllow(w http.ResponseWriter, r *http.Request) {
       } catch (err) {
         msg.textContent = 'Request failed: ' + err;
       } finally {
-        form.querySelector('button[type="submit"]').disabled = false;
+        submitBtn.disabled = false;
       }
     });
   </script>
