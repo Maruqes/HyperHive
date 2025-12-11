@@ -267,6 +267,7 @@ func StartApi() {
 
 	setupNoVNCAPI(r)
 	guestNoVNCApi(r)
+	setupSPAOpenAPI(r)
 
 	//create a group protected by auth middleware
 	r.Group(func(r chi.Router) {
@@ -308,6 +309,7 @@ func StartApi() {
 		setupNotsAPI(r)
 		setupDockerAPI(r)
 		setupK8sAPI(r)
+		setupSPAAPI(r)
 	})
 
 	go func() {

@@ -261,6 +261,26 @@ func installWireGuard() error {
 	return nil
 }
 
+func installIpset() error {
+	var missing []string
+	if _, err := exec.LookPath("ipset"); err != nil {
+		missing = append(missing, "ipset")
+	}
+	if _, err := exec.LookPath("iptables"); err != nil {
+		missing = append(missing, "iptables")
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+
+	fmt.Printf("Installing %s...\n", strings.Join(missing, ", "))
+	args := append([]string{"install", "-y"}, missing...)
+	if err := execCommand("dnf", args...); err != nil {
+		return fmt.Errorf("failed to install %s: %w", strings.Join(missing, ", "), err)
+	}
+	return nil
+}
+
 func main() {
 	askForSudo()
 	ctx := context.Background()
@@ -284,6 +304,10 @@ func main() {
 	err = GoAccess()
 	if err != nil {
 		log.Fatalf("install GoAccess: %v", err)
+	}
+
+	if err := installIpset(); err != nil {
+		log.Fatalf("install ipset: %v", err)
 	}
 
 	err = installWireGuard()
@@ -315,6 +339,10 @@ func main() {
 	err = db.CreateLogsTable(ctx)
 	if err != nil {
 		log.Fatalf("create logs table: %v", err)
+	}
+
+	if err := db.CreateSPAPortsTable(ctx); err != nil {
+		log.Fatalf("create spa table: %v", err)
 	}
 
 	err = db.CreateISOTable(ctx)
