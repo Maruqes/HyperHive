@@ -493,6 +493,36 @@ func changeVmNetwork(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func changeVmVncPassword(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type Req struct {
+		NewPassword string `json:"new_password"`
+	}
+
+	var req Req
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.NewPassword) == "" {
+		http.Error(w, "new_password is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	if err := virshServices.ChangeVncPassword(vmName, req.NewPassword); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func resumeVm(w http.ResponseWriter, r *http.Request) {
 	vmName := chi.URLParam(r, "vm_name")
 	if vmName == "" {
@@ -1311,6 +1341,7 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Post("/removeiso/{vm_name}", removeIso)
 
 		r.Post("/change_vm_network/{vm_name}", changeVmNetwork)
+		r.Post("/change_vnc_password/{vm_name}", changeVmVncPassword)
 
 		//move
 		r.Post("/moveDisk/{vm_name}/{dest_nfs}", moveDisk)

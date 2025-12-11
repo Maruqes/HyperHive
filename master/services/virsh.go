@@ -825,6 +825,31 @@ func (v *VirshService) ChangeNetwork(vmName string, newNetwork string) error {
 	return err
 }
 
+func (v *VirshService) ChangeVncPassword(vmName string, newPassword string) error {
+	if strings.TrimSpace(newPassword) == "" {
+		return fmt.Errorf("new password cannot be empty")
+	}
+
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return err
+	}
+	if vm == nil {
+		return fmt.Errorf("vm %s does not exist", vmName)
+	}
+
+	slave := protocol.GetConnectionByMachineName(vm.MachineName)
+	if slave == nil || slave.Connection == nil {
+		return fmt.Errorf("slave %s no connected", vm.MachineName)
+	}
+
+	req := &grpcVirsh.ChangeVncPassword{
+		VmName:      vmName,
+		NewPassword: newPassword,
+	}
+	return virsh.ChangeVncPassword(slave.Connection, req)
+}
+
 func (v *VirshService) PauseVM(name string) error {
 	//find vm by name
 	exists, err := virsh.DoesVMExist(name)

@@ -178,6 +178,13 @@ func (s *SlaveVirshService) ChangeNetwork(ctx context.Context, req *grpcVirsh.Ch
 	return &grpcVirsh.Empty{}, nil
 }
 
+func (s *SlaveVirshService) ChangeVmPassword(ctx context.Context, req *grpcVirsh.ChangeVncPassword) (*grpcVirsh.Empty, error) {
+	if err := ChangeVNCPassword(req.VmName, req.NewPassword); err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.Empty{}, nil
+}
+
 func (s *SlaveVirshService) RemoveIsoFromVm(ctx context.Context, req *grpcVirsh.Vm) (*grpcVirsh.OkResponse, error) {
 	if err := RemoveIsoFromVM(req.Name); err != nil {
 		return nil, err

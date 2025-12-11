@@ -4,16 +4,12 @@ package virsh;
 
 option go_package = "github.com/Maruqes/512SvMan/api/proto/virsh;proto";
 
-//get cpu features
-message Empty {
-}
+// get cpu features
+message Empty {}
 
-message GetCpuFeaturesResponse {
-  repeated string features = 1;
-}
+message GetCpuFeaturesResponse { repeated string features = 1; }
 
-
-message CreateVmRequest{
+message CreateVmRequest {
   string name = 1;
   int32 memory = 2;
   int32 vcpu = 3;
@@ -44,14 +40,14 @@ enum VmState {
   NOSTATE = 8;
 }
 
-message Vm{
+message Vm {
   string machineName = 1;
   string name = 2;
   VmState state = 3;
   string novncPort = 4;
-  int32 cpuCount = 5; //current cpu count
-  int32 memoryMB = 6; //current mb
-  int32 currentCpuUsage = 7; //current %
+  int32 cpuCount = 5;        // current cpu count
+  int32 memoryMB = 6;        // current mb
+  int32 currentCpuUsage = 7; // current %
   int32 currentMemoryUsageMB = 8;
   int32 diskSizeGB = 9;
   string diskPath = 10;
@@ -60,21 +56,18 @@ message Vm{
   string network = 13;
   string VNCPassword = 14;
   string CPUXML = 15;
-  int32 DefinedCPUS = 16; //vm as for emxaple 5 cpus
-  int32 DefinedRam = 17; //vm has 16G of memory (its in megas)
+  int32 DefinedCPUS = 16; // vm as for emxaple 5 cpus
+  int32 DefinedRam = 17;  // vm has 16G of memory (its in megas)
   int32 AllocatedGb = 18;
   int32 RealHostMemUsage = 19;
 }
 
-message GetVmByNameRequest {
-  string name = 1;
-}
+message GetVmByNameRequest { string name = 1; }
 
 message GetAllVmsResponse {
   repeated Vm vms = 1;
   repeated string warnings = 2;
 }
-
 
 message MigrateVmRequest {
   string name = 2;
@@ -83,15 +76,12 @@ message MigrateVmRequest {
   int32 timeoutSeconds = 5;
 }
 
-message CPUXMLResponse {
-  string cpuXML = 1;
-}
+message CPUXMLResponse { string cpuXML = 1; }
 
 message UpdateVMCPUXmlRequest {
   string name = 1;
   string cpuXML = 2;
 }
-
 
 message ColdMigrationRequest {
   string vm_name = 1;
@@ -104,13 +94,17 @@ message ColdMigrationRequest {
   bool live = 8;
 }
 
-message ChangeNetworkReq{
+message ChangeNetworkReq {
   string vmName = 1;
   string new_network = 2;
 }
 
+message ChangeVncPassword {
+  string vmName = 1;
+  string new_password = 2;
+}
 
-//defines on slave
+// defines on slave
 service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
   rpc GetCPUXML(Empty) returns (CPUXMLResponse);
@@ -129,20 +123,21 @@ service SlaveVirshService {
   rpc RestartVM(Vm) returns (OkResponse);
   rpc PauseVM(Vm) returns (OkResponse);
   rpc ResumeVM(Vm) returns (OkResponse);
-  rpc UndefineVM(Vm) returns(OkResponse);
+  rpc UndefineVM(Vm) returns (OkResponse);
 
   rpc GetAllVms(Empty) returns (GetAllVmsResponse);
   rpc GetVmByName(GetVmByNameRequest) returns (Vm);
   rpc RemoveIsoFromVm(Vm) returns (OkResponse);
 
-  rpc ChangeNetwork(ChangeNetworkReq)returns (Empty);
+  rpc ChangeNetwork(ChangeNetworkReq) returns (Empty);
 
-  //only sees machine name, cpuCount and memoryMB
-  //cpuCount and memoryMB are the new values to set
+  // only sees machine name, cpuCount and memoryMB
+  // cpuCount and memoryMB are the new values to set
   rpc EditVmResources(Vm) returns (OkResponse);
 
   rpc ColdMigrateVm(ColdMigrationRequest) returns (OkResponse);
 
-  rpc FreezeDisk(Vm)returns(OkResponse);
-  rpc UnFreezeDisk(Vm)returns(OkResponse);
+  rpc FreezeDisk(Vm) returns (OkResponse);
+  rpc UnFreezeDisk(Vm) returns (OkResponse);
+  rpc ChangeVmPassword(ChangeVncPassword) returns (Empty);
 }

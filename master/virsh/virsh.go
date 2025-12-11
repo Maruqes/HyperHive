@@ -237,3 +237,12 @@ func ChangeNetwork(conn *grpc.ClientConn, req *grpcVirsh.ChangeNetworkReq) error
 	}
 	return nil
 }
+
+func ChangeVncPassword(conn *grpc.ClientConn, req *grpcVirsh.ChangeVncPassword) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.ChangeVmPassword(context.Background(), req)
+	if err != nil {
+		return err
+	}
+	return nil
+}

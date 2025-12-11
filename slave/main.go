@@ -821,6 +821,10 @@ func main() {
 		log.Fatalf("env setup: %v", err)
 	}
 
+	if err := virsh.EnsureVirtXMLInstalled(); err != nil {
+		log.Fatalf("ensure virt-xml: %v", err)
+	}
+
 	if err := ourk8s.AllowFirewalldAcceptAll(context.Background()); err != nil {
 		log.Panicf("join k3s cluster: configure k3s firewall rules: %w", err)
 	}

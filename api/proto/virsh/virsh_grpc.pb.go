@@ -19,28 +19,29 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	SlaveVirshService_GetCpuFeatures_FullMethodName  = "/virsh.SlaveVirshService/GetCpuFeatures"
-	SlaveVirshService_GetCPUXML_FullMethodName       = "/virsh.SlaveVirshService/GetCPUXML"
-	SlaveVirshService_GetVMCPUXml_FullMethodName     = "/virsh.SlaveVirshService/GetVMCPUXml"
-	SlaveVirshService_UpdateVMCPUXml_FullMethodName  = "/virsh.SlaveVirshService/UpdateVMCPUXml"
-	SlaveVirshService_CreateVm_FullMethodName        = "/virsh.SlaveVirshService/CreateVm"
-	SlaveVirshService_MigrateVM_FullMethodName       = "/virsh.SlaveVirshService/MigrateVM"
-	SlaveVirshService_ShutdownVM_FullMethodName      = "/virsh.SlaveVirshService/ShutdownVM"
-	SlaveVirshService_ForceShutdownVM_FullMethodName = "/virsh.SlaveVirshService/ForceShutdownVM"
-	SlaveVirshService_StartVM_FullMethodName         = "/virsh.SlaveVirshService/StartVM"
-	SlaveVirshService_RemoveVM_FullMethodName        = "/virsh.SlaveVirshService/RemoveVM"
-	SlaveVirshService_RestartVM_FullMethodName       = "/virsh.SlaveVirshService/RestartVM"
-	SlaveVirshService_PauseVM_FullMethodName         = "/virsh.SlaveVirshService/PauseVM"
-	SlaveVirshService_ResumeVM_FullMethodName        = "/virsh.SlaveVirshService/ResumeVM"
-	SlaveVirshService_UndefineVM_FullMethodName      = "/virsh.SlaveVirshService/UndefineVM"
-	SlaveVirshService_GetAllVms_FullMethodName       = "/virsh.SlaveVirshService/GetAllVms"
-	SlaveVirshService_GetVmByName_FullMethodName     = "/virsh.SlaveVirshService/GetVmByName"
-	SlaveVirshService_RemoveIsoFromVm_FullMethodName = "/virsh.SlaveVirshService/RemoveIsoFromVm"
-	SlaveVirshService_ChangeNetwork_FullMethodName   = "/virsh.SlaveVirshService/ChangeNetwork"
-	SlaveVirshService_EditVmResources_FullMethodName = "/virsh.SlaveVirshService/EditVmResources"
-	SlaveVirshService_ColdMigrateVm_FullMethodName   = "/virsh.SlaveVirshService/ColdMigrateVm"
-	SlaveVirshService_FreezeDisk_FullMethodName      = "/virsh.SlaveVirshService/FreezeDisk"
-	SlaveVirshService_UnFreezeDisk_FullMethodName    = "/virsh.SlaveVirshService/UnFreezeDisk"
+	SlaveVirshService_GetCpuFeatures_FullMethodName   = "/virsh.SlaveVirshService/GetCpuFeatures"
+	SlaveVirshService_GetCPUXML_FullMethodName        = "/virsh.SlaveVirshService/GetCPUXML"
+	SlaveVirshService_GetVMCPUXml_FullMethodName      = "/virsh.SlaveVirshService/GetVMCPUXml"
+	SlaveVirshService_UpdateVMCPUXml_FullMethodName   = "/virsh.SlaveVirshService/UpdateVMCPUXml"
+	SlaveVirshService_CreateVm_FullMethodName         = "/virsh.SlaveVirshService/CreateVm"
+	SlaveVirshService_MigrateVM_FullMethodName        = "/virsh.SlaveVirshService/MigrateVM"
+	SlaveVirshService_ShutdownVM_FullMethodName       = "/virsh.SlaveVirshService/ShutdownVM"
+	SlaveVirshService_ForceShutdownVM_FullMethodName  = "/virsh.SlaveVirshService/ForceShutdownVM"
+	SlaveVirshService_StartVM_FullMethodName          = "/virsh.SlaveVirshService/StartVM"
+	SlaveVirshService_RemoveVM_FullMethodName         = "/virsh.SlaveVirshService/RemoveVM"
+	SlaveVirshService_RestartVM_FullMethodName        = "/virsh.SlaveVirshService/RestartVM"
+	SlaveVirshService_PauseVM_FullMethodName          = "/virsh.SlaveVirshService/PauseVM"
+	SlaveVirshService_ResumeVM_FullMethodName         = "/virsh.SlaveVirshService/ResumeVM"
+	SlaveVirshService_UndefineVM_FullMethodName       = "/virsh.SlaveVirshService/UndefineVM"
+	SlaveVirshService_GetAllVms_FullMethodName        = "/virsh.SlaveVirshService/GetAllVms"
+	SlaveVirshService_GetVmByName_FullMethodName      = "/virsh.SlaveVirshService/GetVmByName"
+	SlaveVirshService_RemoveIsoFromVm_FullMethodName  = "/virsh.SlaveVirshService/RemoveIsoFromVm"
+	SlaveVirshService_ChangeNetwork_FullMethodName    = "/virsh.SlaveVirshService/ChangeNetwork"
+	SlaveVirshService_EditVmResources_FullMethodName  = "/virsh.SlaveVirshService/EditVmResources"
+	SlaveVirshService_ColdMigrateVm_FullMethodName    = "/virsh.SlaveVirshService/ColdMigrateVm"
+	SlaveVirshService_FreezeDisk_FullMethodName       = "/virsh.SlaveVirshService/FreezeDisk"
+	SlaveVirshService_UnFreezeDisk_FullMethodName     = "/virsh.SlaveVirshService/UnFreezeDisk"
+	SlaveVirshService_ChangeVmPassword_FullMethodName = "/virsh.SlaveVirshService/ChangeVmPassword"
 )
 
 // SlaveVirshServiceClient is the client API for SlaveVirshService service.
@@ -71,6 +72,7 @@ type SlaveVirshServiceClient interface {
 	ColdMigrateVm(ctx context.Context, in *ColdMigrationRequest, opts ...grpc.CallOption) (*OkResponse, error)
 	FreezeDisk(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
 	UnFreezeDisk(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
+	ChangeVmPassword(ctx context.Context, in *ChangeVncPassword, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type slaveVirshServiceClient struct {
@@ -301,6 +303,16 @@ func (c *slaveVirshServiceClient) UnFreezeDisk(ctx context.Context, in *Vm, opts
 	return out, nil
 }
 
+func (c *slaveVirshServiceClient) ChangeVmPassword(ctx context.Context, in *ChangeVncPassword, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, SlaveVirshService_ChangeVmPassword_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SlaveVirshServiceServer is the server API for SlaveVirshService service.
 // All implementations must embed UnimplementedSlaveVirshServiceServer
 // for forward compatibility
@@ -329,6 +341,7 @@ type SlaveVirshServiceServer interface {
 	ColdMigrateVm(context.Context, *ColdMigrationRequest) (*OkResponse, error)
 	FreezeDisk(context.Context, *Vm) (*OkResponse, error)
 	UnFreezeDisk(context.Context, *Vm) (*OkResponse, error)
+	ChangeVmPassword(context.Context, *ChangeVncPassword) (*Empty, error)
 	mustEmbedUnimplementedSlaveVirshServiceServer()
 }
 
@@ -401,6 +414,9 @@ func (UnimplementedSlaveVirshServiceServer) FreezeDisk(context.Context, *Vm) (*O
 }
 func (UnimplementedSlaveVirshServiceServer) UnFreezeDisk(context.Context, *Vm) (*OkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UnFreezeDisk not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) ChangeVmPassword(context.Context, *ChangeVncPassword) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChangeVmPassword not implemented")
 }
 func (UnimplementedSlaveVirshServiceServer) mustEmbedUnimplementedSlaveVirshServiceServer() {}
 
@@ -811,6 +827,24 @@ func _SlaveVirshService_UnFreezeDisk_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SlaveVirshService_ChangeVmPassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangeVncPassword)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).ChangeVmPassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_ChangeVmPassword_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).ChangeVmPassword(ctx, req.(*ChangeVncPassword))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SlaveVirshService_ServiceDesc is the grpc.ServiceDesc for SlaveVirshService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -905,6 +939,10 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UnFreezeDisk",
 			Handler:    _SlaveVirshService_UnFreezeDisk_Handler,
+		},
+		{
+			MethodName: "ChangeVmPassword",
+			Handler:    _SlaveVirshService_ChangeVmPassword_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
