@@ -438,7 +438,7 @@ func main() {
 	info.LoopNots()
 	err = SpaService.Reapply(ctx)
 	if err != nil {
-		logger.Error(err.Error())
+		log.Fatalf(err.Error())
 	}
 
 	go func() {
