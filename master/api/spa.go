@@ -306,7 +306,7 @@ func serveSPAPageAllow(w http.ResponseWriter, r *http.Request) {
       submitBtn.disabled = true;
 
       try {
-        const res = await fetch('/spa/allow', {
+        const res = await fetch('/api/spa/allow', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
