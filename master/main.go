@@ -431,10 +431,15 @@ func main() {
 
 	virshService := services.VirshService{}
 	smartDiskService := services.SmartDiskService{}
+	SpaService := services.SPAService{}
 
 	virshService.LoopAutomaticBaks(context.Background())
 	smartDiskService.DoAutomaticTest()
 	info.LoopNots()
+	err = SpaService.Reapply(ctx)
+	if err != nil {
+		logger.Error(err.Error())
+	}
 
 	go func() {
 		addr := "127.0.0.1:6060"

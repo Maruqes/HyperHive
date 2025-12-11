@@ -81,3 +81,16 @@ func (s *SPAService) Allow(ctx context.Context, port int, password, ip string, s
 func (s *SPAService) List(ctx context.Context) ([]db.SPAPort, error) {
 	return db.ListSPAPorts(ctx)
 }
+
+func (s *SPAService) Reapply(ctx context.Context) error {
+	ports, err := db.ListSPAPorts(ctx)
+	if err != nil {
+		return err
+	}
+	for _, p := range ports {
+		if err := spa.EnableSPA(p.Port); err != nil {
+			return fmt.Errorf("enable SPA for port %d: %w", p.Port, err)
+		}
+	}
+	return nil
+}
