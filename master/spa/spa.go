@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const spaChain = "SPA"
+
 // EnableSPA blocks the given port with iptables and only allows traffic from IPs present in the ipset.
 func EnableSPA(port int) error {
 	if err := validatePort(port); err != nil {
@@ -17,6 +19,10 @@ func EnableSPA(port int) error {
 	setName := ipsetName(port)
 	if err := ensureIPSet(setName); err != nil {
 		return fmt.Errorf("ensure ipset %s: %w", setName, err)
+	}
+
+	if err := ensureSPAChainAndHooks(); err != nil {
+		return err
 	}
 
 	for _, rule := range rulesForPort(port, setName) {
@@ -132,13 +138,11 @@ type spaRule struct {
 func rulesForPort(port int, setName string) []spaRule {
 	portStr := strconv.Itoa(port)
 	var out []spaRule
-	for _, chain := range []string{"INPUT", "FORWARD"} {
-		for _, proto := range []string{"tcp", "udp"} {
-			out = append(out,
-				spaRule{chain: chain, args: []string{"-p", proto, "--dport", portStr, "-m", "set", "--match-set", setName, "src", "-j", "ACCEPT"}, position: 1},
-				spaRule{chain: chain, args: []string{"-p", proto, "--dport", portStr, "-j", "DROP"}, position: 2},
-			)
-		}
+	for _, proto := range []string{"tcp", "udp"} {
+		out = append(out,
+			spaRule{chain: spaChain, args: []string{"-p", proto, "--dport", portStr, "-m", "set", "--match-set", setName, "src", "-j", "ACCEPT"}, position: 1},
+			spaRule{chain: spaChain, args: []string{"-p", proto, "--dport", portStr, "-j", "DROP"}, position: 2},
+		)
 	}
 	return out
 }
@@ -189,6 +193,39 @@ func runIptables(action string, rule spaRule) error {
 	}
 	args = append(args, rule.args...)
 	return runCommand("iptables", args...)
+}
+
+func ensureSPAChainAndHooks() error {
+	if err := ensureChainExists(spaChain); err != nil {
+		return err
+	}
+	for _, hook := range []string{"INPUT", "FORWARD"} {
+		rule := spaRule{chain: hook, args: []string{"-j", spaChain}, position: 1}
+		if err := deleteAllMatchingRules(rule); err != nil {
+			return err
+		}
+		if err := ensureIptablesRule(rule); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ensureChainExists(name string) error {
+	// Check if chain exists.
+	cmd := exec.Command("iptables", "-w", "-L", name)
+	if err := cmd.Run(); err == nil {
+		return nil
+	}
+	// Create chain if missing.
+	if err := runCommand("iptables", "-w", "-N", name); err != nil {
+		// If the chain appeared between the check and creation, ignore "Chain already exists".
+		if strings.Contains(err.Error(), "Chain already exists") {
+			return nil
+		}
+		return fmt.Errorf("ensure chain %s: %w", name, err)
+	}
+	return nil
 }
 
 func runCommand(name string, args ...string) error {
