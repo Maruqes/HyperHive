@@ -501,13 +501,8 @@ func UpdateVMCPUXml(vmName, cpuXml string) error {
 	//replace old cpu block with new cpu block
 	newXmlDesc := strings.Replace(xmlDesc, oldCpu, cpuXml, 1)
 
-	//undefine domain
-	if err := dom.Undefine(); err != nil {
-		return fmt.Errorf("undefine domain: %w", err)
-	}
-
-	//define domain with new xml
-	newDom, err := conn.DomainDefineXML(newXmlDesc)
+	// validate full domain XML (including the new CPU) before replacing definition
+	newDom, err := conn.DomainDefineXMLFlags(newXmlDesc, libvirt.DOMAIN_DEFINE_VALIDATE)
 	if err != nil {
 		return fmt.Errorf("define domain with new xml: %w", err)
 	}
