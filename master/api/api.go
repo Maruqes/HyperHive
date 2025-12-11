@@ -323,10 +323,10 @@ func StartApi() {
 	srv := &http.Server{
 		Addr:              ":9595",
 		Handler:           r,
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      30 * time.Second,
-		IdleTimeout:       60 * time.Second,
+		// ReadHeaderTimeout: 5 * time.Second,
+		// ReadTimeout:       15 * time.Second,
+		// WriteTimeout:      30 * time.Second,
+		// IdleTimeout:       60 * time.Second,
 	}
 
 	if err := srv.ListenAndServe(); err != nil {
