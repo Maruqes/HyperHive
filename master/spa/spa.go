@@ -119,17 +119,26 @@ func ipsetExists(name string) (bool, error) {
 	return true, nil
 }
 
-func rulesForPort(port int, setName string) [][]string {
-	portStr := strconv.Itoa(port)
-	return [][]string{
-		{"INPUT", "-p", "tcp", "--dport", portStr, "-m", "set", "--match-set", setName, "src", "-j", "ACCEPT"},
-		{"INPUT", "-p", "tcp", "--dport", portStr, "-j", "DROP"},
-		{"INPUT", "-p", "udp", "--dport", portStr, "-m", "set", "--match-set", setName, "src", "-j", "ACCEPT"},
-		{"INPUT", "-p", "udp", "--dport", portStr, "-j", "DROP"},
-	}
+type spaRule struct {
+	chain string
+	args  []string
 }
 
-func ensureIptablesRule(rule []string) error {
+func rulesForPort(port int, setName string) []spaRule {
+	portStr := strconv.Itoa(port)
+	var out []spaRule
+	for _, chain := range []string{"INPUT", "FORWARD"} {
+		for _, proto := range []string{"tcp", "udp"} {
+			out = append(out,
+				spaRule{chain: chain, args: []string{"-p", proto, "--dport", portStr, "-m", "set", "--match-set", setName, "src", "-j", "ACCEPT"}},
+				spaRule{chain: chain, args: []string{"-p", proto, "--dport", portStr, "-j", "DROP"}},
+			)
+		}
+	}
+	return out
+}
+
+func ensureIptablesRule(rule spaRule) error {
 	exists, err := iptablesRuleExists(rule)
 	if err != nil {
 		return err
@@ -140,7 +149,7 @@ func ensureIptablesRule(rule []string) error {
 	return runIptables("-A", rule)
 }
 
-func deleteAllMatchingRules(rule []string) error {
+func deleteAllMatchingRules(rule spaRule) error {
 	for {
 		exists, err := iptablesRuleExists(rule)
 		if err != nil {
@@ -155,8 +164,8 @@ func deleteAllMatchingRules(rule []string) error {
 	}
 }
 
-func iptablesRuleExists(rule []string) (bool, error) {
-	args := append([]string{"-w", "-C"}, rule...)
+func iptablesRuleExists(rule spaRule) (bool, error) {
+	args := append([]string{"-w", "-C", rule.chain}, rule.args...)
 	cmd := exec.Command("iptables", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -168,8 +177,8 @@ func iptablesRuleExists(rule []string) (bool, error) {
 	return true, nil
 }
 
-func runIptables(action string, rule []string) error {
-	args := append([]string{"-w", action}, rule...)
+func runIptables(action string, rule spaRule) error {
+	args := append([]string{"-w", action, rule.chain}, rule.args...)
 	return runCommand("iptables", args...)
 }
 
