@@ -20,6 +20,9 @@ func EnableSPA(port int) error {
 	}
 
 	for _, rule := range rulesForPort(port, setName) {
+		if err := deleteAllMatchingRules(rule); err != nil {
+			return err
+		}
 		if err := ensureIptablesRule(rule); err != nil {
 			return err
 		}
@@ -120,8 +123,9 @@ func ipsetExists(name string) (bool, error) {
 }
 
 type spaRule struct {
-	chain string
-	args  []string
+	chain    string
+	args     []string
+	position int // insertion position (1-based) when adding; ignored for deletes
 }
 
 func rulesForPort(port int, setName string) []spaRule {
@@ -130,8 +134,8 @@ func rulesForPort(port int, setName string) []spaRule {
 	for _, chain := range []string{"INPUT", "FORWARD"} {
 		for _, proto := range []string{"tcp", "udp"} {
 			out = append(out,
-				spaRule{chain: chain, args: []string{"-p", proto, "--dport", portStr, "-m", "set", "--match-set", setName, "src", "-j", "ACCEPT"}},
-				spaRule{chain: chain, args: []string{"-p", proto, "--dport", portStr, "-j", "DROP"}},
+				spaRule{chain: chain, args: []string{"-p", proto, "--dport", portStr, "-m", "set", "--match-set", setName, "src", "-j", "ACCEPT"}, position: 1},
+				spaRule{chain: chain, args: []string{"-p", proto, "--dport", portStr, "-j", "DROP"}, position: 2},
 			)
 		}
 	}
@@ -146,7 +150,7 @@ func ensureIptablesRule(rule spaRule) error {
 	if exists {
 		return nil
 	}
-	return runIptables("-A", rule)
+	return runIptables("-I", rule)
 }
 
 func deleteAllMatchingRules(rule spaRule) error {
@@ -178,7 +182,11 @@ func iptablesRuleExists(rule spaRule) (bool, error) {
 }
 
 func runIptables(action string, rule spaRule) error {
-	args := append([]string{"-w", action, rule.chain}, rule.args...)
+	args := []string{"-w", action, rule.chain}
+	if action == "-I" && rule.position > 0 {
+		args = append(args, strconv.Itoa(rule.position))
+	}
+	args = append(args, rule.args...)
 	return runCommand("iptables", args...)
 }
 
