@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
+	"github.com/Maruqes/512SvMan/logger"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
@@ -322,4 +324,67 @@ func (*Container) Exec(ctx context.Context, containerID string, command []string
 	io.Copy(io.Discard, resp.Reader)
 
 	return nil
+}
+
+func (g *Git) StartAlwaysContainers(ctx context.Context) error {
+	if g == nil || cli == nil {
+		return fmt.Errorf("docker client nil")
+	}
+
+	cts, err := cli.ContainerList(ctx, container.ListOptions{All: true})
+	if err != nil {
+		return fmt.Errorf("docker container list: %w", err)
+	}
+
+	for _, c := range cts {
+		ins, err := cli.ContainerInspect(ctx, c.ID)
+		if err != nil {
+			logger.Error("docker inspect failed", "id", shortID(c.ID), "err", err)
+			continue
+		}
+
+		if ins.HostConfig == nil || ins.HostConfig.RestartPolicy.IsAlways() {
+			continue
+		}
+
+		if ins.State != nil && ins.State.Running {
+			continue
+		}
+
+		name := strings.TrimPrefix(ins.Name, "/")
+		if name == "" {
+			name = shortID(ins.ID)
+		}
+
+		var lastErr error
+		for attempt := 1; attempt <= 3; attempt++ {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+
+			if err := cli.ContainerStart(ctx, ins.ID, container.StartOptions{}); err == nil {
+				lastErr = nil
+				break
+			} else {
+				lastErr = err
+				if attempt < 3 {
+					logger.Error("docker start failed (retry)", "name", name, "id", shortID(ins.ID), "attempt", attempt, "err", err)
+					time.Sleep(2 * time.Second)
+				}
+			}
+		}
+
+		if lastErr != nil {
+			logger.Error("docker start failed (giving up)", "name", name, "id", shortID(ins.ID), "attempts", 3, "err", lastErr)
+		}
+	}
+
+	return nil
+}
+
+func shortID(id string) string {
+	if len(id) <= 12 {
+		return id
+	}
+	return id[:12]
 }

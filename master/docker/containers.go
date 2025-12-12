@@ -147,3 +147,12 @@ func ContainerExec(conn *grpc.ClientConn, req *dockerGrpc.ExecMsg) error {
 	}
 	return nil
 }
+
+func StartAlwaysContainers(conn *grpc.ClientConn) error {
+	client := dockerGrpc.NewDockerServiceClient(conn)
+	_, err := client.StartAlwaysContainers(context.Background(), &dockerGrpc.Empty{})
+	if err != nil {
+		return err
+	}
+	return nil
+}

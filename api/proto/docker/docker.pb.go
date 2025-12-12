@@ -313,7 +313,8 @@ type ImageSummary struct {
 	RepoDigests []string `protobuf:"bytes,8,rep,name=repo_digests,json=repoDigests,proto3" json:"repo_digests,omitempty"`
 	// List of image names/tags in the local image cache referencing this image.
 	RepoTags []string `protobuf:"bytes,9,rep,name=repo_tags,json=repoTags,proto3" json:"repo_tags,omitempty"`
-	// Total size of image layers shared between this image and others. -1 if unset.
+	// Total size of image layers shared between this image and others. -1 if
+	// unset.
 	SharedSize int64 `protobuf:"varint,10,opt,name=shared_size,json=sharedSize,proto3" json:"shared_size,omitempty"`
 	// Total size of the image including all layers.
 	Size int64 `protobuf:"varint,11,opt,name=size,proto3" json:"size,omitempty"`
@@ -3878,7 +3879,7 @@ var file_docker_proto_rawDesc = []byte{
 	0x0a, 0x18, 0x4e, 0x45, 0x54, 0x57, 0x4f, 0x52, 0x4b, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x55,
 	0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x0a, 0x0a, 0x06,
 	0x42, 0x52, 0x49, 0x44, 0x47, 0x45, 0x10, 0x01, 0x12, 0x0b, 0x0a, 0x07, 0x4d, 0x41, 0x43, 0x56,
-	0x4c, 0x41, 0x4e, 0x10, 0x02, 0x32, 0xe0, 0x0b, 0x0a, 0x0d, 0x44, 0x6f, 0x63, 0x6b, 0x65, 0x72,
+	0x4c, 0x41, 0x4e, 0x10, 0x02, 0x32, 0x97, 0x0c, 0x0a, 0x0d, 0x44, 0x6f, 0x63, 0x6b, 0x65, 0x72,
 	0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x35, 0x0a, 0x0d, 0x49, 0x6d, 0x61, 0x67, 0x65,
 	0x44, 0x6f, 0x77, 0x6e, 0x6c, 0x6f, 0x61, 0x64, 0x12, 0x15, 0x2e, 0x64, 0x6f, 0x63, 0x6b, 0x65,
 	0x72, 0x2e, 0x44, 0x6f, 0x77, 0x6e, 0x6c, 0x6f, 0x61, 0x64, 0x49, 0x6d, 0x61, 0x67, 0x65, 0x1a,
@@ -3972,11 +3973,14 @@ var file_docker_proto_rawDesc = []byte{
 	0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x12, 0x30, 0x0a, 0x09, 0x47, 0x69, 0x74, 0x55, 0x70, 0x64,
 	0x61, 0x74, 0x65, 0x12, 0x14, 0x2e, 0x64, 0x6f, 0x63, 0x6b, 0x65, 0x72, 0x2e, 0x47, 0x69, 0x74,
 	0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x52, 0x65, 0x71, 0x1a, 0x0d, 0x2e, 0x64, 0x6f, 0x63, 0x6b,
-	0x65, 0x72, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x42, 0x34, 0x5a, 0x32, 0x67, 0x69, 0x74, 0x68,
-	0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x4d, 0x61, 0x72, 0x75, 0x71, 0x65, 0x73, 0x2f, 0x35,
-	0x31, 0x32, 0x53, 0x76, 0x4d, 0x61, 0x6e, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x2f, 0x64, 0x6f, 0x63, 0x6b, 0x65, 0x72, 0x3b, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x06,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x65, 0x72, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x12, 0x35, 0x0a, 0x15, 0x53, 0x74, 0x61, 0x72,
+	0x74, 0x41, 0x6c, 0x77, 0x61, 0x79, 0x73, 0x43, 0x6f, 0x6e, 0x74, 0x61, 0x69, 0x6e, 0x65, 0x72,
+	0x73, 0x12, 0x0d, 0x2e, 0x64, 0x6f, 0x63, 0x6b, 0x65, 0x72, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79,
+	0x1a, 0x0d, 0x2e, 0x64, 0x6f, 0x63, 0x6b, 0x65, 0x72, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x42,
+	0x34, 0x5a, 0x32, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x4d, 0x61,
+	0x72, 0x75, 0x71, 0x65, 0x73, 0x2f, 0x35, 0x31, 0x32, 0x53, 0x76, 0x4d, 0x61, 0x6e, 0x2f, 0x61,
+	0x70, 0x69, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x64, 0x6f, 0x63, 0x6b, 0x65, 0x72, 0x3b,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -4131,34 +4135,36 @@ var file_docker_proto_depIdxs = []int32{
 	2,  // 65: docker.DockerService.GitList:input_type -> docker.Empty
 	44, // 66: docker.DockerService.GitRemove:input_type -> docker.GitRemoveReq
 	46, // 67: docker.DockerService.GitUpdate:input_type -> docker.GitUpdateReq
-	2,  // 68: docker.DockerService.ImageDownload:output_type -> docker.Empty
-	2,  // 69: docker.DockerService.ImageRemove:output_type -> docker.Empty
-	6,  // 70: docker.DockerService.ImageList:output_type -> docker.ListOfImages
-	12, // 71: docker.DockerService.ContainerList:output_type -> docker.ListOfContainers
-	2,  // 72: docker.DockerService.ContainerCreateFunc:output_type -> docker.Empty
-	2,  // 73: docker.DockerService.ContainerRemove:output_type -> docker.Empty
-	2,  // 74: docker.DockerService.ContainerStop:output_type -> docker.Empty
-	2,  // 75: docker.DockerService.ContainerStart:output_type -> docker.Empty
-	2,  // 76: docker.DockerService.ContainerRestart:output_type -> docker.Empty
-	2,  // 77: docker.DockerService.ContainerPause:output_type -> docker.Empty
-	2,  // 78: docker.DockerService.ContainerUnPause:output_type -> docker.Empty
-	2,  // 79: docker.DockerService.ContainerKill:output_type -> docker.Empty
-	21, // 80: docker.DockerService.ContainerLogs:output_type -> docker.LogChunk
-	23, // 81: docker.DockerService.ContainerUpdate:output_type -> docker.ContainerUpdateResponse
-	2,  // 82: docker.DockerService.ContainerRename:output_type -> docker.Empty
-	2,  // 83: docker.DockerService.ContainerExec:output_type -> docker.Empty
-	28, // 84: docker.DockerService.VolumeList:output_type -> docker.ListVolumesResponse
-	2,  // 85: docker.DockerService.VolumeCreateBindMount:output_type -> docker.Empty
-	2,  // 86: docker.DockerService.VolumeRemove:output_type -> docker.Empty
-	2,  // 87: docker.DockerService.NetworkCreate:output_type -> docker.Empty
-	2,  // 88: docker.DockerService.NetworkRemove:output_type -> docker.Empty
-	47, // 89: docker.DockerService.NetworkList:output_type -> docker.NetworkListResponse
-	2,  // 90: docker.DockerService.GitClone:output_type -> docker.Empty
-	43, // 91: docker.DockerService.GitList:output_type -> docker.GitListReq
-	2,  // 92: docker.DockerService.GitRemove:output_type -> docker.Empty
-	2,  // 93: docker.DockerService.GitUpdate:output_type -> docker.Empty
-	68, // [68:94] is the sub-list for method output_type
-	42, // [42:68] is the sub-list for method input_type
+	2,  // 68: docker.DockerService.StartAlwaysContainers:input_type -> docker.Empty
+	2,  // 69: docker.DockerService.ImageDownload:output_type -> docker.Empty
+	2,  // 70: docker.DockerService.ImageRemove:output_type -> docker.Empty
+	6,  // 71: docker.DockerService.ImageList:output_type -> docker.ListOfImages
+	12, // 72: docker.DockerService.ContainerList:output_type -> docker.ListOfContainers
+	2,  // 73: docker.DockerService.ContainerCreateFunc:output_type -> docker.Empty
+	2,  // 74: docker.DockerService.ContainerRemove:output_type -> docker.Empty
+	2,  // 75: docker.DockerService.ContainerStop:output_type -> docker.Empty
+	2,  // 76: docker.DockerService.ContainerStart:output_type -> docker.Empty
+	2,  // 77: docker.DockerService.ContainerRestart:output_type -> docker.Empty
+	2,  // 78: docker.DockerService.ContainerPause:output_type -> docker.Empty
+	2,  // 79: docker.DockerService.ContainerUnPause:output_type -> docker.Empty
+	2,  // 80: docker.DockerService.ContainerKill:output_type -> docker.Empty
+	21, // 81: docker.DockerService.ContainerLogs:output_type -> docker.LogChunk
+	23, // 82: docker.DockerService.ContainerUpdate:output_type -> docker.ContainerUpdateResponse
+	2,  // 83: docker.DockerService.ContainerRename:output_type -> docker.Empty
+	2,  // 84: docker.DockerService.ContainerExec:output_type -> docker.Empty
+	28, // 85: docker.DockerService.VolumeList:output_type -> docker.ListVolumesResponse
+	2,  // 86: docker.DockerService.VolumeCreateBindMount:output_type -> docker.Empty
+	2,  // 87: docker.DockerService.VolumeRemove:output_type -> docker.Empty
+	2,  // 88: docker.DockerService.NetworkCreate:output_type -> docker.Empty
+	2,  // 89: docker.DockerService.NetworkRemove:output_type -> docker.Empty
+	47, // 90: docker.DockerService.NetworkList:output_type -> docker.NetworkListResponse
+	2,  // 91: docker.DockerService.GitClone:output_type -> docker.Empty
+	43, // 92: docker.DockerService.GitList:output_type -> docker.GitListReq
+	2,  // 93: docker.DockerService.GitRemove:output_type -> docker.Empty
+	2,  // 94: docker.DockerService.GitUpdate:output_type -> docker.Empty
+	2,  // 95: docker.DockerService.StartAlwaysContainers:output_type -> docker.Empty
+	69, // [69:96] is the sub-list for method output_type
+	42, // [42:69] is the sub-list for method input_type
 	42, // [42:42] is the sub-list for extension type_name
 	42, // [42:42] is the sub-list for extension extendee
 	0,  // [0:42] is the sub-list for field type_name

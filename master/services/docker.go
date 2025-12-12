@@ -531,3 +531,21 @@ func (s *DockerService) GitUpdate(ctx context.Context, machineName, name, id str
 
 	return finalEnv, nil
 }
+
+func (s *DockerService) StartAlwaysContainers() error {
+	conns := protocol.GetAllGRPCConnections()
+	if conns == nil {
+		return fmt.Errorf("all grpc conns are nil")
+	}
+
+	for _, con := range conns {
+		if con == nil {
+			continue
+		}
+		err := docker.StartAlwaysContainers(con)
+		if err != nil {
+			logger.Error(err.Error())
+		}
+	}
+	return nil
+}

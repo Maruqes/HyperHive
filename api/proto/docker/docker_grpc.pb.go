@@ -45,6 +45,7 @@ const (
 	DockerService_GitList_FullMethodName               = "/docker.DockerService/GitList"
 	DockerService_GitRemove_FullMethodName             = "/docker.DockerService/GitRemove"
 	DockerService_GitUpdate_FullMethodName             = "/docker.DockerService/GitUpdate"
+	DockerService_StartAlwaysContainers_FullMethodName = "/docker.DockerService/StartAlwaysContainers"
 )
 
 // DockerServiceClient is the client API for DockerService service.
@@ -82,6 +83,7 @@ type DockerServiceClient interface {
 	GitList(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GitListReq, error)
 	GitRemove(ctx context.Context, in *GitRemoveReq, opts ...grpc.CallOption) (*Empty, error)
 	GitUpdate(ctx context.Context, in *GitUpdateReq, opts ...grpc.CallOption) (*Empty, error)
+	StartAlwaysContainers(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type dockerServiceClient struct {
@@ -375,6 +377,16 @@ func (c *dockerServiceClient) GitUpdate(ctx context.Context, in *GitUpdateReq, o
 	return out, nil
 }
 
+func (c *dockerServiceClient) StartAlwaysContainers(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, DockerService_StartAlwaysContainers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DockerServiceServer is the server API for DockerService service.
 // All implementations must embed UnimplementedDockerServiceServer
 // for forward compatibility
@@ -410,6 +422,7 @@ type DockerServiceServer interface {
 	GitList(context.Context, *Empty) (*GitListReq, error)
 	GitRemove(context.Context, *GitRemoveReq) (*Empty, error)
 	GitUpdate(context.Context, *GitUpdateReq) (*Empty, error)
+	StartAlwaysContainers(context.Context, *Empty) (*Empty, error)
 	mustEmbedUnimplementedDockerServiceServer()
 }
 
@@ -494,6 +507,9 @@ func (UnimplementedDockerServiceServer) GitRemove(context.Context, *GitRemoveReq
 }
 func (UnimplementedDockerServiceServer) GitUpdate(context.Context, *GitUpdateReq) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GitUpdate not implemented")
+}
+func (UnimplementedDockerServiceServer) StartAlwaysContainers(context.Context, *Empty) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StartAlwaysContainers not implemented")
 }
 func (UnimplementedDockerServiceServer) mustEmbedUnimplementedDockerServiceServer() {}
 
@@ -979,6 +995,24 @@ func _DockerService_GitUpdate_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DockerService_StartAlwaysContainers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DockerServiceServer).StartAlwaysContainers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DockerService_StartAlwaysContainers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DockerServiceServer).StartAlwaysContainers(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DockerService_ServiceDesc is the grpc.ServiceDesc for DockerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1085,6 +1119,10 @@ var DockerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GitUpdate",
 			Handler:    _DockerService_GitUpdate_Handler,
+		},
+		{
+			MethodName: "StartAlwaysContainers",
+			Handler:    _DockerService_StartAlwaysContainers_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

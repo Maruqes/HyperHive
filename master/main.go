@@ -62,6 +62,13 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 		return err
 	}
 
+	dockerService := services.DockerService{}
+	err = dockerService.StartAlwaysContainers()
+	if err != nil {
+		logger.Errorf("dockerService startup failed: %v", err)
+		return err
+	}
+
 	return nil
 }
 

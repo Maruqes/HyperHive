@@ -4,404 +4,400 @@ package docker;
 
 option go_package = "github.com/Maruqes/512SvMan/api/proto/docker;proto";
 
-message Empty{}
+message Empty {}
 
-message DownloadImage{
-	string imageRef = 1;
-	string registry = 2;
+message DownloadImage {
+  string imageRef = 1;
+  string registry = 2;
 }
 
-message Remove{
-	string imageId = 1;
-	bool force = 2;
-	bool pruneChild = 3;
+message Remove {
+  string imageId = 1;
+  bool force = 2;
+  bool pruneChild = 3;
 }
-
 
 message ImageSummary {
-	// Number of containers using this image. -1 indicates unset/not calculated.
-	int64 containers = 1;
+  // Number of containers using this image. -1 indicates unset/not calculated.
+  int64 containers = 1;
 
-	// Date/time at which the image was created as a Unix timestamp.
-	int64 created = 2;
+  // Date/time at which the image was created as a Unix timestamp.
+  int64 created = 2;
 
-	// Content-addressable ID of the image.
-	string id = 3;
+  // Content-addressable ID of the image.
+  string id = 3;
 
-	// User-defined key/value metadata.
-	map<string, string> labels = 4;
+  // User-defined key/value metadata.
+  map<string, string> labels = 4;
 
-	// ID of the parent image (may be empty).
-	string parent_id = 5;
+  // ID of the parent image (may be empty).
+  string parent_id = 5;
 
-	// Descriptor is experimental. Represented as opaque bytes here.
-	bytes descriptor = 6;
+  // Descriptor is experimental. Represented as opaque bytes here.
+  bytes descriptor = 6;
 
-	// List of content-addressable digests of locally available image manifests.
-	repeated string repo_digests = 8;
+  // List of content-addressable digests of locally available image manifests.
+  repeated string repo_digests = 8;
 
-	// List of image names/tags in the local image cache referencing this image.
-	repeated string repo_tags = 9;
+  // List of image names/tags in the local image cache referencing this image.
+  repeated string repo_tags = 9;
 
-	// Total size of image layers shared between this image and others. -1 if unset.
-	int64 shared_size = 10;
+  // Total size of image layers shared between this image and others. -1 if
+  // unset.
+  int64 shared_size = 10;
 
-	// Total size of the image including all layers.
-	int64 size = 11;
+  // Total size of the image including all layers.
+  int64 size = 11;
 
-	// Deprecated: omitted in newer APIs; kept for backward compatibility.
-	int64 virtual_size = 12;
+  // Deprecated: omitted in newer APIs; kept for backward compatibility.
+  int64 virtual_size = 12;
 }
 
-message ListOfImages{
-	repeated ImageSummary imgs = 1;
-}
+message ListOfImages { repeated ImageSummary imgs = 1; }
 
 // Port mapping for a container
 message Port {
-	// Host IP address that the container's port is mapped to
-	string IP = 1;
+  // Host IP address that the container's port is mapped to
+  string IP = 1;
 
-	// Port on the container
-	uint32 PrivatePort = 2;
+  // Port on the container
+  uint32 PrivatePort = 2;
 
-	// Port exposed on the host
-	uint32 PublicPort = 3;
+  // Port exposed on the host
+  uint32 PublicPort = 3;
 
-	// type
-	string Type = 4;
+  // type
+  string Type = 4;
 }
 
 message EndpointSettings {
-	repeated string Links = 1;
-	repeated string Aliases = 2;
-	string MacAddress = 3;
-	map<string, string> DriverOpts = 4;
-	int32 GwPriority = 5;
-	string NetworkID = 6;
-	string EndpointID = 7;
-	string Gateway = 8;
-	string IPAddress = 9;
-	int32 IPPrefixLen = 10;
-	string IPv6Gateway = 11;
-	string GlobalIPv6Address = 12;
-	int32 GlobalIPv6PrefixLen = 13;
-	repeated string DNSNames = 14;
+  repeated string Links = 1;
+  repeated string Aliases = 2;
+  string MacAddress = 3;
+  map<string, string> DriverOpts = 4;
+  int32 GwPriority = 5;
+  string NetworkID = 6;
+  string EndpointID = 7;
+  string Gateway = 8;
+  string IPAddress = 9;
+  int32 IPPrefixLen = 10;
+  string IPv6Gateway = 11;
+  string GlobalIPv6Address = 12;
+  int32 GlobalIPv6PrefixLen = 13;
+  repeated string DNSNames = 14;
 }
 
-message NetworkSettingsSummary {
-	map<string, EndpointSettings> Networks = 1;
-}
+message NetworkSettingsSummary { map<string, EndpointSettings> Networks = 1; }
 
 // HostConfig for container summary
 message HostConfig {
-	string NetworkMode = 1;
-	map<string, string> Annotations = 2;
+  string NetworkMode = 1;
+  map<string, string> Annotations = 2;
 }
 
 enum ContainerState {
-	CONTAINER_STATE_UNSPECIFIED = 0;
-	CREATED = 1;
-	RUNNING = 2;
-	PAUSED = 3;
-	RESTARTING = 4;
-	REMOVING = 5;
-	EXITED = 6;
-	DEAD = 7;
+  CONTAINER_STATE_UNSPECIFIED = 0;
+  CREATED = 1;
+  RUNNING = 2;
+  PAUSED = 3;
+  RESTARTING = 4;
+  REMOVING = 5;
+  EXITED = 6;
+  DEAD = 7;
 }
 
 message ContainerSummary {
-	string Id = 1;
-	repeated string Names = 2;
-	string Image = 3;
-	string ImageID = 4;
-	string Command = 5;
-	int64 Created = 6;
-	repeated Port Ports = 7;
-	int64 SizeRw = 8;
-	int64 SizeRootFs = 9;
-	map<string, string> Labels = 10;
-	ContainerState State = 11;
-	string Status = 12;
-	HostConfig HostConfig = 13;
-	NetworkSettingsSummary NetworkSettings = 14;
+  string Id = 1;
+  repeated string Names = 2;
+  string Image = 3;
+  string ImageID = 4;
+  string Command = 5;
+  int64 Created = 6;
+  repeated Port Ports = 7;
+  int64 SizeRw = 8;
+  int64 SizeRootFs = 9;
+  map<string, string> Labels = 10;
+  ContainerState State = 11;
+  string Status = 12;
+  HostConfig HostConfig = 13;
+  NetworkSettingsSummary NetworkSettings = 14;
 }
 
-message ListOfContainers {
-	repeated ContainerSummary containers = 1;
-}
+message ListOfContainers { repeated ContainerSummary containers = 1; }
 
 // Bindings used when creating a container
 message PortBinding {
-	// Port on the container, e.g. "80/tcp"
-	string ContainerPort = 1;
+  // Port on the container, e.g. "80/tcp"
+  string ContainerPort = 1;
 
-	// Port on the host, e.g. "8080"
-	string HostPort = 2;
+  // Port on the host, e.g. "8080"
+  string HostPort = 2;
 }
 
 message VolumeBinding {
-	string HostPath = 1;
-	string ContainerPath = 2;
+  string HostPath = 1;
+  string ContainerPath = 2;
 }
 
 message EnvVar {
-	string Key = 1;
-	string Value = 2;
+  string Key = 1;
+  string Value = 2;
 }
 
 message ContainerCreate {
-	string Image = 1;
-	string Name = 2;
-	repeated string Command = 3;
-	repeated string EntryPoint = 4;
+  string Image = 1;
+  string Name = 2;
+  repeated string Command = 3;
+  repeated string EntryPoint = 4;
 
-	repeated PortBinding Ports = 5;
-	repeated VolumeBinding Volumes = 6;
-	repeated EnvVar Envs = 7;
+  repeated PortBinding Ports = 5;
+  repeated VolumeBinding Volumes = 6;
+  repeated EnvVar Envs = 7;
 
-	string Network = 8;
-	string Restart = 9; // "always", "no", "unless-stopped"
-	bool Detach = 10;
+  string Network = 8;
+  string Restart = 9; // "always", "no", "unless-stopped"
+  bool Detach = 10;
 
-	int64 Memory = 11; // bytes
-	double CPUS = 12;  // 0.5, 1, 2...
+  int64 Memory = 11; // bytes
+  double CPUS = 12;  // 0.5, 1, 2...
 }
 
+message ContainerId { string ContainerID = 1; }
 
-message ContainerId{
-	string ContainerID = 1;
+message RemoveContainer {
+  string ContainerID = 1;
+  bool force = 2;
 }
 
-message RemoveContainer{
-	string ContainerID = 1;
-	bool force = 2;
-}
-
-message KillContainer{
-	string ContainerID = 1;
-	string signal = 2;
+message KillContainer {
+  string ContainerID = 1;
+  string signal = 2;
 }
 
 // Request to stream container logs
 message ContainerLogsRequest {
-	string ContainerID = 1;
-	bool Follow = 2;
-	int32 Tail = 3; // 0 means use Since
-	string Since = 4; // RFC3339 or duration docker supports
+  string ContainerID = 1;
+  bool Follow = 2;
+  int32 Tail = 3;   // 0 means use Since
+  string Since = 4; // RFC3339 or duration docker supports
 }
 
-message LogChunk {
-	bytes Data = 1;
-}
+message LogChunk { bytes Data = 1; }
 
 message ContainerUpdateRequest {
-	string ContainerID = 1;
-	int64 Memory = 2; // bytes
-	double CPUS = 3;  // e.g., 0.5, 1, 2
-	string Restart = 4; // "always", "no", "unless-stopped"
+  string ContainerID = 1;
+  int64 Memory = 2;   // bytes
+  double CPUS = 3;    // e.g., 0.5, 1, 2
+  string Restart = 4; // "always", "no", "unless-stopped"
 }
 
-message ContainerUpdateResponse {
-	repeated string Warnings = 1;
-}
+message ContainerUpdateResponse { repeated string Warnings = 1; }
 
 // Request to rename a container
 message ContainerRenameRequest {
-	string ContainerID = 1;
-	string NewName = 2;
+  string ContainerID = 1;
+  string NewName = 2;
 }
 
-message ExecMsg{
-	string ContainerId = 1;
-	repeated string Commands = 2;
+message ExecMsg {
+  string ContainerId = 1;
+  repeated string Commands = 2;
 }
 
 message UsageData {
-	int64 RefCount = 1;
+  int64 RefCount = 1;
 
-	int64 Size = 2;
+  int64 Size = 2;
 }
 
 message Volume {
-	string CreatedAt = 1;
-	string Driver = 2;
-	map<string, string> Labels = 3;
-	string Mountpoint = 4;
-	string Name = 5;
-	map<string, string> Options = 6;
-	string Scope = 7;
-	map<string, string> Status = 8;
-	UsageData UsageData = 9;
-	// Disk space info for the underlying mount
-	DiskSpace DiskSpace = 10;
+  string CreatedAt = 1;
+  string Driver = 2;
+  map<string, string> Labels = 3;
+  string Mountpoint = 4;
+  string Name = 5;
+  map<string, string> Options = 6;
+  string Scope = 7;
+  map<string, string> Status = 8;
+  UsageData UsageData = 9;
+  // Disk space info for the underlying mount
+  DiskSpace DiskSpace = 10;
 }
 
 message ListVolumesResponse {
-	repeated Volume Volumes = 1;
-	repeated string Warnings = 2;
+  repeated Volume Volumes = 1;
+  repeated string Warnings = 2;
 }
 
 // Disk space metrics for a volume
 message DiskSpace {
-	int64 Total = 1;
-	int64 Free = 2;
-	int64 Used = 3;
+  int64 Total = 1;
+  int64 Free = 2;
+  int64 Used = 3;
 }
 
 message VolumeCreateRequest {
-	string Name = 1;
-	string Folder = 2;
-	map<string, string> Labels = 3;
+  string Name = 1;
+  string Folder = 2;
+  map<string, string> Labels = 3;
 }
 
 message VolumeRemoveRequest {
-	string VolumeId = 1; 
-	bool Force = 2;
+  string VolumeId = 1;
+  bool Force = 2;
 }
 
 // ----------------------
 // Networks API
 // ----------------------
 enum NetworkType {
-	NETWORK_TYPE_UNSPECIFIED = 0;
-	BRIDGE = 1;
-	MACVLAN = 2;
+  NETWORK_TYPE_UNSPECIFIED = 0;
+  BRIDGE = 1;
+  MACVLAN = 2;
 }
 
 message IPAMConfig {
-	string Subnet = 1;
-	string Gateway = 2;
+  string Subnet = 1;
+  string Gateway = 2;
 }
 
 message IPAM {
-	string Driver = 1;
-	map<string, string> Options = 2;
-	repeated IPAMConfig Config = 3;
+  string Driver = 1;
+  map<string, string> Options = 2;
+  repeated IPAMConfig Config = 3;
 }
 
 message NetworkCreateParams {
-	NetworkType Type = 1; // bridge or macvlan
-	string Subnet = 2;    // macvlan only
-	string Gateway = 3;   // macvlan only
-	string Parent = 4;    // macvlan only, e.g., eth0
+  NetworkType Type = 1; // bridge or macvlan
+  string Subnet = 2;    // macvlan only
+  string Gateway = 3;   // macvlan only
+  string Parent = 4;    // macvlan only, e.g., eth0
 }
 
 message NetworkCreateRequest {
-	string Name = 1;
-	NetworkCreateParams Params = 2;
+  string Name = 1;
+  NetworkCreateParams Params = 2;
 }
 
-message NetworkRemoveRequest {
-	string Name = 1;
-}
+message NetworkRemoveRequest { string Name = 1; }
 
 message EndpointResource {
-	string Name = 1;
-	string EndpointID = 2;
-	string MacAddress = 3;
-	string IPv4Address = 4;
-	string IPv6Address = 5;
+  string Name = 1;
+  string EndpointID = 2;
+  string MacAddress = 3;
+  string IPv4Address = 4;
+  string IPv6Address = 5;
 }
 
 message ConfigReference { string Network = 1; }
 
-message PeerInfo { string Name = 1; string IP = 2; }
-
-message Task { string Name = 1; string EndpointID = 2; string EndpointIP = 3; map<string,string> Info = 4; }
-
-message ServiceInfo { string VIP = 1; repeated string Ports = 2; int32 LocalLBIndex = 3; repeated Task Tasks = 4; }
-
-message NetworkSummary {
-	string Name = 1;
-	string Id = 2;
-	string Scope = 3;
-	string Driver = 4;
-	bool EnableIPv4 = 5;
-	bool EnableIPv6 = 6;
-	IPAM IPAM = 7;
-	bool Internal = 8;
-	bool Attachable = 9;
-	bool Ingress = 10;
-	ConfigReference ConfigFrom = 11;
-	bool ConfigOnly = 12;
-	map<string, EndpointResource> Containers = 13;
-	map<string, string> Options = 14;
-	map<string, string> Labels = 15;
-	repeated PeerInfo Peers = 16;
-	map<string, ServiceInfo> Services = 17;
+message PeerInfo {
+  string Name = 1;
+  string IP = 2;
 }
 
+message Task {
+  string Name = 1;
+  string EndpointID = 2;
+  string EndpointIP = 3;
+  map<string, string> Info = 4;
+}
 
+message ServiceInfo {
+  string VIP = 1;
+  repeated string Ports = 2;
+  int32 LocalLBIndex = 3;
+  repeated Task Tasks = 4;
+}
+
+message NetworkSummary {
+  string Name = 1;
+  string Id = 2;
+  string Scope = 3;
+  string Driver = 4;
+  bool EnableIPv4 = 5;
+  bool EnableIPv6 = 6;
+  IPAM IPAM = 7;
+  bool Internal = 8;
+  bool Attachable = 9;
+  bool Ingress = 10;
+  ConfigReference ConfigFrom = 11;
+  bool ConfigOnly = 12;
+  map<string, EndpointResource> Containers = 13;
+  map<string, string> Options = 14;
+  map<string, string> Labels = 15;
+  repeated PeerInfo Peers = 16;
+  map<string, ServiceInfo> Services = 17;
+}
 
 message GitListReq {
-	message Elem {
-		string Name = 1;
-		string RepoLink = 2;
-	}
-	repeated Elem Elems = 1;
+  message Elem {
+    string Name = 1;
+    string RepoLink = 2;
+  }
+  repeated Elem Elems = 1;
 }
 
 message GitRemoveReq {
-	string Name = 1;
-	string FolderToRun = 2;
-	string Id = 3;
-	map<string, string> EnvVars = 4;
+  string Name = 1;
+  string FolderToRun = 2;
+  string Id = 3;
+  map<string, string> EnvVars = 4;
 }
 
-
-message GitCloneReq{
-	string url = 1; 
-	string FolderToRun = 2;
-	string Name = 3;
-	string Id = 4;
-	map<string, string> EnvVars = 5;
+message GitCloneReq {
+  string url = 1;
+  string FolderToRun = 2;
+  string Name = 3;
+  string Id = 4;
+  map<string, string> EnvVars = 5;
 }
 
 message GitUpdateReq {
-	string Name = 1;
-	string FolderToRun = 2;
-	string Id = 3;
-	map<string, string> EnvVars = 4;
+  string Name = 1;
+  string FolderToRun = 2;
+  string Id = 3;
+  map<string, string> EnvVars = 4;
 }
 
 message NetworkListResponse { repeated NetworkSummary Networks = 1; }
 
 service DockerService {
-	rpc ImageDownload(DownloadImage) returns (Empty);
-	rpc ImageRemove(Remove) returns (Empty);
-	rpc ImageList(Empty) returns (ListOfImages);
+  rpc ImageDownload(DownloadImage) returns (Empty);
+  rpc ImageRemove(Remove) returns (Empty);
+  rpc ImageList(Empty) returns (ListOfImages);
 
+  // Containers :D:D:D IUUUPIIIIIIIIIIII
+  rpc ContainerList(Empty) returns (ListOfContainers);
+  rpc ContainerCreateFunc(ContainerCreate) returns (Empty);
+  rpc ContainerRemove(RemoveContainer) returns (Empty);
+  rpc ContainerStop(ContainerId) returns (Empty);
+  rpc ContainerStart(ContainerId) returns (Empty);
+  rpc ContainerRestart(ContainerId) returns (Empty);
+  rpc ContainerPause(ContainerId) returns (Empty);
+  rpc ContainerUnPause(ContainerId) returns (Empty);
+  rpc ContainerKill(KillContainer) returns (Empty);
+  rpc ContainerLogs(ContainerLogsRequest) returns (stream LogChunk);
+  rpc ContainerUpdate(ContainerUpdateRequest) returns (ContainerUpdateResponse);
+  rpc ContainerRename(ContainerRenameRequest) returns (Empty);
+  rpc ContainerExec(ExecMsg) returns (Empty);
 
-	// Containers :D:D:D IUUUPIIIIIIIIIIII
-	rpc ContainerList(Empty) returns (ListOfContainers);
-	rpc ContainerCreateFunc(ContainerCreate) returns (Empty);
-	rpc ContainerRemove(RemoveContainer)returns(Empty);
-	rpc ContainerStop(ContainerId)returns(Empty);
-	rpc ContainerStart(ContainerId)returns(Empty);
-	rpc ContainerRestart(ContainerId)returns(Empty);
-	rpc ContainerPause(ContainerId)returns(Empty);
-	rpc ContainerUnPause(ContainerId)returns(Empty);
-	rpc ContainerKill(KillContainer)returns(Empty);
-	rpc ContainerLogs(ContainerLogsRequest) returns (stream LogChunk);
-	rpc ContainerUpdate(ContainerUpdateRequest) returns (ContainerUpdateResponse);
-	rpc ContainerRename(ContainerRenameRequest) returns (Empty);
-	rpc ContainerExec(ExecMsg)returns(Empty);
+  // Volumes pa puder juntar po novo super mariooooo
+  // eu fico por baixo ela ...
+  rpc VolumeList(Empty) returns (ListVolumesResponse);
+  rpc VolumeCreateBindMount(VolumeCreateRequest) returns (Empty);
+  rpc VolumeRemove(VolumeRemoveRequest) returns (Empty);
 
-	// Volumes pa puder juntar po novo super mariooooo
-	//eu fico por baixo ela ...
-	rpc VolumeList(Empty) returns (ListVolumesResponse);
-	rpc VolumeCreateBindMount(VolumeCreateRequest) returns (Empty);
-	rpc VolumeRemove(VolumeRemoveRequest) returns (Empty);
+  // Networks
+  rpc NetworkCreate(NetworkCreateRequest) returns (Empty);
+  rpc NetworkRemove(NetworkRemoveRequest) returns (Empty);
+  rpc NetworkList(Empty) returns (NetworkListResponse);
 
-	// Networks
-	rpc NetworkCreate(NetworkCreateRequest) returns (Empty);
-	rpc NetworkRemove(NetworkRemoveRequest) returns (Empty);
-	rpc NetworkList(Empty) returns (NetworkListResponse);
+  // git compose
+  rpc GitClone(GitCloneReq) returns (Empty);
+  rpc GitList(Empty) returns (GitListReq);
+  rpc GitRemove(GitRemoveReq) returns (Empty);
+  rpc GitUpdate(GitUpdateReq) returns (Empty);
 
-	//git compose
-	rpc GitClone(GitCloneReq)returns(Empty);
-	rpc GitList(Empty)returns(GitListReq);
-	rpc GitRemove(GitRemoveReq)returns(Empty);
-	rpc GitUpdate(GitUpdateReq)returns(Empty);
+  rpc StartAlwaysContainers(Empty) returns (Empty);
 }
