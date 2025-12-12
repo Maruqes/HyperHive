@@ -59,14 +59,20 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 	err = k8sService.ConnectSlaveToCluster()
 	if err != nil && err != services.ErrSlaveMasterNotConnected {
 		logger.Errorf("k8s startup failed: %v", err)
-		return err
+		logger.Errorf("k8s startup failed: %v", err)
+		logger.Errorf("k8s startup failed: %v", err)
+		logger.Errorf("k8s startup failed: %v", err)
+		// return err
 	}
 
 	dockerService := services.DockerService{}
 	err = dockerService.StartAlwaysContainers()
 	if err != nil {
 		logger.Errorf("dockerService startup failed: %v", err)
-		return err
+		logger.Errorf("dockerService startup failed: %v", err)
+		logger.Errorf("dockerService startup failed: %v", err)
+		logger.Errorf("dockerService startup failed: %v", err)
+		// return err
 	}
 
 	return nil
