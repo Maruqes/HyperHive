@@ -545,6 +545,7 @@ func (s *DockerService) StartAlwaysContainers() error {
 		err := docker.StartAlwaysContainers(con)
 		if err != nil {
 			logger.Error(err.Error())
+			return err
 		}
 	}
 	return nil
