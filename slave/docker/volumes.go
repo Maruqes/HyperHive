@@ -19,13 +19,16 @@ type VolumeCreateRequest struct {
 }
 
 func (v *Volume) CreateBindMountVolume(ctx context.Context, opts *VolumeCreateRequest) error {
-	cli, err := client.NewClientWithOpts(client.FromEnv)
-	if err != nil {
-		return err
+	if cli == nil {
+		var err error
+		cli, err = client.NewClientWithOpts(client.FromEnv)
+		if err != nil {
+			return err
+		}
+		cli.NegotiateAPIVersion(ctx)
 	}
-	cli.NegotiateAPIVersion(ctx)
 
-	_, err = cli.VolumeCreate(ctx, volume.CreateOptions{
+	_, err := cli.VolumeCreate(ctx, volume.CreateOptions{
 		Name:   opts.Name,
 		Driver: "local",
 		DriverOpts: map[string]string{

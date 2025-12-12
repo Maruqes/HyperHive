@@ -2,6 +2,7 @@ package docker
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -96,5 +97,14 @@ func NewDockerService() error {
 		return err
 	}
 	cli = cliii
+	// Negotiate API version to ensure compatibility
+	cli.NegotiateAPIVersion(context.Background())
+
+	// Initialize package-level singletons used by gRPC/service handlers
+	our_container = &Container{}
+	our_volume = &Volume{}
+	our_network = &Network{}
+	our_git = &Git{}
+	ImagesService = &Image{}
 	return nil
 }
