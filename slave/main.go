@@ -821,6 +821,14 @@ func main() {
 		log.Fatalf("env setup: %v", err)
 	}
 
+	if err := docker.InstallLatestDocker(); err != nil {
+		log.Fatalf("docker setup %v", err)
+	}
+	err := docker.NewDockerService()
+	if err != nil {
+		log.Fatalf("docker service %v", err)
+	}
+
 	if err := virsh.EnsureVirtXMLInstalled(); err != nil {
 		log.Fatalf("ensure virt-xml: %v", err)
 	}
@@ -858,14 +866,6 @@ func main() {
 
 	if err := install_git(); err != nil {
 		log.Fatalf("error install git %v", err)
-	}
-
-	if err := docker.InstallLatestDocker(); err != nil {
-		log.Fatalf("docker setup %v", err)
-	}
-	err := docker.NewDockerService()
-	if err != nil {
-		log.Fatalf("docker service %v", err)
 	}
 
 	if err := applyDirtyRatioSettings(env512.DirtyRatioPercent, env512.DirtyBackgroundRatioPercent); err != nil {
