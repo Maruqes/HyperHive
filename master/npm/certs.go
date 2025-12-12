@@ -277,6 +277,25 @@ func ListCerts(baseURL, token string) ([]Certificate, error) {
 	return certs, nil
 }
 
+func ListDNSProviders(baseURL, token string) ([]byte, error) {
+	resp, err := MakeRequest(http.MethodGet, baseURL+"/api/nginx/certificates/dns-providers", token, nil, 60)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return nil, fmt.Errorf("list dns providers failed (%d): %s", resp.StatusCode, string(body))
+	}
+
+	return body, nil
+}
+
 func DownloadCert(baseURL, token string, certID int) ([]byte, string, error) {
 	url := fmt.Sprintf("%s/api/nginx/certificates/%d/download", baseURL, certID)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -336,8 +355,6 @@ func DeleteCert(baseURL, token string, certID int) error {
 	return nil
 }
 
-
-
 // GET /api/nginx/certificates/1/download
 // POST /api/nginx/certificates/1/renew
-// DELETE /api/nginx/certificates/1 
+// DELETE /api/nginx/certificates/1

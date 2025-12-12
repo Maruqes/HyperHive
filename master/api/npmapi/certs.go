@@ -142,6 +142,19 @@ func listCerts(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func listDNSProviders(w http.ResponseWriter, r *http.Request) {
+	loginToken := GetTokenFromContext(r)
+
+	body, err := npm.ListDNSProviders(baseURL, loginToken)
+	if err != nil {
+		http.Error(w, "failed to list dns providers: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(body)
+}
+
 type certIDPayload struct {
 	ID int `json:"id"`
 }
@@ -222,6 +235,7 @@ func deleteCert(w http.ResponseWriter, r *http.Request) {
 
 func SetupCertAPI(r chi.Router) chi.Router {
 	return r.Route("/certs", func(r chi.Router) {
+		r.Get("/dns-providers", listDNSProviders)
 		r.Get("/list", listCerts)
 		r.Post("/create", createCert)
 		r.Post("/create-lets-encrypt", createCertLetsEncrypt)
