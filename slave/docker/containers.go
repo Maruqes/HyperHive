@@ -327,10 +327,6 @@ func (*Container) Exec(ctx context.Context, containerID string, command []string
 }
 
 func (g *Git) StartAlwaysContainers(ctx context.Context) error {
-	if cli == nil {
-		return fmt.Errorf("docker client nil")
-	}
-
 	cts, err := cli.ContainerList(ctx, container.ListOptions{All: true})
 	if err != nil {
 		return fmt.Errorf("docker container list: %w", err)
