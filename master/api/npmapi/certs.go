@@ -93,10 +93,7 @@ func createCertLetsEncrypt(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "domain_names is required", http.StatusBadRequest)
 		return
 	}
-	if p.Meta.LetsEncryptEmail == "" || !p.Meta.LetsEncryptAgree {
-		http.Error(w, "meta.letsencrypt_email and meta.letsencrypt_agree=true are required", http.StatusBadRequest)
-		return
-	}
+
 	if p.Meta.DNSChallenge && p.Meta.DNSProvider == "" {
 		http.Error(w, "meta.dns_provider is required when dns_challenge=true", http.StatusBadRequest)
 		return
