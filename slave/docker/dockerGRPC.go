@@ -435,6 +435,6 @@ func (s *DockerService) GitUpdate(ctx context.Context, req *dockerGRPC.GitUpdate
 	return &dockerGRPC.Empty{}, our_git.GitUpdate(ctx, req.Name, req.FolderToRun, req.Id, req.EnvVars)
 }
 
-func (s *DockerService) StartAlwaysContainers(ctx context.Context) (*dockerGRPC.Empty, error) {
+func (s *DockerService) StartAlwaysContainers(ctx context.Context, req *dockerGRPC.Empty) (*dockerGRPC.Empty, error) {
 	return &dockerGRPC.Empty{}, our_git.StartAlwaysContainers(ctx)
 }
