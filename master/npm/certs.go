@@ -189,11 +189,9 @@ func CreateCert(baseURL, token string, cert Cert) (int, error) {
 type LetsEncryptCert struct {
 	DomainNames []string `json:"domain_names"`
 	Meta        struct {
-		LetsEncryptEmail       string `json:"letsencrypt_email"`
 		DNSChallenge           bool   `json:"dns_challenge"`
 		DNSProvider            string `json:"dns_provider"`
 		DNSProviderCredentials string `json:"dns_provider_credentials"`
-		LetsEncryptAgree       bool   `json:"letsencrypt_agree"`
 	} `json:"meta"`
 	Provider string `json:"provider"` // "letsencrypt"
 }
