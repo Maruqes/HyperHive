@@ -343,13 +343,11 @@ func (g *Git) StartAlwaysContainers(ctx context.Context) error {
 			continue
 		}
 
-		if ins.HostConfig == nil || ins.HostConfig.RestartPolicy.IsAlways() {
-			logger.Error("docker nao é restart ", ins.Name)
+		if ins.HostConfig == nil || !ins.HostConfig.RestartPolicy.IsAlways() {
 			continue
 		}
 
 		if ins.State != nil && ins.State.Running {
-			logger.Error("docker nao é State running ", ins.Name)
 			continue
 		}
 
