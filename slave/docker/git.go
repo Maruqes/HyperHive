@@ -4,19 +4,56 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"slave/extra"
+	"strings"
+	"sync"
 
 	proto "github.com/Maruqes/512SvMan/api/proto/extra"
 )
 
 const allGitDir string = "docker_git"
 
+const maxScanTokenSize = 1024 * 1024 // 1MiB per line
+
 type Git struct{}
 
 var our_git *Git
+
+func ensureAllGitDir() error {
+	return os.MkdirAll(allGitDir, os.ModePerm)
+}
+
+func scanAndSend(r io.Reader, extraS string, msgType proto.WebSocketsMessageType, capture *strings.Builder, captureMu *sync.Mutex, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 1024), maxScanTokenSize)
+	for scanner.Scan() {
+		line := scanner.Text()
+		extra.SendWebsocketMessage(line, extraS, msgType)
+		if capture != nil {
+			captureMu.Lock()
+			capture.WriteString(line)
+			capture.WriteString("\n")
+			captureMu.Unlock()
+		}
+	}
+	// Se houver erro de scan (ex: linha > maxScanTokenSize), reporta via websocket e captura.
+	if err := scanner.Err(); err != nil {
+		errLine := fmt.Sprintf("scanner error: %v", err)
+		extra.SendWebsocketMessage(errLine, extraS, msgType)
+		if capture != nil {
+			captureMu.Lock()
+			capture.WriteString(errLine)
+			capture.WriteString("\n")
+			captureMu.Unlock()
+		}
+	}
+}
 
 func ExecWithSocket(ctx context.Context, msgType proto.WebSocketsMessageType, extraS, name string, args ...string) error {
 	cmd := exec.CommandContext(ctx, name, args...)
@@ -34,43 +71,35 @@ func ExecWithSocket(ctx context.Context, msgType proto.WebSocketsMessageType, ex
 		return err
 	}
 
-	// Scanner for stdout
-	go func() {
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			line := scanner.Text()
-			extra.SendWebsocketMessage(line, extraS, msgType)
-		}
-	}()
+	var wg sync.WaitGroup
+	var stderrCapture strings.Builder
+	var captureMu sync.Mutex
 
-	// Scanner for stderr
-	errS := ""
-	go func() {
-		stderrScanner := bufio.NewScanner(stderr)
-		for stderrScanner.Scan() {
-			line := stderrScanner.Text()
-			extra.SendWebsocketMessage(line, extraS, msgType)
-			errS = errS + line
-		}
-	}()
+	wg.Add(2)
+	go scanAndSend(stdout, extraS, msgType, nil, &captureMu, &wg)
+	go scanAndSend(stderr, extraS, msgType, &stderrCapture, &captureMu, &wg)
 
-	// Wait for command to finish
-	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("%s + %s", err.Error(), errS)
+	cmdErr := cmd.Wait()
+	wg.Wait()
+
+	if cmdErr != nil {
+		errS := strings.TrimSpace(stderrCapture.String())
+		if errS != "" {
+			return fmt.Errorf("%s + %s", cmdErr.Error(), errS)
+		}
+		return cmdErr
 	}
-
 	return nil
 }
 
 func ExecWithSocketAndEnv(ctx context.Context, msgType proto.WebSocketsMessageType, extraS string, envVars map[string]string, name string, args ...string) error {
 	cmd := exec.CommandContext(ctx, name, args...)
 
-	// Set environment variables
+	// Preserve existing environment variables first, then override/add custom ones.
+	cmd.Env = append(cmd.Env, os.Environ()...)
 	for key, value := range envVars {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, value))
 	}
-	// Preserve existing environment variables
-	cmd.Env = append(cmd.Env, os.Environ()...)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -86,31 +115,24 @@ func ExecWithSocketAndEnv(ctx context.Context, msgType proto.WebSocketsMessageTy
 		return err
 	}
 
-	// Scanner for stdout
-	go func() {
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			line := scanner.Text()
-			extra.SendWebsocketMessage(line, extraS, msgType)
-		}
-	}()
+	var wg sync.WaitGroup
+	var stderrCapture strings.Builder
+	var captureMu sync.Mutex
 
-	// Scanner for stderr
-	errS := ""
-	go func() {
-		stderrScanner := bufio.NewScanner(stderr)
-		for stderrScanner.Scan() {
-			line := stderrScanner.Text()
-			extra.SendWebsocketMessage(line, extraS, msgType)
-			errS = errS + line
-		}
-	}()
+	wg.Add(2)
+	go scanAndSend(stdout, extraS, msgType, nil, &captureMu, &wg)
+	go scanAndSend(stderr, extraS, msgType, &stderrCapture, &captureMu, &wg)
 
-	// Wait for command to finish
-	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("%s + %s", err.Error(), errS)
+	cmdErr := cmd.Wait()
+	wg.Wait()
+
+	if cmdErr != nil {
+		errS := strings.TrimSpace(stderrCapture.String())
+		if errS != "" {
+			return fmt.Errorf("%s + %s", cmdErr.Error(), errS)
+		}
+		return cmdErr
 	}
-
 	return nil
 }
 
@@ -172,11 +194,16 @@ func getRepoLink(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(output), nil
+	return strings.TrimSpace(string(output)), nil
 }
 
 func (g *Git) GitList(ctx context.Context) (*GitList, error) {
 	//get all folders inside allGitDir, get all repo link and folder name return
+	_ = ctx
+	if err := ensureAllGitDir(); err != nil {
+		return nil, err
+	}
+
 	dirs, err := os.ReadDir(allGitDir)
 	if err != nil {
 		return nil, err
@@ -199,6 +226,10 @@ func (g *Git) GitList(ctx context.Context) (*GitList, error) {
 }
 
 func (g *Git) GitRemove(ctx context.Context, name, folderToRun string, id string, envVars map[string]string) error {
+	_ = ctx
+	if err := ensureAllGitDir(); err != nil {
+		return err
+	}
 	for _, char := range name {
 		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9')) {
 			return fmt.Errorf("invalid name: %s; only letters and numbers are allowed", name)
@@ -224,6 +255,10 @@ func (g *Git) GitRemove(ctx context.Context, name, folderToRun string, id string
 }
 
 func (g *Git) GitUpdate(ctx context.Context, name string, folderToRun string, id string, envVars map[string]string) error {
+	_ = ctx
+	if err := ensureAllGitDir(); err != nil {
+		return err
+	}
 	for _, char := range name {
 		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9')) {
 			return fmt.Errorf("invalid name: %s; only letters and numbers are allowed", name)
