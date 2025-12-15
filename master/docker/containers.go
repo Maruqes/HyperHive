@@ -103,7 +103,7 @@ func ContainerLogs(ctx context.Context, conn *grpc.ClientConn, req *dockerGrpc.C
 	if err != nil {
 		return err
 	}
-
+	extra.SendWebsocketMessage(proto.WebSocketsMessageType_ContainerLogs, "Starting logs", streamID)
 	for {
 		msg, err := logs.Recv()
 		if err != nil {
@@ -112,9 +112,11 @@ func ContainerLogs(ctx context.Context, conn *grpc.ClientConn, req *dockerGrpc.C
 				return nil
 			}
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				extra.SendWebsocketMessage(proto.WebSocketsMessageType_ContainerLogs, "Logs stream canceled", streamID)
 				return nil
 			}
 			if st, ok := status.FromError(err); ok && (st.Code() == codes.Canceled || st.Code() == codes.DeadlineExceeded) {
+				extra.SendWebsocketMessage(proto.WebSocketsMessageType_ContainerLogs, "Logs stream canceled", streamID)
 				return nil
 			}
 			return err
