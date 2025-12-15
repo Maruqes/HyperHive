@@ -12,7 +12,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slave/env512"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -317,119 +316,102 @@ func ensureFirewallPorts(ctx context.Context, ports []portSpec) error {
 	}
 	return nil
 }
-func FirewalldDisableFilteringKeepNAT(ctx context.Context) error {
+
+func AllowFirewalldAcceptAll(ctx context.Context) error {
 	if _, err := exec.LookPath("firewall-cmd"); err != nil {
-		return nil // firewalld não instalado
-	}
-
-	run := func(args ...string) (string, error) {
-		cmd := exec.CommandContext(ctx, "firewall-cmd", args...)
-		out, err := cmd.CombinedOutput()
-		s := strings.TrimSpace(string(out))
-		if err != nil {
-			// ALREADY_ENABLED é ok (idempotente)
-			if strings.Contains(s, "ALREADY_ENABLED") {
-				return s, nil
-			}
-			return s, fmt.Errorf("firewall-cmd %v: %w (out: %s)", args, err, s)
-		}
-		return s, nil
-	}
-
-	// só se estiver a correr
-	if st, err := run("--state"); err != nil || strings.ToLower(strings.TrimSpace(st)) != "running" {
-		return nil
-	}
-
-	// desligar panic mode
-	_, _ = run("--panic-off")
-
-	// detectar WAN (default route)
-	wan := ""
-	if _, err := exec.LookPath("ip"); err == nil {
-		b, _ := exec.CommandContext(ctx, "sh", "-lc",
-			`ip route show default 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}'`).Output()
-		wan = strings.TrimSpace(string(b))
-	}
-
-	addDirect := func(ipVer, table, chain string, prio int, ruleArgs ...string) {
-		args := []string{"--direct", "--add-rule", ipVer, table, chain, strconv.Itoa(prio)}
-		args = append(args, ruleArgs...)
-		_, _ = run(args...)
-	}
-
-	// 1) NÃO BLOQUEAR NADA: aceitar tudo no topo
-	// IPv4
-	addDirect("ipv4", "filter", "INPUT", 0, "-j", "ACCEPT")
-	addDirect("ipv4", "filter", "FORWARD", 0, "-j", "ACCEPT")
-	addDirect("ipv4", "filter", "OUTPUT", 0, "-j", "ACCEPT")
-
-	// IPv6 (se estiveres a usar)
-	addDirect("ipv6", "filter", "INPUT", 0, "-j", "ACCEPT")
-	addDirect("ipv6", "filter", "FORWARD", 0, "-j", "ACCEPT")
-	addDirect("ipv6", "filter", "OUTPUT", 0, "-j", "ACCEPT")
-
-	// 2) MANTER NAT/forward para os slaves: MASQUERADE na WAN
-	// (sem mexer em interfaces do CNI; só na interface de saída)
-	if wan != "" {
-		addDirect("ipv4", "nat", "POSTROUTING", 0, "-o", wan, "-j", "MASQUERADE")
-	}
-
-	// 3) Persistir (para sobreviver a qualquer --reload) sem precisares de dar reload agora
-	// Nota: runtime-to-permanent copia as direct rules runtime para permanent.
-	if _, err := run("--runtime-to-permanent"); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func FirewalldAllowK8sCIDRs(ctx context.Context) error {
-	if _, err := exec.LookPath("firewall-cmd"); err != nil {
+		// firewalld not installed
 		return nil
 	}
 
 	run := func(args ...string) error {
+		var stderr bytes.Buffer
 		cmd := exec.CommandContext(ctx, "firewall-cmd", args...)
-		out, err := cmd.CombinedOutput()
-		s := strings.TrimSpace(string(out))
-		if err != nil {
-			// idempotente (quando já existe)
-			if strings.Contains(s, "ALREADY_ENABLED") || strings.Contains(s, "already") {
-				return nil
-			}
-			return fmt.Errorf("firewall-cmd %v: %w (out: %s)", args, err, s)
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("firewall-cmd %v: %w (stderr: %s)", args, err, strings.TrimSpace(stderr.String()))
 		}
 		return nil
 	}
 
-	// k3s defaults (o teu Pod IP 10.42.1.17 confirma isto)
-	podCIDR := "10.42.0.0/16"
-	svcCIDR := "10.43.0.0/16"
-
-	// (opcional) trusted por source (não mexe em interfaces)
-	_ = run("--permanent", "--zone=trusted", "--add-source="+podCIDR)
-	_ = run("--permanent", "--zone=trusted", "--add-source="+svcCIDR)
-
-	addDirect := func(chain string, rule ...string) {
-		args := []string{"--permanent", "--direct", "--add-rule", "ipv4", "filter", chain, "0"}
-		args = append(args, rule...)
-		_ = run(args...)
+	output := func(args ...string) (string, error) {
+		var stderr bytes.Buffer
+		cmd := exec.CommandContext(ctx, "firewall-cmd", args...)
+		cmd.Stderr = &stderr
+		out, err := cmd.Output()
+		if err != nil {
+			return "", fmt.Errorf("firewall-cmd %v: %w (stderr: %s)", args, err, strings.TrimSpace(stderr.String()))
+		}
+		return strings.TrimSpace(string(out)), nil
 	}
 
-	// aceitar tráfego k8s (evita REJECT -> "connection refused")
-	addDirect("INPUT", "-s", podCIDR, "-j", "ACCEPT")
-	addDirect("OUTPUT", "-d", podCIDR, "-j", "ACCEPT")
-	addDirect("FORWARD", "-s", podCIDR, "-j", "ACCEPT")
-	addDirect("FORWARD", "-d", podCIDR, "-j", "ACCEPT")
+	// helpers to aggressively clear any existing rules so firewalld stops filtering
+	removeSpaceSeparated := func(zone string, listArgs []string, removeFlag string) {
+		list, err := output(listArgs...)
+		if err != nil || strings.TrimSpace(list) == "" {
+			return
+		}
+		for _, item := range strings.Fields(list) {
+			_ = run(append([]string{"--permanent", "--zone", zone, removeFlag, item})...)
+			_ = run(append([]string{"--zone", zone, removeFlag, item})...)
+		}
+	}
 
-	addDirect("INPUT", "-s", svcCIDR, "-j", "ACCEPT")
-	addDirect("OUTPUT", "-d", svcCIDR, "-j", "ACCEPT")
-	addDirect("FORWARD", "-s", svcCIDR, "-j", "ACCEPT")
-	addDirect("FORWARD", "-d", svcCIDR, "-j", "ACCEPT")
+	removeLineSeparated := func(zone string, listArgs []string, removeFlag string) {
+		list, err := output(listArgs...)
+		if err != nil || strings.TrimSpace(list) == "" {
+			return
+		}
+		for _, line := range strings.Split(strings.TrimSpace(list), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			_ = run(append([]string{"--permanent", "--zone", zone, removeFlag, line})...)
+			_ = run(append([]string{"--zone", zone, removeFlag, line})...)
+		}
+	}
 
-	// aplicar permanente -> runtime
-	return run("--reload")
+	// 1) Descobrir zonas existentes
+	zonesOut, err := output("--get-zones")
+	zones := []string{"public", "dmz", "external", "internal", "work", "home", "trusted"}
+	if err == nil && zonesOut != "" {
+		zones = strings.Fields(zonesOut)
+	}
+
+	// 2) Limpar tudo o que possa bloquear tráfego em cada zona
+	for _, zone := range zones {
+		// aceitar todo o tráfego permanentemente e em runtime
+		_ = run("--permanent", "--zone", zone, "--set-target=ACCEPT")
+		_ = run("--zone", zone, "--set-target=ACCEPT")
+
+		removeSpaceSeparated(zone, []string{"--zone", zone, "--list-services"}, "--remove-service")
+		removeSpaceSeparated(zone, []string{"--zone", zone, "--list-ports"}, "--remove-port")
+		removeSpaceSeparated(zone, []string{"--zone", zone, "--list-protocols"}, "--remove-protocol")
+		removeSpaceSeparated(zone, []string{"--zone", zone, "--list-icmp-blocks"}, "--remove-icmp-block")
+		removeSpaceSeparated(zone, []string{"--zone", zone, "--list-sources"}, "--remove-source")
+		removeSpaceSeparated(zone, []string{"--zone", zone, "--list-interfaces"}, "--remove-interface")
+		removeLineSeparated(zone, []string{"--zone", zone, "--list-forward-ports"}, "--remove-forward-port")
+		removeLineSeparated(zone, []string{"--zone", zone, "--list-rich-rules"}, "--remove-rich-rule")
+	}
+
+	// 3) Default zone em trusted (perm e runtime) para impedir que outra zona volte a filtrar
+	_ = run("--permanent", "--set-default-zone=trusted")
+	_ = run("--set-default-zone=trusted")
+
+	// 4) Garantir que não há panic-mode nem lockdown
+	_ = run("--panic-off")
+	_ = run("--lockdown-off")
+	_ = run("--permanent", "--lockdown-off")
+
+	// 5) Aplicar config permanente e reafirmar runtime
+	if err := run("--reload"); err != nil {
+		return err
+	}
+	for _, zone := range zones {
+		_ = run("--zone", zone, "--set-target=ACCEPT")
+	}
+
+	return nil
 }
 
 func clusterReadyWithKubeconfig(ctx context.Context) (bool, string, error) {
