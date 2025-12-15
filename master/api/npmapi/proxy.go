@@ -164,7 +164,7 @@ func setupFrontEnd(w http.ResponseWriter, r *http.Request) {
 		Http2Support:          false,
 		HstsEnabled:           false,
 		HstsSubdomains:        false,
-		SslForced:             false,
+		SslForced:             true,
 		Enabled:               true,
 		AdvancedConfig: `
 # --- TIMEOUTS ALTOS (NA PRÁTICA, QUASE ILIMITADOS) ---
