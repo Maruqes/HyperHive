@@ -384,6 +384,54 @@ func FirewalldDisableFilteringKeepNAT(ctx context.Context) error {
 	return nil
 }
 
+func FirewalldAllowK8sCIDRs(ctx context.Context) error {
+	if _, err := exec.LookPath("firewall-cmd"); err != nil {
+		return nil
+	}
+
+	run := func(args ...string) error {
+		cmd := exec.CommandContext(ctx, "firewall-cmd", args...)
+		out, err := cmd.CombinedOutput()
+		s := strings.TrimSpace(string(out))
+		if err != nil {
+			// idempotente (quando já existe)
+			if strings.Contains(s, "ALREADY_ENABLED") || strings.Contains(s, "already") {
+				return nil
+			}
+			return fmt.Errorf("firewall-cmd %v: %w (out: %s)", args, err, s)
+		}
+		return nil
+	}
+
+	// k3s defaults (o teu Pod IP 10.42.1.17 confirma isto)
+	podCIDR := "10.42.0.0/16"
+	svcCIDR := "10.43.0.0/16"
+
+	// (opcional) trusted por source (não mexe em interfaces)
+	_ = run("--permanent", "--zone=trusted", "--add-source="+podCIDR)
+	_ = run("--permanent", "--zone=trusted", "--add-source="+svcCIDR)
+
+	addDirect := func(chain string, rule ...string) {
+		args := []string{"--permanent", "--direct", "--add-rule", "ipv4", "filter", chain, "0"}
+		args = append(args, rule...)
+		_ = run(args...)
+	}
+
+	// aceitar tráfego k8s (evita REJECT -> "connection refused")
+	addDirect("INPUT", "-s", podCIDR, "-j", "ACCEPT")
+	addDirect("OUTPUT", "-d", podCIDR, "-j", "ACCEPT")
+	addDirect("FORWARD", "-s", podCIDR, "-j", "ACCEPT")
+	addDirect("FORWARD", "-d", podCIDR, "-j", "ACCEPT")
+
+	addDirect("INPUT", "-s", svcCIDR, "-j", "ACCEPT")
+	addDirect("OUTPUT", "-d", svcCIDR, "-j", "ACCEPT")
+	addDirect("FORWARD", "-s", svcCIDR, "-j", "ACCEPT")
+	addDirect("FORWARD", "-d", svcCIDR, "-j", "ACCEPT")
+
+	// aplicar permanente -> runtime
+	return run("--reload")
+}
+
 func clusterReadyWithKubeconfig(ctx context.Context) (bool, string, error) {
 	// 1) tentar via kubeconfig (server/admin)
 	if kubeconfig, err := findKubeconfigPath(); err == nil {
