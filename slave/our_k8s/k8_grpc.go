@@ -75,7 +75,6 @@ func (s *K8sService) GetClusterStatus(ctx context.Context, req *k8sGrpc.Empty) (
 		return status, nil
 	}
 
-	// serverURL já vem no formato https://<ip-ou-host>:6443
 	status.Connected = true
 	status.ServerUrl = serverURL
 	return status, nil
