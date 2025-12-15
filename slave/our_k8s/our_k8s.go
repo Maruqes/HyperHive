@@ -344,41 +344,6 @@ func AllowFirewalldAcceptAll(ctx context.Context) error {
 		return strings.TrimSpace(string(out)), nil
 	}
 
-	// helpers to aggressively clear any existing rules so firewalld stops filtering
-	removeSpaceSeparated := func(zone string, listArgs []string, removeFlag string) {
-		list, err := output(listArgs...)
-		if err != nil || strings.TrimSpace(list) == "" {
-			return
-		}
-		for _, item := range strings.Fields(list) {
-			_ = run(append([]string{"--permanent", "--zone", zone, removeFlag, item})...)
-			_ = run(append([]string{"--zone", zone, removeFlag, item})...)
-		}
-	}
-
-	removeLineSeparated := func(zone string, listArgs []string, removeFlag string) {
-		list, err := output(listArgs...)
-		if err != nil || strings.TrimSpace(list) == "" {
-			return
-		}
-		for _, line := range strings.Split(strings.TrimSpace(list), "\n") {
-			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
-			}
-			_ = run(append([]string{"--permanent", "--zone", zone, removeFlag, line})...)
-			_ = run(append([]string{"--zone", zone, removeFlag, line})...)
-		}
-	}
-
-	addDirect := func(family, table, chain string, priority int, rule ...string) {
-		prio := fmt.Sprintf("%d", priority)
-		args := append([]string{"--permanent", "--direct", "--add-rule", family, table, chain, prio}, rule...)
-		_ = run(args...)
-		args = append([]string{"--direct", "--add-rule", family, table, chain, prio}, rule...)
-		_ = run(args...)
-	}
-
 	// 1) Descobrir zonas existentes
 	zonesOut, err := output("--get-zones")
 	zones := []string{"public", "dmz", "external", "internal", "work", "home", "trusted"}
@@ -386,51 +351,26 @@ func AllowFirewalldAcceptAll(ctx context.Context) error {
 		zones = strings.Fields(zonesOut)
 	}
 
-	// 2) Limpar tudo o que possa bloquear tráfego em cada zona
+	// 2) Tornar TUDO ACCEPT (permanente)
+	//    Isto é o coração do "aceito tudoooo".
 	for _, zone := range zones {
-		// aceitar todo o tráfego permanentemente e em runtime
 		_ = run("--permanent", "--zone", zone, "--set-target=ACCEPT")
-		_ = run("--zone", zone, "--set-target=ACCEPT")
-
-		removeSpaceSeparated(zone, []string{"--zone", zone, "--list-services"}, "--remove-service")
-		removeSpaceSeparated(zone, []string{"--zone", zone, "--list-ports"}, "--remove-port")
-		removeSpaceSeparated(zone, []string{"--zone", zone, "--list-protocols"}, "--remove-protocol")
-		removeSpaceSeparated(zone, []string{"--zone", zone, "--list-icmp-blocks"}, "--remove-icmp-block")
-		removeSpaceSeparated(zone, []string{"--zone", zone, "--list-sources"}, "--remove-source")
-		removeSpaceSeparated(zone, []string{"--zone", zone, "--list-interfaces"}, "--remove-interface")
-		removeLineSeparated(zone, []string{"--zone", zone, "--list-forward-ports"}, "--remove-forward-port")
-		removeLineSeparated(zone, []string{"--zone", zone, "--list-rich-rules"}, "--remove-rich-rule")
 	}
 
-	// 3) Default zone em trusted (perm e runtime) para impedir que outra zona volte a filtrar
+	// 3) Meter a default zone em trusted (permanente)
 	_ = run("--permanent", "--set-default-zone=trusted")
-	_ = run("--set-default-zone=trusted")
 
-	// 4) Garantir que não há panic-mode nem lockdown
-	_ = run("--panic-off")
-	_ = run("--lockdown-off")
-	_ = run("--permanent", "--lockdown-off")
-	_ = run("--set-log-denied=off")
-	_ = run("--permanent", "--set-log-denied=off")
-
-	// 5) Manter NAT/forwarding ativo mesmo com firewalld a correr
-	//    (k3s e flannel/Canal dependem de forwarding e NAT funcionar).
-	addDirect("ipv4", "filter", "FORWARD", 0, "-j", "ACCEPT")
-	addDirect("ipv6", "filter", "FORWARD", 0, "-j", "ACCEPT")
-	addDirect("ipv4", "nat", "POSTROUTING", 0, "-j", "MASQUERADE")
-	addDirect("ipv6", "nat", "POSTROUTING", 0, "-j", "MASQUERADE")
-	// manter masquerade na zona trusted (runtime+perm) para compatibilidade com regras de zona
-	_ = run("--permanent", "--zone", "trusted", "--add-masquerade")
-	_ = run("--zone", "trusted", "--add-masquerade")
-
-	// 6) Aplicar config permanente e reafirmar runtime
+	// 4) Aplicar config permanente
 	if err := run("--reload"); err != nil {
 		return err
 	}
+
+	// 5) Garantir também em runtime (por segurança)
+	//    Após reload normalmente já fica certo, mas isto evita casos estranhos.
+	_ = run("--set-default-zone=trusted")
 	for _, zone := range zones {
 		_ = run("--zone", zone, "--set-target=ACCEPT")
 	}
-	_ = run("--zone", "trusted", "--add-masquerade")
 
 	return nil
 }
