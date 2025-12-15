@@ -258,7 +258,12 @@ func clusterReadyWithKubeconfig(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("stat %s: %w", k3sBinaryPath, err)
 	}
 
-	kubeconfigs := []string{k3sKubeconfigPath, "/etc/rancher/k3s/kubelet.conf"}
+	// Common kubeconfigs: server, agent, and kubelet. We don't require all of them to exist.
+	kubeconfigs := []string{
+		k3sKubeconfigPath,                               // server kubeconfig
+		"/etc/rancher/k3s/kubelet.conf",                 // server/agent kubelet
+		"/var/lib/rancher/k3s/agent/kubelet.kubeconfig", // agent path
+	}
 	var lastErr error
 
 	runCheck := func(cfg string) (bool, error) {
