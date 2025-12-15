@@ -50,9 +50,22 @@ func getConnectionFile(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(resp.File))
 }
 
+func getClusterStatus(w http.ResponseWriter, r *http.Request) {
+	svc := services.K8sService{}
+	status, err := svc.GetClusterStatus()
+	if err != nil && (status == nil || len(status.Connected) == 0) {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(status)
+}
+
 func setupK8sAPI(r chi.Router) chi.Router {
 	return r.Route("/k8s", func(r chi.Router) {
 		r.Get("/tls-sans", getTLSSANIps)
+		r.Get("/cluster/status", getClusterStatus)
 		r.Post("/connection-file", getConnectionFile)
 	})
 }

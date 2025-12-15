@@ -5,10 +5,27 @@ import (
 	"512SvMan/protocol"
 	"fmt"
 	"strings"
+	"time"
 
 	k8sGrpc "github.com/Maruqes/512SvMan/api/proto/k8s"
 	"github.com/Maruqes/512SvMan/logger"
 )
+
+// ClusterNodeStatus describes cluster connectivity of a slave.
+type ClusterNodeStatus struct {
+	MachineName string    `json:"machine"`
+	Addr        string    `json:"addr"`
+	Connected   bool      `json:"connected"`
+	LastSeen    time.Time `json:"lastSeen"`
+	TLSSANIps   []string  `json:"tlsSANs,omitempty"`
+	Error       string    `json:"error,omitempty"`
+}
+
+// ClusterStatus aggregates all slaves and their cluster state.
+type ClusterStatus struct {
+	Connected    []ClusterNodeStatus `json:"connected"`
+	Disconnected []ClusterNodeStatus `json:"disconnected"`
+}
 
 type K8sService struct{}
 
@@ -64,6 +81,51 @@ func (s *K8sService) GetTLSSANIpsAny() (*k8sGrpc.TLSSANSIps, error) {
 		return nil, lastErr
 	}
 	return nil, fmt.Errorf("no tls sans available")
+}
+
+// GetClusterStatus returns cluster connectivity for every known slave.
+func (s *K8sService) GetClusterStatus() (*ClusterStatus, error) {
+	conns := protocol.GetConnectionsSnapshot()
+	status := &ClusterStatus{Connected: []ClusterNodeStatus{}, Disconnected: []ClusterNodeStatus{}}
+	if len(conns) == 0 {
+		return status, fmt.Errorf("no connected machines available")
+	}
+
+	var lastErr error
+	for _, c := range conns {
+		node := ClusterNodeStatus{
+			MachineName: c.MachineName,
+			Addr:        c.Addr,
+			LastSeen:    c.LastSeen,
+		}
+
+		resp, err := s.GetTLSSANIps(c.MachineName)
+		if err != nil {
+			node.Error = err.Error()
+			status.Disconnected = append(status.Disconnected, node)
+			lastErr = err
+			continue
+		}
+
+		if resp == nil || len(resp.Ips) == 0 {
+			node.Error = "not connected to cluster"
+			if lastErr == nil {
+				lastErr = fmt.Errorf("%s: not connected to cluster", c.MachineName)
+			}
+			status.Disconnected = append(status.Disconnected, node)
+			continue
+		}
+
+		node.Connected = true
+		node.TLSSANIps = resp.Ips
+		status.Connected = append(status.Connected, node)
+	}
+
+	if len(status.Connected) == 0 && lastErr != nil {
+		return status, fmt.Errorf("no nodes connected to cluster: %w", lastErr)
+	}
+
+	return status, lastErr
 }
 
 func (s *K8sService) GetConnectionFileAny(ip string) (*k8sGrpc.ConnectionFile, error) {
