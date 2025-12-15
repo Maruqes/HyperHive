@@ -371,6 +371,14 @@ func AllowFirewalldAcceptAll(ctx context.Context) error {
 		}
 	}
 
+	addDirect := func(family, table, chain string, priority int, rule ...string) {
+		prio := fmt.Sprintf("%d", priority)
+		args := append([]string{"--permanent", "--direct", "--add-rule", family, table, chain, prio}, rule...)
+		_ = run(args...)
+		args = append([]string{"--direct", "--add-rule", family, table, chain, prio}, rule...)
+		_ = run(args...)
+	}
+
 	// 1) Descobrir zonas existentes
 	zonesOut, err := output("--get-zones")
 	zones := []string{"public", "dmz", "external", "internal", "work", "home", "trusted"}
@@ -402,14 +410,27 @@ func AllowFirewalldAcceptAll(ctx context.Context) error {
 	_ = run("--panic-off")
 	_ = run("--lockdown-off")
 	_ = run("--permanent", "--lockdown-off")
+	_ = run("--set-log-denied=off")
+	_ = run("--permanent", "--set-log-denied=off")
 
-	// 5) Aplicar config permanente e reafirmar runtime
+	// 5) Manter NAT/forwarding ativo mesmo com firewalld a correr
+	//    (k3s e flannel/Canal dependem de forwarding e NAT funcionar).
+	addDirect("ipv4", "filter", "FORWARD", 0, "-j", "ACCEPT")
+	addDirect("ipv6", "filter", "FORWARD", 0, "-j", "ACCEPT")
+	addDirect("ipv4", "nat", "POSTROUTING", 0, "-j", "MASQUERADE")
+	addDirect("ipv6", "nat", "POSTROUTING", 0, "-j", "MASQUERADE")
+	// manter masquerade na zona trusted (runtime+perm) para compatibilidade com regras de zona
+	_ = run("--permanent", "--zone", "trusted", "--add-masquerade")
+	_ = run("--zone", "trusted", "--add-masquerade")
+
+	// 6) Aplicar config permanente e reafirmar runtime
 	if err := run("--reload"); err != nil {
 		return err
 	}
 	for _, zone := range zones {
 		_ = run("--zone", zone, "--set-target=ACCEPT")
 	}
+	_ = run("--zone", "trusted", "--add-masquerade")
 
 	return nil
 }
