@@ -61,6 +61,30 @@ func (s *K8sService) IsMasterSlave(ctx context.Context, req *k8sGrpc.Empty) (*k8
 	return &k8sGrpc.IsMasterSlaveRes{WeAreMasterSlave: AreWeMasterSlave()}, nil
 }
 
+func (s *K8sService) GetClusterStatus(ctx context.Context, req *k8sGrpc.Empty) (*k8sGrpc.ClusterStatus, error) {
+	status := &k8sGrpc.ClusterStatus{NodeIp: env512.SlaveIP}
+
+	ready, err := isClusterReady(ctx)
+	if err != nil {
+		status.Error = err.Error()
+		return status, nil
+	}
+
+	if !ready {
+		status.Error = "not connected to cluster"
+		return status, nil
+	}
+
+	serverIP := strings.TrimSpace(env512.MasterIP)
+	if serverIP == "" {
+		serverIP = env512.SlaveIP
+	}
+
+	status.Connected = true
+	status.ServerUrl = fmt.Sprintf("https://%s:6443", serverIP)
+	return status, nil
+}
+
 func (s *K8sService) SetConnectionToCluster(ctx context.Context, req *k8sGrpc.ConnectionToCluster) (*k8sGrpc.Empty, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is required")

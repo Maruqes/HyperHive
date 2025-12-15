@@ -22,6 +22,11 @@ func GetTLSSANIps(conn *grpc.ClientConn) (*k8sGrpc.TLSSANSIps, error) {
 	return client.GetTLSSANIps(context.Background(), &k8sGrpc.Empty{})
 }
 
+func GetClusterStatus(conn *grpc.ClientConn) (*k8sGrpc.ClusterStatus, error) {
+	client := k8sGrpc.NewK8SServiceClient(conn)
+	return client.GetClusterStatus(context.Background(), &k8sGrpc.Empty{})
+}
+
 func SetConnectionToCluster(conn *grpc.ClientConn, con *k8sGrpc.ConnectionToCluster) (*k8sGrpc.Empty, error) {
 	client := k8sGrpc.NewK8SServiceClient(conn)
 	return client.SetConnectionToCluster(context.Background(), con)

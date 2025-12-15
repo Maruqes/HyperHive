@@ -18,6 +18,8 @@ type ClusterNodeStatus struct {
 	Connected   bool      `json:"connected"`
 	LastSeen    time.Time `json:"lastSeen"`
 	TLSSANIps   []string  `json:"tlsSANs,omitempty"`
+	ServerURL   string    `json:"serverUrl,omitempty"`
+	NodeIP      string    `json:"nodeIp,omitempty"`
 	Error       string    `json:"error,omitempty"`
 }
 
@@ -99,7 +101,16 @@ func (s *K8sService) GetClusterStatus() (*ClusterStatus, error) {
 			LastSeen:    c.LastSeen,
 		}
 
-		resp, err := s.GetTLSSANIps(c.MachineName)
+		if c.Connection == nil {
+			node.Error = "no grpc connection"
+			status.Disconnected = append(status.Disconnected, node)
+			if lastErr == nil {
+				lastErr = fmt.Errorf("%s: no grpc connection", c.MachineName)
+			}
+			continue
+		}
+
+		resp, err := k8s.GetClusterStatus(c.Connection)
 		if err != nil {
 			node.Error = err.Error()
 			status.Disconnected = append(status.Disconnected, node)
@@ -107,17 +118,22 @@ func (s *K8sService) GetClusterStatus() (*ClusterStatus, error) {
 			continue
 		}
 
-		if resp == nil || len(resp.Ips) == 0 {
-			node.Error = "not connected to cluster"
+		node.NodeIP = resp.GetNodeIp()
+		node.ServerURL = resp.GetServerUrl()
+
+		if !resp.GetConnected() {
+			node.Error = resp.GetError()
+			if node.Error == "" {
+				node.Error = "not connected to cluster"
+			}
 			if lastErr == nil {
-				lastErr = fmt.Errorf("%s: not connected to cluster", c.MachineName)
+				lastErr = fmt.Errorf("%s: %s", c.MachineName, node.Error)
 			}
 			status.Disconnected = append(status.Disconnected, node)
 			continue
 		}
 
 		node.Connected = true
-		node.TLSSANIps = resp.Ips
 		status.Connected = append(status.Connected, node)
 	}
 

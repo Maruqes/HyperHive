@@ -4,38 +4,38 @@ package k8s;
 
 option go_package = "github.com/Maruqes/512SvMan/api/proto/k8s;proto";
 
-message Empty{}
-message Token{ 
-	string token = 1;
-	string nodeIp = 2;
+message Empty {}
+message Token {
+  string token = 1;
+  string nodeIp = 2;
 }
 
-message ConnectionToCluster{
-	string serverIp = 2;
-	string token = 3;
+message ConnectionToCluster {
+  string serverIp = 2;
+  string token = 3;
 }
 
-message ConnectionFile{
-	string file = 1;
+message ConnectionFile { string file = 1; }
+
+message IsMasterSlaveRes { bool weAreMasterSlave = 1; }
+
+message ConnectionFileIp { string ip = 1; }
+
+message TLSSANSIps { repeated string ips = 1; }
+
+message ClusterStatus {
+  bool connected = 1;
+  string nodeIp = 2;
+  string serverUrl = 3;
+  string error = 4;
 }
 
-message IsMasterSlaveRes{
-	bool weAreMasterSlave = 1;
-}
-
-message ConnectionFileIp{
-	string ip = 1;
-}
-
-message TLSSANSIps{
-	repeated string ips = 1;
-}
-
-//its youu that i lie with 
+// its youu that i lie with
 service K8sService {
-	rpc GetToken(Empty)returns (Token);
-	rpc GetConnectionFile(ConnectionFileIp)returns(ConnectionFile);
-	rpc GetTLSSANIps(Empty)returns(TLSSANSIps);
-	rpc SetConnectionToCluster(ConnectionToCluster)returns(Empty);
-	rpc IsMasterSlave(Empty)returns(IsMasterSlaveRes);
+  rpc GetToken(Empty) returns (Token);
+  rpc GetConnectionFile(ConnectionFileIp) returns (ConnectionFile);
+  rpc GetTLSSANIps(Empty) returns (TLSSANSIps);
+  rpc GetClusterStatus(Empty) returns (ClusterStatus);
+  rpc SetConnectionToCluster(ConnectionToCluster) returns (Empty);
+  rpc IsMasterSlave(Empty) returns (IsMasterSlaveRes);
 }

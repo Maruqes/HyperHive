@@ -22,6 +22,7 @@ const (
 	K8SService_GetToken_FullMethodName               = "/k8s.K8sService/GetToken"
 	K8SService_GetConnectionFile_FullMethodName      = "/k8s.K8sService/GetConnectionFile"
 	K8SService_GetTLSSANIps_FullMethodName           = "/k8s.K8sService/GetTLSSANIps"
+	K8SService_GetClusterStatus_FullMethodName       = "/k8s.K8sService/GetClusterStatus"
 	K8SService_SetConnectionToCluster_FullMethodName = "/k8s.K8sService/SetConnectionToCluster"
 	K8SService_IsMasterSlave_FullMethodName          = "/k8s.K8sService/IsMasterSlave"
 )
@@ -33,6 +34,7 @@ type K8SServiceClient interface {
 	GetToken(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Token, error)
 	GetConnectionFile(ctx context.Context, in *ConnectionFileIp, opts ...grpc.CallOption) (*ConnectionFile, error)
 	GetTLSSANIps(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TLSSANSIps, error)
+	GetClusterStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ClusterStatus, error)
 	SetConnectionToCluster(ctx context.Context, in *ConnectionToCluster, opts ...grpc.CallOption) (*Empty, error)
 	IsMasterSlave(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*IsMasterSlaveRes, error)
 }
@@ -75,6 +77,16 @@ func (c *k8SServiceClient) GetTLSSANIps(ctx context.Context, in *Empty, opts ...
 	return out, nil
 }
 
+func (c *k8SServiceClient) GetClusterStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ClusterStatus, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ClusterStatus)
+	err := c.cc.Invoke(ctx, K8SService_GetClusterStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *k8SServiceClient) SetConnectionToCluster(ctx context.Context, in *ConnectionToCluster, opts ...grpc.CallOption) (*Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(Empty)
@@ -102,6 +114,7 @@ type K8SServiceServer interface {
 	GetToken(context.Context, *Empty) (*Token, error)
 	GetConnectionFile(context.Context, *ConnectionFileIp) (*ConnectionFile, error)
 	GetTLSSANIps(context.Context, *Empty) (*TLSSANSIps, error)
+	GetClusterStatus(context.Context, *Empty) (*ClusterStatus, error)
 	SetConnectionToCluster(context.Context, *ConnectionToCluster) (*Empty, error)
 	IsMasterSlave(context.Context, *Empty) (*IsMasterSlaveRes, error)
 	mustEmbedUnimplementedK8SServiceServer()
@@ -119,6 +132,9 @@ func (UnimplementedK8SServiceServer) GetConnectionFile(context.Context, *Connect
 }
 func (UnimplementedK8SServiceServer) GetTLSSANIps(context.Context, *Empty) (*TLSSANSIps, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTLSSANIps not implemented")
+}
+func (UnimplementedK8SServiceServer) GetClusterStatus(context.Context, *Empty) (*ClusterStatus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetClusterStatus not implemented")
 }
 func (UnimplementedK8SServiceServer) SetConnectionToCluster(context.Context, *ConnectionToCluster) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetConnectionToCluster not implemented")
@@ -193,6 +209,24 @@ func _K8SService_GetTLSSANIps_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _K8SService_GetClusterStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(K8SServiceServer).GetClusterStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: K8SService_GetClusterStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(K8SServiceServer).GetClusterStatus(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _K8SService_SetConnectionToCluster_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ConnectionToCluster)
 	if err := dec(in); err != nil {
@@ -247,6 +281,10 @@ var K8SService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTLSSANIps",
 			Handler:    _K8SService_GetTLSSANIps_Handler,
+		},
+		{
+			MethodName: "GetClusterStatus",
+			Handler:    _K8SService_GetClusterStatus_Handler,
 		},
 		{
 			MethodName: "SetConnectionToCluster",
