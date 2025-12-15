@@ -230,22 +230,58 @@ func isClusterReady(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("stat %s: %w", k3sBinaryPath, err)
 	}
 
-	var stderrBuf bytes.Buffer
-	cmd := exec.CommandContext(ctx, k3sBinaryPath, "kubectl", "cluster-info", "--kubeconfig", k3sKubeconfigPath)
-	cmd.Env = append(os.Environ(), "KUBECONFIG="+k3sKubeconfigPath)
-	cmd.Stderr = &stderrBuf
-	if err := cmd.Run(); err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			stderrOutput := stderrBuf.String()
-			if stderrOutput != "" {
-				return false, fmt.Errorf("cluster not ready: kubectl error: %s", stderrOutput)
+	// Try with known kubeconfig paths; if none exist, fall back to default lookup.
+	kubeconfigs := []string{k3sKubeconfigPath, "/etc/rancher/k3s/kubelet.conf"}
+	var lastErr error
+
+	runCheck := func(args []string, env []string) (bool, error) {
+		var stderrBuf bytes.Buffer
+		cmd := exec.CommandContext(ctx, k3sBinaryPath, args...)
+		cmd.Env = env
+		cmd.Stderr = &stderrBuf
+		if err := cmd.Run(); err != nil {
+			var exitErr *exec.ExitError
+			if errors.As(err, &exitErr) {
+				stderrOutput := stderrBuf.String()
+				if stderrOutput != "" {
+					return false, fmt.Errorf("cluster not ready: kubectl error: %s", stderrOutput)
+				}
+				return false, nil
 			}
-			return false, nil
+			return false, fmt.Errorf("check cluster: run kubectl cluster-info: %w", err)
 		}
-		return false, fmt.Errorf("check cluster: run kubectl cluster-info: %w", err)
+		return true, nil
 	}
-	return true, nil
+
+	for _, cfg := range kubeconfigs {
+		if _, err := os.Stat(cfg); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			lastErr = fmt.Errorf("stat %s: %w", cfg, err)
+			continue
+		}
+		ok, err := runCheck([]string{"kubectl", "cluster-info", "--kubeconfig", cfg}, append(os.Environ(), "KUBECONFIG="+cfg))
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		return ok, nil
+	}
+
+	// Fallback without explicit kubeconfig; rely on default context if available.
+	ok, err := runCheck([]string{"kubectl", "cluster-info"}, os.Environ())
+	if err != nil {
+		lastErr = err
+	}
+	if ok {
+		return true, nil
+	}
+
+	if lastErr != nil {
+		return false, lastErr
+	}
+	return false, fmt.Errorf("cluster not ready: no kubeconfig found")
 }
 
 func readK3sToken() (string, error) {
