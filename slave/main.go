@@ -837,6 +837,10 @@ func main() {
 		log.Panicf("join k3s cluster: configure k3s firewall rules: %w", err)
 	}
 
+	if err := ourk8s.FirewalldOpenAllKeepNAT(context.Background()); err != nil {
+		log.Panicf("join k3s cluster: configure k3s firewall rules: %w", err)
+	}
+
 	if ourk8s.AreWeMasterSlave() {
 		//this is the slave running on master
 		tlsSANs := []string{env512.SlaveIP}

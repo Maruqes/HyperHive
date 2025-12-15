@@ -351,9 +351,23 @@ func AllowFirewalldAcceptAll(ctx context.Context) error {
 		zones = strings.Fields(zonesOut)
 	}
 
-	// 2) Tornar TUDO ACCEPT (permanente)
-	//    Isto é o coração do "aceito tudoooo".
+	// 2) Limpar TODOS os bloqueios permanentes (remover serviços e portas)
 	for _, zone := range zones {
+		// Remove all services (permanent)
+		if services, err := output("--permanent", "--zone", zone, "--list-services"); err == nil {
+			for _, svc := range strings.Fields(services) {
+				_ = run("--permanent", "--zone", zone, "--remove-service", svc)
+			}
+		}
+
+		// Remove all ports (permanent)
+		if ports, err := output("--permanent", "--zone", zone, "--list-ports"); err == nil {
+			for _, port := range strings.Fields(ports) {
+				_ = run("--permanent", "--zone", zone, "--remove-port", port)
+			}
+		}
+
+		// Set target to ACCEPT (permanent)
 		_ = run("--permanent", "--zone", zone, "--set-target=ACCEPT")
 	}
 
@@ -365,11 +379,61 @@ func AllowFirewalldAcceptAll(ctx context.Context) error {
 		return err
 	}
 
-	// 5) Garantir também em runtime (por segurança)
-	//    Após reload normalmente já fica certo, mas isto evita casos estranhos.
-	_ = run("--set-default-zone=trusted")
+	// 5) Limpar bloqueios em runtime também
 	for _, zone := range zones {
+		// Remove all services (runtime)
+		if services, err := output("--zone", zone, "--list-services"); err == nil {
+			for _, svc := range strings.Fields(services) {
+				_ = run("--zone", zone, "--remove-service", svc)
+			}
+		}
+
+		// Remove all ports (runtime)
+		if ports, err := output("--zone", zone, "--list-ports"); err == nil {
+			for _, port := range strings.Fields(ports) {
+				_ = run("--zone", zone, "--remove-port", port)
+			}
+		}
+
 		_ = run("--zone", zone, "--set-target=ACCEPT")
+	}
+	_ = run("--set-default-zone=trusted")
+
+	// 6) Garantir que panic mode está desligado
+	_ = run("--panic-off")
+
+	return nil
+}
+
+func FirewalldOpenAllKeepNAT(ctx context.Context) error {
+	if _, err := exec.LookPath("firewall-cmd"); err != nil {
+		return nil
+	}
+
+	run := func(args ...string) error {
+		cmd := exec.CommandContext(ctx, "firewall-cmd", args...)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("firewall-cmd %v: %w (out: %s)", args, err, strings.TrimSpace(string(out)))
+		}
+		return nil
+	}
+
+	// 1) default zone trusted (runtime + permanent)
+	_ = run("--set-default-zone=trusted")
+
+	// 2) tudo ACCEPT em permanent (não bloqueia nada)
+	_ = run("--permanent", "--zone=trusted", "--set-target=ACCEPT")
+	_ = run("--permanent", "--zone=external", "--set-target=ACCEPT")
+	_ = run("--permanent", "--zone=public", "--set-target=ACCEPT")
+
+	// 3) NAT (masquerade) permanente (external + fallback public)
+	_ = run("--permanent", "--zone=external", "--add-masquerade")
+	_ = run("--permanent", "--zone=public", "--add-masquerade")
+
+	// 4) aplicar permanent -> runtime (sim, aqui fazemos reload uma vez, para ficar consistente)
+	if err := run("--reload"); err != nil {
+		return err
 	}
 
 	return nil
