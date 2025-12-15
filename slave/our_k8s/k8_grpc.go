@@ -64,7 +64,7 @@ func (s *K8sService) IsMasterSlave(ctx context.Context, req *k8sGrpc.Empty) (*k8
 func (s *K8sService) GetClusterStatus(ctx context.Context, req *k8sGrpc.Empty) (*k8sGrpc.ClusterStatus, error) {
 	status := &k8sGrpc.ClusterStatus{NodeIp: env512.SlaveIP}
 
-	ready, err := clusterReadyWithKubeconfig(ctx)
+	ready, serverURL, err := clusterReadyWithKubeconfig(ctx)
 	if err != nil {
 		status.Error = err.Error()
 		return status, nil
@@ -75,13 +75,9 @@ func (s *K8sService) GetClusterStatus(ctx context.Context, req *k8sGrpc.Empty) (
 		return status, nil
 	}
 
-	serverIP := strings.TrimSpace(env512.MasterIP)
-	if serverIP == "" {
-		serverIP = env512.SlaveIP
-	}
-
+	// serverURL já vem no formato https://<ip-ou-host>:6443
 	status.Connected = true
-	status.ServerUrl = fmt.Sprintf("https://%s:6443", serverIP)
+	status.ServerUrl = serverURL
 	return status, nil
 }
 

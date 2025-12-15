@@ -3,13 +3,16 @@ package ourk8s
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"slave/env512"
 	"strings"
+	"time"
 )
 
 const (
@@ -247,67 +250,6 @@ func isClusterReady(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-// clusterReadyWithKubeconfig checks readiness using available k3s kubeconfigs without
-// changing the legacy isClusterReady behavior. It tries known kubeconfig locations
-// with sudo to handle root-only permissions.
-func clusterReadyWithKubeconfig(ctx context.Context) (bool, error) {
-	if _, err := os.Stat(k3sBinaryPath); err != nil {
-		if os.IsNotExist(err) {
-			return false, fmt.Errorf("k3s binary not found")
-		}
-		return false, fmt.Errorf("stat %s: %w", k3sBinaryPath, err)
-	}
-
-	// Common kubeconfigs: server, agent, and kubelet. We don't require all of them to exist.
-	kubeconfigs := []string{
-		k3sKubeconfigPath,                               // server kubeconfig
-		"/etc/rancher/k3s/kubelet.conf",                 // server/agent kubelet
-		"/var/lib/rancher/k3s/agent/kubelet.kubeconfig", // agent path
-	}
-	var lastErr error
-
-	runCheck := func(cfg string) (bool, error) {
-		var stderrBuf bytes.Buffer
-		cmd := exec.CommandContext(ctx, "sudo", k3sBinaryPath, "kubectl", "cluster-info", "--kubeconfig", cfg)
-		cmd.Env = append(os.Environ(), "KUBECONFIG="+cfg)
-		cmd.Stderr = &stderrBuf
-		if err := cmd.Run(); err != nil {
-			var exitErr *exec.ExitError
-			if errors.As(err, &exitErr) {
-				stderrOutput := stderrBuf.String()
-				if stderrOutput != "" {
-					return false, fmt.Errorf("cluster not ready: kubectl error: %s", stderrOutput)
-				}
-				return false, nil
-			}
-			return false, fmt.Errorf("check cluster: run kubectl cluster-info: %w", err)
-		}
-		return true, nil
-	}
-
-	for _, cfg := range kubeconfigs {
-		if _, err := os.Stat(cfg); err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			lastErr = fmt.Errorf("stat %s: %w", cfg, err)
-			continue
-		}
-
-		ok, err := runCheck(cfg)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		return ok, nil
-	}
-
-	if lastErr != nil {
-		return false, lastErr
-	}
-	return false, fmt.Errorf("cluster not ready: no kubeconfig found on node")
-}
-
 func readK3sToken() (string, error) {
 	data, err := os.ReadFile(k3sTokenPath)
 	if err != nil {
@@ -430,4 +372,228 @@ func AllowFirewalldAcceptAll(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func clusterReadyWithKubeconfig(ctx context.Context) (bool, string, error) {
+	kubeconfig, err := findKubeconfigPath()
+	if err != nil {
+		return false, "", err
+	}
+
+	serverURL, err := kubeconfigServerURL(ctx, kubeconfig)
+	if err != nil {
+		return false, "", err
+	}
+	serverURL, err = normalizeServerURL(serverURL)
+	if err != nil {
+		return false, "", err
+	}
+
+	// Se o kubeconfig apontar para localhost (típico no master), troca para IP real do master
+	serverURL = fixLocalhostServerURL(serverURL)
+
+	// Teste rápido de conectividade ao API server via kubeconfig
+	testCtx, cancel := context.WithTimeout(ctx, 6*time.Second)
+	defer cancel()
+
+	stdout, stderr, err := runKubectl(testCtx,
+		"--kubeconfig", kubeconfig,
+		"--request-timeout=5s",
+		"get", "--raw=/readyz",
+	)
+
+	if err != nil {
+		// Se deu erro e há stderr útil, devolve erro (vai aparecer no status.Error)
+		if strings.TrimSpace(stderr) != "" {
+			return false, serverURL, fmt.Errorf("cluster not ready: %s", strings.TrimSpace(stderr))
+		}
+		// Caso “falhou mas sem info”, trata como não ligado
+		return false, serverURL, nil
+	}
+
+	// Normalmente devolve "ok"
+	if strings.Contains(strings.ToLower(stdout), "ok") || strings.TrimSpace(stdout) != "" {
+		return true, serverURL, nil
+	}
+	// Se saiu 0 mas veio vazio, assume ligado na mesma
+	return true, serverURL, nil
+}
+
+func findKubeconfigPath() (string, error) {
+	// 1) KUBECONFIG pode ter vários separados por ':'
+	if kc := strings.TrimSpace(os.Getenv("KUBECONFIG")); kc != "" {
+		parts := strings.Split(kc, ":")
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if p == "" {
+				continue
+			}
+			if _, err := os.Stat(p); err == nil {
+				return p, nil
+			}
+		}
+	}
+
+	// 2) kubeconfig do k3s (server)
+	if _, err := os.Stat(k3sKubeconfigPath); err == nil {
+		return k3sKubeconfigPath, nil
+	}
+
+	// 3) ~/.kube/config
+	home, err := os.UserHomeDir()
+	if err == nil && home != "" {
+		p := filepath.Join(home, ".kube", "config")
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
+		}
+	}
+
+	return "", fmt.Errorf("kubeconfig not found (KUBECONFIG, %s, or ~/.kube/config)", k3sKubeconfigPath)
+}
+
+func kubeconfigServerURL(ctx context.Context, kubeconfigPath string) (string, error) {
+	// Usar o próprio kubectl para interpretar o kubeconfig e respeitar current-context.
+	// Isto evita parse YAML em Go.
+	out, stderr, err := runKubectl(ctx,
+		"config", "view",
+		"--raw",
+		"--kubeconfig", kubeconfigPath,
+		"-o", "json",
+	)
+	if err != nil {
+		if strings.TrimSpace(stderr) != "" {
+			return "", fmt.Errorf("kubectl config view failed: %s", strings.TrimSpace(stderr))
+		}
+		return "", fmt.Errorf("kubectl config view failed: %w", err)
+	}
+
+	type kc struct {
+		CurrentContext string `json:"current-context"`
+		Contexts       []struct {
+			Name    string `json:"name"`
+			Context struct {
+				Cluster string `json:"cluster"`
+			} `json:"context"`
+		} `json:"contexts"`
+		Clusters []struct {
+			Name    string `json:"name"`
+			Cluster struct {
+				Server string `json:"server"`
+			} `json:"cluster"`
+		} `json:"clusters"`
+	}
+
+	var cfg kc
+	if err := json.Unmarshal([]byte(out), &cfg); err != nil {
+		return "", fmt.Errorf("parse kubeconfig json: %w", err)
+	}
+
+	clusterName := ""
+	if cfg.CurrentContext != "" {
+		for _, c := range cfg.Contexts {
+			if c.Name == cfg.CurrentContext {
+				clusterName = c.Context.Cluster
+				break
+			}
+		}
+	}
+
+	// fallback: se não houver current-context, tenta primeiro cluster
+	if clusterName == "" && len(cfg.Clusters) > 0 {
+		if s := strings.TrimSpace(cfg.Clusters[0].Cluster.Server); s != "" {
+			return s, nil
+		}
+	}
+
+	for _, cl := range cfg.Clusters {
+		if cl.Name == clusterName {
+			s := strings.TrimSpace(cl.Cluster.Server)
+			if s == "" {
+				return "", fmt.Errorf("kubeconfig cluster server is empty for cluster %q", clusterName)
+			}
+			return s, nil
+		}
+	}
+
+	return "", fmt.Errorf("could not resolve cluster server from kubeconfig (current-context=%q cluster=%q)", cfg.CurrentContext, clusterName)
+}
+
+func normalizeServerURL(server string) (string, error) {
+	server = strings.TrimSpace(server)
+	if server == "" {
+		return "", fmt.Errorf("empty server url")
+	}
+
+	u, err := url.Parse(server)
+	if err != nil {
+		return "", fmt.Errorf("invalid server url %q: %w", server, err)
+	}
+
+	// Se vier sem scheme, assume https
+	if u.Scheme == "" {
+		u.Scheme = "https"
+	}
+
+	host := u.Host
+	// Às vezes pode vir em u.Path (se faltava scheme)
+	if host == "" && u.Path != "" && strings.Contains(u.Path, ":") {
+		host = u.Path
+		u.Path = ""
+	}
+
+	if host == "" {
+		return "", fmt.Errorf("server url missing host: %q", server)
+	}
+
+	// Garantir port 6443 se faltar
+	if !strings.Contains(host, ":") {
+		host = host + ":6443"
+	}
+	u.Host = host
+
+	return u.String(), nil
+}
+
+func fixLocalhostServerURL(serverURL string) string {
+	u, err := url.Parse(serverURL)
+	if err != nil {
+		return serverURL
+	}
+	host := u.Hostname()
+	if host == "127.0.0.1" || host == "localhost" {
+		m := strings.TrimSpace(env512.MasterIP)
+		if m != "" {
+			// mantém a porta original
+			port := u.Port()
+			if port == "" {
+				port = "6443"
+			}
+			u.Host = fmt.Sprintf("%s:%s", m, port)
+			return u.String()
+		}
+	}
+	return serverURL
+}
+
+func runKubectl(ctx context.Context, args ...string) (stdout string, stderr string, err error) {
+	var cmd *exec.Cmd
+
+	// Preferir k3s kubectl se existir (é o caso típico nos teus nós)
+	if _, statErr := os.Stat(k3sBinaryPath); statErr == nil {
+		all := append([]string{"kubectl"}, args...)
+		cmd = exec.CommandContext(ctx, k3sBinaryPath, all...)
+	} else {
+		kubectlPath, lookErr := exec.LookPath("kubectl")
+		if lookErr != nil {
+			return "", "", fmt.Errorf("kubectl not found and %s missing", k3sBinaryPath)
+		}
+		cmd = exec.CommandContext(ctx, kubectlPath, args...)
+	}
+
+	var outBuf, errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+
+	runErr := cmd.Run()
+	return outBuf.String(), errBuf.String(), runErr
 }
