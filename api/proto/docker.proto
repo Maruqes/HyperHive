@@ -95,6 +95,16 @@ message HostConfig {
   map<string, string> Annotations = 2;
 }
 
+// Mount point information for a container
+message VolumeMount {
+  string Source = 1;      // host path or volume name
+  string Destination = 2; // container mountpoint
+  string Driver = 3;      // backing driver (if any)
+  string Mode = 4;        // propagation/mode flags
+  bool RW = 5;            // whether the mount is read-write
+  string Propagation = 6; // propagation mode
+}
+
 enum ContainerState {
   CONTAINER_STATE_UNSPECIFIED = 0;
   CREATED = 1;
@@ -121,6 +131,10 @@ message ContainerSummary {
   string Status = 12;
   HostConfig HostConfig = 13;
   NetworkSettingsSummary NetworkSettings = 14;
+  repeated VolumeMount Mounts = 15;
+  int64 Memory = 16;   // bytes
+  double CPUS = 17;    // e.g., 0.5, 1, 2
+  string Restart = 18; // restart policy name
 }
 
 message ListOfContainers { repeated ContainerSummary containers = 1; }

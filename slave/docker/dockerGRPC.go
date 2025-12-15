@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	dockerGRPC "github.com/Maruqes/512SvMan/api/proto/docker"
+	"github.com/Maruqes/512SvMan/logger"
 )
 
 type DockerService struct {
@@ -70,29 +71,65 @@ func (s *DockerService) ContainerList(ctx context.Context, req *dockerGRPC.Empty
 		// HostConfig
 		// conts.HostConfig is expected to have NetworkMode and optional Annotations
 		hostConf := &dockerGRPC.HostConfig{
-			NetworkMode: string(conts.HostConfig.NetworkMode),
+			NetworkMode: conts.HostConfig.NetworkMode,
 			Annotations: conts.HostConfig.Annotations,
 		}
 
 		// Network settings
 		networks := make(map[string]*dockerGRPC.EndpointSettings)
-		for name, es := range conts.NetworkSettings.Networks {
-			if es == nil {
-				continue
+		if conts.NetworkSettings != nil {
+			for name, es := range conts.NetworkSettings.Networks {
+				if es == nil {
+					continue
+				}
+				networks[name] = &dockerGRPC.EndpointSettings{
+					Links:               es.Links,
+					Aliases:             es.Aliases,
+					MacAddress:          es.MacAddress,
+					DriverOpts:          es.DriverOpts,
+					NetworkID:           es.NetworkID,
+					EndpointID:          es.EndpointID,
+					Gateway:             es.Gateway,
+					IPAddress:           es.IPAddress,
+					IPPrefixLen:         int32(es.IPPrefixLen),
+					IPv6Gateway:         es.IPv6Gateway,
+					GlobalIPv6Address:   es.GlobalIPv6Address,
+					GlobalIPv6PrefixLen: int32(es.GlobalIPv6PrefixLen),
+				}
 			}
-			networks[name] = &dockerGRPC.EndpointSettings{
-				Links:               es.Links,
-				Aliases:             es.Aliases,
-				MacAddress:          es.MacAddress,
-				DriverOpts:          es.DriverOpts,
-				NetworkID:           es.NetworkID,
-				EndpointID:          es.EndpointID,
-				Gateway:             es.Gateway,
-				IPAddress:           es.IPAddress,
-				IPPrefixLen:         int32(es.IPPrefixLen),
-				IPv6Gateway:         es.IPv6Gateway,
-				GlobalIPv6Address:   es.GlobalIPv6Address,
-				GlobalIPv6PrefixLen: int32(es.GlobalIPv6PrefixLen),
+		}
+
+		// Mounts
+		var mounts []*dockerGRPC.VolumeMount
+		for _, m := range conts.Mounts {
+			mounts = append(mounts, &dockerGRPC.VolumeMount{
+				Source:      m.Source,
+				Destination: m.Destination,
+				Driver:      m.Driver,
+				Mode:        m.Mode,
+				RW:          m.RW,
+				Propagation: string(m.Propagation),
+			})
+		}
+
+		// Resource limits and restart policy pulled from full inspect
+		var memory int64
+		var cpus float64
+		var restart string
+		if cli != nil {
+			if inspect, err := cli.ContainerInspect(ctx, conts.ID); err == nil {
+				if inspect.HostConfig != nil {
+					memory = inspect.HostConfig.Memory
+					if inspect.HostConfig.NanoCPUs > 0 {
+						cpus = float64(inspect.HostConfig.NanoCPUs) / 1e9
+					}
+					restart = string(inspect.HostConfig.RestartPolicy.Name)
+					if restart == "" {
+						restart = "no"
+					}
+				}
+			} else {
+				logger.Error("container inspect failed", "id", conts.ID, "err", err)
 			}
 		}
 
@@ -134,6 +171,10 @@ func (s *DockerService) ContainerList(ctx context.Context, req *dockerGRPC.Empty
 			NetworkSettings: &dockerGRPC.NetworkSettingsSummary{
 				Networks: networks,
 			},
+			Mounts:  mounts,
+			Memory:  memory,
+			CPUS:    cpus,
+			Restart: restart,
 		})
 	}
 	return &res, nil
