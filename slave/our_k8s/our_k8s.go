@@ -186,7 +186,6 @@ func JoinExistingCluster(ctx context.Context, opts JoinClusterOptions) error {
 		return fmt.Errorf("join k3s cluster: installer script failed: %w\nK3S_VERSION: %s\nK3S_URL: %s\nAgent args: %v\nStderr: %s", err, opts.Version, opts.ServerURL, agentArgs, stderrOutput)
 	}
 
-	
 	return nil
 }
 
@@ -232,7 +231,8 @@ func isClusterReady(ctx context.Context) (bool, error) {
 	}
 
 	var stderrBuf bytes.Buffer
-	cmd := exec.CommandContext(ctx, k3sBinaryPath, "kubectl", "cluster-info")
+	cmd := exec.CommandContext(ctx, k3sBinaryPath, "kubectl", "cluster-info", "--kubeconfig", k3sKubeconfigPath)
+	cmd.Env = append(os.Environ(), "KUBECONFIG="+k3sKubeconfigPath)
 	cmd.Stderr = &stderrBuf
 	if err := cmd.Run(); err != nil {
 		var exitErr *exec.ExitError
