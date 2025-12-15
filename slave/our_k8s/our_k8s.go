@@ -236,7 +236,7 @@ func isClusterReady(ctx context.Context) (bool, error) {
 
 	runCheck := func(args []string, env []string) (bool, error) {
 		var stderrBuf bytes.Buffer
-		cmd := exec.CommandContext(ctx, k3sBinaryPath, args...)
+		cmd := exec.CommandContext(ctx, "sudo", append([]string{k3sBinaryPath}, args...)...)
 		cmd.Env = env
 		cmd.Stderr = &stderrBuf
 		if err := cmd.Run(); err != nil {
@@ -269,19 +269,10 @@ func isClusterReady(ctx context.Context) (bool, error) {
 		return ok, nil
 	}
 
-	// Fallback without explicit kubeconfig; rely on default context if available.
-	ok, err := runCheck([]string{"kubectl", "cluster-info"}, os.Environ())
-	if err != nil {
-		lastErr = err
-	}
-	if ok {
-		return true, nil
-	}
-
 	if lastErr != nil {
 		return false, lastErr
 	}
-	return false, fmt.Errorf("cluster not ready: no kubeconfig found")
+	return false, fmt.Errorf("cluster not ready: no kubeconfig found on node")
 }
 
 func readK3sToken() (string, error) {
