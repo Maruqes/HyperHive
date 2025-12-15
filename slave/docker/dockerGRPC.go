@@ -314,8 +314,12 @@ func (s *DockerService) VolumeList(ctx context.Context, req *dockerGRPC.Empty) (
 			}
 		}
 
-		// Get disk space information for the mountpoint
-		total, free, used, err := our_volume.GetDiskSpace(v.Mountpoint)
+		// Prefer the real host path (device) for disk metrics; fallback to mountpoint
+		statPath := v.Mountpoint
+		if dev, ok := v.Options["device"]; ok && dev != "" {
+			statPath = dev
+		}
+		total, free, used, err := our_volume.GetDiskSpace(statPath)
 		var diskSpace *dockerGRPC.DiskSpace
 		if err == nil {
 			diskSpace = &dockerGRPC.DiskSpace{
