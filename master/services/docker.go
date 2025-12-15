@@ -176,14 +176,9 @@ func (s *DockerService) ContainerLogs(ctx context.Context, machineName, containe
 		Tail:        tail,
 	}
 
-	streamCtx, cancel := context.WithTimeout(ctx, containerLogsTimeout)
-
-	go func() {
-		defer cancel()
-		if err := docker.ContainerLogs(streamCtx, machine.Connection, req, streamID); err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
-			logger.Errorf("docker container logs stream failed for %s on %s: %v", containerID, machineName, err)
-		}
-	}()
+	if err := docker.ContainerLogs(ctx, machine.Connection, req, streamID); err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+		logger.Errorf("docker container logs stream failed for %s on %s: %v", containerID, machineName, err)
+	}
 
 	return nil
 }
