@@ -230,14 +230,41 @@ func isClusterReady(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("stat %s: %w", k3sBinaryPath, err)
 	}
 
-	// Try with known kubeconfig paths; if none exist, fall back to default lookup.
+	var stderrBuf bytes.Buffer
+	cmd := exec.CommandContext(ctx, k3sBinaryPath, "kubectl", "cluster-info")
+	cmd.Stderr = &stderrBuf
+	if err := cmd.Run(); err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			stderrOutput := stderrBuf.String()
+			if stderrOutput != "" {
+				return false, fmt.Errorf("cluster not ready: kubectl error: %s", stderrOutput)
+			}
+			return false, nil
+		}
+		return false, fmt.Errorf("check cluster: run kubectl cluster-info: %w", err)
+	}
+	return true, nil
+}
+
+// clusterReadyWithKubeconfig checks readiness using available k3s kubeconfigs without
+// changing the legacy isClusterReady behavior. It tries known kubeconfig locations
+// with sudo to handle root-only permissions.
+func clusterReadyWithKubeconfig(ctx context.Context) (bool, error) {
+	if _, err := os.Stat(k3sBinaryPath); err != nil {
+		if os.IsNotExist(err) {
+			return false, fmt.Errorf("k3s binary not found")
+		}
+		return false, fmt.Errorf("stat %s: %w", k3sBinaryPath, err)
+	}
+
 	kubeconfigs := []string{k3sKubeconfigPath, "/etc/rancher/k3s/kubelet.conf"}
 	var lastErr error
 
-	runCheck := func(args []string, env []string) (bool, error) {
+	runCheck := func(cfg string) (bool, error) {
 		var stderrBuf bytes.Buffer
-		cmd := exec.CommandContext(ctx, "sudo", append([]string{k3sBinaryPath}, args...)...)
-		cmd.Env = env
+		cmd := exec.CommandContext(ctx, "sudo", k3sBinaryPath, "kubectl", "cluster-info", "--kubeconfig", cfg)
+		cmd.Env = append(os.Environ(), "KUBECONFIG="+cfg)
 		cmd.Stderr = &stderrBuf
 		if err := cmd.Run(); err != nil {
 			var exitErr *exec.ExitError
@@ -261,7 +288,8 @@ func isClusterReady(ctx context.Context) (bool, error) {
 			lastErr = fmt.Errorf("stat %s: %w", cfg, err)
 			continue
 		}
-		ok, err := runCheck([]string{"kubectl", "cluster-info", "--kubeconfig", cfg}, append(os.Environ(), "KUBECONFIG="+cfg))
+
+		ok, err := runCheck(cfg)
 		if err != nil {
 			lastErr = err
 			continue

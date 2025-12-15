@@ -64,7 +64,7 @@ func (s *K8sService) IsMasterSlave(ctx context.Context, req *k8sGrpc.Empty) (*k8
 func (s *K8sService) GetClusterStatus(ctx context.Context, req *k8sGrpc.Empty) (*k8sGrpc.ClusterStatus, error) {
 	status := &k8sGrpc.ClusterStatus{NodeIp: env512.SlaveIP}
 
-	ready, err := isClusterReady(ctx)
+	ready, err := clusterReadyWithKubeconfig(ctx)
 	if err != nil {
 		status.Error = err.Error()
 		return status, nil
