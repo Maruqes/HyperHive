@@ -156,7 +156,7 @@ func (s *DockerService) ContainerKill(machineName, containerID, signal string) e
 	return docker.ContainerKill(machine.Connection, req)
 }
 
-func (s *DockerService) ContainerLogs(ctx context.Context, machineName, containerID string, tail int32) error {
+func (s *DockerService) ContainerLogs(ctx context.Context, machineName, containerID string, tail int32, streamID string) error {
 	machine := protocol.GetConnectionByMachineName(machineName)
 	if machine == nil || machine.Connection == nil {
 		return fmt.Errorf("machine %s is not connected", machineName)
@@ -176,11 +176,11 @@ func (s *DockerService) ContainerLogs(ctx context.Context, machineName, containe
 		Tail:        tail,
 	}
 
-	streamCtx, cancel := context.WithTimeout(context.Background(), containerLogsTimeout)
+	streamCtx, cancel := context.WithTimeout(ctx, containerLogsTimeout)
 
 	go func() {
 		defer cancel()
-		if err := docker.ContainerLogs(streamCtx, machine.Connection, req); err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+		if err := docker.ContainerLogs(streamCtx, machine.Connection, req, streamID); err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 			logger.Errorf("docker container logs stream failed for %s on %s: %v", containerID, machineName, err)
 		}
 	}()

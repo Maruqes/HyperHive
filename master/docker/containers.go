@@ -89,9 +89,13 @@ func ContainerKill(conn *grpc.ClientConn, req *dockerGrpc.KillContainer) error {
 	return nil
 }
 
-func ContainerLogs(ctx context.Context, conn *grpc.ClientConn, req *dockerGrpc.ContainerLogsRequest) error {
+func ContainerLogs(ctx context.Context, conn *grpc.ClientConn, req *dockerGrpc.ContainerLogsRequest, streamID string) error {
 	if ctx == nil {
 		ctx = context.Background()
+	}
+
+	if streamID == "" {
+		streamID = req.ContainerID
 	}
 
 	client := dockerGrpc.NewDockerServiceClient(conn)
@@ -100,7 +104,6 @@ func ContainerLogs(ctx context.Context, conn *grpc.ClientConn, req *dockerGrpc.C
 		return err
 	}
 
-	extracontainerid := req.ContainerID
 	for {
 		msg, err := logs.Recv()
 		if err != nil {
@@ -117,7 +120,7 @@ func ContainerLogs(ctx context.Context, conn *grpc.ClientConn, req *dockerGrpc.C
 			return err
 		}
 		logger.Info(string(msg.Data))
-		extra.SendWebsocketMessage(proto.WebSocketsMessageType_ContainerLogs, string(msg.Data), extracontainerid)
+		extra.SendWebsocketMessage(proto.WebSocketsMessageType_ContainerLogs, string(msg.Data), streamID)
 	}
 }
 

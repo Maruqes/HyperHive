@@ -219,6 +219,7 @@ func containerLogs(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ContainerID string `json:"container_id"`
 		Tail        int    `json:"tail"` // e.g. "all" or number of lines as string
+		StreamID    string `json:"stream_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
@@ -232,7 +233,7 @@ func containerLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	svc := services.DockerService{}
-	if err := svc.ContainerLogs(r.Context(), machine, req.ContainerID, int32(req.Tail)); err != nil {
+	if err := svc.ContainerLogs(r.Context(), machine, req.ContainerID, int32(req.Tail), req.StreamID); err != nil {
 		logger.Errorf("docker container logs failed: %v", err)
 		http.Error(w, "failed to get container logs: "+err.Error(), http.StatusInternalServerError)
 		return
