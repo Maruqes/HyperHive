@@ -224,7 +224,7 @@ func StartApi() {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer) // apanha panics
-	// r.Use(websocketSafeTimeout(30 * time.Second)) // mata handlers lentos
+	r.Use(websocketSafeTimeout(time.Hour * 2))
 
 	// Strip a leading "/api" from any incoming request path
 	r.Use(func(next http.Handler) http.Handler {

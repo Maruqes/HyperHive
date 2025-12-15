@@ -11,7 +11,6 @@ import (
 	"net"
 	"os"
 	"strings"
-	"time"
 
 	dockerGrpc "github.com/Maruqes/512SvMan/api/proto/docker"
 	"github.com/Maruqes/512SvMan/logger"
@@ -19,8 +18,6 @@ import (
 )
 
 type DockerService struct{}
-
-const containerLogsTimeout = 10 * time.Minute
 
 func (s *DockerService) ImageList(machineName string) (*dockerGrpc.ListOfImages, error) {
 	machine := protocol.GetConnectionByMachineName(machineName)
