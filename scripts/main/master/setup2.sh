@@ -3,8 +3,6 @@ set -euo pipefail
 
 # HyperHive Master Setup Orchestrator (Step 2)
 # - Verifies the "512rede" interface exists (created/renamed by setup1)
-# - Asks if you use an internal HyperHive network (master provides DHCP+Internet to slaves)
-#   - If yes, runs scripts/master/setup_dhcp.sh
 # - Collects answers to generate:
 #     - <repo>/master/.env
 #     - <repo>/slave/.env
@@ -27,13 +25,11 @@ fi
 # -----------------------------
 # paths
 # -----------------------------
-REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"   # .../HyperHive
+REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 SCRIPTS_DIR="$REPO_ROOT/scripts"
 
 MASTER_ENV="$REPO_ROOT/master/.env"
 SLAVE_ENV="$REPO_ROOT/slave/.env"
-
-SETUP_DHCP="$SCRIPTS_DIR/master/setup_dhcp.sh"
 
 # -----------------------------
 # helpers
@@ -49,7 +45,6 @@ backup_if_exists() {
 }
 
 ask() {
-  # ask "Prompt" "default"
   local prompt="$1"
   local def="${2:-}"
   local ans=""
@@ -76,28 +71,7 @@ ask_required() {
   done
 }
 
-ask_yes_no() {
-  local prompt="$1"
-  local def="${2:-Y}" # Y or N
-  local ans=""
-  while true; do
-    if [[ "$def" == "Y" ]]; then
-      read -r -p "$prompt [Y/n]: " ans
-      ans="${ans:-Y}"
-    else
-      read -r -p "$prompt [y/N]: " ans
-      ans="${ans:-N}"
-    fi
-    case "$ans" in
-      Y|y) return 0 ;;
-      N|n) return 1 ;;
-      *) echo "  -> Please answer Y or N." ;;
-    esac
-  done
-}
-
 get_default_src_ip() {
-  # tries to get the "src" IP used to reach the internet
   ip -4 route get 1.1.1.1 2>/dev/null | awk '
     {for(i=1;i<=NF;i++) if($i=="src") {print $(i+1); exit}}
   '
@@ -115,11 +89,10 @@ log "Checking required interface: 512rede"
 if ! ip link show "512rede" >/dev/null 2>&1; then
   echo
   echo "The network interface '512rede' was NOT found."
-  echo "This usually means you didn't run setup1.sh (or interface rename) on this machine."
+  echo "This usually means you didn't run setup1.sh on this machine."
   echo
   echo "Please run:"
   echo "  $SCRIPTS_DIR/main/master/setup1.sh"
-  echo
   exit 1
 fi
 
@@ -133,32 +106,12 @@ MASTER_512REDE_IP_DEFAULT="$(get_iface_ipv4 512rede)"
 [[ -n "$MASTER_512REDE_IP_DEFAULT" ]] || MASTER_512REDE_IP_DEFAULT="192.168.76.1"
 
 # -----------------------------
-# 2) internal vs external network
-# -----------------------------
-echo "Network mode question:"
-echo "  - Internal HyperHive network: the MASTER runs DHCP and shares Internet to other slaves."
-echo "  - External normal network: everyone is connected to a regular LAN/router (no DHCP sharing by HyperHive)."
-echo
-
-if ask_yes_no "Are you using the INTERNAL HyperHive network (master provides DHCP+Internet)?" "Y"; then
-  [[ -f "$SETUP_DHCP" ]] || die "Missing DHCP setup script: $SETUP_DHCP"
-  log "Running DHCP setup: $SETUP_DHCP"
-  bash "$SETUP_DHCP"
-else
-  log "Skipping DHCP setup (external network selected)."
-fi
-
-echo
-
-# -----------------------------
-# 3) build master/.env
+# 2) build master/.env
 # -----------------------------
 log "Collecting values for MASTER .env"
 
 DEFAULT_MASTER_INTERNET_IP="$(get_default_src_ip)"
-if [[ -z "$DEFAULT_MASTER_INTERNET_IP" ]]; then
-  DEFAULT_MASTER_INTERNET_IP="$MASTER_512REDE_IP_DEFAULT"
-fi
+[[ -n "$DEFAULT_MASTER_INTERNET_IP" ]] || DEFAULT_MASTER_INTERNET_IP="$MASTER_512REDE_IP_DEFAULT"
 
 MODE_MASTER="$(ask "MODE (dev/prod)" "prod")"
 QEMU_UID="$(ask "QEMU_UID" "107")"
@@ -167,12 +120,11 @@ QEMU_GID="$(ask "QEMU_GID" "107")"
 SPRITE_MIN="$(ask_required "SPRITE_MIN port" "9600")"
 SPRITE_MAX="$(ask_required "SPRITE_MAX port" "9700")"
 
-MASTER_INTERNET_IP="$(ask_required "MASTER_INTERNET_IP (IP used for outside/internet access)" "$DEFAULT_MASTER_INTERNET_IP")"
+MASTER_INTERNET_IP="$(ask_required "MASTER_INTERNET_IP" "$DEFAULT_MASTER_INTERNET_IP")"
 MAIN_LINK="$(ask_required "MAIN_LINK (public API base URL)" "http://localhost:8079")"
 
-# Optional fields (default empty, but still asked)
-GOACCESS_ENABLE_PANELS="$(ask "GOACCESS_ENABLE_PANELS (optional, leave empty for default)" "")"
-GOACCESS_DISABLE_PANELS="$(ask "GOACCESS_DISABLE_PANELS (optional, leave empty for default)" "")"
+GOACCESS_ENABLE_PANELS="$(ask "GOACCESS_ENABLE_PANELS (optional)" "")"
+GOACCESS_DISABLE_PANELS="$(ask "GOACCESS_DISABLE_PANELS (optional)" "")"
 GOACCESS_GEOIP_LICENSE_KEY="$(ask "GOACCESS_GEOIP_LICENSE_KEY (optional)" "")"
 GOACCESS_GEOIP_EDITION="$(ask "GOACCESS_GEOIP_EDITION (optional)" "GeoLite2-City")"
 VAPID_PUBLIC_KEY="$(ask "VAPID_PUBLIC_KEY (optional)" "")"
@@ -200,8 +152,6 @@ EOF
 log "Wrote: $MASTER_ENV"
 echo
 
-# Also keep a copy in scripts/.env (useful for scripts that source env from scripts folder)
-# If you don't want this, just delete this block.
 SCRIPTS_ENV="$SCRIPTS_DIR/.env"
 backup_if_exists "$SCRIPTS_ENV"
 cp -a "$MASTER_ENV" "$SCRIPTS_ENV"
@@ -209,53 +159,35 @@ log "Copied master env to: $SCRIPTS_ENV"
 echo
 
 # -----------------------------
-# 4) build slave/.env (on master, for the slave-process config)
+# 3) build slave/.env
 # -----------------------------
-log "Collecting values for SLAVE .env (master also runs a slave process)"
+log "Collecting values for SLAVE .env"
 
-MASTER_IP="$(ask_required "MASTER_IP (typically the 512rede IP of master)" "$MASTER_512REDE_IP_DEFAULT")"
-SLAVE_IP="$(ask_required "SLAVE_IP (CURRENT machine slave IP; on master this is usually the same as MASTER_IP)" "$MASTER_IP")"
-
-echo
-echo "Other slaves IPs rule:"
-echo "  - Add ALL other slave IPs (including MASTER_IP if it also runs workloads),"
-echo "  - BUT exclude the current SLAVE_IP."
-echo "Example: if SLAVE_IP=192.168.76.55, then OTHER_* can include 192.168.76.1 and 192.168.76.188"
-echo
+MASTER_IP="$(ask_required "MASTER_IP" "$MASTER_512REDE_IP_DEFAULT")"
+SLAVE_IP="$(ask_required "SLAVE_IP" "$MASTER_IP")"
 
 OTHERS_RAW="$(ask "Other slave IPs (comma-separated, optional)" "")"
-# Parse into array, trim spaces, filter empties + filter SLAVE_IP
 IFS=',' read -r -a others_arr <<< "$OTHERS_RAW"
+
 others_clean=()
 for ipx in "${others_arr[@]}"; do
-  ipx="${ipx//[[:space:]]/}"          # trim spaces
-  [[ -z "$ipx" ]] && continue
-  [[ "$ipx" == "$SLAVE_IP" ]] && continue
-
-  # optional: avoid duplicates
-  skip=0
-  for e in "${others_clean[@]}"; do
-    [[ "$e" == "$ipx" ]] && skip=1 && break
-  done
-  [[ "$skip" -eq 1 ]] && continue
-
+  ipx="${ipx//[[:space:]]/}"
+  [[ -z "$ipx" || "$ipx" == "$SLAVE_IP" ]] && continue
   others_clean+=("$ipx")
 done
 
-# Build dynamic OTHER_SLAVEx_IP lines
 OTHER_SLAVES_LINES=""
 idx=1
 for ipx in "${others_clean[@]}"; do
-  OTHER_SLAVES_LINES+=$'OTHER_SLAVE'"${idx}"$'_IP='"${ipx}"$'\n'
+  OTHER_SLAVES_LINES+="OTHER_SLAVE${idx}_IP=${ipx}"$'\n'
   ((idx++))
 done
-
 
 DIRTY_RATIO_PERCENT="$(ask "DIRTY_RATIO_PERCENT" "15")"
 DIRTY_BACKGROUND_RATIO_PERCENT="$(ask "DIRTY_BACKGROUND_RATIO_PERCENT" "8")"
 MODE_SLAVE="$(ask "MODE (dev/prod)" "prod")"
 
-DEFAULT_MACHINE_NAME="$(hostname -s 2>/dev/null || hostname 2>/dev/null || echo "")"
+DEFAULT_MACHINE_NAME="$(hostname -s 2>/dev/null || hostname)"
 MACHINE_NAME="$(ask_required "MACHINE_NAME" "$DEFAULT_MACHINE_NAME")"
 
 VNC_MIN_PORT="$(ask_required "VNC_MIN_PORT" "35000")"
@@ -264,8 +196,7 @@ VNC_MAX_PORT="$(ask_required "VNC_MAX_PORT" "35999")"
 QEMU_UID_S="$(ask "QEMU_UID" "107")"
 QEMU_GID_S="$(ask "QEMU_GID" "107")"
 
-# Optional (but handy): extra IPs reachable from k8s (e.g., master external IP)
-EXTRA_K8S_IPS="$(ask "EXTRA_K8S_IPS (optional, e.g. master external IP; leave empty to skip)" "$MASTER_INTERNET_IP")"
+EXTRA_K8S_IPS="$(ask "EXTRA_K8S_IPS (optional)" "$MASTER_INTERNET_IP")"
 
 mkdir -p "$(dirname "$SLAVE_ENV")"
 backup_if_exists "$SLAVE_ENV"
@@ -275,7 +206,6 @@ MASTER_IP=${MASTER_IP}
 SLAVE_IP=${SLAVE_IP}
 
 ${OTHER_SLAVES_LINES}
-
 
 DIRTY_RATIO_PERCENT=${DIRTY_RATIO_PERCENT}
 DIRTY_BACKGROUND_RATIO_PERCENT=${DIRTY_BACKGROUND_RATIO_PERCENT}
@@ -294,4 +224,3 @@ EOF
 log "Wrote: $SLAVE_ENV"
 echo
 log "Done."
-log "Next: you can proceed with the next scripts that depend on these env files."
