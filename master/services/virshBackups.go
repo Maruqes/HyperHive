@@ -223,10 +223,10 @@ func (v *VirshService) BackupVM(ctx context.Context, vmName string, nfsID int, a
 	backUpFolder := nfsShare.Target + "/" + "backup-" + bakUUID.String()
 
 	//create folder with all parent directories
-	err = os.MkdirAll(backUpFolder, 0o777)
+	err = os.MkdirAll(backUpFolder, 0o755)
 	if err != nil {
 		sendImportantNotification("BackupVM: failed to create backup folder", err)
-		return fmt.Errorf("could not create the backUpFolder folder")
+		return fmt.Errorf("could not create the backUpFolder folder at %s: %v", backUpFolder, err)
 	}
 
 	//create struct with already extension file path
