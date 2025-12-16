@@ -378,83 +378,6 @@ func regeneratePublicKey(keyFile string) error {
 	return nil
 }
 
-/*
-INSTALL THINGS THAT ARE NEEDED TO THE FULL APP FUNCTIONALITY
-sudo dnf install -y xmlstarlet
-*/
-func firewalldUsable() bool {
-	if _, err := exec.LookPath("firewall-cmd"); err != nil {
-		return false
-	}
-	if err := exec.Command("firewall-cmd", "--state").Run(); err != nil {
-		return false
-	}
-	return true
-}
-
-func ensureFirewalldAllowsAll() error {
-	if !firewalldUsable() {
-		return nil
-	}
-
-	run := func(desc string, args ...string) error {
-		cmd := exec.Command("firewall-cmd", args...)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("%s: %w (output: %s)", desc, err, strings.TrimSpace(string(out)))
-		}
-		return nil
-	}
-
-	const trustedZone = "trusted"
-
-	if err := run("firewalld panic-off", "--panic-off"); err != nil {
-		return err
-	}
-
-	currentZoneOut, err := exec.Command("firewall-cmd", "--get-default-zone").Output()
-	currentZone := strings.TrimSpace(string(currentZoneOut))
-	if err != nil {
-		currentZone = ""
-	}
-
-	if currentZone != trustedZone {
-		if err := run("set firewalld default zone (permanent)", "--permanent", "--set-default-zone="+trustedZone); err != nil {
-			return err
-		}
-	}
-
-	if err := run("set firewalld default zone (runtime)", "--set-default-zone="+trustedZone); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func ensureFirewallPortsOpen(ports ...string) error {
-	if !firewalldUsable() {
-		return nil
-	}
-
-	for _, port := range ports {
-		if strings.TrimSpace(port) == "" {
-			continue
-		}
-		if err := exec.Command("firewall-cmd", "--permanent", "--add-port="+port).Run(); err != nil {
-			return fmt.Errorf("add permanent firewall rule for %s: %w", port, err)
-		}
-		if err := exec.Command("firewall-cmd", "--add-port="+port).Run(); err != nil {
-			return fmt.Errorf("add runtime firewall rule for %s: %w", port, err)
-		}
-	}
-
-	if err := exec.Command("firewall-cmd", "--reload").Run(); err != nil {
-		return fmt.Errorf("reload firewalld: %w", err)
-	}
-
-	return nil
-}
-
 func setupAll() error {
 	if err := btrfs.InstallBTRFS(); err != nil {
 		log.Fatal("Error installing zfs: ", err)
@@ -469,18 +392,6 @@ func setupAll() error {
 	}
 	if err := setupSSHKeys(); err != nil {
 		return fmt.Errorf("setup ssh keys: %w", err)
-	}
-
-	if err := ensureFirewalldAllowsAll(); err != nil {
-		logger.Warn("firewalld allow-all best effort failed", "error", err)
-	}
-
-	if err := ensureFirewallPortsOpen(
-		fmt.Sprintf("%d-%d/tcp", env512.VNC_MIN_PORT, env512.VNC_MAX_PORT),
-		"50051/tcp",
-		"50052/tcp",
-	); err != nil {
-		return fmt.Errorf("open firewall ports: %w", err)
 	}
 
 	return nil
@@ -833,9 +744,6 @@ func main() {
 		log.Fatalf("ensure virt-xml: %v", err)
 	}
 
-	if err := ourk8s.AllowFirewalldAcceptAll(context.Background()); err != nil {
-		log.Panicf("join k3s cluster: configure k3s firewall rules: %w", err)
-	}
 
 	if ourk8s.AreWeMasterSlave() {
 		//this is the slave running on master

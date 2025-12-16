@@ -33,6 +33,31 @@ LIBVIRT_DEFAULT_XML="/usr/share/libvirt/networks/default.xml"
 LIBVIRT_BRIDGE="virbr0"
 LIBVIRT_ZONE="libvirt"
 SYSCTL_DEFAULT_NET_CONF="/etc/sysctl.d/99-hyperhive-default-net.conf"
+LIBVIRT_PORTS_TCP=(16509 16514)
+NFS_PORTS_TCP=(2049 20048 111)
+NFS_PORTS_UDP=(2049 20048 111)
+
+disable_firewalld(){
+    if systemctl list-unit-files | grep -q '^firewalld\.service'; then
+        systemctl disable --now firewalld >/dev/null 2>&1 || true
+        systemctl mask firewalld >/dev/null 2>&1 || true
+    fi
+}
+
+ensure_iptables_accept(){
+    local chain=$1 proto=$2 port=$3
+    iptables -C "$chain" -p "$proto" --dport "$port" -j ACCEPT 2>/dev/null || \
+        iptables -A "$chain" -p "$proto" --dport "$port" -j ACCEPT
+}
+
+ensure_iptables_rules(){
+    command -v iptables >/dev/null 2>&1 || { echo -e "${YELLOW}iptables não encontrado; regras não aplicadas.${NC}"; return 0; }
+    for p in "${NFS_PORTS_TCP[@]}"; do ensure_iptables_accept INPUT tcp "$p"; done
+    for p in "${NFS_PORTS_UDP[@]}"; do ensure_iptables_accept INPUT udp "$p"; done
+    for p in "${LIBVIRT_PORTS_TCP[@]}"; do ensure_iptables_accept INPUT tcp "$p"; done
+    iptables -C FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
+        iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+}
 
 ensure_default_network_defined() {
     if sudo_run virsh net-info "$DEFAULT_LIBVIRT_NET" >/dev/null 2>&1; then
@@ -111,61 +136,6 @@ ensure_ip_forwarding() {
     return 1
 }
 
-firewalld_running() {
-    command -v firewall-cmd >/dev/null 2>&1 && sudo_run firewall-cmd --state >/dev/null 2>&1
-}
-
-ensure_firewalld_zone_exists() {
-    if ! firewalld_running; then
-        return 0
-    fi
-
-    local zones
-    if zones=$(sudo_run firewall-cmd --get-zones 2>/dev/null); then
-        if echo "$zones" | tr ' ' '\n' | grep -Fxq "$LIBVIRT_ZONE"; then
-            return 0
-        fi
-    fi
-
-    sudo_run firewall-cmd --permanent --new-zone="$LIBVIRT_ZONE" >/dev/null 2>&1
-    sudo_run firewall-cmd --reload >/dev/null 2>&1
-}
-
-ensure_firewalld_interface_binding() {
-    if ! firewalld_running; then
-        return 0
-    fi
-
-    local list
-    if list=$(sudo_run firewall-cmd --permanent --zone="$LIBVIRT_ZONE" --list-interfaces 2>/dev/null); then
-        if ! echo "$list" | tr ' ' '\n' | grep -Fxq "$LIBVIRT_BRIDGE"; then
-            sudo_run firewall-cmd --permanent --zone="$LIBVIRT_ZONE" --add-interface="$LIBVIRT_BRIDGE" >/dev/null 2>&1
-        fi
-    fi
-
-    if list=$(sudo_run firewall-cmd --zone="$LIBVIRT_ZONE" --list-interfaces 2>/dev/null); then
-        if ! echo "$list" | tr ' ' '\n' | grep -Fxq "$LIBVIRT_BRIDGE"; then
-            sudo_run firewall-cmd --zone="$LIBVIRT_ZONE" --add-interface="$LIBVIRT_BRIDGE" >/dev/null 2>&1
-        fi
-    fi
-}
-
-ensure_firewalld_masquerade() {
-    if ! firewalld_running; then
-        return 0
-    fi
-
-    if ! sudo_run firewall-cmd --permanent --zone="$LIBVIRT_ZONE" --query-masquerade >/dev/null 2>&1; then
-        sudo_run firewall-cmd --permanent --zone="$LIBVIRT_ZONE" --add-masquerade >/dev/null 2>&1
-    fi
-
-    if ! sudo_run firewall-cmd --zone="$LIBVIRT_ZONE" --query-masquerade >/dev/null 2>&1; then
-        sudo_run firewall-cmd --zone="$LIBVIRT_ZONE" --add-masquerade >/dev/null 2>&1
-    fi
-
-    sudo_run firewall-cmd --reload >/dev/null 2>&1
-}
-
 ensure_default_network_connectivity() {
     echo ""
     echo -e "${BOLD}[4.b] Ensuring libvirt default network connectivity...${NC}"
@@ -178,9 +148,6 @@ ensure_default_network_connectivity() {
     ensure_default_network_running
     ensure_bridge_device
     ensure_ip_forwarding
-    ensure_firewalld_zone_exists
-    ensure_firewalld_interface_binding
-    ensure_firewalld_masquerade
 
     echo -e "${YELLOW}✓ Default libvirt network ready.${NC}"
 }
@@ -263,6 +230,8 @@ echo -e "${YELLOW}Starting system reset in 5 seconds...${NC}"
 echo "Press Ctrl+C NOW to abort!"
 sleep 5
 
+disable_firewalld
+
 echo ""
 echo "═══════════════════════════════════════════════════════════════════════════"
 echo ""
@@ -332,40 +301,10 @@ if command -v dnf >/dev/null 2>&1; then
 fi
 
 
-echo -e "${BOLD}[4/4] Updating Firewall and Permissions...${NC}"
+echo -e "${BOLD}[4/4] Updating iptables rules and Permissions...${NC}"
 echo ""
-
-FIREWALL_ZONE="FedoraServer"
-EFFECTIVE_FIREWALL_ZONE=""
-if command -v firewall-cmd >/dev/null 2>&1; then
-    if sudo_run firewall-cmd --state >/dev/null 2>&1; then
-        if sudo_run firewall-cmd --get-zones | tr ' ' '\n' | grep -Fxq "$FIREWALL_ZONE"; then
-            TARGET_ZONE="$FIREWALL_ZONE"
-        else
-            DEFAULT_ZONE="$(sudo_run firewall-cmd --get-default-zone 2>/dev/null || true)"
-            TARGET_ZONE="${DEFAULT_ZONE:-}"
-            echo -e "${YELLOW}Zone '${FIREWALL_ZONE}' not found. Using default zone '${TARGET_ZONE:-public}'.${NC}"
-        fi
-        EFFECTIVE_FIREWALL_ZONE="${TARGET_ZONE:-$FIREWALL_ZONE}"
-
-        SERVICES=(nfs mountd rpc-bind libvirt libvirt-tls)
-        for svc in "${SERVICES[@]}"; do
-            if [[ -n "${TARGET_ZONE:-}" ]]; then
-                sudo_run firewall-cmd --permanent --zone="$TARGET_ZONE" --add-service="$svc" >/dev/null \
-                    || echo -e "${YELLOW}Could not add service '${svc}' to zone '${TARGET_ZONE}'.${NC}"
-            else
-                sudo_run firewall-cmd --permanent --add-service="$svc" >/dev/null \
-                    || echo -e "${YELLOW}Could not add service '${svc}' to the default zone.${NC}"
-            fi
-        done
-        sudo_run firewall-cmd --reload >/dev/null || echo -e "${YELLOW}firewalld reload failed (continuing).${NC}"
-        echo -e "${YELLOW}✓ Firewall configuration updated for NFS and libvirt services.${NC}"
-    else
-        echo -e "${YELLOW}firewalld is installed but not running; skipped firewall configuration.${NC}"
-    fi
-else
-    echo -e "${YELLOW}firewall-cmd not found; skipping firewall configuration.${NC}"
-fi
+ensure_iptables_rules
+echo -e "${YELLOW}✓ iptables atualizado para NFS/libvirt e tráfego estabelecido.${NC}"
 
 ensure_default_network_connectivity
 
@@ -396,7 +335,7 @@ echo "  3. Verify NFS services: systemctl status nfs-server"
 echo "  4. Reconfigure any custom settings as needed"
 echo "  5. Redefine VMs and networks if necessary"
 echo "  6. Re-export NFS shares if needed"
-echo "  7. Confirm firewalld services: firewall-cmd --zone=${EFFECTIVE_FIREWALL_ZONE:-FedoraServer} --list-services"
+echo "  7. Confirm iptables rules: iptables -S INPUT | grep -E '(2049|20048|111|16509|16514)'"
 echo ""
 echo -e "${YELLOW}Check logs for any errors or warnings above.${NC}"
 echo ""

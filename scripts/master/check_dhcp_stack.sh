@@ -129,43 +129,8 @@ else
   warn "sysctl indisponível; não foi possível validar ip_forward/rp_filter."
 fi
 
-# firewalld / NAT
-nft_nat_ok=0
-if [[ -n ${WAN_IF} ]] && command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld; then
-  active_zone=$(firewall-cmd --get-active-zones 2>/dev/null | awk -v iface="${WAN_IF}" '
-    /^[[:space:]]*$/ {next}
-    /^[^[:space:]]/ {zone=$1; next}
-    $1 == "interfaces:" {
-      for (i=2;i<=NF;i++) {
-        gsub(/,/, "", $i)
-        if ($i == iface) {print zone; exit}
-      }
-    }')
-  if [[ -n ${active_zone} ]]; then
-    if firewall-cmd --zone="${active_zone}" --query-masquerade >/dev/null 2>&1; then
-      ok "firewalld: masquerade ativo na zona ${active_zone}."
-      nft_nat_ok=1
-    else
-      fail "firewalld: masquerade NÃO ativo na zona ${active_zone}."
-    fi
-    if firewall-cmd --zone="${active_zone}" --query-forward >/dev/null 2>&1; then
-      ok "firewalld: forwarding permitido na zona ${active_zone}."
-    else
-      warn "firewalld: forwarding não permitido na zona ${active_zone}."
-    fi
-  else
-    warn "firewalld: não foi possível determinar zona para ${WAN_IF}."
-  fi
-
-  if firewall-cmd --zone=trusted --query-interface="${NETWORK_NAME}" >/dev/null 2>&1 || \
-     firewall-cmd --zone=trusted --query-source="${SUBNET_NETWORK}" >/dev/null 2>&1; then
-    ok "firewalld: LAN (${NETWORK_NAME}/${SUBNET_NETWORK}) confiada."
-  else
-    warn "firewalld: LAN não está na zona trusted."
-  fi
-fi
-
-if (( nft_nat_ok == 0 )) && [[ -n ${WAN_IF} ]]; then
+# iptables / NAT
+if [[ -n ${WAN_IF} ]]; then
   if command -v iptables >/dev/null 2>&1; then
     if iptables -t nat -C POSTROUTING -s "${SUBNET_NETWORK}" -o "${WAN_IF}" -j MASQUERADE >/dev/null 2>&1; then
       ok "iptables: regra MASQUERADE presente (${SUBNET_NETWORK} -> ${WAN_IF})."
@@ -179,7 +144,7 @@ if (( nft_nat_ok == 0 )) && [[ -n ${WAN_IF} ]]; then
       fail "iptables: regras de forward ausentes."
     fi
   else
-    warn "Nem firewalld nem iptables confirmados; verifica NAT manualmente."
+    warn "iptables indisponível; verifica NAT manualmente."
   fi
 fi
 

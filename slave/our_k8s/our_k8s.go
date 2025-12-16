@@ -73,13 +73,6 @@ func InstallK3sServer(ctx context.Context, opts ServerInstallOptions) (string, e
 		}
 	}
 
-	if err := ensureFirewallPorts(ctx, []portSpec{
-		{Port: "6443", Protocol: "tcp"},
-		{Port: "8472", Protocol: "udp"},
-	}); err != nil {
-		return "", fmt.Errorf("install k3s server: configure firewall: %w", err)
-	}
-
 	version := opts.Version
 	if version == "" {
 		version = "stable"
@@ -143,12 +136,6 @@ func JoinExistingCluster(ctx context.Context, opts JoinClusterOptions) error {
 		if ready {
 			return ErrNodeAlreadyInCluster
 		}
-	}
-
-	if err := ensureFirewallPorts(ctx, []portSpec{
-		{Port: "8472", Protocol: "udp"}, // flannel/vxlan
-	}); err != nil {
-		return fmt.Errorf("configure firewall: %w", err)
 	}
 
 	agentArgs := []string{"agent"}
@@ -265,126 +252,6 @@ func readK3sToken() (string, error) {
 		return "", errors.New("k3s token file is empty")
 	}
 	return token, nil
-}
-
-type portSpec struct {
-	Port     string
-	Protocol string
-}
-
-func runFirewallCmd(ctx context.Context, args ...string) (string, error) {
-	var stderrBuf bytes.Buffer
-	cmd := exec.CommandContext(ctx, "firewall-cmd", args...)
-	cmd.Stderr = &stderrBuf
-	if err := cmd.Run(); err != nil {
-		return strings.TrimSpace(stderrBuf.String()), err
-	}
-	return strings.TrimSpace(stderrBuf.String()), nil
-}
-
-func ensureFirewallPorts(ctx context.Context, ports []portSpec) error {
-	if len(ports) == 0 {
-		return nil
-	}
-
-	if _, err := exec.LookPath("firewall-cmd"); err != nil {
-		// firewalld not installed, nothing to do.
-		return nil
-	}
-
-	for _, p := range ports {
-		if p.Port == "" || p.Protocol == "" {
-			continue
-		}
-		portArg := fmt.Sprintf("%s/%s", p.Port, strings.ToLower(p.Protocol))
-
-		// Add permanent rule
-		var stderrBuf bytes.Buffer
-		cmd := exec.CommandContext(ctx, "firewall-cmd", "--permanent", "--add-port", portArg)
-		cmd.Stderr = &stderrBuf
-		_ = cmd.Run() // Ignore errors, may already exist
-
-		// Add runtime rule
-		stderrBuf.Reset()
-		cmd = exec.CommandContext(ctx, "firewall-cmd", "--add-port", portArg)
-		cmd.Stderr = &stderrBuf
-		_ = cmd.Run() // Ignore errors, may already exist
-	}
-
-	if stderrOutput, err := runFirewallCmd(ctx, "--reload"); err != nil {
-		return fmt.Errorf("ensure firewall ports: reload firewall: %w (stderr: %s)", err, stderrOutput)
-	}
-	return nil
-}
-
-// AllowFirewalldAcceptAll coloca o firewalld em modo permissivo/ACCEPT para não bloquear tráfego gRPC/K8s.
-// Faz default zone = trusted, target ACCEPT e mete todas as interfaces (exceto loopback) nessa zona.
-func AllowFirewalldAcceptAll(ctx context.Context) error {
-	if _, err := exec.LookPath("firewall-cmd"); err != nil {
-		return nil // firewalld não instalado
-	}
-
-	run := func(args ...string) error {
-		var stderr bytes.Buffer
-		cmd := exec.CommandContext(ctx, "firewall-cmd", args...)
-		cmd.Stderr = &stderr
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("firewall-cmd %v: %w (stderr: %s)", args, err, strings.TrimSpace(stderr.String()))
-		}
-		return nil
-	}
-
-	ifaces := []string{}
-	if sysIfs, err := net.Interfaces(); err == nil {
-		for _, itf := range sysIfs {
-			if itf.Name == "lo" {
-				continue
-			}
-			ifaces = append(ifaces, itf.Name)
-		}
-	}
-
-	trusted := "trusted"
-
-	// desligar ruído
-	_ = run("--set-log-denied=off")
-	_ = run("--permanent", "--set-log-denied=off")
-
-	// zona permissiva
-	_ = run("--permanent", "--set-default-zone="+trusted)
-	_ = run("--permanent", "--zone", trusted, "--set-target=ACCEPT")
-	_ = run("--zone", trusted, "--set-target=ACCEPT")
-	_ = run("--permanent", "--zone", trusted, "--add-masquerade")
-	_ = run("--zone", trusted, "--add-masquerade")
-
-	// permitir forward explícito (firewalld por vezes mantém FORWARD drop)
-	_ = run("--permanent", "--direct", "--add-rule", "ipv4", "filter", "FORWARD", "0", "-j", "ACCEPT")
-	_ = run("--direct", "--add-rule", "ipv4", "filter", "FORWARD", "0", "-j", "ACCEPT")
-	_ = run("--permanent", "--direct", "--add-rule", "ipv6", "filter", "FORWARD", "0", "-j", "ACCEPT")
-	_ = run("--direct", "--add-rule", "ipv6", "filter", "FORWARD", "0", "-j", "ACCEPT")
-
-	// meter todas as NICs (exceto lo) em trusted
-	for _, itf := range ifaces {
-		_ = run("--permanent", "--zone", trusted, "--add-interface", itf)
-		_ = run("--zone", trusted, "--add-interface", itf)
-	}
-
-	// aplicar permanente
-	if err := run("--reload"); err != nil {
-		return err
-	}
-
-	// reafirmar runtime
-	_ = run("--set-default-zone=" + trusted)
-	_ = run("--zone", trusted, "--set-target=ACCEPT")
-	_ = run("--zone", trusted, "--add-masquerade")
-	for _, itf := range ifaces {
-		_ = run("--zone", trusted, "--add-interface", itf)
-	}
-	_ = run("--direct", "--add-rule", "ipv4", "filter", "FORWARD", "0", "-j", "ACCEPT")
-	_ = run("--direct", "--add-rule", "ipv6", "filter", "FORWARD", "0", "-j", "ACCEPT")
-
-	return nil
 }
 
 func clusterReadyWithKubeconfig(ctx context.Context) (bool, string, error) {

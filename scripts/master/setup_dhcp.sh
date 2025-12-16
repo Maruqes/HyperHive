@@ -2,7 +2,7 @@
 # DHCP + NAT endurecido e persistente para 1 segmento LAN com macvtap.
 # - Desativa dnsmasq global e corre instância dedicada por-Interface.
 # - Remove e substitui configs antigas conflituosas (serviços, drop-ins, NAT antigo).
-# - Garante ip_forward, rp_filter relaxado, firewalld (ou iptables) e persistência.
+# - Garante ip_forward, rp_filter relaxado, iptables e persistência.
 
 set -euo pipefail
 
@@ -331,54 +331,6 @@ SYSCTL
 fi
 sysctl --system >/dev/null
 
-# --- NAT via firewalld (preferido) ou iptables (fallback) --------------------
-apply_firewalld(){
-  command -v firewall-cmd >/dev/null 2>&1 || return 1
-  local default_zone wan_zone
-  default_zone=$(firewall-cmd --get-default-zone) || { warn "firewalld: não foi possível obter a zona por defeito."; return 1; }
-  wan_zone=$(firewall-cmd --get-active-zones 2>/dev/null | awk -v iface="${WAN_IF}" '
-    /^[[:space:]]*$/ {next}
-    /^[^[:space:]]/ {zone=$1; next}
-    $1 == "interfaces:" {
-      for (i=2; i<=NF; ++i) {
-        gsub(/,/, "", $i)
-        if ($i == iface) {print zone; exit}
-      }
-    }')
-  if [[ -z ${wan_zone} ]]; then
-    warn "firewalld: não encontrou zona ativa para ${WAN_IF}; a assumir ${default_zone}."
-    wan_zone="${default_zone}"
-  fi
-  info "A configurar firewalld (zona WAN=${wan_zone}, zona por defeito=${default_zone}, LAN=${NETWORK_NAME})"
-
-  firewall-cmd --permanent --zone="${default_zone}" --remove-interface="${NETWORK_NAME}" >/dev/null 2>&1 || true
-  if firewall-cmd --permanent --zone=trusted --add-interface="${NETWORK_NAME}" >/dev/null 2>&1; then
-    firewall-cmd --zone=trusted --add-interface="${NETWORK_NAME}" >/dev/null 2>&1 || warn "firewalld: interface runtime '${NETWORK_NAME}' na zona trusted falhou."
-  else
-    warn "firewalld: não conseguiu associar interface '${NETWORK_NAME}' à zona trusted; a usar fallback por subnet."
-    firewall-cmd --permanent --zone=trusted --add-source="${SUBNET_NETWORK}" >/dev/null || warn "firewalld: fallback --permanent --add-source falhou."
-    firewall-cmd --zone=trusted --add-source="${SUBNET_NETWORK}" >/dev/null 2>&1 || warn "firewalld: fallback runtime --add-source falhou."
-  fi
-  firewall-cmd --permanent --zone="${wan_zone}" --add-interface="${WAN_IF}" >/dev/null 2>&1 || warn "firewalld: não conseguiu associar '${WAN_IF}' de forma permanente à zona ${wan_zone}."
-  firewall-cmd --zone="${wan_zone}" --add-interface="${WAN_IF}" >/dev/null 2>&1 || true
-  if ! firewall-cmd --permanent --zone="${wan_zone}" --add-masquerade >/dev/null 2>&1; then
-    warn "firewalld: não conseguiu ativar masquerade na zona ${wan_zone}."
-    return 1
-  fi
-  firewall-cmd --zone="${wan_zone}" --add-masquerade >/dev/null 2>&1 || warn "firewalld: masquerade runtime na zona ${wan_zone} falhou."
-
-  firewall-cmd --permanent --zone=trusted --add-service=dhcp >/dev/null 2>&1 || warn "firewalld: não conseguiu adicionar serviço DHCP (permanent)."
-  firewall-cmd --permanent --zone=trusted --add-service=dns  >/dev/null 2>&1 || warn "firewalld: não conseguiu adicionar serviço DNS (permanent)."
-  firewall-cmd --zone=trusted --add-service=dhcp >/dev/null 2>&1 || true
-  firewall-cmd --zone=trusted --add-service=dns  >/dev/null 2>&1 || true
-  firewall-cmd --permanent --zone=trusted --add-forward >/dev/null 2>&1 || warn "firewalld: não conseguiu permitir forward na zona trusted (permanent)."
-  firewall-cmd --zone=trusted --add-forward >/dev/null 2>&1 || true
-  firewall-cmd --permanent --zone="${wan_zone}" --add-forward >/dev/null 2>&1 || warn "firewalld: não conseguiu permitir forward na zona ${wan_zone} (permanent)."
-  firewall-cmd --zone="${wan_zone}" --add-forward >/dev/null 2>&1 || true
-
-  firewall-cmd --reload >/dev/null 2>&1 || { warn "firewalld: reload falhou."; return 1; }
-}
-
 apply_iptables(){
   command -v iptables >/dev/null 2>&1 || { warn 'Sem iptables; NAT não configurado.'; return 1; }
 
@@ -411,13 +363,7 @@ UNIT
   systemctl daemon-reload
   systemctl enable --now "${NAT_UNIT}" >/dev/null 2>&1 || true
 }
-
-if apply_firewalld; then
-  info "firewalld configurado."
-else
-  warn "firewalld indisponível; a cair para iptables."
-  apply_iptables || warn 'NAT não ficou persistente — verifica manualmente.'
-fi
+apply_iptables || warn 'NAT não ficou persistente — verifica manualmente.'
 
 # --- Serviço dedicado do dnsmasq ---------------------------------------------
 UNIT_PATH="/etc/systemd/system/${DEDICATED_UNIT}"

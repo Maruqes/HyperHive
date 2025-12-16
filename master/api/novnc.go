@@ -12,7 +12,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -250,21 +249,6 @@ func serveSprite(w http.ResponseWriter, r *http.Request) {
 	const horasAberto = 1
 
 	logger.Infof("novnc: preparing sprite tunnel for VM %s (%s) on local port %d for %d hour(s)", vmName, ipPort, listenPort, horasAberto)
-
-	cmd := exec.Command(
-		"sudo",
-		"firewall-cmd",
-		"--zone=FedoraServer",
-		fmt.Sprintf("--add-port=%d/tcp", listenPort),
-		fmt.Sprintf("--timeout=%d", horasAberto*3600),
-	)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		logger.Errorf("novnc: failed to open firewall port: %v, output: %s", err, string(output))
-		http.Error(w, "failed to configure firewall", http.StatusInternalServerError)
-		return
-	} else {
-		logger.Infof("novnc: firewall port %d opened for sprite tunnel", listenPort)
-	}
 
 	streamSprite(ipPort, listenPort, horasAberto)
 	logger.Infof("novnc: sprite tunnel ready for VM %s on port %d", vmName, listenPort)

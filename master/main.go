@@ -212,22 +212,6 @@ func GoAccess() error {
 	return nil
 }
 
-func setupFirewallD() error {
-	if err := execCommand("firewall-cmd", "--permanent", "--add-service=http"); err != nil {
-		return fmt.Errorf("failed to add http service: %w", err)
-	}
-
-	if err := execCommand("firewall-cmd", "--permanent", "--add-service=https"); err != nil {
-		return fmt.Errorf("failed to add https service: %w", err)
-	}
-
-	if err := execCommand("firewall-cmd", "--reload"); err != nil {
-		return fmt.Errorf("failed to reload firewall: %w", err)
-	}
-
-	return nil
-}
-
 func installWireGuard() error {
 	if _, err := exec.LookPath("wg"); err != nil {
 		fmt.Println("Installing WireGuard...")
@@ -242,34 +226,7 @@ func installWireGuard() error {
 		return err
 	}
 
-	networkCIDR, err := wireguardNetworkCIDR()
-	if err != nil {
-		return err
-	}
-
-	// Open our wireguard port (default 51512/udp) in firewalld
-	if err := execCommand("firewall-cmd", "--permanent", "--add-port=51512/udp"); err != nil {
-		return fmt.Errorf("failed to add WireGuard UDP port: %w", err)
-	}
-
-	if err := execCommand("firewall-cmd", "--permanent", "--add-port=51512/tcp"); err != nil {
-		return fmt.Errorf("failed to add WireGuard TCP port: %w", err)
-	}
-
-	if err := execCommand("firewall-cmd", "--permanent", "--add-masquerade"); err != nil {
-		return fmt.Errorf("failed to enable masquerade: %w", err)
-	}
-
-	richRule := fmt.Sprintf("rule family=\"ipv4\" source address=\"%s\" masquerade", networkCIDR)
-	if err := execCommand("firewall-cmd", "--permanent", "--zone=public", "--add-rich-rule", richRule); err != nil {
-		return fmt.Errorf("failed to add WireGuard rich rule: %w", err)
-	}
-
-	if err := execCommand("firewall-cmd", "--reload"); err != nil {
-		return fmt.Errorf("failed to reload firewall: %w", err)
-	}
-
-	fmt.Println("WireGuard ready with firewall and routing configured.")
+	fmt.Println("WireGuard ready with  and routing configured.")
 	return nil
 }
 
@@ -297,18 +254,13 @@ func main() {
 	askForSudo()
 	ctx := context.Background()
 
-	err := setupFirewallD()
-	if err != nil {
-		panic(err)
-	}
-
 	if err := env512.Setup(); err != nil {
 		log.Fatalf("env setup: %v", err)
 	}
 	logger.SetType(env512.Mode)
 
 	//check if novnc folder exists, if not download it
-	err = downloadNoVNC()
+	err := downloadNoVNC()
 	if err != nil {
 		log.Fatalf("download noVNC: %v", err)
 	}

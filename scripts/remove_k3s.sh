@@ -36,30 +36,6 @@ remove_path() {
 	fi
 }
 
-cleanup_firewalld() {
-	if ! command -v firewall-cmd >/dev/null 2>&1; then
-		return
-	fi
-
-	if ! firewall-cmd --state >/dev/null 2>&1; then
-		return
-	fi
-
-	local ports=("6443/tcp" "8472/udp")
-	for port in "${ports[@]}"; do
-		if firewall-cmd --permanent --query-port="$port" >/dev/null 2>&1; then
-			firewall-cmd --permanent --remove-port="$port" || true
-			log "Removed permanent firewall rule for $port"
-		fi
-		if firewall-cmd --query-port="$port" >/dev/null 2>&1; then
-			firewall-cmd --remove-port="$port" || true
-			log "Removed runtime firewall rule for $port"
-		fi
-	done
-
-	firewall-cmd --reload >/dev/null 2>&1 || true
-}
-
 main() {
 	require_root
 
@@ -94,8 +70,6 @@ main() {
 	remove_path /usr/local/bin/crictl
 
 	systemctl daemon-reload
-
-	cleanup_firewalld
 
 	log "k3s removal completed."
 }

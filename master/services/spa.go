@@ -84,7 +84,6 @@ func (s *SPAService) List(ctx context.Context) ([]db.SPAPort, error) {
 	return db.ListSPAPorts(ctx)
 }
 
-// Maintain keeps SPA firewall rules applied in case firewalld or iptables reloads wipe them.
 func (s *SPAService) Maintain(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()

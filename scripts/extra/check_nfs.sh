@@ -136,15 +136,19 @@ if have getsebool; then
   [[ $JSON -eq 1 ]] && { jobj_open "selinux_bools"; jprint_arr < <(printf "%s\n%s\n" "$B_VIRT" "$B_HOME"); }
 fi
 
-# ---------- Firewalld ----------
+# ---------- Firewall (iptables) ----------
 hdr "Firewall"
-if have firewall-cmd && firewall-cmd --state &>/dev/null; then
-  SVC=$(firewall-cmd --list-services 2>/dev/null || true)
-  POR=$(firewall-cmd --list-ports 2>/dev/null || true)
-  [[ $JSON -eq 0 ]] && { kv "services" "$SVC"; kv "ports" "$POR"; }
-  [[ $JSON -eq 1 ]] && { jobj_open "firewalld_services"; jprint_str "$SVC"; jobj_open "firewalld_ports"; jprint_str "$POR"; }
+if have iptables; then
+  IPT_INPUT=$(iptables -S INPUT 2>/dev/null | grep -E '--dport (2049|20048|111)' || true)
+  IPT_NAT=$(iptables -t nat -S 2>/dev/null | grep -i MASQUERADE || true)
+  if [[ $JSON -eq 0 ]]; then
+    kv "INPUT rules" "${IPT_INPUT:-(none)}"
+    kv "NAT" "${IPT_NAT:-(none)}"
+  else
+    jobj_open "iptables_input"; jprint_str "${IPT_INPUT:-none}"; jobj_open "iptables_nat"; jprint_str "${IPT_NAT:-none}"
+  fi
 else
-  [[ $JSON -eq 0 ]] && bad "firewalld inactive or unavailable."
+  [[ $JSON -eq 0 ]] && bad "iptables indisponível."
 fi
 
 # ---------- Kernel modules ----------

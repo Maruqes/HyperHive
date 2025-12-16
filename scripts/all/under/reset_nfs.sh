@@ -6,7 +6,7 @@
 # Optional flags:
 #   --keep-packages   Do not remove packages (only clean config/state)
 #   --with-rpcbind    Start rpcbind (for NFSv3)
-#   --no-firewall     Leave firewalld untouched
+#   --no-firewall     Leave iptables rules untouched
 #   --no-selinux      Leave SELinux booleans untouched
 # Safety net: backups stored in /root/nfs-reset-YYYYmmdd-HHMMSS/
 
@@ -21,6 +21,9 @@ declare -A VERSAO=(
   ["nfs4-acl-tools"]=""
 )
 # ================================================================
+
+NFS_PORTS_TCP=(2049 20048 111)
+NFS_PORTS_UDP=(2049 20048 111)
 
 FORCE=0
 DO_REINSTALL=0
@@ -53,11 +56,25 @@ fi
 log(){ echo -e "[reset-nfs] $*"; }
 have(){ command -v "$1" &>/dev/null; }
 
+iptables_accept(){
+  local proto=$1 port=$2
+  iptables -C INPUT -p "$proto" --dport "$port" -j ACCEPT 2>/dev/null || \
+    iptables -A INPUT -p "$proto" --dport "$port" -j ACCEPT
+}
+
+iptables_remove(){
+  local proto=$1 port=$2
+  iptables -D INPUT -p "$proto" --dport "$port" -j ACCEPT 2>/dev/null || true
+}
+
 TS=$(date +%Y%m%d-%H%M%S)
 BK="/root/nfs-reset-$TS"
-mkdir -p "$BK"/{etc,var_lib_nfs,firewalld}
+mkdir -p "$BK"/{etc,var_lib_nfs,iptables}
 
 log "Backing up configuration/state to $BK"
+if [[ $TOUCH_FIREWALL -eq 1 ]] && have iptables; then
+  iptables-save > "$BK/iptables/iptables.save" 2>/dev/null || true
+fi
 
 # 1) Stop and disable services
 log "Stopping NFS/RPC services..."
