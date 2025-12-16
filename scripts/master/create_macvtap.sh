@@ -77,13 +77,13 @@ set -euo pipefail
 
 ensure_ipv4_forwarding(){
   local conf="/etc/sysctl.d/99-macvtap-ipforward.conf"
-  cat >"${conf}" <<'CONF'
+  cat >"\${conf}" <<'CONF'
 net.ipv4.ip_forward = 1
 net.ipv4.conf.all.forwarding = 1
 CONF
   sysctl -w net.ipv4.ip_forward=1 >/dev/null 2>&1 || true
   sysctl -w net.ipv4.conf.all.forwarding=1 >/dev/null 2>&1 || true
-  sysctl -p "${conf}" >/dev/null 2>&1 || sysctl --system >/dev/null 2>&1 || true
+  sysctl -p "\${conf}" >/dev/null 2>&1 || sysctl --system >/dev/null 2>&1 || true
 }
 
 ensure_ipv4_forwarding
