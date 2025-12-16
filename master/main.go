@@ -15,7 +15,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/exec"
@@ -406,13 +405,13 @@ func main() {
 	}
 	go SpaService.Maintain(ctx, 30*time.Second)
 
-	go func() {
-		addr := "127.0.0.1:6060"
-		logger.Info("pprof listening on http://" + addr + "/debug/pprof/")
-		if err := http.ListenAndServe(addr, nil); err != nil {
-			logger.Errorf("pprof server error: %v", err)
-		}
-	}()
+	// go func() {
+	// 	addr := "127.0.0.1:6060"
+	// 	logger.Info("pprof listening on http://" + addr + "/debug/pprof/")
+	// 	if err := http.ListenAndServe(addr, nil); err != nil {
+	// 		logger.Errorf("pprof server error: %v", err)
+	// 	}
+	// }()
 
 	api.StartApi()
 

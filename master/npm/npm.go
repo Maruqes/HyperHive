@@ -1,10 +1,14 @@
 package npm
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/mail"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -200,80 +204,321 @@ func DeleteBaseUser(base, email, password string) error {
 	}
 	return nil
 }
-func SetupNPM(base string) error {
 
-	logger.Info("Pulling and starting NPM container…")
-	err := PullImage()
-	if err != nil {
-		return err
+type NPMHealth struct {
+	Status  string `json:"status"`
+	Setup   bool   `json:"setup"`
+	Version struct {
+		Major    int `json:"major"`
+		Minor    int `json:"minor"`
+		Revision int `json:"revision"`
+	} `json:"version"`
+}
+
+type UserAuth struct {
+	Type   string `json:"type"`   // "password"
+	Secret string `json:"secret"` // password
+}
+
+type CreateUserRequest struct {
+	Name       string    `json:"name"`
+	Nickname   string    `json:"nickname"`
+	Email      string    `json:"email"`
+	Roles      []string  `json:"roles,omitempty"`
+	IsDisabled bool      `json:"is_disabled,omitempty"`
+	Auth       *UserAuth `json:"auth,omitempty"`
+}
+
+type UserResponse struct {
+	ID    int      `json:"id"`
+	Email string   `json:"email"`
+	Roles []string `json:"roles"`
+}
+
+// --------------------
+// API helpers
+// --------------------
+
+func apiBase(base string) string {
+	return strings.TrimRight(base, "/") + "/api"
+}
+
+func getHealth(base string) (NPMHealth, error) {
+	client := &http.Client{Timeout: 5 * time.Second}
+
+	try := []string{
+		apiBase(base),       // .../api
+		apiBase(base) + "/", // .../api/
 	}
 
-	err = waitForNPM(base, 2*time.Minute)
-	if err != nil {
-		return err
-	}
-	logger.Info("NPM is ready at", base)
+	var lastErr error
+	for _, url := range try {
+		resp, err := client.Get(url)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		defer resp.Body.Close()
 
-	// ensure API is ready before we try to use it
-	err = waitForAPI(base, 1*time.Minute)
-	if err != nil {
-		return err
-	}
-	logger.Info("NPM API is ready…")
+		if resp.StatusCode >= 500 {
+			lastErr = fmt.Errorf("health %s status %d", url, resp.StatusCode)
+			continue
+		}
 
-	token, err := retry[string](10*time.Second, 2*time.Second, func() (string, error) {
-		return Login(base, adminEmail, adminPass)
-	})
-	if err != nil {
-		if strings.Contains(err.Error(), "Invalid email or password") {
-			logger.Info("Admin user already changed password, skipping creation.")
+		body, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode != 200 {
+			lastErr = fmt.Errorf("health %s status %d: %s", url, resp.StatusCode, strings.TrimSpace(string(body)))
+			continue
+		}
+
+		var h NPMHealth
+		if err := json.Unmarshal(body, &h); err != nil {
+			lastErr = err
+			continue
+		}
+		return h, nil
+	}
+	return NPMHealth{}, lastErr
+}
+
+func waitForSetupTrue(base string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		h, err := getHealth(base)
+		if err == nil && h.Setup {
 			return nil
 		}
+		time.Sleep(2 * time.Second)
+	}
+	return fmt.Errorf("setup did not become true within %s (base=%s)", timeout, base)
+}
+
+func CreateUser2(base, token string, req CreateUserRequest) (UserResponse, error) {
+	var out UserResponse
+
+	b, err := json.Marshal(req)
+	if err != nil {
+		return out, err
+	}
+
+	url := apiBase(base) + "/users"
+	httpReq, err := http.NewRequest("POST", url, bytes.NewReader(b))
+	if err != nil {
+		return out, err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	if token != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	client := &http.Client{Timeout: 12 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return out, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return out, fmt.Errorf("POST %s -> %d: %s", url, resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+
+	if err := json.Unmarshal(body, &out); err != nil {
+		return out, err
+	}
+	return out, nil
+}
+
+// --------------------
+// Prompt + validation helpers (English)
+// --------------------
+
+func readLine(r *bufio.Reader) (string, error) {
+	s, err := r.ReadString('\n')
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(s), nil
+}
+
+func promptNonEmpty(r *bufio.Reader, label string) (string, error) {
+	for {
+		fmt.Print(label)
+		s, err := readLine(r)
+		if err != nil {
+			return "", err
+		}
+		if s == "" {
+			fmt.Println("Value cannot be empty. Please try again.")
+			continue
+		}
+		return s, nil
+	}
+}
+
+func isValidEmail(s string) bool {
+	if !strings.Contains(s, "@") {
+		return false
+	}
+	_, err := mail.ParseAddress(s)
+	return err == nil
+}
+
+func promptEmailConfirmed(r *bufio.Reader) (string, error) {
+	for {
+		email, err := promptNonEmpty(r, "Admin email: ")
+		if err != nil {
+			return "", err
+		}
+		if !isValidEmail(email) {
+			fmt.Println("Invalid email format. Example: admin@example.com")
+			continue
+		}
+
+		fmt.Print("Confirm email: ")
+		confirm, err := readLine(r)
+		if err != nil {
+			return "", err
+		}
+		if email != confirm {
+			fmt.Println("Emails do not match. Please try again.")
+			continue
+		}
+		return email, nil
+	}
+}
+
+func promptPasswordConfirmed(r *bufio.Reader, minLen int) (string, error) {
+	for {
+		pass, err := promptNonEmpty(r, fmt.Sprintf("Admin password (min %d chars): ", minLen))
+		if err != nil {
+			return "", err
+		}
+		if len(pass) < minLen {
+			fmt.Printf("Password too short (got %d chars). Please try again.\n", len(pass))
+			continue
+		}
+
+		fmt.Print("Confirm password: ")
+		confirm, err := readLine(r)
+		if err != nil {
+			return "", err
+		}
+		if pass != confirm {
+			fmt.Println("Passwords do not match. Please try again.")
+			continue
+		}
+		return pass, nil
+	}
+}
+
+func promptYesNo(r *bufio.Reader, label string) (bool, error) {
+	for {
+		fmt.Print(label)
+		s, err := readLine(r)
+		if err != nil {
+			return false, err
+		}
+		switch strings.ToLower(strings.TrimSpace(s)) {
+		case "y", "yes":
+			return true, nil
+		case "n", "no":
+			return false, nil
+		default:
+			fmt.Println("Please answer with y/n.")
+		}
+	}
+}
+
+// --------------------
+// Main: SetupNPM
+// --------------------
+
+func SetupNPM(base string) error {
+	logger.Info("Pulling and starting NPM container…")
+	if err := PullImage(); err != nil {
 		return err
 	}
 
-	if token != "" {
-		//ask for a new user
-		fmt.Print("Enter new user email: ")
-		var email string
-		fmt.Scanln(&email)
-
-		fmt.Print("Enter new user name: ")
-		var name string
-		fmt.Scanln(&name)
-
-		fmt.Print("Enter new user nick (username): ")
-		var nick string
-		fmt.Scanln(&nick)
-
-		fmt.Print("Enter new user password: ")
-		var pass string
-		fmt.Scanln(&pass)
-
-		id, err := CreateUser(base, token, NewUser{
-			User: UserCreation{
-				Name:       name,
-				Nickname:   nick,
-				Email:      email,
-				Roles:      []string{"admin"},
-				IsDisabled: false,
-			},
-			Password: pass,
-		})
-		if err != nil {
-			return err
-		}
-		logger.Info("Created new user with id:", id)
-		//disable admin user
-		err = DeleteBaseUser(base, email, pass)
-		if err != nil {
-			return err
-		}
+	// keep your existing readiness waits
+	if err := waitForNPM(base, 2*time.Minute); err != nil {
+		return err
 	}
+	logger.Info("NPM is reachable (UI).")
+
+	if err := waitForAPI(base, 1*time.Minute); err != nil {
+		return err
+	}
+	logger.Info("NPM API is reachable.")
+
+	h, err := getHealth(base)
+	if err != nil {
+		return err
+	}
+
+	logger.Info(fmt.Sprintf("NPM health OK (v%d.%d.%d) setup=%v",
+		h.Version.Major, h.Version.Minor, h.Version.Revision, h.Setup))
+
+	// If already set up, nothing to do here (no “first user” wizard)
+	if h.Setup {
+		logger.Info("NPM is already set up (setup=true). Skipping first user creation.")
+		return nil
+	}
+
+	// setup=false: create FIRST user (no token)
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Println("NPM is not set up yet (setup=false). We will create the first admin user now.")
+
+	email, err := promptEmailConfirmed(reader)
+	if err != nil {
+		return err
+	}
+	name, err := promptNonEmpty(reader, "Admin full name: ")
+	if err != nil {
+		return err
+	}
+	nick, err := promptNonEmpty(reader, "Admin nickname (username): ")
+	if err != nil {
+		return err
+	}
+	pass, err := promptPasswordConfirmed(reader, 8)
+	if err != nil {
+		return err
+	}
+
+	ok, err := promptYesNo(reader, "Proceed with user creation? (y/n): ")
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("aborted by user")
+	}
+
+	logger.Info("Creating first admin user (setup mode)…")
+	created, err := CreateUser2(base, "", CreateUserRequest{
+		Name:     name,
+		Nickname: nick,
+		Email:    email,
+		Roles:    []string{"admin"},
+		Auth: &UserAuth{
+			Type:   "password",
+			Secret: pass,
+		},
+	})
+	if err != nil {
+		return err
+	}
+	logger.Info("Created user id=", created.ID, " email=", created.Email)
+
+	// confirm setup switched to true
+	if err := waitForSetupTrue(base, 30*time.Second); err != nil {
+		return err
+	}
+	logger.Info("Confirmed: setup=true ✅")
 
 	return nil
 }
-
 func MakeRequest(method, url, token string, body io.Reader, timeoutSeconds int) (*http.Response, error) {
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
