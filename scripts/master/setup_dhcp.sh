@@ -319,8 +319,6 @@ ip link show "${WAN_IF}" >/dev/null 2>&1 || fatal "WAN '${WAN_IF}' não existe."
 info "A ativar ip_forward e a relaxar rp_filter"
 cat >"${SYSCTL_CONF}" <<SYSCTL
 net.ipv4.ip_forward = 1
-net.ipv4.conf.all.forwarding = 1
-net.ipv4.conf.default.forwarding = 1
 net.ipv4.conf.all.rp_filter = 0
 net.ipv4.conf.default.rp_filter = 0
 net.ipv4.conf.${NETWORK_NAME}.rp_filter = 0
@@ -349,13 +347,11 @@ apply_iptables(){
   cat >"/etc/systemd/system/${NAT_UNIT}" <<UNIT
 [Unit]
 Description=Persist NAT rules for ${NETWORK_NAME}
-After=network-online.target systemd-sysctl.service macvtap-${NETWORK_NAME}.service
-Wants=network-online.target systemd-sysctl.service macvtap-${NETWORK_NAME}.service
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStartPre=/usr/sbin/sysctl -w net.ipv4.ip_forward=1
-ExecStartPre=/usr/sbin/sysctl -w net.ipv4.conf.all.forwarding=1
 ExecStart=/usr/sbin/iptables -t nat -C POSTROUTING -s ${SUBNET_NETWORK} -o ${WAN_IF} -j MASQUERADE || /usr/sbin/iptables -t nat -I POSTROUTING 1 -s ${SUBNET_NETWORK} -o ${WAN_IF} -j MASQUERADE
 ExecStart=/usr/sbin/iptables -C FORWARD -i ${WAN_IF} -o ${NETWORK_NAME} -m state --state RELATED,ESTABLISHED -j ACCEPT || /usr/sbin/iptables -I FORWARD 1 -i ${WAN_IF} -o ${NETWORK_NAME} -m state --state RELATED,ESTABLISHED -j ACCEPT
 ExecStart=/usr/sbin/iptables -C FORWARD -i ${NETWORK_NAME} -o ${WAN_IF} -j ACCEPT || /usr/sbin/iptables -I FORWARD 1 -i ${NETWORK_NAME} -o ${WAN_IF} -j ACCEPT
