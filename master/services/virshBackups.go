@@ -8,6 +8,7 @@ import (
 	"512SvMan/protocol"
 	"512SvMan/virsh"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
@@ -219,15 +221,23 @@ func (v *VirshService) BackupVM(ctx context.Context, vmName string, nfsID int, a
 
 	// ensure the target exists and is a directory to avoid mkdir errors when a file occupies the path
 	info, statErr := os.Stat(nfsShare.Target)
-	if os.IsNotExist(statErr) {
-		err := fmt.Errorf("NFS target %s does not exist", nfsShare.Target)
-		sendImportantNotification("BackupVM: NFS target missing", err)
-		return err
-	}
 	if statErr != nil {
+		if errors.Is(statErr, syscall.ESTALE) {
+			err := fmt.Errorf("NFS target %s is unavailable (stale file handle); remount the share and retry", nfsShare.Target)
+			sendImportantNotification("BackupVM: NFS target stale", err)
+			return err
+		}
+
+		if os.IsNotExist(statErr) {
+			err := fmt.Errorf("NFS target %s does not exist", nfsShare.Target)
+			sendImportantNotification("BackupVM: NFS target missing", err)
+			return err
+		}
+
 		sendImportantNotification("BackupVM: NFS target stat failed", statErr)
 		return fmt.Errorf("failed to stat NFS target %s: %v", nfsShare.Target, statErr)
 	}
+
 	if !info.IsDir() {
 		err := fmt.Errorf("NFS target %s is not a directory", nfsShare.Target)
 		sendImportantNotification("BackupVM: NFS target is file", err)

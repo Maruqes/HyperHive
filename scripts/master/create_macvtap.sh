@@ -75,6 +75,19 @@ install_persistence() {
 #!/usr/bin/env bash
 set -euo pipefail
 
+ensure_ipv4_forwarding(){
+  local conf="/etc/sysctl.d/99-macvtap-ipforward.conf"
+  cat >"${conf}" <<'CONF'
+net.ipv4.ip_forward = 1
+net.ipv4.conf.all.forwarding = 1
+CONF
+  sysctl -w net.ipv4.ip_forward=1 >/dev/null 2>&1 || true
+  sysctl -w net.ipv4.conf.all.forwarding=1 >/dev/null 2>&1 || true
+  sysctl -p "${conf}" >/dev/null 2>&1 || sysctl --system >/dev/null 2>&1 || true
+}
+
+ensure_ipv4_forwarding
+
 modprobe macvtap >/dev/null 2>&1 || true
 
 # Remove se já existir
@@ -152,6 +165,18 @@ UNIT
   info "Persistência ativa para ${child}"
 }
 
+ensure_ipv4_forwarding(){
+  local conf="/etc/sysctl.d/99-macvtap-ipforward.conf"
+  info "A garantir ip_forward ativo e persistente (${conf})"
+  cat >"${conf}" <<'CONF'
+net.ipv4.ip_forward = 1
+net.ipv4.conf.all.forwarding = 1
+CONF
+  sysctl -w net.ipv4.ip_forward=1 >/dev/null 2>&1 || warn "Falha a definir net.ipv4.ip_forward"
+  sysctl -w net.ipv4.conf.all.forwarding=1 >/dev/null 2>&1 || warn "Falha a definir net.ipv4.conf.all.forwarding"
+  sysctl -p "${conf}" >/dev/null 2>&1 || sysctl --system >/dev/null 2>&1 || warn "Não consegui recarregar sysctl, verifica manualmente"
+}
+
 [[ ${EUID:-0} -eq 0 ]] || fatal 'Este script requer root.'
 command -v ip >/dev/null 2>&1 || fatal 'Falta o comando ip (iproute2).'
 
@@ -175,6 +200,8 @@ IPV4_CIDR=${3:-}
 ip link show "$PARENT_IF" >/dev/null 2>&1 || fatal "Parent '$PARENT_IF' não existe."
 
 modprobe macvtap >/dev/null 2>&1 || true
+
+ensure_ipv4_forwarding
 
 # Limpa se já existir
 if ip link show "$MACVTAP_IF" >/dev/null 2>&1; then
