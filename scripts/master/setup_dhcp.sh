@@ -360,9 +360,9 @@ BindsTo=sys-subsystem-net-devices-${WAN_IF}.device
 Type=oneshot
 ExecStartPre=/bin/bash -c 'for i in {1..30}; do ip link show ${WAN_IF} >/dev/null 2>&1 && ip link show ${NETWORK_NAME} >/dev/null 2>&1 && exit 0; sleep 1; done; echo "Interfaces ${WAN_IF}/${NETWORK_NAME} indisponiveis"; exit 1'
 ExecStartPre=/bin/bash -c 'for i in {1..30}; do ip route show default 0.0.0.0/0 | grep -q "dev ${WAN_IF}" && exit 0; sleep 1; done; echo "Default route por ${WAN_IF} nao presente"; exit 1'
-ExecStart=/usr/sbin/iptables -t nat -C POSTROUTING -s ${SUBNET_NETWORK} -o ${WAN_IF} -j MASQUERADE || /usr/sbin/iptables -t nat -I POSTROUTING 1 -s ${SUBNET_NETWORK} -o ${WAN_IF} -j MASQUERADE
-ExecStart=/usr/sbin/iptables -C FORWARD -i ${WAN_IF} -o ${NETWORK_NAME} -m state --state RELATED,ESTABLISHED -j ACCEPT || /usr/sbin/iptables -I FORWARD 1 -i ${WAN_IF} -o ${NETWORK_NAME} -m state --state RELATED,ESTABLISHED -j ACCEPT
-ExecStart=/usr/sbin/iptables -C FORWARD -i ${NETWORK_NAME} -o ${WAN_IF} -j ACCEPT || /usr/sbin/iptables -I FORWARD 1 -i ${NETWORK_NAME} -o ${WAN_IF} -j ACCEPT
+ExecStart=/bin/bash -c '/usr/sbin/iptables -t nat -C POSTROUTING -s ${SUBNET_NETWORK} -o ${WAN_IF} -j MASQUERADE || /usr/sbin/iptables -t nat -I POSTROUTING 1 -s ${SUBNET_NETWORK} -o ${WAN_IF} -j MASQUERADE'
+ExecStart=/bin/bash -c '/usr/sbin/iptables -C FORWARD -i ${WAN_IF} -o ${NETWORK_NAME} -m state --state RELATED,ESTABLISHED -j ACCEPT || /usr/sbin/iptables -I FORWARD 1 -i ${WAN_IF} -o ${NETWORK_NAME} -m state --state RELATED,ESTABLISHED -j ACCEPT'
+ExecStart=/bin/bash -c '/usr/sbin/iptables -C FORWARD -i ${NETWORK_NAME} -o ${WAN_IF} -j ACCEPT || /usr/sbin/iptables -I FORWARD 1 -i ${NETWORK_NAME} -o ${WAN_IF} -j ACCEPT'
 RemainAfterExit=yes
 
 [Install]
