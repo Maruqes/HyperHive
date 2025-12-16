@@ -168,7 +168,7 @@ SPRITE_MIN="$(ask_required "SPRITE_MIN port" "9600")"
 SPRITE_MAX="$(ask_required "SPRITE_MAX port" "9700")"
 
 MASTER_INTERNET_IP="$(ask_required "MASTER_INTERNET_IP (IP used for outside/internet access)" "$DEFAULT_MASTER_INTERNET_IP")"
-MAIN_LINK="$(ask_required "MAIN_LINK (public API base URL)" "https://hyperhive.maruqes.com/api")"
+MAIN_LINK="$(ask_required "MAIN_LINK (public API base URL)" "http://localhost:8079")"
 
 # Optional fields (default empty, but still asked)
 GOACCESS_ENABLE_PANELS="$(ask "GOACCESS_ENABLE_PANELS (optional, leave empty for default)" "")"
@@ -228,14 +228,28 @@ OTHERS_RAW="$(ask "Other slave IPs (comma-separated, optional)" "")"
 IFS=',' read -r -a others_arr <<< "$OTHERS_RAW"
 others_clean=()
 for ipx in "${others_arr[@]}"; do
-  ipx="${ipx//[[:space:]]/}"
+  ipx="${ipx//[[:space:]]/}"          # trim spaces
   [[ -z "$ipx" ]] && continue
   [[ "$ipx" == "$SLAVE_IP" ]] && continue
+
+  # optional: avoid duplicates
+  skip=0
+  for e in "${others_clean[@]}"; do
+    [[ "$e" == "$ipx" ]] && skip=1 && break
+  done
+  [[ "$skip" -eq 1 ]] && continue
+
   others_clean+=("$ipx")
 done
 
-OTHER1="${others_clean[0]:-}"
-OTHER2="${others_clean[1]:-}"
+# Build dynamic OTHER_SLAVEx_IP lines
+OTHER_SLAVES_LINES=""
+idx=1
+for ipx in "${others_clean[@]}"; do
+  OTHER_SLAVES_LINES+=$'OTHER_SLAVE'"${idx}"$'_IP='"${ipx}"$'\n'
+  ((idx++))
+done
+
 
 DIRTY_RATIO_PERCENT="$(ask "DIRTY_RATIO_PERCENT" "15")"
 DIRTY_BACKGROUND_RATIO_PERCENT="$(ask "DIRTY_BACKGROUND_RATIO_PERCENT" "8")"
@@ -260,8 +274,8 @@ cat > "$SLAVE_ENV" <<EOF
 MASTER_IP=${MASTER_IP}
 SLAVE_IP=${SLAVE_IP}
 
-OTHER_SLAVE1_IP=${OTHER1}
-OTHER_SLAVE2_IP=${OTHER2}
+${OTHER_SLAVES_LINES}
+
 
 DIRTY_RATIO_PERCENT=${DIRTY_RATIO_PERCENT}
 DIRTY_BACKGROUND_RATIO_PERCENT=${DIRTY_BACKGROUND_RATIO_PERCENT}
