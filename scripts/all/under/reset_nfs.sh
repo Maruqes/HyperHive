@@ -108,13 +108,11 @@ rm -f /etc/nfs.conf 2>/dev/null || true
 if [[ -d /etc/exports.d ]]; then rm -f /etc/exports.d/* 2>/dev/null || true; fi
 if [[ -d /var/lib/nfs ]]; then rm -rf /var/lib/nfs/* 2>/dev/null || true; fi
 
-# 5) Firewall (remove rules and later re-open if reinstalling)
-if [[ $TOUCH_FIREWALL -eq 1 ]] && have firewall-cmd && firewall-cmd --state &>/dev/null; then
-  log "Cleaning NFS services from firewalld (permanent)..."
-  firewall-cmd --permanent --remove-service=nfs       2>/dev/null || true
-  firewall-cmd --permanent --remove-service=mountd    2>/dev/null || true
-  firewall-cmd --permanent --remove-service=rpc-bind  2>/dev/null || true
-  firewall-cmd --reload 2>/dev/null || true
+# 5) Firewall (iptables)
+if [[ $TOUCH_FIREWALL -eq 1 ]] && have iptables; then
+  log "Removing NFS iptables INPUT rules..."
+  for p in "${NFS_PORTS_TCP[@]}"; do iptables_remove tcp "$p"; done
+  for p in "${NFS_PORTS_UDP[@]}"; do iptables_remove udp "$p"; done
 fi
 
 # 6) SELinux (booleans)
