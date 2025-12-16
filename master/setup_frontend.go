@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/exec"
@@ -24,83 +25,188 @@ const (
 var CUR_LINK = "https://github.com/JotaBarbosaDev/HyperHive/releases/latest/download/web-dist.zip"
 
 func setupFrontendContainer() error {
-	// Step 1: prepare temporary workspace and download+extract there
-	fmt.Println("[1/4] Clearing and preparing temporary workspace at", tempWorkDir)
+	// helpers (self-contained)
+	pickExtractRoot := func(dir string) (string, error) {
+		ents, err := os.ReadDir(dir)
+		if err != nil {
+			return "", err
+		}
+		// se tiver exactamente 1 dir e mais nada, usa essa como root
+		if len(ents) == 1 && ents[0].IsDir() {
+			return filepath.Join(dir, ents[0].Name()), nil
+		}
+		return dir, nil
+	}
+
+	dirNotEmpty := func(dir string) (bool, error) {
+		f, err := os.Open(dir)
+		if err != nil {
+			return false, err
+		}
+		defer f.Close()
+		_, err = f.Readdirnames(1)
+		if err == io.EOF {
+			return false, nil
+		}
+		return err == nil, err
+	}
+
+	copyDir := func(src, dst string) error {
+		return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			rel, err := filepath.Rel(src, path)
+			if err != nil {
+				return err
+			}
+			target := filepath.Join(dst, rel)
+
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+
+			if d.IsDir() {
+				return os.MkdirAll(target, info.Mode())
+			}
+
+			// symlinks: replica o link
+			if info.Mode()&os.ModeSymlink != 0 {
+				link, err := os.Readlink(path)
+				if err != nil {
+					return err
+				}
+				_ = os.RemoveAll(target)
+				return os.Symlink(link, target)
+			}
+
+			// ficheiro normal
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return err
+			}
+			in, err := os.Open(path)
+			if err != nil {
+				return err
+			}
+			defer in.Close()
+
+			out, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, info.Mode())
+			if err != nil {
+				return err
+			}
+			defer func() {
+				_ = out.Close()
+			}()
+
+			if _, err := io.Copy(out, in); err != nil {
+				return err
+			}
+			return out.Close()
+		})
+	}
+
+	rollback := func(oldBackup string, hadOld bool) {
+		_ = os.RemoveAll(frontendDir)
+		if hadOld {
+			_ = os.Rename(oldBackup, frontendDir)
+		}
+	}
+
+	// 0) garantir que o pai do destino existe (/opt/hyperhive)
+	if err := os.MkdirAll(filepath.Dir(frontendDir), 0o755); err != nil {
+		return fmt.Errorf("create frontend parent dir: %w", err)
+	}
+
+	// 1) workspace temporário (podes manter /tmp; o EXDEV fica coberto)
+	tempWorkDir := "/tmp/hyperhive"
+	fmt.Println("[1/5] Clearing and preparing temporary workspace at", tempWorkDir)
 	if err := os.RemoveAll(tempWorkDir); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("clear tempWorkDir: %w", err)
 	}
 	if err := os.MkdirAll(tempWorkDir, 0o755); err != nil {
 		return fmt.Errorf("create tempWorkDir: %w", err)
 	}
+	defer os.RemoveAll(tempWorkDir)
 
-	fmt.Println("[2/4] Downloading web-dist.zip...")
+	// 2) download
+	fmt.Println("[2/5] Downloading web-dist.zip...")
 	zipPath, err := downloadZip(CUR_LINK)
 	if err != nil {
 		return fmt.Errorf("download zip: %w", err)
 	}
-	// remove downloaded zip when finished
 	defer os.Remove(zipPath)
-	// cleanup temporary workspace when finished
-	defer os.RemoveAll(tempWorkDir)
 
+	// 3) extract
 	extractDir := filepath.Join(tempWorkDir, "extract")
-	fmt.Println("[3/4] Extracting zip to temporary workspace", extractDir)
+	fmt.Println("[3/5] Extracting zip to", extractDir)
 	if err := os.RemoveAll(extractDir); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("clear extractDir: %w", err)
+	}
+	if err := os.MkdirAll(extractDir, 0o755); err != nil {
+		return fmt.Errorf("create extractDir: %w", err)
 	}
 	if err := unzip(zipPath, extractDir); err != nil {
 		return fmt.Errorf("unzip: %w", err)
 	}
 
-	// Check if extraction created a nested subdirectory and unwrap it
-	entries, err := os.ReadDir(extractDir)
+	srcDir, err := pickExtractRoot(extractDir)
 	if err != nil {
-		return fmt.Errorf("read extractDir: %w", err)
+		return fmt.Errorf("pickExtractRoot: %w", err)
 	}
-	if len(entries) == 1 && entries[0].IsDir() {
-		nestedDir := filepath.Join(extractDir, entries[0].Name())
-		tempDir := filepath.Join(tempWorkDir, "temp-extract")
-		if err := os.Rename(nestedDir, tempDir); err != nil {
-			return fmt.Errorf("unwrap nested directory: %w", err)
-		}
-		if err := os.RemoveAll(extractDir); err != nil {
-			return fmt.Errorf("remove extractDir: %w", err)
-		}
-		extractDir = tempDir
+	ok, err := dirNotEmpty(srcDir)
+	if err != nil {
+		return fmt.Errorf("check extracted content: %w", err)
+	}
+	if !ok {
+		return fmt.Errorf("extracted directory is empty: %s", srcDir)
 	}
 
-	// Atomically replace the published frontend directory
-	// Remove old frontend dir only after successful extraction
-	if err := os.RemoveAll(frontendDir); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("clear frontend directory: %w", err)
+	// 4) swap atómico com backup (não apaga o antigo antes de ter novo pronto)
+	oldBackup := frontendDir + ".old"
+	fmt.Println("[4/5] Swapping frontend directory into place:", frontendDir)
+	if err := os.RemoveAll(oldBackup); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove old backup: %w", err)
 	}
 
-	// Try to rename the extracted dir into place. If the rename fails
-	// with EXDEV (invalid cross-device link), perform a recursive copy
-	// instead and then clean up the temp extract dir.
-	if err := os.Rename(extractDir, frontendDir); err != nil {
+	hadOld := false
+	if _, err := os.Stat(frontendDir); err == nil {
+		if err := os.Rename(frontendDir, oldBackup); err != nil {
+			return fmt.Errorf("backup old frontend: %w", err)
+		}
+		hadOld = true
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("stat frontendDir: %w", err)
+	}
+
+	// tentar rename; se EXDEV, copia
+	if err := os.Rename(srcDir, frontendDir); err != nil {
 		if linkErr, ok := err.(*os.LinkError); ok && linkErr.Err == syscall.EXDEV {
 			fmt.Println("Detected cross-device move; copying files instead.")
-			if err := copyDir(extractDir, frontendDir); err != nil {
+			if err := copyDir(srcDir, frontendDir); err != nil {
+				rollback(oldBackup, hadOld)
 				return fmt.Errorf("copy frontend to destination: %w", err)
 			}
-			if err := os.RemoveAll(extractDir); err != nil {
-				return fmt.Errorf("cleanup extractDir: %w", err)
-			}
 		} else {
+			rollback(oldBackup, hadOld)
 			return fmt.Errorf("move frontend to destination: %w", err)
 		}
 	}
 
-	// Ensure nginx config exists (persisted at nginxConfPath)
-	fmt.Println("[4/4] Ensuring nginx.conf for SPA...")
+	// 5) config + container (se falhar, faz rollback para o backup)
+	fmt.Println("[5/5] Ensuring nginx.conf and recreating container...")
 	if err := ensureNginxConfig(); err != nil {
+		rollback(oldBackup, hadOld)
 		return fmt.Errorf("create nginx.conf: %w", err)
 	}
-
-	// Recreate container after files and config are ready
 	if err := recreateNginxContainer(); err != nil {
+		rollback(oldBackup, hadOld)
 		return fmt.Errorf("recreate container: %w", err)
+	}
+
+	// sucesso: limpa backup
+	if hadOld {
+		_ = os.RemoveAll(oldBackup)
 	}
 
 	return nil
