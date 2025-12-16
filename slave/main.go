@@ -724,12 +724,30 @@ func install_git() error {
 	return nil
 }
 
+func stopAndDisableFirewalld() error {
+	// Stop firewalld service
+	if err := exec.Command("systemctl", "stop", "firewalld").Run(); err != nil {
+		return fmt.Errorf("stop firewalld: %w", err)
+	}
+
+	// Disable firewalld service
+	if err := exec.Command("systemctl", "disable", "firewalld").Run(); err != nil {
+		return fmt.Errorf("disable firewalld: %w", err)
+	}
+
+	return nil
+}
+
 func main() {
 	askForSudo()
 
 	//varsc
 	if err := env512.Setup(); err != nil {
 		log.Fatalf("env setup: %v", err)
+	}
+
+	if err := stopAndDisableFirewalld(); err != nil {
+		log.Fatalf("stopAndDisableFirewalld setup: %v", err)
 	}
 
 	if err := docker.InstallLatestDocker(); err != nil {
@@ -743,7 +761,6 @@ func main() {
 	if err := virsh.EnsureVirtXMLInstalled(); err != nil {
 		log.Fatalf("ensure virt-xml: %v", err)
 	}
-
 
 	if ourk8s.AreWeMasterSlave() {
 		//this is the slave running on master
