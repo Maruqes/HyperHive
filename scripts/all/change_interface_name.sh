@@ -31,8 +31,15 @@ validate_iface_name() {
         exit 1
     fi
 
-    if [[ ! "$name" =~ ^[[:alnum:]._-]+$ ]]; then
-        echo "${label} '${name}' contains invalid characters. Use only letters, numbers, '.', '_' or '-'." >&2
+    local pattern='^[[:alnum:]._-]+$'
+    local guidance="Use only letters, numbers, '.', '_' or '-'."
+    if [ "$allow_long" = "yes" ]; then
+        pattern='^[[:alnum:]._:@-]+$'
+        guidance="Use letters, numbers, '.', '_', '-', ':' or '@'."
+    fi
+
+    if [[ ! "$name" =~ $pattern ]]; then
+        echo "${label} '${name}' contains invalid characters. ${guidance}" >&2
         exit 1
     fi
 }
