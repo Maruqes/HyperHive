@@ -222,18 +222,8 @@ func (v *VirshService) BackupVM(ctx context.Context, vmName string, nfsID int, a
 	//creating actual backUpFolder folder
 	backUpFolder := nfsShare.Target + "/" + "backup-" + bakUUID.String()
 
-	//if backUpFolder folder already exists
-	_, err = os.Stat(backUpFolder)
-	if err != nil {
-		//check if err is already exists
-		if !os.IsNotExist(err) {
-			sendImportantNotification("BackupVM: unexpected stat error for backup folder", err)
-			return fmt.Errorf("the uuid existed?!?!?! 0 in a quadrillion chance")
-		}
-	}
-
-	//create folder
-	err = os.Mkdir(backUpFolder, 0o777)
+	//create folder with all parent directories
+	err = os.MkdirAll(backUpFolder, 0o777)
 	if err != nil {
 		sendImportantNotification("BackupVM: failed to create backup folder", err)
 		return fmt.Errorf("could not create the backUpFolder folder")
@@ -571,9 +561,9 @@ func (v *VirshService) DeleteAutoBak(ctx context.Context, id int) error {
 	return nil
 }
 
-func (v *VirshService) EnableAutoBak(ctx context.Context,id int) error {
+func (v *VirshService) EnableAutoBak(ctx context.Context, id int) error {
 	//check if automatic backup exists
-	existingBak, err := db.GetAutomaticBackupById(ctx,id)
+	existingBak, err := db.GetAutomaticBackupById(ctx, id)
 	if err != nil {
 		return fmt.Errorf("failed to get automatic backup by ID: %v", err)
 	}
@@ -589,7 +579,7 @@ func (v *VirshService) EnableAutoBak(ctx context.Context,id int) error {
 	}
 
 	//enable in database
-	err = db.EnableAutomaticBackupById(ctx,id)
+	err = db.EnableAutomaticBackupById(ctx, id)
 	if err != nil {
 		sendImportantNotification("EnableAutoBak: EnableAutomaticBackupById failed", err)
 		return fmt.Errorf("failed to enable automatic backup: %v", err)
@@ -598,9 +588,9 @@ func (v *VirshService) EnableAutoBak(ctx context.Context,id int) error {
 	return nil
 }
 
-func (v *VirshService) DisableAutoBak(ctx context.Context,id int) error {
+func (v *VirshService) DisableAutoBak(ctx context.Context, id int) error {
 	//check if automatic backup exists
-	existingBak, err := db.GetAutomaticBackupById(ctx,id)
+	existingBak, err := db.GetAutomaticBackupById(ctx, id)
 	if err != nil {
 		return fmt.Errorf("failed to get automatic backup by ID: %v", err)
 	}
@@ -616,7 +606,7 @@ func (v *VirshService) DisableAutoBak(ctx context.Context,id int) error {
 	}
 
 	//disable in database
-	err = db.DisableAutomaticBackupById(ctx,id)
+	err = db.DisableAutomaticBackupById(ctx, id)
 	if err != nil {
 		sendImportantNotification("DisableAutoBak: DisableAutomaticBackupById failed", err)
 		return fmt.Errorf("failed to disable automatic backup: %v", err)
@@ -635,13 +625,13 @@ func (v *VirshService) createAutoBak(ctx context.Context, bak db.AutomaticBackup
 	}
 
 	completedAt := time.Now().UTC().Format(time.RFC3339)
-	if err := db.UpdateAutomaticBackupTimes(ctx,bak.Id, &completedAt); err != nil {
+	if err := db.UpdateAutomaticBackupTimes(ctx, bak.Id, &completedAt); err != nil {
 		sendImportantNotification("createAutoBak: UpdateAutomaticBackupTimes failed", err)
 		return fmt.Errorf("failed to update backup timestamp: %v", err)
 	}
 
 	//eliminar baks antigos
-	baksVm, err := db.GetAutomaticBackups(ctx,bak.VmName)
+	baksVm, err := db.GetAutomaticBackups(ctx, bak.VmName)
 	if err != nil {
 		sendImportantNotification("createAutoBak: GetAutomaticBackups failed", err)
 		return err
@@ -667,7 +657,7 @@ func (v *VirshService) createAutoBak(ctx context.Context, bak db.AutomaticBackup
 	// Delete oldest backups if we exceed MaxBackupsRetain
 	if len(baksVm) > bak.MaxBackupsRetain {
 		for i := bak.MaxBackupsRetain; i < len(baksVm); i++ {
-			err := v.DeleteBackup(ctx,baksVm[i].Id)
+			err := v.DeleteBackup(ctx, baksVm[i].Id)
 			if err != nil {
 				logger.Errorf("failed to delete old backup %d: %v", baksVm[i].Id, err)
 				sendImportantNotification(fmt.Sprintf("createAutoBak: failed to delete old backup %d", baksVm[i].Id), err)
@@ -702,7 +692,7 @@ func (v *VirshService) LoopAutomaticBaks(ctx context.Context) {
 			nowTime := time.Now()
 			currentClock := db.Clock{Hours: nowTime.Hour(), Minutes: nowTime.Minute()}
 
-			baks, err := db.GetEnabledAutomaticBackupsAt(ctx,currentClock)
+			baks, err := db.GetEnabledAutomaticBackupsAt(ctx, currentClock)
 			if err != nil {
 				logger.Error("Error getting automatic backups: " + err.Error())
 				sendImportantNotification("LoopAutomaticBaks: GetEnabledAutomaticBackupsAt failed", err)
