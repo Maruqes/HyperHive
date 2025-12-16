@@ -319,6 +319,7 @@ ip link show "${WAN_IF}" >/dev/null 2>&1 || fatal "WAN '${WAN_IF}' não existe."
 info "A ativar ip_forward e a relaxar rp_filter"
 cat >"${SYSCTL_CONF}" <<SYSCTL
 net.ipv4.ip_forward = 1
+net.ipv4.conf.all.forwarding = 1
 net.ipv4.conf.all.rp_filter = 0
 net.ipv4.conf.default.rp_filter = 0
 net.ipv4.conf.${NETWORK_NAME}.rp_filter = 0
@@ -334,6 +335,10 @@ sysctl --system >/dev/null
 apply_iptables(){
   command -v iptables >/dev/null 2>&1 || { warn 'Sem iptables; NAT não configurado.'; return 1; }
 
+  # Garante ip_forward no runtime (além do sysctl persistente)
+  sysctl -w net.ipv4.ip_forward=1 >/dev/null 2>&1 || true
+  sysctl -w net.ipv4.conf.all.forwarding=1 >/dev/null 2>&1 || true
+
   info "A configurar NAT via iptables (WAN=${WAN_IF}, LAN=${SUBNET_NETWORK})"
   iptables -t nat -D POSTROUTING -s "${SUBNET_NETWORK}" -o "${WAN_IF}" -j MASQUERADE 2>/dev/null || true
   iptables -D FORWARD -i "${WAN_IF}" -o "${NETWORK_NAME}" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
@@ -347,11 +352,14 @@ apply_iptables(){
   cat >"/etc/systemd/system/${NAT_UNIT}" <<UNIT
 [Unit]
 Description=Persist NAT rules for ${NETWORK_NAME}
-After=network-online.target
-Wants=network-online.target
+After=network-online.target NetworkManager-wait-online.service sys-subsystem-net-devices-${WAN_IF}.device
+Wants=network-online.target NetworkManager-wait-online.service sys-subsystem-net-devices-${WAN_IF}.device
+BindsTo=sys-subsystem-net-devices-${WAN_IF}.device
 
 [Service]
 Type=oneshot
+ExecStartPre=/bin/bash -c 'for i in {1..30}; do ip link show ${WAN_IF} >/dev/null 2>&1 && ip link show ${NETWORK_NAME} >/dev/null 2>&1 && exit 0; sleep 1; done; echo "Interfaces ${WAN_IF}/${NETWORK_NAME} indisponiveis"; exit 1'
+ExecStartPre=/bin/bash -c 'for i in {1..30}; do ip route show default 0.0.0.0/0 | grep -q "dev ${WAN_IF}" && exit 0; sleep 1; done; echo "Default route por ${WAN_IF} nao presente"; exit 1'
 ExecStart=/usr/sbin/iptables -t nat -C POSTROUTING -s ${SUBNET_NETWORK} -o ${WAN_IF} -j MASQUERADE || /usr/sbin/iptables -t nat -I POSTROUTING 1 -s ${SUBNET_NETWORK} -o ${WAN_IF} -j MASQUERADE
 ExecStart=/usr/sbin/iptables -C FORWARD -i ${WAN_IF} -o ${NETWORK_NAME} -m state --state RELATED,ESTABLISHED -j ACCEPT || /usr/sbin/iptables -I FORWARD 1 -i ${WAN_IF} -o ${NETWORK_NAME} -m state --state RELATED,ESTABLISHED -j ACCEPT
 ExecStart=/usr/sbin/iptables -C FORWARD -i ${NETWORK_NAME} -o ${WAN_IF} -j ACCEPT || /usr/sbin/iptables -I FORWARD 1 -i ${NETWORK_NAME} -o ${WAN_IF} -j ACCEPT
