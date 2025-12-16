@@ -317,6 +317,8 @@ func ensureFirewallPorts(ctx context.Context, ports []portSpec) error {
 	return nil
 }
 
+// AllowFirewalldAcceptAll coloca o firewalld em modo permissivo/ACCEPT para não bloquear tráfego gRPC/K8s.
+// Faz default zone = trusted, target ACCEPT e mete todas as interfaces (exceto loopback) nessa zona.
 func AllowFirewalldAcceptAll(ctx context.Context) error {
 	if _, err := exec.LookPath("firewall-cmd"); err != nil {
 		return nil // firewalld não instalado
@@ -332,89 +334,42 @@ func AllowFirewalldAcceptAll(ctx context.Context) error {
 		return nil
 	}
 
-	// Descobrir a interface WAN pela default route
-	getWAN := func() string {
-		if _, err := exec.LookPath("ip"); err != nil {
-			return ""
-		}
-		cmd := exec.CommandContext(ctx, "ip", "route", "show", "default")
-		b, err := cmd.Output()
-		if err != nil {
-			return ""
-		}
-		// formato típico: "default via X.Y.Z.W dev enp3s0 proto dhcp ..."
-		fields := strings.Fields(string(b))
-		for i := 0; i < len(fields)-1; i++ {
-			if fields[i] == "dev" {
-				return fields[i+1]
-			}
-		}
-		return ""
-	}
-	wanIf := getWAN()
-
-	// Listar interfaces do sistema (para as meter nas zonas certas)
 	ifaces := []string{}
 	if sysIfs, err := net.Interfaces(); err == nil {
 		for _, itf := range sysIfs {
 			if itf.Name == "lo" {
 				continue
 			}
-			// ignora interfaces down? (opcional)
 			ifaces = append(ifaces, itf.Name)
 		}
 	}
 
-	// Zonas que vamos usar
 	trusted := "trusted"
-	external := "external"
 
-	// 0) reduzir ruído
+	// desligar ruído
 	_ = run("--set-log-denied=off")
 	_ = run("--permanent", "--set-log-denied=off")
 
-	// 1) Garantir zonas em ACCEPT
-	_ = run("--permanent", "--zone", trusted, "--set-target=ACCEPT")
-	_ = run("--permanent", "--zone", external, "--set-target=ACCEPT")
-
-	// 2) Default zone = trusted (ajuda para interfaces “novas”/dinâmicas)
+	// zona permissiva
 	_ = run("--permanent", "--set-default-zone="+trusted)
+	_ = run("--permanent", "--zone", trusted, "--set-target=ACCEPT")
+	_ = run("--zone", trusted, "--set-target=ACCEPT")
 
-	// 3) WAN -> external (com masquerade); resto -> trusted
-	//    (runtime + permanent)
-	if wanIf != "" {
-		_ = run("--permanent", "--zone", external, "--add-interface", wanIf)
-		_ = run("--zone", external, "--add-interface", wanIf)
-
-		_ = run("--permanent", "--zone", external, "--add-masquerade")
-		_ = run("--zone", external, "--add-masquerade")
-	}
-
+	// meter todas as NICs (exceto lo) em trusted
 	for _, itf := range ifaces {
-		if itf == wanIf {
-			continue
-		}
 		_ = run("--permanent", "--zone", trusted, "--add-interface", itf)
 		_ = run("--zone", trusted, "--add-interface", itf)
 	}
 
-	// 4) Aplicar permanente
+	// aplicar permanente
 	if err := run("--reload"); err != nil {
 		return err
 	}
 
-	// 5) Reafirmar runtime pós-reload (por precaução)
+	// reafirmar runtime
 	_ = run("--set-default-zone=" + trusted)
 	_ = run("--zone", trusted, "--set-target=ACCEPT")
-	_ = run("--zone", external, "--set-target=ACCEPT")
-	if wanIf != "" {
-		_ = run("--zone", external, "--add-interface", wanIf)
-		_ = run("--zone", external, "--add-masquerade")
-	}
 	for _, itf := range ifaces {
-		if itf == "lo" || itf == wanIf {
-			continue
-		}
 		_ = run("--zone", trusted, "--add-interface", itf)
 	}
 
