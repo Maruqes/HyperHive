@@ -134,7 +134,7 @@ done
 
 DIRTY_RATIO_PERCENT="$(ask "DIRTY_RATIO_PERCENT" "15")"
 DIRTY_BACKGROUND_RATIO_PERCENT="$(ask "DIRTY_BACKGROUND_RATIO_PERCENT" "8")"
-MODE_SLAVE="$(ask "MODE (dev/prod)" "dev")"
+MODE_SLAVE="$(ask "MODE (dev/prod)" "prod")"
 
 DEFAULT_MACHINE_NAME="$(hostname -s 2>/dev/null || hostname 2>/dev/null || echo "")"
 MACHINE_NAME="$(ask_required "MACHINE_NAME" "$DEFAULT_MACHINE_NAME")"
