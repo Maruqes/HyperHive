@@ -184,18 +184,15 @@ choose_interface() {
     echo "Unknown interface." >&2
   done
 }
+
 rename_interface() {
   local iface="$1"
   if [[ ! -x "$CHANGE_IFACE_SCRIPT" ]]; then
     echo "Missing helper script: ${CHANGE_IFACE_SCRIPT}" >&2
     exit 1
   fi
-  if [[ ${#TARGET_IFACE} -gt 15 ]]; then
-    echo "Interface name '${TARGET_IFACE}' exceeds 15 characters (kernel limit)." >&2
-    exit 1
-  fi
   echo "Renaming ${iface} -> ${TARGET_IFACE} (via ${CHANGE_IFACE_SCRIPT})"
-  "$CHANGE_IFACE_SCRIPT" "$iface" "$TARGET_IFACE"
+  "$CHANGE_IFACE_SCRIPT" "$iface"
 }
 
 run_setup_dhcp() {

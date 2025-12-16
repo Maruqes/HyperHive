@@ -19,13 +19,14 @@ require_root() {
 validate_iface_name() {
     local name="$1"
     local label="$2"
+    local allow_long="${3:-no}"
 
     if [ -z "$name" ]; then
         echo "${label} cannot be empty." >&2
         exit 1
     fi
 
-    if [ "${#name}" -gt 15 ]; then
+    if [ "$allow_long" != "yes" ] && [ "${#name}" -gt 15 ]; then
         echo "${label} must have at most 15 characters (kernel limit for interfaces)." >&2
         exit 1
     fi
@@ -74,7 +75,7 @@ ensure_command ip
 OLD_IFACE="$1"
 NEW_IFACE="$TARGET_IFACE_NAME"
 
-validate_iface_name "$OLD_IFACE" "Current name"
+validate_iface_name "$OLD_IFACE" "Current name" "yes"
 validate_iface_name "$NEW_IFACE" "New name"
 
 if [ "$OLD_IFACE" = "$NEW_IFACE" ]; then
