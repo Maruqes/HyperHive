@@ -300,6 +300,45 @@ if command -v dnf >/dev/null 2>&1; then
     sudo dnf install -y ncurses-devel || echo -e "${YELLOW}Could not explicitly install ncurses-devel with dnf.${NC}"
 fi
 
+# Install systemd development headers (needed for github.com/coreos/go-systemd/v22/sdjournal)
+echo -e "${BOLD}[3.b] Installing systemd-devel (sd-journal headers)...${NC}"
+if command -v dnf >/dev/null 2>&1; then
+    if sudo_run dnf install -y systemd-devel; then
+        echo -e "${YELLOW}✓ systemd-devel installed.${NC}"
+    else
+        echo -e "${YELLOW}Could not install systemd-devel with dnf. Please install manually.${NC}"
+    fi
+else
+    echo -e "${YELLOW}dnf not found; skipping installation of systemd-devel.${NC}"
+fi
+
+
+# GoAccess dependency: libmaxminddb (GeoIP2)
+echo -e "${BOLD}[3.c] Installing libmaxminddb development files (GoAccess GeoIP2)...${NC}"
+if command -v dnf >/dev/null 2>&1; then
+    # pkg-config is often needed for ./configure to detect the library
+    if sudo_run dnf install -y libmaxminddb libmaxminddb-devel pkgconf-pkg-config; then
+        echo -e "${YELLOW}✓ libmaxminddb + libmaxminddb-devel installed.${NC}"
+    else
+        echo -e "${YELLOW}Could not install libmaxminddb-devel with dnf. Please install manually.${NC}"
+    fi
+else
+    echo -e "${YELLOW}dnf not found; skipping installation of libmaxminddb-devel.${NC}"
+fi
+
+# GoAccess dependency: ncursesw (wide-char ncurses)
+echo -e "${BOLD}[3.d] Installing ncursesw development libraries (GoAccess)...${NC}"
+if command -v dnf >/dev/null 2>&1; then
+    # Fedora provides ncursesw via ncurses-devel (includes wide-char libs/headers)
+    if sudo_run dnf install -y ncurses-devel; then
+        echo -e "${YELLOW}✓ ncurses-devel installed (ncursesw).${NC}"
+    else
+        echo -e "${YELLOW}Could not install ncurses-devel with dnf. Please install manually.${NC}"
+    fi
+else
+    echo -e "${YELLOW}dnf not found; skipping installation of ncurses-devel.${NC}"
+fi
+
 
 echo -e "${BOLD}[4/4] Updating iptables rules and Permissions...${NC}"
 echo ""

@@ -52,6 +52,23 @@ func setupFrontendContainer() error {
 		return fmt.Errorf("unzip: %w", err)
 	}
 
+	// Check if extraction created a nested subdirectory and unwrap it
+	entries, err := os.ReadDir(extractDir)
+	if err != nil {
+		return fmt.Errorf("read extractDir: %w", err)
+	}
+	if len(entries) == 1 && entries[0].IsDir() {
+		nestedDir := filepath.Join(extractDir, entries[0].Name())
+		tempDir := filepath.Join(tempWorkDir, "temp-extract")
+		if err := os.Rename(nestedDir, tempDir); err != nil {
+			return fmt.Errorf("unwrap nested directory: %w", err)
+		}
+		if err := os.RemoveAll(extractDir); err != nil {
+			return fmt.Errorf("remove extractDir: %w", err)
+		}
+		extractDir = tempDir
+	}
+
 	// Atomically replace the published frontend directory
 	// Remove old frontend dir only after successful extraction
 	if err := os.RemoveAll(frontendDir); err != nil && !os.IsNotExist(err) {
