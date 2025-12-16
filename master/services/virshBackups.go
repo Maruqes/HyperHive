@@ -211,6 +211,29 @@ func (v *VirshService) BackupVM(ctx context.Context, vmName string, nfsID int, a
 		return err
 	}
 
+	if nfsShare.Target == "" {
+		err := fmt.Errorf("NFS share %d has an empty target path", nfsID)
+		sendImportantNotification("BackupVM: empty NFS target", err)
+		return err
+	}
+
+	// ensure the target exists and is a directory to avoid mkdir errors when a file occupies the path
+	info, statErr := os.Stat(nfsShare.Target)
+	if os.IsNotExist(statErr) {
+		err := fmt.Errorf("NFS target %s does not exist", nfsShare.Target)
+		sendImportantNotification("BackupVM: NFS target missing", err)
+		return err
+	}
+	if statErr != nil {
+		sendImportantNotification("BackupVM: NFS target stat failed", statErr)
+		return fmt.Errorf("failed to stat NFS target %s: %v", nfsShare.Target, statErr)
+	}
+	if !info.IsDir() {
+		err := fmt.Errorf("NFS target %s is not a directory", nfsShare.Target)
+		sendImportantNotification("BackupVM: NFS target is file", err)
+		return err
+	}
+
 	// nfsShare.Target + "/backUpFolder" + uuid.string
 	//generate uuid
 	bakUUID := uuid.New()
