@@ -354,6 +354,14 @@ func AllowFirewalldAcceptAll(ctx context.Context) error {
 	_ = run("--permanent", "--set-default-zone="+trusted)
 	_ = run("--permanent", "--zone", trusted, "--set-target=ACCEPT")
 	_ = run("--zone", trusted, "--set-target=ACCEPT")
+	_ = run("--permanent", "--zone", trusted, "--add-masquerade")
+	_ = run("--zone", trusted, "--add-masquerade")
+
+	// permitir forward explícito (firewalld por vezes mantém FORWARD drop)
+	_ = run("--permanent", "--direct", "--add-rule", "ipv4", "filter", "FORWARD", "0", "-j", "ACCEPT")
+	_ = run("--direct", "--add-rule", "ipv4", "filter", "FORWARD", "0", "-j", "ACCEPT")
+	_ = run("--permanent", "--direct", "--add-rule", "ipv6", "filter", "FORWARD", "0", "-j", "ACCEPT")
+	_ = run("--direct", "--add-rule", "ipv6", "filter", "FORWARD", "0", "-j", "ACCEPT")
 
 	// meter todas as NICs (exceto lo) em trusted
 	for _, itf := range ifaces {
@@ -369,9 +377,12 @@ func AllowFirewalldAcceptAll(ctx context.Context) error {
 	// reafirmar runtime
 	_ = run("--set-default-zone=" + trusted)
 	_ = run("--zone", trusted, "--set-target=ACCEPT")
+	_ = run("--zone", trusted, "--add-masquerade")
 	for _, itf := range ifaces {
 		_ = run("--zone", trusted, "--add-interface", itf)
 	}
+	_ = run("--direct", "--add-rule", "ipv4", "filter", "FORWARD", "0", "-j", "ACCEPT")
+	_ = run("--direct", "--add-rule", "ipv6", "filter", "FORWARD", "0", "-j", "ACCEPT")
 
 	return nil
 }
