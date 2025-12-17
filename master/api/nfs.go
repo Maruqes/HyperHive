@@ -5,6 +5,7 @@ import (
 	"512SvMan/services"
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	proto "github.com/Maruqes/512SvMan/api/proto/nfs"
 	"github.com/Maruqes/512SvMan/logger"
@@ -106,6 +107,29 @@ func deleteShare(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func remountShare(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	if idStr == "" {
+		http.Error(w, "id is required", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	nfsService := services.NFSService{}
+	if err := nfsService.RemountShareByID(r.Context(), id); err != nil {
+		logger.Errorf("RemountShareByID failed: %v", err)
+		http.Error(w, "failed to remount share: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func listPathContents(w http.ResponseWriter, r *http.Request) {
 	machine := chi.URLParam(r, "machine")
 
@@ -142,6 +166,7 @@ func setupNFSAPI(r chi.Router) chi.Router {
 		r.Get("/list", listShares)
 		r.Post("/create", createShare)
 		r.Delete("/delete", deleteShare)
+		r.Post("/remount/{id}", remountShare)
 		r.Post("/contents/{machine}", listPathContents)
 	})
 }

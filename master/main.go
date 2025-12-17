@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	_ "net/http/pprof"
 	"os"
 	"os/exec"
@@ -109,14 +108,6 @@ func ensureIPForwarding() error {
 		return fmt.Errorf("enable ipv4 forwarding: %w", err)
 	}
 	return nil
-}
-
-func wireguardNetworkCIDR() (string, error) {
-	_, network, err := net.ParseCIDR(wireguard.ServerCIDRValue())
-	if err != nil {
-		return "", fmt.Errorf("parse wireguard network: %w", err)
-	}
-	return network.String(), nil
 }
 
 func downloadNoVNC() error {
@@ -395,6 +386,8 @@ func main() {
 	virshService := services.VirshService{}
 	smartDiskService := services.SmartDiskService{}
 	SpaService := services.SPAService{}
+	nfsService := services.NFSService{}
+	go nfsService.MaintainNFS()
 
 	virshService.LoopAutomaticBaks(context.Background())
 	smartDiskService.DoAutomaticTest()

@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"os"
 	"strings"
+	"time"
 
 	proto "github.com/Maruqes/512SvMan/api/proto/nfs"
 	"github.com/Maruqes/512SvMan/logger"
@@ -408,13 +409,22 @@ func (s *NFSService) SyncSharedFolder(ctx context.Context) error {
 	return nil
 }
 
-func (s *NFSService) MountAllSharedFolders() error {
+func (s *NFSService) MountAllSharedFolders(folders ...db.NFSShare) error {
 	conns := protocol.GetAllGRPCConnections()
 	machineNames := protocol.GetAllMachineNames()
 
-	serversNFS, err := nfs.GetAllSharedFolders()
-	if err != nil {
-		return err
+	var (
+		serversNFS []db.NFSShare
+		err        error
+	)
+
+	if len(folders) == 0 {
+		serversNFS, err = nfs.GetAllSharedFolders()
+		if err != nil {
+			return err
+		}
+	} else {
+		serversNFS = folders
 	}
 
 	if len(conns) != len(machineNames) {
@@ -583,20 +593,34 @@ func (s *NFSService) CanFindFileOrDirOnAllSlaves(path string) (map[string]bool, 
 }
 
 // uses "sync" command so nfs fushes all dirty tables
-func (s *NFSService) SyncNFSAllSlaves() error {
+func (s *NFSService) SyncNFSAllSlaves(machineNames ...string) error {
 	var errRet string
-	conns := protocol.GetAllGRPCConnections()
-	for i, con := range conns {
-		if con == nil {
-			continue
+
+	if len(machineNames) == 0 {
+		conns := protocol.GetAllGRPCConnections()
+		for i, con := range conns {
+			if con == nil {
+				continue
+			}
+			if err := nfs.Sync(con); err != nil {
+				errRet += fmt.Sprintf("err %d: %s\n", i, err.Error())
+			}
 		}
-		err := nfs.Sync(con)
-		if err != nil {
-			errRet += fmt.Sprintf("err %d: %s\n", i, err.Error())
+	} else {
+		for _, machineName := range machineNames {
+			conn := protocol.GetConnectionByMachineName(machineName)
+			if conn == nil || conn.Connection == nil {
+				errRet += fmt.Sprintf("machine %s: connection unavailable\n", machineName)
+				continue
+			}
+			if err := nfs.Sync(conn.Connection); err != nil {
+				errRet += fmt.Sprintf("machine %s: %s\n", machineName, err.Error())
+			}
 		}
 	}
+
 	if errRet != "" {
-		return fmt.Errorf("%s", errRet)
+		return fmt.Errorf("%s", strings.TrimSpace(errRet))
 	}
 	return nil
 }
@@ -611,5 +635,75 @@ func (s *NFSService) SyncNFSSlavesByMachineName(machineName string) error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (s *NFSService) MaintainNFS() {
+
+	for {
+		time.Sleep(2 * time.Minute)
+
+		folders, err := s.GetAllSharedFolders()
+		if err != nil {
+			logger.Error(err.Error())
+			continue
+		}
+
+		for _, folder := range folders {
+			conn := protocol.GetConnectionByMachineName(folder.MachineName)
+			if conn == nil || conn.Connection == nil {
+				logger.Warn("cannot maintain NFS share, slave not connected:", folder.MachineName)
+				continue
+			}
+
+			status, err := s.GetSharedFolderStatus(&proto.FolderMount{
+				MachineName:     folder.MachineName,
+				FolderPath:      folder.FolderPath,
+				Source:          folder.Source,
+				Target:          folder.Target,
+				HostNormalMount: folder.HostNormalMount,
+			})
+			if err != nil {
+				logger.Error(err.Error())
+				continue
+			}
+
+			if status.Working {
+				continue
+			}
+
+			if err := s.SyncNFSAllSlaves(folder.MachineName); err != nil {
+				logger.Errorf("SyncNFSAllSlaves failed while maintaining NFS for %s: %v", folder.MachineName, err)
+			}
+
+			if err := s.MountAllSharedFolders(folder); err != nil {
+				logger.Errorf("MountAllSharedFolders failed while maintaining NFS for %s: %v", folder.MachineName, err)
+			}
+		}
+	}
+}
+
+func (s *NFSService) RemountShareByID(ctx context.Context, id int) error {
+	share, err := db.GetNFSShareByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to get NFS share by id %d: %w", id, err)
+	}
+	if share == nil {
+		return fmt.Errorf("nfs share with id %d not found", id)
+	}
+
+	conn := protocol.GetConnectionByMachineName(share.MachineName)
+	if conn == nil || conn.Connection == nil {
+		return fmt.Errorf("cannot remount NFS share, slave %s not connected", share.MachineName)
+	}
+
+	if err := s.SyncNFSAllSlaves(share.MachineName); err != nil {
+		return fmt.Errorf("failed to sync NFS on %s: %w", share.MachineName, err)
+	}
+
+	if err := s.MountAllSharedFolders(*share); err != nil {
+		return fmt.Errorf("failed to remount share %d: %w", id, err)
+	}
+
 	return nil
 }

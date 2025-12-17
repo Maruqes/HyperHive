@@ -36,6 +36,7 @@ type FolderMount struct {
 const (
 	monitorInterval         = 5 * time.Second
 	monitorFailureThreshold = 3
+	mountRetryDelay         = 2 * time.Minute
 	exportsDir              = "/etc/exports.d"
 	exportsFile             = "/etc/exports.d/512svman.exports"
 )
@@ -82,6 +83,90 @@ var (
 var CurrentMounts = []FolderMount{}
 var CurrentMountsLock = &sync.RWMutex{}
 var setfaclWarnOnce sync.Once
+var (
+	retryStateMu = &sync.Mutex{}
+	retryStates  = make(map[string]*mountRetryState)
+	nfsOptsOnce  sync.Once
+	nfsOpts      []string
+)
+
+type mountRetryState struct {
+	attempts int
+	timer    *time.Timer
+}
+
+func trackMount(folder FolderMount) {
+	target := strings.TrimSpace(folder.Target)
+	if target == "" {
+		return
+	}
+	CurrentMountsLock.Lock()
+	defer CurrentMountsLock.Unlock()
+	for _, m := range CurrentMounts {
+		if m.Target == target {
+			return
+		}
+	}
+	CurrentMounts = append(CurrentMounts, folder)
+}
+
+func untrackMount(target string) {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return
+	}
+	CurrentMountsLock.Lock()
+	defer CurrentMountsLock.Unlock()
+	for i, m := range CurrentMounts {
+		if m.Target == target {
+			CurrentMounts = append(CurrentMounts[:i], CurrentMounts[i+1:]...)
+			return
+		}
+	}
+}
+
+func cancelMountRetry(target string) {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return
+	}
+	retryStateMu.Lock()
+	if st, ok := retryStates[target]; ok {
+		if st.timer != nil {
+			st.timer.Stop()
+		}
+		delete(retryStates, target)
+	}
+	retryStateMu.Unlock()
+}
+
+func effectiveNFSMountOptions() []string {
+	nfsOptsOnce.Do(func() {
+		for _, opt := range nfsMountOptions {
+			if opt == "fsc" && !isFscSupported() {
+				logger.Warn("Disabling fsc mount option: cachefiles not available")
+				continue
+			}
+			nfsOpts = append(nfsOpts, opt)
+		}
+	})
+	return append([]string(nil), nfsOpts...)
+}
+
+func isFscSupported() bool {
+	if _, err := os.Stat("/sys/module/cachefiles"); err == nil {
+		return true
+	}
+	if !commandExists("modprobe") {
+		return false
+	}
+	cmd := exec.Command("sudo", "modprobe", "cachefiles")
+	if err := cmd.Run(); err != nil {
+		logger.Warn("cachefiles module not available, skipping fsc", err)
+		return false
+	}
+	return true
+}
 
 func ensureExportsLocation() error {
 	if _, err := os.Stat(exportsDir); err != nil {
@@ -147,18 +232,19 @@ func MonitorMounts() {
 			if !isMounted(mount.Target) {
 				logger.Warn("NFS mount lost, attempting to remount:", mount.Target)
 				success := false
+				var lastErr error
 
 				for attempt := 1; attempt <= monitorFailureThreshold; attempt++ {
 					logger.Info("Remount attempt", "attempt", attempt, "of", monitorFailureThreshold, "target", mount.Target)
 
-					err := MountSharedFolder(mount)
-					if err == nil {
+					lastErr = mountSharedFolderOnce(mount)
+					if lastErr == nil {
 						success = true
 						logger.Info("Successfully remounted NFS share on attempt", attempt, ":", mount.Target)
 						break
 					}
 
-					logger.Warn("Remount attempt failed:", "attempt", attempt, "target", mount.Target, "error", err)
+					logger.Warn("Remount attempt failed:", "attempt", attempt, "target", mount.Target, "error", lastErr)
 
 					// Don't sleep after last attempt
 					if attempt < monitorFailureThreshold {
@@ -167,21 +253,70 @@ func MonitorMounts() {
 				}
 
 				if !success {
-					logger.Error("Failed to remount NFS share after", monitorFailureThreshold, "attempts:", mount.Target)
-					// Remove from CurrentMounts to avoid constant retry spam
-					CurrentMountsLock.Lock()
-					for i, m := range CurrentMounts {
-						if m.Target == mount.Target {
-							CurrentMounts = append(CurrentMounts[:i], CurrentMounts[i+1:]...)
-							logger.Warn("Removed failed mount from tracking:", mount.Target)
-							break
-						}
-					}
-					CurrentMountsLock.Unlock()
+					logger.Errorf("Failed to remount NFS share after %d attempts: %s (last error: %v)", monitorFailureThreshold, mount.Target, lastErr)
+					scheduleMountRetry(mount, lastErr, "monitor remount failed")
+					// Remove from CurrentMounts to avoid constant retry spam until the backoff kicks in
+					untrackMount(mount.Target)
 				}
 			}
 		}
 	}
+}
+
+// scheduleMountRetry backs off failed mounts to avoid busy loops and keep trying until success.
+func scheduleMountRetry(folder FolderMount, err error, reason string) {
+	target := strings.TrimSpace(folder.Target)
+	if target == "" {
+		logger.Errorf("Cannot schedule mount retry without target for source %s: %v", strings.TrimSpace(folder.Source), err)
+		return
+	}
+
+	retryStateMu.Lock()
+	if _, exists := retryStates[target]; exists {
+		retryStateMu.Unlock()
+		logger.Warn("Mount retry already scheduled", "target", target, "reason", reason)
+		return
+	}
+
+	state := &mountRetryState{}
+	retryStates[target] = state
+	state.timer = time.AfterFunc(mountRetryDelay, func() {
+		runMountRetry(folder, target)
+	})
+	retryStateMu.Unlock()
+
+	logger.Warn("Scheduled mount retry", "target", target, "source", folder.Source, "delay", mountRetryDelay.String(), "reason", reason, "error", err)
+}
+
+func runMountRetry(folder FolderMount, target string) {
+	retryStateMu.Lock()
+	state, ok := retryStates[target]
+	if !ok {
+		retryStateMu.Unlock()
+		logger.Warn("Mount retry state missing, skipping retry", "target", target)
+		return
+	}
+	state.attempts++
+	attempt := state.attempts
+	retryStateMu.Unlock()
+
+	if err := mountSharedFolderOnce(folder); err != nil {
+		logger.Errorf("Mount retry attempt %d failed for %s -> %s: %v", attempt, folder.Source, target, err)
+		retryStateMu.Lock()
+		if st, still := retryStates[target]; still {
+			st.timer = time.AfterFunc(mountRetryDelay, func() {
+				runMountRetry(folder, target)
+			})
+		}
+		retryStateMu.Unlock()
+		return
+	}
+
+	retryStateMu.Lock()
+	delete(retryStates, target)
+	retryStateMu.Unlock()
+
+	logger.Info("Mount retry succeeded", "source", folder.Source, "target", target, "attempts", attempt)
 }
 
 func EnsureClientPrereqs() error {
@@ -712,6 +847,11 @@ func mountLocalFolder(folder FolderMount) error {
 			mp := fields[1]
 			if mp == targetEsc {
 				foundMount = true
+				curSource := strings.ReplaceAll(fields[0], "\\040", " ")
+				if curSource != source {
+					needsRemount = true
+					logger.Warn("Local mount target already mounted with different source", "target", target, "current", curSource, "expected", source)
+				}
 				cur := "," + fields[3] + ","
 				// Check against expected localMountOpts
 				for _, opt := range localMountOpts {
@@ -732,19 +872,8 @@ func mountLocalFolder(folder FolderMount) error {
 
 		if !needsRemount {
 			logger.Info("Local folder already mounted with correct options:", source, "->", target)
-			// Ensure it's in CurrentMounts (idempotent)
-			CurrentMountsLock.Lock()
-			alreadyTracked := false
-			for _, m := range CurrentMounts {
-				if m.Target == target {
-					alreadyTracked = true
-					break
-				}
-			}
-			if !alreadyTracked {
-				CurrentMounts = append(CurrentMounts, folder)
-			}
-			CurrentMountsLock.Unlock()
+			trackMount(folder)
+			cancelMountRetry(target)
 			return nil
 		}
 
@@ -753,18 +882,8 @@ func mountLocalFolder(folder FolderMount) error {
 			return fmt.Errorf("failed to remount local folder: %w", err)
 		}
 		// Update CurrentMounts after successful remount
-		CurrentMountsLock.Lock()
-		alreadyTracked := false
-		for _, m := range CurrentMounts {
-			if m.Target == target {
-				alreadyTracked = true
-				break
-			}
-		}
-		if !alreadyTracked {
-			CurrentMounts = append(CurrentMounts, folder)
-		}
-		CurrentMountsLock.Unlock()
+		trackMount(folder)
+		cancelMountRetry(target)
 		return nil
 	}
 
@@ -774,24 +893,27 @@ func mountLocalFolder(folder FolderMount) error {
 	}
 
 	// Only add to CurrentMounts after successful mount
-	CurrentMountsLock.Lock()
-	alreadyTracked := false
-	for _, m := range CurrentMounts {
-		if m.Target == target {
-			alreadyTracked = true
-			break
-		}
-	}
-	if !alreadyTracked {
-		CurrentMounts = append(CurrentMounts, folder)
-	}
-	CurrentMountsLock.Unlock()
+	trackMount(folder)
+	cancelMountRetry(target)
 
 	logger.Info("Local folder mounted successfully with optimizations:", source, "->", target)
 	return nil
 }
 
+// MountSharedFolder wraps the actual mount logic with retry scheduling.
 func MountSharedFolder(folder FolderMount) error {
+	err := mountSharedFolderOnce(folder)
+	if err != nil {
+		logger.Errorf("MountSharedFolder failed for %s -> %s: %v", strings.TrimSpace(folder.Source), strings.TrimSpace(folder.Target), err)
+		if strings.TrimSpace(folder.Source) != "" && strings.TrimSpace(folder.Target) != "" {
+			scheduleMountRetry(folder, err, "initial mount failed")
+		}
+		return err
+	}
+	return nil
+}
+
+func mountSharedFolderOnce(folder FolderMount) error {
 	// Validate and trim inputs first
 	source := strings.TrimSpace(folder.Source)
 	target := strings.TrimSpace(folder.Target)
@@ -813,7 +935,7 @@ func MountSharedFolder(folder FolderMount) error {
 		}
 	}
 
-	opts := append([]string(nil), nfsMountOptions...)
+	opts := effectiveNFSMountOptions()
 
 	// Ensure mount point exists BEFORE checking if it's mounted
 	if err := IsSafePath(target); err != nil {
@@ -867,9 +989,14 @@ func MountSharedFolder(folder FolderMount) error {
 			fsType := fields[2]
 			if mp == targetEsc && strings.HasPrefix(fsType, "nfs") {
 				foundMount = true
+				curSource := strings.ReplaceAll(fields[0], "\\040", " ")
+				if curSource != source {
+					needsRemount = true
+					logger.Warn("NFS target already mounted with different source", "target", target, "current", curSource, "expected", source)
+				}
 				cur := "," + fields[3] + ","
 				// Check against expected nfsMountOptions
-				for _, opt := range nfsMountOptions {
+				for _, opt := range opts {
 					// Handle options with values (e.g., "rsize=1048576")
 					if strings.Contains(opt, "=") {
 						optKey := strings.Split(opt, "=")[0]
@@ -899,19 +1026,8 @@ func MountSharedFolder(folder FolderMount) error {
 
 		if !needsRemount {
 			logger.Info("NFS share already mounted with correct options:", source, "->", target)
-			// Ensure it's in CurrentMounts (idempotent)
-			CurrentMountsLock.Lock()
-			alreadyTracked := false
-			for _, m := range CurrentMounts {
-				if m.Target == target {
-					alreadyTracked = true
-					break
-				}
-			}
-			if !alreadyTracked {
-				CurrentMounts = append(CurrentMounts, folder)
-			}
-			CurrentMountsLock.Unlock()
+			trackMount(folder)
+			cancelMountRetry(target)
 			return nil
 		}
 
@@ -920,18 +1036,8 @@ func MountSharedFolder(folder FolderMount) error {
 			return fmt.Errorf("failed to remount NFS share: %w", err)
 		}
 		// Update CurrentMounts after successful remount
-		CurrentMountsLock.Lock()
-		alreadyTracked := false
-		for _, m := range CurrentMounts {
-			if m.Target == target {
-				alreadyTracked = true
-				break
-			}
-		}
-		if !alreadyTracked {
-			CurrentMounts = append(CurrentMounts, folder)
-		}
-		CurrentMountsLock.Unlock()
+		trackMount(folder)
+		cancelMountRetry(target)
 		return nil
 	}
 
@@ -941,18 +1047,8 @@ func MountSharedFolder(folder FolderMount) error {
 	}
 
 	// Only add to CurrentMounts after successful mount
-	CurrentMountsLock.Lock()
-	alreadyTracked := false
-	for _, m := range CurrentMounts {
-		if m.Target == target {
-			alreadyTracked = true
-			break
-		}
-	}
-	if !alreadyTracked {
-		CurrentMounts = append(CurrentMounts, folder)
-	}
-	CurrentMountsLock.Unlock()
+	trackMount(folder)
+	cancelMountRetry(target)
 
 	logger.Info("NFS share mounted successfully:", source, "->", target)
 	return nil
@@ -966,14 +1062,7 @@ func UnmountSharedFolder(folder FolderMount) error {
 
 	// If already not mounted, just cleanup state.
 	if !isMounted(target) {
-		CurrentMountsLock.Lock()
-		for i, m := range CurrentMounts {
-			if m.Target == target {
-				CurrentMounts = append(CurrentMounts[:i], CurrentMounts[i+1:]...)
-				break
-			}
-		}
-		CurrentMountsLock.Unlock()
+		untrackMount(target)
 		logger.Info("NFS share already unmounted: " + target)
 		return nil
 	}
@@ -997,14 +1086,8 @@ func UnmountSharedFolder(folder FolderMount) error {
 
 	logger.Info("NFS share unmounted: " + target)
 
-	CurrentMountsLock.Lock()
-	for i, m := range CurrentMounts {
-		if m.Target == target {
-			CurrentMounts = append(CurrentMounts[:i], CurrentMounts[i+1:]...)
-			break
-		}
-	}
-	CurrentMountsLock.Unlock()
+	untrackMount(target)
+	cancelMountRetry(target)
 
 	//delete target folder if it can be deleted
 	_ = os.Remove(folder.Target)
@@ -1023,12 +1106,12 @@ func runCommand(desc string, args ...string) error {
 	if err := cmd.Run(); err != nil {
 		stdoutStr := strings.TrimSpace(stdoutBuf.String())
 		stderrStr := strings.TrimSpace(stderrBuf.String())
-		logger.Error(desc + " failed: " + err.Error())
+		logger.Errorf("%s failed: %v", desc, err)
 		if stderrStr != "" {
-			logger.Error(desc + " stderr: " + stderrStr)
+			logger.Errorf("%s stderr: %s", desc, stderrStr)
 		}
 		if stdoutStr != "" {
-			logger.Error(desc + " stdout: " + stdoutStr)
+			logger.Errorf("%s stdout: %s", desc, stdoutStr)
 		}
 
 		var details []string
