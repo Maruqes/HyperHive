@@ -204,6 +204,98 @@ func doesInterfaceExists() (bool, error) {
 	return true, nil
 }
 
+func defaultOutboundInterface() (string, error) {
+	cmd := exec.Command("ip", "route", "show", "default")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("ip route show default: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+
+	for _, line := range strings.Split(string(output), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		for i := 0; i < len(fields)-1; i++ {
+			if fields[i] == "dev" {
+				dev := fields[i+1]
+				if dev != "" {
+					return dev, nil
+				}
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no default route found in: %s", strings.TrimSpace(string(output)))
+}
+
+func iptablesRuleExists(table string, rule []string) (bool, error) {
+	args := []string{"-w"}
+	if table != "" {
+		args = append(args, "-t", table)
+	}
+	args = append(args, "-C")
+	args = append(args, rule...)
+
+	cmd := exec.Command("iptables", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+			return false, nil
+		}
+		return false, fmt.Errorf("iptables %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(output)))
+	}
+
+	return true, nil
+}
+
+func ensureIptablesRule(table, chain string, args ...string) error {
+	rule := append([]string{chain}, args...)
+	exists, err := iptablesRuleExists(table, rule)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+
+	cmdArgs := []string{"iptables", "-w"}
+	if table != "" {
+		cmdArgs = append(cmdArgs, "-t", table)
+	}
+	cmdArgs = append(cmdArgs, "-A")
+	cmdArgs = append(cmdArgs, rule...)
+
+	desc := fmt.Sprintf("iptables add %s", strings.Join(cmdArgs[2:], " "))
+	return runCommand(desc, cmdArgs...)
+}
+
+func ensureMasqueradeRules(externalIface string) error {
+	externalIface = strings.TrimSpace(externalIface)
+	if externalIface == "" {
+		return fmt.Errorf("external interface is required for masquerade rules")
+	}
+
+	rules := []struct {
+		table string
+		chain string
+		args  []string
+	}{
+		{table: "nat", chain: "POSTROUTING", args: []string{"-o", externalIface, "-j", "MASQUERADE"}},
+		{table: "", chain: "FORWARD", args: []string{"-i", iface, "-o", externalIface, "-j", "ACCEPT"}},
+		{table: "", chain: "FORWARD", args: []string{"-i", externalIface, "-o", iface, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT"}},
+	}
+
+	for _, rule := range rules {
+		if err := ensureIptablesRule(rule.table, rule.chain, rule.args...); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func buildClientConfig(clientPriv wgtypes.Key, clientIPCIDR, endpoint string, keepaliveSec int) (string, error) {
 	if keepaliveSec <= 0 {
 		keepaliveSec = 25
@@ -409,6 +501,14 @@ func SetupInterface() error {
 func AutoStartVPN(ctx context.Context) error {
 	if err := SetupInterface(); err != nil {
 		return err
+	}
+
+	outIface, err := defaultOutboundInterface()
+	if err != nil {
+		return fmt.Errorf("detect outbound interface: %w", err)
+	}
+	if err := ensureMasqueradeRules(outIface); err != nil {
+		return fmt.Errorf("configure iptables for %s -> %s: %w", iface, outIface, err)
 	}
 
 	peers, err := db.GetAllWireguardPeers(ctx)
