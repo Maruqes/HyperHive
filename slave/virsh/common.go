@@ -1190,24 +1190,21 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 	return vms, allWarnings, nil
 }
 
-func EditVm(name string, newCPU, newMemMiB int, newDiskSizeGB ...int) error {
+func EditVm(name string, newCPU, newMemMiB int, newDiskSizeGB int) error {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return fmt.Errorf("vm name is empty")
 	}
-	if newCPU <= 0 {
-		return fmt.Errorf("newCPU must be greater than zero")
+	if newCPU < 0 {
+		return fmt.Errorf("newCPU must be non-negative")
 	}
-	if newMemMiB <= 0 {
-		return fmt.Errorf("newMemMiB must be greater than zero")
+	if newMemMiB < 0 {
+		return fmt.Errorf("newMemMiB must be non-negative")
 	}
 
-	var targetDiskGB int
-	if len(newDiskSizeGB) > 0 {
-		targetDiskGB = newDiskSizeGB[0]
-		if targetDiskGB < 0 {
-			return fmt.Errorf("newDiskSizeGB must be non-negative")
-		}
+	targetDiskGB := newDiskSizeGB
+	if targetDiskGB < 0 {
+		return fmt.Errorf("newDiskSizeGB must be non-negative")
 	}
 
 	conn, err := libvirt.NewConnect("qemu:///system")
@@ -1216,23 +1213,16 @@ func EditVm(name string, newCPU, newMemMiB int, newDiskSizeGB ...int) error {
 	}
 	defer conn.Close()
 
-	nodeInfo, err := conn.GetNodeInfo()
-	if err != nil {
-		return fmt.Errorf("node info: %w", err)
-	}
-	hostMemMiB := nodeInfo.Memory / 1024
-	if hostMemMiB == 0 {
-		return fmt.Errorf("host reported zero memory")
-	}
-	if uint64(newMemMiB) > hostMemMiB {
-		return fmt.Errorf("requested memory %d MiB exceeds host capacity %d MiB", newMemMiB, hostMemMiB)
-	}
-
 	dom, err := conn.LookupDomainByName(name)
 	if err != nil {
 		return fmt.Errorf("lookup: %w", err)
 	}
 	defer dom.Free()
+
+	xmlDesc, err := dom.GetXMLDesc(libvirt.DOMAIN_XML_INACTIVE)
+	if err != nil {
+		return fmt.Errorf("get xml: %w", err)
+	}
 
 	state, _, err := dom.GetState()
 	if err != nil {
@@ -1243,12 +1233,40 @@ func EditVm(name string, newCPU, newMemMiB int, newDiskSizeGB ...int) error {
 		return fmt.Errorf("vm %s must be shut off before editing (state %s)", name, stateLabel)
 	}
 
-	xmlDesc, err := dom.GetXMLDesc(libvirt.DOMAIN_XML_INACTIVE)
-	if err != nil {
-		return fmt.Errorf("get xml: %w", err)
+	effectiveCPU := newCPU
+	effectiveMemMiB := newMemMiB
+	if effectiveCPU <= 0 || effectiveMemMiB <= 0 {
+		definedCPU, definedMemMB, err := definedResourcesFromDomainXML(xmlDesc)
+		if err != nil {
+			return fmt.Errorf("resolve existing resources: %w", err)
+		}
+		if effectiveCPU <= 0 {
+			if definedCPU <= 0 {
+				return fmt.Errorf("current cpu count not found in domain xml")
+			}
+			effectiveCPU = int(definedCPU)
+		}
+		if effectiveMemMiB <= 0 {
+			if definedMemMB <= 0 {
+				return fmt.Errorf("current memory size not found in domain xml")
+			}
+			effectiveMemMiB = int(definedMemMB)
+		}
 	}
 
-	updatedXML, err := mutateDomainXMLResources(xmlDesc, newCPU, newMemMiB)
+	nodeInfo, err := conn.GetNodeInfo()
+	if err != nil {
+		return fmt.Errorf("node info: %w", err)
+	}
+	hostMemMiB := nodeInfo.Memory / 1024
+	if hostMemMiB == 0 {
+		return fmt.Errorf("host reported zero memory")
+	}
+	if uint64(effectiveMemMiB) > hostMemMiB {
+		return fmt.Errorf("requested memory %d MiB exceeds host capacity %d MiB", effectiveMemMiB, hostMemMiB)
+	}
+
+	updatedXML, err := mutateDomainXMLResources(xmlDesc, effectiveCPU, effectiveMemMiB)
 	if err != nil {
 		return err
 	}
