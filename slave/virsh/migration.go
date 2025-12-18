@@ -77,11 +77,12 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 	if len(sshOpts) > 0 {
 		_ = os.Setenv("LIBVIRT_SSH_OPTS", strings.Join(sshOpts, " "))
 	}
+	identifier := fmt.Sprintf("%s-%d", name, time.Now().Unix())
 
 	logger.Info("Starting libvirt migration (API) from %s to %s for %s", connURI, destURI, name)
 
 	// notify migration start (websocket + push)
-	extra.SendWebsocketMessage("migration started", name, extraGrpc.WebSocketsMessageType_MigrateVm)
+	extra.SendWebsocketMessage("migration started", identifier, extraGrpc.WebSocketsMessageType_MigrateVm)
 	// notify migration start
 	extra.SendNotifications("VM migration started", fmt.Sprintf("Starting migration of %s to %s", name, destURI), "/", false)
 
@@ -92,7 +93,6 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 	go func() {
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
-		identifier := fmt.Sprintf("%s-%d", name, time.Now().Unix())
 		for {
 			select {
 			case <-progressCtx.Done():
@@ -154,7 +154,7 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 	}
 
 	// success
-	extra.SendWebsocketMessage("migration finished", name, extraGrpc.WebSocketsMessageType_MigrateVm)
+	extra.SendWebsocketMessage("migration finished", identifier, extraGrpc.WebSocketsMessageType_MigrateVm)
 	extra.SendNotifications("VM migration succeeded", fmt.Sprintf("Migration of %s to %s completed successfully", name, destURI), "/", false)
 
 	return nil
