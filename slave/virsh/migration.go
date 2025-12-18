@@ -92,6 +92,7 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 	go func() {
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
+		identifier := fmt.Sprintf("%s-%d", name, time.Now().Unix())
 		for {
 			select {
 			case <-progressCtx.Done():
@@ -117,7 +118,7 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 						pct = 100
 					}
 					msg := fmt.Sprintf("migration progress: %d%%", pct)
-					if err := extra.SendWebsocketMessage(msg, name, extraGrpc.WebSocketsMessageType_MigrateVm); err != nil {
+					if err := extra.SendWebsocketMessage(msg, identifier, extraGrpc.WebSocketsMessageType_MigrateVm); err != nil {
 						logger.Error("SendWebsocketMessage progress: %v", err)
 					}
 				}

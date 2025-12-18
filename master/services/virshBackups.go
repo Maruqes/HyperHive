@@ -63,6 +63,8 @@ func copyFile(origin, dest, vmName string) (err error) {
 	var copied int64
 	buf := make([]byte, 32*1024*1024) // 32MB buffer
 
+	identifier := fmt.Sprintf("%s-%d", vmName, time.Now().Unix())
+
 	for {
 		n, err := input.Read(buf)
 		if n > 0 {
@@ -74,7 +76,7 @@ func copyFile(origin, dest, vmName string) (err error) {
 
 			// Calculate and log progress
 			progress := float64(copied) / float64(totalSize) * 100
-			extra.SendWebsocketMessage(extraGrpc.WebSocketsMessageType_BackUpVM, fmt.Sprintf("Backup progress for %s: %.2f%%", vmName, progress), "")
+			extra.SendWebsocketMessage(extraGrpc.WebSocketsMessageType_BackUpVM, fmt.Sprintf("Backup progress for %s: %.2f%%", vmName, progress), identifier)
 		}
 		if err == io.EOF {
 			break
@@ -83,7 +85,6 @@ func copyFile(origin, dest, vmName string) (err error) {
 			return fmt.Errorf("error reading file: %v", err)
 		}
 	}
-
 	if err := output.Sync(); err != nil {
 		return fmt.Errorf("failed to flush destination file: %v", err)
 	}
