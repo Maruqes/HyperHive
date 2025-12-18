@@ -90,7 +90,7 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 	progressCtx, cancelProgress := context.WithCancel(ctx)
 	defer cancelProgress()
 	doneCmd := make(chan struct{})
-	go func() {
+	go func(ident string) {
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
 		for {
@@ -118,13 +118,14 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 						pct = 100
 					}
 					msg := fmt.Sprintf("migration progress: %d%%", pct)
-					if err := extra.SendWebsocketMessage(msg, identifier, extraGrpc.WebSocketsMessageType_MigrateVm); err != nil {
+					if err := extra.SendWebsocketMessage(msg, ident, extraGrpc.WebSocketsMessageType_MigrateVm); err != nil {
 						logger.Error("SendWebsocketMessage progress: %v", err)
 					}
 				}
 			}
 		}
-	}()
+	}(identifier)
+	
 	flags := libvirt.MIGRATE_PERSIST_DEST | libvirt.MIGRATE_UNDEFINE_SOURCE | libvirt.MIGRATE_PEER2PEER | libvirt.MIGRATE_TUNNELLED | libvirt.MIGRATE_AUTO_CONVERGE | libvirt.MIGRATE_ABORT_ON_ERROR
 	if opts.Live {
 		flags |= libvirt.MIGRATE_LIVE
