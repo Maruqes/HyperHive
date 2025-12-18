@@ -21,6 +21,7 @@ import (
 	"time"
 
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
+	proto "github.com/Maruqes/512SvMan/api/proto/extra"
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 	"github.com/Maruqes/512SvMan/logger"
 	"github.com/google/uuid"
@@ -271,52 +272,64 @@ func (v *VirshService) BackupVM(ctx context.Context, vmName string, nfsID int, a
 		Automatic: automatic,
 	}
 
-	if vm.State != grpcVirsh.VmState_SHUTOFF {
+	actuallyDoBakcup := func() error {
+		if vm.State != grpcVirsh.VmState_SHUTOFF {
 
-		conn := protocol.GetConnectionByMachineName(vm.MachineName)
-		if conn == nil || conn.Connection == nil {
-			err := fmt.Errorf("connection for vm %s is nil (slave %s likely down)", vmName, vm.MachineName)
-			sendImportantNotification("BackupVM: connection missing", err)
-			return err
-		}
-
-		logger.Info("Frezzing")
-		err := virsh.FreezeDisk(conn.Connection, vm)
-		if err != nil {
-			sendImportantNotification("BackupVM: FreezeDisk failed", err)
-			return err
-		}
-
-		defer func() {
-			logger.Info("UnFrezzing")
-			err = virsh.UnFreezeDisk(conn.Connection, vm)
-			if err != nil {
-				logger.Error("Cannot unfreeze machine " + vm.Name)
+			conn := protocol.GetConnectionByMachineName(vm.MachineName)
+			if conn == nil || conn.Connection == nil {
+				err := fmt.Errorf("connection for vm %s is nil (slave %s likely down)", vmName, vm.MachineName)
+				sendImportantNotification("BackupVM: connection missing", err)
+				return err
 			}
-		}()
 
-		logger.Info("Copying")
-		err = copyFile(vm.DiskPath, backup.Path, vmName)
-		if err != nil {
-			sendImportantNotification("BackupVM: copyFile failed", err)
-			return err
+			logger.Info("Frezzing")
+			err := virsh.FreezeDisk(conn.Connection, vm)
+			if err != nil {
+				sendImportantNotification("BackupVM: FreezeDisk failed", err)
+				return err
+			}
+
+			defer func() {
+				logger.Info("UnFrezzing")
+				err = virsh.UnFreezeDisk(conn.Connection, vm)
+				if err != nil {
+					logger.Error("Cannot unfreeze machine " + vm.Name)
+				}
+			}()
+
+			logger.Info("Copying")
+			err = copyFile(vm.DiskPath, backup.Path, vmName)
+			if err != nil {
+				sendImportantNotification("BackupVM: copyFile failed", err)
+				return err
+			}
+
+		} else {
+			err = copyFile(vm.DiskPath, backup.Path, vmName)
+			if err != nil {
+				sendImportantNotification("BackupVM: copyFile failed", err)
+				return err
+			}
 		}
 
-	} else {
-		err = copyFile(vm.DiskPath, backup.Path, vmName)
+		err = db.InsertVirshBackup(ctx, backup)
 		if err != nil {
-			sendImportantNotification("BackupVM: copyFile failed", err)
-			return err
+			sendImportantNotification("BackupVM: InsertVirshBackup failed", err)
+			return fmt.Errorf("problems writing to db backup: %v", err)
 		}
+
+		nots.SendGlobalNotification("Backup successful", fmt.Sprintf("Backup %s created at %s", vmName, backup.Path), "/", false)
+		return nil
 	}
 
-	err = db.InsertVirshBackup(ctx, backup)
-	if err != nil {
-		sendImportantNotification("BackupVM: InsertVirshBackup failed", err)
-		return fmt.Errorf("problems writing to db backup: %v", err)
-	}
+	go func() {
+		err := actuallyDoBakcup()
+		if err != nil {
+			extra.SendWebsocketMessage(proto.WebSocketsMessageType_Error, "Could not backups", vmName)
+			sendImportantNotification("BackupVM: copyFile failed", err)
+		}
+	}()
 
-	nots.SendGlobalNotification("Backup successful", fmt.Sprintf("Backup %s created at %s", vmName, backup.Path), "/", false)
 	return nil
 }
 
@@ -431,26 +444,27 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 	}
 
 	newDiskPath := newFolder + "/" + coldReq.VmName + ".qcow2"
-	err = copyFile(backup.Path, newDiskPath, coldReq.VmName)
-	if err != nil {
-		os.RemoveAll(newFolder)
-		sendImportantNotification("UseBackup: failed to copy backup file", err)
-		return fmt.Errorf("failed to copy backup file: %v", err)
-	}
+	reqCopy := *coldReq
+	reqCopy.DiskPath = newDiskPath
 
-	coldReq.DiskPath = newDiskPath
+	go func() {
+		err := func() error {
+			if err := copyFile(backup.Path, newDiskPath, reqCopy.VmName); err != nil {
+				_ = os.RemoveAll(newFolder)
+				return fmt.Errorf("failed to copy backup file: %w", err)
+			}
 
-	//fazer cold migration
-	err = v.ColdMigrateVm(
-		ctx,
-		slaveName,
-		coldReq,
-	)
+			if err := v.ColdMigrateVm(context.Background(), slaveName, &reqCopy); err != nil {
+				return fmt.Errorf("ColdMigrateVm failed: %w", err)
+			}
 
-	if err != nil {
-		sendImportantNotification("UseBackup: ColdMigrateVm failed", err)
-		return err
-	}
+			return nil
+		}()
+		if err != nil {
+			extra.SendWebsocketMessage(proto.WebSocketsMessageType_Error, fmt.Sprintf("UseBackup failed for %s: %v", reqCopy.VmName, err), reqCopy.VmName)
+			sendImportantNotification("UseBackup failed", err)
+		}
+	}()
 
 	return nil
 }

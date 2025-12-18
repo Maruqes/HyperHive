@@ -3,6 +3,7 @@ package services
 import (
 	"512SvMan/db"
 	"512SvMan/env512"
+	"512SvMan/extra"
 	"512SvMan/nfs"
 	"512SvMan/nots"
 	"512SvMan/protocol"
@@ -18,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	protoExtra "github.com/Maruqes/512SvMan/api/proto/extra"
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -358,6 +360,8 @@ func (v *VirshService) MigrateVm(ctx context.Context, originMachine string, dest
 		err := virsh.MigrateVm(ctxTimeout, originConn.Connection, vmName, destConn.Addr, live, timeoutSeconds)
 		if err != nil {
 			logger.Errorf("%v", err)
+			extra.SendWebsocketMessage(protoExtra.WebSocketsMessageType_Error, fmt.Sprintf("MigrateVm failed for %s: %v", vmName, err), vmName)
+			sendImportantNotification("MigrateVm failed", err)
 		}
 	}()
 
@@ -1063,11 +1067,6 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 	if err != nil {
 		return err
 	}
-	//copy file into it
-	err = copyFile(vm.DiskPath, finalFile, newName)
-	if err != nil {
-		return err
-	}
 
 	coldMigr := grpcVirsh.ColdMigrationRequest{
 		VmName:      newName,
@@ -1088,21 +1087,29 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 		logger.Debug(string(data))
 	}
 
-	//define on newdisk
-	err = v.ColdMigrateVm(
-		ctx,
-		vm.MachineName,
-		&coldMigr,
-	)
-	if err != nil {
-		return err
-	}
+	go func() {
+		taskCtx := context.Background()
+		err := func() error {
+			if err := copyFile(vm.DiskPath, finalFile, newName); err != nil {
+				return fmt.Errorf("copy disk: %w", err)
+			}
 
-	//remove vm
-	err = v.DeleteVM(ctx, vmName)
-	if err != nil {
-		return err
-	}
+			if err := v.ColdMigrateVm(taskCtx, vm.MachineName, &coldMigr); err != nil {
+				return fmt.Errorf("ColdMigrateVm: %w", err)
+			}
+
+			if err := v.DeleteVM(taskCtx, vmName); err != nil {
+				return fmt.Errorf("DeleteVM: %w", err)
+			}
+
+			return nil
+		}()
+
+		if err != nil {
+			extra.SendWebsocketMessage(protoExtra.WebSocketsMessageType_Error, fmt.Sprintf("MoveDisk failed for %s: %v", vmName, err), vmName)
+			sendImportantNotification("MoveDisk failed", err)
+		}
+	}()
 
 	return nil
 }
@@ -1157,20 +1164,24 @@ func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinati
 		logger.Debug(string(data))
 	}
 
-	//define on newdisk
-	err = v.ColdMigrateVm(
-		ctx,
-		destinationMachine,
-		&coldMigr,
-	)
-	if err != nil {
-		return err
-	}
+	go func() {
+		taskCtx := context.Background()
+		err := func() error {
+			if err := v.ColdMigrateVm(taskCtx, destinationMachine, &coldMigr); err != nil {
+				return err
+			}
 
-	err = virsh.UndefineVM(conn.Connection, vm)
-	if err != nil {
-		return err
-	}
+			if err := virsh.UndefineVM(conn.Connection, vm); err != nil {
+				return err
+			}
+			return nil
+		}()
+
+		if err != nil {
+			extra.SendWebsocketMessage(protoExtra.WebSocketsMessageType_Error, fmt.Sprintf("ColdMigrate failed for %s: %v", vmName, err), vmName)
+			sendImportantNotification("ColdMigrate failed", err)
+		}
+	}()
 
 	return nil
 }
@@ -1214,40 +1225,6 @@ func (v *VirshService) CloneVM(ctx context.Context, vmName string, newName strin
 		return err
 	}
 
-	if vm.State != grpcVirsh.VmState_SHUTOFF {
-
-		conn := protocol.GetConnectionByMachineName(vm.MachineName)
-		if conn == nil || conn.Connection == nil {
-			return fmt.Errorf("conn of vm is nill shuld not hapen")
-		}
-
-		logger.Info("Frezzing")
-		err := virsh.FreezeDisk(conn.Connection, vm)
-		if err != nil {
-			return err
-		}
-
-		defer func() {
-			logger.Info("UnFrezzing")
-			err = virsh.UnFreezeDisk(conn.Connection, vm)
-			if err != nil {
-				logger.Error("Cannot unfreeze machine " + vm.Name)
-			}
-		}()
-
-		logger.Info("Copying")
-		err = copyFile(vm.DiskPath, finalFile, vmName)
-		if err != nil {
-			return err
-		}
-
-	} else {
-		err = copyFile(vm.DiskPath, finalFile, vmName)
-		if err != nil {
-			return err
-		}
-	}
-
 	coldMigr := grpcVirsh.ColdMigrationRequest{
 		VmName:      newName,
 		DiskPath:    finalFile,
@@ -1267,14 +1244,48 @@ func (v *VirshService) CloneVM(ctx context.Context, vmName string, newName strin
 		logger.Debug(string(data))
 	}
 
-	//define on newdisk
-	err = v.ColdMigrateVm(
-		ctx,
-		destinationMachine,
-		&coldMigr,
-	)
-	if err != nil {
-		return err
-	}
+	go func() {
+		taskCtx := context.Background()
+		err := func() error {
+			if vm.State != grpcVirsh.VmState_SHUTOFF {
+				conn := protocol.GetConnectionByMachineName(vm.MachineName)
+				if conn == nil || conn.Connection == nil {
+					return fmt.Errorf("conn of vm is nil should not happen")
+				}
+
+				logger.Info("Frezzing")
+				if err := virsh.FreezeDisk(conn.Connection, vm); err != nil {
+					return err
+				}
+
+				defer func() {
+					logger.Info("UnFrezzing")
+					if err := virsh.UnFreezeDisk(conn.Connection, vm); err != nil {
+						logger.Error("Cannot unfreeze machine " + vm.Name)
+					}
+				}()
+
+				logger.Info("Copying")
+				if err := copyFile(vm.DiskPath, finalFile, vmName); err != nil {
+					return err
+				}
+			} else {
+				if err := copyFile(vm.DiskPath, finalFile, vmName); err != nil {
+					return err
+				}
+			}
+
+			if err := v.ColdMigrateVm(taskCtx, destinationMachine, &coldMigr); err != nil {
+				return err
+			}
+			return nil
+		}()
+
+		if err != nil {
+			extra.SendWebsocketMessage(protoExtra.WebSocketsMessageType_Error, fmt.Sprintf("CloneVM failed for %s: %v", newName, err), newName)
+			sendImportantNotification("CloneVM failed", err)
+		}
+	}()
+
 	return nil
 }
