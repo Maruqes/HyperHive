@@ -3,6 +3,7 @@ package services
 import (
 	"512SvMan/btrfs"
 	"512SvMan/db"
+	"512SvMan/nots"
 	"512SvMan/protocol"
 	"context"
 	"fmt"
@@ -273,7 +274,15 @@ func (s *BTRFSService) DefragmentRaid(machineName string, uuid string) error {
 	if conn == nil {
 		return fmt.Errorf("no connection found for machine: %s", machineName)
 	}
-	return btrfs.DefragmentRaid(conn.Connection, &btrfsGrpc.UUIDReq{Uuid: uuid})
+	go func() {
+		err := btrfs.DefragmentRaid(conn.Connection, &btrfsGrpc.UUIDReq{Uuid: uuid})
+		if err != nil {
+			nots.SendGlobalNotification("Defragment Failed", "BTRFS defragment failed for "+uuid, err.Error(), true)
+		} else {
+			nots.SendGlobalNotification("Defragment done", "BTRFS defragment done for "+uuid, "Defragment operation is done", false)
+		}
+	}()
+	return nil
 }
 
 func (s *BTRFSService) ScrubRaid(machineName string, uuid string) error {
@@ -281,7 +290,15 @@ func (s *BTRFSService) ScrubRaid(machineName string, uuid string) error {
 	if conn == nil {
 		return fmt.Errorf("no connection found for machine: %s", machineName)
 	}
-	return btrfs.ScrubRaid(conn.Connection, &btrfsGrpc.UUIDReq{Uuid: uuid})
+	go func() {
+		err := btrfs.ScrubRaid(conn.Connection, &btrfsGrpc.UUIDReq{Uuid: uuid})
+		if err != nil {
+			nots.SendGlobalNotification("Scrub Failed", "BTRFS scrub failed for "+uuid, err.Error(), true)
+		} else {
+			nots.SendGlobalNotification("Scrub done", "BTRFS scrub done for "+uuid, "Scrub operation in done", false)
+		}
+	}()
+	return nil
 }
 
 func (s *BTRFSService) GetRaidStats(machineName string, uuid string) (*btrfsGrpc.RaidStats, error) {
