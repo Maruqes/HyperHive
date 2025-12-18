@@ -325,7 +325,8 @@ func (v *VirshService) BackupVM(ctx context.Context, vmName string, nfsID int, a
 	go func() {
 		err := actuallyDoBakcup()
 		if err != nil {
-			extra.SendWebsocketMessage(proto.WebSocketsMessageType_Error, "Could not backups", vmName)
+			logger.Error(err.Error())
+			extra.SendWebsocketMessage(proto.WebSocketsMessageType_Error, "Could not backups "+err.Error(), vmName)
 			sendImportantNotification("BackupVM: copyFile failed", err)
 		}
 	}()
@@ -379,45 +380,50 @@ func (v *VirshService) DeleteBackup(ctx context.Context, bakId int) error {
 
 // clonar bak para uma nova pasta e defenir
 func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName string, nfsId int, coldReq *grpcVirsh.ColdMigrationRequest) error {
+	logErr := func(e error) error {
+		logger.Error(e.Error())
+		return e
+	}
+
 	originConn := protocol.GetConnectionByMachineName(slaveName)
 	if originConn == nil {
 		err := fmt.Errorf("origin machine %s not found", slaveName)
 		sendImportantNotification("UseBackup: origin machine not found", err)
-		return err
+		return logErr(err)
 	}
 
 	backup, err := db.GetVirshBackupById(ctx, bakID)
 	if err != nil {
 		sendImportantNotification("UseBackup: GetVirshBackupById failed", err)
-		return fmt.Errorf("failed to get backup by ID: %v", err)
+		return logErr(fmt.Errorf("failed to get backup by ID: %v", err))
 	}
 	if backup == nil {
 		err := fmt.Errorf("backup with ID %d not found", bakID)
 		sendImportantNotification("UseBackup: backup not found", err)
-		return err
+		return logErr(err)
 	}
 
 	exists, err := virsh.DoesVMExist(coldReq.VmName)
 	if err != nil {
 		sendImportantNotification("UseBackup: DoesVMExist failed", err)
-		return fmt.Errorf("error checking if VM exists: %v", err)
+		return logErr(fmt.Errorf("error checking if VM exists: %v", err))
 	}
 	if exists {
 		err := fmt.Errorf("a VM with the name %s already exists", coldReq.VmName)
 		sendImportantNotification("UseBackup: target VM name already exists", err)
-		return err
+		return logErr(err)
 	}
 
 	// Get NFS share
 	nfsShare, err := db.GetNFSShareByID(ctx, nfsId)
 	if err != nil {
 		sendImportantNotification("UseBackup: GetNFSShareByID failed", err)
-		return fmt.Errorf("failed to get NFS share by ID: %v", err)
+		return logErr(fmt.Errorf("failed to get NFS share by ID: %v", err))
 	}
 	if nfsShare == nil {
 		err := fmt.Errorf("NFS share with ID %d not found", nfsId)
 		sendImportantNotification("UseBackup: NFS share not found", err)
-		return err
+		return logErr(err)
 	}
 
 	// Create new folder for the VM
@@ -433,14 +439,14 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 	if err == nil {
 		err := fmt.Errorf("folder %s already exists", newFolder)
 		sendImportantNotification("UseBackup: folder already exists", err)
-		return err
+		return logErr(err)
 	}
 
 	// Create folder
 	err = os.MkdirAll(newFolder, 0777)
 	if err != nil {
 		sendImportantNotification("UseBackup: failed to create new folder", err)
-		return fmt.Errorf("failed to create folder %s: %v", newFolder, err)
+		return logErr(fmt.Errorf("failed to create folder %s: %v", newFolder, err))
 	}
 
 	newDiskPath := newFolder + "/" + coldReq.VmName + ".qcow2"
@@ -461,6 +467,7 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 			return nil
 		}()
 		if err != nil {
+			logger.Error(err.Error())
 			extra.SendWebsocketMessage(proto.WebSocketsMessageType_Error, fmt.Sprintf("UseBackup failed for %s: %v", reqCopy.VmName, err), reqCopy.VmName)
 			sendImportantNotification("UseBackup failed", err)
 		}

@@ -311,47 +311,52 @@ func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, mach
 }
 
 func (v *VirshService) MigrateVm(ctx context.Context, originMachine string, destMachine string, vmName string, live bool, timeoutSeconds int) error {
+	logErr := func(e error) error {
+		logger.Error(e.Error())
+		return e
+	}
+
 	exists, err := db.DoesVmLiveExist(ctx, vmName)
 	if err != nil {
-		return fmt.Errorf("failed to check if live VM exists in database: %v", err)
+		return logErr(fmt.Errorf("failed to check if live VM exists in database: %v", err))
 	}
 	if !exists {
-		return fmt.Errorf("a live VM with the name %s does not exist in the database", vmName)
+		return logErr(fmt.Errorf("a live VM with the name %s does not exist in the database", vmName))
 	}
 
 	if originMachine == destMachine {
-		return fmt.Errorf("origin and destination machines cannot be the same")
+		return logErr(fmt.Errorf("origin and destination machines cannot be the same"))
 	}
 
 	//Get Connections
 	originConn := protocol.GetConnectionByMachineName(originMachine)
 	if originConn == nil {
-		return fmt.Errorf("origin machine %s not found", originMachine)
+		return logErr(fmt.Errorf("origin machine %s not found", originMachine))
 	}
 
 	destConn := protocol.GetConnectionByMachineName(destMachine)
 	if destConn == nil {
-		return fmt.Errorf("destination machine %s not found", destMachine)
+		return logErr(fmt.Errorf("destination machine %s not found", destMachine))
 	}
 
 	//Check Vms existance and Get vm
 	exists, err = virsh.DoesVMExist(vmName)
 	if err != nil {
-		return fmt.Errorf("error checking if VM exists: %v", err)
+		return logErr(fmt.Errorf("error checking if VM exists: %v", err))
 	}
 	if !exists {
-		return fmt.Errorf("a VM with the name %s does not exist", vmName)
+		return logErr(fmt.Errorf("a VM with the name %s does not exist", vmName))
 	}
 
 	//check if vm is running on origin machine
 	vm, err := virsh.GetVmByName(originConn.Connection, &grpcVirsh.GetVmByNameRequest{Name: vmName})
 	if err != nil || vm == nil {
-		return fmt.Errorf("VM %s not found on origin machine %s", vmName, originMachine)
+		return logErr(fmt.Errorf("VM %s not found on origin machine %s", vmName, originMachine))
 	}
 
 	//check if vm is running on origin machine
 	if vm.MachineName != originMachine {
-		return fmt.Errorf("VM %s is not running on origin machine %s", vmName, originMachine)
+		return logErr(fmt.Errorf("VM %s is not running on origin machine %s", vmName, originMachine))
 	}
 
 	go func() {
@@ -360,6 +365,7 @@ func (v *VirshService) MigrateVm(ctx context.Context, originMachine string, dest
 		err := virsh.MigrateVm(ctxTimeout, originConn.Connection, vmName, destConn.Addr, live, timeoutSeconds)
 		if err != nil {
 			logger.Errorf("%v", err)
+			logger.Error(err.Error())
 			extra.SendWebsocketMessage(protoExtra.WebSocketsMessageType_Error, fmt.Sprintf("MigrateVm failed for %s: %v", vmName, err), vmName)
 			sendImportantNotification("MigrateVm failed", err)
 		}
@@ -1019,53 +1025,58 @@ func (v *VirshService) isVmLive(ctx context.Context, vmName string) (bool, error
 }
 
 func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, newName string) error {
+	logErr := func(e error) error {
+		logger.Error(e.Error())
+		return e
+	}
+
 	//copy disk, undefine vm, define again with migrateColdVm
 	vm, err := v.GetVmByName(vmName)
 	if err != nil {
-		return err
+		return logErr(err)
 	}
 	if vm == nil {
-		return fmt.Errorf("vm %s does not exist", vmName)
+		return logErr(fmt.Errorf("vm %s does not exist", vmName))
 	}
 
 	newName = strings.TrimSpace(newName)
 	if newName == "" {
-		return fmt.Errorf("new VM name is required")
+		return logErr(fmt.Errorf("new VM name is required"))
 	}
 	if newName == vmName {
-		return fmt.Errorf("new VM name must differ from the source VM name")
+		return logErr(fmt.Errorf("new VM name must differ from the source VM name"))
 	}
 
 	exists, err := virsh.DoesVMExist(newName)
 	if err != nil {
-		return fmt.Errorf("error checking if VM exists: %v", err)
+		return logErr(fmt.Errorf("error checking if VM exists: %v", err))
 	}
 	if exists {
-		return fmt.Errorf("a VM with the name %s already exists", newName)
+		return logErr(fmt.Errorf("a VM with the name %s already exists", newName))
 	}
 
 	if vm.State != grpcVirsh.VmState_SHUTOFF {
-		return fmt.Errorf("vm %s needs to be shutdown", vmName)
+		return logErr(fmt.Errorf("vm %s needs to be shutdown", vmName))
 	}
 	vmNfs, err := v.GetNfsByVM(ctx, vm)
 	if err != nil {
-		return err
+		return logErr(err)
 	}
 	if vmNfs == nfsId {
-		return fmt.Errorf("cannot move disk to same nfs")
+		return logErr(fmt.Errorf("cannot move disk to same nfs"))
 	}
 
 	// Check if it's a live VM before deleting
 	liveQuestion, err := v.isVmLive(ctx, vmName)
 	if err != nil {
-		return err
+		return logErr(err)
 	}
 
 	//create folder for new vm
 	//checks if nfsShareId exists also and creates finalFile path
 	finalFile, err := v.ImportVmHelper(ctx, nfsId, newName)
 	if err != nil {
-		return err
+		return logErr(err)
 	}
 
 	coldMigr := grpcVirsh.ColdMigrationRequest{
@@ -1106,6 +1117,7 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 		}()
 
 		if err != nil {
+			logger.Error(err.Error())
 			extra.SendWebsocketMessage(protoExtra.WebSocketsMessageType_Error, fmt.Sprintf("MoveDisk failed for %s: %v", vmName, err), vmName)
 			sendImportantNotification("MoveDisk failed", err)
 		}
@@ -1115,32 +1127,37 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 }
 
 func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinationMachine string) error {
+	logErr := func(e error) error {
+		logger.Error(e.Error())
+		return e
+	}
+
 	//undefine vm, define again with migrateCOldVM
 	vm, err := v.GetVmByName(vmName)
 	if err != nil {
-		return err
+		return logErr(err)
 	}
 
 	if vm == nil {
-		return fmt.Errorf("vm %s does not exist", vmName)
+		return logErr(fmt.Errorf("vm %s does not exist", vmName))
 	}
 
 	if vm.State != grpcVirsh.VmState_SHUTOFF {
-		return fmt.Errorf("vm %s needs to be shutdown", vmName)
+		return logErr(fmt.Errorf("vm %s needs to be shutdown", vmName))
 	}
 
 	liveQuestion, err := v.isVmLive(ctx, vmName)
 	if err != nil {
-		return err
+		return logErr(err)
 	}
 
 	conn := protocol.GetConnectionByMachineName(vm.MachineName)
 	if conn == nil || conn.Connection == nil {
-		return fmt.Errorf("machine %s is not connected", vm.MachineName)
+		return logErr(fmt.Errorf("machine %s is not connected", vm.MachineName))
 	}
 
 	if vm.MachineName == destinationMachine {
-		return fmt.Errorf("destinationMachine can not be the same as origin machine")
+		return logErr(fmt.Errorf("destinationMachine can not be the same as origin machine"))
 	}
 
 	//check if it exists
@@ -1178,6 +1195,7 @@ func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinati
 		}()
 
 		if err != nil {
+			logger.Error(err.Error())
 			extra.SendWebsocketMessage(protoExtra.WebSocketsMessageType_Error, fmt.Sprintf("ColdMigrate failed for %s: %v", vmName, err), vmName)
 			sendImportantNotification("ColdMigrate failed", err)
 		}
@@ -1186,43 +1204,48 @@ func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinati
 	return nil
 }
 func (v *VirshService) CloneVM(ctx context.Context, vmName string, newName string, destinationMachine string, nfsId int) error {
+	logErr := func(e error) error {
+		logger.Error(e.Error())
+		return e
+	}
+
 	//copy disk, define
 
 	vm, err := v.GetVmByName(vmName)
 	if err != nil {
-		return err
+		return logErr(err)
 	}
 
 	if vm == nil {
-		return fmt.Errorf("vm %s does not exist", vmName)
+		return logErr(fmt.Errorf("vm %s does not exist", vmName))
 	}
 
 	newName = strings.TrimSpace(newName)
 	if newName == "" {
-		return fmt.Errorf("new VM name is required")
+		return logErr(fmt.Errorf("new VM name is required"))
 	}
 	if newName == vmName {
-		return fmt.Errorf("new VM name must differ from the source VM name")
+		return logErr(fmt.Errorf("new VM name must differ from the source VM name"))
 	}
 
 	exists, err := virsh.DoesVMExist(newName)
 	if err != nil {
-		return fmt.Errorf("error checking if VM exists: %v", err)
+		return logErr(fmt.Errorf("error checking if VM exists: %v", err))
 	}
 	if exists {
-		return fmt.Errorf("a VM with the name %s already exists", newName)
+		return logErr(fmt.Errorf("a VM with the name %s already exists", newName))
 	}
 
 	liveQuestion, err := v.isVmLive(ctx, vmName)
 	if err != nil {
-		return err
+		return logErr(err)
 	}
 
 	//create folder for new vm
 	//checks if nfsShareId exists also and creates finalFile path
 	finalFile, err := v.ImportVmHelper(ctx, nfsId, newName)
 	if err != nil {
-		return err
+		return logErr(err)
 	}
 
 	coldMigr := grpcVirsh.ColdMigrationRequest{
@@ -1282,6 +1305,7 @@ func (v *VirshService) CloneVM(ctx context.Context, vmName string, newName strin
 		}()
 
 		if err != nil {
+			logger.Error(err.Error())
 			extra.SendWebsocketMessage(protoExtra.WebSocketsMessageType_Error, fmt.Sprintf("CloneVM failed for %s: %v", newName, err), newName)
 			sendImportantNotification("CloneVM failed", err)
 		}

@@ -358,7 +358,7 @@ func editVM(w http.ResponseWriter, r *http.Request) {
 	type EditVMRequest struct {
 		Memory     int32 `json:"memory,omitempty"`
 		Vcpu       int32 `json:"vcpu,omitempty"`
-		DiskSizeGB int32 `json:"disk_sizeGB,omitempty"` // Not implemented yet
+		DiskSizeGB int32 `json:"disk_sizeGB,omitempty"` 
 	}
 
 	var editReq EditVMRequest
