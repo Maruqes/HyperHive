@@ -272,7 +272,7 @@ func (v *VirshService) BackupVM(ctx context.Context, vmName string, nfsID int, a
 		Automatic: automatic,
 	}
 
-	actuallyDoBakcup := func() error {
+	actuallyDoBakcup := func(taskCtx context.Context) error {
 		if vm.State != grpcVirsh.VmState_SHUTOFF {
 
 			conn := protocol.GetConnectionByMachineName(vm.MachineName)
@@ -312,7 +312,7 @@ func (v *VirshService) BackupVM(ctx context.Context, vmName string, nfsID int, a
 			}
 		}
 
-		err = db.InsertVirshBackup(ctx, backup)
+		err = db.InsertVirshBackup(taskCtx, backup)
 		if err != nil {
 			sendImportantNotification("BackupVM: InsertVirshBackup failed", err)
 			return fmt.Errorf("problems writing to db backup: %v", err)
@@ -323,7 +323,10 @@ func (v *VirshService) BackupVM(ctx context.Context, vmName string, nfsID int, a
 	}
 
 	go func() {
-		err := actuallyDoBakcup()
+		taskCtx, cancel := context.WithTimeout(context.Background(), longTaskTimeout)
+		defer cancel()
+
+		err := actuallyDoBakcup(taskCtx)
 		if err != nil {
 			logger.Error(err.Error())
 			extra.SendWebsocketMessage(proto.WebSocketsMessageType_Error, "Could not backups "+err.Error(), vmName)
@@ -384,6 +387,8 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 		logger.Error(e.Error())
 		return e
 	}
+
+	const longTaskTimeout = 7 * 24 * time.Hour
 
 	originConn := protocol.GetConnectionByMachineName(slaveName)
 	if originConn == nil {
@@ -454,13 +459,16 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 	reqCopy.DiskPath = newDiskPath
 
 	go func() {
+		taskCtx, cancel := context.WithTimeout(context.Background(), longTaskTimeout)
+		defer cancel()
+
 		err := func() error {
 			if err := copyFile(backup.Path, newDiskPath, reqCopy.VmName); err != nil {
 				_ = os.RemoveAll(newFolder)
 				return fmt.Errorf("failed to copy backup file: %w", err)
 			}
 
-			if err := v.ColdMigrateVm(context.Background(), slaveName, &reqCopy); err != nil {
+			if err := v.ColdMigrateVm(taskCtx, slaveName, &reqCopy); err != nil {
 				return fmt.Errorf("ColdMigrateVm failed: %w", err)
 			}
 

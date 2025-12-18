@@ -32,6 +32,8 @@ type VirshService struct {
 	backupLoopRunning atomic.Bool
 }
 
+const longTaskTimeout = 7 * 24 * time.Hour
+
 func ClusterSafeFeatures(all [][]string) []string {
 	if len(all) == 0 {
 		return nil
@@ -360,7 +362,7 @@ func (v *VirshService) MigrateVm(ctx context.Context, originMachine string, dest
 	}
 
 	go func() {
-		ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Hour)
+		ctxTimeout, cancel := context.WithTimeout(context.Background(), longTaskTimeout)
 		defer cancel()
 		err := virsh.MigrateVm(ctxTimeout, originConn.Connection, vmName, destConn.Addr, live, timeoutSeconds)
 		if err != nil {
@@ -1099,7 +1101,9 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 	}
 
 	go func() {
-		taskCtx := context.Background()
+		taskCtx, cancel := context.WithTimeout(context.Background(), longTaskTimeout)
+		defer cancel()
+
 		err := func() error {
 			if err := copyFile(vm.DiskPath, finalFile, newName); err != nil {
 				return fmt.Errorf("copy disk: %w", err)
@@ -1182,7 +1186,9 @@ func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinati
 	}
 
 	go func() {
-		taskCtx := context.Background()
+		taskCtx, cancel := context.WithTimeout(context.Background(), longTaskTimeout)
+		defer cancel()
+
 		err := func() error {
 			if err := v.ColdMigrateVm(taskCtx, destinationMachine, &coldMigr); err != nil {
 				return err
@@ -1268,7 +1274,9 @@ func (v *VirshService) CloneVM(ctx context.Context, vmName string, newName strin
 	}
 
 	go func() {
-		taskCtx := context.Background()
+		taskCtx, cancel := context.WithTimeout(context.Background(), longTaskTimeout)
+		defer cancel()
+
 		err := func() error {
 			if vm.State != grpcVirsh.VmState_SHUTOFF {
 				conn := protocol.GetConnectionByMachineName(vm.MachineName)
