@@ -254,7 +254,7 @@ func parseIPSetMembers(output string) ([]AllowEntry, error) {
 		if trimmed == "" {
 			continue
 		}
-		if strings.HasPrefix(trimmed, "Members:") {
+		if strings.HasPrefix(strings.ToLower(trimmed), "members:") {
 			foundMembers = true
 			continue
 		}
@@ -286,7 +286,8 @@ func parseIPSetMembers(output string) ([]AllowEntry, error) {
 	}
 
 	if !foundMembers {
-		return nil, fmt.Errorf("unexpected ipset output: missing Members section")
+		// Some ipset builds omit the Members section when the set is empty.
+		return []AllowEntry{}, nil
 	}
 
 	return out, nil
