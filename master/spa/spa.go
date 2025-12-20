@@ -258,9 +258,6 @@ func parseIPSetMembers(output string) ([]AllowEntry, error) {
 			foundMembers = true
 			continue
 		}
-		if !foundMembers {
-			continue
-		}
 
 		fields := strings.Fields(trimmed)
 		if len(fields) == 0 {
@@ -268,7 +265,10 @@ func parseIPSetMembers(output string) ([]AllowEntry, error) {
 		}
 		ip := fields[0]
 		if parsed := net.ParseIP(ip); parsed == nil || parsed.To4() == nil {
-			return nil, fmt.Errorf("invalid ipset entry %q", trimmed)
+			if foundMembers {
+				return nil, fmt.Errorf("invalid ipset entry %q", trimmed)
+			}
+			continue
 		}
 
 		remaining := 0
@@ -286,7 +286,7 @@ func parseIPSetMembers(output string) ([]AllowEntry, error) {
 	}
 
 	if !foundMembers {
-		// Some ipset builds omit the Members section when the set is empty.
+		// Some ipset builds/locales omit the Members section when empty or localized.
 		return []AllowEntry{}, nil
 	}
 
