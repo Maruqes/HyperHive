@@ -109,7 +109,29 @@ func LoopNots() {
 			return
 		}
 
+		// Only notify for physical disks (skip dm-*, loop*, ram*, tmpfs, etc)
+		isPhysicalDisk := func(name string) bool {
+			if name == "" {
+				return false
+			}
+			// Common virtual/non-physical disk patterns
+			if name == "tmpfs" || name == "devtmpfs" {
+				return false
+			}
+			if len(name) >= 3 && (name[:3] == "dm-" || name[:3] == "ram") {
+				return false
+			}
+			if len(name) >= 4 && name[:4] == "loop" {
+				return false
+			}
+			// Add more patterns as needed
+			return true
+		}
+
 		for k, v := range disk.Usage {
+			if !isPhysicalDisk(k) {
+				continue
+			}
 			if v >= 85 {
 				msg := fmt.Sprintf("Disk %s critical usage on %s: %.0f%%", k, machine, v)
 				nots.SendGlobalNotification("Disk critical usage", msg, "/", true)
