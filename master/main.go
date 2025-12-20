@@ -249,6 +249,19 @@ func main() {
 	}
 	logger.SetType(env512.Mode)
 
+	if err := installIpset(); err != nil {
+		log.Fatalf("install ipset: %v", err)
+	}
+
+	db.InitDB(ctx)
+	if err := db.CreateSPAPortsTable(ctx); err != nil {
+		log.Fatalf("create spa table: %v", err)
+	}
+	SpaService := services.SPAService{}
+	if err := SpaService.Reapply(ctx); err != nil {
+		log.Fatalf("%s", err.Error())
+	}
+
 	//check if novnc folder exists, if not download it
 	err := downloadNoVNC()
 	if err != nil {
@@ -260,16 +273,11 @@ func main() {
 		log.Fatalf("install GoAccess: %v", err)
 	}
 
-	if err := installIpset(); err != nil {
-		log.Fatalf("install ipset: %v", err)
-	}
-
 	err = installWireGuard()
 	if err != nil {
 		log.Fatalf("install wireguard: %v", err)
 	}
 
-	db.InitDB(ctx)
 	err = db.CreateWireguardPeerTable(ctx)
 	if err != nil {
 		log.Fatalf("create wireguard peer table: %v", err)
@@ -293,10 +301,6 @@ func main() {
 	err = db.CreateLogsTable(ctx)
 	if err != nil {
 		log.Fatalf("create logs table: %v", err)
-	}
-
-	if err := db.CreateSPAPortsTable(ctx); err != nil {
-		log.Fatalf("create spa table: %v", err)
 	}
 
 	err = db.CreateISOTable(ctx)
@@ -385,17 +389,12 @@ func main() {
 
 	virshService := services.VirshService{}
 	smartDiskService := services.SmartDiskService{}
-	SpaService := services.SPAService{}
 	nfsService := services.NFSService{}
 	go nfsService.MaintainNFS()
 
 	virshService.LoopAutomaticBaks(context.Background())
 	smartDiskService.DoAutomaticTest()
 	info.LoopNots()
-	err = SpaService.Reapply(ctx)
-	if err != nil {
-		log.Fatalf("%s", err.Error())
-	}
 	go SpaService.Maintain(ctx, 30*time.Second)
 
 	// go func() {

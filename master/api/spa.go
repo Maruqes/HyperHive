@@ -185,6 +185,40 @@ func listSPAHandler(w http.ResponseWriter, r *http.Request) {
 		"spa_ports": out,
 	})
 }
+
+func listSPAAllowsHandler(w http.ResponseWriter, r *http.Request) {
+	portStr := chi.URLParam(r, "port")
+	port, err := strconv.Atoi(portStr)
+	if err != nil || port <= 0 {
+		http.Error(w, "invalid port", http.StatusBadRequest)
+		return
+	}
+
+	svc := services.SPAService{}
+	entries, err := svc.ListAllows(r.Context(), port)
+	if err != nil {
+		writeSPAError(w, err)
+		return
+	}
+
+	type allowOut struct {
+		IP               string `json:"ip"`
+		RemainingSeconds int    `json:"remaining_seconds"`
+	}
+	out := make([]allowOut, 0, len(entries))
+	for _, entry := range entries {
+		out = append(out, allowOut{
+			IP:               entry.IP,
+			RemainingSeconds: entry.RemainingSeconds,
+		})
+	}
+
+	writeJSONWithStatus(w, http.StatusOK, map[string]any{
+		"port":   port,
+		"allows": out,
+	})
+}
+
 func serveSPAPageAllow(w http.ResponseWriter, r *http.Request) {
 	portStr := chi.URLParam(r, "port")
 	if portStr == "" {
@@ -376,5 +410,6 @@ func setupSPAOpenAPI(r chi.Router) {
 func setupSPAAPI(r chi.Router) {
 	r.Post("/spa", createSPAHandler)
 	r.Get("/spa", listSPAHandler)
+	r.Get("/spa/allow/{port}", listSPAAllowsHandler)
 	r.Delete("/spa/{port}", deleteSPAHandler)
 }

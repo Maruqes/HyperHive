@@ -35,6 +35,10 @@ func (s *SPAService) Create(ctx context.Context, port int, password string) erro
 	}
 
 	if err := db.UpsertSPAPort(ctx, port, string(hash)); err != nil {
+		disableErr := spa.DisableSPA(port)
+		if disableErr != nil {
+			return fmt.Errorf("upsert spa port: %w (rollback disable failed: %v)", err, disableErr)
+		}
 		return err
 	}
 
@@ -57,6 +61,10 @@ func (s *SPAService) Delete(ctx context.Context, port int) error {
 	if err := db.DeleteSPAPort(ctx, port); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrSPAPortNotFound
+		}
+		reapplyErr := spa.EnableSPA(port)
+		if reapplyErr != nil {
+			return fmt.Errorf("delete spa port: %w (rollback enable failed: %v)", err, reapplyErr)
 		}
 		return err
 	}
@@ -82,6 +90,17 @@ func (s *SPAService) Allow(ctx context.Context, port int, password, ip string, s
 
 func (s *SPAService) List(ctx context.Context) ([]db.SPAPort, error) {
 	return db.ListSPAPorts(ctx)
+}
+
+func (s *SPAService) ListAllows(ctx context.Context, port int) ([]spa.AllowEntry, error) {
+	entry, err := db.GetSPAPort(ctx, port)
+	if err != nil {
+		return nil, err
+	}
+	if entry == nil {
+		return nil, ErrSPAPortNotFound
+	}
+	return spa.ListAllows(port)
 }
 
 func (s *SPAService) Maintain(ctx context.Context, interval time.Duration) {

@@ -78,6 +78,33 @@ func AllowIP(port int, ip string, seconds int) error {
 	return nil
 }
 
+type AllowEntry struct {
+	IP               string
+	RemainingSeconds int
+}
+
+// ListAllows returns allowed IPs with their remaining time for the given port.
+func ListAllows(port int) ([]AllowEntry, error) {
+	if err := validatePort(port); err != nil {
+		return nil, err
+	}
+
+	setName := ipsetName(port)
+	exists, err := ipsetExists(setName)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, fmt.Errorf("SPA not enabled for port %d (missing ipset %s)", port, setName)
+	}
+
+	output, err := runCommandOutput("ipset", "list", "-t", setName)
+	if err != nil {
+		return nil, fmt.Errorf("list ipset %s: %w", setName, err)
+	}
+	return parseIPSetMembers(output)
+}
+
 func ipsetName(port int) string {
 	return fmt.Sprintf("spa_allow_%d", port)
 }
@@ -202,4 +229,65 @@ func runCommand(name string, args ...string) error {
 		return fmt.Errorf("%s %s failed: %w", name, strings.Join(args, " "), err)
 	}
 	return nil
+}
+
+func runCommandOutput(name string, args ...string) (string, error) {
+	cmd := exec.Command(name, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		out := strings.TrimSpace(string(output))
+		if out != "" {
+			return "", fmt.Errorf("%s %s failed: %s: %w", name, strings.Join(args, " "), out, err)
+		}
+		return "", fmt.Errorf("%s %s failed: %w", name, strings.Join(args, " "), err)
+	}
+	return string(output), nil
+}
+
+func parseIPSetMembers(output string) ([]AllowEntry, error) {
+	lines := strings.Split(output, "\n")
+	var out []AllowEntry
+	foundMembers := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "Members:") {
+			foundMembers = true
+			continue
+		}
+		if !foundMembers {
+			continue
+		}
+
+		fields := strings.Fields(trimmed)
+		if len(fields) == 0 {
+			continue
+		}
+		ip := fields[0]
+		if parsed := net.ParseIP(ip); parsed == nil || parsed.To4() == nil {
+			return nil, fmt.Errorf("invalid ipset entry %q", trimmed)
+		}
+
+		remaining := 0
+		for i := 1; i+1 < len(fields); i++ {
+			if fields[i] == "timeout" {
+				val, err := strconv.Atoi(fields[i+1])
+				if err != nil {
+					return nil, fmt.Errorf("parse timeout for %s: %w", ip, err)
+				}
+				remaining = val
+				break
+			}
+		}
+		out = append(out, AllowEntry{IP: ip, RemainingSeconds: remaining})
+	}
+
+	if !foundMembers {
+		return nil, fmt.Errorf("unexpected ipset output: missing Members section")
+	}
+
+	return out, nil
 }
