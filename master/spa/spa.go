@@ -98,7 +98,7 @@ func ListAllows(port int) ([]AllowEntry, error) {
 		return nil, fmt.Errorf("SPA not enabled for port %d (missing ipset %s)", port, setName)
 	}
 
-	output, err := runCommandOutput("ipset", "list", "-t", setName)
+	output, err := runCommandOutput("ipset", "list", setName)
 	if err != nil {
 		return nil, fmt.Errorf("list ipset %s: %w", setName, err)
 	}
