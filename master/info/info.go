@@ -5,6 +5,7 @@ import (
 	"512SvMan/protocol"
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -111,8 +112,18 @@ func LoopNots() {
 		}
 
 		isPhysicalDisk := func(name string) bool {
-			if strings.TrimSpace(name) == "" {
+			n := strings.TrimSpace(name)
+			if n == "" {
 				return false
+			}
+
+			// Skip device-mapper paths directly.
+			if strings.HasPrefix(n, "/dev/mapper/") {
+				return false
+			}
+
+			if strings.HasPrefix(n, "/dev/") {
+				n = filepath.Base(n)
 			}
 
 			// Exact virtual filesystems
@@ -122,7 +133,7 @@ func LoopNots() {
 			}
 
 			for _, b := range blacklistExact {
-				if name == b {
+				if n == b {
 					return false
 				}
 			}
@@ -132,10 +143,11 @@ func LoopNots() {
 				"dm-",
 				"ram",
 				"loop",
+				"zram",
 			}
 
 			for _, p := range blacklistPrefixes {
-				if strings.HasPrefix(name, p) {
+				if strings.HasPrefix(n, p) {
 					return false
 				}
 			}
