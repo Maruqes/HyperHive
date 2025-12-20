@@ -5,6 +5,7 @@ import (
 	"512SvMan/protocol"
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	infoGrpc "github.com/Maruqes/512SvMan/api/proto/info"
@@ -109,22 +110,36 @@ func LoopNots() {
 			return
 		}
 
-		// Only notify for physical disks (skip dm-*, loop*, ram*, tmpfs, etc)
 		isPhysicalDisk := func(name string) bool {
-			if name == "" {
+			if strings.TrimSpace(name) == "" {
 				return false
 			}
-			// Common virtual/non-physical disk patterns
-			if name == "tmpfs" || name == "devtmpfs" {
-				return false
+
+			// Exact virtual filesystems
+			blacklistExact := []string{
+				"tmpfs",
+				"devtmpfs",
 			}
-			if len(name) >= 3 && (name[:3] == "dm-" || name[:3] == "ram") {
-				return false
+
+			for _, b := range blacklistExact {
+				if name == b {
+					return false
+				}
 			}
-			if len(name) >= 4 && name[:4] == "loop" {
-				return false
+
+			// Prefix-based virtual / non-physical devices
+			blacklistPrefixes := []string{
+				"dm-",
+				"ram",
+				"loop",
 			}
-			// Add more patterns as needed
+
+			for _, p := range blacklistPrefixes {
+				if strings.HasPrefix(name, p) {
+					return false
+				}
+			}
+
 			return true
 		}
 
