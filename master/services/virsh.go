@@ -984,22 +984,28 @@ func (v *VirshService) StartAutoStartVms(ctx context.Context) error {
 			tries++
 			// 30*60(sec of min) = 1800    / 10(sleep time) =180, so this tries every 10 seconds for half an hour
 			if tries == 180 {
-				logger.Error("Tried to start vm " + vm.Name + " 10 times not successfully")
+				logger.Error("Tried to start vm " + vm.Name + " 180 times without success")
 				break
 			}
 			//start vm, if after 10 secs is not start again for 30 mins
 			logger.Info("start vm: " + vm.Name)
 			if err := virsh.StartVm(context.Background(), conn.Connection, vm); err != nil {
 				logger.Error("cannot start vm auto start: " + vm.Name + " err: " + err.Error())
+				time.Sleep(10 * time.Second)
 				continue
 			}
+
+			time.Sleep(10 * time.Second)
 
 			vm, err = v.GetVmByName(auto.VmName)
 			if err != nil {
 				logger.Error("auto start vm does not exist: " + auto.VmName + " err: " + err.Error())
 				continue
 			}
-			time.Sleep(10 * time.Second)
+			if vm == nil {
+				logger.Error("auto start vm does not exist: " + auto.VmName)
+				continue
+			}
 			if vm.State == grpcVirsh.VmState_RUNNING {
 				break
 			}

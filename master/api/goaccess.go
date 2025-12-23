@@ -97,10 +97,16 @@ func goAccessWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Channel to signal completion
 	done := make(chan struct{})
+	var doneOnce sync.Once
+	signalDone := func() {
+		doneOnce.Do(func() {
+			close(done)
+		})
+	}
 
 	// Forward messages from GoAccess to client
 	go func() {
-		defer close(done)
+		defer signalDone()
 		for {
 			messageType, message, err := goAccessConn.ReadMessage()
 			if err != nil {
@@ -114,6 +120,7 @@ func goAccessWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Forward messages from client to GoAccess (for interactivity)
 	go func() {
+		defer signalDone()
 		for {
 			messageType, message, err := clientConn.ReadMessage()
 			if err != nil {

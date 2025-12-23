@@ -130,16 +130,6 @@ func serveNoVNC(w http.ResponseWriter, r *http.Request) {
 	http.StripPrefix("/novnc", http.FileServer(http.Dir("./novnc"))).ServeHTTP(w, r)
 }
 
-func portAvailable(port int) bool {
-	addr := fmt.Sprintf(":%d", port)
-	l, err := net.Listen("tcp", addr)
-	if err != nil {
-		return false
-	}
-	l.Close()
-	return true
-}
-
 func handleConnection(client net.Conn, ipPort string) {
 	log.Printf("New connection from %s", client.RemoteAddr())
 	defer client.Close()
@@ -159,15 +149,10 @@ func handleConnection(client net.Conn, ipPort string) {
 	log.Printf("Connection closed for %s", client.RemoteAddr())
 }
 
-func streamSprite(ipPort string, listenPort int, horasAberto int) {
+func streamSprite(ipPort string, ln net.Listener, listenPort int, horasAberto int) {
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(horasAberto)*time.Hour)
 		defer cancel()
-
-		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", listenPort))
-		if err != nil {
-			log.Fatalf("failed to start listener: %v", err)
-		}
 		defer ln.Close()
 
 		go func() {
@@ -222,26 +207,30 @@ func serveSprite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	listenPort := 0
-	found := false
-	for port := env512.SPRITE_MIN; port <= env512.SPRITE_MAX; port++ {
-		if portAvailable(port) {
-			listenPort = port
-			found = true
-			logger.Infof("novnc: selected listen port %d for VM %s sprite proxy", listenPort, vmName)
-			break
-		}
-	}
-	if !found {
-		logger.Errorf("novnc: no available port between %d and %d for VM %s", env512.SPRITE_MIN, env512.SPRITE_MAX, vmName)
-		http.Error(w, "no port available for the server", http.StatusInternalServerError)
-		return
-	}
-
 	conn := protocol.GetConnectionByMachineName(vm.MachineName)
 	if conn == nil || conn.Connection == nil {
 		logger.Errorf("novnc: machine %s connection unavailable for sprite proxy", vm.MachineName)
 		http.Error(w, "machine connection is not available", http.StatusInternalServerError)
+		return
+	}
+
+	listenPort := 0
+	var ln net.Listener
+	found := false
+	for port := env512.SPRITE_MIN; port <= env512.SPRITE_MAX; port++ {
+		candidate, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		if err != nil {
+			continue
+		}
+		listenPort = port
+		ln = candidate
+		found = true
+		logger.Infof("novnc: selected listen port %d for VM %s sprite proxy", listenPort, vmName)
+		break
+	}
+	if !found {
+		logger.Errorf("novnc: no available port between %d and %d for VM %s", env512.SPRITE_MIN, env512.SPRITE_MAX, vmName)
+		http.Error(w, "no port available for the server", http.StatusInternalServerError)
 		return
 	}
 
@@ -250,7 +239,7 @@ func serveSprite(w http.ResponseWriter, r *http.Request) {
 
 	logger.Infof("novnc: preparing sprite tunnel for VM %s (%s) on local port %d for %d hour(s)", vmName, ipPort, listenPort, horasAberto)
 
-	streamSprite(ipPort, listenPort, horasAberto)
+	streamSprite(ipPort, ln, listenPort, horasAberto)
 	logger.Infof("novnc: sprite tunnel ready for VM %s on port %d", vmName, listenPort)
 
 	config := fmt.Sprintf(`[virt-viewer]

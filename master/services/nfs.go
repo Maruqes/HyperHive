@@ -566,21 +566,16 @@ func (s *NFSService) CanFindFileOrDir(machineName, path string) (bool, error) {
 
 func (s *NFSService) CanFindFileOrDirOnAllSlaves(path string) (map[string]bool, error) {
 	results := make(map[string]bool)
-	conns := protocol.GetAllGRPCConnections()
-	machineNames := protocol.GetAllMachineNames()
+	snapshot := protocol.GetConnectionsSnapshot()
 
-	if len(conns) != len(machineNames) {
-		return nil, fmt.Errorf("length of connections and machine names must be the same")
-	}
-
-	for i, conn := range conns {
-		machineName := machineNames[i]
-		if conn == nil {
+	for _, conn := range snapshot {
+		machineName := conn.MachineName
+		if conn.Connection == nil {
 			results[machineName] = false
 			continue
 		}
 
-		found, err := nfs.CanFindFileOrDir(conn, path)
+		found, err := nfs.CanFindFileOrDir(conn.Connection, path)
 		if err != nil {
 			logger.Errorf("CanFindFileOrDir failed for machine %s: %v", machineName, err)
 			results[machineName] = false

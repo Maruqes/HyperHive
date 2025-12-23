@@ -635,6 +635,7 @@ func readVMRequest(r *http.Request) (*VMRequestImport, error) {
 	if s := q(r, "memory"); s != "" {
 		v, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
+			return nil, fmt.Errorf("invalid memory: %v", err)
 		}
 		vmReq.Memory = int32(v)
 	}
@@ -849,6 +850,11 @@ func backupVM(w http.ResponseWriter, r *http.Request) {
 	vm, err := virshServices.GetVmByName(vmName)
 	if err != nil {
 		http.Error(w, "cant get vm by name", http.StatusInternalServerError)
+		return
+	}
+	if vm == nil {
+		http.Error(w, "vm not found", http.StatusNotFound)
+		return
 	}
 
 	err = nfsServices.SyncNFSSlavesByMachineName(vm.MachineName)
