@@ -3,6 +3,7 @@ package btrfs
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	btrfsGrpc "github.com/Maruqes/512SvMan/api/proto/btrfs"
 )
@@ -115,15 +116,28 @@ func (s *BTRFSService) GetAllFileSystems(ctx context.Context, _ *btrfsGrpc.Empty
 }
 
 func convertStringToRaidType(s string) *raidType {
-	switch s {
+	rt := strings.ToLower(strings.TrimSpace(s))
+	if rt == "" {
+		return nil
+	}
+
+	switch rt {
 	case Raid0.sType:
 		return &Raid0
-	case Raid1.sType:
+	case Raid1.sType, "raid1c2":
 		return &Raid1
 	case Raid1c3.sType:
 		return &Raid1c3
 	case Raid1c4.sType:
 		return &Raid1c4
+	case Single.sType:
+		return &Single
+	case Dup.sType:
+		return &Dup
+	case Raid5.sType:
+		return &Raid5
+	case Raid6.sType:
+		return &Raid6
 	default:
 		return nil
 	}

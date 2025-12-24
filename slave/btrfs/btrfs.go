@@ -2,14 +2,11 @@ package btrfs
 
 import (
 	"bytes"
-	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/Maruqes/512SvMan/logger"
 )
@@ -96,27 +93,51 @@ type raidType struct {
 
 var (
 	Raid0 = raidType{
-		sType: "raid0",
-		sMeta: "single",
-		c:     2,
+		sType: "raid0",  // data em striping (sem redundancia)
+		sMeta: "single", // metadados sem redundancia
+		c:     2,        // minimo 2 discos
 	}
 
 	Raid1 = raidType{
-		sType: "raid1",
-		sMeta: "raid1",
-		c:     2,
+		sType: "raid1", // data espelhada (raid1c2)
+		sMeta: "raid1", // metadados espelhados
+		c:     2,       // minimo 2 discos
 	}
 
 	Raid1c3 = raidType{
-		sType: "raid1c3",
-		sMeta: "raid1c3",
-		c:     3,
+		sType: "raid1c3", // data com 3 copias
+		sMeta: "raid1c3", // metadados com 3 copias
+		c:     3,         // minimo 3 discos
 	}
 
 	Raid1c4 = raidType{
-		sType: "raid1c4",
-		sMeta: "raid1c4",
-		c:     4,
+		sType: "raid1c4", // data com 4 copias
+		sMeta: "raid1c4", // metadados com 4 copias
+		c:     4,         // minimo 4 discos
+	}
+
+	Single = raidType{
+		sType: "single", // data sem redundancia
+		sMeta: "single", // metadados sem redundancia
+		c:     1,        // minimo 1 disco
+	}
+
+	Dup = raidType{
+		sType: "dup", // data duplicada no mesmo disco (single-device)
+		sMeta: "dup", // metadados duplicados no mesmo disco
+		c:     1,     // minimo 1 disco
+	}
+
+	Raid5 = raidType{
+		sType: "raid5",  // data com paridade (1 disco)
+		sMeta: "single", // metadados sem redundancia
+		c:     3,        // minimo 3 discos
+	}
+
+	Raid6 = raidType{
+		sType: "raid6",  // data com paridade dupla (2 discos)
+		sMeta: "single", // metadados sem redundancia
+		c:     4,        // minimo 4 discos
 	}
 )
 
@@ -134,10 +155,6 @@ const (
 	CompressionZstd9  = "zstd:9"  // Zstd level 9 (high compression)
 	CompressionZstd15 = "zstd:15" // Zstd level 15 (maximum compression)
 )
-
-const mountUsageCheckTimeout = 10 * time.Second
-
-var errMountUsageCheckUnavailable = errors.New("mount usage check unavailable")
 
 func doesDiskExist(disk string) bool {
 	_, err := os.Stat(disk)
@@ -194,34 +211,6 @@ func filterLsofOutput(output string) string {
 		filtered = append(filtered, line)
 	}
 	return strings.Join(filtered, "\n")
-}
-
-func collectMountUsageDetails(target string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), mountUsageCheckTimeout)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "lsof", "+D", target)
-	output, err := cmd.CombinedOutput()
-
-	if ctx.Err() == context.DeadlineExceeded {
-		return "", fmt.Errorf("timeout while inspecting open files under %s", target)
-	}
-
-	if err != nil {
-		if errors.Is(err, exec.ErrNotFound) {
-			return "", errMountUsageCheckUnavailable
-		}
-		if _, ok := err.(*exec.ExitError); !ok {
-			return "", fmt.Errorf("lsof failed for %s: %w", target, err)
-		}
-	}
-
-	details := filterLsofOutput(string(output))
-	if details == "" {
-		return "", nil
-	}
-
-	return details, nil
 }
 
 func deviceMatchesDisk(device, disk string) bool {

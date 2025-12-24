@@ -68,40 +68,77 @@ type raidType struct {
 // DUPLICATE ON SLAVE
 var (
 	Raid0 = raidType{
-		sType: "raid0",
-		sMeta: "single",
-		c:     2,
+		sType: "raid0",  // data em striping (sem redundancia)
+		sMeta: "single", // metadados sem redundancia
+		c:     2,        // minimo 2 discos
 	}
 
 	Raid1 = raidType{
-		sType: "raid1",
-		sMeta: "raid1",
-		c:     2,
+		sType: "raid1", // data espelhada (raid1c2)
+		sMeta: "raid1", // metadados espelhados
+		c:     2,       // minimo 2 discos
 	}
 
 	Raid1c3 = raidType{
-		sType: "raid1c3",
-		sMeta: "raid1c3",
-		c:     3,
+		sType: "raid1c3", // data com 3 copias
+		sMeta: "raid1c3", // metadados com 3 copias
+		c:     3,         // minimo 3 discos
 	}
 
 	Raid1c4 = raidType{
-		sType: "raid1c4",
-		sMeta: "raid1c4",
-		c:     4,
+		sType: "raid1c4", // data com 4 copias
+		sMeta: "raid1c4", // metadados com 4 copias
+		c:     4,         // minimo 4 discos
+	}
+
+	Single = raidType{
+		sType: "single", // data sem redundancia
+		sMeta: "single", // metadados sem redundancia
+		c:     1,        // minimo 1 disco
+	}
+
+	Dup = raidType{
+		sType: "dup", // data duplicada no mesmo disco (single-device)
+		sMeta: "dup", // metadados duplicados no mesmo disco
+		c:     1,     // minimo 1 disco
+	}
+
+	Raid5 = raidType{
+		sType: "raid5",  // data com paridade (1 disco)
+		sMeta: "single", // metadados sem redundancia
+		c:     3,        // minimo 3 discos
+	}
+
+	Raid6 = raidType{
+		sType: "raid6",  // data com paridade dupla (2 discos)
+		sMeta: "single", // metadados sem redundancia
+		c:     4,        // minimo 4 discos
 	}
 )
 
 func convertStringToRaidType(s string) *raidType {
-	switch s {
+	rt := strings.ToLower(strings.TrimSpace(s))
+	if rt == "" {
+		return nil
+	}
+
+	switch rt {
 	case Raid0.sType:
 		return &Raid0
-	case Raid1.sType:
+	case Raid1.sType, "raid1c2":
 		return &Raid1
 	case Raid1c3.sType:
 		return &Raid1c3
 	case Raid1c4.sType:
 		return &Raid1c4
+	case Single.sType:
+		return &Single
+	case Dup.sType:
+		return &Dup
+	case Raid5.sType:
+		return &Raid5
+	case Raid6.sType:
+		return &Raid6
 	default:
 		return nil
 	}
