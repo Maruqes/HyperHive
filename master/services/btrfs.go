@@ -407,7 +407,12 @@ func (s *BTRFSService) AddAutomaticMount(machineName, uuid, mountPoint, compress
 		return 0, fmt.Errorf("automatic mount already exists for machine %s uuid %s at %s", machineName, uuid, mountPoint)
 	}
 
-	return db.InsertBtrfs(context.Background(), uuid, mountPoint, compression, machineName)
+	id, err := db.InsertBtrfs(context.Background(), uuid, mountPoint, compression, machineName)
+	if err != nil {
+		return id, err
+	}
+	err = s.MountRaid(machineName, uuid, mountPoint, compression)
+	return id, err
 }
 
 func (s *BTRFSService) RemoveAutomaticMount(id int) (int64, error) {
