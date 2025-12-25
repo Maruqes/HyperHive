@@ -26,7 +26,17 @@ import (
 	"google.golang.org/grpc"
 )
 
+// Provide access to newSlaveCount for the API
+func getNewSlaveCount() int {
+	return newSlaveCount
+}
+
+var newSlaveCount int = 0
+
 func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
+
+	newSlaveCount++
+	defer func() { newSlaveCount-- }()
 
 	btrfsService := services.BTRFSService{}
 	err := btrfsService.AutoMountRaid(machineName)
@@ -241,6 +251,9 @@ func installIpset() error {
 }
 
 func main() {
+
+	// Set the function in api package to access newSlaveCount
+	api.GetNewSlaveCountValue = getNewSlaveCount
 	askForSudo()
 	ctx := context.Background()
 

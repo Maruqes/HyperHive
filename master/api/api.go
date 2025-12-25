@@ -10,6 +10,7 @@ import (
 	"512SvMan/services"
 	ws "512SvMan/websocket"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"strings"
@@ -20,6 +21,16 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/gorilla/websocket"
 )
+
+// This function will be set by main.go to allow access to newSlaveCount
+var GetNewSlaveCountValue func() int = func() int { return 0 }
+
+// Handler to serve newSlaveCount
+func getNewSlaveCount(w http.ResponseWriter, r *http.Request) {
+	count := GetNewSlaveCountValue()
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, `{"newSlaveCount": %d}`, count)
+}
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
@@ -277,6 +288,8 @@ func StartApi() {
 	r.Group(func(r chi.Router) {
 		r.Use(authMiddleware)
 
+		r.Get("/new-slave-count", getNewSlaveCount)
+		
 		//NOTIFICATION heere HEHEHE
 		r.Route("/notification", func(r chi.Router) {
 			r.Get("/public-key", get_public_key)

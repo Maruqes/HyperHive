@@ -968,19 +968,20 @@ func (v *VirshService) StartAutoStartVms(ctx context.Context) error {
 			continue
 		}
 
-		//getting conn
-		conn := protocol.GetConnectionByMachineName(vm.MachineName)
-		if conn == nil || conn.Connection == nil {
-			logger.Error("wtf how is not conn and found vm autostart bug wtfwtf")
-			continue
-		}
-
 		if vm.State == grpcVirsh.VmState_RUNNING {
 			continue
 		}
 
 		tries := 0
 		for {
+
+			//getting conn
+			conn := protocol.GetConnectionByMachineName(vm.MachineName)
+			if conn == nil || conn.Connection == nil {
+				logger.Error("wtf how is not conn and found vm autostart bug wtfwtf")
+				continue
+			}
+
 			tries++
 			// 30*60(sec of min) = 1800    / 10(sleep time) =180, so this tries every 10 seconds for half an hour
 			if tries == 180 {
