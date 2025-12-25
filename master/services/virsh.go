@@ -711,8 +711,6 @@ func (v *VirshService) GetNfsByVM(ctx context.Context, vm *grpcVirsh.Vm) (int, e
 		return 0, fmt.Errorf("failed to get NFS shares: %v", err)
 	}
 
-	machineName := strings.TrimSpace(vm.MachineName)
-
 	cleanPath := func(p string) string {
 		p = strings.TrimSpace(p)
 		if p == "" {
@@ -744,10 +742,6 @@ func (v *VirshService) GetNfsByVM(ctx context.Context, vm *grpcVirsh.Vm) (int, e
 	)
 
 	for _, share := range shares {
-		if machineName != "" && share.MachineName != machineName {
-			continue
-		}
-
 		target := cleanPath(share.Target)
 		folderPath := cleanPath(share.FolderPath)
 
@@ -763,7 +757,11 @@ func (v *VirshService) GetNfsByVM(ctx context.Context, vm *grpcVirsh.Vm) (int, e
 			matched = true
 		}
 
-		if matched && (!found || bestLen > longestLen) {
+		if !matched {
+			continue
+		}
+
+		if !found || bestLen > longestLen {
 			matchedID = share.Id
 			longestLen = bestLen
 			found = true
