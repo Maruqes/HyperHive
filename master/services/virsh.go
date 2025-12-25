@@ -1150,8 +1150,9 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 			}
 
 			if autoStartQuestion != nil {
-				ctx2 := context.Background()
-				db.AddAutoStart(ctx2, newName)
+				if err := db.AddAutoStart(taskCtx, newName); err != nil {
+					return fmt.Errorf("AddAutoStart: %w", err)
+				}
 			}
 
 			return nil
