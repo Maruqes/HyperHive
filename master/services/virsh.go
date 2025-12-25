@@ -12,6 +12,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -703,10 +704,37 @@ func (v *VirshService) GetNfsByVM(ctx context.Context, vm *grpcVirsh.Vm) (int, e
 	if diskPath == "" {
 		return 0, fmt.Errorf("vm %s has no disk path", vm.Name)
 	}
+	diskPath = filepath.Clean(diskPath)
 
 	shares, err := db.GetAllNFShares(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get NFS shares: %v", err)
+	}
+
+	machineName := strings.TrimSpace(vm.MachineName)
+
+	cleanPath := func(p string) string {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			return ""
+		}
+		return filepath.Clean(p)
+	}
+
+	isPathWithin := func(path, base string) bool {
+		if base == "" {
+			return false
+		}
+		if base == "/" {
+			return strings.HasPrefix(path, "/")
+		}
+		if !strings.HasPrefix(path, base) {
+			return false
+		}
+		if len(path) == len(base) {
+			return true
+		}
+		return path[len(base)] == '/'
 	}
 
 	var (
@@ -716,30 +744,28 @@ func (v *VirshService) GetNfsByVM(ctx context.Context, vm *grpcVirsh.Vm) (int, e
 	)
 
 	for _, share := range shares {
-		if share.MachineName != vm.MachineName {
+		if machineName != "" && share.MachineName != machineName {
 			continue
 		}
 
-		target := strings.TrimSpace(share.Target)
-		if target == "" {
-			continue
+		target := cleanPath(share.Target)
+		folderPath := cleanPath(share.FolderPath)
+
+		bestLen := 0
+		matched := false
+
+		if isPathWithin(diskPath, target) {
+			bestLen = len(target)
+			matched = true
 		}
-		target = strings.TrimRight(target, "/")
-		if target == "" {
-			target = "/"
+		if isPathWithin(diskPath, folderPath) && len(folderPath) > bestLen {
+			bestLen = len(folderPath)
+			matched = true
 		}
 
-		if !strings.HasPrefix(diskPath, target) {
-			continue
-		}
-
-		if len(diskPath) > len(target) && diskPath[len(target)] != '/' {
-			continue
-		}
-
-		if !found || len(target) > longestLen {
+		if matched && (!found || bestLen > longestLen) {
 			matchedID = share.Id
-			longestLen = len(target)
+			longestLen = bestLen
 			found = true
 		}
 	}
