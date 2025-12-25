@@ -1101,6 +1101,11 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 		return logErr(err)
 	}
 
+	autoStartQuestion, err := db.GetAutoStartByName(ctx, vmName)
+	if err != nil {
+		return logErr(err)
+	}
+
 	//create folder for new vm
 	//checks if nfsShareId exists also and creates finalFile path
 	finalFile, err := v.ImportVmHelper(ctx, nfsId, newName)
@@ -1142,6 +1147,11 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 
 			if err := v.DeleteVM(taskCtx, vmName); err != nil {
 				return fmt.Errorf("DeleteVM: %w", err)
+			}
+
+			if autoStartQuestion != nil {
+				ctx2 := context.Background()
+				db.AddAutoStart(ctx2, newName)
 			}
 
 			return nil
