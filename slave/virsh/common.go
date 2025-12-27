@@ -894,6 +894,11 @@ func clampToInt32(val int64) int32 {
 }
 
 func GetVMByName(name string) (*grpcVirsh.Vm, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, fmt.Errorf("vm name is empty")
+	}
+
 	connURI := "qemu:///system"
 	conn, err := libvirt.NewConnect(connURI)
 	if err != nil {
@@ -903,41 +908,76 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 
 	dom, err := conn.LookupDomainByName(name)
 	if err != nil {
-		return nil, fmt.Errorf("lookup: %w", err)
+		doms, listErr := conn.ListAllDomains(0)
+		if listErr != nil {
+			return nil, fmt.Errorf("lookup: %w", err)
+		}
+		foundIdx := -1
+		for i := range doms {
+			domName, nameErr := doms[i].GetName()
+			if nameErr == nil && strings.EqualFold(strings.TrimSpace(domName), name) {
+				foundIdx = i
+				break
+			}
+		}
+		for i := range doms {
+			if i == foundIdx {
+				continue
+			}
+			_ = doms[i].Free()
+		}
+		if foundIdx < 0 {
+			return nil, fmt.Errorf("lookup: %w", err)
+		}
+		dom = &doms[foundIdx]
 	}
 	defer dom.Free()
 
 	// Get state
-	state, _, err := dom.GetState()
-	if err != nil {
-		return nil, fmt.Errorf("state: %w", err)
+	state := libvirt.DOMAIN_NOSTATE
+	if s, _, err := dom.GetState(); err != nil {
+		logger.Error(fmt.Sprintf("%s: state: %v", name, err))
+	} else {
+		state = s
 	}
 
 	// Parse XML for VNC port
-	xmlDesc, err := dom.GetXMLDesc(libvirt.DOMAIN_XML_SECURE)
-	if err != nil {
-		return nil, fmt.Errorf("xml: %w", err)
+	xmlDesc := ""
+	if xml, err := dom.GetXMLDesc(libvirt.DOMAIN_XML_SECURE); err != nil {
+		logger.Error(fmt.Sprintf("%s: xml secure: %v", name, err))
+		if xml, err = dom.GetXMLDesc(0); err != nil {
+			logger.Error(fmt.Sprintf("%s: xml: %v", name, err))
+		} else {
+			xmlDesc = xml
+		}
+	} else {
+		xmlDesc = xml
 	}
-	port, err := vncPortFromDomainXML(xmlDesc)
-	if err != nil {
-		return nil, fmt.Errorf("vnc port: %w", err)
-	}
-	spicePort, err := spicePortFromDomainXML(xmlDesc)
-	if err != nil {
-		return nil, fmt.Errorf("spice port: %w", err)
-	}
+
+	port := 0
+	spicePort := 0
 	var (
 		networkName string
 		vncPassword string
 	)
 	if xmlDesc != "" {
+		if p, err := vncPortFromDomainXML(xmlDesc); err != nil {
+			logger.Error(fmt.Sprintf("%s: vnc port: %v", name, err))
+		} else {
+			port = p
+		}
+		if spice, err := spicePortFromDomainXML(xmlDesc); err != nil {
+			logger.Error(fmt.Sprintf("%s: spice port: %v", name, err))
+		} else {
+			spicePort = spice
+		}
 		if netName, err := networkFromDomainXML(xmlDesc); err != nil {
-			return nil, fmt.Errorf("network: %w", err)
+			logger.Error(fmt.Sprintf("%s: network: %v", name, err))
 		} else {
 			networkName = netName
 		}
 		if pwd, err := vncPasswordFromDomainXML(xmlDesc); err != nil {
-			return nil, fmt.Errorf("vnc password: %w", err)
+			logger.Error(fmt.Sprintf("%s: vnc password: %v", name, err))
 		} else {
 			vncPassword = pwd
 		}
@@ -962,21 +1002,24 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 	}
 
 	//get diskSize and DiskPath
-	diskInfo, err := GetPrimaryDiskInfo(dom)
-	if err != nil {
-		dom.Free()
-		return nil, fmt.Errorf("get disk info: %w", err)
+	diskInfo := &DiskInfo{}
+	if di, err := GetPrimaryDiskInfo(dom); err != nil {
+		logger.Error(fmt.Sprintf("%s: get disk info: %v", name, err))
+	} else if di != nil {
+		diskInfo = di
 	}
 
 	ips, _ := ipsForDomain(dom)
 
-	cpuXML, err := GetVmCPUXML(name)
-	if err != nil {
+	cpuXML := ""
+	if xml, err := GetVmCPUXML(name); err != nil {
 		if fallback := extractCPUXML(xmlDesc); fallback != "" {
 			cpuXML = fallback
 		} else {
-			return nil, fmt.Errorf("cpu xml: %w", err)
+			logger.Error(fmt.Sprintf("%s: cpu xml: %v", name, err))
 		}
+	} else {
+		cpuXML = xml
 	}
 
 	var definedCPUs int32
