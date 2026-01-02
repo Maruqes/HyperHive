@@ -1048,6 +1048,9 @@ func (v *VirshService) StartAutoStartVms(ctx context.Context) error {
 			//start vm, if after 10 secs is not start again for 30 mins
 			logger.Info("start vm: " + vm.Name)
 			if err := virsh.StartVm(context.Background(), conn.Connection, vm); err != nil {
+				if strings.Contains(err.Error(), "domain is already running") {
+					continue
+				}
 				logger.Error("cannot start vm auto start: " + vm.Name + " err: " + err.Error())
 				time.Sleep(10 * time.Second)
 				continue
