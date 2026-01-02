@@ -53,3 +53,9 @@ master/novnc
 certs/
 downloads/
 slave/docker_git
+
+data.db-shm
+data.db-wal
+
+master/data.db-shm
+master/data.db-wal
