@@ -1030,6 +1030,36 @@ func autoStart(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func setVmLive(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type msg struct {
+		Enable *bool `json:"enable"`
+	}
+
+	var m msg
+	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if m.Enable == nil {
+		http.Error(w, "enable is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	if err := virshServices.SetVmLive(r.Context(), vmName, *m.Enable); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func createAutoBak(w http.ResponseWriter, r *http.Request) {
 	type Req struct {
 		VmName           string   `json:"vm_name"`
@@ -1366,6 +1396,7 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Delete("/deleteBackup/{backup_id}", deleteBackup)
 
 		r.Post("/autostart/{vm_name}", autoStart)
+		r.Post("/vmlive/{vm_name}", setVmLive)
 
 		//automatic backups
 		r.Post("/autobak", createAutoBak)

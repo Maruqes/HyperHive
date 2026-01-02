@@ -975,6 +975,39 @@ func (v *VirshService) AutoStart(ctx context.Context, vmName string, autoStart b
 	return nil
 }
 
+func (v *VirshService) SetVmLive(ctx context.Context, vmName string, enable bool) error {
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return err
+	}
+
+	if vm == nil {
+		return fmt.Errorf("failed to get vm %s", vmName)
+	}
+
+	exists, err := db.DoesVmLiveExist(ctx, vmName)
+	if err != nil {
+		return fmt.Errorf("failed to check if VM exists in vm_live: %v", err)
+	}
+
+	if enable {
+		if !exists {
+			if err := db.AddVmLive(ctx, vmName); err != nil {
+				return fmt.Errorf("failed to add VM to vm_live: %v", err)
+			}
+		}
+		return nil
+	}
+
+	if exists {
+		if err := db.RemoveVmLive(ctx, vmName); err != nil {
+			return fmt.Errorf("failed to remove VM from vm_live: %v", err)
+		}
+	}
+
+	return nil
+}
+
 func (v *VirshService) StartAutoStartVms(ctx context.Context) error {
 	autoStart, err := db.GetAllAutoStart(ctx)
 	if err != nil {

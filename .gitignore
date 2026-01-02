@@ -59,3 +59,11 @@ data.db-wal
 
 master/data.db-shm
 master/data.db-wal
+
+data.db
+data.db-wal
+data.db-shm
+*.db
+*.db.bak
+*.db-wal
+*.db-shm

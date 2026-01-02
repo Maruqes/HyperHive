@@ -389,6 +389,8 @@ func main() {
 		log.Fatalf("create nots table: %v", err)
 	}
 
+	db.StartSQLiteBackupLoop(ctx)
+
 	if err := setupFrontendContainer(); err != nil {
 		fmt.Fprintf(os.Stderr, "error on frontend container: %v\n", err)
 		os.Exit(1)
