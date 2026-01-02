@@ -42,9 +42,45 @@ func performUpdate(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func shutdownPc(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machineName")
+	var reqBody struct {
+		Now bool `json:"now"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	extra := services.ExtraService{}
+	if err := extra.ShutDown(machineName, reqBody.Now); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func restartPc(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machineName")
+	var reqBody struct {
+		Now bool `json:"now"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	extra := services.ExtraService{}
+	if err := extra.Restart(machineName, reqBody.Now); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 func setupExtraAPI(r chi.Router) chi.Router {
 	return r.Route("/extra", func(r chi.Router) {
 		r.Get("/getUpdates/{machineName}", getUpdates)
 		r.Post("/performUpdate/{machineName}", performUpdate)
+		r.Post("/shutdown/{machineName}", shutdownPc)
+		r.Post("/restart/{machineName}", restartPc)
 	})
 }

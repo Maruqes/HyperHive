@@ -31,3 +31,27 @@ func (s *ExtraService) PerformUpdate(machineName, pkgName string, reboot bool) e
 	})
 	return err
 }
+
+func (s *ExtraService) ShutDown(machineName string, now bool) error {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil {
+		return fmt.Errorf("no connection found for machine: %s", machineName)
+	}
+
+	_, err := extra.ShutDown(conn.Connection, &extraGrpc.RestartShutdownNow{
+		Now: now,
+	})
+	return err
+}
+
+func (s *ExtraService) Restart(machineName string, now bool) error {
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil {
+		return fmt.Errorf("no connection found for machine: %s", machineName)
+	}
+
+	_, err := extra.Restart(conn.Connection, &extraGrpc.RestartShutdownNow{
+		Now: now,
+	})
+	return err
+}

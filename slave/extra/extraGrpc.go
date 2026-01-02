@@ -40,6 +40,22 @@ func (s *ExtraService) PerformUpdate(ctx context.Context, req *extraGrpc.UpdateR
 	return &extraGrpc.Empty{}, nil
 }
 
+func (s *ExtraService) ShutDown(ctx context.Context, req *extraGrpc.RestartShutdownNow) (*extraGrpc.Empty, error) {
+	err := shutdownPc(req.Now)
+	if err != nil {
+		return &extraGrpc.Empty{}, err
+	}
+	return &extraGrpc.Empty{}, nil
+}
+
+func (s *ExtraService) Restart(ctx context.Context, req *extraGrpc.RestartShutdownNow) (*extraGrpc.Empty, error) {
+	err := restartPc(req.Now)
+	if err != nil {
+		return &extraGrpc.Empty{}, err
+	}
+	return &extraGrpc.Empty{}, nil
+}
+
 func SendWebsocketMessage(message, extra string, msgType extraGrpc.WebSocketsMessageType) error {
 	if env512.Conn == nil {
 		err := fmt.Errorf("gRPC connection not set")

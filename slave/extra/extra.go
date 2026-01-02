@@ -166,3 +166,33 @@ func containsDigit(s string) bool {
 	}
 	return false
 }
+
+// shutdownPc shuts down the PC. If now is true, it shuts down immediately.
+func shutdownPc(now bool) error {
+	args := []string{"shutdown"}
+	if now {
+		args = append(args, "now")
+	}
+	cmd := exec.Command(args[0], args[1:]...)
+	_, err := cmd.Output()
+	if err != nil {
+		logger.Error(err.Error())
+		return err
+	}
+	return nil
+}
+
+// restartPc restarts the PC. If now is true, it restarts immediately.
+func restartPc(now bool) error {
+	args := []string{"reboot"}
+	if now {
+		args = append(args, "now")
+	}
+	cmd := exec.Command(args[0], args[1:]...)
+	_, err := cmd.Output()
+	if err != nil {
+		logger.Error(err.Error())
+		return err
+	}
+	return nil
+}

@@ -22,6 +22,16 @@ func PerformUpdate(conn *grpc.ClientConn, update *extraGrpc.UpdateRequest) (*ext
 	return client.PerformUpdate(context.Background(), update)
 }
 
+func ShutDown(conn *grpc.ClientConn, update *extraGrpc.RestartShutdownNow) (*extraGrpc.Empty, error) {
+	client := extraGrpc.NewExtraServiceClient(conn)
+	return client.ShutDown(context.Background(), update)
+}
+
+func Restart(conn *grpc.ClientConn, update *extraGrpc.RestartShutdownNow) (*extraGrpc.Empty, error) {
+	client := extraGrpc.NewExtraServiceClient(conn)
+	return client.Restart(context.Background(), update)
+}
+
 type ExtraServiceServer struct {
 	extraGrpc.UnimplementedExtraServiceServer
 }

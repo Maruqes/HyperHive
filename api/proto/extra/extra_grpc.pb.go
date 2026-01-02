@@ -23,6 +23,8 @@ const (
 	ExtraService_CheckForUpdates_FullMethodName      = "/extra.ExtraService/CheckForUpdates"
 	ExtraService_PerformUpdate_FullMethodName        = "/extra.ExtraService/PerformUpdate"
 	ExtraService_SendNotifications_FullMethodName    = "/extra.ExtraService/SendNotifications"
+	ExtraService_ShutDown_FullMethodName             = "/extra.ExtraService/ShutDown"
+	ExtraService_Restart_FullMethodName              = "/extra.ExtraService/Restart"
 )
 
 // ExtraServiceClient is the client API for ExtraService service.
@@ -35,6 +37,8 @@ type ExtraServiceClient interface {
 	CheckForUpdates(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*AllUpdates, error)
 	PerformUpdate(ctx context.Context, in *UpdateRequest, opts ...grpc.CallOption) (*Empty, error)
 	SendNotifications(ctx context.Context, in *Notification, opts ...grpc.CallOption) (*Empty, error)
+	ShutDown(ctx context.Context, in *RestartShutdownNow, opts ...grpc.CallOption) (*Empty, error)
+	Restart(ctx context.Context, in *RestartShutdownNow, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type extraServiceClient struct {
@@ -85,6 +89,26 @@ func (c *extraServiceClient) SendNotifications(ctx context.Context, in *Notifica
 	return out, nil
 }
 
+func (c *extraServiceClient) ShutDown(ctx context.Context, in *RestartShutdownNow, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, ExtraService_ShutDown_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *extraServiceClient) Restart(ctx context.Context, in *RestartShutdownNow, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, ExtraService_Restart_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ExtraServiceServer is the server API for ExtraService service.
 // All implementations must embed UnimplementedExtraServiceServer
 // for forward compatibility
@@ -95,6 +119,8 @@ type ExtraServiceServer interface {
 	CheckForUpdates(context.Context, *Empty) (*AllUpdates, error)
 	PerformUpdate(context.Context, *UpdateRequest) (*Empty, error)
 	SendNotifications(context.Context, *Notification) (*Empty, error)
+	ShutDown(context.Context, *RestartShutdownNow) (*Empty, error)
+	Restart(context.Context, *RestartShutdownNow) (*Empty, error)
 	mustEmbedUnimplementedExtraServiceServer()
 }
 
@@ -113,6 +139,12 @@ func (UnimplementedExtraServiceServer) PerformUpdate(context.Context, *UpdateReq
 }
 func (UnimplementedExtraServiceServer) SendNotifications(context.Context, *Notification) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendNotifications not implemented")
+}
+func (UnimplementedExtraServiceServer) ShutDown(context.Context, *RestartShutdownNow) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ShutDown not implemented")
+}
+func (UnimplementedExtraServiceServer) Restart(context.Context, *RestartShutdownNow) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Restart not implemented")
 }
 func (UnimplementedExtraServiceServer) mustEmbedUnimplementedExtraServiceServer() {}
 
@@ -199,6 +231,42 @@ func _ExtraService_SendNotifications_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ExtraService_ShutDown_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RestartShutdownNow)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ExtraServiceServer).ShutDown(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ExtraService_ShutDown_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ExtraServiceServer).ShutDown(ctx, req.(*RestartShutdownNow))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ExtraService_Restart_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RestartShutdownNow)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ExtraServiceServer).Restart(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ExtraService_Restart_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ExtraServiceServer).Restart(ctx, req.(*RestartShutdownNow))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ExtraService_ServiceDesc is the grpc.ServiceDesc for ExtraService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -221,6 +289,14 @@ var ExtraService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SendNotifications",
 			Handler:    _ExtraService_SendNotifications_Handler,
+		},
+		{
+			MethodName: "ShutDown",
+			Handler:    _ExtraService_ShutDown_Handler,
+		},
+		{
+			MethodName: "Restart",
+			Handler:    _ExtraService_Restart_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

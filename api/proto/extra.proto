@@ -41,6 +41,8 @@ message Notification {
   bool critical = 4;
 }
 
+message RestartShutdownNow { bool now = 1; }
+
 // master service
 service ExtraService {
   // master
@@ -51,4 +53,7 @@ service ExtraService {
   rpc PerformUpdate(UpdateRequest) returns (Empty);
 
   rpc SendNotifications(Notification) returns (Empty);
+  
+  rpc ShutDown(RestartShutdownNow)returns(Empty);
+  rpc Restart(RestartShutdownNow)returns(Empty);
 }
