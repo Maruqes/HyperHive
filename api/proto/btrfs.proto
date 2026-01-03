@@ -5,177 +5,167 @@ package btrfs;
 option go_package = "github.com/Maruqes/512SvMan/api/proto/btrfs;proto";
 
 message MinDisk {
-	string path = 1;        // /dev/sda
-	string name = 2;        // sda
-	string model = 3;       // "Samsung SSD 860 EVO"
-	string vendor = 4;      // "Samsung"
-	string serial = 5;      // "S3Z8NX0K123456A"
-	bool rotational = 6;    // true = HDD, false = SSD
-	double size_gb = 7;
-	bool mounted = 8;
-	string by_id = 9;       // /dev/disk/by-id/ata-Samsung_SSD
-	string transport = 10;  // sata, nvme, usb, virtio
-	string pci_path = 11;   // /sys/block/sda/device
+  string path = 1;     // /dev/sda
+  string name = 2;     // sda
+  string model = 3;    // "Samsung SSD 860 EVO"
+  string vendor = 4;   // "Samsung"
+  string serial = 5;   // "S3Z8NX0K123456A"
+  bool rotational = 6; // true = HDD, false = SSD
+  double size_gb = 7;
+  bool mounted = 8;
+  string by_id = 9;      // /dev/disk/by-id/ata-Samsung_SSD
+  string transport = 10; // sata, nvme, usb, virtio
+  string pci_path = 11;  // /sys/block/sda/device
 }
 
-message MinDiskArr{
-	repeated MinDisk disks = 1;
-}
+message MinDiskArr { repeated MinDisk disks = 1; }
 
 message BtrfsDevice {
-	string name = 1;
-	string path = 2;
-	int64 size_bytes = 7;
-	bool mounted = 9;
+  string name = 1;
+  string path = 2;
+  int64 size_bytes = 7;
+  bool mounted = 9;
 }
 
 message FileSystem {
-	string target = 1;
-	string source = 2;
-	string fs_type = 3;
-	string options = 4;
-	string uuid = 5;
-	string label = 6;
-	string compression = 7;
-	int64 max_space = 8;
-	int64 used_space = 9;
-	int64 real_max_space = 10;
-	int64 real_used_space = 11;
-	repeated BtrfsDevice devices = 12;
-	repeated FileSystem children = 13;
-	bool mounted = 14;
-	string raid_type = 15;
+  string target = 1;
+  string source = 2;
+  string fs_type = 3;
+  string options = 4;
+  string uuid = 5;
+  string label = 6;
+  string compression = 7;
+  int64 max_space = 8;
+  int64 used_space = 9;
+  int64 real_max_space = 10;
+  int64 real_used_space = 11;
+  repeated BtrfsDevice devices = 12;
+  repeated FileSystem children = 13;
+  bool mounted = 14;
+  string raid_type = 15;
 }
 
-message FindMntOutput {
-	repeated FileSystem filesystems = 1;
-}
+message FindMntOutput { repeated FileSystem filesystems = 1; }
 
 message CreateRaidReq {
-	string name = 1;
-	string raid = 2;
-	repeated string disks = 3;
+  string name = 1;
+  string raid = 2;
+  repeated string disks = 3;
 }
 
-message UUIDReq{
-	string uuid = 1;
+message UUIDReq { string uuid = 1; }
+
+message MountReq {
+  string uuid = 1;
+  string target = 2;
+  string compression = 3;
+}
+message UMountReq {
+  string uuid = 1;
+  bool force = 2;
 }
 
-message MountReq{
-	string uuid = 1;
-	string target = 2;
-	string compression = 3;
-}
-message UMountReq{
-	string uuid = 1;
-	bool force = 2;
+message AddDiskToRaidReq {
+  string uuid = 1;
+  string diskPath = 2;
 }
 
-message AddDiskToRaidReq{
-	string uuid = 1;
-	string diskPath = 2;
+message RemoveDiskFromRaidReq {
+  string uuid = 1;
+  string diskPath = 2;
 }
 
-message RemoveDiskFromRaidReq{
-	string uuid = 1;
-	string diskPath = 2;
+message ReplaceDiskToRaidReq {
+  string uuid = 1;
+  string oldDiskPath = 2;
+  string newDiskPath = 3;
 }
 
-message ReplaceDiskToRaidReq{
-	string uuid = 1;
-	string oldDiskPath = 2;
-	string newDiskPath = 3;
+message ChangeRaidLevelReq {
+  string uuid = 1;
+  string raidType = 2;
+  string balance_status = 8;
 }
-
-message ChangeRaidLevelReq{
-	string uuid = 1;
-	string raidType = 2;
-	string balance_status = 8;
-}
-
 
 message DeviceStat {
-    string device = 1;
-    int32 dev_id = 2;
-    int32 write_io_errs = 3;
-    int32 read_io_errs = 4;
-    int32 flush_io_errs = 5;
-    int32 corruption_errs = 6;
-    int32 generation_errs = 7;
-    string balanceStatus = 8;
-    uint64 device_size_bytes = 9;
-    uint64 device_used_bytes = 10;
-    bool device_missing = 11;
-    string fs_uuid = 12;
-    string fs_label = 13;
-    string replaceStatus = 14;
-
+  string device = 1;
+  int32 dev_id = 2;
+  int32 write_io_errs = 3;
+  int32 read_io_errs = 4;
+  int32 flush_io_errs = 5;
+  int32 corruption_errs = 6;
+  int32 generation_errs = 7;
+  string balanceStatus = 8;
+  uint64 device_size_bytes = 9;
+  uint64 device_used_bytes = 10;
+  bool device_missing = 11;
+  string fs_uuid = 12;
+  string fs_label = 13;
 }
 
-
 message RaidStats {
-    string version = 1;
+  string version = 1;
 
-    string fs_uuid = 2;
-    string fs_label = 3;
-    int32 total_devices = 4;
+  string fs_uuid = 2;
+  string fs_label = 3;
+  int32 total_devices = 4;
+  string replaceStatus = 5;
 
-    repeated DeviceStat device_stats = 5;
+  repeated DeviceStat device_stats = 6;
 }
 
 message ScrubStatus {
-	string uuid = 1;
-	string path = 2;
-	string status = 3;
-	string started_at = 4;
-	string duration = 5;
-	string time_left = 6;
-	string total_to_scrub = 7;
-	string bytes_scrubbed = 8;
-	string rate = 9;
-	string error_summary = 10;
-	double percent_done = 11;
+  string uuid = 1;
+  string path = 2;
+  string status = 3;
+  string started_at = 4;
+  string duration = 5;
+  string time_left = 6;
+  string total_to_scrub = 7;
+  string bytes_scrubbed = 8;
+  string rate = 9;
+  string error_summary = 10;
+  double percent_done = 11;
 }
 
-message MountRaidRet{
-	bool degraded=1;
-	repeated string Problems=2;
+message MountRaidRet {
+  bool degraded = 1;
+  repeated string Problems = 2;
 }
 
 message BalanceRaidReq {
-	string uuid = 1;
-	message Filters {
-		int32 dataUsageMax = 1;
-		int32 metadataUsageMax = 2;
-	}
-	Filters filters = 2;
-	bool force = 3;
-	bool convertToCurrentRaid = 4;
+  string uuid = 1;
+  message Filters {
+    int32 dataUsageMax = 1;
+    int32 metadataUsageMax = 2;
+  }
+  Filters filters = 2;
+  bool force = 3;
+  bool convertToCurrentRaid = 4;
 }
 
-message Empty{}
+message Empty {}
 service BtrFSService {
-	rpc GetAllDisks(Empty) returns (MinDiskArr);
-	rpc GetAllFileSystems(Empty) returns (FindMntOutput);
-	rpc GetFileSystem(UUIDReq) returns (FindMntOutput);
-	rpc CreateRaid(CreateRaidReq) returns (Empty);
-	rpc RemoveRaid(UUIDReq)returns(Empty);
-	rpc MountRaid(MountReq)returns(MountRaidRet);
-	rpc UMountRaid(UMountReq)returns(Empty);
-	
+  rpc GetAllDisks(Empty) returns (MinDiskArr);
+  rpc GetAllFileSystems(Empty) returns (FindMntOutput);
+  rpc GetFileSystem(UUIDReq) returns (FindMntOutput);
+  rpc CreateRaid(CreateRaidReq) returns (Empty);
+  rpc RemoveRaid(UUIDReq) returns (Empty);
+  rpc MountRaid(MountReq) returns (MountRaidRet);
+  rpc UMountRaid(UMountReq) returns (Empty);
 
-	rpc AddDiskToRaid(AddDiskToRaidReq) returns (Empty);
-	rpc RemoveDiskFromRaid(RemoveDiskFromRaidReq) returns (Empty);
-	rpc ReplaceDiskInRaid(ReplaceDiskToRaidReq) returns (Empty);
-	rpc ChangeRaidLevel(ChangeRaidLevelReq) returns (Empty);
-	
-	rpc BalanceRaid(BalanceRaidReq) returns (Empty);
+  rpc AddDiskToRaid(AddDiskToRaidReq) returns (Empty);
+  rpc RemoveDiskFromRaid(RemoveDiskFromRaidReq) returns (Empty);
+  rpc ReplaceDiskInRaid(ReplaceDiskToRaidReq) returns (Empty);
+  rpc ChangeRaidLevel(ChangeRaidLevelReq) returns (Empty);
 
-	rpc DefragmentRaid(UUIDReq) returns (Empty);
-	rpc ScrubRaid(UUIDReq) returns (Empty);
-	rpc GetRaidStats(UUIDReq) returns (RaidStats);
-	rpc PauseBalance(UUIDReq) returns (Empty);
-	rpc ResumeBalance(UUIDReq) returns (Empty);
-	rpc CancelBalance(UUIDReq) returns (Empty);
-	rpc ScrubStats(UUIDReq) returns (ScrubStatus);
+  rpc BalanceRaid(BalanceRaidReq) returns (Empty);
+
+  rpc DefragmentRaid(UUIDReq) returns (Empty);
+  rpc ScrubRaid(UUIDReq) returns (Empty);
+  rpc GetRaidStats(UUIDReq) returns (RaidStats);
+  rpc PauseBalance(UUIDReq) returns (Empty);
+  rpc ResumeBalance(UUIDReq) returns (Empty);
+  rpc CancelBalance(UUIDReq) returns (Empty);
+  rpc ScrubStats(UUIDReq) returns (ScrubStatus);
 }

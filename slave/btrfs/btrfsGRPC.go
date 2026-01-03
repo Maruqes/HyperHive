@@ -370,7 +370,6 @@ func (s *BTRFSService) GetRaidStats(ctx context.Context, req *btrfsGrpc.UUIDReq)
 			CorruptionErrs: int32(devStat.CorruptionErrs),
 			GenerationErrs: int32(devStat.GenerationErrs),
 			BalanceStatus:  devStat.BalanceStatus,
-			ReplaceStatus:  devStat.ReplaceStatus,
 
 			DeviceSizeBytes: devStat.DeviceSizeBytes,
 			DeviceUsedBytes: devStat.DeviceUsedBytes,
@@ -379,12 +378,17 @@ func (s *BTRFSService) GetRaidStats(ctx context.Context, req *btrfsGrpc.UUIDReq)
 			FsLabel:         devStat.FSLabel,
 		})
 	}
+	replaceStatus, err := GetReplaceStatus(mp)
+	if err != nil {
+		return nil, err
+	}
 
 	return &btrfsGrpc.RaidStats{
-		Version:      stats.Header.Version,
-		FsUuid:       stats.FSUUID,
-		FsLabel:      stats.FSLabel,
-		TotalDevices: int32(stats.TotalDevices),
-		DeviceStats:  deviceStats,
+		Version:       stats.Header.Version,
+		FsUuid:        stats.FSUUID,
+		FsLabel:       stats.FSLabel,
+		TotalDevices:  int32(stats.TotalDevices),
+		DeviceStats:   deviceStats,
+		ReplaceStatus: replaceStatus,
 	}, nil
 }

@@ -104,7 +104,6 @@ type DeviceStat struct {
 	CorruptionErrs int    `json:"corruption_errs"`
 	GenerationErrs int    `json:"generation_errs"`
 	BalanceStatus  string `json:"balance_status"`
-	ReplaceStatus  string `json:"replace_status"`
 
 	FSUUID          string `json:"fs_uuid,omitempty"`
 	FSLabel         string `json:"fs_label,omitempty"`
@@ -306,10 +305,8 @@ func GetFileSystemStats(mountPoint string) (*DeviceStats, error) {
 
 	// Balance status (global por FS)
 	balanceStatus, _ := GetBalanceStatus(mountPoint)
-	replaceStatus, _ := GetReplaceStatus(mountPoint)
 	for i := range stats.DeviceStats {
 		stats.DeviceStats[i].BalanceStatus = balanceStatus
-		stats.DeviceStats[i].ReplaceStatus = replaceStatus
 	}
 
 	// info do `btrfs filesystem show -m`
