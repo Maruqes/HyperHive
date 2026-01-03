@@ -3,6 +3,7 @@ package btrfs
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -366,11 +367,15 @@ func GetBalanceStatus(mountPoint string) (string, error) {
 }
 
 func GetReplaceStatus(mountPoint string) (string, error) {
-	cmd := exec.Command("btrfs", "replace", "status", mountPoint)
+	ctx, cancel := context.WithTimeout(context.Background(), 800*time.Millisecond)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "btrfs", "replace", "status", mountPoint)
 	output, err := cmd.CombinedOutput()
 	status := parseReplaceStatusText(string(output))
 
 	if err != nil {
+		// If we managed to parse a useful status even though the command errored/timed out, return it.
 		if status != "" {
 			return status, nil
 		}
