@@ -103,12 +103,13 @@ message DeviceStat {
     int32 corruption_errs = 6;
     int32 generation_errs = 7;
     string balanceStatus = 8;
-
     uint64 device_size_bytes = 9;
     uint64 device_used_bytes = 10;
     bool device_missing = 11;
     string fs_uuid = 12;
     string fs_label = 13;
+    string replaceStatus = 14;
+
 }
 
 

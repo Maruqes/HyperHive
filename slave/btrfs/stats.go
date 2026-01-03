@@ -104,6 +104,7 @@ type DeviceStat struct {
 	CorruptionErrs int    `json:"corruption_errs"`
 	GenerationErrs int    `json:"generation_errs"`
 	BalanceStatus  string `json:"balance_status"`
+	ReplaceStatus  string `json:"replace_status"`
 
 	FSUUID          string `json:"fs_uuid,omitempty"`
 	FSLabel         string `json:"fs_label,omitempty"`
@@ -305,8 +306,10 @@ func GetFileSystemStats(mountPoint string) (*DeviceStats, error) {
 
 	// Balance status (global por FS)
 	balanceStatus, _ := GetBalanceStatus(mountPoint)
+	replaceStatus, _ := GetReplaceStatus(mountPoint)
 	for i := range stats.DeviceStats {
 		stats.DeviceStats[i].BalanceStatus = balanceStatus
+		stats.DeviceStats[i].ReplaceStatus = replaceStatus
 	}
 
 	// info do `btrfs filesystem show -m`
@@ -365,6 +368,27 @@ func GetBalanceStatus(mountPoint string) (string, error) {
 	return status, nil
 }
 
+func GetReplaceStatus(mountPoint string) (string, error) {
+	cmd := exec.Command("btrfs", "replace", "status", mountPoint)
+	output, err := cmd.CombinedOutput()
+	status := parseReplaceStatusText(string(output))
+
+	if err != nil {
+		if status != "" {
+			return status, nil
+		}
+
+		return "", fmt.Errorf(
+			"failed to get replace status for %s: %w (output: %s)",
+			mountPoint,
+			err,
+			strings.TrimSpace(string(output)),
+		)
+	}
+
+	return status, nil
+}
+
 // parseBalanceStatusText extracts a useful balance status string from the CLI output.
 // When progress information is present (second line), it returns that line;
 // otherwise it returns the first non-empty line.
@@ -387,6 +411,38 @@ func parseBalanceStatusText(output string) string {
 	}
 
 	return cleaned[0]
+}
+
+// parseReplaceStatusText extracts a useful replace status string from the CLI output.
+// When progress information is present, it returns the progress/status line;
+// otherwise it returns the first non-empty line.
+func parseReplaceStatusText(output string) string {
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	cleaned := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			cleaned = append(cleaned, trimmed)
+		}
+	}
+
+	if len(cleaned) == 0 {
+		return ""
+	}
+
+	for _, line := range cleaned {
+		if strings.Contains(strings.ToLower(line), "no replacement") {
+			return line
+		}
+	}
+
+	for i := len(cleaned) - 1; i >= 0; i-- {
+		lower := strings.ToLower(cleaned[i])
+		if strings.Contains(lower, "status") || strings.Contains(lower, "%") || strings.Contains(lower, "done") {
+			return cleaned[i]
+		}
+	}
+
+	return cleaned[len(cleaned)-1]
 }
 
 // GetDisksFromRaid returns the list of disk devices that are part of a BTRFS raid
