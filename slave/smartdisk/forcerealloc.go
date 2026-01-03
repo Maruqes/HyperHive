@@ -187,7 +187,7 @@ func StartFullWipe(device string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("Limpeza destrutiva iniciada em %s (badblocks -wsv).", device), nil
+	return fmt.Sprintf("Destructive wipe started on %s (badblocks -wsv).", device), nil
 }
 
 // StartNonDestructiveRealloc inicia um badblocks NÃO destrutivo ("badblocks -nsv <dev>")
@@ -197,7 +197,7 @@ func StartNonDestructiveRealloc(device string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("Reallocação não destrutiva iniciada em %s (badblocks -nsv).", device), nil
+	return fmt.Sprintf("Non-destructive reallocation started on %s (badblocks -nsv).", device), nil
 }
 
 // GetReallocStatus devolve o estado para um device.
@@ -230,7 +230,7 @@ func (m *ForceReallocManager) start(device string, mode ForceReallocMode) (*forc
 		existing.mu.RUnlock()
 		if alreadyRunning {
 			m.mu.Unlock()
-			return nil, fmt.Errorf("já existe uma limpeza/reallocação a correr em %s", device)
+			return nil, fmt.Errorf("a wipe/reallocation is already running on %s", device)
 		}
 		// remove job completado para libertar memória
 		delete(m.jobs, device)
@@ -257,7 +257,7 @@ func (m *ForceReallocManager) start(device string, mode ForceReallocMode) (*forc
 	default:
 		m.mu.Unlock()
 		cancel()
-		return nil, fmt.Errorf("modo de reallocação inválido: %d", mode)
+		return nil, fmt.Errorf("invalid reallocation mode: %d", mode)
 	}
 
 	cmd := exec.CommandContext(ctx, "badblocks", args...)
@@ -277,7 +277,7 @@ func (m *ForceReallocManager) start(device string, mode ForceReallocMode) (*forc
 		title := "Force realloc start failed"
 		msg := fmt.Sprintf("Failed to start badblocks on %s: %v", device, err)
 		extra.SendNotifications(title, msg, "/", true)
-		return nil, fmt.Errorf("falha ao iniciar badblocks em %s: %w", device, err)
+		return nil, fmt.Errorf("failed to start badblocks on %s: %w", device, err)
 	}
 
 	// notify started
@@ -331,7 +331,7 @@ func (m *ForceReallocManager) Status(device string) (ForceReallocStatus, error) 
 	job, ok := m.jobs[device]
 	m.mu.RUnlock()
 	if !ok {
-		return ForceReallocStatus{}, fmt.Errorf("nenhuma limpeza/reallocação conhecida para %s", device)
+		return ForceReallocStatus{}, fmt.Errorf("no known wipe/reallocation for %s", device)
 	}
 	return job.snapshot(), nil
 }
@@ -358,14 +358,14 @@ func (m *ForceReallocManager) Cancel(device string) error {
 	job, ok := m.jobs[device]
 	m.mu.RUnlock()
 	if !ok {
-		return fmt.Errorf("nenhuma limpeza/reallocação a correr em %s", device)
+		return fmt.Errorf("no wipe/reallocation running on %s", device)
 	}
 
 	job.mu.RLock()
 	isCompleted := job.status.Completed
 	job.mu.RUnlock()
 	if isCompleted {
-		return fmt.Errorf("a limpeza/reallocação em %s já terminou", device)
+		return fmt.Errorf("the wipe/reallocation on %s has already finished", device)
 	}
 
 	job.cancel()
