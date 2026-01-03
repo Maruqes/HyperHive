@@ -3,6 +3,7 @@ package services
 import (
 	"512SvMan/db"
 	"512SvMan/docker"
+	"512SvMan/nots"
 	"512SvMan/protocol"
 	"context"
 	"errors"
@@ -39,7 +40,16 @@ func (s *DockerService) ImageDownload(machineName, image, registry string) error
 		Registry: registry,
 	}
 
-	return docker.ImageDownload(machine.Connection, req)
+	go func() {
+		err := docker.ImageDownload(machine.Connection, req)
+		if err != nil {
+			nots.SendGlobalNotification("Docker image download failed", "Docker image download failed for "+image+" on "+machineName, err.Error(), true)
+			return
+		}
+		nots.SendGlobalNotification("Docker image download done", "Docker image "+image+" downloaded on "+machineName, "/", true)
+	}()
+
+	return nil
 }
 
 func (s *DockerService) ImageRemove(machineName, imageID string, force, pruneChild bool) error {

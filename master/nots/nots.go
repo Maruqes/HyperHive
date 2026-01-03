@@ -4,6 +4,7 @@ package nots
 import (
 	"512SvMan/db"
 	"512SvMan/env512"
+	"512SvMan/websocket"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -99,6 +100,15 @@ func SendWebPush(sub db.PushSubscription, title, body, relURL string, critical b
 // SendGlobalNotification envia uma notificação simples para TODAS as subscrições.
 func SendGlobalNotification(title, body, relURL string, critical bool) (err error) {
 	ctx := context.Background()
+
+	if critical {
+		// send also to web
+		websocket.BroadcastMessage(websocket.Message{
+			Type:  "Notification",
+			Data:  body,
+			Extra: title,
+		})
+	}
 
 	err = db.DbSaveNot(ctx, db.Not{
 		Title:     title,

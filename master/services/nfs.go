@@ -3,6 +3,7 @@ package services
 import (
 	"512SvMan/db"
 	"512SvMan/nfs"
+	"512SvMan/nots"
 	"512SvMan/protocol"
 	"context"
 	"crypto/rand"
@@ -536,6 +537,47 @@ func (s *NFSService) DownloadISO(ctx context.Context, url, isoName string, nfsSh
 		return "", err
 	}
 	return isoPath, nil
+}
+
+func (s *NFSService) DownloadISOAsync(url, isoName string, nfsShare db.NFSShare) error {
+	conn := protocol.GetConnectionByMachineName(nfsShare.MachineName)
+	if conn == nil || conn.Connection == nil {
+		return fmt.Errorf("slave not connected")
+	}
+
+	target := strings.TrimSuffix(nfsShare.Target, "/")
+	isoPath := target + "/" + isoName
+
+	isoRequest := &proto.DownloadIsoRequest{
+		IsoUrl:  url,
+		IsoName: isoName,
+		FolderMount: &proto.FolderMount{
+			MachineName:     nfsShare.MachineName,
+			FolderPath:      nfsShare.FolderPath,
+			Source:          nfsShare.Source,
+			Target:          target,
+			HostNormalMount: nfsShare.HostNormalMount,
+		},
+	}
+
+	go func() {
+		taskCtx := context.Background()
+		if err := nfs.DownloadISO(conn.Connection, taskCtx, isoRequest); err != nil {
+			nots.SendGlobalNotification("ISO download failed", "ISO download failed for "+isoName+" on "+nfsShare.MachineName, err.Error(), true)
+			return
+		}
+		if err := nfs.Sync(conn.Connection); err != nil {
+			nots.SendGlobalNotification("ISO sync failed", "ISO sync failed for "+isoName+" on "+nfsShare.MachineName, err.Error(), true)
+			return
+		}
+		if err := db.AddISO(taskCtx, nfsShare.MachineName, isoPath, isoName); err != nil {
+			nots.SendGlobalNotification("ISO register failed", "ISO download finished but failed to save "+isoName+" on "+nfsShare.MachineName, err.Error(), true)
+			return
+		}
+		nots.SendGlobalNotification("ISO download done", "ISO "+isoName+" downloaded on "+nfsShare.MachineName, "/", true)
+	}()
+
+	return nil
 }
 
 func (s *NFSService) ListFolderContents(machineName string, path string) (*proto.FolderContents, error) {

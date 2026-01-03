@@ -255,7 +255,15 @@ func (s *BTRFSService) AddDiskToRaid(machineName string, uuid string, disk strin
 	if conn == nil {
 		return fmt.Errorf("no connection found for machine: %s", machineName)
 	}
-	return btrfs.AddDiskToRaid(conn.Connection, &btrfsGrpc.AddDiskToRaidReq{Uuid: uuid, DiskPath: disk})
+	go func() {
+		err := btrfs.AddDiskToRaid(conn.Connection, &btrfsGrpc.AddDiskToRaidReq{Uuid: uuid, DiskPath: disk})
+		if err != nil {
+			nots.SendGlobalNotification("Add disk Failed", "BTRFS add disk failed for "+uuid+" on "+machineName+" ("+disk+")", err.Error(), true)
+		} else {
+			nots.SendGlobalNotification("Add disk done", "BTRFS add disk done for "+uuid+" on "+machineName+" ("+disk+")", "Add disk operation is done", true)
+		}
+	}()
+	return nil
 }
 
 func (s *BTRFSService) RemoveDiskFromRaid(machineName string, uuid string, disk string) error {
@@ -263,7 +271,15 @@ func (s *BTRFSService) RemoveDiskFromRaid(machineName string, uuid string, disk 
 	if conn == nil {
 		return fmt.Errorf("no connection found for machine: %s", machineName)
 	}
-	return btrfs.RemoveDiskFromRaid(conn.Connection, &btrfsGrpc.RemoveDiskFromRaidReq{Uuid: uuid, DiskPath: disk})
+	go func() {
+		err := btrfs.RemoveDiskFromRaid(conn.Connection, &btrfsGrpc.RemoveDiskFromRaidReq{Uuid: uuid, DiskPath: disk})
+		if err != nil {
+			nots.SendGlobalNotification("Remove disk Failed", "BTRFS remove disk failed for "+uuid+" on "+machineName+" ("+disk+")", err.Error(), true)
+		} else {
+			nots.SendGlobalNotification("Remove disk done", "BTRFS remove disk done for "+uuid+" on "+machineName+" ("+disk+")", "Remove disk operation is done", true)
+		}
+	}()
+	return nil
 }
 
 func (s *BTRFSService) ReplaceDiskInRaid(machineName string, uuid string, oldDisk string, newDisk string) error {
@@ -271,7 +287,15 @@ func (s *BTRFSService) ReplaceDiskInRaid(machineName string, uuid string, oldDis
 	if conn == nil {
 		return fmt.Errorf("no connection found for machine: %s", machineName)
 	}
-	return btrfs.ReplaceDiskInRaid(conn.Connection, &btrfsGrpc.ReplaceDiskToRaidReq{Uuid: uuid, OldDiskPath: oldDisk, NewDiskPath: newDisk})
+	go func() {
+		err := btrfs.ReplaceDiskInRaid(conn.Connection, &btrfsGrpc.ReplaceDiskToRaidReq{Uuid: uuid, OldDiskPath: oldDisk, NewDiskPath: newDisk})
+		if err != nil {
+			nots.SendGlobalNotification("Replace disk Failed", "BTRFS replace disk failed for "+uuid+" on "+machineName+" ("+oldDisk+" -> "+newDisk+")", err.Error(), true)
+		} else {
+			nots.SendGlobalNotification("Replace disk done", "BTRFS replace disk done for "+uuid+" on "+machineName+" ("+oldDisk+" -> "+newDisk+")", "Replace disk operation is done", true)
+		}
+	}()
+	return nil
 }
 
 func (s *BTRFSService) ChangeRaidLevel(machineName string, uuid string, newRaidLevel string) error {
@@ -285,7 +309,15 @@ func (s *BTRFSService) ChangeRaidLevel(machineName string, uuid string, newRaidL
 		return fmt.Errorf("raid type is not valid: %s", newRaidLevel)
 	}
 
-	return btrfs.ChangeRaidLevel(conn.Connection, &btrfsGrpc.ChangeRaidLevelReq{Uuid: uuid, RaidType: raidtype.sType})
+	go func() {
+		err := btrfs.ChangeRaidLevel(conn.Connection, &btrfsGrpc.ChangeRaidLevelReq{Uuid: uuid, RaidType: raidtype.sType})
+		if err != nil {
+			nots.SendGlobalNotification("Change raid level Failed", "BTRFS change raid level failed for "+uuid+" on "+machineName+" to "+raidtype.sType, err.Error(), true)
+		} else {
+			nots.SendGlobalNotification("Change raid level done", "BTRFS change raid level done for "+uuid+" on "+machineName+" to "+raidtype.sType, "Change raid level operation is done", true)
+		}
+	}()
+	return nil
 }
 func (s *BTRFSService) BalanceRaid(machineName string, uuid string, dataUsageMax, metadataUsageMax int32, force, convertToCurrentRaid bool) error {
 	conn := protocol.GetConnectionByMachineName(machineName)
@@ -303,7 +335,15 @@ func (s *BTRFSService) BalanceRaid(machineName string, uuid string, dataUsageMax
 		ConvertToCurrentRaid: convertToCurrentRaid,
 	}
 
-	return btrfs.BalanceRaid(conn.Connection, req)
+	go func() {
+		err := btrfs.BalanceRaid(conn.Connection, req)
+		if err != nil {
+			nots.SendGlobalNotification("Balance Failed", "BTRFS balance failed for "+uuid+" on "+machineName, err.Error(), true)
+		} else {
+			nots.SendGlobalNotification("Balance done", "BTRFS balance done for "+uuid+" on "+machineName, "Balance operation is done", true)
+		}
+	}()
+	return nil
 }
 
 func (s *BTRFSService) DefragmentRaid(machineName string, uuid string) error {
@@ -316,7 +356,7 @@ func (s *BTRFSService) DefragmentRaid(machineName string, uuid string) error {
 		if err != nil {
 			nots.SendGlobalNotification("Defragment Failed", "BTRFS defragment failed for "+uuid, err.Error(), true)
 		} else {
-			nots.SendGlobalNotification("Defragment done", "BTRFS defragment done for "+uuid, "Defragment operation is done", false)
+			nots.SendGlobalNotification("Defragment done", "BTRFS defragment done for "+uuid, "Defragment operation is done", true)
 		}
 	}()
 	return nil

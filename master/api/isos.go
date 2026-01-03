@@ -60,25 +60,14 @@ func downloadIso(w http.ResponseWriter, r *http.Request) {
 
 	//download iso
 	nfsService := services.NFSService{}
-	_, err = nfsService.DownloadISO(r.Context(), req.URL, req.ISOName, *nfsShare)
-	if err != nil {
+	if err := nfsService.DownloadISOAsync(req.URL, req.ISOName, *nfsShare); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if nfsShare.Target[len(nfsShare.Target)-1] == '/' {
-		nfsShare.Target = nfsShare.Target[:len(nfsShare.Target)-1]
-	}
-	isoPath := nfsShare.Target + "/" + req.ISOName
-
-	err = db.AddISO(r.Context(), nfsShare.MachineName, isoPath, req.ISOName)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("ISO download finished"))
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(w).Encode(map[string]string{"status": "started"})
 }
 
 func getAllISOs(w http.ResponseWriter, r *http.Request) {
