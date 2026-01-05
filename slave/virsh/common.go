@@ -1404,6 +1404,11 @@ func mutateDomainXMLResources(xmlDesc string, newCPU, newMemMiB int) (string, er
 		changed = true
 	}
 
+	//cpus needs to update
+	//<vcpu placement='static'>12</vcpu>
+	//cputune number of  vcpupin
+	//topology
+
 	updatedVcpuXML, err := updateVcpuTag(xmlDesc, newCPU)
 	if err != nil {
 		return "", err
@@ -1420,6 +1425,15 @@ func mutateDomainXMLResources(xmlDesc string, newCPU, newMemMiB int) (string, er
 	if cputuneXML != xmlDesc {
 		changed = true
 		xmlDesc = cputuneXML
+	}
+
+	topologyXML, err := updateDomainCPUTopology(xmlDesc, newCPU)
+	if err != nil {
+		return "", err
+	}
+	if topologyXML != xmlDesc {
+		changed = true
+		xmlDesc = topologyXML
 	}
 
 	if !changed {
@@ -1530,6 +1544,157 @@ func updateCputuneBlock(xmlStr string, newCPU int) (string, error) {
 	}
 
 	return "", fmt.Errorf("unable to insert cputune block into domain xml")
+}
+
+func updateDomainCPUTopology(xmlStr string, vcpuCount int) (string, error) {
+	if vcpuCount <= 0 {
+		return xmlStr, nil
+	}
+
+	cpuBlockPattern := regexp.MustCompile(`(?ms)([ \t]*)<cpu\b[^>]*>.*?</cpu>`)
+	if loc := cpuBlockPattern.FindStringIndex(xmlStr); loc != nil {
+		block := xmlStr[loc[0]:loc[1]]
+		updatedBlock, changed, err := updateTopologyInCPUBlock(block, vcpuCount)
+		if err != nil {
+			return "", err
+		}
+		if !changed {
+			return xmlStr, nil
+		}
+		return xmlStr[:loc[0]] + updatedBlock + xmlStr[loc[1]:], nil
+	}
+
+	// Handle <cpu .../> by expanding it with a topology line.
+	cpuSelfClosingPattern := regexp.MustCompile(`(?m)([ \t]*)<cpu\b([^>]*)/>`)
+	replaced := false
+	result := cpuSelfClosingPattern.ReplaceAllStringFunc(xmlStr, func(match string) string {
+		if replaced {
+			return match
+		}
+		sub := cpuSelfClosingPattern.FindStringSubmatch(match)
+		if len(sub) != 3 {
+			return match
+		}
+		replaced = true
+		indent := sub[1]
+		attrs := sub[2]
+		topologyIndent := indent + "  "
+		topology := fmt.Sprintf("%s<topology sockets='1' cores='%d' threads='1'/>", topologyIndent, vcpuCount)
+		return fmt.Sprintf("%s<cpu%s>\n%s\n%s</cpu>", indent, attrs, topology, indent)
+	})
+	if replaced {
+		return result, nil
+	}
+
+	// Some domain definitions omit <cpu>; that's ok.
+	return xmlStr, nil
+}
+
+func updateTopologyInCPUBlock(cpuBlock string, vcpuCount int) (string, bool, error) {
+	if vcpuCount <= 0 {
+		return cpuBlock, false, nil
+	}
+
+	topologyPattern := regexp.MustCompile(`(?m)([ \t]*)<topology\b([^>]*)/>`)
+	if topologyPattern.MatchString(cpuBlock) {
+		changed := false
+		updated := topologyPattern.ReplaceAllStringFunc(cpuBlock, func(match string) string {
+			sub := topologyPattern.FindStringSubmatch(match)
+			if len(sub) != 3 {
+				return match
+			}
+			indent := sub[1]
+			attrs := sub[2]
+			newAttrs := updateTopologyAttrs(attrs, vcpuCount)
+			if newAttrs != attrs {
+				changed = true
+			}
+			return fmt.Sprintf("%s<topology%s/>", indent, newAttrs)
+		})
+		return updated, changed, nil
+	}
+
+	// Insert topology before </cpu>.
+	lines := strings.Split(cpuBlock, "\n")
+	if len(lines) == 0 {
+		return cpuBlock, false, nil
+	}
+	cpuIndent := extractLeadingWhitespace(lines[0])
+	topologyIndent := cpuIndent + "  "
+	topologyLine := fmt.Sprintf("%s<topology sockets='1' cores='%d' threads='1'/>", topologyIndent, vcpuCount)
+
+	for i := len(lines) - 1; i >= 0; i-- {
+		if strings.Contains(lines[i], "</cpu>") {
+			// Insert right before the closing tag line.
+			lines = append(lines[:i], append([]string{topologyLine}, lines[i:]...)...)
+			return strings.Join(lines, "\n"), true, nil
+		}
+	}
+
+	return "", false, fmt.Errorf("cpu block missing closing </cpu> tag")
+}
+
+func updateTopologyAttrs(attrs string, vcpuCount int) string {
+	sockets, hasSockets := intAttr(attrs, "sockets")
+	threads, hasThreads := intAttr(attrs, "threads")
+	dies, hasDies := intAttr(attrs, "dies")
+	clusters, hasClusters := intAttr(attrs, "clusters")
+
+	if sockets <= 0 {
+		sockets = 1
+	}
+	if threads <= 0 {
+		threads = 1
+	}
+	if dies <= 0 {
+		dies = 1
+	}
+	if clusters <= 0 {
+		clusters = 1
+	}
+
+	factor := sockets * threads * dies * clusters
+	if factor <= 0 {
+		factor = 1
+	}
+
+	if vcpuCount%factor == 0 {
+		cores := vcpuCount / factor
+		attrs = setAttributeString(attrs, "cores", strconv.Itoa(cores))
+		if !hasSockets {
+			attrs = setAttributeString(attrs, "sockets", "1")
+		}
+		if !hasThreads {
+			attrs = setAttributeString(attrs, "threads", "1")
+		}
+		return attrs
+	}
+
+	// If the current socket/thread layout can't represent the requested vCPU count,
+	// fall back to a 1-socket / 1-thread topology.
+	attrs = setAttributeString(attrs, "cores", strconv.Itoa(vcpuCount))
+	attrs = setAttributeString(attrs, "sockets", "1")
+	attrs = setAttributeString(attrs, "threads", "1")
+	if hasDies {
+		attrs = setAttributeString(attrs, "dies", "1")
+	}
+	if hasClusters {
+		attrs = setAttributeString(attrs, "clusters", "1")
+	}
+	return attrs
+}
+
+func intAttr(attrs, key string) (int, bool) {
+	pattern := regexp.MustCompile(`\b` + regexp.QuoteMeta(key) + `=['"]([^'"]+)['"]`)
+	match := pattern.FindStringSubmatch(attrs)
+	if len(match) != 2 {
+		return 0, false
+	}
+	n, err := strconv.Atoi(match[1])
+	if err != nil {
+		return 0, true
+	}
+	return n, true
 }
 
 func extractLeadingWhitespace(s string) string {
