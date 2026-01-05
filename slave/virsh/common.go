@@ -67,6 +67,7 @@ func ensureFileExists(path string) error {
 type qiInfo struct {
 	Format      string `json:"format"`
 	VirtualSize uint64 `json:"virtual-size"`
+	ActualSize  uint64 `json:"actual-size"`
 }
 
 // DetectDiskFormat returns "qcow2" or "raw" (or other qemu formats if present).
@@ -707,6 +708,7 @@ func GetPrimaryDiskInfo(dom *libvirt.Domain) (*DiskInfo, error) {
 	}
 
 	var srcPath string
+	var targetDev string
 	for _, disk := range d.Devices.Disks {
 		if disk.Device != "disk" {
 			continue
@@ -718,6 +720,7 @@ func GetPrimaryDiskInfo(dom *libvirt.Domain) (*DiskInfo, error) {
 		} else {
 			continue
 		}
+		targetDev = strings.TrimSpace(disk.Target.Dev)
 		if srcPath != "" {
 			break
 		}
@@ -733,7 +736,11 @@ func GetPrimaryDiskInfo(dom *libvirt.Domain) (*DiskInfo, error) {
 	}
 	var bi *blockInfo
 
-	if info, err := dom.GetBlockInfo(srcPath, 0); err == nil {
+	blockInfoKey := strings.TrimSpace(targetDev)
+	if blockInfoKey == "" {
+		blockInfoKey = srcPath
+	}
+	if info, err := dom.GetBlockInfo(blockInfoKey, 0); err == nil {
 		// info has fields: Capacity, Allocation, Physical (bytes)
 		bi = &blockInfo{
 			Capacity:   info.Capacity,
@@ -750,6 +757,25 @@ func GetPrimaryDiskInfo(dom *libvirt.Domain) (*DiskInfo, error) {
 			allocGB = int64((bi.Allocation + (1 << 30) - 1) / (1 << 30))
 		}
 		return &DiskInfo{Path: srcPath, SizeGB: sizeGB, AllocatedGB: allocGB}, nil
+	}
+
+	// If libvirt couldn't provide block info, try qemu-img which reports the virtual capacity
+	// even for sparse images (e.g. qcow2).
+	if !strings.HasPrefix(srcPath, "/dev/") {
+		if info, err := readQemuImgInfo(srcPath); err == nil && info.VirtualSize > 0 {
+			sizeGB := int64((info.VirtualSize + (1 << 30) - 1) / (1 << 30))
+			allocBytes := info.ActualSize
+			if allocBytes == 0 {
+				if st, statErr := os.Stat(srcPath); statErr == nil {
+					allocBytes = uint64(st.Size())
+				}
+			}
+			allocGB := int64(0)
+			if allocBytes > 0 {
+				allocGB = int64((allocBytes + (1 << 30) - 1) / (1 << 30))
+			}
+			return &DiskInfo{Path: srcPath, SizeGB: sizeGB, AllocatedGB: allocGB}, nil
+		}
 	}
 
 	if strings.HasPrefix(srcPath, "/dev/") {
@@ -1809,6 +1835,14 @@ func ensureDiskSizeAtLeast(path string, targetGB int) error {
 			return fmt.Errorf("qemu-img resize %s: %s", path, msg)
 		}
 		return fmt.Errorf("qemu-img resize %s: %w", path, err)
+	}
+
+	updated, err := readQemuImgInfo(path)
+	if err != nil {
+		return fmt.Errorf("verify resize via qemu-img info %s: %w", path, err)
+	}
+	if updated.VirtualSize < requestedBytes {
+		return fmt.Errorf("qemu-img resize %s did not take effect (have %d bytes, want %d bytes)", path, updated.VirtualSize, requestedBytes)
 	}
 	return nil
 }
