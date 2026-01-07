@@ -1432,7 +1432,6 @@ func mutateDomainXMLResources(xmlDesc string, newCPU, newMemMiB int) (string, er
 
 	//cpus needs to update
 	//<vcpu placement='static'>12</vcpu>
-	//cputune number of  vcpupin
 	//topology
 
 	updatedVcpuXML, err := updateVcpuTag(xmlDesc, newCPU)
@@ -1444,13 +1443,10 @@ func mutateDomainXMLResources(xmlDesc string, newCPU, newMemMiB int) (string, er
 		xmlDesc = updatedVcpuXML
 	}
 
-	cputuneXML, err := updateCputuneBlock(xmlDesc, newCPU)
-	if err != nil {
-		return "", err
-	}
-	if cputuneXML != xmlDesc {
+	strippedXML, removed := removeCputuneBlock(xmlDesc)
+	if removed {
 		changed = true
-		xmlDesc = cputuneXML
+		xmlDesc = strippedXML
 	}
 
 	topologyXML, err := updateDomainCPUTopology(xmlDesc, newCPU)
@@ -1520,6 +1516,14 @@ func updateVcpuTag(xmlStr string, newCPU int) (string, error) {
 		return "", fmt.Errorf("vcpu element not found in domain xml")
 	}
 	return result, nil
+}
+
+func removeCputuneBlock(xmlStr string) (string, bool) {
+	pattern := regexp.MustCompile(`(?ms)[ \t]*<cputune>.*?</cputune>\n?`)
+	if !pattern.MatchString(xmlStr) {
+		return xmlStr, false
+	}
+	return pattern.ReplaceAllString(xmlStr, ""), true
 }
 
 func updateCputuneBlock(xmlStr string, newCPU int) (string, error) {

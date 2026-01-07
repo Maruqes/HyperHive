@@ -261,12 +261,6 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (xmlPath string, err error
 	  <model type='virtio' heads='1'/>
 	</video>`
 
-	cputuneXML, err := buildCPUTuneXML(opts.VCPUs)
-	if err != nil {
-		err = fmt.Errorf("cputune: %w", err)
-		return "", err
-	}
-
 	bootDev := "hd"
 	if hasISO {
 		bootDev = "cdrom"
@@ -319,7 +313,6 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (xmlPath string, err error
 
   <iothreads>1</iothreads>
 
-  %s
   <os>
 	<type arch='x86_64'%s>hvm</type>
 	<boot dev='%s'/>
@@ -339,7 +332,6 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (xmlPath string, err error
   </devices>
 </domain>`,
 		opts.Name, opts.MemoryMB, opts.VCPUs,
-		cputuneXML,
 		machineAttr,
 		bootDev,
 		cpuXML, driverType, disk, cdromXML, virtioCDROMXML, networkXML, virtioSerialControllerXML, guestAgentChannelXML, spiceChannelXML, inputDevicesXML, vncGraphicsXML, spiceGraphicsXML, memballoonXML, videoXML,
