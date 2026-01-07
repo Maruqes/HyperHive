@@ -325,13 +325,20 @@ func copyPublicKeyToHost(ip, pubKeyFile string) error {
 	}
 
 	fmt.Printf("Installing SSH key on %s (root). You may be prompted for the password.\n", ip)
-	cmd := exec.Command(
-		"ssh-copy-id",
+	args := []string{
 		"-i", pubKeyFile,
 		"-o", "StrictHostKeyChecking=no",
 		"-o", "UserKnownHostsFile=/dev/null",
-		"root@"+ip,
-	)
+	}
+	if firstRun {
+		args = append(args,
+			"-o", "PreferredAuthentications=password",
+			"-o", "PubkeyAuthentication=no",
+			"-o", "NumberOfPasswordPrompts=3",
+		)
+	}
+	args = append(args, "root@"+ip)
+	cmd := exec.Command("ssh-copy-id", args...)
 	var output bytes.Buffer
 	cmd.Stdout = io.MultiWriter(os.Stdout, &output)
 	cmd.Stderr = io.MultiWriter(os.Stderr, &output)
