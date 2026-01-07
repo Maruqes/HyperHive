@@ -256,6 +256,13 @@ func main() {
 	api.GetNewSlaveCountValue = getNewSlaveCount
 	askForSudo()
 	ctx := context.Background()
+	exitAfterStart := false
+	for _, arg := range os.Args[1:] {
+		if arg == "--exit-after-start" {
+			exitAfterStart = true
+			break
+		}
+	}
 
 	if err := env512.Setup(); err != nil {
 		log.Fatalf("env setup: %v", err)
@@ -427,6 +434,10 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	logger.Info("Application started. Press Ctrl+C to shutdown gracefully.")
+	if exitAfterStart {
+		api.StopGoAccess()
+		os.Exit(0)
+	}
 
 	// Wait for interrupt signal
 	<-sigChan

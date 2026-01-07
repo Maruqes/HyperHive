@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -739,6 +740,9 @@ func stopAndDisableFirewalld() error {
 }
 
 func main() {
+	firstRun := flag.Bool("first", false, "exit after step 14/17")
+	flag.Parse()
+
 	askForSudo()
 
 	// Setup environment variables
@@ -848,6 +852,10 @@ func main() {
 		logger.Error(err.Error())
 	}
 	logger.Info("[14/17] Set host UUID source: success")
+	if *firstRun {
+		logger.Info("First-run mode enabled; exiting after step 14/17")
+		return
+	}
 
 	// Connect to gRPC server
 	conn := protocol.ConnectGRPC()
