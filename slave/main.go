@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -39,6 +40,8 @@ const (
 	vmDirtyBackgroundRatioPath = "/proc/sys/vm/dirty_background_ratio"
 	defaultDirtyRatio          = 15
 )
+
+var firstRun bool
 
 func askForSudo() {
 	//if current program is not sudo terminate
@@ -117,6 +120,10 @@ func setupSSHKeys() error {
 		for attempt := 1; attempt <= maxAttempts; attempt++ {
 			if err := ensureAuthorizedKey(ip, keyFile, pubKeyFile); err != nil {
 				logger.Error(fmt.Sprintf("ensure authorized key for %s (attempt %d/%d): %v", ip, attempt, maxAttempts, err))
+				if firstRun && isAuthFailure(err) {
+					attempt--
+					continue
+				}
 			} else if err := ensureHostConfig(configPath, ip, keyFile); err != nil {
 				logger.Error(fmt.Sprintf("ensure ssh config for %s (attempt %d/%d): %v", ip, attempt, maxAttempts, err))
 			} else {
@@ -300,6 +307,14 @@ func testSSHConnection(ip, keyFile string) error {
 	return nil
 }
 
+func isAuthFailure(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "permission denied") || strings.Contains(msg, "authentication failed")
+}
+
 func copyPublicKeyToHost(ip, pubKeyFile string) error {
 	if _, err := os.Stat(pubKeyFile); err != nil {
 		return fmt.Errorf("stat public ssh key: %w", err)
@@ -317,11 +332,16 @@ func copyPublicKeyToHost(ip, pubKeyFile string) error {
 		"-o", "UserKnownHostsFile=/dev/null",
 		"root@"+ip,
 	)
+	var output bytes.Buffer
+	cmd.Stdout = io.MultiWriter(os.Stdout, &output)
+	cmd.Stderr = io.MultiWriter(os.Stderr, &output)
 	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
+		out := strings.TrimSpace(output.String())
+		if out != "" {
+			return fmt.Errorf("ssh-copy-id root@%s: %w (output: %s)", ip, err, out)
+		}
 		return fmt.Errorf("ssh-copy-id root@%s: %w", ip, err)
 	}
 
@@ -740,7 +760,7 @@ func stopAndDisableFirewalld() error {
 }
 
 func main() {
-	firstRun := flag.Bool("first", false, "exit after step 14/17")
+	flag.BoolVar(&firstRun, "first", false, "exit after step 14/17")
 	flag.Parse()
 
 	askForSudo()
@@ -852,7 +872,7 @@ func main() {
 		logger.Error(err.Error())
 	}
 	logger.Info("[14/17] Set host UUID source: success")
-	if *firstRun {
+	if firstRun {
 		logger.Info("First-run mode enabled; exiting after step 14/17")
 		return
 	}
