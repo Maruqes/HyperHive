@@ -18,8 +18,9 @@ type CPUInfoStruct struct{}
 var CPUInfo CPUInfoStruct
 
 var (
-	coreSensorIndexRegexp = regexp.MustCompile(`(?i)(?:core|cpu|tccd)[^0-9]*?(\d+)`)
-	packageSensorRegexp   = regexp.MustCompile(`(?i)(?:package[_\s-]?id|tctl|tdie)`)
+	cpuDriverRegexp       = regexp.MustCompile(`(?i)^(coretemp|k10temp|k8temp|zenpower|zenpower3|amd-htc|cpu[_-]?thermal|x86_pkg_temp)`)
+	coreSensorIndexRegexp = regexp.MustCompile(`(?i)(?:core|cpu|tccd|ccd)[^0-9]*?(\d+)`)
+	packageSensorRegexp   = regexp.MustCompile(`(?i)(?:package[_\s-]?id|tctl|tdie|x86_pkg_temp|cpu[_\s-]?(?:temp|thermal|die)|pkg[_\s-]?temp)`)
 )
 
 func (c *CPUInfoStruct) GetCPUModel() (map[string]int, error) {
@@ -46,25 +47,12 @@ func (c *CPUInfoStruct) GetCpuTemps() ([]sensors.TemperatureStat, error) {
 
 	var coreTemps []sensors.TemperatureStat
 
-	var cpuRes = []*regexp.Regexp{
-		regexp.MustCompile(`(?i)^(coretemp|k10temp|zenpower|zenpower3)`), // CPU drivers
-		regexp.MustCompile(`(?i)(^|[_\s-])package(_?id)?[_\s-]*\d+`),     // Package id N
-		regexp.MustCompile(`(?i)(^|[_\s-])core[_\s-]*\d+`),               // Core N
-		regexp.MustCompile(`(?i)(^|[_\s-])tctl$`),                        // AMD Tctl
-		regexp.MustCompile(`(?i)(^|[_\s-])tdie$`),                        // AMD Tdie
-		regexp.MustCompile(`(?i)(^|[_\s-])tccd\d+$`),                     // AMD CCD temps
-		// Uncomment if you want to include generic CPU thermal zones (non-Intel/AMD PCs)
-		// regexp.MustCompile(`(?i)^(cpu[-_]?thermal)$`),
-	}
-
 	for _, temp := range temps {
-		for _, cpuSensor := range cpuRes {
-			if cpuSensor.MatchString(temp.SensorKey) {
-				coreTemps = append(coreTemps, temp)
-				goto Next
-			}
+		if cpuDriverRegexp.MatchString(temp.SensorKey) ||
+			coreSensorIndexRegexp.MatchString(temp.SensorKey) ||
+			packageSensorRegexp.MatchString(temp.SensorKey) {
+			coreTemps = append(coreTemps, temp)
 		}
-	Next:
 	}
 
 	return coreTemps, nil
@@ -127,6 +115,17 @@ func (c *CPUInfoStruct) GetCPUInfo() (*CPUCoreInfo, error) {
 		if existing, ok := coreTemps[idx]; !ok || temp.Temperature > existing {
 			coreTemps[idx] = temp.Temperature
 		}
+	}
+
+	if !packageTempSet && len(temps) > 0 {
+		// Fallback for drivers that only expose a single unlabeled CPU temperature.
+		packageTemp = temps[0].Temperature
+		for _, temp := range temps[1:] {
+			if temp.Temperature > packageTemp {
+				packageTemp = temp.Temperature
+			}
+		}
+		packageTempSet = true
 	}
 
 	cores := make([]Core, len(usage))
