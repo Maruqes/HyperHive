@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# DHCP + NAT endurecido e persistente para 1 segmento LAN com macvtap.
-# - Desativa dnsmasq global e corre instância dedicada por-Interface.
-# - Remove e substitui configs antigas conflituosas (serviços, drop-ins, NAT antigo).
-# - Garante ip_forward, rp_filter relaxado, iptables e persistência.
+# Hardened and persistent DHCP + NAT for 1 LAN segment with macvtap.
+# - Disables global dnsmasq and runs dedicated per-interface instance.
+# - Removes and replaces old conflicting configs (services, drop-ins, old NAT).
+# - Ensures ip_forward, relaxed rp_filter, iptables and persistence.
 
 set -euo pipefail
 
@@ -13,58 +13,58 @@ fatal(){ printf '[ERROR] %s\n' "$*" >&2; exit 1; }
 
 usage(){
 cat <<'USAGE'
-Uso: sudo ./setup_dhcp.sh [WAN_IFACE]
+Usage: sudo ./setup_dhcp.sh [WAN_IFACE]
 
-  - LAN parent por defeito: 512rede; macvtap child: 512rede-host
-  - WAN_IFACE: interface de saída para NAT (autodetecta se omitido)
+  - Default LAN parent: 512rede; macvtap child: 512rede-host
+  - WAN_IFACE: outbound interface for NAT (auto-detected if omitted)
 
-Override por variáveis de ambiente: LAN_PARENT_IF, LAN_INTERFACE_NAME, SUBNET_CIDR,
+Override via environment variables: LAN_PARENT_IF, LAN_INTERFACE_NAME, SUBNET_CIDR,
 GATEWAY_IP, DHCP_RANGE_START, DHCP_RANGE_END, DHCP_LEASE_TIME, WAN_IF, etc.
 USAGE
 exit 1; }
 
-[[ ${EUID:-0} -eq 0 ]] || fatal 'Requer root.'
-[[ -r /etc/os-release ]] || fatal 'Sem /etc/os-release.'
+[[ ${EUID:-0} -eq 0 ]] || fatal 'Requires root.'
+[[ -r /etc/os-release ]] || fatal 'Missing /etc/os-release.'
 . /etc/os-release
 if [[ "${ID,,}" != "fedora" && ! ${ID_LIKE:-} =~ fedora ]]; then
-  fatal 'Este script foi feito para Fedora-like.'
+  fatal 'This script is made for Fedora-like systems.'
 fi
 
-# --- SELinux: força modo permissive ------------------------------------------
+# --- SELinux: force permissive mode ------------------------------------------
 if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled; then
   if command -v setenforce >/dev/null 2>&1; then
     if ! setenforce 0 2>/dev/null; then
-      warn "Falhou setenforce 0 (SELinux poderá bloquear dnsmasq)."
+      warn "Failed setenforce 0 (SELinux may block dnsmasq)."
     else
-      info "SELinux colocado em modo permissive (runtime)."
+      info "SELinux set to permissive mode (runtime)."
     fi
   else
-    warn "setenforce indisponível; não foi possível alterar modo runtime de SELinux."
+    warn "setenforce unavailable; could not change SELinux runtime mode."
   fi
 else
-  warn "SELinux não está ativo ou selinuxenabled indisponível; a continuar."
+  warn "SELinux is not active or selinuxenabled unavailable; continuing."
 fi
 
 if [[ -w /etc/selinux/config ]]; then
   if grep -q '^SELINUX=enforcing' /etc/selinux/config; then
     if sed -i 's/^SELINUX=.*/SELINUX=permissive/' /etc/selinux/config; then
-      info "Atualizado /etc/selinux/config para SELINUX=permissive."
+      info "Updated /etc/selinux/config to SELINUX=permissive."
     else
-      warn "Não foi possível atualizar /etc/selinux/config (ver permissões)."
+      warn "Could not update /etc/selinux/config (check permissions)."
     fi
   fi
 else
-  warn "Sem permissões para editar /etc/selinux/config; modo persistente não alterado."
+  warn "No permissions to edit /etc/selinux/config; persistent mode not changed."
 fi
 
 
 case "${1:-}" in -h|--help) usage;; esac
 CLI_WAN_IF="${1:-}"
 
-# --- Definições (podes overriding por env) ------------------------------------
+# --- Settings (can override via env) ------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MACVTAP_HELPER="${SCRIPT_DIR}/create_macvtap.sh"
-[[ -x "${MACVTAP_HELPER}" ]] || fatal "Helper em falta: ${MACVTAP_HELPER}"
+[[ -x "${MACVTAP_HELPER}" ]] || fatal "Missing helper: ${MACVTAP_HELPER}"
 
 LAN_PARENT_IF="${LAN_PARENT_IF:-512rede}"
 LAN_INTERFACE_NAME="${LAN_INTERFACE_NAME:-${LAN_PARENT_IF}-host}"
@@ -88,9 +88,9 @@ DEDICATED_UNIT="dnsmasq-${NETWORK_NAME}.service"
 NAT_UNIT="${NETWORK_NAME}-nat.service"
 MACVTAP_PERSIST="${MACVTAP_PERSIST:-1}"
 
-command -v ip >/dev/null || fatal 'Falta iproute2.'
-command -v dnsmasq >/dev/null || fatal 'Falta dnsmasq.'
-command -v nmcli >/dev/null 2>&1 || warn 'nmcli ausente (persistência NM limitada).'
+command -v ip >/dev/null || fatal 'Missing iproute2.'
+command -v dnsmasq >/dev/null || fatal 'Missing dnsmasq.'
+command -v nmcli >/dev/null 2>&1 || warn 'nmcli missing (limited NM persistence).'
 
 if [[ -z ${DNSMASQ_RUN_USER} ]]; then
   if getent passwd dnsmasq >/dev/null; then
@@ -111,10 +111,10 @@ if [[ -z ${DNSMASQ_RUN_GROUP} ]]; then
   fi
 fi
 
-# --- Helpers CIDR -------------------------------------------------------------
+# --- CIDR helpers -------------------------------------------------------------
 cidr_prefix=${SUBNET_CIDR#*/}; network_base=${SUBNET_CIDR%/*}
-[[ $cidr_prefix =~ ^[0-9]+$ ]] || fatal "SUBNET_CIDR inválido: ${SUBNET_CIDR}"
-cidr_prefix=$((10#${cidr_prefix})); (( cidr_prefix>=0 && cidr_prefix<=32 )) || fatal "SUBNET_CIDR inválido."
+[[ $cidr_prefix =~ ^[0-9]+$ ]] || fatal "Invalid SUBNET_CIDR: ${SUBNET_CIDR}"
+cidr_prefix=$((10#${cidr_prefix})); (( cidr_prefix>=0 && cidr_prefix<=32 )) || fatal "Invalid SUBNET_CIDR."
 
 prefix_to_mask(){ local p=$1; ((p==0)) && { printf '0.0.0.0'; return; }; local m=$((0xffffffff^((1<<(32-p))-1))); printf '%d.%d.%d.%d' $(((m>>24)&255)) $(((m>>16)&255)) $(((m>>8)&255)) $((m&255)); }
 ip_to_int(){ local IFS=.; read -r a b c d <<<"$1"; printf '%u' $(( (a<<24)|(b<<16)|(c<<8)|d )); }
@@ -125,24 +125,24 @@ network_address=$(int_to_ip "${network_int}")
 NETMASK=$(prefix_to_mask "${cidr_prefix}")
 SUBNET_NETWORK="${network_address}/${cidr_prefix}"
 
-# --- Cria/Recria macvtap (e remove IP duplicado no parent dentro desta subnet)
+# --- Create/Recreate macvtap (and remove duplicate IP on parent within this subnet)
 ensure_macvtap(){
   local ip_cidr="${GATEWAY_IP}/${cidr_prefix}"
   local args=()
   truthy "${MACVTAP_PERSIST}" && args+=(--persist)
 
-  info "A (re)criar macvtap ${LAN_INTERFACE_NAME} em ${LAN_PARENT_IF}"
-  ip link show "${LAN_PARENT_IF}" >/dev/null 2>&1 || fatal "Parent '${LAN_PARENT_IF}' não existe."
+  info "(Re)creating macvtap ${LAN_INTERFACE_NAME} on ${LAN_PARENT_IF}"
+  ip link show "${LAN_PARENT_IF}" >/dev/null 2>&1 || fatal "Parent '${LAN_PARENT_IF}' does not exist."
 
-  # Remove QUALQUER IPv4 do parent que pertença à nossa SUBNET (evita duplicação com o child)
+  # Remove ANY IPv4 from parent that belongs to our SUBNET (avoids duplication with child)
   while read -r addr; do
     [[ -z "${addr}" ]] && continue
     ip -4 addr del "${addr}" dev "${LAN_PARENT_IF}" || true
-    warn "Removido IPv4 ${addr} do parent ${LAN_PARENT_IF} (pertencia à ${SUBNET_NETWORK})"
+    warn "Removed IPv4 ${addr} from parent ${LAN_PARENT_IF} (belonged to ${SUBNET_NETWORK})"
   done < <(ip -4 -o addr show dev "${LAN_PARENT_IF}" | awk -v net="${SUBNET_NETWORK}" '
     {print $4}
     ' | while read -r a; do
-          # filtro simples por prefixo igual ao da subnet (ex.: 192.168.76.)
+          # simple filter by prefix matching subnet (e.g., 192.168.76.)
           base="${a%/*}"; echo "$base/${a#*/}"
         done | awk -v n="${network_base}" -v p="${cidr_prefix}" '
             BEGIN{
@@ -159,26 +159,26 @@ ensure_macvtap(){
 }
 ensure_macvtap
 
-ip link show "${NETWORK_NAME}" >/dev/null 2>&1 || fatal "Interface '${NETWORK_NAME}' não encontrada."
+ip link show "${NETWORK_NAME}" >/dev/null 2>&1 || fatal "Interface '${NETWORK_NAME}' not found."
 
-# --- Limpeza agressiva de artefactos antigos ---------------------------------
+# --- Aggressive cleanup of old artifacts --------------------------------------
 cleanup_for_network(){
-  info "A limpar artefactos antigos para ${NETWORK_NAME}"
+  info "Cleaning up old artifacts for ${NETWORK_NAME}"
 
   install -d -m 755 "${DNSMASQ_CONF_DIR}"
   install -d -m 775 "${DNSMASQ_LEASE_DIR}"
-  chown "${DNSMASQ_RUN_USER}:${DNSMASQ_RUN_GROUP}" "${DNSMASQ_LEASE_DIR}" || warn "Não foi possível ajustar owner de ${DNSMASQ_LEASE_DIR}"
-  chmod 775 "${DNSMASQ_LEASE_DIR}" || warn "Não foi possível ajustar permissões de ${DNSMASQ_LEASE_DIR}"
+  chown "${DNSMASQ_RUN_USER}:${DNSMASQ_RUN_GROUP}" "${DNSMASQ_LEASE_DIR}" || warn "Could not adjust owner of ${DNSMASQ_LEASE_DIR}"
+  chmod 775 "${DNSMASQ_LEASE_DIR}" || warn "Could not adjust permissions of ${DNSMASQ_LEASE_DIR}"
   if command -v restorecon >/dev/null 2>&1; then
-    restorecon -R "${DNSMASQ_LEASE_DIR}" >/dev/null 2>&1 || warn "restorecon falhou para ${DNSMASQ_LEASE_DIR}"
+    restorecon -R "${DNSMASQ_LEASE_DIR}" >/dev/null 2>&1 || warn "restorecon failed for ${DNSMASQ_LEASE_DIR}"
   fi
   rm -f "${DNSMASQ_CONF_DIR}/${NETWORK_NAME}.conf"
   local lease_file="${DNSMASQ_LEASE_DIR}/${NETWORK_NAME}.leases"
   rm -f "${lease_file}"
   install -m 664 -o "${DNSMASQ_RUN_USER}" -g "${DNSMASQ_RUN_GROUP}" /dev/null "${lease_file}" 2>/dev/null || {
     touch "${lease_file}"
-    chown "${DNSMASQ_RUN_USER}:${DNSMASQ_RUN_GROUP}" "${lease_file}" || warn "Não foi possível ajustar owner de ${lease_file}"
-    chmod 664 "${lease_file}" || warn "Não foi possível ajustar permissões de ${lease_file}"
+    chown "${DNSMASQ_RUN_USER}:${DNSMASQ_RUN_GROUP}" "${lease_file}" || warn "Could not adjust owner of ${lease_file}"
+    chmod 664 "${lease_file}" || warn "Could not adjust permissions of ${lease_file}"
   }
 
   systemctl disable --now "${DEDICATED_UNIT}" >/dev/null 2>&1 || true
@@ -195,11 +195,11 @@ cleanup_for_network(){
   systemctl disable --now "${NAT_UNIT}" >/dev/null 2>&1 || true
   rm -f "/etc/systemd/system/${NAT_UNIT}"
 
-  # NM: apaga perfis do child; parent mantém-se (apenas limpamos IPs já feito acima)
+  # NM: delete child profiles; parent is kept (we already cleaned IPs above)
   if command -v nmcli >/dev/null 2>&1; then
     while read -r uuid name; do
       [[ -z ${uuid} ]] && continue
-      info "NM: a remover perfil '${name}' do device ${NETWORK_NAME}"
+      info "NM: removing profile '${name}' from device ${NETWORK_NAME}"
       nmcli connection delete uuid "${uuid}" >/dev/null 2>&1 || true
     done < <(nmcli -t -f UUID,NAME,DEVICE connection show | awk -F: -v dev="${NETWORK_NAME}" '$3==dev{print $1" "$2}')
 
@@ -208,8 +208,8 @@ cleanup_for_network(){
       local current_method
       current_method=$(nmcli -g ipv4.method connection show "${uuid}" 2>/dev/null || echo "")
       if [[ "${current_method}" != "disabled" ]]; then
-        info "NM: a desativar IPv4 no parent (${LAN_PARENT_IF}) via perfil '${name}'"
-        nmcli connection modify "${uuid}" ipv4.method disabled ipv4.addresses "" ipv4.gateway "" ipv4.never-default yes >/dev/null 2>&1 || warn "NM: falhou a definir IPv4 disabled para '${name}'"
+        info "NM: disabling IPv4 on parent (${LAN_PARENT_IF}) via profile '${name}'"
+        nmcli connection modify "${uuid}" ipv4.method disabled ipv4.addresses "" ipv4.gateway "" ipv4.never-default yes >/dev/null 2>&1 || warn "NM: failed to set IPv4 disabled for '${name}'"
         nmcli connection modify "${uuid}" ipv6.method ignore >/dev/null 2>&1 || true
         nmcli connection down "${uuid}" >/dev/null 2>&1 || true
         nmcli connection up "${uuid}" >/dev/null 2>&1 || true
@@ -217,23 +217,23 @@ cleanup_for_network(){
     done < <(nmcli -t -f UUID,NAME,DEVICE connection show | awk -F: -v dev="${LAN_PARENT_IF}" '$3==dev{print $1" "$2}')
   fi
 
-  # Força estado e IPv4 do child
+  # Force child state and IPv4
   ip addr flush dev "${NETWORK_NAME}" || true
   ip link set "${NETWORK_NAME}" up
   ip addr add "${GATEWAY_IP}/${cidr_prefix}" dev "${NETWORK_NAME}" valid_lft forever preferred_lft forever
 
-  # Parent em promisc para encaminhamento estável
+  # Parent in promisc for stable forwarding
   ip link set "${LAN_PARENT_IF}" promisc on || true
 }
 cleanup_for_network
 
 stop_conflicting_dnsmasq_units(){
   command -v systemctl >/dev/null 2>&1 || return
-  info "A verificar serviços dnsmasq conflitantes"
+  info "Checking for conflicting dnsmasq services"
   while read -r unit; do
     [[ -z ${unit} ]] && continue
     [[ "${unit}" == "${DEDICATED_UNIT}" ]] && continue
-    info "A parar unidade '${unit}' que usa dnsmasq"
+    info "Stopping unit '${unit}' that uses dnsmasq"
     systemctl stop "${unit}" >/dev/null 2>&1 || true
     systemctl disable "${unit}" >/dev/null 2>&1 || true
   done < <(systemctl list-units --all 'dnsmasq*.service' --plain --no-legend 2>/dev/null | awk '{print $1}' | sort -u)
@@ -241,7 +241,7 @@ stop_conflicting_dnsmasq_units(){
 stop_conflicting_dnsmasq_units
 
 kill_conflicting_dns(){
-  command -v ss >/dev/null 2>&1 || { warn "Sem utilitário 'ss' para detetar conflitos de portas."; return; }
+  command -v ss >/dev/null 2>&1 || { warn "Missing 'ss' utility to detect port conflicts."; return; }
   local ports=(53 67)
   declare -A handled=()
   for port in "${ports[@]}"; do
@@ -252,13 +252,13 @@ kill_conflicting_dns(){
       handled["${key}"]=1
       case "${exe}" in
         dnsmasq)
-          info "A terminar dnsmasq pré-existente (PID ${pid}) no endereço ${addr} (${proto})"
+          info "Terminating pre-existing dnsmasq (PID ${pid}) on address ${addr} (${proto})"
           kill "${pid}" >/dev/null 2>&1 || true
           sleep 0.5
           kill -9 "${pid}" >/dev/null 2>&1 || true
           ;;
         *)
-          fatal "Porta ${port}/${addr} ocupada por PID ${pid} (${exe}). Liberta-a antes de continuar."
+          fatal "Port ${port}/${addr} occupied by PID ${pid} (${exe}). Free it before continuing."
           ;;
       esac
     done < <(ss -H -lnp "sport = :${port}" 2>/dev/null | awk -v ip="${GATEWAY_IP}" -v p="${port}" '
@@ -283,11 +283,11 @@ kill_conflicting_dns(){
 }
 kill_conflicting_dns
 
-# --- dnsmasq dedicado (só lê o ficheiro deste network) -----------------------
+# --- Dedicated dnsmasq (only reads this network's file) ----------------------
 DNSMASQ_CONF="${DNSMASQ_CONF_DIR}/${NETWORK_NAME}.conf"
-info "A escrever ${DNSMASQ_CONF}"
+info "Writing ${DNSMASQ_CONF}"
 cat >"${DNSMASQ_CONF}" <<CFG
-# Auto-gerado para ${NETWORK_NAME} — NÃO EDITAR À MÃO
+# Auto-generated for ${NETWORK_NAME} — DO NOT EDIT MANUALLY
 interface=${NETWORK_NAME}
 listen-address=${GATEWAY_IP}
 except-interface=lo
@@ -305,18 +305,18 @@ resolv-file=${RESOLV_CONF}
 log-dhcp
 CFG
 
-dnsmasq --test -C "${DNSMASQ_CONF}" >/dev/null || fatal "Teste de configuração falhou: ${DNSMASQ_CONF}"
+dnsmasq --test -C "${DNSMASQ_CONF}" >/dev/null || fatal "Configuration test failed: ${DNSMASQ_CONF}"
 
 # --- WAN detection ------------------------------------------------------------
 find_wan_iface(){ ip route show default 0.0.0.0/0 | awk '/default/ {print $5; exit}'; }
 WAN_IF_INPUT="${CLI_WAN_IF:-${WAN_IF:-}}"
 WAN_IF="${WAN_IF_INPUT:-$(find_wan_iface)}"
-[[ -n ${WAN_IF} ]] || fatal 'Não foi possível detetar a interface WAN.'
-[[ "${WAN_IF}" != "${NETWORK_NAME}" ]] || fatal 'WAN não pode ser a mesma que a interface DHCP.'
-ip link show "${WAN_IF}" >/dev/null 2>&1 || fatal "WAN '${WAN_IF}' não existe."
+[[ -n ${WAN_IF} ]] || fatal 'Could not detect WAN interface.'
+[[ "${WAN_IF}" != "${NETWORK_NAME}" ]] || fatal 'WAN cannot be the same as DHCP interface.'
+ip link show "${WAN_IF}" >/dev/null 2>&1 || fatal "WAN '${WAN_IF}' does not exist."
 
-# --- ip_forward + rp_filter relaxado -----------------------------------------
-info "A ativar ip_forward e a relaxar rp_filter"
+# --- ip_forward + relaxed rp_filter ------------------------------------------
+info "Enabling ip_forward and relaxing rp_filter"
 cat >"${SYSCTL_CONF}" <<SYSCTL
 net.ipv4.ip_forward = 1
 net.ipv4.conf.all.forwarding = 1
@@ -333,18 +333,18 @@ fi
 sysctl --system >/dev/null
 
 apply_iptables(){
-  command -v iptables >/dev/null 2>&1 || { warn 'Sem iptables; NAT não configurado.'; return 1; }
+  command -v iptables >/dev/null 2>&1 || { warn 'Missing iptables; NAT not configured.'; return 1; }
 
-  # Garante ip_forward no runtime (além do sysctl persistente)
+  # Ensure ip_forward at runtime (in addition to persistent sysctl)
   sysctl -w net.ipv4.ip_forward=1 >/dev/null 2>&1 || true
   sysctl -w net.ipv4.conf.all.forwarding=1 >/dev/null 2>&1 || true
 
-  info "A configurar NAT via iptables (WAN=${WAN_IF}, LAN=${SUBNET_NETWORK})"
+  info "Configuring NAT via iptables (WAN=${WAN_IF}, LAN=${SUBNET_NETWORK})"
   iptables -t nat -D POSTROUTING -s "${SUBNET_NETWORK}" -o "${WAN_IF}" -j MASQUERADE 2>/dev/null || true
   iptables -D FORWARD -i "${WAN_IF}" -o "${NETWORK_NAME}" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
   iptables -D FORWARD -i "${NETWORK_NAME}" -o "${WAN_IF}" -j ACCEPT 2>/dev/null || true
 
-  # Inserir no topo para evitar regras de DROP que já existam
+  # Insert at the top to avoid existing DROP rules
   iptables -t nat -I POSTROUTING 1 -s "${SUBNET_NETWORK}" -o "${WAN_IF}" -j MASQUERADE
   iptables -I FORWARD 1 -i "${WAN_IF}" -o "${NETWORK_NAME}" -m state --state RELATED,ESTABLISHED -j ACCEPT
   iptables -I FORWARD 1 -i "${NETWORK_NAME}" -o "${WAN_IF}" -j ACCEPT
@@ -358,8 +358,8 @@ BindsTo=sys-subsystem-net-devices-${WAN_IF}.device
 
 [Service]
 Type=oneshot
-ExecStartPre=/bin/bash -c 'for i in {1..30}; do ip link show ${WAN_IF} >/dev/null 2>&1 && ip link show ${NETWORK_NAME} >/dev/null 2>&1 && exit 0; sleep 1; done; echo "Interfaces ${WAN_IF}/${NETWORK_NAME} indisponiveis"; exit 1'
-ExecStartPre=/bin/bash -c 'for i in {1..30}; do ip route show default 0.0.0.0/0 | grep -q "dev ${WAN_IF}" && exit 0; sleep 1; done; echo "Default route por ${WAN_IF} nao presente"; exit 1'
+ExecStartPre=/bin/bash -c 'for i in {1..30}; do ip link show ${WAN_IF} >/dev/null 2>&1 && ip link show ${NETWORK_NAME} >/dev/null 2>&1 && exit 0; sleep 1; done; echo "Interfaces ${WAN_IF}/${NETWORK_NAME} unavailable"; exit 1'
+ExecStartPre=/bin/bash -c 'for i in {1..30}; do ip route show default 0.0.0.0/0 | grep -q "dev ${WAN_IF}" && exit 0; sleep 1; done; echo "Default route via ${WAN_IF} not present"; exit 1'
 ExecStart=/bin/bash -c '/usr/sbin/iptables -t nat -C POSTROUTING -s ${SUBNET_NETWORK} -o ${WAN_IF} -j MASQUERADE || /usr/sbin/iptables -t nat -I POSTROUTING 1 -s ${SUBNET_NETWORK} -o ${WAN_IF} -j MASQUERADE'
 ExecStart=/bin/bash -c '/usr/sbin/iptables -C FORWARD -i ${WAN_IF} -o ${NETWORK_NAME} -m state --state RELATED,ESTABLISHED -j ACCEPT || /usr/sbin/iptables -I FORWARD 1 -i ${WAN_IF} -o ${NETWORK_NAME} -m state --state RELATED,ESTABLISHED -j ACCEPT'
 ExecStart=/bin/bash -c '/usr/sbin/iptables -C FORWARD -i ${NETWORK_NAME} -o ${WAN_IF} -j ACCEPT || /usr/sbin/iptables -I FORWARD 1 -i ${NETWORK_NAME} -o ${WAN_IF} -j ACCEPT'
@@ -372,25 +372,25 @@ UNIT
   systemctl daemon-reload
   systemctl enable --now "${NAT_UNIT}" >/dev/null 2>&1 || true
 }
-apply_iptables || warn 'NAT não ficou persistente — verifica manualmente.'
+apply_iptables || warn 'NAT did not become persistent — check manually.'
 
-# --- Serviço dedicado do dnsmasq ---------------------------------------------
+# --- Dedicated dnsmasq service ------------------------------------------------
 UNIT_PATH="/etc/systemd/system/${DEDICATED_UNIT}"
-info "A criar serviço dedicado ${DEDICATED_UNIT}"
+info "Creating dedicated service ${DEDICATED_UNIT}"
 cat >"${UNIT_PATH}" <<EOF
 [Unit]
-Description=dnsmasq para ${NETWORK_NAME}
+Description=dnsmasq for ${NETWORK_NAME}
 Wants=network-online.target NetworkManager-wait-online.service
 After=macvtap-${NETWORK_NAME}.service network-online.target NetworkManager-wait-online.service
 
 [Service]
 Type=simple
-# Espera até a interface ter IPv4
-ExecStartPre=/bin/bash -c 'for i in {1..20}; do ip -4 addr show ${NETWORK_NAME} | grep -q "inet " && exit 0; sleep 1; done; echo "${NETWORK_NAME} sem IPv4"; exit 1'
+# Wait until interface has IPv4
+ExecStartPre=/bin/bash -c 'for i in {1..20}; do ip -4 addr show ${NETWORK_NAME} | grep -q "inet " && exit 0; sleep 1; done; echo "${NETWORK_NAME} without IPv4"; exit 1'
 ExecStart=/usr/sbin/dnsmasq -k --conf-file=${DNSMASQ_CONF} --bind-interfaces --user=${DNSMASQ_RUN_USER} --group=${DNSMASQ_RUN_GROUP}
 Restart=on-failure
 RestartSec=2
-# Endurecer um pouco
+# Harden a bit
 AmbientCapabilities=CAP_NET_BIND_SERVICE CAP_NET_ADMIN CAP_NET_RAW
 NoNewPrivileges=yes
 
@@ -398,7 +398,7 @@ NoNewPrivileges=yes
 WantedBy=multi-user.target
 EOF
 
-info "A ativar NetworkManager-wait-online"
+info "Enabling NetworkManager-wait-online"
 systemctl enable NetworkManager-wait-online.service >/dev/null 2>&1 || true
 
 systemctl daemon-reload
@@ -406,16 +406,16 @@ systemctl reset-failed "${DEDICATED_UNIT}" >/dev/null 2>&1 || true
 systemctl enable "${DEDICATED_UNIT}" >/dev/null
 systemctl start "${DEDICATED_UNIT}" --no-block >/dev/null
 
-info "A aguardar até 20s por estado 'active' de ${DEDICATED_UNIT}"
+info "Waiting up to 20s for 'active' state of ${DEDICATED_UNIT}"
 for i in {1..20}; do
   systemctl is-active --quiet "${DEDICATED_UNIT}" && break
   sleep 1
 done
-systemctl is-active --quiet "${DEDICATED_UNIT}" || { systemctl --no-pager --lines=80 status "${DEDICATED_UNIT}" || true; fatal "${DEDICATED_UNIT} não arrancou."; }
+systemctl is-active --quiet "${DEDICATED_UNIT}" || { systemctl --no-pager --lines=80 status "${DEDICATED_UNIT}" || true; fatal "${DEDICATED_UNIT} did not start."; }
 
-# --- Verificação --------------------------------------------------------------
+# --- Verification -------------------------------------------------------------
 systemctl --no-pager --lines=20 status "${DEDICATED_UNIT}" || true
 ss -lupn | egrep ':(53|67|68)\b' || true
 
-info "Pronto: ${NETWORK_NAME} a servir DHCP ${DHCP_RANGE_START}-${DHCP_RANGE_END} via ${GATEWAY_IP} (leases ${DHCP_LEASE_TIME}) e NAT a sair por ${WAN_IF}."
-echo "Dica: tcpdump -ni ${NETWORK_NAME} 'port 67 or 68' durante um pedido DHCP."
+info "Ready: ${NETWORK_NAME} serving DHCP ${DHCP_RANGE_START}-${DHCP_RANGE_END} via ${GATEWAY_IP} (leases ${DHCP_LEASE_TIME}) and NAT exiting through ${WAN_IF}."
+echo "Tip: tcpdump -ni ${NETWORK_NAME} 'port 67 or 68' during a DHCP request."

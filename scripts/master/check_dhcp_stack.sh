@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Diagnóstico rápido para stack macvtap + dnsmasq + NAT configurados por setup_dhcp.sh.
+# Quick diagnostic for macvtap + dnsmasq + NAT stack configured by setup_dhcp.sh.
 
 set -uo pipefail
 
@@ -10,7 +10,7 @@ fail(){ printf '[FAIL] %s\n' "$*" >&2; EXITCODE=1; }
 
 EXITCODE=0
 
-[[ ${EUID:-0} -eq 0 ]] || { fail 'Executa como root para verificar firewall/iptables.'; echo; exit "${EXITCODE}"; }
+[[ ${EUID:-0} -eq 0 ]] || { fail 'Run as root to check firewall/iptables.'; echo; exit "${EXITCODE}"; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -41,132 +41,132 @@ prefix_to_mask(){
 NETMASK="$(prefix_to_mask "${SUBNET_PREFIX}")"
 SUBNET_NETWORK="${SUBNET_BASE}/${SUBNET_PREFIX}"
 
-info "A verificar configuração para ${NETWORK_NAME} (gateway ${GATEWAY_IP}, range ${DHCP_RANGE_START}-${DHCP_RANGE_END})."
+info "Checking configuration for ${NETWORK_NAME} (gateway ${GATEWAY_IP}, range ${DHCP_RANGE_START}-${DHCP_RANGE_END})."
 
 if [[ -z ${WAN_IF} ]]; then
-  fail "Interface WAN não foi detetada."
+  fail "WAN interface was not detected."
 else
-  ok "Interface WAN detetada: ${WAN_IF}"
+  ok "WAN interface detected: ${WAN_IF}"
 fi
 
-# Interface macvtap
+# macvtap interface
 if ip link show "${NETWORK_NAME}" >/dev/null 2>&1; then
-  ok "Interface ${NETWORK_NAME} existe."
+  ok "Interface ${NETWORK_NAME} exists."
   if ip -4 addr show "${NETWORK_NAME}" | grep -q "${GATEWAY_IP}/"; then
-    ok "Interface ${NETWORK_NAME} tem IPv4 ${GATEWAY_IP}/${SUBNET_PREFIX}."
+    ok "Interface ${NETWORK_NAME} has IPv4 ${GATEWAY_IP}/${SUBNET_PREFIX}."
   else
-    fail "Interface ${NETWORK_NAME} não tem IPv4 ${GATEWAY_IP}/${SUBNET_PREFIX}."
+    fail "Interface ${NETWORK_NAME} does not have IPv4 ${GATEWAY_IP}/${SUBNET_PREFIX}."
   fi
   link_state=$(ip -o link show "${NETWORK_NAME}" | awk '{for(i=1;i<=NF;i++) if ($i=="state") {print $(i+1); exit}}')
-  [[ ${link_state:-UNKNOWN} == "UP" ]] && ok "Interface ${NETWORK_NAME} encontra-se UP." || warn "Interface ${NETWORK_NAME} está em estado ${link_state:-desconhecido}."
+  [[ ${link_state:-UNKNOWN} == "UP" ]] && ok "Interface ${NETWORK_NAME} is UP." || warn "Interface ${NETWORK_NAME} is in state ${link_state:-unknown}."
 else
-  fail "Interface ${NETWORK_NAME} não existe."
+  fail "Interface ${NETWORK_NAME} does not exist."
 fi
 
-# Parent em promisc
+# Parent in promisc
 if ip link show "${LAN_PARENT_IF}" >/dev/null 2>&1; then
-  ok "Interface parent ${LAN_PARENT_IF} encontrado."
+  ok "Parent interface ${LAN_PARENT_IF} found."
   if ip link show "${LAN_PARENT_IF}" | grep -q "PROMISC"; then
-    ok "Interface parent ${LAN_PARENT_IF} em modo promíscuo."
+    ok "Parent interface ${LAN_PARENT_IF} in promiscuous mode."
   else
-    warn "Interface parent ${LAN_PARENT_IF} NÃO está em modo promíscuo."
+    warn "Parent interface ${LAN_PARENT_IF} NOT in promiscuous mode."
   fi
 else
-  warn "Interface parent ${LAN_PARENT_IF} não encontrada."
+  warn "Parent interface ${LAN_PARENT_IF} not found."
 fi
 
 # dnsmasq service
 if systemctl cat "${DEDICATED_UNIT}" >/dev/null 2>&1; then
   if systemctl is-active --quiet "${DEDICATED_UNIT}"; then
-    ok "Serviço ${DEDICATED_UNIT} ativo."
+    ok "Service ${DEDICATED_UNIT} active."
   else
-    fail "Serviço ${DEDICATED_UNIT} não está ativo."
+    fail "Service ${DEDICATED_UNIT} is not active."
     systemctl --no-pager --lines=20 status "${DEDICATED_UNIT}" || true
   fi
 else
-  fail "Serviço ${DEDICATED_UNIT} não existe."
+  fail "Service ${DEDICATED_UNIT} does not exist."
 fi
 
-# Portas
+# Ports
 if command -v ss >/dev/null 2>&1; then
   if ss -H -lnp 'sport = :53' 2>/dev/null | grep -q "dnsmasq"; then
-    ok "dnsmasq a escutar na porta 53."
+    ok "dnsmasq listening on port 53."
   else
-    fail "Nenhum dnsmasq a escutar na porta 53."
+    fail "No dnsmasq listening on port 53."
   fi
   if ss -H -lnp 'sport = :67' 2>/dev/null | grep -q "dnsmasq"; then
-    ok "dnsmasq a escutar na porta 67."
+    ok "dnsmasq listening on port 67."
   else
-    fail "Nenhum dnsmasq a escutar na porta 67."
+    fail "No dnsmasq listening on port 67."
   fi
 else
-  warn "Comando 'ss' indisponível; saltar verificação de portas."
+  warn "Command 'ss' unavailable; skipping port checks."
 fi
 
 # Lease file
 LEASE_FILE="${DNSMASQ_LEASE_DIR}/${NETWORK_NAME}.leases"
 if [[ -w ${LEASE_FILE} ]]; then
-  ok "Lease file ${LEASE_FILE} com permissões de escrita."
+  ok "Lease file ${LEASE_FILE} with write permissions."
   lease_count=$(wc -l <"${LEASE_FILE}")
-  info "Contagem de leases atuais: ${lease_count}"
+  info "Current lease count: ${lease_count}"
 else
-  fail "Lease file ${LEASE_FILE} não escrevível."
+  fail "Lease file ${LEASE_FILE} not writable."
 fi
 
 # Sysctl checks
 if command -v sysctl >/dev/null 2>&1; then
   if [[ $(sysctl -n net.ipv4.ip_forward 2>/dev/null || echo 0) -eq 1 ]]; then
-    ok "net.ipv4.ip_forward ativo."
+    ok "net.ipv4.ip_forward active."
   else
-    fail "net.ipv4.ip_forward NÃO está ativo."
+    fail "net.ipv4.ip_forward NOT active."
   fi
   if [[ $(sysctl -n "net.ipv4.conf.${NETWORK_NAME}.rp_filter" 2>/dev/null || echo 1) -eq 0 ]]; then
-    ok "rp_filter relaxado em ${NETWORK_NAME}."
+    ok "rp_filter relaxed on ${NETWORK_NAME}."
   else
-    warn "rp_filter não relaxado para ${NETWORK_NAME}."
+    warn "rp_filter not relaxed for ${NETWORK_NAME}."
   fi
 else
-  warn "sysctl indisponível; não foi possível validar ip_forward/rp_filter."
+  warn "sysctl unavailable; could not validate ip_forward/rp_filter."
 fi
 
 # iptables / NAT
 if [[ -n ${WAN_IF} ]]; then
   if command -v iptables >/dev/null 2>&1; then
     if iptables -t nat -C POSTROUTING -s "${SUBNET_NETWORK}" -o "${WAN_IF}" -j MASQUERADE >/dev/null 2>&1; then
-      ok "iptables: regra MASQUERADE presente (${SUBNET_NETWORK} -> ${WAN_IF})."
+      ok "iptables: MASQUERADE rule present (${SUBNET_NETWORK} -> ${WAN_IF})."
     else
-      fail "iptables: falta MASQUERADE (${SUBNET_NETWORK} -> ${WAN_IF})."
+      fail "iptables: missing MASQUERADE (${SUBNET_NETWORK} -> ${WAN_IF})."
     fi
     if iptables -C FORWARD -i "${WAN_IF}" -o "${NETWORK_NAME}" -m state --state RELATED,ESTABLISHED -j ACCEPT >/dev/null 2>&1 && \
        iptables -C FORWARD -i "${NETWORK_NAME}" -o "${WAN_IF}" -j ACCEPT >/dev/null 2>&1; then
-      ok "iptables: regras de forward presentes."
+      ok "iptables: forward rules present."
     else
-      fail "iptables: regras de forward ausentes."
+      fail "iptables: forward rules missing."
     fi
   else
-    warn "iptables indisponível; verifica NAT manualmente."
+    warn "iptables unavailable; check NAT manually."
   fi
 fi
 
-# Conectividade básica (opcional)
+# Basic connectivity (optional)
 if command -v ping >/dev/null 2>&1; then
   if ping -I "${NETWORK_NAME}" -c1 -W1 "${GATEWAY_IP}" >/dev/null 2>&1; then
-    ok "Ping loopback no gateway ${GATEWAY_IP} bem-sucedido."
+    ok "Loopback ping to gateway ${GATEWAY_IP} successful."
   else
-    warn "Falha no ping ${GATEWAY_IP} a partir da interface ${NETWORK_NAME}."
+    warn "Failed ping to ${GATEWAY_IP} from interface ${NETWORK_NAME}."
   fi
 else
-  warn "ping indisponível; não foi possível testar conectividade básica."
+  warn "ping unavailable; could not test basic connectivity."
 fi
 
 echo
 if (( EXITCODE == 0 )); then
-  info "Todas as verificações passaram."
+  info "All checks passed."
 else
-  warn "Foram detetados problemas (EXIT=${EXITCODE})."
+  warn "Problems detected (EXIT=${EXITCODE})."
 fi
 
 exit "${EXITCODE}"
 if [[ -z ${WAN_IF} ]]; then
-  warn "Sem interface WAN definida/detetada; NAT não foi validado."
+  warn "No WAN interface defined/detected; NAT was not validated."
 fi
