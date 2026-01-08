@@ -427,17 +427,13 @@ func main() {
 	// 	}
 	// }()
 
-	api.StartApi()
+	api.StartApi(exitAfterStart)
 
 	// Setup graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	logger.Info("Application started. Press Ctrl+C to shutdown gracefully.")
-	if exitAfterStart {
-		api.StopGoAccess()
-		os.Exit(0)
-	}
 
 	// Wait for interrupt signal
 	<-sigChan

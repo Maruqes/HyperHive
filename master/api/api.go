@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
 	"strings"
 	"time"
 
@@ -217,7 +218,7 @@ func test_nots(w http.ResponseWriter, r *http.Request) {
 }
 
 // as the world caves in
-func StartApi() {
+func StartApi(exitAfterStart bool) {
 	hostAdmin := "127.0.0.1:81"
 	baseURL = "http://" + hostAdmin
 	initNoVNC()
@@ -289,7 +290,7 @@ func StartApi() {
 		r.Use(authMiddleware)
 
 		r.Get("/new-slave-count", getNewSlaveCount)
-		
+
 		//NOTIFICATION heere HEHEHE
 		r.Route("/notification", func(r chi.Router) {
 			r.Get("/public-key", get_public_key)
@@ -346,6 +347,10 @@ func StartApi() {
 		// ReadTimeout:       15 * time.Second,
 		// WriteTimeout:      30 * time.Second,
 		// IdleTimeout:       60 * time.Second,
+	}
+
+	if exitAfterStart {
+		os.Exit(0)
 	}
 
 	if err := srv.ListenAndServe(); err != nil {
