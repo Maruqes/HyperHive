@@ -71,18 +71,18 @@ func LoopNots() {
 		}
 		for _, core := range cpu.Cores {
 			if core.Temp >= 85 {
-				msg := fmt.Sprintf("CPU core high temperature on %s: %d°C", machine, core.Temp)
+				msg := fmt.Sprintf("CPU core high temperature on %s: %.0f°C", machine, core.Temp)
 				nots.SendGlobalNotification("High CPU temperature", msg, "/", true)
 			} else if core.Temp >= 78 {
-				msg := fmt.Sprintf("CPU core temperature warning on %s: %d°C", machine, core.Temp)
+				msg := fmt.Sprintf("CPU core temperature warning on %s: %.0f°C", machine, core.Temp)
 				nots.SendGlobalNotification("CPU temperature", msg, "/", false)
 			}
 
 			if core.Usage >= 90 {
-				msg := fmt.Sprintf("CPU usage high on %s: %d%%", machine, core.Usage)
+				msg := fmt.Sprintf("CPU usage high on %s: %.0f%%", machine, core.Usage)
 				nots.SendGlobalNotification("High CPU usage", msg, "/", true)
 			} else if core.Usage >= 80 {
-				msg := fmt.Sprintf("CPU usage warning on %s: %d%%", machine, core.Usage)
+				msg := fmt.Sprintf("CPU usage warning on %s: %.0f%%", machine, core.Usage)
 				nots.SendGlobalNotification("CPU usage", msg, "/", false)
 			}
 		}
