@@ -20,6 +20,7 @@ import (
 
 	"512SvMan/env512"
 
+	"github.com/Maruqes/512SvMan/logger"
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
 )
@@ -384,6 +385,7 @@ func collectGoAccessLogFiles(logDir string) ([]string, error) {
 		return nil, fmt.Errorf("no proxy access logs found")
 	}
 
+	logger.Debugf("GoAccess on %d files-> %s", len(files), strings.Join(files, ""))
 	return files, nil
 }
 
