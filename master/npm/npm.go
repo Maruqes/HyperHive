@@ -137,7 +137,7 @@ services:
     volumes:
       - %s:/data
       - %s:/etc/letsencrypt
-      - %s:/etc/logrotate.d/nginx-proxy-manager:ro
+      - %s:/etc/logrotate.d/nginx-proxy-manager
 `, image, data, ssl, logRotatePath)
 
 		if err := os.WriteFile(composeFile, []byte(composeContent), 0o644); err != nil {
@@ -186,15 +186,9 @@ access_log /data/logs/stream-proxy.log stream_proxy_512;
 
 func ensureLogRetentionConfig(work string) (string, error) {
 	configPath := filepath.Join(work, "npm-data", "logrotate-nginx-proxy-manager")
-	if _, err := os.Stat(configPath); err == nil {
-		return configPath, nil
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return "", err
-	}
-
 	content := `/data/logs/*.log {
   daily
-  rotate 3650
+  rotate 730
   missingok
   notifempty
   compress
@@ -202,6 +196,13 @@ func ensureLogRetentionConfig(work string) (string, error) {
   copytruncate
 }
 `
+	if current, err := os.ReadFile(configPath); err == nil {
+		if string(current) == content {
+			return configPath, nil
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
 
 	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
 		return "", err
