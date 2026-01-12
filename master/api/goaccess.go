@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -197,13 +198,9 @@ func ensureGoAccessRunning(ctx context.Context, workDir string) error {
 		return fmt.Errorf("logs directory not found")
 	}
 
-	pattern := filepath.Join(logDir, "proxy-host-*_access.log")
-	files, err := filepath.Glob(pattern)
+	files, err := collectGoAccessLogFiles(logDir)
 	if err != nil {
-		return fmt.Errorf("failed to enumerate log files: %w", err)
-	}
-	if len(files) == 0 {
-		return fmt.Errorf("no proxy access logs found")
+		return err
 	}
 
 	statsDir := filepath.Join(workDir, "npm-data", "stats")
@@ -320,7 +317,6 @@ func StopGoAccess() {
 // watchLogFiles monitors the log directory for new files and restarts GoAccess
 func watchLogFiles(workDir string) {
 	logDir := filepath.Join(workDir, "npm-data", "logs")
-	pattern := filepath.Join(logDir, "proxy-host-*_access.log")
 	ticker := time.NewTicker(10 * time.Second) // Check every 10 seconds
 	defer ticker.Stop()
 
@@ -330,7 +326,7 @@ func watchLogFiles(workDir string) {
 			return
 		case <-ticker.C:
 			// Get current log files
-			currentFiles, err := filepath.Glob(pattern)
+			currentFiles, err := collectGoAccessLogFiles(logDir)
 			if err != nil {
 				continue
 			}
@@ -357,6 +353,38 @@ func watchLogFiles(workDir string) {
 			}
 		}
 	}
+}
+
+func collectGoAccessLogFiles(logDir string) ([]string, error) {
+	pattern := filepath.Join(logDir, "proxy-host-*_access.log*")
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return nil, fmt.Errorf("failed to enumerate log files: %w", err)
+	}
+
+	files := make([]string, 0, len(matches))
+	skippedCompressed := false
+	for _, match := range matches {
+		if strings.HasSuffix(match, ".gz") {
+			skippedCompressed = true
+			continue
+		}
+		info, err := os.Stat(match)
+		if err != nil || info.IsDir() {
+			continue
+		}
+		files = append(files, match)
+	}
+	sort.Strings(files)
+
+	if len(files) == 0 {
+		if skippedCompressed {
+			return nil, fmt.Errorf("no readable proxy access logs found (compressed .gz logs are not supported)")
+		}
+		return nil, fmt.Errorf("no proxy access logs found")
+	}
+
+	return files, nil
 }
 
 // restartGoAccess stops and restarts the GoAccess process
