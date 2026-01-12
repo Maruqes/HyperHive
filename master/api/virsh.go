@@ -358,7 +358,7 @@ func editVM(w http.ResponseWriter, r *http.Request) {
 	type EditVMRequest struct {
 		Memory     int32 `json:"memory,omitempty"`
 		Vcpu       int32 `json:"vcpu,omitempty"`
-		DiskSizeGB int32 `json:"disk_sizeGB,omitempty"` 
+		DiskSizeGB int32 `json:"disk_sizeGB,omitempty"`
 	}
 
 	var editReq EditVMRequest
@@ -872,9 +872,13 @@ func backupVM(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func caniseefileorfolder(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
+func caniseefileorfolder(path string) (bool, float64) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false, 0
+	}
+	sizeGB := float64(info.Size()) / (1024 * 1024 * 1024)
+	return true, sizeGB
 }
 
 func getAllBackups(w http.ResponseWriter, r *http.Request) {
@@ -886,15 +890,18 @@ func getAllBackups(w http.ResponseWriter, r *http.Request) {
 	type Res struct {
 		DbRes db.VirshBackup `json:"db_res"`
 		Live  bool           `json:"live"`
+		Size  float64        `json:"size"`
 	}
 
 	var res []Res
 
 	for i := 0; i < len(virshBackups); i++ {
 		bak := virshBackups[i]
+		exists, sizeGB := caniseefileorfolder(bak.Path)
 		nres := Res{
 			DbRes: bak,
-			Live:  caniseefileorfolder(bak.Path),
+			Live:  exists,
+			Size:  sizeGB,
 		}
 		res = append(res, nres)
 	}
