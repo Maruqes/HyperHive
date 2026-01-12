@@ -116,6 +116,10 @@ func PullImage() error {
 	if err := ensureStreamLogging(work); err != nil {
 		return err
 	}
+	logRotatePath, err := ensureLogRetentionConfig(work)
+	if err != nil {
+		return err
+	}
 
 	// 2) Write docker-compose.yml if it doesn't already exist
 	composeFile := filepath.Join(work, "docker-compose.yml")
@@ -133,7 +137,8 @@ services:
     volumes:
       - %s:/data
       - %s:/etc/letsencrypt
-`, image, data, ssl)
+      - %s:/etc/logrotate.d/nginx-proxy-manager:ro
+`, image, data, ssl, logRotatePath)
 
 		if err := os.WriteFile(composeFile, []byte(composeContent), 0o644); err != nil {
 			return err
@@ -177,6 +182,31 @@ access_log /data/logs/stream-proxy.log stream_proxy_512;
 	}
 
 	return nil
+}
+
+func ensureLogRetentionConfig(work string) (string, error) {
+	configPath := filepath.Join(work, "npm-data", "logrotate-nginx-proxy-manager")
+	if _, err := os.Stat(configPath); err == nil {
+		return configPath, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
+
+	content := `/data/logs/*.log {
+  daily
+  rotate 3650
+  missingok
+  notifempty
+  compress
+  delaycompress
+  copytruncate
+}
+`
+
+	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
+		return "", err
+	}
+	return configPath, nil
 }
 
 func DeleteBaseUser(base, email, password string) error {
