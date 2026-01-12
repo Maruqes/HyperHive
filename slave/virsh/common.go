@@ -1443,12 +1443,6 @@ func mutateDomainXMLResources(xmlDesc string, newCPU, newMemMiB int) (string, er
 		xmlDesc = updatedVcpuXML
 	}
 
-	strippedXML, removed := removeCputuneBlock(xmlDesc)
-	if removed {
-		changed = true
-		xmlDesc = strippedXML
-	}
-
 	topologyXML, err := updateDomainCPUTopology(xmlDesc, newCPU)
 	if err != nil {
 		return "", err
@@ -1516,64 +1510,6 @@ func updateVcpuTag(xmlStr string, newCPU int) (string, error) {
 		return "", fmt.Errorf("vcpu element not found in domain xml")
 	}
 	return result, nil
-}
-
-func removeCputuneBlock(xmlStr string) (string, bool) {
-	pattern := regexp.MustCompile(`(?ms)[ \t]*<cputune>.*?</cputune>\n?`)
-	if !pattern.MatchString(xmlStr) {
-		return xmlStr, false
-	}
-	return pattern.ReplaceAllString(xmlStr, ""), true
-}
-
-func updateCputuneBlock(xmlStr string, newCPU int) (string, error) {
-	newTune, err := buildCPUTuneXML(newCPU)
-	if err != nil {
-		return "", fmt.Errorf("rebuild cputune: %w", err)
-	}
-	if strings.TrimSpace(newTune) == "" {
-		return xmlStr, nil
-	}
-
-	pattern := regexp.MustCompile(`(?ms)([ \t]*)<cputune>.*?</cputune>`)
-	replaced := false
-	result := pattern.ReplaceAllStringFunc(xmlStr, func(match string) string {
-		replaced = true
-		indent := extractLeadingWhitespace(match)
-		return indentBlock(newTune, indent)
-	})
-	if replaced {
-		return result, nil
-	}
-
-	indent := findIndentForTag(xmlStr, "vcpu")
-	if indent == "" {
-		indent = "  "
-	}
-	insertion := indentBlock(newTune, indent)
-
-	if idx := strings.Index(xmlStr, "</vcpu>"); idx != -1 {
-		var builder strings.Builder
-		builder.Grow(len(xmlStr) + len(insertion) + 1)
-		builder.WriteString(xmlStr[:idx+len("</vcpu>")])
-		builder.WriteString("\n")
-		builder.WriteString(insertion)
-		builder.WriteString(xmlStr[idx+len("</vcpu>"):])
-		return builder.String(), nil
-	}
-
-	if idx := strings.LastIndex(xmlStr, "</domain>"); idx != -1 {
-		var builder strings.Builder
-		builder.Grow(len(xmlStr) + len(insertion) + 2)
-		builder.WriteString(xmlStr[:idx])
-		builder.WriteString("\n")
-		builder.WriteString(insertion)
-		builder.WriteString("\n")
-		builder.WriteString(xmlStr[idx:])
-		return builder.String(), nil
-	}
-
-	return "", fmt.Errorf("unable to insert cputune block into domain xml")
 }
 
 func updateDomainCPUTopology(xmlStr string, vcpuCount int) (string, error) {

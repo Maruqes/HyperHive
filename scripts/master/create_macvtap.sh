@@ -1,27 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Cria (e persiste) um macvtap em modo bridge ancorado a uma NIC parent.
-# Uso:
+# Creates (and persists) a macvtap in bridge mode anchored to a parent NIC.
+# Usage:
 #   sudo ./create_macvtap.sh [--persist] <parent_iface> <macvtap_iface> [ipv4_cidr]
-# Ex.:
+# Example:
 #   sudo ./create_macvtap.sh --persist enp3s0 512rede-host 192.168.76.1/24
 #
-# Com --persist, instala um serviço systemd que (re)cria a interface no arranque.
+# With --persist, installs a systemd service that (re)creates the interface on boot.
 
 usage() {
   cat <<'USAGE'
 Usage: create_macvtap.sh [--persist] <parent_iface> <macvtap_iface> [ipv4_cidr]
 
-  --persist      Instala serviço systemd para recriar a interface no boot
-  parent_iface   NIC física existente (ex.: enp3s0) ou a tua '512rede'
-  macvtap_iface  nome do macvtap a criar (ex.: 512rede-host)
-  ipv4_cidr      IPv4/prefix opcional a atribuir (ex.: 192.168.76.1/24)
+  --persist      Install systemd service to recreate interface on boot
+  parent_iface   Existing physical NIC (e.g., enp3s0) or your '512rede'
+  macvtap_iface  Name of macvtap to create (e.g., 512rede-host)
+  ipv4_cidr      Optional IPv4/prefix to assign (e.g., 192.168.76.1/24)
 
-Notas:
-  - Requer root e iproute2.
-  - Usa macvtap em modo bridge (para VMs <interface type="direct" mode="bridge">).
-  - Coloca o parent em promisc para encaminhamento fiável.
+Notes:
+  - Requires root and iproute2.
+  - Uses macvtap in bridge mode (for VMs <interface type="direct" mode="bridge">).
+  - Sets parent to promisc for reliable forwarding.
 USAGE
   exit 1
 }
@@ -53,7 +53,7 @@ remove_conflicting_ipv4(){
     local candidate_int=$(ip_to_int "${candidate_ip}")
     if (( (candidate_int & mask) == network )); then
       ip -4 addr del "${addr}" dev "${parent}" || true
-      warn "Removido IPv4 ${addr} de ${parent} por conflito com ${ip_cidr}"
+      warn "Removed IPv4 ${addr} from ${parent} due to conflict with ${ip_cidr}"
     fi
   done
 }
@@ -64,13 +64,13 @@ install_persistence() {
   local unit="/etc/systemd/system/macvtap-${child}.service"
   local devunit="sys-subsystem-net-devices-${parent}.device"
 
-  info "A limpar artefactos antigos de persistência para ${child}"
+  info "Cleaning up old persistence artifacts for ${child}"
   systemctl disable --now "macvtap-${child}.service" >/dev/null 2>&1 || true
   rm -f "${helper}" "${unit}"
 
   install -d -m 755 "$(dirname "${helper}")" "$(dirname "${unit}")"
 
-  info "A instalar helper ${helper}"
+  info "Installing helper ${helper}"
   cat >"${helper}" <<SCRIPT
 #!/usr/bin/env bash
 set -euo pipefail
@@ -90,17 +90,17 @@ ensure_ipv4_forwarding
 
 modprobe macvtap >/dev/null 2>&1 || true
 
-# Remove se já existir
+# Remove if already exists
 ip link show ${child} >/dev/null 2>&1 && { ip link set ${child} down || true; ip link delete ${child} || true; }
 
-# Espera que a parent exista e suba
+# Wait for parent to exist and be up
 for i in {1..20}; do
   ip link show ${parent} >/dev/null 2>&1 && break
   sleep 1
 done
 ip link show ${parent} >/dev/null 2>&1 || exit 1
 
-# Remove IPv4 conflitantes no parent
+# Remove conflicting IPv4 on parent
 remove_conflicting_ipv4(){
   local parent=\$1 ip_cidr=\$2
   [[ -z "\${ip_cidr}" ]] && return
@@ -125,25 +125,25 @@ remove_conflicting_ipv4(){
 }
 remove_conflicting_ipv4 ${parent} "${ipv4}"
 
-# Garante promisc no parent
+# Ensure promisc on parent
 ip link set ${parent} promisc on || true
 
-# Cria macvtap bridge e sobe
+# Create macvtap bridge and bring up
 ip link add link ${parent} name ${child} type macvtap mode bridge
 ip link set ${child} up
 
-# Atribui IPv4 se fornecido
+# Assign IPv4 if provided
 if [[ -n "${ipv4}" ]]; then
   ip addr flush dev ${child} || true
   ip addr add ${ipv4} dev ${child}
 fi
 
-# Desarma rp_filter no child (evita drops silenciosos)
+# Disable rp_filter on child (avoids silent drops)
 sysctl -w net.ipv4.conf.${child}.rp_filter=0 >/dev/null 2>&1 || true
 SCRIPT
   chmod 0755 "${helper}"
 
-  info "A criar serviço systemd ${unit}"
+  info "Creating systemd service ${unit}"
   cat >"${unit}" <<UNIT
 [Unit]
 Description=macvtap ${child} on ${parent}
@@ -162,23 +162,23 @@ UNIT
 
   systemctl daemon-reload
   systemctl enable --now "macvtap-${child}.service"
-  info "Persistência ativa para ${child}"
+  info "Persistence active for ${child}"
 }
 
 ensure_ipv4_forwarding(){
   local conf="/etc/sysctl.d/99-macvtap-ipforward.conf"
-  info "A garantir ip_forward ativo e persistente (${conf})"
+  info "Ensuring ip_forward active and persistent (${conf})"
   cat >"${conf}" <<'CONF'
 net.ipv4.ip_forward = 1
 net.ipv4.conf.all.forwarding = 1
 CONF
-  sysctl -w net.ipv4.ip_forward=1 >/dev/null 2>&1 || warn "Falha a definir net.ipv4.ip_forward"
-  sysctl -w net.ipv4.conf.all.forwarding=1 >/dev/null 2>&1 || warn "Falha a definir net.ipv4.conf.all.forwarding"
-  sysctl -p "${conf}" >/dev/null 2>&1 || sysctl --system >/dev/null 2>&1 || warn "Não consegui recarregar sysctl, verifica manualmente"
+  sysctl -w net.ipv4.ip_forward=1 >/dev/null 2>&1 || warn "Failed to set net.ipv4.ip_forward"
+  sysctl -w net.ipv4.conf.all.forwarding=1 >/dev/null 2>&1 || warn "Failed to set net.ipv4.conf.all.forwarding"
+  sysctl -p "${conf}" >/dev/null 2>&1 || sysctl --system >/dev/null 2>&1 || warn "Could not reload sysctl, check manually"
 }
 
-[[ ${EUID:-0} -eq 0 ]] || fatal 'Este script requer root.'
-command -v ip >/dev/null 2>&1 || fatal 'Falta o comando ip (iproute2).'
+[[ ${EUID:-0} -eq 0 ]] || fatal 'This script requires root.'
+command -v ip >/dev/null 2>&1 || fatal 'Missing ip command (iproute2).'
 
 PERSIST=0
 while [[ $# -gt 0 ]]; do
@@ -186,7 +186,7 @@ while [[ $# -gt 0 ]]; do
     --persist) PERSIST=1; shift;;
     -h|--help) usage;;
     --) shift; break;;
-    -*) fatal "Opção desconhecida: $1";;
+    -*) fatal "Unknown option: $1";;
     *) break;;
   esac
 done
@@ -197,15 +197,15 @@ PARENT_IF=$1
 MACVTAP_IF=$2
 IPV4_CIDR=${3:-}
 
-ip link show "$PARENT_IF" >/dev/null 2>&1 || fatal "Parent '$PARENT_IF' não existe."
+ip link show "$PARENT_IF" >/dev/null 2>&1 || fatal "Parent '$PARENT_IF' does not exist."
 
 modprobe macvtap >/dev/null 2>&1 || true
 
 ensure_ipv4_forwarding
 
-# Limpa se já existir
+# Clean up if already exists
 if ip link show "$MACVTAP_IF" >/dev/null 2>&1; then
-  info "A remover interface existente '${MACVTAP_IF}'"
+  info "Removing existing interface '${MACVTAP_IF}'"
   ip link set "$MACVTAP_IF" down 2>/dev/null || true
   ip link delete "$MACVTAP_IF" 2>/dev/null || true
 fi
@@ -215,18 +215,18 @@ ip link set "$PARENT_IF" promisc on || true
 
 remove_conflicting_ipv4 "$PARENT_IF" "$IPV4_CIDR"
 
-info "A criar macvtap '${MACVTAP_IF}' (mode=bridge)"
+info "Creating macvtap '${MACVTAP_IF}' (mode=bridge)"
 ip link add link "$PARENT_IF" name "$MACVTAP_IF" type macvtap mode bridge
 trap 'ip link delete "$MACVTAP_IF" 2>/dev/null || true' ERR
 ip link set "$MACVTAP_IF" up
 
 if [[ -n $IPV4_CIDR ]]; then
-  info "Atribuir IPv4 ${IPV4_CIDR} a ${MACVTAP_IF}"
+  info "Assigning IPv4 ${IPV4_CIDR} to ${MACVTAP_IF}"
   ip addr flush dev "$MACVTAP_IF" || true
   ip addr add "$IPV4_CIDR" dev "$MACVTAP_IF"
 fi
 
-# rp_filter relaxado (evita drops no caminho de retorno)
+# Relaxed rp_filter (avoids drops on return path)
 sysctl -w "net.ipv4.conf.${MACVTAP_IF}.rp_filter=0" >/dev/null 2>&1 || true
 
 trap - ERR
@@ -235,5 +235,5 @@ if (( PERSIST )); then
   install_persistence "$PARENT_IF" "$MACVTAP_IF" "$IPV4_CIDR"
 fi
 
-info "macvtap '${MACVTAP_IF}' pronto."
-[[ -n $IPV4_CIDR ]] && info "Endereço ${IPV4_CIDR} ativo no host."
+info "macvtap '${MACVTAP_IF}' ready."
+[[ -n $IPV4_CIDR ]] && info "Address ${IPV4_CIDR} active on host."
