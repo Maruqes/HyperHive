@@ -2,7 +2,7 @@
 
 ---
 
-## **<a href="https://systems.hyperhive.maruqes.com/" target="_blank">→ VISIT THE OFFICIAL WEBSITE ←</a>**
+## **[→ VISIT THE OFFICIAL WEBSITE ←](https://systems.hyperhive.maruqes.com/)**
 
 **Documentation • Installation • Updates**
 
