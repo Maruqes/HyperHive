@@ -132,7 +132,7 @@ func DeleteAccessList(baseURL, token string, id int) error {
 
 // GET /api/nginx/access-lists (raw response passthrough)
 func ListAccessListsRaw(baseURL, token string) ([]byte, error) {
-	resp, err := MakeRequest("GET", baseURL+"/api/nginx/access-lists", token, nil, 30)
+	resp, err := MakeRequest("GET", baseURL+"/api/nginx/access-lists?expand=owner%2Citems%2Cclients", token, nil, 30)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func GetAccessList(baseURL, token string, id int) (AccessList, error) {
 
 // GET /api/nginx/access-lists
 func ListAccessLists(baseURL, token string) ([]AccessList, error) {
-	resp, err := MakeRequest("GET", baseURL+"/api/nginx/access-lists", token, nil, 30)
+	resp, err := MakeRequest("GET", baseURL+"/api/nginx/access-lists?expand=owner%2Citems%2Cclients", token, nil, 30)
 	if err != nil {
 		return nil, err
 	}
