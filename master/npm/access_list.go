@@ -49,14 +49,46 @@ type AccessListEntry struct {
 	AccessListID int    `json:"access_list_id,omitempty"`
 }
 
+type accessListItemPayload struct {
+	Username string `json:"username"`
+	Password string `json:"password,omitempty"`
+}
+
+type accessListEntryPayload struct {
+	Directive string `json:"directive"`
+	Address   string `json:"address"`
+}
+
+func sanitizeAccessListItems(items []AccessListItem) []accessListItemPayload {
+	clean := make([]accessListItemPayload, 0, len(items))
+	for _, item := range items {
+		clean = append(clean, accessListItemPayload{
+			Username: item.Username,
+			Password: item.Password,
+		})
+	}
+	return clean
+}
+
+func sanitizeAccessListEntries(entries []AccessListEntry) []accessListEntryPayload {
+	clean := make([]accessListEntryPayload, 0, len(entries))
+	for _, entry := range entries {
+		clean = append(clean, accessListEntryPayload{
+			Directive: entry.Directive,
+			Address:   entry.Address,
+		})
+	}
+	return clean
+}
+
 // POST /api/nginx/access-lists
 func CreateAccessList(baseURL, token string, list AccessList) (int, error) {
 	reqBody := map[string]any{
 		"name":        list.Name,
 		"satisfy_any": list.SatisfyAny,
 		"pass_auth":   list.PassAuth,
-		"items":       list.Items,
-		"clients":     list.Clients,
+		"items":       sanitizeAccessListItems(list.Items),
+		"clients":     sanitizeAccessListEntries(list.Clients),
 	}
 
 	jsonData, err := json.Marshal(reqBody)
@@ -91,8 +123,8 @@ func EditAccessList(baseURL, token string, list AccessList) error {
 		"name":        list.Name,
 		"satisfy_any": list.SatisfyAny,
 		"pass_auth":   list.PassAuth,
-		"items":       list.Items,
-		"clients":     list.Clients,
+		"items":       sanitizeAccessListItems(list.Items),
+		"clients":     sanitizeAccessListEntries(list.Clients),
 	}
 
 	jsonData, err := json.Marshal(reqBody)
