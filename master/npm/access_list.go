@@ -130,6 +130,22 @@ func DeleteAccessList(baseURL, token string, id int) error {
 	return nil
 }
 
+// GET /api/nginx/access-lists (raw response passthrough)
+func ListAccessListsRaw(baseURL, token string) ([]byte, error) {
+	resp, err := MakeRequest("GET", baseURL+"/api/nginx/access-lists", token, nil, 30)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 && resp.StatusCode != 201 {
+		return nil, fmt.Errorf("list access lists failed (%d): %s", resp.StatusCode, respBody)
+	}
+
+	return respBody, nil
+}
+
 // GET /api/nginx/access-lists/{id}
 func GetAccessList(baseURL, token string, id int) (AccessList, error) {
 	resp, err := MakeRequest("GET", fmt.Sprintf("%s/api/nginx/access-lists/%d", baseURL, id), token, nil, 30)

@@ -11,27 +11,14 @@ import (
 func listAccessLists(w http.ResponseWriter, r *http.Request) {
 	loginToken := GetTokenFromContext(r)
 
-	lists, err := npm.ListAccessLists(baseURL, loginToken)
+	raw, err := npm.ListAccessListsRaw(baseURL, loginToken)
 	if err != nil {
 		http.Error(w, "failed to get access lists: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Garantir que Items e Clients não sejam null
-	for i := range lists {
-		if lists[i].Items == nil {
-			lists[i].Items = []npm.AccessListItem{}
-		}
-		if lists[i].Clients == nil {
-			lists[i].Clients = []npm.AccessListEntry{}
-		}
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(lists); err != nil {
-		http.Error(w, "failed to marshal access lists", http.StatusInternalServerError)
-		return
-	}
+	_, _ = w.Write(raw)
 }
 
 func createAccessList(w http.ResponseWriter, r *http.Request) {
