@@ -311,6 +311,7 @@ func StartApi(exitAfterStart bool) {
 		npmapi.SetupStreamAPI(r)
 		npmapi.SetupRedirectionAPI(r)
 		npmapi.SetupCertAPI(r)
+		npmapi.SetupAccessListAPI(r)
 
 		setupVirshAPI(r)
 		setupNFSAPI(r)
