@@ -19,24 +19,34 @@ import (
 */
 
 type AccessList struct {
-	ID         int               `json:"id"`
-	Name       string            `json:"name"`
-	SatisfyAny bool              `json:"satisfy_any"`
-	PassAuth   bool              `json:"pass_auth"`
-	Items      []AccessListItem  `json:"items"`
-	Clients    []AccessListEntry `json:"clients"`
+	ID          int               `json:"id"`
+	CreatedOn   string            `json:"created_on,omitempty"`
+	ModifiedOn  string            `json:"modified_on,omitempty"`
+	Name        string            `json:"name"`
+	SatisfyAny  bool              `json:"satisfy_any"`
+	PassAuth    bool              `json:"pass_auth"`
+	OwnerUserID int               `json:"owner_user_id,omitempty"`
+	Items       []AccessListItem  `json:"items"`
+	Clients     []AccessListEntry `json:"clients"`
+	Meta        interface{}       `json:"meta,omitempty"`
 }
 
 type AccessListItem struct {
-	ID       int    `json:"id,omitempty"`
-	Username string `json:"username"`
-	Password string `json:"password"`
+	ID           int    `json:"id,omitempty"`
+	CreatedOn    string `json:"created_on,omitempty"`
+	ModifiedOn   string `json:"modified_on,omitempty"`
+	Username     string `json:"username"`
+	Password     string `json:"password,omitempty"`
+	AccessListID int    `json:"access_list_id,omitempty"`
 }
 
 type AccessListEntry struct {
-	ID        int    `json:"id,omitempty"`
-	Directive string `json:"directive"`
-	Address   string `json:"address"`
+	ID           int    `json:"id,omitempty"`
+	CreatedOn    string `json:"created_on,omitempty"`
+	ModifiedOn   string `json:"modified_on,omitempty"`
+	Directive    string `json:"directive"`
+	Address      string `json:"address"`
+	AccessListID int    `json:"access_list_id,omitempty"`
 }
 
 // POST /api/nginx/access-lists
@@ -118,6 +128,27 @@ func DeleteAccessList(baseURL, token string, id int) error {
 	}
 
 	return nil
+}
+
+// GET /api/nginx/access-lists/{id}
+func GetAccessList(baseURL, token string, id int) (AccessList, error) {
+	resp, err := MakeRequest("GET", fmt.Sprintf("%s/api/nginx/access-lists/%d", baseURL, id), token, nil, 30)
+	if err != nil {
+		return AccessList{}, err
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 && resp.StatusCode != 201 {
+		return AccessList{}, fmt.Errorf("get access list failed (%d): %s", resp.StatusCode, respBody)
+	}
+
+	var list AccessList
+	if err := json.Unmarshal(respBody, &list); err != nil {
+		return AccessList{}, err
+	}
+
+	return list, nil
 }
 
 // GET /api/nginx/access-lists

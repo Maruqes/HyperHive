@@ -17,6 +17,16 @@ func listAccessLists(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Garantir que Items e Clients não sejam null
+	for i := range lists {
+		if lists[i].Items == nil {
+			lists[i].Items = []npm.AccessListItem{}
+		}
+		if lists[i].Clients == nil {
+			lists[i].Clients = []npm.AccessListEntry{}
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(lists); err != nil {
 		http.Error(w, "failed to marshal access lists", http.StatusInternalServerError)
