@@ -1008,7 +1008,36 @@ func (v *VirshService) SetVmLive(ctx context.Context, vmName string, enable bool
 	return nil
 }
 
+func checkNFSReadWrite(conn *grpc.ClientConn, path string, maxTries int, delay time.Duration) error {
+	if maxTries <= 0 {
+		maxTries = 1
+	}
+	if delay < 0 {
+		delay = 0
+	}
+
+	var lastErr error
+	for i := 0; i < maxTries; i++ {
+		if err := nfs.CheckReadWrite(conn, path); err == nil {
+			return nil
+		} else {
+			lastErr = err
+		}
+		if i < maxTries-1 && delay > 0 {
+			time.Sleep(delay)
+		}
+	}
+	if lastErr != nil {
+		return lastErr
+	}
+	return fmt.Errorf("read/write check failed")
+}
+
 func (v *VirshService) StartAutoStartVms(ctx context.Context) error {
+	const nfsMountPrefix = "/mnt/512SvMan/shared/"
+	const nfsReadWriteTries = 10
+	const nfsReadWriteDelay = 2 * time.Second
+
 	autoStart, err := db.GetAllAutoStart(ctx)
 	if err != nil {
 		return err
@@ -1036,6 +1065,7 @@ func (v *VirshService) StartAutoStartVms(ctx context.Context) error {
 			conn := protocol.GetConnectionByMachineName(vm.MachineName)
 			if conn == nil || conn.Connection == nil {
 				logger.Error("wtf how is not conn and found vm autostart bug wtfwtf")
+				time.Sleep(10 * time.Second)
 				continue
 			}
 
@@ -1045,6 +1075,30 @@ func (v *VirshService) StartAutoStartVms(ctx context.Context) error {
 				logger.Error("Tried to start vm " + vm.Name + " 180 times without success")
 				break
 			}
+
+			diskPath := strings.TrimSpace(vm.DiskPath)
+			if diskPath != "" && strings.HasPrefix(diskPath, nfsMountPrefix) {
+				logger.Infof("autostart vm %s: checking NFS disk path on %s (%s)", vm.Name, vm.MachineName, diskPath)
+				found, err := nfs.CanFindFileOrDir(conn.Connection, diskPath)
+				if err != nil {
+					logger.Errorf("disk path check failed for vm %s on %s (%s): %v", vm.Name, vm.MachineName, diskPath, err)
+					time.Sleep(10 * time.Second)
+					continue
+				}
+				if !found {
+					logger.Warnf("disk path not ready for vm %s on %s (%s)", vm.Name, vm.MachineName, diskPath)
+					time.Sleep(10 * time.Second)
+					continue
+				}
+				logger.Infof("autostart vm %s: disk path found on %s (%s)", vm.Name, vm.MachineName, diskPath)
+				if err := checkNFSReadWrite(conn.Connection, diskPath, nfsReadWriteTries, nfsReadWriteDelay); err != nil {
+					logger.Warnf("nfs read/write not ready for vm %s on %s (%s): %v", vm.Name, vm.MachineName, diskPath, err)
+					time.Sleep(10 * time.Second)
+					continue
+				}
+				logger.Infof("autostart vm %s: NFS read/write ok on %s (%s)", vm.Name, vm.MachineName, diskPath)
+			}
+
 			//start vm, if after 10 secs is not start again for 30 mins
 			logger.Info("start vm: " + vm.Name)
 			if err := virsh.StartVm(context.Background(), conn.Connection, vm); err != nil {

@@ -3,10 +3,12 @@ package nfs
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"net"
 	"net/http"
 	"os"
@@ -1405,6 +1407,95 @@ func CanFindFileOrDir(folderPath string) (bool, error) {
 		return false, fmt.Errorf("failed to stat path: %w", err)
 	}
 	return true, nil
+}
+
+const rwCheckAlphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+var rwCheckMax = big.NewInt(int64(len(rwCheckAlphabet)))
+
+func randomSafeToken(n int) (string, error) {
+	var b strings.Builder
+	b.Grow(n)
+	for i := 0; i < n; i++ {
+		x, err := rand.Int(rand.Reader, rwCheckMax)
+		if err != nil {
+			return "", err
+		}
+		b.WriteByte(rwCheckAlphabet[x.Int64()])
+	}
+	return b.String(), nil
+}
+
+func CheckReadWrite(path string) error {
+	target := strings.TrimSpace(path)
+	if target == "" {
+		return fmt.Errorf("path is required")
+	}
+
+	info, err := os.Stat(target)
+	if err != nil {
+		return fmt.Errorf("stat path: %w", err)
+	}
+	if !info.IsDir() {
+		target = filepath.Dir(target)
+		info, err = os.Stat(target)
+		if err != nil {
+			return fmt.Errorf("stat parent path: %w", err)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("path is not a directory: %s", target)
+		}
+	}
+
+	if err := IsSafePath(target); err != nil {
+		return err
+	}
+
+	token, err := randomSafeToken(8)
+	if err != nil {
+		return err
+	}
+	testName := fmt.Sprintf(".nfs-check-%d-%s", time.Now().UnixNano(), token)
+	testPath := filepath.Join(target, testName)
+	if err := IsSafePath(testPath); err != nil {
+		return err
+	}
+
+	payload := []byte("nfs-check")
+	f, err := os.OpenFile(testPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("create test file: %w", err)
+	}
+	_, err = f.Write(payload)
+	if err != nil {
+		_ = f.Close()
+		_ = os.Remove(testPath)
+		return fmt.Errorf("write test file: %w", err)
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		_ = os.Remove(testPath)
+		return fmt.Errorf("sync test file: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		_ = os.Remove(testPath)
+		return fmt.Errorf("close test file: %w", err)
+	}
+
+	readBack, err := os.ReadFile(testPath)
+	if err != nil {
+		_ = os.Remove(testPath)
+		return fmt.Errorf("read test file: %w", err)
+	}
+	if !bytes.Equal(readBack, payload) {
+		_ = os.Remove(testPath)
+		return fmt.Errorf("read/write mismatch")
+	}
+	if err := os.Remove(testPath); err != nil {
+		return fmt.Errorf("remove test file: %w", err)
+	}
+	logger.Debugf("wrote file %s", testName)
+	return nil
 }
 
 func Sync() error {

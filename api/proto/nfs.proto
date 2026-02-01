@@ -65,6 +65,7 @@ service NFSService {
   rpc GetSharedFolderStatus(FolderMount) returns (SharedFolderStatusResponse);
   rpc ListFolderContents(FolderPath) returns (FolderContents);
   rpc CanFindFileOrDir(FolderPath) returns (CreateResponse); //ok if found
+  rpc CheckReadWrite(FolderPath) returns (OkResponse); // verifies read/write access
 
   //nao devia estar aqui mas como download iso vai fazer download num folderMount facilita
   rpc DownloadIso(DownloadIsoRequest) returns (CreateResponse);

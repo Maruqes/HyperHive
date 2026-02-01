@@ -3,6 +3,7 @@ package nfs
 import (
 	"512SvMan/db"
 	"context"
+	"fmt"
 
 	pbnfs "github.com/Maruqes/512SvMan/api/proto/nfs"
 	"github.com/Maruqes/512SvMan/logger"
@@ -99,6 +100,23 @@ func CanFindFileOrDir(conn *grpc.ClientConn, path string) (bool, error) {
 		return false, err
 	}
 	return res.GetOk(), nil
+}
+
+func CheckReadWrite(conn *grpc.ClientConn, path string) error {
+	client := pbnfs.NewNFSServiceClient(conn)
+	res, err := client.CheckReadWrite(context.Background(), &pbnfs.FolderPath{
+		Path: path,
+	})
+	if err != nil {
+		return err
+	}
+	if !res.GetOk() {
+		if msg := res.GetMessage(); msg != "" {
+			return fmt.Errorf("%s", msg)
+		}
+		return fmt.Errorf("read/write check failed")
+	}
+	return nil
 }
 
 func Sync(conn *grpc.ClientConn) error {

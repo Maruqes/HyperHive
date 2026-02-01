@@ -53,7 +53,7 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 		return err
 	}
 
-	time.Sleep(time.Second * 15)
+	time.Sleep(time.Second * 120)
 
 	logger.Info("Auto starting vms")
 	virshServices := services.VirshService{}
