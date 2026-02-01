@@ -19,6 +19,8 @@ import (
 	"os/exec"
 	"os/signal"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -28,15 +30,40 @@ import (
 
 // Provide access to newSlaveCount for the API
 func getNewSlaveCount() int {
-	return newSlaveCount
+	return int(atomic.LoadInt32(&newSlaveCount))
 }
 
-var newSlaveCount int = 0
+var newSlaveCount int32
+
+var (
+	newSlaveMu       sync.Mutex
+	newSlaveInFlight = map[string]struct{}{}
+)
 
 func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 
-	newSlaveCount++
-	defer func() { newSlaveCount-- }()
+	if machineName == "" {
+		return fmt.Errorf("machineName cannot be empty")
+	}
+
+	newSlaveMu.Lock()
+	if _, ok := newSlaveInFlight[machineName]; ok {
+		newSlaveMu.Unlock()
+		logger.Warnf("newSlave already running for %s, skipping duplicate", machineName)
+		return nil
+	}
+	newSlaveInFlight[machineName] = struct{}{}
+	newSlaveMu.Unlock()
+
+	atomic.AddInt32(&newSlaveCount, 1)
+	logger.Infof("newSlave started for %s (%s). In-flight=%d", machineName, addr, atomic.LoadInt32(&newSlaveCount))
+	defer func() {
+		atomic.AddInt32(&newSlaveCount, -1)
+		newSlaveMu.Lock()
+		delete(newSlaveInFlight, machineName)
+		newSlaveMu.Unlock()
+		logger.Infof("newSlave finished for %s (%s). In-flight=%d", machineName, addr, atomic.LoadInt32(&newSlaveCount))
+	}()
 
 	btrfsService := services.BTRFSService{}
 	err := btrfsService.AutoMountRaid(machineName)
