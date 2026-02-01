@@ -221,7 +221,7 @@ func ConnectGRPC() *grpc.ClientConn {
 
 		logs512.StartLogs(conn)
 		h := pb.NewProtocolServiceClient(conn)
-		reqCtx, reqCancel := context.WithTimeout(context.Background(), 60*time.Second)
+		reqCtx, reqCancel := context.WithTimeout(context.Background(), 300*time.Second)
 		outR, err := h.SetConnection(reqCtx, &pb.SetConnectionRequest{Addr: env512.SlaveIP, MachineName: env512.MachineName})
 		reqCancel()
 		if err != nil {
