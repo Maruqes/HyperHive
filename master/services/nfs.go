@@ -386,6 +386,7 @@ func (s *NFSService) SyncSharedFolder(ctx context.Context) error {
 	}
 
 	notConnected := []string{}
+	syncErrors := []string{}
 	for _, machineName := range slavesShared {
 		conn := protocol.GetConnectionByMachineName(machineName)
 		if conn == nil || conn.Connection == nil {
@@ -400,19 +401,45 @@ func (s *NFSService) SyncSharedFolder(ctx context.Context) error {
 			continue
 		}
 
-		nfs.SyncSharedFolder(conn.Connection, ConvertNSFShareToGRPCFolderMount(shares))
+		if err := nfs.SyncSharedFolder(conn.Connection, ConvertNSFShareToGRPCFolderMount(shares)); err != nil {
+			errMsg := fmt.Sprintf("sync shared folder failed on %s: %v", machineName, err)
+			logger.Error(errMsg)
+			syncErrors = append(syncErrors, errMsg)
+		}
 	}
 
+	errParts := make([]string, 0, 2)
 	if len(notConnected) > 0 {
-		return fmt.Errorf("some slaves not connected: %v", notConnected)
+		errParts = append(errParts, fmt.Sprintf("some slaves not connected: %v", notConnected))
+	}
+	if len(syncErrors) > 0 {
+		errParts = append(errParts, strings.Join(syncErrors, "; "))
+	}
+	if len(errParts) > 0 {
+		return fmt.Errorf("%s", strings.Join(errParts, " | "))
 	}
 
 	return nil
 }
 
 func (s *NFSService) MountAllSharedFolders(folders ...db.NFSShare) error {
-	conns := protocol.GetAllGRPCConnections()
-	machineNames := protocol.GetAllMachineNames()
+	snapshot := protocol.GetConnectionsSnapshot()
+
+	connected := make([]protocol.ConnectionsStruct, 0, len(snapshot))
+	connectedByMachine := make(map[string]protocol.ConnectionsStruct, len(snapshot))
+	for _, entry := range snapshot {
+		if entry.Connection == nil {
+			continue
+		}
+		connected = append(connected, entry)
+		if _, exists := connectedByMachine[entry.MachineName]; !exists {
+			connectedByMachine[entry.MachineName] = entry
+		}
+	}
+
+	if len(connected) == 0 {
+		return fmt.Errorf("no connected slaves")
+	}
 
 	var (
 		serversNFS []db.NFSShare
@@ -428,14 +455,11 @@ func (s *NFSService) MountAllSharedFolders(folders ...db.NFSShare) error {
 		serversNFS = folders
 	}
 
-	if len(conns) != len(machineNames) {
-		return fmt.Errorf("length of connections and machine names must be the same")
-	}
-
 	mountErrors := make([]string, 0)
+	mountable := make([]*proto.FolderMount, 0, len(serversNFS))
 
 	logger.Info("Creating NFS shared folders on all slaves...")
-	// create shared folders on all provided connections
+	// Create shared folder only on the source machine for each share.
 	for _, svNSF := range serversNFS {
 		mount := &proto.FolderMount{
 			FolderPath:      svNSF.FolderPath,
@@ -444,43 +468,38 @@ func (s *NFSService) MountAllSharedFolders(folders ...db.NFSShare) error {
 			MachineName:     svNSF.MachineName,
 			HostNormalMount: svNSF.HostNormalMount,
 		}
-		for i, conn := range conns {
-			if conn == nil {
-				continue
-			}
-
-			// skip if machine name does not match
-			if machineNames[i] != svNSF.MachineName {
-				continue
-			}
-			logger.Info("Creating NFS shared folder on machine:", machineNames[i], " with mount:", mount)
-			// create shared folder on the specific machine
-			if err := nfs.CreateSharedFolder(conn, mount); err != nil {
-				errMsg := fmt.Sprintf("CreateSharedFolder on %s target %s failed: %v", machineNames[i], mount.Target, err)
-				logger.Error(errMsg)
-				mountErrors = append(mountErrors, errMsg)
-				continue
-			}
+		sourceConn, ok := connectedByMachine[svNSF.MachineName]
+		if !ok {
+			errMsg := fmt.Sprintf("source machine %s for target %s is not connected", svNSF.MachineName, mount.Target)
+			logger.Warn(errMsg)
+			mountErrors = append(mountErrors, errMsg)
+			continue
 		}
+
+		logger.Info("Creating NFS shared folder on machine:", sourceConn.MachineName, " with mount:", mount)
+		if err := nfs.CreateSharedFolder(sourceConn.Connection, mount); err != nil {
+			errMsg := fmt.Sprintf("CreateSharedFolder on %s target %s failed: %v", sourceConn.MachineName, mount.Target, err)
+			logger.Error(errMsg)
+			mountErrors = append(mountErrors, errMsg)
+			continue
+		}
+		mountable = append(mountable, mount)
+	}
+
+	if len(mountable) == 0 {
+		if len(mountErrors) == 0 {
+			return nil
+		}
+		return fmt.Errorf("no mountable NFS shares: %s", strings.Join(mountErrors, "; "))
 	}
 
 	logger.Info("Mounting NFS shared folders on all slaves...")
-	// mount on all provided connections
-	for i, conn := range conns {
-		if conn == nil {
-			continue
-		}
-		for _, svNSF := range serversNFS {
-			mount := &proto.FolderMount{
-				FolderPath:      svNSF.FolderPath,
-				Source:          svNSF.Source,
-				Target:          svNSF.Target,
-				MachineName:     svNSF.MachineName,
-				HostNormalMount: svNSF.HostNormalMount,
-			}
+	// Mount every available share on every connected slave.
+	for _, conn := range connected {
+		for _, mount := range mountable {
 			logger.Info("Mounting NFS shared folder on machine with mount:", mount)
-			if err := nfs.MountSharedFolder(conn, mount); err != nil {
-				errMsg := fmt.Sprintf("MountSharedFolder on %s target %s failed: %v", machineNames[i], mount.Target, err)
+			if err := nfs.MountSharedFolder(conn.Connection, mount); err != nil {
+				errMsg := fmt.Sprintf("MountSharedFolder on %s target %s failed: %v", conn.MachineName, mount.Target, err)
 				logger.Error(errMsg)
 				mountErrors = append(mountErrors, errMsg)
 				continue

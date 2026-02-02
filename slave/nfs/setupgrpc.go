@@ -130,13 +130,13 @@ func (s *NFSService) ListFolderContents(ctx context.Context, req *pb.FolderPath)
 }
 
 func (s *NFSService) CanFindFileOrDir(ctx context.Context, req *pb.FolderPath) (*pb.CreateResponse, error) {
-	_, err := CanFindFileOrDir(req.Path)
+	found, err := CanFindFileOrDir(req.Path)
 	if err != nil {
 		logger.Error("CanFindFileOrDir failed", "error", err)
 		return &pb.CreateResponse{Ok: false}, err
 	}
 	logger.Info("CanFindFileOrDir succeeded", "path", req.Path)
-	return &pb.CreateResponse{Ok: true}, nil
+	return &pb.CreateResponse{Ok: found}, nil
 }
 
 func (s *NFSService) CheckReadWrite(ctx context.Context, req *pb.FolderPath) (*pb.OkResponse, error) {

@@ -78,13 +78,19 @@ var (
 		"rw",         // leitura/escrita
 		"noatime",    // não atualizar tempo de acesso (reduz IO)
 		"nodiratime", // idem para diretórios
-		"relatime",   // só atualiza atime se for mais antigo que mtime (compromisso equilibrado)
 	}
 )
 
 var CurrentMounts = []FolderMount{}
 var CurrentMountsLock = &sync.RWMutex{}
 var setfaclWarnOnce sync.Once
+var procMountsFieldReplacer = strings.NewReplacer(
+	"\\040", " ",
+	"\\011", "\t",
+	"\\012", "\n",
+	"\\134", "\\",
+)
+
 var (
 	retryStateMu = &sync.Mutex{}
 	retryStates  = make(map[string]*mountRetryState)
@@ -142,6 +148,178 @@ func cancelMountRetry(target string) {
 	retryStateMu.Unlock()
 }
 
+func decodeProcMountField(value string) string {
+	return procMountsFieldReplacer.Replace(value)
+}
+
+func isSameOrSubPath(path, base string) bool {
+	path = filepath.Clean(path)
+	base = filepath.Clean(base)
+	if path == base {
+		return true
+	}
+	if base == "/" {
+		return true
+	}
+	return strings.HasPrefix(path, base+"/")
+}
+
+func isTargetInProcMounts(target string) bool {
+	data, err := os.ReadFile("/proc/mounts")
+	if err != nil {
+		logger.Warn("failed to read /proc/mounts while checking mount status:", err)
+		return false
+	}
+
+	cleanTarget := filepath.Clean(strings.TrimSpace(target))
+	for _, ln := range strings.Split(string(data), "\n") {
+		if ln == "" {
+			continue
+		}
+		fields := strings.Fields(ln)
+		if len(fields) < 2 {
+			continue
+		}
+		mountpoint := filepath.Clean(decodeProcMountField(fields[1]))
+		if mountpoint == cleanTarget {
+			return true
+		}
+	}
+	return false
+}
+
+func isStaleMountErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, syscall.ESTALE) {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "stale file handle") || strings.Contains(msg, "estale")
+}
+
+func relatedNFSMountTargets(target string) ([]string, error) {
+	data, err := os.ReadFile("/proc/mounts")
+	if err != nil {
+		return nil, err
+	}
+
+	cleanTarget := filepath.Clean(strings.TrimSpace(target))
+	if cleanTarget == "" || cleanTarget == "." {
+		return nil, nil
+	}
+
+	seen := make(map[string]struct{})
+	related := make([]string, 0)
+	for _, ln := range strings.Split(string(data), "\n") {
+		if ln == "" {
+			continue
+		}
+		fields := strings.Fields(ln)
+		if len(fields) < 3 {
+			continue
+		}
+
+		fsType := fields[2]
+		if !strings.HasPrefix(fsType, "nfs") {
+			continue
+		}
+
+		mountpoint := filepath.Clean(decodeProcMountField(fields[1]))
+		if isSameOrSubPath(cleanTarget, mountpoint) || isSameOrSubPath(mountpoint, cleanTarget) {
+			if _, ok := seen[mountpoint]; ok {
+				continue
+			}
+			seen[mountpoint] = struct{}{}
+			related = append(related, mountpoint)
+		}
+	}
+
+	sort.SliceStable(related, func(i, j int) bool {
+		return len(related[i]) > len(related[j])
+	})
+
+	return related, nil
+}
+
+func runCommandNoLog(args ...string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("no command provided")
+	}
+	cmd := exec.Command(args[0], args[1:]...)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Run(); err != nil {
+		outStr := strings.TrimSpace(out.String())
+		if outStr != "" {
+			return fmt.Errorf("%s: %w", outStr, err)
+		}
+		return err
+	}
+	return nil
+}
+
+func recoverStaleMountTarget(target string) error {
+	cleanTarget := filepath.Clean(strings.TrimSpace(target))
+	if cleanTarget == "" || cleanTarget == "." {
+		return fmt.Errorf("target is required")
+	}
+
+	mountTargets, err := relatedNFSMountTargets(cleanTarget)
+	if err != nil {
+		logger.Warn("failed to list related NFS mounts for stale recovery:", err)
+	}
+	if len(mountTargets) == 0 {
+		mountTargets = []string{cleanTarget}
+	}
+
+	for _, mountTarget := range mountTargets {
+		if mountTarget == "/" {
+			continue
+		}
+		if umountErr := runCommandNoLog("sudo", "umount", "-f", "-l", mountTarget); umountErr != nil {
+			logger.Warn("best-effort stale unmount failed", "target", cleanTarget, "mountTarget", mountTarget, "error", umountErr)
+			continue
+		}
+		logger.Warn("Unmounted stale NFS target", "target", cleanTarget, "mountTarget", mountTarget)
+	}
+
+	parent := filepath.Dir(cleanTarget)
+	if parent != "" && parent != "." {
+		if err := runCommand("ensure parent mount directory", "sudo", "mkdir", "-p", parent); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func ensureMountDirectory(target string) error {
+	cleanTarget := filepath.Clean(strings.TrimSpace(target))
+	if cleanTarget == "" || cleanTarget == "." {
+		return fmt.Errorf("target is required")
+	}
+
+	if err := runCommand("ensure mount directory", "sudo", "mkdir", "-p", cleanTarget); err != nil {
+		if !isStaleMountErr(err) {
+			return err
+		}
+
+		logger.Warn("Stale file handle detected while ensuring mount directory, attempting recovery", "target", cleanTarget, "error", err)
+		if recErr := recoverStaleMountTarget(cleanTarget); recErr != nil {
+			logger.Warn("Stale mount recovery helper failed", "target", cleanTarget, "error", recErr)
+		}
+
+		if retryErr := runCommand("ensure mount directory (retry after stale cleanup)", "sudo", "mkdir", "-p", cleanTarget); retryErr != nil {
+			return fmt.Errorf("failed to recover stale mount path %s: %w", cleanTarget, retryErr)
+		}
+	}
+
+	return nil
+}
+
 func effectiveNFSMountOptions() []string {
 	nfsOptsOnce.Do(func() {
 		for _, opt := range nfsMountOptions {
@@ -153,6 +331,29 @@ func effectiveNFSMountOptions() []string {
 		}
 	})
 	return append([]string(nil), nfsOpts...)
+}
+
+func mountOptionSatisfied(currentOpts, expected string) bool {
+	expected = strings.TrimSpace(expected)
+	if expected == "" {
+		return true
+	}
+
+	// "_netdev" and "fsc" are userspace/hint options and may not show in /proc/mounts.
+	switch expected {
+	case "_netdev", "fsc":
+		return true
+	case "nodiratime":
+		// noatime implies nodiratime.
+		return strings.Contains(currentOpts, ",nodiratime,") || strings.Contains(currentOpts, ",noatime,")
+	}
+
+	if strings.Contains(expected, "=") {
+		key := strings.SplitN(expected, "=", 2)[0]
+		return strings.Contains(currentOpts, ","+key+"=")
+	}
+
+	return strings.Contains(currentOpts, ","+expected+",")
 }
 
 func isFscSupported() bool {
@@ -205,9 +406,17 @@ func isMounted(target string) bool {
 			case 0:
 				return true
 			case 1, 32:
-				// mountpoint uses 1 or 32 when the path is not a mount point
+				// mountpoint uses 1 or 32 when the path is not a mount point.
+				// On stale NFS handles it may still be present in /proc/mounts.
+				if isTargetInProcMounts(target) {
+					return true
+				}
 				return false
 			}
+		}
+		if isTargetInProcMounts(target) {
+			logger.Warn("mountpoint check failed but target exists in /proc/mounts", "target", target, "error", err)
+			return true
 		}
 		logger.Error("mountpoint check failed:", target, err)
 		return false
@@ -797,7 +1006,7 @@ func mountLocalFolder(folder FolderMount) error {
 		return fmt.Errorf("failed to stat source folder: %w", err)
 	}
 
-	if err := runCommand("ensure mount directory", "sudo", "mkdir", "-p", target); err != nil {
+	if err := ensureMountDirectory(target); err != nil {
 		return err
 	}
 
@@ -857,7 +1066,7 @@ func mountLocalFolder(folder FolderMount) error {
 				cur := "," + fields[3] + ","
 				// Check against expected localMountOpts
 				for _, opt := range localMountOpts {
-					if !strings.Contains(cur, ","+opt+",") {
+					if !mountOptionSatisfied(cur, opt) {
 						needsRemount = true
 						logger.Warn("Missing expected mount option:", opt)
 						break
@@ -943,7 +1152,7 @@ func mountSharedFolderOnce(folder FolderMount) error {
 	if err := IsSafePath(target); err != nil {
 		return fmt.Errorf("invalid target path: %w", err)
 	}
-	if err := runCommand("ensure mount directory", "sudo", "mkdir", "-p", target); err != nil {
+	if err := ensureMountDirectory(target); err != nil {
 		return err
 	}
 
@@ -999,22 +1208,10 @@ func mountSharedFolderOnce(folder FolderMount) error {
 				cur := "," + fields[3] + ","
 				// Check against expected nfsMountOptions
 				for _, opt := range opts {
-					// Handle options with values (e.g., "rsize=1048576")
-					if strings.Contains(opt, "=") {
-						optKey := strings.Split(opt, "=")[0]
-						// Check if the option key exists in current mounts
-						if !strings.Contains(cur, ","+optKey+"=") {
-							needsRemount = true
-							logger.Warn("Missing expected mount option:", opt)
-							break
-						}
-					} else {
-						// Simple option without value
-						if !strings.Contains(cur, ","+opt+",") {
-							needsRemount = true
-							logger.Warn("Missing expected mount option:", opt)
-							break
-						}
+					if !mountOptionSatisfied(cur, opt) {
+						needsRemount = true
+						logger.Warn("Missing expected mount option:", opt)
+						break
 					}
 				}
 				break
