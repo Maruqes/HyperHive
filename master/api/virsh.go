@@ -177,7 +177,10 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 			setFirstErr(err)
 			return
 		}
-		hasVNC := vm.Vm != nil && strings.TrimSpace(vm.Vm.NovncPort) != ""
+		hasVNC := false
+		if noVNCInfo, err := virshServices.GetNoVNCVideo(vm.Name); err == nil && noVNCInfo != nil {
+			hasVNC = strings.ToLower(strings.TrimSpace(noVNCInfo.ModelType)) != "none"
+		}
 
 		vmMap := map[string]interface{}{
 			"isLive":    vm.IsLive,
