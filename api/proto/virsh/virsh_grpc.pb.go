@@ -37,6 +37,9 @@ const (
 	SlaveVirshService_GetVmByName_FullMethodName      = "/virsh.SlaveVirshService/GetVmByName"
 	SlaveVirshService_RemoveIsoFromVm_FullMethodName  = "/virsh.SlaveVirshService/RemoveIsoFromVm"
 	SlaveVirshService_ChangeNetwork_FullMethodName    = "/virsh.SlaveVirshService/ChangeNetwork"
+	SlaveVirshService_AddNoVNCVideo_FullMethodName    = "/virsh.SlaveVirshService/AddNoVNCVideo"
+	SlaveVirshService_RemoveNoVNCVideo_FullMethodName = "/virsh.SlaveVirshService/RemoveNoVNCVideo"
+	SlaveVirshService_GetNoVNCVideo_FullMethodName    = "/virsh.SlaveVirshService/GetNoVNCVideo"
 	SlaveVirshService_EditVmResources_FullMethodName  = "/virsh.SlaveVirshService/EditVmResources"
 	SlaveVirshService_ColdMigrateVm_FullMethodName    = "/virsh.SlaveVirshService/ColdMigrateVm"
 	SlaveVirshService_FreezeDisk_FullMethodName       = "/virsh.SlaveVirshService/FreezeDisk"
@@ -66,6 +69,9 @@ type SlaveVirshServiceClient interface {
 	GetVmByName(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*Vm, error)
 	RemoveIsoFromVm(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
 	ChangeNetwork(ctx context.Context, in *ChangeNetworkReq, opts ...grpc.CallOption) (*Empty, error)
+	AddNoVNCVideo(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*OkResponse, error)
+	RemoveNoVNCVideo(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*OkResponse, error)
+	GetNoVNCVideo(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*GetNoVNCVideoResponse, error)
 	// only sees machine name, cpuCount and memoryMB
 	// cpuCount and memoryMB are the new values to set
 	EditVmResources(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
@@ -263,6 +269,36 @@ func (c *slaveVirshServiceClient) ChangeNetwork(ctx context.Context, in *ChangeN
 	return out, nil
 }
 
+func (c *slaveVirshServiceClient) AddNoVNCVideo(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*OkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OkResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_AddNoVNCVideo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) RemoveNoVNCVideo(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*OkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OkResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_RemoveNoVNCVideo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) GetNoVNCVideo(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*GetNoVNCVideoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetNoVNCVideoResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_GetNoVNCVideo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *slaveVirshServiceClient) EditVmResources(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(OkResponse)
@@ -335,6 +371,9 @@ type SlaveVirshServiceServer interface {
 	GetVmByName(context.Context, *GetVmByNameRequest) (*Vm, error)
 	RemoveIsoFromVm(context.Context, *Vm) (*OkResponse, error)
 	ChangeNetwork(context.Context, *ChangeNetworkReq) (*Empty, error)
+	AddNoVNCVideo(context.Context, *GetVmByNameRequest) (*OkResponse, error)
+	RemoveNoVNCVideo(context.Context, *GetVmByNameRequest) (*OkResponse, error)
+	GetNoVNCVideo(context.Context, *GetVmByNameRequest) (*GetNoVNCVideoResponse, error)
 	// only sees machine name, cpuCount and memoryMB
 	// cpuCount and memoryMB are the new values to set
 	EditVmResources(context.Context, *Vm) (*OkResponse, error)
@@ -402,6 +441,15 @@ func (UnimplementedSlaveVirshServiceServer) RemoveIsoFromVm(context.Context, *Vm
 }
 func (UnimplementedSlaveVirshServiceServer) ChangeNetwork(context.Context, *ChangeNetworkReq) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChangeNetwork not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) AddNoVNCVideo(context.Context, *GetVmByNameRequest) (*OkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddNoVNCVideo not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) RemoveNoVNCVideo(context.Context, *GetVmByNameRequest) (*OkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveNoVNCVideo not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) GetNoVNCVideo(context.Context, *GetVmByNameRequest) (*GetNoVNCVideoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNoVNCVideo not implemented")
 }
 func (UnimplementedSlaveVirshServiceServer) EditVmResources(context.Context, *Vm) (*OkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method EditVmResources not implemented")
@@ -755,6 +803,60 @@ func _SlaveVirshService_ChangeNetwork_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SlaveVirshService_AddNoVNCVideo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVmByNameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).AddNoVNCVideo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_AddNoVNCVideo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).AddNoVNCVideo(ctx, req.(*GetVmByNameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_RemoveNoVNCVideo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVmByNameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).RemoveNoVNCVideo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_RemoveNoVNCVideo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).RemoveNoVNCVideo(ctx, req.(*GetVmByNameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_GetNoVNCVideo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVmByNameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).GetNoVNCVideo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_GetNoVNCVideo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).GetNoVNCVideo(ctx, req.(*GetVmByNameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SlaveVirshService_EditVmResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Vm)
 	if err := dec(in); err != nil {
@@ -923,6 +1025,18 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ChangeNetwork",
 			Handler:    _SlaveVirshService_ChangeNetwork_Handler,
+		},
+		{
+			MethodName: "AddNoVNCVideo",
+			Handler:    _SlaveVirshService_AddNoVNCVideo_Handler,
+		},
+		{
+			MethodName: "RemoveNoVNCVideo",
+			Handler:    _SlaveVirshService_RemoveNoVNCVideo_Handler,
+		},
+		{
+			MethodName: "GetNoVNCVideo",
+			Handler:    _SlaveVirshService_GetNoVNCVideo_Handler,
 		},
 		{
 			MethodName: "EditVmResources",

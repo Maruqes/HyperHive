@@ -199,3 +199,43 @@ func TestPartitionPCIAttachments(t *testing.T) {
 		})
 	}
 }
+
+func TestMakeAddressSetFromHostDevices(t *testing.T) {
+	input := []HostPCIDevice{
+		{Address: "0000:01:00.0"},
+		{Address: " 0000:02:00.0 "},
+		{Address: ""},
+		{Address: "0000:01:00.0"},
+	}
+
+	set := makeAddressSetFromHostDevices(input)
+	if len(set) != 2 {
+		t.Fatalf("unexpected set size: got %d want 2", len(set))
+	}
+	if _, ok := set["0000:01:00.0"]; !ok {
+		t.Fatalf("expected address 0000:01:00.0 in set")
+	}
+	if _, ok := set["0000:02:00.0"]; !ok {
+		t.Fatalf("expected address 0000:02:00.0 in set")
+	}
+}
+
+func TestFilterVMPCIDevicesByAddress(t *testing.T) {
+	devices := []VMPCIDevice{
+		{Address: "0000:01:00.0", Alias: "hostdev0"},
+		{Address: "0000:02:00.0", Alias: "hostdev1"},
+		{Address: "0000:03:00.0", Alias: "hostdev2"},
+	}
+	allowed := map[string]struct{}{
+		"0000:01:00.0": {},
+		"0000:03:00.0": {},
+	}
+
+	out := filterVMPCIDevicesByAddress(devices, allowed)
+	if len(out) != 2 {
+		t.Fatalf("unexpected filtered len: got %d want 2", len(out))
+	}
+	if out[0].Address != "0000:01:00.0" || out[1].Address != "0000:03:00.0" {
+		t.Fatalf("unexpected filtered addresses: %+v", out)
+	}
+}

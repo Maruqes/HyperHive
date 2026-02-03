@@ -36,24 +36,39 @@ func main() {
 			listHostPCIsWithIOMMU(state)
 			waitEnter(reader)
 		case "3":
-			listHostGPUs()
+			listHostGPUs(state)
 			waitEnter(reader)
 		case "4":
-			listVMPCIs(reader)
+			listHostGPUsWithIOMMU(state)
 			waitEnter(reader)
 		case "5":
-			attachPCIToVM(reader, state)
+			listVMPCIs(reader)
 			waitEnter(reader)
 		case "6":
-			detachPCIFromVM(reader, state)
+			listVMGPUs(reader)
 			waitEnter(reader)
 		case "7":
-			returnPCIToHost(reader, state)
+			attachPCIToVM(reader, state)
 			waitEnter(reader)
 		case "8":
+			detachPCIFromVM(reader, state)
+			waitEnter(reader)
+		case "9":
+			returnPCIToHost(reader, state)
+			waitEnter(reader)
+		case "10":
+			attachGPUToVM(reader, state)
+			waitEnter(reader)
+		case "11":
+			detachGPUFromVM(reader, state)
+			waitEnter(reader)
+		case "12":
+			returnGPUToHost(reader, state)
+			waitEnter(reader)
+		case "13":
 			parseAddress(reader)
 			waitEnter(reader)
-		case "q", "quit", "exit", "9":
+		case "q", "quit", "exit", "14":
 			fmt.Println("Exiting.")
 			return
 		default:
@@ -70,12 +85,17 @@ func printMenu() {
 	fmt.Println("1) List host PCI devices")
 	fmt.Println("2) List host PCI devices with IOMMU")
 	fmt.Println("3) List host GPUs")
-	fmt.Println("4) List VM PCI devices")
-	fmt.Println("5) Attach PCI to VM")
-	fmt.Println("6) Detach PCI from VM (and return to host)")
-	fmt.Println("7) Return PCI to host")
-	fmt.Println("8) Normalize/validate PCI address")
-	fmt.Println("9) Exit")
+	fmt.Println("4) List host GPUs with IOMMU")
+	fmt.Println("5) List VM PCI devices")
+	fmt.Println("6) List VM GPUs")
+	fmt.Println("7) Attach PCI to VM")
+	fmt.Println("8) Detach PCI from VM (and return to host)")
+	fmt.Println("9) Return PCI to host")
+	fmt.Println("10) Attach GPU to VM")
+	fmt.Println("11) Detach GPU from VM (and return to host)")
+	fmt.Println("12) Return GPU to host")
+	fmt.Println("13) Normalize/validate PCI address")
+	fmt.Println("14) Exit")
 	fmt.Println()
 }
 
@@ -99,12 +119,23 @@ func listHostPCIsWithIOMMU(state *appState) {
 	printHostDevices(devs)
 }
 
-func listHostGPUs() {
+func listHostGPUs(state *appState) {
 	devs, err := pci.ListHostGPUs()
 	if err != nil {
 		fmt.Printf("error listing host GPUs: %v\n", err)
 		return
 	}
+	state.lastHostDevices = devs
+	printHostDevices(devs)
+}
+
+func listHostGPUsWithIOMMU(state *appState) {
+	devs, err := pci.ListHostGPUsWithIOMMU()
+	if err != nil {
+		fmt.Printf("error listing host GPUs with IOMMU: %v\n", err)
+		return
+	}
+	state.lastHostDevices = devs
 	printHostDevices(devs)
 }
 
@@ -127,6 +158,31 @@ func listVMPCIs(reader *bufio.Reader) {
 	}
 
 	fmt.Printf("\nPCI devices on VM %q:\n", vm)
+	fmt.Printf("%-4s %-14s %-8s %-10s\n", "#", "BDF", "Managed", "Alias")
+	for i, d := range devs {
+		fmt.Printf("%-4d %-14s %-8v %-10s\n", i+1, d.Address, d.Managed, emptyToDash(d.Alias))
+	}
+}
+
+func listVMGPUs(reader *bufio.Reader) {
+	vm, err := readLine(reader, "VM name: ")
+	if err != nil {
+		fmt.Printf("error reading VM name: %v\n", err)
+		return
+	}
+
+	devs, err := pci.ListVMGPUs(vm)
+	if err != nil {
+		fmt.Printf("error listing GPU devices for VM %q: %v\n", vm, err)
+		return
+	}
+
+	if len(devs) == 0 {
+		fmt.Println("No GPU passthrough devices found for this VM.")
+		return
+	}
+
+	fmt.Printf("\nGPU devices on VM %q:\n", vm)
 	fmt.Printf("%-4s %-14s %-8s %-10s\n", "#", "BDF", "Managed", "Alias")
 	for i, d := range devs {
 		fmt.Printf("%-4d %-14s %-8v %-10s\n", i+1, d.Address, d.Managed, emptyToDash(d.Alias))
@@ -186,6 +242,61 @@ func returnPCIToHost(reader *bufio.Reader, state *appState) {
 	}
 
 	fmt.Printf("ok: PCI %s returned to host\n", ref)
+}
+
+func attachGPUToVM(reader *bufio.Reader, state *appState) {
+	vm, err := readLine(reader, "VM name: ")
+	if err != nil {
+		fmt.Printf("error reading VM name: %v\n", err)
+		return
+	}
+	ref, err := askPCIRef(reader, state.lastHostDevices)
+	if err != nil {
+		fmt.Printf("GPU address error: %v\n", err)
+		return
+	}
+
+	if err := pci.AttachGPUToVM(vm, ref); err != nil {
+		fmt.Printf("error attaching GPU %s to VM %s: %v\n", ref, vm, err)
+		return
+	}
+
+	fmt.Printf("ok: GPU %s attached to VM %s\n", ref, vm)
+}
+
+func detachGPUFromVM(reader *bufio.Reader, state *appState) {
+	vm, err := readLine(reader, "VM name: ")
+	if err != nil {
+		fmt.Printf("error reading VM name: %v\n", err)
+		return
+	}
+	ref, err := askPCIRef(reader, state.lastHostDevices)
+	if err != nil {
+		fmt.Printf("GPU address error: %v\n", err)
+		return
+	}
+
+	if err := pci.DetachGPUFromVM(vm, ref); err != nil {
+		fmt.Printf("error detaching GPU %s from VM %s: %v\n", ref, vm, err)
+		return
+	}
+
+	fmt.Printf("ok: GPU %s detached from VM %s and returned to host\n", ref, vm)
+}
+
+func returnGPUToHost(reader *bufio.Reader, state *appState) {
+	ref, err := askPCIRef(reader, state.lastHostDevices)
+	if err != nil {
+		fmt.Printf("GPU address error: %v\n", err)
+		return
+	}
+
+	if err := pci.ReturnGPUToHost(ref); err != nil {
+		fmt.Printf("error returning GPU %s to host: %v\n", ref, err)
+		return
+	}
+
+	fmt.Printf("ok: GPU %s returned to host\n", ref)
 }
 
 func parseAddress(reader *bufio.Reader) {

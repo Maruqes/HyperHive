@@ -246,3 +246,30 @@ func ChangeVncPassword(conn *grpc.ClientConn, req *grpcVirsh.ChangeVncPassword) 
 	}
 	return nil
 }
+
+func AddNoVNCVideo(conn *grpc.ClientConn, vmName string) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.AddNoVNCVideo(context.Background(), &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func RemoveNoVNCVideo(conn *grpc.ClientConn, vmName string) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.RemoveNoVNCVideo(context.Background(), &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func GetNoVNCVideo(conn *grpc.ClientConn, vmName string) (*grpcVirsh.GetNoVNCVideoResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetNoVNCVideo(context.Background(), &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}

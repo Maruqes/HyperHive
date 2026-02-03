@@ -104,6 +104,13 @@ message ChangeVncPassword {
   string new_password = 2;
 }
 
+message GetNoVNCVideoResponse {
+  bool enabled = 1;
+  int32 video_count = 2;
+  string model_type = 3;
+  string video_xml = 4;
+}
+
 // defines on slave
 service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
@@ -130,6 +137,9 @@ service SlaveVirshService {
   rpc RemoveIsoFromVm(Vm) returns (OkResponse);
 
   rpc ChangeNetwork(ChangeNetworkReq) returns (Empty);
+  rpc AddNoVNCVideo(GetVmByNameRequest) returns (OkResponse);
+  rpc RemoveNoVNCVideo(GetVmByNameRequest) returns (OkResponse);
+  rpc GetNoVNCVideo(GetVmByNameRequest) returns (GetNoVNCVideoResponse);
 
   // only sees machine name, cpuCount and memoryMB
   // cpuCount and memoryMB are the new values to set

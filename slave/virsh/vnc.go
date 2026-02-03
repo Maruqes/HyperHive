@@ -2,6 +2,7 @@ package virsh
 
 import (
 	"bytes"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"os/exec"
@@ -14,7 +15,17 @@ import (
 const (
 	virtXMLBinary  = "virt-xml"
 	virtXMLPackage = "virt-install"
+
+	noVNCEnabledVideoSpec  = "model.type=virtio,model.heads=1"
+	noVNCDisabledVideoSpec = "model.type=none"
 )
+
+type NoVNCVideoInfo struct {
+	Enabled    bool
+	VideoCount int32
+	ModelType  string
+	VideoXML   string
+}
 
 // EnsureVirtXMLInstalled verifies that virt-xml is available and installs it if missing.
 func EnsureVirtXMLInstalled() error {
@@ -97,6 +108,142 @@ func ChangeVNCPassword(vmName, newPassword string) error {
 	return nil
 }
 
+func AddNoVNCVideo(vmName string) error {
+	vmName = strings.TrimSpace(vmName)
+	if vmName == "" {
+		return fmt.Errorf("vm name is empty")
+	}
+
+	if err := EnsureVirtXMLInstalled(); err != nil {
+		return err
+	}
+	if err := ensureVMShutOff(vmName); err != nil {
+		return err
+	}
+
+	videoInfo, err := GetNoVNCVideo(vmName)
+	if err != nil {
+		return err
+	}
+
+	args := []string{"--connect", "qemu:///system", vmName}
+	if videoInfo.VideoCount == 0 {
+		args = append(args, "--add-device")
+	} else {
+		args = append(args, "--edit", "all")
+	}
+	args = append(args, "--video", noVNCEnabledVideoSpec)
+
+	if err := runCmdDiscardOutput(virtXMLBinary, args...); err != nil {
+		return fmt.Errorf("enable noVNC video: %w", err)
+	}
+
+	logger.Info("enabled noVNC video", "vm", vmName)
+	return nil
+}
+
+func RemoveNoVNCVideo(vmName string) error {
+	vmName = strings.TrimSpace(vmName)
+	if vmName == "" {
+		return fmt.Errorf("vm name is empty")
+	}
+
+	if err := EnsureVirtXMLInstalled(); err != nil {
+		return err
+	}
+	if err := ensureVMShutOff(vmName); err != nil {
+		return err
+	}
+
+	videoInfo, err := GetNoVNCVideo(vmName)
+	if err != nil {
+		return err
+	}
+
+	args := []string{"--connect", "qemu:///system", vmName}
+	if videoInfo.VideoCount == 0 {
+		args = append(args, "--add-device")
+	} else {
+		args = append(args, "--edit", "all")
+	}
+	args = append(args, "--video", noVNCDisabledVideoSpec)
+
+	if err := runCmdDiscardOutput(virtXMLBinary, args...); err != nil {
+		return fmt.Errorf("disable noVNC video: %w", err)
+	}
+
+	logger.Info("disabled noVNC video", "vm", vmName)
+	return nil
+}
+
+func GetNoVNCVideo(vmName string) (*NoVNCVideoInfo, error) {
+	vmName = strings.TrimSpace(vmName)
+	if vmName == "" {
+		return nil, fmt.Errorf("vm name is empty")
+	}
+
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return nil, fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	dom, err := conn.LookupDomainByName(vmName)
+	if err != nil {
+		return nil, fmt.Errorf("lookup domain: %w", err)
+	}
+	defer dom.Free()
+
+	xmlDesc, err := dom.GetXMLDesc(libvirt.DOMAIN_XML_INACTIVE)
+	if err != nil {
+		xmlDesc, err = dom.GetXMLDesc(0)
+		if err != nil {
+			return nil, fmt.Errorf("get xml: %w", err)
+		}
+	}
+
+	type videoDevice struct {
+		XMLName xml.Name `xml:"video"`
+		Model   struct {
+			Type string `xml:"type,attr"`
+		} `xml:"model"`
+	}
+	type domainVideoXML struct {
+		Devices struct {
+			Videos []videoDevice `xml:"video"`
+		} `xml:"devices"`
+	}
+
+	var parsed domainVideoXML
+	if err := xml.Unmarshal([]byte(xmlDesc), &parsed); err != nil {
+		return nil, fmt.Errorf("parse domain xml: %w", err)
+	}
+
+	info := &NoVNCVideoInfo{
+		VideoCount: int32(len(parsed.Devices.Videos)),
+	}
+	if len(parsed.Devices.Videos) == 0 {
+		return info, nil
+	}
+
+	info.ModelType = strings.TrimSpace(parsed.Devices.Videos[0].Model.Type)
+	if raw, err := xml.Marshal(parsed.Devices.Videos[0]); err == nil {
+		info.VideoXML = string(raw)
+	}
+
+	for _, video := range parsed.Devices.Videos {
+		modelType := strings.TrimSpace(video.Model.Type)
+		lowerModelType := strings.ToLower(modelType)
+		if lowerModelType != "" && lowerModelType != "none" {
+			info.Enabled = true
+			info.ModelType = modelType
+			break
+		}
+	}
+
+	return info, nil
+}
+
 func isValidPassword(password string) bool {
 	for _, r := range password {
 		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || strings.ContainsRune("!@#$%^&*()_+-[]{}|;:'\"<>?/~", r)) {
@@ -125,7 +272,7 @@ func ensureVMShutOff(vmName string) error {
 	}
 
 	if state != libvirt.DOMAIN_SHUTOFF && state != libvirt.DOMAIN_SHUTDOWN {
-		return fmt.Errorf("vm %s must be shut off before changing VNC password (current state: %s)", vmName, domainStateToString(state).String())
+		return fmt.Errorf("vm %s must be shut off before editing VNC settings (current state: %s)", vmName, domainStateToString(state).String())
 	}
 	return nil
 }

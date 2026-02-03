@@ -177,10 +177,12 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 			setFirstErr(err)
 			return
 		}
+		hasVNC := vm.Vm != nil && strings.TrimSpace(vm.Vm.NovncPort) != ""
 
 		vmMap := map[string]interface{}{
 			"isLive":    vm.IsLive,
 			"autoStart": autoStart,
+			"hasvnc":    hasVNC,
 		}
 
 		if vm.Vm != nil {
@@ -197,6 +199,7 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 		}
 		vmMap["isLive"] = vm.IsLive
 		vmMap["autoStart"] = autoStart
+		vmMap["hasvnc"] = hasVNC
 		vmMap["novnclink"] = env512.MAIN_LINK + fmt.Sprintf("/novnc/vnc.html?path=/novnc/ws%%3Fvm%%3D%v", vmMap["name"])
 		if vm.Vm != nil {
 			if nfsID, err := virshServices.GetNfsByVM(r.Context(), vm.Vm); err == nil {
@@ -521,6 +524,61 @@ func changeVmVncPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func addNoVNCVideo(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	if err := virshServices.AddNoVNCVideo(vmName); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func removeNoVNCVideo(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	if err := virshServices.RemoveNoVNCVideo(vmName); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func getNoVNCVideo(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.GetNoVNCVideo(vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
 }
 
 func resumeVm(w http.ResponseWriter, r *http.Request) {
@@ -1385,6 +1443,9 @@ func setupVirshAPI(r chi.Router) chi.Router {
 
 		r.Post("/change_vm_network/{vm_name}", changeVmNetwork)
 		r.Post("/change_vnc_password/{vm_name}", changeVmVncPassword)
+		r.Post("/novncvideo/add/{vm_name}", addNoVNCVideo)
+		r.Post("/novncvideo/remove/{vm_name}", removeNoVNCVideo)
+		r.Get("/novncvideo/{vm_name}", getNoVNCVideo)
 
 		//move
 		r.Post("/moveDisk/{vm_name}/{dest_nfs}", moveDisk)

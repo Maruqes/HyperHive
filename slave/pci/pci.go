@@ -175,6 +175,15 @@ func ListHostGPUs() ([]HostPCIDevice, error) {
 	return out, nil
 }
 
+// ListHostGPUsWithIOMMU lists only host GPUs that belong to an IOMMU group.
+func ListHostGPUsWithIOMMU() ([]HostPCIDevice, error) {
+	devices, err := ListHostGPUs()
+	if err != nil {
+		return nil, err
+	}
+	return filterPCIDevicesWithIOMMU(devices), nil
+}
+
 func filterPCIDevicesWithIOMMU(devices []HostPCIDevice) []HostPCIDevice {
 	out := make([]HostPCIDevice, 0, len(devices))
 	for _, dev := range devices {
@@ -213,6 +222,22 @@ func ListVMPCIDevices(vmName string) ([]VMPCIDevice, error) {
 	}
 
 	return parseVMPCIDevices(xmlDesc)
+}
+
+// ListVMGPUs lists VM hostdev entries that correspond to host GPUs.
+func ListVMGPUs(vmName string) ([]VMPCIDevice, error) {
+	vmDevices, err := ListVMPCIDevices(vmName)
+	if err != nil {
+		return nil, err
+	}
+
+	hostGPUs, err := ListHostGPUs()
+	if err != nil {
+		return nil, err
+	}
+
+	gpuAddressSet := makeAddressSetFromHostDevices(hostGPUs)
+	return filterVMPCIDevicesByAddress(vmDevices, gpuAddressSet), nil
 }
 
 // AttachPCIToVM adds a host PCI device to a VM using managed='yes'.
@@ -281,6 +306,20 @@ func AttachPCIToVM(vmName, pciRef string) error {
 	return nil
 }
 
+// AttachGPUToVM adds a host GPU PCI device to a VM using managed='yes'.
+func AttachGPUToVM(vmName, gpuRef string) error {
+	address, err := ParsePCIAddress(gpuRef)
+	if err != nil {
+		return err
+	}
+
+	if err := ensureHostPCIIsGPU(address); err != nil {
+		return err
+	}
+
+	return AttachPCIToVM(vmName, address.String())
+}
+
 func partitionPCIAttachments(attachedVMs []string, targetVM string) (bool, []string) {
 	targetVM = strings.TrimSpace(targetVM)
 	alreadyAttachedToTarget := false
@@ -338,6 +377,20 @@ func DetachPCIFromVM(vmName, pciRef string) error {
 	return ReturnPCIToHost(address.String())
 }
 
+// DetachGPUFromVM removes a host GPU PCI device from a VM and attempts to return it to the host.
+func DetachGPUFromVM(vmName, gpuRef string) error {
+	address, err := ParsePCIAddress(gpuRef)
+	if err != nil {
+		return err
+	}
+
+	if err := ensureHostPCIIsGPU(address); err != nil {
+		return err
+	}
+
+	return DetachPCIFromVM(vmName, address.String())
+}
+
 // ReturnPCIToHost re-attaches a PCI device to the host driver.
 func ReturnPCIToHost(pciRef string) error {
 	address, err := ParsePCIAddress(pciRef)
@@ -367,6 +420,20 @@ func ReturnPCIToHost(pciRef string) error {
 	}
 
 	return nil
+}
+
+// ReturnGPUToHost re-attaches a GPU PCI device to the host driver.
+func ReturnGPUToHost(gpuRef string) error {
+	address, err := ParsePCIAddress(gpuRef)
+	if err != nil {
+		return err
+	}
+
+	if err := ensureHostPCIIsGPU(address); err != nil {
+		return err
+	}
+
+	return ReturnPCIToHost(address.String())
 }
 
 func domainDeviceFlags(dom *libvirt.Domain) (libvirt.DomainDeviceModifyFlags, error) {
@@ -616,6 +683,68 @@ func classLooksLikeGPU(rawClass string) bool {
 	return baseClass == 0x03
 }
 
+func ensureHostPCIIsGPU(address PCIAddress) error {
+	device, err := lookupHostPCIDevice(address)
+	if err != nil {
+		return err
+	}
+	if device.IsGPU {
+		return nil
+	}
+	return fmt.Errorf(
+		"pci %s is not a GPU (class %s)",
+		address.String(),
+		emptyFallback(device.Class, "-"),
+	)
+}
+
+func lookupHostPCIDevice(address PCIAddress) (HostPCIDevice, error) {
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return HostPCIDevice{}, fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	nodeDev, err := conn.LookupDeviceByName(address.nodeDeviceName())
+	if err != nil {
+		return HostPCIDevice{}, fmt.Errorf("lookup host pci %s: %w", address.String(), err)
+	}
+	defer nodeDev.Free()
+
+	xmlDesc, err := nodeDev.GetXMLDesc(0)
+	if err != nil {
+		return HostPCIDevice{}, fmt.Errorf("get node device xml: %w", err)
+	}
+
+	return parseHostPCIDevice(xmlDesc)
+}
+
+func makeAddressSetFromHostDevices(devices []HostPCIDevice) map[string]struct{} {
+	set := make(map[string]struct{}, len(devices))
+	for _, dev := range devices {
+		addr := strings.TrimSpace(dev.Address)
+		if addr == "" {
+			continue
+		}
+		set[addr] = struct{}{}
+	}
+	return set
+}
+
+func filterVMPCIDevicesByAddress(devices []VMPCIDevice, allowed map[string]struct{}) []VMPCIDevice {
+	if len(devices) == 0 || len(allowed) == 0 {
+		return []VMPCIDevice{}
+	}
+
+	out := make([]VMPCIDevice, 0, len(devices))
+	for _, dev := range devices {
+		if _, ok := allowed[dev.Address]; ok {
+			out = append(out, dev)
+		}
+	}
+	return out
+}
+
 func appendUnique(values []string, value string) []string {
 	for _, v := range values {
 		if v == value {
@@ -623,6 +752,14 @@ func appendUnique(values []string, value string) []string {
 		}
 	}
 	return append(values, value)
+}
+
+func emptyFallback(s, fallback string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return fallback
+	}
+	return s
 }
 
 func freeDomains(domains []libvirt.Domain) {
