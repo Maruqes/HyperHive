@@ -170,6 +170,25 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 		firstErrMu.Unlock()
 	}
 
+	resolveHasVNC := func(vm services.VmType) bool {
+		fallbackHasVNC := vm.Vm != nil && strings.TrimSpace(vm.Vm.NovncPort) != ""
+		if vm.Vm == nil {
+			return fallbackHasVNC
+		}
+
+		virshServices := services.VirshService{}
+		videoInfo, err := virshServices.GetNoVNCVideo(vm.MachineName)
+		if err != nil {
+			return false
+		}
+		if videoInfo == nil {
+			return false
+		}
+
+		modelType := strings.ToLower(strings.TrimSpace(videoInfo.GetModelType()))
+		return modelType != "" && modelType != "none"
+	}
+
 	processVM := func(idx int, vm services.VmType) {
 
 		autoStart, err := db.DoesAutoStartExist(r.Context(), vm.Name)
@@ -177,7 +196,7 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 			setFirstErr(err)
 			return
 		}
-		hasVNC := vm.Vm != nil && strings.TrimSpace(vm.Vm.NovncPort) != ""
+		hasVNC := resolveHasVNC(vm)
 
 		vmMap := map[string]interface{}{
 			"isLive":    vm.IsLive,
