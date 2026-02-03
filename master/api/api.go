@@ -314,6 +314,7 @@ func StartApi(exitAfterStart bool) {
 		npmapi.SetupAccessListAPI(r)
 
 		setupVirshAPI(r)
+		setupPCIAPI(r)
 		setupNFSAPI(r)
 		setupProtocolAPI(r)
 		setupLogsAPI(r)

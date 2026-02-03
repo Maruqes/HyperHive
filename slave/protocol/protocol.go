@@ -13,6 +13,7 @@ import (
 	"slave/logs512"
 	nfsservice "slave/nfs"
 	ourk8s "slave/our_k8s"
+	pciservice "slave/pci"
 	smartdisk "slave/smartdisk"
 	"slave/virsh"
 	"sync"
@@ -25,6 +26,7 @@ import (
 	infoGrpc "github.com/Maruqes/512SvMan/api/proto/info"
 	k8s "github.com/Maruqes/512SvMan/api/proto/k8s"
 	nfsproto "github.com/Maruqes/512SvMan/api/proto/nfs"
+	pciGrpc "github.com/Maruqes/512SvMan/api/proto/pci"
 	pb "github.com/Maruqes/512SvMan/api/proto/protocol"
 	smartdiskGrpc "github.com/Maruqes/512SvMan/api/proto/smartdisk"
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
@@ -92,6 +94,7 @@ func listenGRPC() {
 		nfsproto.RegisterNFSServiceServer(s, &nfsservice.NFSService{})
 		grpcVirsh.RegisterSlaveVirshServiceServer(s, &virsh.SlaveVirshService{})
 		extraGrpc.RegisterExtraServiceServer(s, &extra.ExtraService{})
+		pciGrpc.RegisterSlavePCIServiceServer(s, &pciservice.PCIService{})
 		infoGrpc.RegisterInfoServer(s, &info.INFOService{})
 		smartdiskGrpc.RegisterSmartDiskServiceServer(s, &smartdisk.Service{})
 		btrfsGrpc.RegisterBtrFSServiceServer(s, &btrfs.BTRFSService{})

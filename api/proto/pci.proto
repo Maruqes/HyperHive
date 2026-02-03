@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package pci;
+
+option go_package = "github.com/Maruqes/512SvMan/api/proto/pci;proto";
+
+message Empty {}
+
+message OkResponse {
+  bool ok = 1;
+  string message = 2;
+}
+
+message VmNameRequest {
+  string vm_name = 1;
+}
+
+message GPUReferenceRequest {
+  string gpu_ref = 1;
+}
+
+message VMGPURequest {
+  string vm_name = 1;
+  string gpu_ref = 2;
+}
+
+message HostGPU {
+  string node_name = 1;
+  string path = 2;
+  string address = 3;
+  uint32 domain = 4;
+  uint32 bus = 5;
+  uint32 slot = 6;
+  uint32 function = 7;
+  string driver = 8;
+  string vendor = 9;
+  string vendor_id = 10;
+  string product = 11;
+  string product_id = 12;
+  string class = 13;
+  int32 iommu_group = 14;
+  int32 numa_node = 15;
+  bool managed_by_vfio = 16;
+  repeated string attached_to_vms = 17;
+}
+
+message VMGPU {
+  string address = 1;
+  uint32 domain = 2;
+  uint32 bus = 3;
+  uint32 slot = 4;
+  uint32 function = 5;
+  bool managed = 6;
+  string alias = 7;
+}
+
+message HostGPUList {
+  repeated HostGPU gpus = 1;
+}
+
+message VMGPUList {
+  repeated VMGPU gpus = 1;
+}
+
+service SlavePCIService {
+  rpc ListHostGPUs(Empty) returns (HostGPUList);
+  rpc ListHostGPUsWithIOMMU(Empty) returns (HostGPUList);
+  rpc ListVMGPUs(VmNameRequest) returns (VMGPUList);
+  rpc AttachGPUToVM(VMGPURequest) returns (OkResponse);
+  rpc DetachGPUFromVM(VMGPURequest) returns (OkResponse);
+  rpc ReturnGPUToHost(GPUReferenceRequest) returns (OkResponse);
+}
