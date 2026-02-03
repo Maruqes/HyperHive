@@ -185,8 +185,7 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 			return false
 		}
 
-		modelType := strings.ToLower(strings.TrimSpace(videoInfo.GetModelType()))
-		return modelType != "" && modelType != "none"
+		return videoInfo.Enabled
 	}
 
 	processVM := func(idx int, vm services.VmType) {
