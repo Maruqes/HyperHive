@@ -150,3 +150,52 @@ func TestFilterPCIDevicesWithIOMMU(t *testing.T) {
 		t.Fatalf("unexpected second device: %s", out[1].Address)
 	}
 }
+
+func TestPartitionPCIAttachments(t *testing.T) {
+	tests := []struct {
+		name              string
+		attachedVMs       []string
+		targetVM          string
+		wantAttached      bool
+		wantAttachedOther []string
+	}{
+		{
+			name:              "attached to target only",
+			attachedVMs:       []string{"win10"},
+			targetVM:          "win10",
+			wantAttached:      true,
+			wantAttachedOther: []string{},
+		},
+		{
+			name:              "attached elsewhere only",
+			attachedVMs:       []string{"ubuntu", "fedora"},
+			targetVM:          "win10",
+			wantAttached:      false,
+			wantAttachedOther: []string{"fedora", "ubuntu"},
+		},
+		{
+			name:              "attached target and elsewhere with spaces and duplicates",
+			attachedVMs:       []string{" win10 ", "ubuntu", "ubuntu", ""},
+			targetVM:          "win10",
+			wantAttached:      true,
+			wantAttachedOther: []string{"ubuntu"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotAttached, gotOther := partitionPCIAttachments(tt.attachedVMs, tt.targetVM)
+			if gotAttached != tt.wantAttached {
+				t.Fatalf("unexpected attached flag: got %v want %v", gotAttached, tt.wantAttached)
+			}
+			if len(gotOther) != len(tt.wantAttachedOther) {
+				t.Fatalf("unexpected attached-other len: got %d want %d (%v)", len(gotOther), len(tt.wantAttachedOther), gotOther)
+			}
+			for i := range gotOther {
+				if gotOther[i] != tt.wantAttachedOther[i] {
+					t.Fatalf("unexpected attached-other at index %d: got %q want %q", i, gotOther[i], tt.wantAttachedOther[i])
+				}
+			}
+		})
+	}
+}

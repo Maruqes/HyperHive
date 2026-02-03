@@ -245,6 +245,31 @@ func AttachPCIToVM(vmName, pciRef string) error {
 	}
 	_ = nodeDev.Free()
 
+	targetVMName := vmName
+	if actualName, nameErr := dom.GetName(); nameErr == nil {
+		if actualName = strings.TrimSpace(actualName); actualName != "" {
+			targetVMName = actualName
+		}
+	}
+
+	attachments, err := listAllVMAttachments(conn)
+	if err != nil {
+		return err
+	}
+	if attachedVMs, ok := attachments[address.String()]; ok {
+		alreadyAttachedToTarget, attachedElsewhere := partitionPCIAttachments(attachedVMs, targetVMName)
+		if len(attachedElsewhere) > 0 {
+			return fmt.Errorf(
+				"pci %s is already attached to vm(s): %s",
+				address.String(),
+				strings.Join(attachedElsewhere, ","),
+			)
+		}
+		if alreadyAttachedToTarget {
+			return nil
+		}
+	}
+
 	flags, err := domainDeviceFlags(dom)
 	if err != nil {
 		return err
@@ -254,6 +279,27 @@ func AttachPCIToVM(vmName, pciRef string) error {
 		return fmt.Errorf("attach pci %s to vm %s: %w", address.String(), vmName, err)
 	}
 	return nil
+}
+
+func partitionPCIAttachments(attachedVMs []string, targetVM string) (bool, []string) {
+	targetVM = strings.TrimSpace(targetVM)
+	alreadyAttachedToTarget := false
+	attachedElsewhere := make([]string, 0, len(attachedVMs))
+
+	for _, vm := range attachedVMs {
+		vm = strings.TrimSpace(vm)
+		if vm == "" {
+			continue
+		}
+		if vm == targetVM {
+			alreadyAttachedToTarget = true
+			continue
+		}
+		attachedElsewhere = appendUnique(attachedElsewhere, vm)
+	}
+
+	sort.Strings(attachedElsewhere)
+	return alreadyAttachedToTarget, attachedElsewhere
 }
 
 // DetachPCIFromVM removes a host PCI device from a VM and attempts to return it to the host.
