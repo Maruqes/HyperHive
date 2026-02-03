@@ -171,11 +171,6 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resolveHasVNC := func(vm services.VmType) bool {
-		fallbackHasVNC := vm.Vm != nil && strings.TrimSpace(vm.Vm.NovncPort) != ""
-		if vm.Vm == nil {
-			return fallbackHasVNC
-		}
-
 		virshServices := services.VirshService{}
 		videoInfo, err := virshServices.GetNoVNCVideo(vm.MachineName)
 		if err != nil {
