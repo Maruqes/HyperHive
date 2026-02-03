@@ -176,9 +176,6 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return false
 		}
-		if videoInfo == nil {
-			return false
-		}
 
 		return videoInfo.Enabled
 	}
