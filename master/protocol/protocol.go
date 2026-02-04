@@ -171,18 +171,17 @@ func NewSlaveConnection(addr, machineName string) error {
 		}
 	}
 
+	// Run the newSlave callback in background to not block the gRPC response
+	// The callback can take a very long time (NFS mounts, VM starts, 2 min sleep, etc.)
 	if recievedNewSlaveFunc != nil {
-		if err := recievedNewSlaveFunc(addr, machineName, conn); err != nil {
-			if removed := removeConnection(addr, machineName, entry.EntryTime); removed != nil && removed.Connection != nil {
-				if cerr := removed.Connection.Close(); cerr != nil {
-					log.Printf("error closing removed connection after callback error: %v", cerr)
-				}
+		go func(addr, machineName string, conn *grpc.ClientConn, entryTime time.Time) {
+			if err := recievedNewSlaveFunc(addr, machineName, conn); err != nil {
+				log.Printf("newSlave callback failed for %s (%s): %v", machineName, addr, err)
+				// Note: We don't remove the connection on error anymore since the connection
+				// itself is valid - only the initialization failed. The slave can still be used
+				// for other operations and will retry initialization on next reconnect.
 			}
-			if cerr := conn.Close(); cerr != nil {
-				log.Printf("error closing conn after callback error: %v", cerr)
-			}
-			return err
-		}
+		}(addr, machineName, conn, entry.EntryTime)
 	}
 
 	logger.Info("Nova conexao com slave:", addr, machineName)

@@ -111,18 +111,35 @@ func listenGRPC() {
 
 func monitorConnection(conn *grpc.ClientConn) {
 	ctx := context.Background()
+	transientFailureCount := 0
+	const maxTransientFailures = 5 // Allow some transient failures before restarting
+
 	for {
 		state := conn.GetState()
 		switch state {
 		case connectivity.Ready:
-			// ok
+			transientFailureCount = 0 // Reset counter on successful connection
 		case connectivity.Connecting:
 			logger.Info("connection to master reconnecting")
 		case connectivity.Idle:
 			logger.Info("connection state idle; forcing connect", "state", state.String())
 			conn.Connect()
-		case connectivity.Shutdown, connectivity.TransientFailure:
-			logger.Info("connection to master lost; restarting")
+		case connectivity.TransientFailure:
+			transientFailureCount++
+			logger.Warnf("connection transient failure (count: %d/%d)", transientFailureCount, maxTransientFailures)
+			if transientFailureCount >= maxTransientFailures {
+				logger.Error("too many transient failures; restarting")
+				_ = conn.Close()
+				if err := restartSelf(); err != nil {
+					logger.Error("failed to restart slave process", "error", err)
+				}
+				os.Exit(1)
+				return
+			}
+			// Try to reconnect
+			conn.Connect()
+		case connectivity.Shutdown:
+			logger.Info("connection to master shutdown; restarting")
 			_ = conn.Close()
 			if err := restartSelf(); err != nil {
 				logger.Error("failed to restart slave process", "error", err)
@@ -144,32 +161,49 @@ func PingMaster(conn *grpc.ClientConn) {
 	ticker := time.NewTicker(time.Duration(env512.PingInterval) * time.Second)
 	defer ticker.Stop()
 
+	consecutiveFailures := 0
+	const maxConsecutiveFailures = 10 // Allow more ping failures before restarting
+
 	for {
 		h := pb.NewProtocolServiceClient(conn)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		_, err := h.Notify(ctx, &pb.NotifyRequest{Text: "Ping do Slave"})
 		cancel()
 		if err != nil {
-			logger.Error("failed to ping master", "error", err)
+			consecutiveFailures++
+			logger.Errorf("failed to ping master (failures: %d/%d): %v", consecutiveFailures, maxConsecutiveFailures, err)
+
 			// Check connection state and handle accordingly
 			state := conn.GetState()
 			switch state {
 			case connectivity.Idle:
 				logger.Info("connection idle; attempting to reconnect")
 				conn.Connect()
-			case connectivity.TransientFailure, connectivity.Shutdown:
-				logger.Error("connection to master is dead; restarting", "state", state.String())
+			case connectivity.Shutdown:
+				logger.Error("connection to master is shutdown; restarting")
 				_ = conn.Close()
 				if err := restartSelf(); err != nil {
 					logger.Error("failed to restart slave process", "error", err)
 				}
 				os.Exit(1)
 				return
+			case connectivity.TransientFailure:
+				if consecutiveFailures >= maxConsecutiveFailures {
+					logger.Error("too many consecutive ping failures in transient failure state; restarting")
+					_ = conn.Close()
+					if err := restartSelf(); err != nil {
+						logger.Error("failed to restart slave process", "error", err)
+					}
+					os.Exit(1)
+					return
+				}
+				// Try to reconnect
+				conn.Connect()
 			default:
 				logger.Debug("connection state while pinging master", "state", state.String())
 			}
 		} else {
-			//ping to master ok
+			consecutiveFailures = 0 // Reset on successful ping
 		}
 		<-ticker.C
 	}
@@ -195,9 +229,12 @@ func ConnectGRPC() *grpc.ClientConn {
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 
 		ka := keepalive.ClientParameters{
-			Time:                15 * time.Second, // envia ping a cada 15s (mais agressivo)
-			Timeout:             10 * time.Second, // espera 10s pelo ACK do ping
-			PermitWithoutStream: true,             // pings mesmo sem RPCs ativas
+			// Time:                15 * time.Second, // envia ping a cada 15s (mais agressivo)
+			// Timeout:             10 * time.Second, // espera 10s pelo ACK do ping
+			// PermitWithoutStream: true,             // pings mesmo sem RPCs ativas
+			Time:                0 * time.Second,
+			Timeout:             0 * time.Second,
+			PermitWithoutStream: false,
 		}
 
 		conn, err := grpc.DialContext(ctx, target,

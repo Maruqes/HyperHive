@@ -68,45 +68,39 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 	btrfsService := services.BTRFSService{}
 	err := btrfsService.AutoMountRaid(machineName)
 	if err != nil {
-		logger.Errorf("UpdateNFS failed: %v", err)
-		return err
+		logger.Errorf("AutoMountRaid failed for %s: %v", machineName, err)
+		// Continue anyway - RAID mount failure shouldn't block other initialization
 	}
 
-	logger.Info("Mounting all NFS")
+	logger.Info("Mounting all NFS for", machineName)
 	nfsService := services.NFSService{}
 	err = nfsService.UpdateNFSShit(context.Background())
 	if err != nil {
-		logger.Errorf("UpdateNFS failed: %v", err)
-		return err
+		logger.Errorf("UpdateNFS failed for %s: %v", machineName, err)
+		// Continue anyway - NFS mount failure shouldn't block VM startup
 	}
 
-	time.Sleep(time.Second * 120)
+	// Wait for NFS mounts to stabilize before starting VMs
+	// Reduced from 120s to 10s since NFS operations now have proper timeouts
+	time.Sleep(time.Second * 10)
 
-	logger.Info("Auto starting vms")
+	logger.Info("Auto starting vms for", machineName)
 	virshServices := services.VirshService{}
 	err = virshServices.StartAutoStartVms(context.Background())
 	if err != nil {
-		logger.Errorf("StartAutoStartVms failed: %v", err)
+		logger.Errorf("StartAutoStartVms failed for %s: %v", machineName, err)
 	}
 
 	k8sService := services.K8sService{}
 	err = k8sService.ConnectSlaveToCluster()
 	if err != nil && err != services.ErrSlaveMasterNotConnected {
-		logger.Errorf("k8s startup failed: %v", err)
-		logger.Errorf("k8s startup failed: %v", err)
-		logger.Errorf("k8s startup failed: %v", err)
-		logger.Errorf("k8s startup failed: %v", err)
-		// return err
+		logger.Errorf("k8s startup failed for %s: %v", machineName, err)
 	}
 
 	dockerService := services.DockerService{}
 	err = dockerService.StartAlwaysContainers()
 	if err != nil {
-		logger.Errorf("dockerService startup failed: %v", err)
-		logger.Errorf("dockerService startup failed: %v", err)
-		logger.Errorf("dockerService startup failed: %v", err)
-		logger.Errorf("dockerService startup failed: %v", err)
-		// return err
+		logger.Errorf("dockerService startup failed for %s: %v", machineName, err)
 	}
 
 	return nil
