@@ -51,6 +51,29 @@ func restartSelf() error {
 	return syscall.Exec(exe, args, env)
 }
 
+func restartOnConnectionLoss(conn *grpc.ClientConn, reason string, err error) {
+	restartSlaveOnce.Do(func() {
+		fields := []interface{}{"reason", reason}
+		if conn != nil {
+			fields = append(fields, "state", conn.GetState().String())
+		}
+		if err != nil {
+			fields = append(fields, "error", err)
+		}
+
+		logger.Error("lost connection to master; restarting slave", fields...)
+
+		if conn != nil {
+			_ = conn.Close()
+		}
+
+		if execErr := restartSelf(); execErr != nil {
+			logger.Error("failed to restart slave process", "error", execErr)
+		}
+		os.Exit(1)
+	})
+}
+
 // === Servidor do CLIENTE (ClientService) ===
 type clientServer struct {
 	pb.UnimplementedClientServiceServer
@@ -111,46 +134,29 @@ func listenGRPC() {
 
 func monitorConnection(conn *grpc.ClientConn) {
 	ctx := context.Background()
-	transientFailureCount := 0
-	const maxTransientFailures = 5 // Allow some transient failures before restarting
 
 	for {
 		state := conn.GetState()
 		switch state {
 		case connectivity.Ready:
-			transientFailureCount = 0 // Reset counter on successful connection
 		case connectivity.Connecting:
-			logger.Info("connection to master reconnecting")
+			restartOnConnectionLoss(conn, "connection_state_connecting", nil)
+			return
 		case connectivity.Idle:
 			logger.Info("connection state idle; forcing connect", "state", state.String())
 			conn.Connect()
 		case connectivity.TransientFailure:
-			transientFailureCount++
-			logger.Warnf("connection transient failure (count: %d/%d)", transientFailureCount, maxTransientFailures)
-			if transientFailureCount >= maxTransientFailures {
-				logger.Error("too many transient failures; restarting")
-				_ = conn.Close()
-				if err := restartSelf(); err != nil {
-					logger.Error("failed to restart slave process", "error", err)
-				}
-				os.Exit(1)
-				return
-			}
-			// Try to reconnect
-			conn.Connect()
+			restartOnConnectionLoss(conn, "connection_state_transient_failure", nil)
+			return
 		case connectivity.Shutdown:
-			logger.Info("connection to master shutdown; restarting")
-			_ = conn.Close()
-			if err := restartSelf(); err != nil {
-				logger.Error("failed to restart slave process", "error", err)
-			}
-			os.Exit(1)
+			restartOnConnectionLoss(conn, "connection_state_shutdown", nil)
 			return
 		default:
-			logger.Info("connection state changed", "state", state.String())
+			restartOnConnectionLoss(conn, "connection_state_unknown", nil)
+			return
 		}
 		if !conn.WaitForStateChange(ctx, state) {
-			logger.Info("monitorConnection: no further state changes, stopping monitor")
+			restartOnConnectionLoss(conn, "monitor_wait_for_state_change_stopped", nil)
 			return
 		}
 	}
@@ -158,74 +164,24 @@ func monitorConnection(conn *grpc.ClientConn) {
 
 // pinga todas as conexoes slave -> master (master server)
 func PingMaster(conn *grpc.ClientConn) {
-	consecutiveFailures := 0
-	const maxConsecutiveFailures = 5 // Restart after 5 consecutive failures
-
-	doPing := func() bool {
-		h := pb.NewProtocolServiceClient(conn)
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		_, err := h.Notify(ctx, &pb.NotifyRequest{Text: "Ping do Slave"})
-		cancel()
-
-		if err != nil {
-			consecutiveFailures++
-			logger.Errorf("failed to ping master (failures: %d/%d): %v", consecutiveFailures, maxConsecutiveFailures, err)
-
-			// Check connection state and handle accordingly
-			state := conn.GetState()
-			logger.Infof("connection state: %s", state.String())
-
-			switch state {
-			case connectivity.Idle:
-				logger.Info("connection idle; attempting to reconnect")
-				conn.Connect()
-			case connectivity.Shutdown:
-				logger.Error("connection to master is shutdown; restarting slave")
-				return false // trigger restart
-			case connectivity.TransientFailure:
-				logger.Warn("connection in transient failure; attempting to reconnect")
-				conn.Connect()
-			}
-
-			// Restart after too many consecutive failures regardless of connection state
-			if consecutiveFailures >= maxConsecutiveFailures {
-				logger.Errorf("too many consecutive ping failures (%d); master may have restarted; restarting slave", consecutiveFailures)
-				return false // trigger restart
-			}
-			return true // continue
-		}
-
-		consecutiveFailures = 0 // Reset on successful ping
-		return true             // continue
-	}
-
-	// Primeiro ping imediato
-	if !doPing() {
-		_ = conn.Close()
-		if err := restartSelf(); err != nil {
-			logger.Error("failed to restart slave process", "error", err)
-		}
-		os.Exit(1)
-		return
-	}
-
 	ticker := time.NewTicker(time.Duration(env512.PingInterval) * time.Second)
 	defer ticker.Stop()
 
 	for {
-		<-ticker.C
-		if !doPing() {
-			_ = conn.Close()
-			if err := restartSelf(); err != nil {
-				logger.Error("failed to restart slave process", "error", err)
-			}
-			os.Exit(1)
+		h := pb.NewProtocolServiceClient(conn)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_, err := h.Notify(ctx, &pb.NotifyRequest{Text: "Ping do Slave"})
+		cancel()
+		if err != nil {
+			restartOnConnectionLoss(conn, "ping_master_failed", err)
 			return
 		}
+		<-ticker.C
 	}
 }
 
 var startSlaveServerOnce sync.Once
+var restartSlaveOnce sync.Once
 
 func ConnectGRPC() *grpc.ClientConn {
 
@@ -245,12 +201,9 @@ func ConnectGRPC() *grpc.ClientConn {
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 
 		ka := keepalive.ClientParameters{
-			// Time:                15 * time.Second, // envia ping a cada 15s (mais agressivo)
-			// Timeout:             10 * time.Second, // espera 10s pelo ACK do ping
-			// PermitWithoutStream: true,             // pings mesmo sem RPCs ativas
-			Time:                0 * time.Second,
-			Timeout:             0 * time.Second,
-			PermitWithoutStream: false,
+			Time:                15 * time.Second,
+			Timeout:             10 * time.Second,
+			PermitWithoutStream: true,
 		}
 
 		conn, err := grpc.DialContext(ctx, target,
@@ -272,10 +225,6 @@ func ConnectGRPC() *grpc.ClientConn {
 			continue
 		}
 
-		// Inicia o ping imediatamente após a conexão ser criada
-		go monitorConnection(conn)
-		go PingMaster(conn)
-
 		logs512.StartLogs(conn)
 		h := pb.NewProtocolServiceClient(conn)
 		reqCtx, reqCancel := context.WithTimeout(context.Background(), 300*time.Second)
@@ -296,6 +245,8 @@ func ConnectGRPC() *grpc.ClientConn {
 
 		retryDelay = minRetryDelay
 		logger.Info("master acknowledged slave", "message", outR.GetOk())
+		go monitorConnection(conn)
+		go PingMaster(conn)
 		return conn
 	}
 }
