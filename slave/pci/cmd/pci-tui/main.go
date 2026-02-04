@@ -91,9 +91,9 @@ func printMenu() {
 	fmt.Println("7) Attach PCI to VM")
 	fmt.Println("8) Detach PCI from VM (and return to host)")
 	fmt.Println("9) Return PCI to host")
-	fmt.Println("10) Attach GPU to VM")
-	fmt.Println("11) Detach GPU from VM (and return to host)")
-	fmt.Println("12) Return GPU to host")
+	fmt.Println("10) Attach GPU to VM (force vfio-pci)")
+	fmt.Println("11) Detach GPU from VM (driver -> none)")
+	fmt.Println("12) Return GPU to host (driver -> none)")
 	fmt.Println("13) Normalize/validate PCI address")
 	fmt.Println("14) Exit")
 	fmt.Println()
@@ -261,7 +261,7 @@ func attachGPUToVM(reader *bufio.Reader, state *appState) {
 		return
 	}
 
-	fmt.Printf("ok: GPU %s attached to VM %s\n", ref, vm)
+	fmt.Printf("ok: GPU %s attached to VM %s (driver forced to vfio-pci)\n", ref, vm)
 }
 
 func detachGPUFromVM(reader *bufio.Reader, state *appState) {
@@ -281,7 +281,7 @@ func detachGPUFromVM(reader *bufio.Reader, state *appState) {
 		return
 	}
 
-	fmt.Printf("ok: GPU %s detached from VM %s and returned to host\n", ref, vm)
+	fmt.Printf("ok: GPU %s detached from VM %s and driver restored to none\n", ref, vm)
 }
 
 func returnGPUToHost(reader *bufio.Reader, state *appState) {
@@ -296,7 +296,7 @@ func returnGPUToHost(reader *bufio.Reader, state *appState) {
 		return
 	}
 
-	fmt.Printf("ok: GPU %s returned to host\n", ref)
+	fmt.Printf("ok: GPU %s returned to host with driver set to none\n", ref)
 }
 
 func parseAddress(reader *bufio.Reader) {

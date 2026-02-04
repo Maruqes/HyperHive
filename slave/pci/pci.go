@@ -2,7 +2,10 @@ package pci
 
 import (
 	"encoding/xml"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -17,6 +20,8 @@ var (
 	nodeNamePattern    = regexp.MustCompile(`(?i)^pci_([0-9a-f]{4})_([0-9a-f]{2})_([0-9a-f]{2})_([0-7])$`)
 	rawNodeNamePattern = regexp.MustCompile(`(?i)^([0-9a-f]{4})_([0-9a-f]{2})_([0-9a-f]{2})_([0-7])$`)
 )
+
+const driverNone = "none"
 
 // PCIAddress identifies a PCI device using its domain:bus:slot.function.
 type PCIAddress struct {
@@ -268,7 +273,7 @@ func AttachPCIToVM(vmName, pciRef string) error {
 	if err != nil {
 		return fmt.Errorf("lookup host pci %s: %w", address.String(), err)
 	}
-	_ = nodeDev.Free()
+	defer nodeDev.Free()
 
 	targetVMName := vmName
 	if actualName, nameErr := dom.GetName(); nameErr == nil {
@@ -293,6 +298,11 @@ func AttachPCIToVM(vmName, pciRef string) error {
 		if alreadyAttachedToTarget {
 			return nil
 		}
+	}
+
+	// Force driver to vfio-pci before attaching to VM
+	if err := bindToVFIO(nodeDev, address); err != nil {
+		return err
 	}
 
 	flags, err := domainDeviceFlags(dom)
@@ -377,7 +387,7 @@ func DetachPCIFromVM(vmName, pciRef string) error {
 	return ReturnPCIToHost(address.String())
 }
 
-// DetachGPUFromVM removes a host GPU PCI device from a VM and attempts to return it to the host.
+// DetachGPUFromVM removes a host GPU PCI device from a VM and restores driver state to none.
 func DetachGPUFromVM(vmName, gpuRef string) error {
 	address, err := ParsePCIAddress(gpuRef)
 	if err != nil {
@@ -388,10 +398,15 @@ func DetachGPUFromVM(vmName, gpuRef string) error {
 		return err
 	}
 
-	return DetachPCIFromVM(vmName, address.String())
+	if err := DetachPCIFromVM(vmName, address.String()); err != nil {
+		return err
+	}
+
+	// Keep host GPU in neutral state after VM detach.
+	return forcePCIDriverToNone(address)
 }
 
-// ReturnPCIToHost re-attaches a PCI device to the host driver.
+// ReturnPCIToHost re-attaches a PCI device to the host driver (unbinds from vfio-pci).
 func ReturnPCIToHost(pciRef string) error {
 	address, err := ParsePCIAddress(pciRef)
 	if err != nil {
@@ -411,18 +426,20 @@ func ReturnPCIToHost(pciRef string) error {
 	defer nodeDev.Free()
 
 	driver, err := getNodeDeviceDriver(nodeDev)
-	if err == nil && driver != "" && !strings.HasPrefix(strings.ToLower(driver), "vfio") {
+	if err == nil && !isNoneDriver(driver) && !isVFIODriver(driver) {
+		// Already using host driver, nothing to do.
 		return nil
 	}
 
+	// ReAttach unbinds from vfio-pci and restores the host side driver state.
 	if err := nodeDev.ReAttach(); err != nil {
-		return fmt.Errorf("reattach pci %s to host: %w", address.String(), err)
+		return fmt.Errorf("reattach pci %s to host driver: %w", address.String(), err)
 	}
 
 	return nil
 }
 
-// ReturnGPUToHost re-attaches a GPU PCI device to the host driver.
+// ReturnGPUToHost unbinds a GPU PCI device from vfio and restores driver state to none.
 func ReturnGPUToHost(gpuRef string) error {
 	address, err := ParsePCIAddress(gpuRef)
 	if err != nil {
@@ -433,7 +450,38 @@ func ReturnGPUToHost(gpuRef string) error {
 		return err
 	}
 
-	return ReturnPCIToHost(address.String())
+	if err := ReturnPCIToHost(address.String()); err != nil {
+		return err
+	}
+
+	// Keep host GPU in neutral state (driver none) when not assigned to a VM.
+	return forcePCIDriverToNone(address)
+}
+
+// bindToVFIO detaches the PCI device from its current driver and binds it to vfio-pci.
+// This is required before a device can be passed through to a VM.
+func bindToVFIO(nodeDev *libvirt.NodeDevice, address PCIAddress) error {
+	driver, err := getNodeDeviceDriver(nodeDev)
+	if err == nil && isVFIODriver(driver) {
+		// Already using vfio-pci driver
+		return nil
+	}
+
+	// DetachFlags with "vfio-pci" driver name will unbind from current driver
+	// and bind to vfio-pci
+	if err := nodeDev.DetachFlags("vfio-pci", 0); err != nil {
+		return fmt.Errorf("bind pci %s to vfio-pci: %w", address.String(), err)
+	}
+
+	driver, err = getNodeDeviceDriver(nodeDev)
+	if err != nil {
+		return fmt.Errorf("verify pci %s driver after vfio bind: %w", address.String(), err)
+	}
+	if !isVFIODriver(driver) {
+		return fmt.Errorf("verify pci %s driver after vfio bind: expected vfio-pci, got %q", address.String(), normalizeDriverDisplayName(driver))
+	}
+
+	return nil
 }
 
 func domainDeviceFlags(dom *libvirt.Domain) (libvirt.DomainDeviceModifyFlags, error) {
@@ -533,7 +581,7 @@ func parseHostPCIDevice(xmlDesc string) (HostPCIDevice, error) {
 		Bus:           address.Bus,
 		Slot:          address.Slot,
 		Function:      address.Function,
-		Driver:        strings.TrimSpace(node.Driver.Name),
+		Driver:        normalizeDriverDisplayName(node.Driver.Name),
 		Vendor:        strings.TrimSpace(node.Capability.Vendor.Text),
 		VendorID:      strings.TrimSpace(node.Capability.Vendor.ID),
 		Product:       strings.TrimSpace(node.Capability.Product.Text),
@@ -542,7 +590,7 @@ func parseHostPCIDevice(xmlDesc string) (HostPCIDevice, error) {
 		IOMMUGroup:    iommuGroup,
 		NUMANode:      numaNode,
 		IsGPU:         classLooksLikeGPU(node.Capability.Class),
-		ManagedByVFIO: strings.HasPrefix(strings.ToLower(strings.TrimSpace(node.Driver.Name)), "vfio"),
+		ManagedByVFIO: isVFIODriver(node.Driver.Name),
 	}
 
 	if device.NodeName == "" {
@@ -599,6 +647,59 @@ func getNodeDeviceDriver(nodeDev *libvirt.NodeDevice) (string, error) {
 		return "", fmt.Errorf("parse node device xml: %w", err)
 	}
 	return strings.TrimSpace(node.Driver.Name), nil
+}
+
+func normalizeDriverDisplayName(driver string) string {
+	driver = strings.TrimSpace(driver)
+	if driver == "" {
+		return driverNone
+	}
+	return driver
+}
+
+func isVFIODriver(driver string) bool {
+	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(driver)), "vfio")
+}
+
+func isNoneDriver(driver string) bool {
+	driver = strings.TrimSpace(strings.ToLower(driver))
+	return driver == "" || driver == driverNone
+}
+
+func forcePCIDriverToNone(address PCIAddress) error {
+	driver, err := readCurrentPCIDriver(address)
+	if err != nil {
+		return err
+	}
+	if isNoneDriver(driver) {
+		return nil
+	}
+
+	unbindPath := filepath.Join("/sys/bus/pci/devices", address.String(), "driver", "unbind")
+	if err := os.WriteFile(unbindPath, []byte(address.String()), 0); err != nil {
+		return fmt.Errorf("set pci %s driver to none: %w", address.String(), err)
+	}
+
+	driver, err = readCurrentPCIDriver(address)
+	if err != nil {
+		return err
+	}
+	if !isNoneDriver(driver) {
+		return fmt.Errorf("set pci %s driver to none: expected none, got %q", address.String(), normalizeDriverDisplayName(driver))
+	}
+	return nil
+}
+
+func readCurrentPCIDriver(address PCIAddress) (string, error) {
+	driverLink := filepath.Join("/sys/bus/pci/devices", address.String(), "driver")
+	target, err := os.Readlink(driverLink)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", nil
+		}
+		return "", fmt.Errorf("read pci %s driver: %w", address.String(), err)
+	}
+	return filepath.Base(target), nil
 }
 
 func pciAddressFromHexParts(domain, bus, slot, function string) (PCIAddress, error) {

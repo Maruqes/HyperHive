@@ -77,6 +77,35 @@ func TestParseHostPCIDevice(t *testing.T) {
 	}
 }
 
+func TestParseHostPCIDeviceWithoutDriverDefaultsToNone(t *testing.T) {
+	const xmlDesc = `
+<device>
+  <name>pci_0000_04_00_0</name>
+  <path>/sys/devices/pci0000:00/0000:04:00.0</path>
+  <capability type='pci'>
+    <class>0x030000</class>
+    <domain>0</domain>
+    <bus>4</bus>
+    <slot>0</slot>
+    <function>0</function>
+    <product id='0x1234'>GPU</product>
+    <vendor id='0x1af4'>Vendor</vendor>
+  </capability>
+</device>`
+
+	dev, err := parseHostPCIDevice(xmlDesc)
+	if err != nil {
+		t.Fatalf("parseHostPCIDevice failed: %v", err)
+	}
+
+	if dev.Driver != driverNone {
+		t.Fatalf("unexpected default driver: got %q want %q", dev.Driver, driverNone)
+	}
+	if dev.ManagedByVFIO {
+		t.Fatalf("expected ManagedByVFIO=false")
+	}
+}
+
 func TestParseVMPCIDevices(t *testing.T) {
 	const xmlDesc = `
 <domain>
@@ -237,5 +266,28 @@ func TestFilterVMPCIDevicesByAddress(t *testing.T) {
 	}
 	if out[0].Address != "0000:01:00.0" || out[1].Address != "0000:03:00.0" {
 		t.Fatalf("unexpected filtered addresses: %+v", out)
+	}
+}
+
+func TestDriverHelpers(t *testing.T) {
+	if got := normalizeDriverDisplayName(""); got != driverNone {
+		t.Fatalf("normalize empty driver: got %q want %q", got, driverNone)
+	}
+	if got := normalizeDriverDisplayName(" vfio-pci "); got != "vfio-pci" {
+		t.Fatalf("normalize vfio driver: got %q want %q", got, "vfio-pci")
+	}
+
+	if !isVFIODriver("vfio-pci") {
+		t.Fatalf("expected vfio-pci to be recognized as vfio")
+	}
+	if isVFIODriver("nvidia") {
+		t.Fatalf("did not expect nvidia to be recognized as vfio")
+	}
+
+	if !isNoneDriver("") || !isNoneDriver("none") {
+		t.Fatalf("expected empty/none to be recognized as none driver")
+	}
+	if isNoneDriver("vfio-pci") {
+		t.Fatalf("did not expect vfio-pci to be recognized as none driver")
 	}
 }
