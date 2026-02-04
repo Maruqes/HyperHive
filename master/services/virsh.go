@@ -377,19 +377,10 @@ func (v *VirshService) MigrateVm(ctx context.Context, originMachine string, dest
 	return nil
 }
 
-func (v *VirshService) UpdateCpuXml(ctx context.Context, machine_name string, vmName string, cpuXml string) error {
+func (v *VirshService) UpdateCpuXml(_ context.Context, machine_name string, vmName string, cpuXml string) error {
 	slaveMachine := protocol.GetConnectionByMachineName(machine_name)
 	if slaveMachine == nil {
 		return fmt.Errorf("machine %s not found", machine_name)
-	}
-
-	//it needs to be live vm
-	exists, err := db.DoesVmLiveExist(ctx, vmName)
-	if err != nil {
-		return fmt.Errorf("failed to check if live VM exists in database: %v", err)
-	}
-	if !exists {
-		return fmt.Errorf("a live VM with the name %s does not exist in the database", vmName)
 	}
 
 	//get vm by name
