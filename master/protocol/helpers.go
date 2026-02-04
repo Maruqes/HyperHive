@@ -8,7 +8,77 @@ import (
 
 	pb "github.com/Maruqes/512SvMan/api/proto/protocol"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 )
+
+// IsConnectionHealthy checks if a gRPC connection is in a healthy state
+func IsConnectionHealthy(conn *grpc.ClientConn) bool {
+	if conn == nil {
+		return false
+	}
+	state := conn.GetState()
+	return state == connectivity.Ready || state == connectivity.Idle
+}
+
+// EnsureConnectionReady ensures a connection is ready, attempting to reconnect if needed
+// Returns the current connection state and any error
+func EnsureConnectionReady(conn *grpc.ClientConn, timeout time.Duration) (connectivity.State, error) {
+	if conn == nil {
+		return connectivity.Shutdown, fmt.Errorf("connection is nil")
+	}
+
+	state := conn.GetState()
+	if state == connectivity.Ready {
+		return state, nil
+	}
+
+	if state == connectivity.Shutdown {
+		return state, fmt.Errorf("connection is shutdown")
+	}
+
+	// Try to connect if in idle or transient failure state
+	if state == connectivity.Idle || state == connectivity.TransientFailure {
+		conn.Connect()
+	}
+
+	// Wait for the connection to become ready
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	for {
+		if conn.WaitForStateChange(ctx, state) {
+			newState := conn.GetState()
+			if newState == connectivity.Ready {
+				return newState, nil
+			}
+			if newState == connectivity.Shutdown {
+				return newState, fmt.Errorf("connection is shutdown")
+			}
+			state = newState
+		} else {
+			// Context timeout
+			return conn.GetState(), fmt.Errorf("timeout waiting for connection to be ready")
+		}
+	}
+}
+
+// GetHealthyConnectionByMachineName returns a healthy connection for the given machine name
+// It validates the connection state before returning
+func GetHealthyConnectionByMachineName(machineName string) *ConnectionsStruct {
+	conn := GetConnectionByMachineName(machineName)
+	if conn == nil || conn.Connection == nil {
+		return nil
+	}
+
+	// Check if connection is healthy
+	if !IsConnectionHealthy(conn.Connection) {
+		// Try to trigger reconnection check
+		go CheckConnectionStateRemove(*conn)
+		return nil
+	}
+
+	return conn
+}
 
 func GetAllGRPCConnections() []*grpc.ClientConn {
 	connectionsMu.RLock()

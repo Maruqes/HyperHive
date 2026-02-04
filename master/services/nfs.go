@@ -83,6 +83,11 @@ func (s *NFSService) CreateSharePoint(ctx context.Context) error {
 		return fmt.Errorf("slave not connected")
 	}
 
+	// Check if connection is healthy before proceeding
+	if !protocol.IsConnectionHealthy(conn.Connection) {
+		return fmt.Errorf("slave connection is not healthy")
+	}
+
 	//make sure name exists and sanitize it (only letters and numbers), and add it to folder_path
 	if s.SharePoint.Name != "" {
 		sanitizedName := ""
@@ -395,6 +400,13 @@ func (s *NFSService) SyncSharedFolder(ctx context.Context) error {
 			continue
 		}
 
+		// Check if connection is healthy before attempting sync
+		if !protocol.IsConnectionHealthy(conn.Connection) {
+			logger.Warnf("slave %s connection is unhealthy, skipping sync", machineName)
+			notConnected = append(notConnected, machineName+" (unhealthy connection)")
+			continue
+		}
+
 		shares, err := db.GetNFSharesByMachineName(ctx, machineName)
 		if err != nil {
 			logger.Error("failed to get NFS shares by machine name:", err)
@@ -429,6 +441,11 @@ func (s *NFSService) MountAllSharedFolders(folders ...db.NFSShare) error {
 	connectedByMachine := make(map[string]protocol.ConnectionsStruct, len(snapshot))
 	for _, entry := range snapshot {
 		if entry.Connection == nil {
+			continue
+		}
+		// Validate connection is actually healthy before adding to connected list
+		if !protocol.IsConnectionHealthy(entry.Connection) {
+			logger.Warnf("Skipping unhealthy connection for machine %s", entry.MachineName)
 			continue
 		}
 		connected = append(connected, entry)
@@ -476,6 +493,14 @@ func (s *NFSService) MountAllSharedFolders(folders ...db.NFSShare) error {
 			continue
 		}
 
+		// Double-check connection is still healthy before attempting operation
+		if !protocol.IsConnectionHealthy(sourceConn.Connection) {
+			errMsg := fmt.Sprintf("connection to %s became unhealthy, skipping CreateSharedFolder for %s", sourceConn.MachineName, mount.Target)
+			logger.Warn(errMsg)
+			mountErrors = append(mountErrors, errMsg)
+			continue
+		}
+
 		logger.Info("Creating NFS shared folder on machine:", sourceConn.MachineName, " with mount:", mount)
 		if err := nfs.CreateSharedFolder(sourceConn.Connection, mount); err != nil {
 			errMsg := fmt.Sprintf("CreateSharedFolder on %s target %s failed: %v", sourceConn.MachineName, mount.Target, err)
@@ -496,6 +521,12 @@ func (s *NFSService) MountAllSharedFolders(folders ...db.NFSShare) error {
 	logger.Info("Mounting NFS shared folders on all slaves...")
 	// Mount every available share on every connected slave.
 	for _, conn := range connected {
+		// Check connection health before attempting mount operations
+		if !protocol.IsConnectionHealthy(conn.Connection) {
+			logger.Warnf("Skipping mount operations for %s - connection became unhealthy", conn.MachineName)
+			continue
+		}
+
 		for _, mount := range mountable {
 			logger.Info("Mounting NFS shared folder on machine with mount:", mount)
 			if err := nfs.MountSharedFolder(conn.Connection, mount); err != nil {
