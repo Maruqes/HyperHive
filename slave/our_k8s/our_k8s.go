@@ -129,7 +129,9 @@ func JoinExistingCluster(ctx context.Context, opts JoinClusterOptions) error {
 	if installed, err := isK3sInstalled(); err != nil {
 		return fmt.Errorf("join k3s cluster: check k3s installation: %w", err)
 	} else if installed {
-		ready, err := isClusterReady(ctx)
+		// Use clusterReadyWithKubeconfig which handles both server and agent nodes.
+		// On agent nodes there's no kubeconfig, so it falls back to checking K3S_URL from systemd.
+		ready, _, err := clusterReadyWithKubeconfig(ctx)
 		if err != nil {
 			return fmt.Errorf("join k3s cluster: check cluster readiness: %w", err)
 		}

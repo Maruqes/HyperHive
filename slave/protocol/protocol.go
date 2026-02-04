@@ -195,12 +195,9 @@ func ConnectGRPC() *grpc.ClientConn {
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 
 		ka := keepalive.ClientParameters{
-			// Time:                15 * time.Second, // envia ping a cada 15s (mais agressivo)
-			// Timeout:             10 * time.Second, // espera 10s pelo ACK do ping
-			// PermitWithoutStream: true,             // pings mesmo sem RPCs ativas
-			Time:                0 * time.Second,
-			Timeout:             0 * time.Second,
-			PermitWithoutStream: false,
+			Time:                15 * time.Second, // envia ping a cada 15s (mais agressivo)
+			Timeout:             10 * time.Second, // espera 10s pelo ACK do ping
+			PermitWithoutStream: true,             // pings mesmo sem RPCs ativas
 		}
 
 		conn, err := grpc.DialContext(ctx, target,

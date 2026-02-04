@@ -14,7 +14,8 @@ import (
 )
 
 // Default timeout for NFS operations
-const defaultNFSTimeout = 60 * time.Second
+// Increased to 90s to allow time for NFS export operations which can be slow
+const defaultNFSTimeout = 90 * time.Second
 
 // isConnectionClosingError checks if an error is related to the connection being closed
 func isConnectionClosingError(err error) bool {

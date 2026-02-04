@@ -679,19 +679,30 @@ func runMountRetry(folder FolderMount, target string) {
 	logger.Info("Mount retry succeeded", "source", folder.Source, "target", target, "attempts", attempt)
 }
 
+// clientPrereqsOnce ensures we only set client SELinux booleans once per process lifetime
+var clientPrereqsOnce sync.Once
+
 func EnsureClientPrereqs() error {
-	// Allow QEMU/libvirt contexts to use NFS storage
-	if commandExists("setsebool") {
-		if err := runCommand("enable virt_use_nfs", "sudo", "setsebool", "-P", "virt_use_nfs", "on"); err != nil {
-			return err
-		}
-		if err := runCommand("enable virt_sandbox_use_nfs", "sudo", "setsebool", "-P", "virt_sandbox_use_nfs", "on"); err != nil {
-			logger.Warn("Failed to enable virt_sandbox_use_nfs (may not exist on this system):", err)
-		}
-	}
 	// Ensure libvirt lock/log services (advisory locks across hosts)
 	_ = runCommand("enable virtlockd", "sudo", "systemctl", "enable", "--now", "virtlockd")
 	_ = runCommand("enable virtlogd", "sudo", "systemctl", "enable", "--now", "virtlogd")
+
+	// Allow QEMU/libvirt contexts to use NFS storage
+	// Run setsebool -P in background since it's persistent and very slow (~30-60s each)
+	if commandExists("setsebool") {
+		clientPrereqsOnce.Do(func() {
+			go func() {
+				logger.Info("Setting SELinux booleans for libvirt/NFS client (running in background)...")
+				if err := runCommandWithTimeout(nil, 120*time.Second, "enable virt_use_nfs", "sudo", "setsebool", "-P", "virt_use_nfs", "on"); err != nil {
+					logger.Errorf("Failed to enable virt_use_nfs: %v", err)
+				}
+				if err := runCommandWithTimeout(nil, 120*time.Second, "enable virt_sandbox_use_nfs", "sudo", "setsebool", "-P", "virt_sandbox_use_nfs", "on"); err != nil {
+					logger.Warn("Failed to enable virt_sandbox_use_nfs (may not exist on this system):", err)
+				}
+				logger.Info("SELinux booleans for libvirt/NFS client set successfully")
+			}()
+		})
+	}
 	return nil
 }
 
@@ -1587,11 +1598,24 @@ func UnmountSharedFolder(folder FolderMount) error {
 	return nil
 }
 
-func runCommand(desc string, args ...string) error {
+// runCommandWithTimeout executes a command with a timeout via context.
+func runCommandWithTimeout(ctx context.Context, timeout time.Duration, desc string, args ...string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("%s: no command provided", desc)
 	}
-	cmd := exec.Command(args[0], args[1:]...)
+
+	// Use context with timeout if no parent context, or use parent context if provided
+	var cmdCtx context.Context
+	var cancel context.CancelFunc
+	if ctx == nil {
+		cmdCtx, cancel = context.WithTimeout(context.Background(), timeout)
+	} else {
+		// Use the shorter of the two timeouts
+		cmdCtx, cancel = context.WithTimeout(ctx, timeout)
+	}
+	defer cancel()
+
+	cmd := exec.CommandContext(cmdCtx, args[0], args[1:]...)
 	cmd.Stdin = os.Stdin
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = io.MultiWriter(os.Stdout, &stdoutBuf)
@@ -1599,6 +1623,17 @@ func runCommand(desc string, args ...string) error {
 	if err := cmd.Run(); err != nil {
 		stdoutStr := strings.TrimSpace(stdoutBuf.String())
 		stderrStr := strings.TrimSpace(stderrBuf.String())
+
+		// Check if it was a context timeout/cancellation
+		if errors.Is(cmdCtx.Err(), context.DeadlineExceeded) {
+			logger.Errorf("%s timed out after %v", desc, timeout)
+			return fmt.Errorf("%s: timed out after %v", desc, timeout)
+		}
+		if errors.Is(cmdCtx.Err(), context.Canceled) {
+			logger.Errorf("%s was canceled", desc)
+			return fmt.Errorf("%s: canceled", desc)
+		}
+
 		logger.Errorf("%s failed: %v", desc, err)
 		if stderrStr != "" {
 			logger.Errorf("%s stderr: %s", desc, stderrStr)
@@ -1623,23 +1658,42 @@ func runCommand(desc string, args ...string) error {
 	return nil
 }
 
+// runCommand executes a command with a default timeout of 30 seconds.
+func runCommand(desc string, args ...string) error {
+	return runCommandWithTimeout(nil, 30*time.Second, desc, args...)
+}
+
 func commandExists(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
 }
+
+// selinuxBooleanOnce ensures we only set SELinux booleans once per process lifetime
+var selinuxBooleanOnce sync.Once
+var selinuxBooleanErr error
 
 func ensureNFSSELinuxBoolean() error {
 	if !commandExists("setsebool") {
 		logger.Warn("setsebool binary not available, skipping SELinux boolean for NFS exports")
 		return nil
 	}
-	if err := runCommand("enable nfs_export_all_rw", "sudo", "setsebool", "-P", "nfs_export_all_rw", "on"); err != nil {
-		return err
-	}
-	// Allow the NFS daemon to modify files on behalf of anonymous users
-	if err := runCommand("enable nfsd_anon_write", "sudo", "setsebool", "-P", "nfsd_anon_write", "on"); err != nil {
-		return err
-	}
+
+	// Only run setsebool -P once since it's persistent and very slow (~30-60s each)
+	selinuxBooleanOnce.Do(func() {
+		// Run in background goroutine to not block the caller
+		// Since -P is persistent, we only need to do this once ever
+		go func() {
+			logger.Info("Setting SELinux booleans for NFS (running in background)...")
+			// Use longer timeout for setsebool -P as it writes to policy (slow)
+			if err := runCommandWithTimeout(nil, 120*time.Second, "enable nfs_export_all_rw", "sudo", "setsebool", "-P", "nfs_export_all_rw", "on"); err != nil {
+				logger.Errorf("Failed to set nfs_export_all_rw: %v", err)
+			}
+			if err := runCommandWithTimeout(nil, 120*time.Second, "enable nfsd_anon_write", "sudo", "setsebool", "-P", "nfsd_anon_write", "on"); err != nil {
+				logger.Errorf("Failed to set nfsd_anon_write: %v", err)
+			}
+			logger.Info("SELinux booleans for NFS set successfully")
+		}()
+	})
 	return nil
 }
 
