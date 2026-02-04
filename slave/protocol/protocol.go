@@ -258,6 +258,10 @@ func ConnectGRPC() *grpc.ClientConn {
 			continue
 		}
 
+		// Inicia o ping imediatamente após a conexão ser criada
+		go monitorConnection(conn)
+		go PingMaster(conn)
+
 		logs512.StartLogs(conn)
 		h := pb.NewProtocolServiceClient(conn)
 		reqCtx, reqCancel := context.WithTimeout(context.Background(), 300*time.Second)
@@ -278,8 +282,6 @@ func ConnectGRPC() *grpc.ClientConn {
 
 		retryDelay = minRetryDelay
 		logger.Info("master acknowledged slave", "message", outR.GetOk())
-		go monitorConnection(conn)
-		go PingMaster(conn)
 		return conn
 	}
 }
