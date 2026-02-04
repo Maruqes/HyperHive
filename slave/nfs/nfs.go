@@ -103,15 +103,33 @@ type mountRetryState struct {
 	timer    *time.Timer
 }
 
+func normalizeMountTarget(target string) string {
+	clean := filepath.Clean(strings.TrimSpace(target))
+	if clean == "." {
+		return ""
+	}
+	return clean
+}
+
+func normalizeFolderMount(folder FolderMount) FolderMount {
+	folder.FolderPath = strings.TrimSpace(folder.FolderPath)
+	folder.Source = strings.TrimSpace(folder.Source)
+	folder.Target = normalizeMountTarget(folder.Target)
+	return folder
+}
+
 func trackMount(folder FolderMount) {
-	target := strings.TrimSpace(folder.Target)
+	folder = normalizeFolderMount(folder)
+	target := folder.Target
 	if target == "" {
 		return
 	}
 	CurrentMountsLock.Lock()
 	defer CurrentMountsLock.Unlock()
-	for _, m := range CurrentMounts {
-		if m.Target == target {
+	for i, m := range CurrentMounts {
+		if normalizeMountTarget(m.Target) == target {
+			// Refresh source/options for this target so monitor retries use latest values.
+			CurrentMounts[i] = folder
 			return
 		}
 	}
@@ -119,14 +137,14 @@ func trackMount(folder FolderMount) {
 }
 
 func untrackMount(target string) {
-	target = strings.TrimSpace(target)
+	target = normalizeMountTarget(target)
 	if target == "" {
 		return
 	}
 	CurrentMountsLock.Lock()
 	defer CurrentMountsLock.Unlock()
 	for i, m := range CurrentMounts {
-		if m.Target == target {
+		if normalizeMountTarget(m.Target) == target {
 			CurrentMounts = append(CurrentMounts[:i], CurrentMounts[i+1:]...)
 			return
 		}
@@ -134,7 +152,7 @@ func untrackMount(target string) {
 }
 
 func cancelMountRetry(target string) {
-	target = strings.TrimSpace(target)
+	target = normalizeMountTarget(target)
 	if target == "" {
 		return
 	}
@@ -171,7 +189,10 @@ func isTargetInProcMounts(target string) bool {
 		return false
 	}
 
-	cleanTarget := filepath.Clean(strings.TrimSpace(target))
+	cleanTarget := normalizeMountTarget(target)
+	if cleanTarget == "" {
+		return false
+	}
 	for _, ln := range strings.Split(string(data), "\n") {
 		if ln == "" {
 			continue
@@ -196,7 +217,10 @@ func isStaleMountErr(err error) bool {
 		return true
 	}
 	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "stale file handle") || strings.Contains(msg, "estale")
+	return strings.Contains(msg, "stale file handle") || strings.Contains(msg, "estale") ||
+		strings.Contains(msg, "transport endpoint is not connected") ||
+		strings.Contains(msg, "no route to host") ||
+		strings.Contains(msg, "connection timed out")
 }
 
 func relatedNFSMountTargets(target string) ([]string, error) {
@@ -205,8 +229,8 @@ func relatedNFSMountTargets(target string) ([]string, error) {
 		return nil, err
 	}
 
-	cleanTarget := filepath.Clean(strings.TrimSpace(target))
-	if cleanTarget == "" || cleanTarget == "." {
+	cleanTarget := normalizeMountTarget(target)
+	if cleanTarget == "" {
 		return nil, nil
 	}
 
@@ -261,9 +285,86 @@ func runCommandNoLog(args ...string) error {
 	return nil
 }
 
+func statPathWithTimeout(path string, timeout time.Duration) error {
+	if !commandExists("stat") {
+		_, err := os.Stat(path)
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "stat", "--", path)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Run(); err != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return context.DeadlineExceeded
+		}
+		outStr := strings.TrimSpace(out.String())
+		if outStr != "" {
+			return fmt.Errorf("%s: %w", outStr, err)
+		}
+		return err
+	}
+	return nil
+}
+
+// isMountStale checks if a mount point is stale by attempting a quick stat operation with timeout
+func isMountStale(target string) bool {
+	cleanTarget := normalizeMountTarget(target)
+	if cleanTarget == "" {
+		return false
+	}
+
+	err := statPathWithTimeout(cleanTarget, 3*time.Second)
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		// Stat timed out - mount is likely stale
+		logger.Warn("stat operation timed out, mount likely stale", "target", cleanTarget)
+		return true
+	}
+	return isStaleMountErr(err)
+}
+
+// isMountWorking checks if a mount point is mounted and accessible (not stale)
+func isMountWorking(target string) bool {
+	cleanTarget := normalizeMountTarget(target)
+	if cleanTarget == "" {
+		return false
+	}
+
+	// First check if it's in /proc/mounts
+	if !isTargetInProcMounts(cleanTarget) {
+		return false
+	}
+
+	// Then verify it's not stale (can be accessed)
+	return !isMountStale(cleanTarget)
+}
+
+// waitForUnmount waits for a target to be fully unmounted
+func waitForUnmount(target string, maxWait time.Duration) bool {
+	cleanTarget := normalizeMountTarget(target)
+	if cleanTarget == "" {
+		return true
+	}
+	start := time.Now()
+	for time.Since(start) < maxWait {
+		if !isTargetInProcMounts(cleanTarget) {
+			return true
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return false
+}
+
 func recoverStaleMountTarget(target string) error {
-	cleanTarget := filepath.Clean(strings.TrimSpace(target))
-	if cleanTarget == "" || cleanTarget == "." {
+	cleanTarget := normalizeMountTarget(target)
+	if cleanTarget == "" {
 		return fmt.Errorf("target is required")
 	}
 
@@ -271,6 +372,19 @@ func recoverStaleMountTarget(target string) error {
 	if err != nil {
 		logger.Warn("failed to list related NFS mounts for stale recovery:", err)
 	}
+
+	// Always include the target itself if not already in the list
+	foundTarget := false
+	for _, mt := range mountTargets {
+		if mt == cleanTarget {
+			foundTarget = true
+			break
+		}
+	}
+	if !foundTarget && isTargetInProcMounts(cleanTarget) {
+		mountTargets = append([]string{cleanTarget}, mountTargets...)
+	}
+
 	if len(mountTargets) == 0 {
 		mountTargets = []string{cleanTarget}
 	}
@@ -279,11 +393,26 @@ func recoverStaleMountTarget(target string) error {
 		if mountTarget == "/" {
 			continue
 		}
-		if umountErr := runCommandNoLog("sudo", "umount", "-f", "-l", mountTarget); umountErr != nil {
-			logger.Warn("best-effort stale unmount failed", "target", cleanTarget, "mountTarget", mountTarget, "error", umountErr)
-			continue
+
+		// Try regular force unmount first
+		if umountErr := runCommandNoLog("sudo", "umount", "-f", mountTarget); umountErr != nil {
+			// If regular force unmount fails, try lazy unmount
+			if umountErr := runCommandNoLog("sudo", "umount", "-f", "-l", mountTarget); umountErr != nil {
+				logger.Warn("best-effort stale unmount failed", "target", cleanTarget, "mountTarget", mountTarget, "error", umountErr)
+				continue
+			}
 		}
 		logger.Warn("Unmounted stale NFS target", "target", cleanTarget, "mountTarget", mountTarget)
+	}
+
+	// Wait for unmounts to take effect
+	for _, mountTarget := range mountTargets {
+		if mountTarget == "/" {
+			continue
+		}
+		if !waitForUnmount(mountTarget, 5*time.Second) {
+			logger.Warn("mount still present after unmount attempt", "target", mountTarget)
+		}
 	}
 
 	parent := filepath.Dir(cleanTarget)
@@ -297,9 +426,17 @@ func recoverStaleMountTarget(target string) error {
 }
 
 func ensureMountDirectory(target string) error {
-	cleanTarget := filepath.Clean(strings.TrimSpace(target))
-	if cleanTarget == "" || cleanTarget == "." {
+	cleanTarget := normalizeMountTarget(target)
+	if cleanTarget == "" {
 		return fmt.Errorf("target is required")
+	}
+
+	// Proactively check if the target or parent directory is a stale mount
+	if isTargetInProcMounts(cleanTarget) && isMountStale(cleanTarget) {
+		logger.Warn("Target is a stale mount, recovering before mkdir", "target", cleanTarget)
+		if recErr := recoverStaleMountTarget(cleanTarget); recErr != nil {
+			logger.Warn("Proactive stale mount recovery failed", "target", cleanTarget, "error", recErr)
+		}
 	}
 
 	if err := runCommand("ensure mount directory", "sudo", "mkdir", "-p", cleanTarget); err != nil {
@@ -394,7 +531,8 @@ func ensureExportsLocation() error {
 }
 
 func isMounted(target string) bool {
-	if strings.TrimSpace(target) == "" {
+	target = normalizeMountTarget(target)
+	if target == "" {
 		return false
 	}
 
@@ -409,12 +547,22 @@ func isMounted(target string) bool {
 				// mountpoint uses 1 or 32 when the path is not a mount point.
 				// On stale NFS handles it may still be present in /proc/mounts.
 				if isTargetInProcMounts(target) {
+					// Check if it's actually accessible (not stale)
+					if isMountStale(target) {
+						logger.Warn("mount appears stale in /proc/mounts", "target", target)
+						return false // Treat stale mounts as not mounted
+					}
 					return true
 				}
 				return false
 			}
 		}
 		if isTargetInProcMounts(target) {
+			// Check if it's actually accessible (not stale)
+			if isMountStale(target) {
+				logger.Warn("mount appears stale in /proc/mounts", "target", target)
+				return false // Treat stale mounts as not mounted
+			}
 			logger.Warn("mountpoint check failed but target exists in /proc/mounts", "target", target, "error", err)
 			return true
 		}
@@ -476,9 +624,10 @@ func MonitorMounts() {
 
 // scheduleMountRetry backs off failed mounts to avoid busy loops and keep trying until success.
 func scheduleMountRetry(folder FolderMount, err error, reason string) {
-	target := strings.TrimSpace(folder.Target)
+	folder = normalizeFolderMount(folder)
+	target := folder.Target
 	if target == "" {
-		logger.Errorf("Cannot schedule mount retry without target for source %s: %v", strings.TrimSpace(folder.Source), err)
+		logger.Errorf("Cannot schedule mount retry without target for source %s: %v", folder.Source, err)
 		return
 	}
 
@@ -547,6 +696,9 @@ func EnsureClientPrereqs() error {
 }
 
 func InstallNFS() error {
+	// Cleanup stale mounts from previous sessions before starting
+	cleanupStaleMounts()
+
 	resetCmd := fmt.Sprintf("mkdir -p %s && : > %s", exportsDir, exportsFile)
 	if err := runCommand("reset NFS exports file", "sudo", "bash", "-lc", resetCmd); err != nil {
 		return err
@@ -577,6 +729,67 @@ func InstallNFS() error {
 	logger.Info("NFS installed and nfs-server enabled")
 	go MonitorMounts()
 	return nil
+}
+
+// cleanupStaleMounts cleans up any stale NFS mounts from previous sessions
+// This is particularly important when the project restarts
+func cleanupStaleMounts() {
+	logger.Info("Checking for stale NFS mounts from previous sessions...")
+
+	data, err := os.ReadFile("/proc/mounts")
+	if err != nil {
+		logger.Warn("failed to read /proc/mounts during stale mount cleanup:", err)
+		return
+	}
+
+	// Look for mounts under /mnt/512SvMan (our managed mount points)
+	staleMounts := []string{}
+	for _, ln := range strings.Split(string(data), "\n") {
+		if ln == "" {
+			continue
+		}
+		fields := strings.Fields(ln)
+		if len(fields) < 3 {
+			continue
+		}
+		mountpoint := decodeProcMountField(fields[1])
+		fsType := fields[2]
+
+		// Check if it's an NFS mount under our managed path
+		if strings.HasPrefix(fsType, "nfs") && strings.Contains(mountpoint, "/mnt/512SvMan") {
+			// Check if this mount is stale
+			if isMountStale(mountpoint) {
+				staleMounts = append(staleMounts, mountpoint)
+			}
+		}
+	}
+
+	if len(staleMounts) == 0 {
+		logger.Info("No stale NFS mounts found")
+		return
+	}
+
+	logger.Warn("Found stale NFS mounts, cleaning up:", staleMounts)
+
+	// Sort by path length descending to unmount children first
+	sort.SliceStable(staleMounts, func(i, j int) bool {
+		return len(staleMounts[i]) > len(staleMounts[j])
+	})
+
+	for _, mountpoint := range staleMounts {
+		logger.Info("Cleaning up stale mount:", mountpoint)
+		// Try force unmount first
+		if err := runCommandNoLog("sudo", "umount", "-f", mountpoint); err != nil {
+			// Try lazy unmount if force fails
+			if err := runCommandNoLog("sudo", "umount", "-f", "-l", mountpoint); err != nil {
+				logger.Warn("failed to cleanup stale mount", "mountpoint", mountpoint, "error", err)
+			}
+		}
+	}
+
+	// Wait for unmounts to complete
+	time.Sleep(1 * time.Second)
+	logger.Info("Stale mount cleanup completed")
 }
 
 func tuneNFSServer() error {
@@ -990,6 +1203,14 @@ func mountLocalFolder(folder FolderMount) error {
 		return fmt.Errorf("source and target paths are required")
 	}
 
+	// Quick check: if already mounted and working, return success immediately
+	if isMountWorking(target) {
+		logger.Info("Local folder already mounted and working, skipping mount:", source, "->", target)
+		trackMount(folder)
+		cancelMountRetry(target)
+		return nil
+	}
+
 	// Validate paths
 	if err := IsSafePath(source); err != nil {
 		return fmt.Errorf("invalid source path: %w", err)
@@ -1012,14 +1233,39 @@ func mountLocalFolder(folder FolderMount) error {
 
 	ensureMountedWithOpts := func(remount bool) error {
 		if remount {
-			// Try remount in place first
-			if err := runCommand("remount local folder with correct opts",
-				"sudo", "mount", "-o", "remount,"+strings.Join(localMountOpts, ","), target); err == nil {
-				return nil
+			// Check if the mount is stale first
+			if isMountStale(target) {
+				logger.Warn("Detected stale local mount, performing full recovery", "target", target)
+				if err := recoverStaleMountTarget(target); err != nil {
+					logger.Warn("Stale mount recovery failed", "error", err)
+				}
+				// Continue to fresh mount after recovery
+			} else {
+				// Try remount in place first for non-stale mounts
+				if err := runCommand("remount local folder with correct opts",
+					"sudo", "mount", "-o", "remount,"+strings.Join(localMountOpts, ","), target); err == nil {
+					return nil
+				}
+				// Fall back to full unmount + mount if remount failed
+				logger.Warn("In-place remount failed, doing full unmount+mount")
 			}
-			// Fall back to full unmount + mount if remount failed
-			logger.Warn("In-place remount failed, doing full unmount+mount")
+
+			// Force unmount
 			_ = runCommand("unmount local folder", "sudo", "umount", "-f", target)
+			// If force unmount didn't work, try lazy unmount
+			if isTargetInProcMounts(target) {
+				_ = runCommand("lazy unmount local folder", "sudo", "umount", "-f", "-l", target)
+			}
+			// Wait for unmount to complete
+			if !waitForUnmount(target, 5*time.Second) {
+				logger.Warn("mount still present after local unmount attempts, trying stale recovery", "target", target)
+				if err := recoverStaleMountTarget(target); err != nil {
+					logger.Warn("local stale recovery failed", "target", target, "error", err)
+				}
+				if isTargetInProcMounts(target) {
+					return fmt.Errorf("target remains mounted after local unmount attempts: %s", target)
+				}
+			}
 		}
 		// Fresh mount with bind + options
 		if err := runCommand("bind mount local folder",
@@ -1039,7 +1285,12 @@ func mountLocalFolder(folder FolderMount) error {
 		mtab, err := os.ReadFile("/proc/mounts")
 		if err != nil {
 			logger.Warn("Failed to read /proc/mounts, assuming remount needed:", err)
-			return ensureMountedWithOpts(true)
+			if err := ensureMountedWithOpts(true); err != nil {
+				return err
+			}
+			trackMount(folder)
+			cancelMountRetry(target)
+			return nil
 		}
 
 		targetEsc := strings.ReplaceAll(target, " ", "\\040")
@@ -1146,6 +1397,14 @@ func mountSharedFolderOnce(folder FolderMount) error {
 		}
 	}
 
+	// Quick check: if already mounted and working, return success immediately
+	if isMountWorking(target) {
+		logger.Info("NFS share already mounted and working, skipping mount:", source, "->", target)
+		trackMount(folder)
+		cancelMountRetry(target)
+		return nil
+	}
+
 	opts := effectiveNFSMountOptions()
 
 	// Ensure mount point exists BEFORE checking if it's mounted
@@ -1158,14 +1417,39 @@ func mountSharedFolderOnce(folder FolderMount) error {
 
 	ensureMountedWithOpts := func(remount bool) error {
 		if remount {
-			// Try remount in place first
-			if err := runCommand("remount nfs share with correct opts",
-				"sudo", "mount", "-t", "nfs4", "-o", "remount,"+strings.Join(opts, ","), source, target); err == nil {
-				return nil
+			// Check if the mount is stale first
+			if isMountStale(target) {
+				logger.Warn("Detected stale mount, performing full recovery", "target", target)
+				if err := recoverStaleMountTarget(target); err != nil {
+					logger.Warn("Stale mount recovery failed", "error", err)
+				}
+				// Continue to fresh mount after recovery
+			} else {
+				// Try remount in place first for non-stale mounts
+				if err := runCommand("remount nfs share with correct opts",
+					"sudo", "mount", "-t", "nfs4", "-o", "remount,"+strings.Join(opts, ","), source, target); err == nil {
+					return nil
+				}
+				// Fall back to full unmount + mount if remount failed
+				logger.Warn("In-place remount failed, doing full unmount+mount")
 			}
-			// Fall back to full unmount + mount if remount failed
-			logger.Warn("In-place remount failed, doing full unmount+mount")
+
+			// Force unmount
 			_ = runCommand("unmount nfs share", "sudo", "umount", "-f", target)
+			// If force unmount didn't work, try lazy unmount
+			if isTargetInProcMounts(target) {
+				_ = runCommand("lazy unmount nfs share", "sudo", "umount", "-f", "-l", target)
+			}
+			// Wait for unmount to complete
+			if !waitForUnmount(target, 5*time.Second) {
+				logger.Warn("mount still present after unmount attempts, trying stale recovery", "target", target)
+				if err := recoverStaleMountTarget(target); err != nil {
+					logger.Warn("stale recovery failed after unmount", "target", target, "error", err)
+				}
+				if isTargetInProcMounts(target) {
+					return fmt.Errorf("target remains mounted after unmount attempts: %s", target)
+				}
+			}
 		}
 		// Fresh mount
 		if err := runCommand("mount nfs share",
@@ -1180,7 +1464,12 @@ func mountSharedFolderOnce(folder FolderMount) error {
 		mtab, err := os.ReadFile("/proc/mounts")
 		if err != nil {
 			logger.Warn("Failed to read /proc/mounts, assuming remount needed:", err)
-			return ensureMountedWithOpts(true)
+			if err := ensureMountedWithOpts(true); err != nil {
+				return err
+			}
+			trackMount(folder)
+			cancelMountRetry(target)
+			return nil
 		}
 
 		targetEsc := strings.ReplaceAll(target, " ", "\\040") // how /proc/mounts escapes spaces
@@ -1259,9 +1548,10 @@ func UnmountSharedFolder(folder FolderMount) error {
 		return fmt.Errorf("target is required")
 	}
 
-	// If already not mounted, just cleanup state.
-	if !isMounted(target) {
+	// Check if in /proc/mounts (more reliable than isMounted for unmount operations)
+	if !isTargetInProcMounts(target) {
 		untrackMount(target)
+		cancelMountRetry(target)
 		logger.Info("NFS share already unmounted: " + target)
 		return nil
 	}
@@ -1271,16 +1561,20 @@ func UnmountSharedFolder(folder FolderMount) error {
 		logger.Warn("force unmount (-f) failed, attempting lazy force:", err)
 	}
 
+	// Wait briefly for unmount to take effect
+	time.Sleep(500 * time.Millisecond)
+
 	// If still mounted, lazy-force unmount as a last resort.
-	if isMounted(target) {
+	if isTargetInProcMounts(target) {
 		if err := runCommand("lazy force unmount nfs share (-fl)", "sudo", "umount", "-f", "-l", target); err != nil {
 			logger.Warn("lazy force unmount (-fl) failed", err)
 		}
 	}
 
-	// Verify it is really unmounted
-	if isMounted(target) {
-		return fmt.Errorf("failed to unmount %s (still mounted)", target)
+	// Wait for unmount to complete with timeout
+	if !waitForUnmount(target, 10*time.Second) {
+		logger.Warn("mount still present in /proc/mounts after unmount attempts", "target", target)
+		// Don't return error for lazy unmount - it will complete eventually
 	}
 
 	logger.Info("NFS share unmounted: " + target)
@@ -1288,7 +1582,7 @@ func UnmountSharedFolder(folder FolderMount) error {
 	untrackMount(target)
 	cancelMountRetry(target)
 
-	//delete target folder if it can be deleted
+	// Delete target folder if it can be deleted
 	_ = os.Remove(folder.Target)
 	return nil
 }
