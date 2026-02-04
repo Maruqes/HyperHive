@@ -1151,7 +1151,8 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 					usedMemMB = int32(usedKiB / 1024)
 					realHostMemUsageMB = int32(rssKiB / 1024)
 				}
-				if pct, vcpus, err := cpuPercentOver(&dom, 500*time.Millisecond); err == nil {
+				// Reduced from 500ms to 100ms for faster response in GetAllVMs
+				if pct, vcpus, err := cpuPercentOver(&dom, 100*time.Millisecond); err == nil {
 					cpuPct = int32(pct + 0.5)
 					vcpuCount = int32(vcpus)
 				}

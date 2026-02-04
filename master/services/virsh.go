@@ -620,6 +620,12 @@ func (v *VirshService) GetAllVms(ctx context.Context) ([]VmType, []string, error
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
+	// Fetch all live VM names upfront in a single query
+	liveVmNames, err := db.GetAllVmLiveNames(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get live VM names: %v", err)
+	}
+
 	addToAllVms := func(conn *grpc.ClientConn) {
 		defer wg.Done() //settar finishado no waitgroup meus caros
 
@@ -641,12 +647,8 @@ func (v *VirshService) GetAllVms(ctx context.Context) ([]VmType, []string, error
 		}
 
 		for _, vm := range vms.Vms {
-			isLive, err := db.DoesVmLiveExist(ctx, vm.Name)
-			if err != nil {
-				mu.Lock()
-				erros = append(erros, fmt.Errorf("failed to check if live VM exists in database: %v", err))
-				mu.Unlock()
-			}
+			// Use the pre-fetched map instead of per-VM DB query
+			isLive := liveVmNames[vm.Name]
 
 			//if name already in allVms skip (check under mutex)
 			mu.Lock()

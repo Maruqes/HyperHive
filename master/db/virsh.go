@@ -88,6 +88,26 @@ func DoesVmLiveExist(ctx context.Context, name string) (bool, error) {
 	return count > 0, nil
 }
 
+// GetAllVmLiveNames returns a set of all VM names that are marked as live-migratable.
+func GetAllVmLiveNames(ctx context.Context) (map[string]bool, error) {
+	const query = `SELECT name FROM vm_live;`
+	rows, err := DB.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]bool)
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		result[name] = true
+	}
+	return result, rows.Err()
+}
+
 type AutoStart struct {
 	Id     int
 	VmName string
@@ -205,4 +225,24 @@ func DoesAutoStartExist(ctx context.Context, vmName string) (bool, error) {
 		return false, err
 	}
 	return count > 0, nil
+}
+
+// GetAllAutoStartVmNames returns a set of all VM names that have auto-start enabled.
+func GetAllAutoStartVmNames(ctx context.Context) (map[string]bool, error) {
+	const query = `SELECT vm_name FROM auto_start;`
+	rows, err := DB.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]bool)
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		result[name] = true
+	}
+	return result, rows.Err()
 }

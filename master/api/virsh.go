@@ -149,6 +149,19 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	logger.Infof("getAllVms: got %d VMs in %s", len(res), time.Since(start).Round(time.Millisecond))
 
+	// Batch fetch all auto-start and NFS data upfront to avoid per-VM DB calls
+	autoStartMap, err := db.GetAllAutoStartVmNames(r.Context())
+	if err != nil {
+		logger.Warnf("getAllVms: failed to get auto-start map: %v", err)
+		autoStartMap = make(map[string]bool)
+	}
+
+	nfsShares, err := db.GetAllNFShares(r.Context())
+	if err != nil {
+		logger.Warnf("getAllVms: failed to get NFS shares: %v", err)
+		nfsShares = nil
+	}
+
 	opts := protojson.MarshalOptions{
 		EmitUnpopulated: true,
 		UseEnumNumbers:  true,
@@ -171,29 +184,49 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resolveHasVNC := func(vm services.VmType) bool {
-		fallbackHasVNC := vm.Vm != nil && strings.TrimSpace(vm.Vm.NovncPort) != ""
-		videoInfo, err := virshServices.GetNoVNCVideo(vm.Name)
-		if err != nil {
-			logger.Warnf("getAllVms: get noVNC video for vm %s failed, fallback to novncPort: %v", vm.Name, err)
-			return fallbackHasVNC
+		// Fast path: use NovncPort from the VM data directly
+		// This avoids extra gRPC calls for VNC info
+		if vm.Vm == nil {
+			return false
 		}
+		return strings.TrimSpace(vm.Vm.NovncPort) != "" && vm.Vm.NovncPort != "0"
+	}
 
-		modelType := strings.ToLower(strings.TrimSpace(videoInfo.GetModelType()))
-		if modelType != "" {
-			return modelType != "none"
+	// Helper to find NFS ID from pre-fetched shares using disk path matching
+	findNfsIdByDiskPath := func(diskPath string) int {
+		if diskPath == "" || nfsShares == nil {
+			return 0
 		}
-
-		// Compatibility fallback if model_type is absent.
-		return videoInfo.GetEnabled()
+		diskPath = filepath.Clean(diskPath)
+		var matchedID int
+		var longestLen int
+		for _, share := range nfsShares {
+			base := filepath.Clean(share.Target)
+			if base == "" {
+				continue
+			}
+			// Check if diskPath is within or under the share path
+			if base == "/" {
+				if strings.HasPrefix(diskPath, "/") && len(base) > longestLen {
+					matchedID = share.Id
+					longestLen = len(base)
+				}
+			} else if strings.HasPrefix(diskPath, base) {
+				if len(diskPath) == len(base) || diskPath[len(base)] == '/' {
+					if len(base) > longestLen {
+						matchedID = share.Id
+						longestLen = len(base)
+					}
+				}
+			}
+		}
+		return matchedID
 	}
 
 	processVM := func(idx int, vm services.VmType) {
 
-		autoStart, err := db.DoesAutoStartExist(r.Context(), vm.Name)
-		if err != nil {
-			setFirstErr(err)
-			return
-		}
+		// Use pre-fetched autoStart map instead of per-VM DB query
+		autoStart := autoStartMap[vm.Name]
 		hasVNC := resolveHasVNC(vm)
 
 		vmMap := map[string]interface{}{
@@ -219,7 +252,8 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 		vmMap["hasvnc"] = hasVNC
 		vmMap["novnclink"] = env512.MAIN_LINK + fmt.Sprintf("/novnc/vnc.html?path=/novnc/ws%%3Fvm%%3D%v", vmMap["name"])
 		if vm.Vm != nil {
-			if nfsID, err := virshServices.GetNfsByVM(r.Context(), vm.Vm); err == nil {
+			// Use pre-fetched NFS shares instead of per-VM query
+			if nfsID := findNfsIdByDiskPath(vm.Vm.DiskPath); nfsID > 0 {
 				vmMap["nfs_id"] = nfsID
 			}
 		}
