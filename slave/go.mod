@@ -3,7 +3,7 @@ module slave
 go 1.25.0
 
 require (
-	github.com/Maruqes/512SvMan/api v0.0.0
+	github.com/Maruqes/512SvMan/api v0.0.0-20260204034339-ebee86774e12
 	github.com/Maruqes/512SvMan/logger v0.0.0-20251001141129-5e5e217740cf
 	github.com/cavaliergopher/grab/v3 v3.0.1
 	github.com/coreos/go-systemd/v22 v22.6.0

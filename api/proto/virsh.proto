@@ -45,8 +45,8 @@ message Vm {
   string name = 2;
   VmState state = 3;
   string novncPort = 4;
-  int32 cpuCount = 5;        // current cpu count
-  int32 memoryMB = 6;        // current mb
+  int32 cpuCount = 5; // current cpu count
+  int32 memoryMB = 6; // current mb
   int32 currentCpuUsage = 7; // current %
   int32 currentMemoryUsageMB = 8;
   int32 diskSizeGB = 9;
@@ -57,9 +57,10 @@ message Vm {
   string VNCPassword = 14;
   string CPUXML = 15;
   int32 DefinedCPUS = 16; // vm as for emxaple 5 cpus
-  int32 DefinedRam = 17;  // vm has 16G of memory (its in megas)
+  int32 DefinedRam = 17; // vm has 16G of memory (its in megas)
   int32 AllocatedGb = 18;
   int32 RealHostMemUsage = 19;
+  string VideoModelType = 20; // video model type (e.g., "qxl", "virtio", "vga", "none")
 }
 
 message GetVmByNameRequest { string name = 1; }

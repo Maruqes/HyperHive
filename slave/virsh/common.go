@@ -1170,6 +1170,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 			networkName := ""
 			vncPassword := ""
 			cpuXML := ""
+			videoModelType := ""
 			if xmlDesc != "" {
 				if p, err := vncPortFromDomainXML(xmlDesc); err != nil {
 					warns = append(warns, fmt.Sprintf("%s: parse vnc port: %v", name, err))
@@ -1192,6 +1193,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 					vncPassword = pwd
 				}
 				cpuXML = extractCPUXML(xmlDesc)
+				videoModelType = extractVideoModelType(xmlDesc)
 				if parsedCPUs, parsedMemMB, err := definedResourcesFromDomainXML(xmlDesc); err != nil {
 					warns = append(warns, fmt.Sprintf("%s: defined resources: %v", name, err))
 				} else {
@@ -1227,6 +1229,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 			info.VNCPassword = vncPassword
 			info.CPUXML = cpuXML
 			info.SpritePort = strconv.Itoa(spicePort)
+			info.VideoModelType = videoModelType
 			if diskInfo != nil {
 				info.AllocatedGb = int32(diskInfo.AllocatedGB)
 			} else {

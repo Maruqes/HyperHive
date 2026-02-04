@@ -125,7 +125,7 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 			}
 		}
 	}(identifier)
-	
+
 	flags := libvirt.MIGRATE_PERSIST_DEST | libvirt.MIGRATE_UNDEFINE_SOURCE | libvirt.MIGRATE_PEER2PEER | libvirt.MIGRATE_TUNNELLED | libvirt.MIGRATE_AUTO_CONVERGE | libvirt.MIGRATE_ABORT_ON_ERROR
 	if opts.Live {
 		flags |= libvirt.MIGRATE_LIVE
@@ -186,6 +186,18 @@ func extractCPUXML(s string) string {
 		return ""
 	}
 	return m
+}
+
+// extractVideoModelType extracts the first video model type from domain XML
+// Returns empty string if no video device found, or the model type (e.g., "qxl", "virtio", "vga", "none")
+func extractVideoModelType(xmlDesc string) string {
+	// Simple regex to extract <video><model type="..."/></video>
+	re := regexp.MustCompile(`<video[^>]*>[\s\S]*?<model[^>]*type\s*=\s*["']([^"']+)["']`)
+	matches := re.FindStringSubmatch(xmlDesc)
+	if len(matches) >= 2 {
+		return strings.TrimSpace(matches[1])
+	}
+	return ""
 }
 
 type ColdMigrationInfo struct {

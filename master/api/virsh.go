@@ -184,11 +184,16 @@ func getAllVms(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resolveHasVNC := func(vm services.VmType) bool {
-		// Fast path: use NovncPort from the VM data directly
-		// This avoids extra gRPC calls for VNC info
 		if vm.Vm == nil {
 			return false
 		}
+		// Use VideoModelType from the VM data (already fetched from slave)
+		// This avoids extra gRPC calls per VM
+		modelType := strings.ToLower(strings.TrimSpace(vm.Vm.VideoModelType))
+		if modelType != "" {
+			return modelType != "none"
+		}
+		// Fallback: check if VNC port is set and valid
 		return strings.TrimSpace(vm.Vm.NovncPort) != "" && vm.Vm.NovncPort != "0"
 	}
 
