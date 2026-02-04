@@ -162,7 +162,7 @@ func PingMaster(conn *grpc.ClientConn) {
 	defer ticker.Stop()
 
 	consecutiveFailures := 0
-	const maxConsecutiveFailures = 10 // Allow more ping failures before restarting
+	const maxConsecutiveFailures = 5 // Restart after 5 consecutive failures
 
 	for {
 		h := pb.NewProtocolServiceClient(conn)
@@ -188,19 +188,21 @@ func PingMaster(conn *grpc.ClientConn) {
 				os.Exit(1)
 				return
 			case connectivity.TransientFailure:
-				if consecutiveFailures >= maxConsecutiveFailures {
-					logger.Error("too many consecutive ping failures in transient failure state; restarting")
-					_ = conn.Close()
-					if err := restartSelf(); err != nil {
-						logger.Error("failed to restart slave process", "error", err)
-					}
-					os.Exit(1)
-					return
-				}
-				// Try to reconnect
+				logger.Warn("connection in transient failure; attempting to reconnect")
 				conn.Connect()
 			default:
 				logger.Debug("connection state while pinging master", "state", state.String())
+			}
+
+			// Restart after too many consecutive failures regardless of connection state
+			if consecutiveFailures >= maxConsecutiveFailures {
+				logger.Errorf("too many consecutive ping failures (%d); master may have restarted; restarting slave", consecutiveFailures)
+				_ = conn.Close()
+				if err := restartSelf(); err != nil {
+					logger.Error("failed to restart slave process", "error", err)
+				}
+				os.Exit(1)
+				return
 			}
 		} else {
 			consecutiveFailures = 0 // Reset on successful ping
