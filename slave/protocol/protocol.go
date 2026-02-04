@@ -158,56 +158,70 @@ func monitorConnection(conn *grpc.ClientConn) {
 
 // pinga todas as conexoes slave -> master (master server)
 func PingMaster(conn *grpc.ClientConn) {
-	ticker := time.NewTicker(time.Duration(env512.PingInterval) * time.Second)
-	defer ticker.Stop()
-
 	consecutiveFailures := 0
 	const maxConsecutiveFailures = 5 // Restart after 5 consecutive failures
 
-	for {
+	doPing := func() bool {
 		h := pb.NewProtocolServiceClient(conn)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		_, err := h.Notify(ctx, &pb.NotifyRequest{Text: "Ping do Slave"})
 		cancel()
+
 		if err != nil {
 			consecutiveFailures++
 			logger.Errorf("failed to ping master (failures: %d/%d): %v", consecutiveFailures, maxConsecutiveFailures, err)
 
 			// Check connection state and handle accordingly
 			state := conn.GetState()
+			logger.Infof("connection state: %s", state.String())
+
 			switch state {
 			case connectivity.Idle:
 				logger.Info("connection idle; attempting to reconnect")
 				conn.Connect()
 			case connectivity.Shutdown:
-				logger.Error("connection to master is shutdown; restarting")
-				_ = conn.Close()
-				if err := restartSelf(); err != nil {
-					logger.Error("failed to restart slave process", "error", err)
-				}
-				os.Exit(1)
-				return
+				logger.Error("connection to master is shutdown; restarting slave")
+				return false // trigger restart
 			case connectivity.TransientFailure:
 				logger.Warn("connection in transient failure; attempting to reconnect")
 				conn.Connect()
-			default:
-				logger.Debug("connection state while pinging master", "state", state.String())
 			}
 
 			// Restart after too many consecutive failures regardless of connection state
 			if consecutiveFailures >= maxConsecutiveFailures {
 				logger.Errorf("too many consecutive ping failures (%d); master may have restarted; restarting slave", consecutiveFailures)
-				_ = conn.Close()
-				if err := restartSelf(); err != nil {
-					logger.Error("failed to restart slave process", "error", err)
-				}
-				os.Exit(1)
-				return
+				return false // trigger restart
 			}
-		} else {
-			consecutiveFailures = 0 // Reset on successful ping
+			return true // continue
 		}
+
+		consecutiveFailures = 0 // Reset on successful ping
+		return true             // continue
+	}
+
+	// Primeiro ping imediato
+	if !doPing() {
+		_ = conn.Close()
+		if err := restartSelf(); err != nil {
+			logger.Error("failed to restart slave process", "error", err)
+		}
+		os.Exit(1)
+		return
+	}
+
+	ticker := time.NewTicker(time.Duration(env512.PingInterval) * time.Second)
+	defer ticker.Stop()
+
+	for {
 		<-ticker.C
+		if !doPing() {
+			_ = conn.Close()
+			if err := restartSelf(); err != nil {
+				logger.Error("failed to restart slave process", "error", err)
+			}
+			os.Exit(1)
+			return
+		}
 	}
 }
 
