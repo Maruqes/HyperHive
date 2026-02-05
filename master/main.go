@@ -80,9 +80,7 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 		// Continue anyway - NFS mount failure shouldn't block VM startup
 	}
 
-	// Wait for NFS mounts to stabilize before starting VMs
-	// Reduced from 120s to 10s since NFS operations now have proper timeouts
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 60)
 
 	logger.Info("Auto starting vms for", machineName)
 	virshServices := services.VirshService{}
