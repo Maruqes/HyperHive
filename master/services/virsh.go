@@ -1102,6 +1102,7 @@ func (v *VirshService) startAutoStartVms(ctx context.Context, machineFilter stri
 	const nfsReadWriteDelay = 2 * time.Second
 	const maxTries = 180 // 30 minutes at 10 second intervals
 	const baseWaitTime = 10 * time.Second
+	const startupTimeOverLoad = 5 * time.Minute // to dont oveload
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -1229,6 +1230,7 @@ func (v *VirshService) startAutoStartVms(ctx context.Context, machineFilter stri
 				logger.Infof("autostart vm %s successfully started after %d attempts", vm.Name, tries)
 				break
 			}
+			time.Sleep(startupTimeOverLoad)
 		}
 	}
 	return nil
