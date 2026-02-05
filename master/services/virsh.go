@@ -1096,13 +1096,15 @@ func (v *VirshService) StartAutoStartVmsForMachine(ctx context.Context, machineN
 	return v.startAutoStartVms(ctx, machineName)
 }
 
+var runVmMutex sync.Mutex
+
 func (v *VirshService) startAutoStartVms(ctx context.Context, machineFilter string) error {
 	const nfsMountPrefix = "/mnt/512SvMan/shared/"
 	const nfsReadWriteTries = 10
 	const nfsReadWriteDelay = 2 * time.Second
 	const maxTries = 180 // 30 minutes at 10 second intervals
 	const baseWaitTime = 10 * time.Second
-	const startupTimeOverLoad = 5 * time.Minute // to dont oveload
+	const startupTimeOverLoad = 5 * time.Minute // to dont overload - spacing between VM starts
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -1111,6 +1113,53 @@ func (v *VirshService) startAutoStartVms(ctx context.Context, machineFilter stri
 	autoStart, err := db.GetAllAutoStart(ctx)
 	if err != nil {
 		return err
+	}
+
+	runVm := func(vm *grpcVirsh.Vm, conn *protocol.ConnectionsStruct, auto db.AutoStart, tries int) bool {
+		runVmMutex.Lock()
+		defer runVmMutex.Unlock()
+
+		// All NFS checks passed (or disk is not on NFS), try to start the VM
+		startTime := time.Now()
+		logger.Infof("start vm: %s at %s", vm.Name, startTime.Format("15:04:05"))
+		if err := virsh.StartVm(context.Background(), conn.Connection, vm); err != nil {
+			if strings.Contains(err.Error(), "domain is already running") {
+				logger.Infof("started %s vm at %s (already running)", vm.Name, startTime.Format("15:04:05"))
+				// Sleep 5 minutes before unlocking to ensure spacing between VM starts
+				time.Sleep(startupTimeOverLoad)
+				return true // success, VM already running
+			}
+			// Check if error is related to storage/NFS issues
+			errLower := strings.ToLower(err.Error())
+			if strings.Contains(errLower, "storage") || strings.Contains(errLower, "volume") ||
+				strings.Contains(errLower, "cannot access") || strings.Contains(errLower, "no such file") ||
+				strings.Contains(errLower, "stale") || strings.Contains(errLower, "nfs") {
+				logger.Warnf("cannot start vm %s due to storage issue (NFS may not be ready): %v", vm.Name, err)
+			} else {
+				logger.Error("cannot start vm auto start: " + vm.Name + " err: " + err.Error())
+			}
+			return false // retry
+		}
+
+		// Wait for VM to start and verify it's running
+		time.Sleep(baseWaitTime)
+
+		vm, err = v.GetVmByName(auto.VmName)
+		if err != nil {
+			logger.Error("auto start vm does not exist: " + auto.VmName + " err: " + err.Error())
+			return false // retry
+		}
+		if vm == nil {
+			logger.Error("auto start vm does not exist: " + auto.VmName)
+			return false // retry
+		}
+		if vm.State == grpcVirsh.VmState_RUNNING {
+			logger.Infof("started %s vm at %s (successfully started after %d attempts)", vm.Name, startTime.Format("15:04:05"), tries)
+			// Sleep 5 minutes before unlocking to ensure spacing between VM starts
+			time.Sleep(startupTimeOverLoad)
+			return true // success
+		}
+		return false // retry
 	}
 
 	for _, auto := range autoStart {
@@ -1195,42 +1244,10 @@ func (v *VirshService) startAutoStartVms(ctx context.Context, machineFilter stri
 				logger.Infof("autostart vm %s: NFS read/write ok on %s (%s)", vm.Name, vm.MachineName, parentDir)
 			}
 
-			// All NFS checks passed (or disk is not on NFS), try to start the VM
-			logger.Info("start vm: " + vm.Name)
-			if err := virsh.StartVm(context.Background(), conn.Connection, vm); err != nil {
-				if strings.Contains(err.Error(), "domain is already running") {
-					break
-				}
-				// Check if error is related to storage/NFS issues
-				errLower := strings.ToLower(err.Error())
-				if strings.Contains(errLower, "storage") || strings.Contains(errLower, "volume") ||
-					strings.Contains(errLower, "cannot access") || strings.Contains(errLower, "no such file") ||
-					strings.Contains(errLower, "stale") || strings.Contains(errLower, "nfs") {
-					logger.Warnf("cannot start vm %s due to storage issue (NFS may not be ready): %v", vm.Name, err)
-				} else {
-					logger.Error("cannot start vm auto start: " + vm.Name + " err: " + err.Error())
-				}
-				time.Sleep(baseWaitTime)
-				continue
+			worked := runVm(vm, conn, auto, tries)
+			if worked {
+				break 
 			}
-
-			// Wait for VM to start and verify it's running
-			time.Sleep(baseWaitTime)
-
-			vm, err = v.GetVmByName(auto.VmName)
-			if err != nil {
-				logger.Error("auto start vm does not exist: " + auto.VmName + " err: " + err.Error())
-				continue
-			}
-			if vm == nil {
-				logger.Error("auto start vm does not exist: " + auto.VmName)
-				continue
-			}
-			if vm.State == grpcVirsh.VmState_RUNNING {
-				logger.Infof("autostart vm %s successfully started after %d attempts", vm.Name, tries)
-				break
-			}
-			time.Sleep(startupTimeOverLoad)
 		}
 	}
 	return nil
