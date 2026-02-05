@@ -544,16 +544,136 @@ func (s *NFSService) MountAllSharedFolders(folders ...db.NFSShare) error {
 }
 
 func (s *NFSService) UpdateNFSShit(ctx context.Context) error {
+	errParts := make([]string, 0, 2)
+
 	err := s.SyncSharedFolder(ctx)
 	if err != nil {
 		logger.Errorf("SyncSharedFolder failed: %v", err)
+		errParts = append(errParts, fmt.Sprintf("sync shared folders: %v", err))
 	}
 
 	err = s.MountAllSharedFolders()
 	if err != nil {
 		logger.Errorf("MountAllSharedFolders failed: %v", err)
+		errParts = append(errParts, fmt.Sprintf("mount shared folders: %v", err))
 	}
+
+	if len(errParts) > 0 {
+		return fmt.Errorf("%s", strings.Join(errParts, " | "))
+	}
+
 	return nil
+}
+
+func (s *NFSService) ensureNFSWorkingOnMachine(ctx context.Context, machineName string) error {
+	machineName = strings.TrimSpace(machineName)
+	if machineName == "" {
+		return fmt.Errorf("machine name is required")
+	}
+
+	conn := protocol.GetConnectionByMachineName(machineName)
+	if conn == nil || conn.Connection == nil {
+		return fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	if _, err := protocol.EnsureConnectionReady(conn.Connection, 15*time.Second); err != nil {
+		return fmt.Errorf("connection to %s is not ready: %w", machineName, err)
+	}
+
+	shares, err := db.GetAllNFShares(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to load nfs shares: %w", err)
+	}
+	if len(shares) == 0 {
+		return nil
+	}
+
+	issues := make([]string, 0)
+	for _, share := range shares {
+		mount := &proto.FolderMount{
+			MachineName:     share.MachineName,
+			FolderPath:      share.FolderPath,
+			Source:          share.Source,
+			Target:          share.Target,
+			HostNormalMount: share.HostNormalMount,
+		}
+
+		status, err := nfs.GetSharedFolderStatus(conn.Connection, mount)
+		if err != nil {
+			issues = append(issues, fmt.Sprintf("%s status check failed: %v", share.Target, err))
+			continue
+		}
+		if status == nil || !status.Working {
+			issues = append(issues, fmt.Sprintf("%s is not mounted/working", share.Target))
+			continue
+		}
+		if err := nfs.CheckReadWrite(conn.Connection, share.Target); err != nil {
+			issues = append(issues, fmt.Sprintf("%s read/write check failed: %v", share.Target, err))
+		}
+	}
+
+	if len(issues) > 0 {
+		return fmt.Errorf("nfs is not fully working on %s: %s", machineName, strings.Join(issues, "; "))
+	}
+
+	return nil
+}
+
+func (s *NFSService) EnsureNFSReadyForMachine(ctx context.Context, machineName string, retryDelay time.Duration) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if retryDelay <= 0 {
+		retryDelay = 10 * time.Second
+	}
+
+	machineName = strings.TrimSpace(machineName)
+	if machineName == "" {
+		return fmt.Errorf("machine name is required")
+	}
+
+	attempt := 0
+	var lastErr error
+
+	for {
+		if err := ctx.Err(); err != nil {
+			if lastErr != nil {
+				return fmt.Errorf("nfs readiness check stopped for %s after %d attempts: %w (last error: %v)", machineName, attempt, err, lastErr)
+			}
+			return fmt.Errorf("nfs readiness check stopped for %s: %w", machineName, err)
+		}
+
+		attempt++
+		stepErrs := make([]string, 0, 2)
+
+		if err := s.UpdateNFSShit(ctx); err != nil {
+			stepErrs = append(stepErrs, err.Error())
+		}
+		if err := s.ensureNFSWorkingOnMachine(ctx, machineName); err != nil {
+			stepErrs = append(stepErrs, err.Error())
+		}
+
+		if len(stepErrs) == 0 {
+			if attempt > 1 {
+				logger.Infof("NFS became ready on %s after %d attempts", machineName, attempt)
+			}
+			return nil
+		}
+
+		lastErr = fmt.Errorf("%s", strings.Join(stepErrs, " | "))
+		logger.Warnf("NFS not ready on %s (attempt %d): %v", machineName, attempt, lastErr)
+
+		timer := time.NewTimer(retryDelay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			if lastErr != nil {
+				return fmt.Errorf("nfs readiness check stopped for %s after %d attempts: %w (last error: %v)", machineName, attempt, ctx.Err(), lastErr)
+			}
+			return fmt.Errorf("nfs readiness check stopped for %s: %w", machineName, ctx.Err())
+		case <-timer.C:
+		}
+	}
 }
 
 func (s *NFSService) DownloadISO(ctx context.Context, url, isoName string, nfsShare db.NFSShare) (string, error) {

@@ -74,17 +74,20 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 
 	logger.Info("Mounting all NFS for", machineName)
 	nfsService := services.NFSService{}
-	err = nfsService.UpdateNFSShit(context.Background())
+	const nfsReadyTimeout = 20 * time.Minute
+	const nfsReadyRetryDelay = 10 * time.Second
+	nfsCtx, cancelNFS := context.WithTimeout(context.Background(), nfsReadyTimeout)
+	defer cancelNFS()
+	err = nfsService.EnsureNFSReadyForMachine(nfsCtx, machineName, nfsReadyRetryDelay)
 	if err != nil {
-		logger.Errorf("UpdateNFS failed for %s: %v", machineName, err)
-		// Continue anyway - NFS mount failure shouldn't block VM startup
-	}
+		logger.Errorf("NFS is not ready for %s, skipping autostart: %v", machineName, err)
 
-	time.Sleep(time.Second * 60)
+		return err
+	}
 
 	logger.Info("Auto starting vms for", machineName)
 	virshServices := services.VirshService{}
-	err = virshServices.StartAutoStartVms(context.Background())
+	err = virshServices.StartAutoStartVmsForMachine(context.Background(), machineName)
 	if err != nil {
 		logger.Errorf("StartAutoStartVms failed for %s: %v", machineName, err)
 	}

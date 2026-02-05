@@ -1085,9 +1085,24 @@ func checkNFSReadWrite(conn *grpc.ClientConn, path string, maxTries int, delay t
 }
 
 func (v *VirshService) StartAutoStartVms(ctx context.Context) error {
+	return v.startAutoStartVms(ctx, "")
+}
+
+func (v *VirshService) StartAutoStartVmsForMachine(ctx context.Context, machineName string) error {
+	machineName = strings.TrimSpace(machineName)
+	if machineName == "" {
+		return fmt.Errorf("machine name is required")
+	}
+	return v.startAutoStartVms(ctx, machineName)
+}
+
+func (v *VirshService) startAutoStartVms(ctx context.Context, machineFilter string) error {
 	const nfsMountPrefix = "/mnt/512SvMan/shared/"
 	const nfsReadWriteTries = 10
 	const nfsReadWriteDelay = 2 * time.Second
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	autoStart, err := db.GetAllAutoStart(ctx)
 	if err != nil {
@@ -1095,6 +1110,10 @@ func (v *VirshService) StartAutoStartVms(ctx context.Context) error {
 	}
 
 	for _, auto := range autoStart {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
 		vm, err := v.GetVmByName(auto.VmName)
 		if err != nil {
 			logger.Error("auto start vm does not exist: " + auto.VmName + " err: " + err.Error())
@@ -1108,9 +1127,15 @@ func (v *VirshService) StartAutoStartVms(ctx context.Context) error {
 		if vm.State == grpcVirsh.VmState_RUNNING {
 			continue
 		}
+		if machineFilter != "" && vm.MachineName != machineFilter {
+			continue
+		}
 
 		tries := 0
 		for {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 
 			//getting conn
 			conn := protocol.GetConnectionByMachineName(vm.MachineName)
