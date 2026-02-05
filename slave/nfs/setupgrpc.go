@@ -148,6 +148,15 @@ func (s *NFSService) CheckReadWrite(ctx context.Context, req *pb.FolderPath) (*p
 	return &pb.OkResponse{Ok: true, Message: "ok"}, nil
 }
 
+func (s *NFSService) CheckFileReadable(ctx context.Context, req *pb.FolderPath) (*pb.OkResponse, error) {
+	if err := CheckFileReadable(req.Path); err != nil {
+		logger.Error("CheckFileReadable failed", "error", err, "path", req.Path)
+		return &pb.OkResponse{Ok: false, Message: err.Error()}, err
+	}
+	logger.Info("CheckFileReadable succeeded", "path", req.Path)
+	return &pb.OkResponse{Ok: true, Message: "ok"}, nil
+}
+
 func (s *NFSService) Sync(ctx context.Context, req *pb.Empty) (*pb.OkResponse, error) {
 	err := Sync()
 	if err != nil {

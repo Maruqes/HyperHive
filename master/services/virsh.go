@@ -1100,6 +1100,9 @@ func (v *VirshService) startAutoStartVms(ctx context.Context, machineFilter stri
 	const nfsMountPrefix = "/mnt/512SvMan/shared/"
 	const nfsReadWriteTries = 10
 	const nfsReadWriteDelay = 2 * time.Second
+	const maxTries = 180 // 30 minutes at 10 second intervals
+	const baseWaitTime = 10 * time.Second
+
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -1141,52 +1144,77 @@ func (v *VirshService) startAutoStartVms(ctx context.Context, machineFilter stri
 			conn := protocol.GetConnectionByMachineName(vm.MachineName)
 			if conn == nil || conn.Connection == nil {
 				logger.Error("wtf how is not conn and found vm autostart bug wtfwtf")
-				time.Sleep(10 * time.Second)
+				time.Sleep(baseWaitTime)
 				continue
 			}
 
 			tries++
-			// 30*60(sec of min) = 1800    / 10(sleep time) =180, so this tries every 10 seconds for half an hour
-			if tries == 180 {
-				logger.Error("Tried to start vm " + vm.Name + " 180 times without success")
+			if tries == maxTries {
+				logger.Error("Tried to start vm " + vm.Name + " " + fmt.Sprintf("%d", maxTries) + " times without success")
 				break
 			}
 
 			diskPath := strings.TrimSpace(vm.DiskPath)
 			if diskPath != "" && strings.HasPrefix(diskPath, nfsMountPrefix) {
-				logger.Infof("autostart vm %s: checking NFS disk path on %s (%s)", vm.Name, vm.MachineName, diskPath)
+				// Step 1: Check if disk path/file exists
+				logger.Infof("autostart vm %s: checking NFS disk path on %s (%s) [attempt %d/%d]", vm.Name, vm.MachineName, diskPath, tries, maxTries)
 				found, err := nfs.CanFindFileOrDir(conn.Connection, diskPath)
 				if err != nil {
 					logger.Errorf("disk path check failed for vm %s on %s (%s): %v", vm.Name, vm.MachineName, diskPath, err)
-					time.Sleep(10 * time.Second)
+					time.Sleep(baseWaitTime)
 					continue
 				}
 				if !found {
-					logger.Warnf("disk path not ready for vm %s on %s (%s)", vm.Name, vm.MachineName, diskPath)
-					time.Sleep(10 * time.Second)
+					logger.Warnf("disk path not ready for vm %s on %s (%s) - waiting for NFS mount", vm.Name, vm.MachineName, diskPath)
+					time.Sleep(baseWaitTime)
 					continue
 				}
 				logger.Infof("autostart vm %s: disk path found on %s (%s)", vm.Name, vm.MachineName, diskPath)
-				if err := checkNFSReadWrite(conn.Connection, diskPath, nfsReadWriteTries, nfsReadWriteDelay); err != nil {
-					logger.Warnf("nfs read/write not ready for vm %s on %s (%s): %v", vm.Name, vm.MachineName, diskPath, err)
-					time.Sleep(10 * time.Second)
+
+				// Step 2: Check if the qcow2 file can actually be read (not stale NFS handle)
+				// This catches the race condition where NFS appears mounted but files aren't accessible yet
+				if strings.HasSuffix(strings.ToLower(diskPath), ".qcow2") || strings.HasSuffix(strings.ToLower(diskPath), ".raw") {
+					logger.Infof("autostart vm %s: verifying disk file is readable on %s (%s)", vm.Name, vm.MachineName, diskPath)
+					if err := nfs.CheckFileReadable(conn.Connection, diskPath); err != nil {
+						logger.Warnf("qcow2 file not readable for vm %s on %s (%s): %v - NFS may still be initializing", vm.Name, vm.MachineName, diskPath, err)
+						time.Sleep(baseWaitTime)
+						continue
+					}
+					logger.Infof("autostart vm %s: disk file is readable on %s (%s)", vm.Name, vm.MachineName, diskPath)
+				}
+
+				// Step 3: Check NFS read/write capability on the parent directory
+				// This ensures we can actually use the storage
+				parentDir := filepath.Dir(diskPath)
+				if err := checkNFSReadWrite(conn.Connection, parentDir, nfsReadWriteTries, nfsReadWriteDelay); err != nil {
+					logger.Warnf("nfs read/write not ready for vm %s on %s (%s): %v", vm.Name, vm.MachineName, parentDir, err)
+					time.Sleep(baseWaitTime)
 					continue
 				}
-				logger.Infof("autostart vm %s: NFS read/write ok on %s (%s)", vm.Name, vm.MachineName, diskPath)
+				logger.Infof("autostart vm %s: NFS read/write ok on %s (%s)", vm.Name, vm.MachineName, parentDir)
 			}
 
-			//start vm, if after 10 secs is not start again for 30 mins
+			// All NFS checks passed (or disk is not on NFS), try to start the VM
 			logger.Info("start vm: " + vm.Name)
 			if err := virsh.StartVm(context.Background(), conn.Connection, vm); err != nil {
 				if strings.Contains(err.Error(), "domain is already running") {
-					continue
+					break
 				}
-				logger.Error("cannot start vm auto start: " + vm.Name + " err: " + err.Error())
-				time.Sleep(10 * time.Second)
+				// Check if error is related to storage/NFS issues
+				errLower := strings.ToLower(err.Error())
+				if strings.Contains(errLower, "storage") || strings.Contains(errLower, "volume") ||
+					strings.Contains(errLower, "cannot access") || strings.Contains(errLower, "no such file") ||
+					strings.Contains(errLower, "stale") || strings.Contains(errLower, "nfs") {
+					logger.Warnf("cannot start vm %s due to storage issue (NFS may not be ready): %v", vm.Name, err)
+				} else {
+					logger.Error("cannot start vm auto start: " + vm.Name + " err: " + err.Error())
+				}
+				time.Sleep(baseWaitTime)
 				continue
 			}
 
-			time.Sleep(10 * time.Second)
+			// Wait for VM to start and verify it's running
+			time.Sleep(baseWaitTime)
 
 			vm, err = v.GetVmByName(auto.VmName)
 			if err != nil {
@@ -1198,6 +1226,7 @@ func (v *VirshService) startAutoStartVms(ctx context.Context, machineFilter stri
 				continue
 			}
 			if vm.State == grpcVirsh.VmState_RUNNING {
+				logger.Infof("autostart vm %s successfully started after %d attempts", vm.Name, tries)
 				break
 			}
 		}

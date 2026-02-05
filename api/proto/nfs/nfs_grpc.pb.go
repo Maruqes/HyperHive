@@ -29,6 +29,7 @@ const (
 	NFSService_ListFolderContents_FullMethodName    = "/nfs.NFSService/ListFolderContents"
 	NFSService_CanFindFileOrDir_FullMethodName      = "/nfs.NFSService/CanFindFileOrDir"
 	NFSService_CheckReadWrite_FullMethodName        = "/nfs.NFSService/CheckReadWrite"
+	NFSService_CheckFileReadable_FullMethodName     = "/nfs.NFSService/CheckFileReadable"
 	NFSService_DownloadIso_FullMethodName           = "/nfs.NFSService/DownloadIso"
 )
 
@@ -46,6 +47,7 @@ type NFSServiceClient interface {
 	ListFolderContents(ctx context.Context, in *FolderPath, opts ...grpc.CallOption) (*FolderContents, error)
 	CanFindFileOrDir(ctx context.Context, in *FolderPath, opts ...grpc.CallOption) (*CreateResponse, error)
 	CheckReadWrite(ctx context.Context, in *FolderPath, opts ...grpc.CallOption) (*OkResponse, error)
+	CheckFileReadable(ctx context.Context, in *FolderPath, opts ...grpc.CallOption) (*OkResponse, error)
 	// nao devia estar aqui mas como download iso vai fazer download num folderMount facilita
 	DownloadIso(ctx context.Context, in *DownloadIsoRequest, opts ...grpc.CallOption) (*CreateResponse, error)
 }
@@ -158,6 +160,16 @@ func (c *nFSServiceClient) CheckReadWrite(ctx context.Context, in *FolderPath, o
 	return out, nil
 }
 
+func (c *nFSServiceClient) CheckFileReadable(ctx context.Context, in *FolderPath, opts ...grpc.CallOption) (*OkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OkResponse)
+	err := c.cc.Invoke(ctx, NFSService_CheckFileReadable_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *nFSServiceClient) DownloadIso(ctx context.Context, in *DownloadIsoRequest, opts ...grpc.CallOption) (*CreateResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CreateResponse)
@@ -182,6 +194,7 @@ type NFSServiceServer interface {
 	ListFolderContents(context.Context, *FolderPath) (*FolderContents, error)
 	CanFindFileOrDir(context.Context, *FolderPath) (*CreateResponse, error)
 	CheckReadWrite(context.Context, *FolderPath) (*OkResponse, error)
+	CheckFileReadable(context.Context, *FolderPath) (*OkResponse, error)
 	// nao devia estar aqui mas como download iso vai fazer download num folderMount facilita
 	DownloadIso(context.Context, *DownloadIsoRequest) (*CreateResponse, error)
 	mustEmbedUnimplementedNFSServiceServer()
@@ -220,6 +233,9 @@ func (UnimplementedNFSServiceServer) CanFindFileOrDir(context.Context, *FolderPa
 }
 func (UnimplementedNFSServiceServer) CheckReadWrite(context.Context, *FolderPath) (*OkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CheckReadWrite not implemented")
+}
+func (UnimplementedNFSServiceServer) CheckFileReadable(context.Context, *FolderPath) (*OkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CheckFileReadable not implemented")
 }
 func (UnimplementedNFSServiceServer) DownloadIso(context.Context, *DownloadIsoRequest) (*CreateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DownloadIso not implemented")
@@ -417,6 +433,24 @@ func _NFSService_CheckReadWrite_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NFSService_CheckFileReadable_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FolderPath)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NFSServiceServer).CheckFileReadable(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NFSService_CheckFileReadable_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NFSServiceServer).CheckFileReadable(ctx, req.(*FolderPath))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _NFSService_DownloadIso_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DownloadIsoRequest)
 	if err := dec(in); err != nil {
@@ -481,6 +515,10 @@ var NFSService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CheckReadWrite",
 			Handler:    _NFSService_CheckReadWrite_Handler,
+		},
+		{
+			MethodName: "CheckFileReadable",
+			Handler:    _NFSService_CheckFileReadable_Handler,
 		},
 		{
 			MethodName: "DownloadIso",

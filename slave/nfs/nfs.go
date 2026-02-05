@@ -1954,6 +1954,60 @@ func CanFindFileOrDir(folderPath string) (bool, error) {
 	return true, nil
 }
 
+// CheckFileReadable verifies a file can actually be opened and read.
+// This is more thorough than CanFindFileOrDir as it catches stale NFS handles
+// and other issues where the file appears to exist but can't be accessed.
+func CheckFileReadable(filePath string) error {
+	path := strings.TrimSpace(filePath)
+	if path == "" {
+		return fmt.Errorf("file path is required")
+	}
+
+	// First do a stat to check basic accessibility
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("file does not exist: %s", path)
+		}
+		// Check for stale NFS handle
+		if strings.Contains(err.Error(), "stale") || strings.Contains(err.Error(), "ESTALE") {
+			return fmt.Errorf("stale NFS file handle: %s", path)
+		}
+		return fmt.Errorf("failed to stat file: %w", err)
+	}
+
+	if info.IsDir() {
+		return fmt.Errorf("path is a directory, not a file: %s", path)
+	}
+
+	// Try to open the file to verify it's actually readable
+	f, err := os.Open(path)
+	if err != nil {
+		if strings.Contains(err.Error(), "stale") || strings.Contains(err.Error(), "ESTALE") {
+			return fmt.Errorf("stale NFS file handle when opening: %s", path)
+		}
+		return fmt.Errorf("failed to open file: %w", err)
+	}
+	defer f.Close()
+
+	// Try to read a small amount to verify the file is actually accessible
+	// For qcow2 files, the header is at least 72 bytes
+	buf := make([]byte, 512)
+	n, err := f.Read(buf)
+	if err != nil && err != io.EOF {
+		if strings.Contains(err.Error(), "stale") || strings.Contains(err.Error(), "ESTALE") {
+			return fmt.Errorf("stale NFS file handle when reading: %s", path)
+		}
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	if n == 0 && info.Size() > 0 {
+		return fmt.Errorf("file exists but could not read any bytes: %s", path)
+	}
+
+	return nil
+}
+
 const rwCheckAlphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 var rwCheckMax = big.NewInt(int64(len(rwCheckAlphabet)))

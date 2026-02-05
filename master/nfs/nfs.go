@@ -242,6 +242,27 @@ func CheckReadWrite(conn *grpc.ClientConn, path string) error {
 	return nil
 }
 
+// CheckFileReadable verifies that a file (like a qcow2 disk) can actually be opened and read.
+// This is more thorough than CanFindFileOrDir as it catches stale NFS handles.
+func CheckFileReadable(conn *grpc.ClientConn, path string) error {
+	client := pbnfs.NewNFSServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultNFSTimeout)
+	defer cancel()
+	res, err := client.CheckFileReadable(ctx, &pbnfs.FolderPath{
+		Path: path,
+	})
+	if err != nil {
+		return err
+	}
+	if !res.GetOk() {
+		if msg := res.GetMessage(); msg != "" {
+			return fmt.Errorf("%s", msg)
+		}
+		return fmt.Errorf("file readable check failed")
+	}
+	return nil
+}
+
 func Sync(conn *grpc.ClientConn) error {
 	client := pbnfs.NewNFSServiceClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), defaultNFSTimeout)
