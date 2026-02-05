@@ -38,7 +38,65 @@ var newSlaveCount int32
 var (
 	newSlaveMu       sync.Mutex
 	newSlaveInFlight = map[string]struct{}{}
+
+	delayedStartupMu       sync.Mutex
+	delayedStartupInFlight = map[string]struct{}{}
 )
+
+func scheduleDelayedSlaveStartup(machineName string) {
+	delayedStartupMu.Lock()
+	if _, ok := delayedStartupInFlight[machineName]; ok {
+		delayedStartupMu.Unlock()
+		logger.Warnf("delayed startup already scheduled for %s, skipping duplicate", machineName)
+		return
+	}
+	delayedStartupInFlight[machineName] = struct{}{}
+	delayedStartupMu.Unlock()
+
+	go func(machine string) {
+		defer func() {
+			delayedStartupMu.Lock()
+			delete(delayedStartupInFlight, machine)
+			delayedStartupMu.Unlock()
+		}()
+
+		const delayedStartupWait = 15 * time.Minute
+		const nfsReadyTimeout = 20 * time.Minute
+		const nfsReadyRetryDelay = 10 * time.Second
+
+		logger.Infof("delayed startup for %s scheduled in %s", machine, delayedStartupWait)
+		time.Sleep(delayedStartupWait)
+
+		logger.Infof("delayed startup for %s: rechecking NFS before starting services", machine)
+		nfsService := services.NFSService{}
+		nfsCtx, cancelNFS := context.WithTimeout(context.Background(), nfsReadyTimeout)
+		err := nfsService.EnsureNFSReadyForMachine(nfsCtx, machine, nfsReadyRetryDelay)
+		cancelNFS()
+		if err != nil {
+			logger.Errorf("delayed startup for %s aborted: NFS not ready: %v", machine, err)
+			return
+		}
+
+		logger.Info("Auto starting vms for", machine)
+		virshServices := services.VirshService{}
+		err = virshServices.StartAutoStartVmsForMachine(context.Background(), machine)
+		if err != nil {
+			logger.Errorf("StartAutoStartVms failed for %s: %v", machine, err)
+		}
+
+		k8sService := services.K8sService{}
+		err = k8sService.ConnectSlaveToCluster()
+		if err != nil && err != services.ErrSlaveMasterNotConnected {
+			logger.Errorf("k8s startup failed for %s: %v", machine, err)
+		}
+
+		dockerService := services.DockerService{}
+		err = dockerService.StartAlwaysContainers()
+		if err != nil {
+			logger.Errorf("dockerService startup failed for %s: %v", machine, err)
+		}
+	}(machineName)
+}
 
 func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 
@@ -80,29 +138,11 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 	defer cancelNFS()
 	err = nfsService.EnsureNFSReadyForMachine(nfsCtx, machineName, nfsReadyRetryDelay)
 	if err != nil {
-		logger.Errorf("NFS is not ready for %s, skipping autostart: %v", machineName, err)
-
+		logger.Errorf("NFS is not ready for %s: %v", machineName, err)
 		return err
 	}
 
-	logger.Info("Auto starting vms for", machineName)
-	virshServices := services.VirshService{}
-	err = virshServices.StartAutoStartVmsForMachine(context.Background(), machineName)
-	if err != nil {
-		logger.Errorf("StartAutoStartVms failed for %s: %v", machineName, err)
-	}
-
-	k8sService := services.K8sService{}
-	err = k8sService.ConnectSlaveToCluster()
-	if err != nil && err != services.ErrSlaveMasterNotConnected {
-		logger.Errorf("k8s startup failed for %s: %v", machineName, err)
-	}
-
-	dockerService := services.DockerService{}
-	err = dockerService.StartAlwaysContainers()
-	if err != nil {
-		logger.Errorf("dockerService startup failed for %s: %v", machineName, err)
-	}
+	scheduleDelayedSlaveStartup(machineName)
 
 	return nil
 }

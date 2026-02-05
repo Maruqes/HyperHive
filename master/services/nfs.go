@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -566,6 +567,8 @@ func (s *NFSService) UpdateNFSShit(ctx context.Context) error {
 }
 
 func (s *NFSService) ensureNFSWorkingOnMachine(ctx context.Context, machineName string) error {
+	const nfsMountPrefix = "/mnt/512SvMan/shared/"
+
 	machineName = strings.TrimSpace(machineName)
 	if machineName == "" {
 		return fmt.Errorf("machine name is required")
@@ -590,6 +593,10 @@ func (s *NFSService) ensureNFSWorkingOnMachine(ctx context.Context, machineName 
 
 	issues := make([]string, 0)
 	for _, share := range shares {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
 		mount := &proto.FolderMount{
 			MachineName:     share.MachineName,
 			FolderPath:      share.FolderPath,
@@ -609,6 +616,43 @@ func (s *NFSService) ensureNFSWorkingOnMachine(ctx context.Context, machineName 
 		}
 		if err := nfs.CheckReadWrite(conn.Connection, share.Target); err != nil {
 			issues = append(issues, fmt.Sprintf("%s read/write check failed: %v", share.Target, err))
+		}
+	}
+
+	// Extra check for autostart VM disks on this machine: the actual disk file must be readable.
+	autoStart, err := db.GetAllAutoStart(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to load autostart entries: %w", err)
+	}
+
+	virshService := VirshService{}
+	for _, auto := range autoStart {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		vm, err := virshService.GetVmByName(auto.VmName)
+		if err != nil || vm == nil {
+			// stale autostart entries are handled in VM service, don't block NFS readiness here
+			continue
+		}
+		if vm.MachineName != machineName {
+			continue
+		}
+
+		diskPath := strings.TrimSpace(vm.DiskPath)
+		if diskPath == "" || !strings.HasPrefix(diskPath, nfsMountPrefix) {
+			continue
+		}
+
+		if err := nfs.CheckFileReadable(conn.Connection, diskPath); err != nil {
+			issues = append(issues, fmt.Sprintf("vm %s disk unreadable (%s): %v", vm.Name, diskPath, err))
+			continue
+		}
+
+		parentDir := filepath.Dir(diskPath)
+		if err := nfs.CheckReadWrite(conn.Connection, parentDir); err != nil {
+			issues = append(issues, fmt.Sprintf("vm %s disk dir not read/write (%s): %v", vm.Name, parentDir, err))
 		}
 	}
 
