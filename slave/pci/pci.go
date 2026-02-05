@@ -327,7 +327,62 @@ func AttachGPUToVM(vmName, gpuRef string) error {
 		return err
 	}
 
-	return AttachPCIToVM(vmName, address.String())
+	related, err := relatedPCIDevicesForGPU(address)
+	if err != nil {
+		return err
+	}
+
+	for _, dev := range related {
+		if err := AttachPCIToVM(vmName, dev.String()); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func relatedPCIDevicesForGPU(address PCIAddress) ([]PCIAddress, error) {
+	device, err := lookupHostPCIDevice(address)
+	if err != nil {
+		return nil, err
+	}
+
+	if device.IOMMUGroup < 0 {
+		return []PCIAddress{address}, nil
+	}
+
+	hostDevices, err := ListHostPCIDevices()
+	if err != nil {
+		return nil, err
+	}
+
+	related := make([]PCIAddress, 0)
+	seen := make(map[string]struct{})
+	for _, dev := range hostDevices {
+		if dev.IOMMUGroup != device.IOMMUGroup {
+			continue
+		}
+		addr, err := ParsePCIAddress(dev.Address)
+		if err != nil {
+			continue
+		}
+		key := addr.String()
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		related = append(related, addr)
+	}
+
+	if _, ok := seen[address.String()]; !ok {
+		related = append(related, address)
+	}
+
+	sort.Slice(related, func(i, j int) bool {
+		return related[i].String() < related[j].String()
+	})
+
+	return related, nil
 }
 
 func partitionPCIAttachments(attachedVMs []string, targetVM string) (bool, []string) {
