@@ -998,6 +998,13 @@ func DetachAllGPUs() error {
 		if err := forcePCIDriverToNone(addr); err != nil {
 			errs = append(errs, fmt.Errorf("detach GPU %s: %w", gpu.Address, err))
 		}
+
+		for _, vm := range gpu.AttachedToVMs {
+			err := DetachGPUFromVM(vm, gpu.Address)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("detach GPU %s: %w", gpu.Address, err))
+			}
+		}
 	}
 
 	if len(errs) > 0 {
