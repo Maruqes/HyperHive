@@ -779,6 +779,10 @@ func main() {
 	}
 	logger.Info("[1/18] Environment setup: success")
 
+	// Setup logging
+	logger.SetType(env512.Mode)
+	logger.SetCallBack(logs512.LogMessage)
+
 	// Disable firewall
 	if err := stopAndDisableFirewalld(); err != nil {
 		log.Fatalf("[2/18] Stop and disable firewalld: %v", err)
@@ -857,10 +861,6 @@ func main() {
 	} else {
 		logger.Info("[11/18] Detach all GPUs: success")
 	}
-
-	// Setup logging
-	logger.SetType(env512.Mode)
-	logger.SetCallBack(logs512.LogMessage)
 
 	// Install NFS
 	if err := nfs.InstallNFS(); err != nil {
