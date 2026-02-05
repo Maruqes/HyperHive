@@ -979,3 +979,29 @@ type hostDevXML struct {
 		Name string `xml:"name,attr"`
 	} `xml:"alias"`
 }
+
+// DetachAllGPUs detaches all host GPUs from their drivers by setting driver to none.
+// This is typically called at startup to ensure GPUs are in a neutral state for passthrough.
+func DetachAllGPUs() error {
+	gpus, err := ListHostGPUs()
+	if err != nil {
+		return fmt.Errorf("list host GPUs: %w", err)
+	}
+
+	var errs []error
+	for _, gpu := range gpus {
+		addr, err := ParsePCIAddress(gpu.Address)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("parse GPU address %s: %w", gpu.Address, err))
+			continue
+		}
+		if err := forcePCIDriverToNone(addr); err != nil {
+			errs = append(errs, fmt.Errorf("detach GPU %s: %w", gpu.Address, err))
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("detach GPUs errors: %v", errs)
+	}
+	return nil
+}
