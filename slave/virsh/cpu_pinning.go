@@ -522,6 +522,15 @@ func RemoveCPUPinning(vmName string) error {
 		return nil // nothing to remove
 	}
 
+	// Reset topology threads back to 1, keeping current vcpu count as cores
+	vcpuRe := regexp.MustCompile(`<vcpu[^>]*>(\d+)</vcpu>`)
+	if m := vcpuRe.FindStringSubmatch(updatedXML); m != nil {
+		vcpuCount, _ := strconv.Atoi(m[1])
+		if vcpuCount > 0 {
+			updatedXML, _ = updateCPUTopologyForPinning(updatedXML, vcpuCount, 1)
+		}
+	}
+
 	newDom, err := conn.DomainDefineXML(updatedXML)
 	if err != nil {
 		return fmt.Errorf("define xml: %w", err)
