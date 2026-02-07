@@ -1246,7 +1246,7 @@ func (v *VirshService) startAutoStartVms(ctx context.Context, machineFilter stri
 
 			worked := runVm(vm, conn, auto, tries)
 			if worked {
-				break 
+				break
 			}
 		}
 	}
@@ -1572,4 +1572,100 @@ func (v *VirshService) CloneVM(ctx context.Context, vmName string, newName strin
 	}()
 
 	return nil
+}
+
+// ─── CPU Pinning ─────────────────────────────────────────────────────────────
+
+func (v *VirshService) SetCPUPinning(vmName string, rangeStart, rangeEnd int32, hyperThreading bool, socketID int32) error {
+	exists, err := virsh.DoesVMExist(vmName)
+	if err != nil {
+		return fmt.Errorf("error checking if VM exists: %v", err)
+	}
+	if !exists {
+		return fmt.Errorf("a VM with the name %s does not exist", vmName)
+	}
+
+	con := protocol.GetAllGRPCConnections()
+	for _, conn := range con {
+		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: vmName})
+		if err != nil || vm == nil {
+			continue
+		}
+
+		err = virsh.ApplyCPUPinningGRPC(conn, &grpcVirsh.CPUPinningRequest{
+			VmName:         vmName,
+			RangeStart:     rangeStart,
+			RangeEnd:       rangeEnd,
+			HyperThreading: hyperThreading,
+			SocketId:       socketID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to apply CPU pinning to VM %s: %v", vmName, err)
+		}
+		return nil
+	}
+	return fmt.Errorf("failed to find VM %s on any machine", vmName)
+}
+
+func (v *VirshService) RemoveCPUPinning(vmName string) error {
+	exists, err := virsh.DoesVMExist(vmName)
+	if err != nil {
+		return fmt.Errorf("error checking if VM exists: %v", err)
+	}
+	if !exists {
+		return fmt.Errorf("a VM with the name %s does not exist", vmName)
+	}
+
+	con := protocol.GetAllGRPCConnections()
+	for _, conn := range con {
+		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: vmName})
+		if err != nil || vm == nil {
+			continue
+		}
+
+		err = virsh.RemoveCPUPinningGRPC(conn, vmName)
+		if err != nil {
+			return fmt.Errorf("failed to remove CPU pinning from VM %s: %v", vmName, err)
+		}
+		return nil
+	}
+	return fmt.Errorf("failed to find VM %s on any machine", vmName)
+}
+
+func (v *VirshService) GetCPUPinning(vmName string) (*grpcVirsh.CPUPinningResponse, error) {
+	exists, err := virsh.DoesVMExist(vmName)
+	if err != nil {
+		return nil, fmt.Errorf("error checking if VM exists: %v", err)
+	}
+	if !exists {
+		return nil, fmt.Errorf("a VM with the name %s does not exist", vmName)
+	}
+
+	con := protocol.GetAllGRPCConnections()
+	for _, conn := range con {
+		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: vmName})
+		if err != nil || vm == nil {
+			continue
+		}
+
+		resp, err := virsh.GetCPUPinningGRPC(conn, vmName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get CPU pinning for VM %s: %v", vmName, err)
+		}
+		return resp, nil
+	}
+	return nil, fmt.Errorf("failed to find VM %s on any machine", vmName)
+}
+
+func (v *VirshService) GetCPUTopology(machineName string) (*grpcVirsh.CPUTopologyResponse, error) {
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	resp, err := virsh.GetCPUTopologyGRPC(slave.Connection)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get CPU topology from %s: %v", machineName, err)
+	}
+	return resp, nil
 }

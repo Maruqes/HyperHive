@@ -45,6 +45,10 @@ const (
 	SlaveVirshService_FreezeDisk_FullMethodName       = "/virsh.SlaveVirshService/FreezeDisk"
 	SlaveVirshService_UnFreezeDisk_FullMethodName     = "/virsh.SlaveVirshService/UnFreezeDisk"
 	SlaveVirshService_ChangeVmPassword_FullMethodName = "/virsh.SlaveVirshService/ChangeVmPassword"
+	SlaveVirshService_ApplyCPUPinning_FullMethodName  = "/virsh.SlaveVirshService/ApplyCPUPinning"
+	SlaveVirshService_RemoveCPUPinning_FullMethodName = "/virsh.SlaveVirshService/RemoveCPUPinning"
+	SlaveVirshService_GetCPUPinning_FullMethodName    = "/virsh.SlaveVirshService/GetCPUPinning"
+	SlaveVirshService_GetCPUTopology_FullMethodName   = "/virsh.SlaveVirshService/GetCPUTopology"
 )
 
 // SlaveVirshServiceClient is the client API for SlaveVirshService service.
@@ -79,6 +83,11 @@ type SlaveVirshServiceClient interface {
 	FreezeDisk(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
 	UnFreezeDisk(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
 	ChangeVmPassword(ctx context.Context, in *ChangeVncPassword, opts ...grpc.CallOption) (*Empty, error)
+	// CPU Pinning
+	ApplyCPUPinning(ctx context.Context, in *CPUPinningRequest, opts ...grpc.CallOption) (*OkResponse, error)
+	RemoveCPUPinning(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*OkResponse, error)
+	GetCPUPinning(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*CPUPinningResponse, error)
+	GetCPUTopology(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*CPUTopologyResponse, error)
 }
 
 type slaveVirshServiceClient struct {
@@ -349,6 +358,46 @@ func (c *slaveVirshServiceClient) ChangeVmPassword(ctx context.Context, in *Chan
 	return out, nil
 }
 
+func (c *slaveVirshServiceClient) ApplyCPUPinning(ctx context.Context, in *CPUPinningRequest, opts ...grpc.CallOption) (*OkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OkResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_ApplyCPUPinning_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) RemoveCPUPinning(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*OkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OkResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_RemoveCPUPinning_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) GetCPUPinning(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*CPUPinningResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CPUPinningResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_GetCPUPinning_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) GetCPUTopology(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*CPUTopologyResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CPUTopologyResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_GetCPUTopology_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SlaveVirshServiceServer is the server API for SlaveVirshService service.
 // All implementations must embed UnimplementedSlaveVirshServiceServer
 // for forward compatibility
@@ -381,6 +430,11 @@ type SlaveVirshServiceServer interface {
 	FreezeDisk(context.Context, *Vm) (*OkResponse, error)
 	UnFreezeDisk(context.Context, *Vm) (*OkResponse, error)
 	ChangeVmPassword(context.Context, *ChangeVncPassword) (*Empty, error)
+	// CPU Pinning
+	ApplyCPUPinning(context.Context, *CPUPinningRequest) (*OkResponse, error)
+	RemoveCPUPinning(context.Context, *GetVmByNameRequest) (*OkResponse, error)
+	GetCPUPinning(context.Context, *GetVmByNameRequest) (*CPUPinningResponse, error)
+	GetCPUTopology(context.Context, *Empty) (*CPUTopologyResponse, error)
 	mustEmbedUnimplementedSlaveVirshServiceServer()
 }
 
@@ -465,6 +519,18 @@ func (UnimplementedSlaveVirshServiceServer) UnFreezeDisk(context.Context, *Vm) (
 }
 func (UnimplementedSlaveVirshServiceServer) ChangeVmPassword(context.Context, *ChangeVncPassword) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChangeVmPassword not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) ApplyCPUPinning(context.Context, *CPUPinningRequest) (*OkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ApplyCPUPinning not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) RemoveCPUPinning(context.Context, *GetVmByNameRequest) (*OkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveCPUPinning not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) GetCPUPinning(context.Context, *GetVmByNameRequest) (*CPUPinningResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCPUPinning not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) GetCPUTopology(context.Context, *Empty) (*CPUTopologyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCPUTopology not implemented")
 }
 func (UnimplementedSlaveVirshServiceServer) mustEmbedUnimplementedSlaveVirshServiceServer() {}
 
@@ -947,6 +1013,78 @@ func _SlaveVirshService_ChangeVmPassword_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SlaveVirshService_ApplyCPUPinning_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CPUPinningRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).ApplyCPUPinning(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_ApplyCPUPinning_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).ApplyCPUPinning(ctx, req.(*CPUPinningRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_RemoveCPUPinning_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVmByNameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).RemoveCPUPinning(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_RemoveCPUPinning_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).RemoveCPUPinning(ctx, req.(*GetVmByNameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_GetCPUPinning_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVmByNameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).GetCPUPinning(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_GetCPUPinning_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).GetCPUPinning(ctx, req.(*GetVmByNameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_GetCPUTopology_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).GetCPUTopology(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_GetCPUTopology_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).GetCPUTopology(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SlaveVirshService_ServiceDesc is the grpc.ServiceDesc for SlaveVirshService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1057,6 +1195,22 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ChangeVmPassword",
 			Handler:    _SlaveVirshService_ChangeVmPassword_Handler,
+		},
+		{
+			MethodName: "ApplyCPUPinning",
+			Handler:    _SlaveVirshService_ApplyCPUPinning_Handler,
+		},
+		{
+			MethodName: "RemoveCPUPinning",
+			Handler:    _SlaveVirshService_RemoveCPUPinning_Handler,
+		},
+		{
+			MethodName: "GetCPUPinning",
+			Handler:    _SlaveVirshService_GetCPUPinning_Handler,
+		},
+		{
+			MethodName: "GetCPUTopology",
+			Handler:    _SlaveVirshService_GetCPUTopology_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -1474,6 +1474,103 @@ func websocketusInfoVms() {
 	extra.SendWebsocketMessage(proto.WebSocketsMessageType_VMInfo, string(data), "")
 }
 
+// ─── CPU Pinning API ─────────────────────────────────────────────────────────
+
+func setCPUPinning(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type CPUPinningRequest struct {
+		RangeStart     int32 `json:"range_start"`
+		RangeEnd       int32 `json:"range_end"`
+		HyperThreading bool  `json:"hyper_threading"`
+		SocketID       int32 `json:"socket_id"`
+	}
+
+	var req CPUPinningRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err := virshServices.SetCPUPinning(vmName, req.RangeStart, req.RangeEnd, req.HyperThreading, req.SocketID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("CPU pinning applied successfully"))
+}
+
+func removeCPUPinning(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	err := virshServices.RemoveCPUPinning(vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("CPU pinning removed successfully"))
+}
+
+func getCPUPinning(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.GetCPUPinning(vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
+}
+
+func getCPUTopology(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.GetCPUTopology(machineName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
+}
+
 func setupVirshAPI(r chi.Router) chi.Router {
 	extra.RegisterCallFunction(websocketusInfoVms)
 	return r.Route("/virsh", func(r chi.Router) {
@@ -1502,6 +1599,12 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Post("/novncvideo/add/{vm_name}", addNoVNCVideo)
 		r.Post("/novncvideo/remove/{vm_name}", removeNoVNCVideo)
 		r.Get("/novncvideo/{vm_name}", getNoVNCVideo)
+
+		//cpu pinning
+		r.Post("/cpupinning/{vm_name}", setCPUPinning)
+		r.Delete("/cpupinning/{vm_name}", removeCPUPinning)
+		r.Get("/cpupinning/{vm_name}", getCPUPinning)
+		r.Get("/cputopology/{machine_name}", getCPUTopology)
 
 		//move
 		r.Post("/moveDisk/{vm_name}/{dest_nfs}", moveDisk)

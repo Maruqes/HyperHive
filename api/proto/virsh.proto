@@ -151,4 +151,48 @@ service SlaveVirshService {
   rpc FreezeDisk(Vm) returns (OkResponse);
   rpc UnFreezeDisk(Vm) returns (OkResponse);
   rpc ChangeVmPassword(ChangeVncPassword) returns (Empty);
+
+  // CPU Pinning
+  rpc ApplyCPUPinning(CPUPinningRequest) returns (OkResponse);
+  rpc RemoveCPUPinning(GetVmByNameRequest) returns (OkResponse);
+  rpc GetCPUPinning(GetVmByNameRequest) returns (CPUPinningResponse);
+  rpc GetCPUTopology(Empty) returns (CPUTopologyResponse);
+}
+
+// CPU Pinning messages
+message CPUPinningRequest {
+  string vm_name = 1;
+  int32 range_start = 2;
+  int32 range_end = 3;
+  bool hyper_threading = 4;
+  int32 socket_id = 5;
+}
+
+message CPUPinningInfo {
+  int32 vcpu = 1;
+  string cpuset = 2;
+}
+
+message CPUPinningResponse {
+  bool has_pinning = 1;
+  repeated CPUPinningInfo pins = 2;
+  int32 range_start = 3;
+  int32 range_end = 4;
+  bool hyper_threading = 5;
+  int32 socket_id = 6;
+}
+
+message CPUCoreInfo {
+  int32 core_index = 1;
+  int32 physical_id = 2;
+  repeated int32 siblings = 3;
+}
+
+message CPUSocketInfo {
+  int32 socket_id = 1;
+  repeated CPUCoreInfo cores = 2;
+}
+
+message CPUTopologyResponse {
+  repeated CPUSocketInfo sockets = 1;
 }

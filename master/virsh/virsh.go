@@ -273,3 +273,39 @@ func GetNoVNCVideo(conn *grpc.ClientConn, vmName string) (*grpcVirsh.GetNoVNCVid
 	}
 	return resp, nil
 }
+
+func ApplyCPUPinningGRPC(conn *grpc.ClientConn, req *grpcVirsh.CPUPinningRequest) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.ApplyCPUPinning(context.Background(), req)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func RemoveCPUPinningGRPC(conn *grpc.ClientConn, vmName string) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.RemoveCPUPinning(context.Background(), &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func GetCPUPinningGRPC(conn *grpc.ClientConn, vmName string) (*grpcVirsh.CPUPinningResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetCPUPinning(context.Background(), &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func GetCPUTopologyGRPC(conn *grpc.ClientConn) (*grpcVirsh.CPUTopologyResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetCPUTopology(context.Background(), &grpcVirsh.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
