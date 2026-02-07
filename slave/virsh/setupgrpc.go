@@ -219,3 +219,76 @@ func (s *SlaveVirshService) UnFreezeDisk(ctx context.Context, req *grpcVirsh.Vm)
 	}
 	return &grpcVirsh.OkResponse{Ok: true}, nil
 }
+
+func (s *SlaveVirshService) ApplyCPUPinning(ctx context.Context, req *grpcVirsh.CPUPinningRequest) (*grpcVirsh.OkResponse, error) {
+	config := CPUPinningConfig{
+		RangeStart:     int(req.RangeStart),
+		RangeEnd:       int(req.RangeEnd),
+		HyperThreading: req.HyperThreading,
+		SocketID:       int(req.SocketId),
+	}
+	if err := ApplyCPUPinning(req.VmName, config); err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{Ok: true}, nil
+}
+
+func (s *SlaveVirshService) RemoveCPUPinning(ctx context.Context, req *grpcVirsh.GetVmByNameRequest) (*grpcVirsh.OkResponse, error) {
+	if err := RemoveCPUPinning(req.Name); err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{Ok: true}, nil
+}
+
+func (s *SlaveVirshService) GetCPUPinning(ctx context.Context, req *grpcVirsh.GetVmByNameRequest) (*grpcVirsh.CPUPinningResponse, error) {
+	hasPinning, pins, err := GetCPUPinning(req.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	var pinInfos []*grpcVirsh.CPUPinningInfo
+	for _, p := range pins {
+		pinInfos = append(pinInfos, &grpcVirsh.CPUPinningInfo{
+			Vcpu:   int32(p.VCPU),
+			Cpuset: p.CPUSet,
+		})
+	}
+
+	return &grpcVirsh.CPUPinningResponse{
+		HasPinning: hasPinning,
+		Pins:       pinInfos,
+	}, nil
+}
+
+func (s *SlaveVirshService) GetCPUTopology(ctx context.Context, req *grpcVirsh.Empty) (*grpcVirsh.CPUTopologyResponse, error) {
+	sockets, err := GetCPUSockets()
+	if err != nil {
+		return nil, err
+	}
+
+	var socketInfos []*grpcVirsh.CPUSocketInfo
+	for _, sock := range sockets {
+		var coreInfos []*grpcVirsh.CPUCoreInfo
+		// Deduplicate to physical cores
+		physCores := GetPhysicalCores(sock)
+		for _, pc := range physCores {
+			siblings := make([]int32, len(pc.Siblings))
+			for i, s := range pc.Siblings {
+				siblings[i] = int32(s)
+			}
+			coreInfos = append(coreInfos, &grpcVirsh.CPUCoreInfo{
+				CoreIndex:  int32(pc.CoreIndex),
+				PhysicalId: int32(pc.PhysicalID),
+				Siblings:   siblings,
+			})
+		}
+		socketInfos = append(socketInfos, &grpcVirsh.CPUSocketInfo{
+			SocketId: int32(sock.SocketID),
+			Cores:    coreInfos,
+		})
+	}
+
+	return &grpcVirsh.CPUTopologyResponse{
+		Sockets: socketInfos,
+	}, nil
+}
