@@ -622,7 +622,7 @@ func parseCPUPinningFromXML(xmlStr string) (*CPUPinningResult, error) {
 				physCores := GetPhysicalCores(sock)
 				for _, pc := range physCores {
 					for _, sib := range pc.Siblings {
-						cpuToCore[sib] = coreMapping{CoreIndex: pc.CoreIndex, SocketID: pc.PhysicalID}
+						cpuToCore[sib] = coreMapping{CoreIndex: pc.CoreIndex, SocketID: sock.SocketID}
 					}
 				}
 			}
