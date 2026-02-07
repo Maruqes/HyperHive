@@ -241,13 +241,13 @@ func (s *SlaveVirshService) RemoveCPUPinning(ctx context.Context, req *grpcVirsh
 }
 
 func (s *SlaveVirshService) GetCPUPinning(ctx context.Context, req *grpcVirsh.GetVmByNameRequest) (*grpcVirsh.CPUPinningResponse, error) {
-	hasPinning, pins, err := GetCPUPinning(req.Name)
+	result, err := GetCPUPinning(req.Name)
 	if err != nil {
 		return nil, err
 	}
 
 	var pinInfos []*grpcVirsh.CPUPinningInfo
-	for _, p := range pins {
+	for _, p := range result.Pins {
 		pinInfos = append(pinInfos, &grpcVirsh.CPUPinningInfo{
 			Vcpu:   int32(p.VCPU),
 			Cpuset: p.CPUSet,
@@ -255,8 +255,12 @@ func (s *SlaveVirshService) GetCPUPinning(ctx context.Context, req *grpcVirsh.Ge
 	}
 
 	return &grpcVirsh.CPUPinningResponse{
-		HasPinning: hasPinning,
-		Pins:       pinInfos,
+		HasPinning:     result.HasPinning,
+		Pins:           pinInfos,
+		HyperThreading: result.HyperThreading,
+		RangeStart:     int32(result.RangeStart),
+		RangeEnd:       int32(result.RangeEnd),
+		SocketId:       int32(result.SocketID),
 	}, nil
 }
 

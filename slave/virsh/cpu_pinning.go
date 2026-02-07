@@ -532,58 +532,123 @@ func RemoveCPUPinning(vmName string) error {
 	return nil
 }
 
+// CPUPinningResult holds the full parsed CPU pinning state from a VM's XML.
+type CPUPinningResult struct {
+	HasPinning     bool
+	Pins           []VCPUPin
+	HyperThreading bool
+	RangeStart     int
+	RangeEnd       int
+	SocketID       int
+}
+
 // GetCPUPinning reads the current CPU pinning configuration from a VM's libvirt XML.
 // Returns has_pinning=false if no <cputune> block is present.
-func GetCPUPinning(vmName string) (hasPinning bool, pins []VCPUPin, err error) {
+func GetCPUPinning(vmName string) (*CPUPinningResult, error) {
 	vmName = strings.TrimSpace(vmName)
 	if vmName == "" {
-		return false, nil, fmt.Errorf("vm name is empty")
+		return nil, fmt.Errorf("vm name is empty")
 	}
 
 	conn, err := libvirt.NewConnect("qemu:///system")
 	if err != nil {
-		return false, nil, fmt.Errorf("connect: %w", err)
+		return nil, fmt.Errorf("connect: %w", err)
 	}
 	defer conn.Close()
 
 	dom, err := conn.LookupDomainByName(vmName)
 	if err != nil {
-		return false, nil, fmt.Errorf("lookup vm %q: %w", vmName, err)
+		return nil, fmt.Errorf("lookup vm %q: %w", vmName, err)
 	}
 	defer dom.Free()
 
 	xmlDesc, err := dom.GetXMLDesc(libvirt.DOMAIN_XML_INACTIVE)
 	if err != nil {
-		return false, nil, fmt.Errorf("get xml: %w", err)
+		return nil, fmt.Errorf("get xml: %w", err)
 	}
 
-	return parseCPUTuneFromXML(xmlDesc)
+	return parseCPUPinningFromXML(xmlDesc)
 }
 
-// parseCPUTuneFromXML extracts vcpupin entries from the <cputune> block in a VM XML string.
-func parseCPUTuneFromXML(xmlStr string) (bool, []VCPUPin, error) {
+// parseCPUPinningFromXML extracts vcpupin entries and topology info from a VM XML string.
+func parseCPUPinningFromXML(xmlStr string) (*CPUPinningResult, error) {
+	result := &CPUPinningResult{}
+
+	// Parse <cputune> pins
 	cputuneRe := regexp.MustCompile(`(?ms)<cputune>(.*?)</cputune>`)
 	match := cputuneRe.FindStringSubmatch(xmlStr)
 	if match == nil {
-		return false, nil, nil
+		return result, nil
 	}
 
 	vcpupinRe := regexp.MustCompile(`<vcpupin\s+vcpu='(\d+)'\s+cpuset='([^']+)'/>`)
 	pinMatches := vcpupinRe.FindAllStringSubmatch(match[1], -1)
 	if len(pinMatches) == 0 {
-		return false, nil, nil
+		return result, nil
 	}
 
-	pins := make([]VCPUPin, 0, len(pinMatches))
+	result.HasPinning = true
+	result.Pins = make([]VCPUPin, 0, len(pinMatches))
 	for _, pm := range pinMatches {
 		vcpu, err := strconv.Atoi(pm[1])
 		if err != nil {
 			continue
 		}
-		pins = append(pins, VCPUPin{VCPU: vcpu, CPUSet: pm[2]})
+		result.Pins = append(result.Pins, VCPUPin{VCPU: vcpu, CPUSet: pm[2]})
 	}
 
-	return true, pins, nil
+	// Parse <topology sockets='...' cores='...' threads='...'/> to detect HT
+	topoRe := regexp.MustCompile(`<topology\s+[^/]*threads='(\d+)'[^/]*/>`)
+	topoMatch := topoRe.FindStringSubmatch(xmlStr)
+	if topoMatch != nil {
+		threads, _ := strconv.Atoi(topoMatch[1])
+		result.HyperThreading = threads >= 2
+	}
+
+	// Infer range from cpuset values: collect all unique host CPU IDs
+	allCPUs := collectAllCPUs(result.Pins)
+	if len(allCPUs) > 0 {
+		// With HT, each physical core maps to 2 pins (core, core+N).
+		// The range refers to physical core indices. Try to get from host topology.
+		sockets, err := GetCPUSockets()
+		if err == nil && len(sockets) > 0 {
+			// Build a map: host CPU ID -> physical core index
+			type coreMapping struct {
+				CoreIndex int
+				SocketID  int
+			}
+			cpuToCore := make(map[int]coreMapping)
+			for _, sock := range sockets {
+				physCores := GetPhysicalCores(sock)
+				for _, pc := range physCores {
+					for _, sib := range pc.Siblings {
+						cpuToCore[sib] = coreMapping{CoreIndex: pc.CoreIndex, SocketID: pc.PhysicalID}
+					}
+				}
+			}
+
+			// Find min/max core indices and socket from the pinned CPUs
+			minCore := -1
+			maxCore := -1
+			for _, cpuID := range allCPUs {
+				if cm, ok := cpuToCore[cpuID]; ok {
+					if minCore == -1 || cm.CoreIndex < minCore {
+						minCore = cm.CoreIndex
+					}
+					if maxCore == -1 || cm.CoreIndex > maxCore {
+						maxCore = cm.CoreIndex
+					}
+					result.SocketID = cm.SocketID
+				}
+			}
+			if minCore >= 0 {
+				result.RangeStart = minCore
+				result.RangeEnd = maxCore
+			}
+		}
+	}
+
+	return result, nil
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
