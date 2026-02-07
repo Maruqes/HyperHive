@@ -171,6 +171,7 @@ message CPUPinningRequest {
 message CPUPinningInfo {
   int32 vcpu = 1;
   string cpuset = 2;
+  bool is_ht = 3;
 }
 
 message CPUPinningResponse {

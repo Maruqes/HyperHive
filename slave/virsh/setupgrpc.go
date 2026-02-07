@@ -2,6 +2,7 @@ package virsh
 
 import (
 	"context"
+	"strconv"
 
 	"slave/env512"
 
@@ -246,11 +247,28 @@ func (s *SlaveVirshService) GetCPUPinning(ctx context.Context, req *grpcVirsh.Ge
 		return nil, err
 	}
 
+	// Build set of primary (real) CPU IDs from host topology
+	primaryCPUs := make(map[int]bool)
+	sockets, sockErr := GetCPUSockets()
+	if sockErr == nil {
+		for _, sock := range sockets {
+			physCores := GetPhysicalCores(sock)
+			for _, pc := range physCores {
+				if len(pc.Siblings) > 0 {
+					primaryCPUs[pc.Siblings[0]] = true // lowest sibling = real core
+				}
+			}
+		}
+	}
+
 	var pinInfos []*grpcVirsh.CPUPinningInfo
 	for _, p := range result.Pins {
+		cpuID, _ := strconv.Atoi(p.CPUSet)
+		isHT := !primaryCPUs[cpuID]
 		pinInfos = append(pinInfos, &grpcVirsh.CPUPinningInfo{
 			Vcpu:   int32(p.VCPU),
 			Cpuset: p.CPUSet,
+			IsHt:   isHT,
 		})
 	}
 
