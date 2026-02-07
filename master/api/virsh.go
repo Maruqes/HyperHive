@@ -1539,12 +1539,13 @@ func getCPUPinning(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	data, err := json.Marshal(resp)
+	opts := protojson.MarshalOptions{EmitUnpopulated: true}
+	data, err := opts.Marshal(resp)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
 	w.Write(data)
 }
 
@@ -1562,12 +1563,13 @@ func getCPUTopology(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	data, err := json.Marshal(resp)
+	opts := protojson.MarshalOptions{EmitUnpopulated: true}
+	data, err := opts.Marshal(resp)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
 	w.Write(data)
 }
 

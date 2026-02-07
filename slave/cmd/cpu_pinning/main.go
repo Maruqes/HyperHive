@@ -117,7 +117,7 @@ func printExampleCPUTuneXML() {
 		fmt.Println(xml2)
 	}
 
-	// Example 3: 8 cores (4-11) com HT
+	// Example 3: 8 cores (4-11) com HT 
 	fmt.Println("\n--- Example 3: cores 4-11, HT=true ---")
 	config3 := virsh.CPUPinningConfig{RangeStart: 4, RangeEnd: 11, HyperThreading: true, SocketID: 0}
 	fmt.Println("    vcpu count:", virsh.VCPUCount(config3))
