@@ -85,7 +85,7 @@ func createVM(w http.ResponseWriter, r *http.Request) {
 		}
 
 	} else {
-		err = virshServices.CreateVM(r.Context(), vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, "", vmReq.AutoStart, vmReq.IsWindows)
+		err = virshServices.CreateVM(r.Context(), vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml, vmReq.AutoStart, vmReq.IsWindows)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -702,9 +702,9 @@ func exportVM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	extension := ".qcow2\""
+	extension := ".qcow2"
 
-	w.Header().Set("Content-Disposition", "attachment; filename=\""+vmName+extension)
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+vmName+extension+"\"")
 	w.Header().Set("Content-Type", "application/octet-stream")
 	http.ServeFile(w, r, vm.DiskPath)
 }
@@ -948,7 +948,7 @@ func backupVM(w http.ResponseWriter, r *http.Request) {
 
 	nfsID := chi.URLParam(r, "nfs_id")
 	if nfsID == "" {
-		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		http.Error(w, "nfs_id is required", http.StatusBadRequest)
 		return
 	}
 
