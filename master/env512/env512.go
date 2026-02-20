@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -12,6 +13,8 @@ import (
 var (
 	PingInterval            int
 	Mode                    string
+	DelayedStartupWait      time.Duration
+	StartupTimeOverLoad     time.Duration
 	Qemu_UID                string
 	Qemu_GID                string
 	MASTER_INTERNET_IP      string
@@ -54,6 +57,17 @@ func Setup() error {
 	if GoAccessGeoIPEdition == "" {
 		GoAccessGeoIPEdition = "GeoLite2-City"
 	}
+	parsedDelayedStartupWait, err := parseDurationEnv("DELAYED_STARTUP_WAIT", 15*time.Minute)
+	if err != nil {
+		return err
+	}
+	DelayedStartupWait = parsedDelayedStartupWait
+
+	parsedStartupTimeOverLoad, err := parseDurationEnv("STARTUP_TIME_OVERLOAD", 5*time.Minute)
+	if err != nil {
+		return err
+	}
+	StartupTimeOverLoad = parsedStartupTimeOverLoad
 
 	if MAIN_LINK == "" {
 		panic("needs MAIN_LINK")
@@ -116,4 +130,20 @@ func splitAndTrimCSV(val string) []string {
 		}
 	}
 	return out
+}
+
+func parseDurationEnv(key string, defaultValue time.Duration) (time.Duration, error) {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return defaultValue, nil
+	}
+
+	duration, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s: %w", key, err)
+	}
+	if duration < 0 {
+		return 0, fmt.Errorf("%s must be non-negative", key)
+	}
+	return duration, nil
 }

@@ -60,7 +60,7 @@ func scheduleDelayedSlaveStartup(machineName string) {
 			delayedStartupMu.Unlock()
 		}()
 
-		const delayedStartupWait = 15 * time.Minute
+		delayedStartupWait := env512.DelayedStartupWait
 		const nfsReadyTimeout = 20 * time.Minute
 		const nfsReadyRetryDelay = 10 * time.Second
 
