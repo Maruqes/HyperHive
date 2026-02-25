@@ -185,6 +185,7 @@ message CPUPinningResponse {
   int32 range_end = 4;
   bool hyper_threading = 5;
   int32 socket_id = 6;
+  string emulator_cpuset = 7;
 }
 
 message CPUCoreInfo {

@@ -506,12 +506,9 @@ func emulatorReservedPhysicalCoreCount(config CPUPinningConfig, selectedPhysical
 	if requestedVCPUs <= 2 {
 		return 0
 	}
-	// Most VMs: reserve the last physical core (and its HT sibling if HT=true).
-	if requestedVCPUs <= 16 {
-		return 1
-	}
-	// Larger VMs: reserve two physical cores for emulator/device overhead.
-	return 2
+	// Reserve at most one physical core for emulator threads.
+	// With HT enabled this corresponds to two logical CPUs.
+	return 1
 }
 
 func buildCPUTopologyXML(numCores, threadsPerCore int, indent string) string {
@@ -667,6 +664,7 @@ func RemoveCPUPinning(vmName string) error {
 type CPUPinningResult struct {
 	HasPinning     bool
 	Pins           []VCPUPin
+	EmulatorCPUSet string
 	HyperThreading bool
 	RangeStart     int
 	RangeEnd       int
@@ -728,6 +726,12 @@ func parseCPUPinningFromXML(xmlStr string) (*CPUPinningResult, error) {
 		result.Pins = append(result.Pins, VCPUPin{VCPU: vcpu, CPUSet: pm[2]})
 	}
 
+	// Parse optional <emulatorpin cpuset='...'/>
+	emulatorpinRe := regexp.MustCompile(`<emulatorpin\s+cpuset='([^']+)'/?>`)
+	if em := emulatorpinRe.FindStringSubmatch(match[1]); len(em) >= 2 {
+		result.EmulatorCPUSet = strings.TrimSpace(em[1])
+	}
+
 	// Parse <topology sockets='...' cores='...' threads='...'/> to detect HT
 	topoRe := regexp.MustCompile(`<topology\s+[^/]*threads='(\d+)'[^/]*/>`)
 	topoMatch := topoRe.FindStringSubmatch(xmlStr)
@@ -736,8 +740,13 @@ func parseCPUPinningFromXML(xmlStr string) (*CPUPinningResult, error) {
 		result.HyperThreading = threads >= 2
 	}
 
-	// Infer range from cpuset values: collect all unique host CPU IDs
+	// Infer range from cpuset values using both guest vcpupins and emulatorpin.
 	allCPUs := collectAllCPUs(result.Pins)
+	if emuCPUs := parseCPUSetString(result.EmulatorCPUSet); len(emuCPUs) > 0 {
+		allCPUs = append(allCPUs, emuCPUs...)
+		sort.Ints(allCPUs)
+		allCPUs = dedupeSortedInts(allCPUs)
+	}
 	if len(allCPUs) > 0 {
 		// With HT, each physical core maps to 2 pins (core, core+N).
 		// The range refers to physical core indices. Try to get from host topology.
@@ -927,8 +936,6 @@ func defaultEmulatorPinCPUsFromPins(pins []VCPUPin) []int {
 	// The real pinning flow reserves physical core(s) in buildCPUPinningPlan().
 	target := 1
 	switch {
-	case len(cpus) > 16:
-		target = 4
 	case len(cpus) > 2:
 		target = 2
 	}
@@ -936,6 +943,18 @@ func defaultEmulatorPinCPUsFromPins(pins []VCPUPin) []int {
 		target = len(cpus)
 	}
 	return append([]int(nil), cpus[:target]...)
+}
+
+func parseCPUSetString(cpuset string) []int {
+	cpuset = strings.TrimSpace(cpuset)
+	if cpuset == "" {
+		return nil
+	}
+	cpus, err := expandCPUList(cpuset)
+	if err != nil {
+		return nil
+	}
+	return cpus
 }
 
 func dedupeSortedInts(cpus []int) []int {

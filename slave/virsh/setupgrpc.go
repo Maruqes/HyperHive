@@ -279,6 +279,7 @@ func (s *SlaveVirshService) GetCPUPinning(ctx context.Context, req *grpcVirsh.Ge
 		RangeStart:     int32(result.RangeStart),
 		RangeEnd:       int32(result.RangeEnd),
 		SocketId:       int32(result.SocketID),
+		EmulatorCpuset: result.EmulatorCPUSet,
 	}, nil
 }
 
