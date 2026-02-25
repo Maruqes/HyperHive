@@ -28,14 +28,14 @@ type NoVNCVideoInfo struct {
 }
 
 var (
-	vncGraphicsDevicePattern    = regexp.MustCompile(`(?is)\n?[ \t]*<graphics\b(?=[^>]*\btype\s*=\s*['"]vnc['"])[^>]*(?:/>|>.*?</graphics>)\n?`)
-	spiceGraphicsDevicePattern  = regexp.MustCompile(`(?is)\n?[ \t]*<graphics\b(?=[^>]*\btype\s*=\s*['"]spice['"])[^>]*(?:/>|>.*?</graphics>)\n?`)
+	vncGraphicsDevicePattern    = regexp.MustCompile(`(?is)\n?[ \t]*<graphics\b[^>]*\btype\s*=\s*['"]vnc['"][^>]*(?:/>|>.*?</graphics>)\n?`)
+	spiceGraphicsDevicePattern  = regexp.MustCompile(`(?is)\n?[ \t]*<graphics\b[^>]*\btype\s*=\s*['"]spice['"][^>]*(?:/>|>.*?</graphics>)\n?`)
 	videoDevicePattern          = regexp.MustCompile(`(?is)\n?[ \t]*<video\b[^>]*(?:/>|>.*?</video>)\n?`)
 	soundDevicePattern          = regexp.MustCompile(`(?is)\n?[ \t]*<sound\b[^>]*(?:/>|>.*?</sound>)\n?`)
 	audioDevicePattern          = regexp.MustCompile(`(?is)\n?[ \t]*<audio\b[^>]*(?:/>|>.*?</audio>)\n?`)
-	spiceChannelDevicePattern   = regexp.MustCompile(`(?is)\n?[ \t]*<channel\b(?=[^>]*\btype\s*=\s*['"]spicevmc['"])[^>]*(?:/>|>.*?</channel>)\n?`)
-	spiceRedirdevDevicePattern  = regexp.MustCompile(`(?is)\n?[ \t]*<redirdev\b(?=[^>]*\btype\s*=\s*['"]spicevmc['"])[^>]*(?:/>|>.*?</redirdev>)\n?`)
-	spiceSmartcardDevicePattern = regexp.MustCompile(`(?is)\n?[ \t]*<smartcard\b(?=[^>]*\btype\s*=\s*['"]spicevmc['"])[^>]*(?:/>|>.*?</smartcard>)\n?`)
+	spiceChannelDevicePattern   = regexp.MustCompile(`(?is)\n?[ \t]*<channel\b[^>]*\btype\s*=\s*['"]spicevmc['"][^>]*(?:/>|>.*?</channel>)\n?`)
+	spiceRedirdevDevicePattern  = regexp.MustCompile(`(?is)\n?[ \t]*<redirdev\b[^>]*\btype\s*=\s*['"]spicevmc['"][^>]*(?:/>|>.*?</redirdev>)\n?`)
+	spiceSmartcardDevicePattern = regexp.MustCompile(`(?is)\n?[ \t]*<smartcard\b[^>]*\btype\s*=\s*['"]spicevmc['"][^>]*(?:/>|>.*?</smartcard>)\n?`)
 	excessBlankLinesPattern     = regexp.MustCompile(`\n{3,}`)
 )
 
