@@ -369,27 +369,35 @@ func BuildFullPinningXML(config CPUPinningConfig, sockets []CPUSocket, indent st
 		return "", err
 	}
 
+	emulatorCPUs := chooseEmulatorPinCPUs(pins, sockets, &config)
+
 	var sb strings.Builder
 	sb.WriteString(BuildVCPUTagXML(config, indent))
 	sb.WriteString("\n")
-	sb.WriteString(BuildCPUTuneXML(pins, indent))
+	sb.WriteString(BuildCPUTuneXMLWithEmulatorPin(pins, emulatorCPUs, indent))
 	sb.WriteString("\n")
 	sb.WriteString(BuildCPUTopologyXML(config, indent))
 	return sb.String(), nil
 }
 
 // BuildCPUTuneXML generates the <cputune> XML block for libvirt.
-// Emulatorpin is set to the union of all pinned CPUs.
+// Emulatorpin is derived from a small subset of pinned CPUs when no
+// topology-aware choice is available.
 func BuildCPUTuneXML(pins []VCPUPin, indent string) string {
+	return BuildCPUTuneXMLWithEmulatorPin(pins, chooseEmulatorPinCPUs(pins, nil, nil), indent)
+}
+
+// BuildCPUTuneXMLWithEmulatorPin generates the <cputune> XML block for libvirt.
+// If emulatorCPUs is empty, the <emulatorpin> element is omitted.
+func BuildCPUTuneXMLWithEmulatorPin(pins []VCPUPin, emulatorCPUs []int, indent string) string {
 	var sb strings.Builder
 	sb.WriteString(indent + "<cputune>\n")
 	for _, pin := range pins {
 		sb.WriteString(fmt.Sprintf("%s  <vcpupin vcpu='%d' cpuset='%s'/>\n", indent, pin.VCPU, pin.CPUSet))
 	}
 
-	allCPUs := collectAllCPUs(pins)
-	if len(allCPUs) > 0 {
-		sb.WriteString(fmt.Sprintf("%s  <emulatorpin cpuset='%s'/>\n", indent, formatCPUSet(allCPUs)))
+	if len(emulatorCPUs) > 0 {
+		sb.WriteString(fmt.Sprintf("%s  <emulatorpin cpuset='%s'/>\n", indent, formatCPUSet(emulatorCPUs)))
 	}
 
 	sb.WriteString(indent + "</cputune>")
@@ -468,8 +476,10 @@ func ApplyCPUPinning(vmName string, config CPUPinningConfig) error {
 	// Remove existing <cputune> if present
 	updatedXML = removeCPUTuneBlock(updatedXML)
 
-	// Insert new <cputune> block after </vcpu>
-	cputuneXML := BuildCPUTuneXML(pins, "  ")
+	// Insert new <cputune> block after </vcpu>. Prefer a small emulator pin set
+	// outside the VM vCPU pins when the host topology leaves headroom.
+	emulatorCPUs := chooseEmulatorPinCPUs(pins, sockets, &config)
+	cputuneXML := BuildCPUTuneXMLWithEmulatorPin(pins, emulatorCPUs, "  ")
 	updatedXML = insertCPUTuneBlock(updatedXML, cputuneXML)
 
 	// Redefine the domain
@@ -740,11 +750,18 @@ func insertCPUTuneBlock(xmlStr string, cputuneXML string) string {
 func collectAllCPUs(pins []VCPUPin) []int {
 	seen := make(map[int]bool)
 	for _, pin := range pins {
-		parts := strings.Split(pin.CPUSet, ",")
-		for _, p := range parts {
-			if id, err := strconv.Atoi(strings.TrimSpace(p)); err == nil {
-				seen[id] = true
+		cpus, err := expandCPUList(pin.CPUSet)
+		if err != nil {
+			parts := strings.Split(pin.CPUSet, ",")
+			for _, p := range parts {
+				if id, err := strconv.Atoi(strings.TrimSpace(p)); err == nil {
+					seen[id] = true
+				}
 			}
+			continue
+		}
+		for _, id := range cpus {
+			seen[id] = true
 		}
 	}
 	result := make([]int, 0, len(seen))
@@ -786,4 +803,177 @@ func formatCPUSet(cpus []int) string {
 	}
 
 	return strings.Join(parts, ",")
+}
+
+// chooseEmulatorPinCPUs picks a compact cpuset for QEMU emulator threads.
+// Strategy:
+//   - Prefer CPUs not used by vCPU pins (same socket first, then any socket).
+//   - Scale the emulator cpuset size with VM size (1, 2, or up to 4 CPUs).
+//   - If no free CPU exists, fall back to a small subset of the vCPU pin set
+//     instead of allowing the emulator thread to roam across all vCPU CPUs.
+func chooseEmulatorPinCPUs(pins []VCPUPin, sockets []CPUSocket, config *CPUPinningConfig) []int {
+	pinned := collectAllCPUs(pins)
+	if len(pinned) == 0 {
+		return nil
+	}
+
+	target := emulatorPinTargetCount(len(pinned))
+	if target <= 0 {
+		return nil
+	}
+
+	pinnedSet := make(map[int]struct{}, len(pinned))
+	for _, cpu := range pinned {
+		pinnedSet[cpu] = struct{}{}
+	}
+
+	// Topology-aware path: try to keep emulator threads off the vCPU cpus.
+	if len(sockets) > 0 {
+		var preferred []int
+		var fallback []int
+
+		selectedSocketID := -1
+		if config != nil {
+			selectedSocketID = config.SocketID
+		}
+
+		for _, sock := range sockets {
+			freeOnSocket := collectFreeSocketCPUs(sock, pinnedSet)
+			if len(freeOnSocket) == 0 {
+				continue
+			}
+
+			if sock.SocketID == selectedSocketID {
+				preferred = append(preferred, freeOnSocket...)
+			} else {
+				fallback = append(fallback, freeOnSocket...)
+			}
+		}
+
+		candidates := append([]int{}, preferred...)
+		candidates = append(candidates, fallback...)
+		if len(candidates) > 0 {
+			selected := pickPreferredCPUs(candidates, target)
+			if len(selected) > 0 {
+				return selected
+			}
+		}
+	}
+
+	// No free CPUs available (or no topology): use a compact subset of pinned CPUs.
+	return pickCompactCPUs(pinned, target)
+}
+
+func emulatorPinTargetCount(pinnedCount int) int {
+	switch {
+	case pinnedCount <= 0:
+		return 0
+	case pinnedCount <= 2:
+		return 1
+	case pinnedCount <= 16:
+		return 2
+	default:
+		// Large VMs benefit from a bit more room for emulator/device work,
+		// but keeping this small avoids stealing too much CPU capacity.
+		return 4
+	}
+}
+
+func collectFreeSocketCPUs(sock CPUSocket, pinnedSet map[int]struct{}) []int {
+	physCores := GetPhysicalCores(sock)
+	if len(physCores) == 0 {
+		return nil
+	}
+
+	// Prefer one logical CPU per free physical core first (usually the primary
+	// thread), then HT siblings if we still need more.
+	var primary []int
+	var secondary []int
+
+	for _, core := range physCores {
+		if len(core.Siblings) == 0 {
+			continue
+		}
+
+		allPinned := true
+		for _, sib := range core.Siblings {
+			if _, used := pinnedSet[sib]; !used {
+				allPinned = false
+				break
+			}
+		}
+		if allPinned {
+			continue
+		}
+
+		for idx, sib := range core.Siblings {
+			if _, used := pinnedSet[sib]; used {
+				continue
+			}
+			if idx == 0 {
+				primary = append(primary, sib)
+			} else {
+				secondary = append(secondary, sib)
+			}
+		}
+	}
+
+	result := append(primary, secondary...)
+	return dedupeOrderedInts(result)
+}
+
+func pickCompactCPUs(cpus []int, target int) []int {
+	if target <= 0 || len(cpus) == 0 {
+		return nil
+	}
+
+	cp := append([]int(nil), cpus...)
+	sort.Ints(cp)
+	cp = dedupeSortedInts(cp)
+	if len(cp) <= target {
+		return cp
+	}
+
+	// Pick from the beginning to keep the cpuset compact and predictable.
+	return append([]int(nil), cp[:target]...)
+}
+
+func pickPreferredCPUs(cpus []int, target int) []int {
+	if target <= 0 || len(cpus) == 0 {
+		return nil
+	}
+	ordered := dedupeOrderedInts(cpus)
+	if len(ordered) <= target {
+		return append([]int(nil), ordered...)
+	}
+	return append([]int(nil), ordered[:target]...)
+}
+
+func dedupeSortedInts(cpus []int) []int {
+	if len(cpus) <= 1 {
+		return cpus
+	}
+	out := cpus[:1]
+	for _, v := range cpus[1:] {
+		if v != out[len(out)-1] {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+func dedupeOrderedInts(cpus []int) []int {
+	if len(cpus) <= 1 {
+		return cpus
+	}
+	seen := make(map[int]struct{}, len(cpus))
+	out := make([]int, 0, len(cpus))
+	for _, v := range cpus {
+		if _, ok := seen[v]; ok {
+			continue
+		}
+		seen[v] = struct{}{}
+		out = append(out, v)
+	}
+	return out
 }
