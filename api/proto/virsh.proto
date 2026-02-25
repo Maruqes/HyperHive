@@ -157,6 +157,10 @@ service SlaveVirshService {
   rpc RemoveCPUPinning(GetVmByNameRequest) returns (OkResponse);
   rpc GetCPUPinning(GetVmByNameRequest) returns (CPUPinningResponse);
   rpc GetCPUTopology(Empty) returns (CPUTopologyResponse);
+
+  // Host tuned-adm profiles
+  rpc GetTunedAdmProfiles(Empty) returns (TunedAdmProfilesResponse);
+  rpc SetTunedAdmProfile(SetTunedAdmProfileRequest) returns (SetTunedAdmProfileResponse);
 }
 
 // CPU Pinning messages
@@ -196,4 +200,25 @@ message CPUSocketInfo {
 
 message CPUTopologyResponse {
   repeated CPUSocketInfo sockets = 1;
+}
+
+message TunedAdmProfileInfo {
+  string name = 1;
+  string description = 2;
+  bool active = 3;
+}
+
+message TunedAdmProfilesResponse {
+  repeated TunedAdmProfileInfo profiles = 1;
+  string current_active_profile = 2;
+}
+
+message SetTunedAdmProfileRequest {
+  string profile = 1;
+}
+
+message SetTunedAdmProfileResponse {
+  bool ok = 1;
+  string message = 2;
+  string current_active_profile = 3;
 }

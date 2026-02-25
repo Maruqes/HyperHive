@@ -1103,7 +1103,7 @@ func (v *VirshService) startAutoStartVms(ctx context.Context, machineFilter stri
 	const nfsReadWriteTries = 10
 	const nfsReadWriteDelay = 2 * time.Second
 	const maxTries = 180 // 30 minutes at 10 second intervals
-	const baseWaitTime = 10 * time.Second
+	const baseWaitTime = 60 * time.Second
 	startupTimeOverLoad := env512.StartupTimeOverLoad // spacing between VM starts to avoid host overload
 
 	if ctx == nil {
@@ -1666,6 +1666,32 @@ func (v *VirshService) GetCPUTopology(machineName string) (*grpcVirsh.CPUTopolog
 	resp, err := virsh.GetCPUTopologyGRPC(slave.Connection)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CPU topology from %s: %v", machineName, err)
+	}
+	return resp, nil
+}
+
+func (v *VirshService) GetTunedAdmProfiles(machineName string) (*grpcVirsh.TunedAdmProfilesResponse, error) {
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	resp, err := virsh.GetTunedAdmProfilesGRPC(slave.Connection)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tuned-adm profiles from %s: %v", machineName, err)
+	}
+	return resp, nil
+}
+
+func (v *VirshService) SetTunedAdmProfile(machineName, profile string) (*grpcVirsh.SetTunedAdmProfileResponse, error) {
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	resp, err := virsh.SetTunedAdmProfileGRPC(slave.Connection, profile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set tuned-adm profile on %s: %v", machineName, err)
 	}
 	return resp, nil
 }

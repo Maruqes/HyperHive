@@ -19,36 +19,38 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	SlaveVirshService_GetCpuFeatures_FullMethodName   = "/virsh.SlaveVirshService/GetCpuFeatures"
-	SlaveVirshService_GetCPUXML_FullMethodName        = "/virsh.SlaveVirshService/GetCPUXML"
-	SlaveVirshService_GetVMCPUXml_FullMethodName      = "/virsh.SlaveVirshService/GetVMCPUXml"
-	SlaveVirshService_UpdateVMCPUXml_FullMethodName   = "/virsh.SlaveVirshService/UpdateVMCPUXml"
-	SlaveVirshService_CreateVm_FullMethodName         = "/virsh.SlaveVirshService/CreateVm"
-	SlaveVirshService_MigrateVM_FullMethodName        = "/virsh.SlaveVirshService/MigrateVM"
-	SlaveVirshService_ShutdownVM_FullMethodName       = "/virsh.SlaveVirshService/ShutdownVM"
-	SlaveVirshService_ForceShutdownVM_FullMethodName  = "/virsh.SlaveVirshService/ForceShutdownVM"
-	SlaveVirshService_StartVM_FullMethodName          = "/virsh.SlaveVirshService/StartVM"
-	SlaveVirshService_RemoveVM_FullMethodName         = "/virsh.SlaveVirshService/RemoveVM"
-	SlaveVirshService_RestartVM_FullMethodName        = "/virsh.SlaveVirshService/RestartVM"
-	SlaveVirshService_PauseVM_FullMethodName          = "/virsh.SlaveVirshService/PauseVM"
-	SlaveVirshService_ResumeVM_FullMethodName         = "/virsh.SlaveVirshService/ResumeVM"
-	SlaveVirshService_UndefineVM_FullMethodName       = "/virsh.SlaveVirshService/UndefineVM"
-	SlaveVirshService_GetAllVms_FullMethodName        = "/virsh.SlaveVirshService/GetAllVms"
-	SlaveVirshService_GetVmByName_FullMethodName      = "/virsh.SlaveVirshService/GetVmByName"
-	SlaveVirshService_RemoveIsoFromVm_FullMethodName  = "/virsh.SlaveVirshService/RemoveIsoFromVm"
-	SlaveVirshService_ChangeNetwork_FullMethodName    = "/virsh.SlaveVirshService/ChangeNetwork"
-	SlaveVirshService_AddNoVNCVideo_FullMethodName    = "/virsh.SlaveVirshService/AddNoVNCVideo"
-	SlaveVirshService_RemoveNoVNCVideo_FullMethodName = "/virsh.SlaveVirshService/RemoveNoVNCVideo"
-	SlaveVirshService_GetNoVNCVideo_FullMethodName    = "/virsh.SlaveVirshService/GetNoVNCVideo"
-	SlaveVirshService_EditVmResources_FullMethodName  = "/virsh.SlaveVirshService/EditVmResources"
-	SlaveVirshService_ColdMigrateVm_FullMethodName    = "/virsh.SlaveVirshService/ColdMigrateVm"
-	SlaveVirshService_FreezeDisk_FullMethodName       = "/virsh.SlaveVirshService/FreezeDisk"
-	SlaveVirshService_UnFreezeDisk_FullMethodName     = "/virsh.SlaveVirshService/UnFreezeDisk"
-	SlaveVirshService_ChangeVmPassword_FullMethodName = "/virsh.SlaveVirshService/ChangeVmPassword"
-	SlaveVirshService_ApplyCPUPinning_FullMethodName  = "/virsh.SlaveVirshService/ApplyCPUPinning"
-	SlaveVirshService_RemoveCPUPinning_FullMethodName = "/virsh.SlaveVirshService/RemoveCPUPinning"
-	SlaveVirshService_GetCPUPinning_FullMethodName    = "/virsh.SlaveVirshService/GetCPUPinning"
-	SlaveVirshService_GetCPUTopology_FullMethodName   = "/virsh.SlaveVirshService/GetCPUTopology"
+	SlaveVirshService_GetCpuFeatures_FullMethodName      = "/virsh.SlaveVirshService/GetCpuFeatures"
+	SlaveVirshService_GetCPUXML_FullMethodName           = "/virsh.SlaveVirshService/GetCPUXML"
+	SlaveVirshService_GetVMCPUXml_FullMethodName         = "/virsh.SlaveVirshService/GetVMCPUXml"
+	SlaveVirshService_UpdateVMCPUXml_FullMethodName      = "/virsh.SlaveVirshService/UpdateVMCPUXml"
+	SlaveVirshService_CreateVm_FullMethodName            = "/virsh.SlaveVirshService/CreateVm"
+	SlaveVirshService_MigrateVM_FullMethodName           = "/virsh.SlaveVirshService/MigrateVM"
+	SlaveVirshService_ShutdownVM_FullMethodName          = "/virsh.SlaveVirshService/ShutdownVM"
+	SlaveVirshService_ForceShutdownVM_FullMethodName     = "/virsh.SlaveVirshService/ForceShutdownVM"
+	SlaveVirshService_StartVM_FullMethodName             = "/virsh.SlaveVirshService/StartVM"
+	SlaveVirshService_RemoveVM_FullMethodName            = "/virsh.SlaveVirshService/RemoveVM"
+	SlaveVirshService_RestartVM_FullMethodName           = "/virsh.SlaveVirshService/RestartVM"
+	SlaveVirshService_PauseVM_FullMethodName             = "/virsh.SlaveVirshService/PauseVM"
+	SlaveVirshService_ResumeVM_FullMethodName            = "/virsh.SlaveVirshService/ResumeVM"
+	SlaveVirshService_UndefineVM_FullMethodName          = "/virsh.SlaveVirshService/UndefineVM"
+	SlaveVirshService_GetAllVms_FullMethodName           = "/virsh.SlaveVirshService/GetAllVms"
+	SlaveVirshService_GetVmByName_FullMethodName         = "/virsh.SlaveVirshService/GetVmByName"
+	SlaveVirshService_RemoveIsoFromVm_FullMethodName     = "/virsh.SlaveVirshService/RemoveIsoFromVm"
+	SlaveVirshService_ChangeNetwork_FullMethodName       = "/virsh.SlaveVirshService/ChangeNetwork"
+	SlaveVirshService_AddNoVNCVideo_FullMethodName       = "/virsh.SlaveVirshService/AddNoVNCVideo"
+	SlaveVirshService_RemoveNoVNCVideo_FullMethodName    = "/virsh.SlaveVirshService/RemoveNoVNCVideo"
+	SlaveVirshService_GetNoVNCVideo_FullMethodName       = "/virsh.SlaveVirshService/GetNoVNCVideo"
+	SlaveVirshService_EditVmResources_FullMethodName     = "/virsh.SlaveVirshService/EditVmResources"
+	SlaveVirshService_ColdMigrateVm_FullMethodName       = "/virsh.SlaveVirshService/ColdMigrateVm"
+	SlaveVirshService_FreezeDisk_FullMethodName          = "/virsh.SlaveVirshService/FreezeDisk"
+	SlaveVirshService_UnFreezeDisk_FullMethodName        = "/virsh.SlaveVirshService/UnFreezeDisk"
+	SlaveVirshService_ChangeVmPassword_FullMethodName    = "/virsh.SlaveVirshService/ChangeVmPassword"
+	SlaveVirshService_ApplyCPUPinning_FullMethodName     = "/virsh.SlaveVirshService/ApplyCPUPinning"
+	SlaveVirshService_RemoveCPUPinning_FullMethodName    = "/virsh.SlaveVirshService/RemoveCPUPinning"
+	SlaveVirshService_GetCPUPinning_FullMethodName       = "/virsh.SlaveVirshService/GetCPUPinning"
+	SlaveVirshService_GetCPUTopology_FullMethodName      = "/virsh.SlaveVirshService/GetCPUTopology"
+	SlaveVirshService_GetTunedAdmProfiles_FullMethodName = "/virsh.SlaveVirshService/GetTunedAdmProfiles"
+	SlaveVirshService_SetTunedAdmProfile_FullMethodName  = "/virsh.SlaveVirshService/SetTunedAdmProfile"
 )
 
 // SlaveVirshServiceClient is the client API for SlaveVirshService service.
@@ -88,6 +90,9 @@ type SlaveVirshServiceClient interface {
 	RemoveCPUPinning(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*OkResponse, error)
 	GetCPUPinning(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*CPUPinningResponse, error)
 	GetCPUTopology(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*CPUTopologyResponse, error)
+	// Host tuned-adm profiles
+	GetTunedAdmProfiles(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TunedAdmProfilesResponse, error)
+	SetTunedAdmProfile(ctx context.Context, in *SetTunedAdmProfileRequest, opts ...grpc.CallOption) (*SetTunedAdmProfileResponse, error)
 }
 
 type slaveVirshServiceClient struct {
@@ -398,6 +403,26 @@ func (c *slaveVirshServiceClient) GetCPUTopology(ctx context.Context, in *Empty,
 	return out, nil
 }
 
+func (c *slaveVirshServiceClient) GetTunedAdmProfiles(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TunedAdmProfilesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TunedAdmProfilesResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_GetTunedAdmProfiles_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) SetTunedAdmProfile(ctx context.Context, in *SetTunedAdmProfileRequest, opts ...grpc.CallOption) (*SetTunedAdmProfileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetTunedAdmProfileResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_SetTunedAdmProfile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SlaveVirshServiceServer is the server API for SlaveVirshService service.
 // All implementations must embed UnimplementedSlaveVirshServiceServer
 // for forward compatibility
@@ -435,6 +460,9 @@ type SlaveVirshServiceServer interface {
 	RemoveCPUPinning(context.Context, *GetVmByNameRequest) (*OkResponse, error)
 	GetCPUPinning(context.Context, *GetVmByNameRequest) (*CPUPinningResponse, error)
 	GetCPUTopology(context.Context, *Empty) (*CPUTopologyResponse, error)
+	// Host tuned-adm profiles
+	GetTunedAdmProfiles(context.Context, *Empty) (*TunedAdmProfilesResponse, error)
+	SetTunedAdmProfile(context.Context, *SetTunedAdmProfileRequest) (*SetTunedAdmProfileResponse, error)
 	mustEmbedUnimplementedSlaveVirshServiceServer()
 }
 
@@ -531,6 +559,12 @@ func (UnimplementedSlaveVirshServiceServer) GetCPUPinning(context.Context, *GetV
 }
 func (UnimplementedSlaveVirshServiceServer) GetCPUTopology(context.Context, *Empty) (*CPUTopologyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCPUTopology not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) GetTunedAdmProfiles(context.Context, *Empty) (*TunedAdmProfilesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTunedAdmProfiles not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) SetTunedAdmProfile(context.Context, *SetTunedAdmProfileRequest) (*SetTunedAdmProfileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetTunedAdmProfile not implemented")
 }
 func (UnimplementedSlaveVirshServiceServer) mustEmbedUnimplementedSlaveVirshServiceServer() {}
 
@@ -1085,6 +1119,42 @@ func _SlaveVirshService_GetCPUTopology_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SlaveVirshService_GetTunedAdmProfiles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).GetTunedAdmProfiles(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_GetTunedAdmProfiles_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).GetTunedAdmProfiles(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_SetTunedAdmProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetTunedAdmProfileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).SetTunedAdmProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_SetTunedAdmProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).SetTunedAdmProfile(ctx, req.(*SetTunedAdmProfileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SlaveVirshService_ServiceDesc is the grpc.ServiceDesc for SlaveVirshService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1211,6 +1281,14 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetCPUTopology",
 			Handler:    _SlaveVirshService_GetCPUTopology_Handler,
+		},
+		{
+			MethodName: "GetTunedAdmProfiles",
+			Handler:    _SlaveVirshService_GetTunedAdmProfiles_Handler,
+		},
+		{
+			MethodName: "SetTunedAdmProfile",
+			Handler:    _SlaveVirshService_SetTunedAdmProfile_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

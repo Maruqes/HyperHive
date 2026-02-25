@@ -1573,6 +1573,69 @@ func getCPUTopology(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func getTunedAdmProfiles(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.GetTunedAdmProfiles(machineName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	opts := protojson.MarshalOptions{EmitUnpopulated: true}
+	data, err := opts.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
+func setTunedAdmProfile(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type tunedAdmProfileRequest struct {
+		Profile string `json:"profile"`
+	}
+
+	var req tunedAdmProfileRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	req.Profile = strings.TrimSpace(req.Profile)
+	if req.Profile == "" {
+		http.Error(w, "profile is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.SetTunedAdmProfile(machineName, req.Profile)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	opts := protojson.MarshalOptions{EmitUnpopulated: true}
+	data, err := opts.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
 func setupVirshAPI(r chi.Router) chi.Router {
 	extra.RegisterCallFunction(websocketusInfoVms)
 	return r.Route("/virsh", func(r chi.Router) {
@@ -1607,6 +1670,8 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Delete("/cpupinning/{vm_name}", removeCPUPinning)
 		r.Get("/cpupinning/{vm_name}", getCPUPinning)
 		r.Get("/cputopology/{machine_name}", getCPUTopology)
+		r.Get("/tunedadm/{machine_name}", getTunedAdmProfiles)
+		r.Post("/tunedadm/{machine_name}", setTunedAdmProfile)
 
 		//move
 		r.Post("/moveDisk/{vm_name}/{dest_nfs}", moveDisk)
