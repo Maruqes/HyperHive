@@ -801,11 +801,14 @@ func main() {
 	}
 	logger.Info("[4/18] Docker service initialization: success")
 
-	// Ensure virt-xml is installed
+	// Ensure virt-xml and tuned-adm are installed
 	if err := virsh.EnsureVirtXMLInstalled(); err != nil {
 		log.Fatalf("[5/18] Ensure virt-xml installed: %v", err)
 	}
-	logger.Info("[5/18] Ensure virt-xml installed: success")
+	if err := virsh.EnsureTunedAdmInstalled(); err != nil {
+		log.Fatalf("[5/18] Ensure tuned-adm installed: %v", err)
+	}
+	logger.Info("[5/18] Ensure virt-xml and tuned-adm installed: success")
 
 	// Setup Kubernetes if this is master-slave
 	if ourk8s.AreWeMasterSlave() {
