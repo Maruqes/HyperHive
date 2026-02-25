@@ -47,10 +47,6 @@ func EnsureTunedAdmInstalled() error {
 }
 
 func GetTunedAdmProfiles() (*TunedAdmProfiles, error) {
-	if err := EnsureTunedAdmInstalled(); err != nil {
-		return nil, err
-	}
-
 	out, err := runCmdOutput(tunedAdmBinary, "list")
 	if err != nil {
 		return nil, err
@@ -67,10 +63,6 @@ func SetTunedAdmProfile(profile string) (*TunedAdmProfiles, error) {
 	profile = strings.TrimSpace(profile)
 	if profile == "" {
 		return nil, fmt.Errorf("profile is required")
-	}
-
-	if err := EnsureTunedAdmInstalled(); err != nil {
-		return nil, err
 	}
 
 	if _, err := runCmdOutputMaybeSudo(tunedAdmBinary, "profile", profile); err != nil {
