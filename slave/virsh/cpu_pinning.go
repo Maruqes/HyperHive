@@ -279,79 +279,50 @@ func ValidateCPUPinningConfig(config CPUPinningConfig, sockets []CPUSocket) erro
 	return nil
 }
 
-// BuildVCPUPins creates the vcpu-to-cpuset mappings for the given config.
-// Without HT: one vCPU per physical core, pinned to that core only.
-// With HT: two vCPUs per physical core — one pinned to the physical thread,
-//
-//	one pinned to the HT sibling. This matches the guest topology threads='2'.
+// BuildVCPUPins creates the guest vcpu-to-cpuset mappings for the given config.
+// Depending on VM size, the last physical core(s) in the selected range may be
+// reserved for emulator threads and therefore omitted from the returned vCPU pins.
 func BuildVCPUPins(config CPUPinningConfig, sockets []CPUSocket) ([]VCPUPin, error) {
-	if err := ValidateCPUPinningConfig(config, sockets); err != nil {
+	plan, err := buildCPUPinningPlan(config, sockets)
+	if err != nil {
 		return nil, err
 	}
-
-	var socket CPUSocket
-	for _, s := range sockets {
-		if s.SocketID == config.SocketID {
-			socket = s
-			break
-		}
-	}
-
-	physCores := GetPhysicalCores(socket)
-	selectedCores := physCores[config.RangeStart : config.RangeEnd+1]
-
-	var pins []VCPUPin
-	vcpuIdx := 0
-
-	for _, core := range selectedCores {
-		if config.HyperThreading {
-			// Each sibling gets its own vCPU, pinned 1:1
-			// This gives the guest a proper threads='2' topology
-			for _, sib := range core.Siblings {
-				pins = append(pins, VCPUPin{
-					VCPU:   vcpuIdx,
-					CPUSet: strconv.Itoa(sib),
-				})
-				vcpuIdx++
-			}
-		} else {
-			// Pin this vCPU only to the physical core (first/lowest sibling)
-			pins = append(pins, VCPUPin{
-				VCPU:   vcpuIdx,
-				CPUSet: strconv.Itoa(core.PhysicalID),
-			})
-			vcpuIdx++
-		}
-	}
-
-	return pins, nil
+	return plan.GuestPins, nil
 }
 
-// VCPUCount returns the total number of vCPUs for a given pinning config.
-// Without HT: number of physical cores in range.
-// With HT: number of physical cores * 2 (each core has 2 threads).
+// VCPUCount returns the effective guest vCPU count for a given pinning config,
+// after reserving physical core(s) for emulator threads when applicable.
 func VCPUCount(config CPUPinningConfig) int {
 	numCores := config.RangeEnd - config.RangeStart + 1
+	if numCores <= 0 {
+		return 0
+	}
+	numCores -= emulatorReservedPhysicalCoreCount(config, numCores)
+	if numCores < 1 {
+		numCores = 1
+	}
 	if config.HyperThreading {
 		return numCores * 2
 	}
 	return numCores
 }
 
-// BuildCPUTopologyXML generates the <cpu> block with the correct <topology> for pinning.
-// With HT:    <topology sockets='1' cores='N' threads='2'/>
-// Without HT: <topology sockets='1' cores='N' threads='1'/>
+// BuildCPUTopologyXML generates the guest <cpu> block with the correct <topology>
+// after accounting for reserved emulator core(s).
 func BuildCPUTopologyXML(config CPUPinningConfig, indent string) string {
 	numCores := config.RangeEnd - config.RangeStart + 1
+	if numCores <= 0 {
+		numCores = 1
+	}
+	numCores -= emulatorReservedPhysicalCoreCount(config, numCores)
+	if numCores < 1 {
+		numCores = 1
+	}
 	threads := 1
 	if config.HyperThreading {
 		threads = 2
 	}
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("%s<cpu mode='host-passthrough' check='none' migratable='on'>\n", indent))
-	sb.WriteString(fmt.Sprintf("%s  <topology sockets='1' cores='%d' threads='%d'/>\n", indent, numCores, threads))
-	sb.WriteString(fmt.Sprintf("%s</cpu>", indent))
-	return sb.String()
+	return buildCPUTopologyXML(numCores, threads, indent)
 }
 
 // BuildVCPUTagXML generates the <vcpu> tag for the given pinning config.
@@ -364,27 +335,26 @@ func BuildVCPUTagXML(config CPUPinningConfig, indent string) string {
 // <vcpu>, <cputune>, and <cpu> with <topology>.
 // Useful for previewing what will be applied to a VM.
 func BuildFullPinningXML(config CPUPinningConfig, sockets []CPUSocket, indent string) (string, error) {
-	pins, err := BuildVCPUPins(config, sockets)
+	plan, err := buildCPUPinningPlan(config, sockets)
 	if err != nil {
 		return "", err
 	}
 
-	emulatorCPUs := chooseEmulatorPinCPUs(pins, sockets, &config)
-
 	var sb strings.Builder
-	sb.WriteString(BuildVCPUTagXML(config, indent))
+	sb.WriteString(fmt.Sprintf("%s<vcpu placement='static'>%d</vcpu>", indent, len(plan.GuestPins)))
 	sb.WriteString("\n")
-	sb.WriteString(BuildCPUTuneXMLWithEmulatorPin(pins, emulatorCPUs, indent))
+	sb.WriteString(BuildCPUTuneXMLWithEmulatorPin(plan.GuestPins, plan.EmulatorCPUs, indent))
 	sb.WriteString("\n")
-	sb.WriteString(BuildCPUTopologyXML(config, indent))
+	sb.WriteString(buildCPUTopologyXML(plan.GuestPhysicalCores, plan.ThreadsPerCore, indent))
 	return sb.String(), nil
 }
 
-// BuildCPUTuneXML generates the <cputune> XML block for libvirt.
-// Emulatorpin is derived from a small subset of pinned CPUs when no
-// topology-aware choice is available.
+// BuildCPUTuneXML is a generic helper for prebuilt vcpu pins.
+// It does not know the original physical-core range selected by the user.
+// The main pinning flow (`ApplyCPUPinning` / `BuildFullPinningXML`) uses
+// `buildCPUPinningPlan`, which reserves physical core(s) for emulator threads.
 func BuildCPUTuneXML(pins []VCPUPin, indent string) string {
-	return BuildCPUTuneXMLWithEmulatorPin(pins, chooseEmulatorPinCPUs(pins, nil, nil), indent)
+	return BuildCPUTuneXMLWithEmulatorPin(pins, defaultEmulatorPinCPUsFromPins(pins), indent)
 }
 
 // BuildCPUTuneXMLWithEmulatorPin generates the <cputune> XML block for libvirt.
@@ -404,6 +374,154 @@ func BuildCPUTuneXMLWithEmulatorPin(pins []VCPUPin, emulatorCPUs []int, indent s
 	return sb.String()
 }
 
+type cpupinningPlan struct {
+	GuestPins          []VCPUPin
+	EmulatorCPUs       []int
+	GuestPhysicalCores int
+	ThreadsPerCore     int
+}
+
+func buildCPUPinningPlan(config CPUPinningConfig, sockets []CPUSocket) (*cpupinningPlan, error) {
+	if err := ValidateCPUPinningConfig(config, sockets); err != nil {
+		return nil, err
+	}
+
+	socket, err := getSocketByID(sockets, config.SocketID)
+	if err != nil {
+		return nil, err
+	}
+
+	physCores := GetPhysicalCores(socket)
+	selectedCores := physCores[config.RangeStart : config.RangeEnd+1]
+	if len(selectedCores) == 0 {
+		return nil, fmt.Errorf("no physical cores selected")
+	}
+
+	reserveCores := emulatorReservedPhysicalCoreCount(config, len(selectedCores))
+	if reserveCores >= len(selectedCores) {
+		reserveCores = len(selectedCores) - 1 // leave at least one core for the guest
+	}
+	if reserveCores < 0 {
+		reserveCores = 0
+	}
+
+	guestCoreCount := len(selectedCores) - reserveCores
+	if guestCoreCount <= 0 {
+		return nil, fmt.Errorf("invalid pinning plan: guest would have no cores")
+	}
+
+	guestCores := selectedCores[:guestCoreCount]
+	emulatorCores := selectedCores[guestCoreCount:]
+
+	guestPins := buildPinsFromPhysicalCores(guestCores, config.HyperThreading)
+	if len(guestPins) == 0 {
+		return nil, fmt.Errorf("invalid pinning plan: no guest vcpu pins generated")
+	}
+
+	emulatorCPUs := buildEmulatorPinCPUsFromPhysicalCores(emulatorCores, config.HyperThreading)
+	if len(emulatorCPUs) == 0 {
+		// Tiny VM fallback: share the same cpuset.
+		emulatorCPUs = collectAllCPUs(guestPins)
+	}
+
+	threadsPerCore := 1
+	if config.HyperThreading {
+		threadsPerCore = 2
+	}
+
+	return &cpupinningPlan{
+		GuestPins:          guestPins,
+		EmulatorCPUs:       emulatorCPUs,
+		GuestPhysicalCores: guestCoreCount,
+		ThreadsPerCore:     threadsPerCore,
+	}, nil
+}
+
+func getSocketByID(sockets []CPUSocket, socketID int) (CPUSocket, error) {
+	for _, s := range sockets {
+		if s.SocketID == socketID {
+			return s, nil
+		}
+	}
+	return CPUSocket{}, fmt.Errorf("socket %d not found (available: %v)", socketID, socketIDs(sockets))
+}
+
+func buildPinsFromPhysicalCores(cores []PhysicalCore, hyperThreading bool) []VCPUPin {
+	var pins []VCPUPin
+	vcpuIdx := 0
+
+	for _, core := range cores {
+		if hyperThreading {
+			for _, sib := range core.Siblings {
+				pins = append(pins, VCPUPin{
+					VCPU:   vcpuIdx,
+					CPUSet: strconv.Itoa(sib),
+				})
+				vcpuIdx++
+			}
+			continue
+		}
+
+		pins = append(pins, VCPUPin{
+			VCPU:   vcpuIdx,
+			CPUSet: strconv.Itoa(core.PhysicalID),
+		})
+		vcpuIdx++
+	}
+
+	return pins
+}
+
+func buildEmulatorPinCPUsFromPhysicalCores(cores []PhysicalCore, hyperThreading bool) []int {
+	if len(cores) == 0 {
+		return nil
+	}
+
+	var cpus []int
+	for _, core := range cores {
+		if len(core.Siblings) == 0 {
+			continue
+		}
+		if hyperThreading {
+			cpus = append(cpus, core.Siblings...)
+		} else {
+			cpus = append(cpus, core.PhysicalID)
+		}
+	}
+	sort.Ints(cpus)
+	return dedupeSortedInts(cpus)
+}
+
+func emulatorReservedPhysicalCoreCount(config CPUPinningConfig, selectedPhysicalCores int) int {
+	if selectedPhysicalCores <= 1 {
+		return 0
+	}
+
+	requestedVCPUs := selectedPhysicalCores
+	if config.HyperThreading {
+		requestedVCPUs *= 2
+	}
+
+	// Tiny VMs share the same cpuset to avoid wasting half the allocation.
+	if requestedVCPUs <= 2 {
+		return 0
+	}
+	// Most VMs: reserve the last physical core (and its HT sibling if HT=true).
+	if requestedVCPUs <= 16 {
+		return 1
+	}
+	// Larger VMs: reserve two physical cores for emulator/device overhead.
+	return 2
+}
+
+func buildCPUTopologyXML(numCores, threadsPerCore int, indent string) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("%s<cpu mode='host-passthrough' check='none' migratable='on'>\n", indent))
+	sb.WriteString(fmt.Sprintf("%s  <topology sockets='1' cores='%d' threads='%d'/>\n", indent, numCores, threadsPerCore))
+	sb.WriteString(fmt.Sprintf("%s</cpu>", indent))
+	return sb.String()
+}
+
 // ApplyCPUPinning applies CPU pinning to a VM by modifying its libvirt XML definition.
 // The VM must be shut off.
 func ApplyCPUPinning(vmName string, config CPUPinningConfig) error {
@@ -418,11 +536,12 @@ func ApplyCPUPinning(vmName string, config CPUPinningConfig) error {
 		return fmt.Errorf("get cpu topology: %w", err)
 	}
 
-	// Build pin mappings (validates config internally)
-	pins, err := BuildVCPUPins(config, sockets)
+	// Build pin mappings and emulator pin plan (validates config internally)
+	plan, err := buildCPUPinningPlan(config, sockets)
 	if err != nil {
-		return fmt.Errorf("build vcpu pins: %w", err)
+		return fmt.Errorf("build cpu pinning plan: %w", err)
 	}
+	pins := plan.GuestPins
 
 	if len(pins) == 0 {
 		return fmt.Errorf("no vcpu pins generated")
@@ -463,12 +582,7 @@ func ApplyCPUPinning(vmName string, config CPUPinningConfig) error {
 	}
 
 	// Update CPU topology (threads='2' if HT, threads='1' otherwise)
-	numCores := config.RangeEnd - config.RangeStart + 1
-	threadsPerCore := 1
-	if config.HyperThreading {
-		threadsPerCore = 2
-	}
-	updatedXML, err = updateCPUTopologyForPinning(updatedXML, numCores, threadsPerCore)
+	updatedXML, err = updateCPUTopologyForPinning(updatedXML, plan.GuestPhysicalCores, plan.ThreadsPerCore)
 	if err != nil {
 		return fmt.Errorf("update cpu topology: %w", err)
 	}
@@ -476,10 +590,8 @@ func ApplyCPUPinning(vmName string, config CPUPinningConfig) error {
 	// Remove existing <cputune> if present
 	updatedXML = removeCPUTuneBlock(updatedXML)
 
-	// Insert new <cputune> block after </vcpu>. Prefer a small emulator pin set
-	// outside the VM vCPU pins when the host topology leaves headroom.
-	emulatorCPUs := chooseEmulatorPinCPUs(pins, sockets, &config)
-	cputuneXML := BuildCPUTuneXMLWithEmulatorPin(pins, emulatorCPUs, "  ")
+	// Insert new <cputune> block after </vcpu>.
+	cputuneXML := BuildCPUTuneXMLWithEmulatorPin(pins, plan.EmulatorCPUs, "  ")
 	updatedXML = insertCPUTuneBlock(updatedXML, cputuneXML)
 
 	// Redefine the domain
@@ -805,148 +917,25 @@ func formatCPUSet(cpus []int) string {
 	return strings.Join(parts, ",")
 }
 
-// chooseEmulatorPinCPUs picks a compact cpuset for QEMU emulator threads.
-// Strategy:
-//   - Prefer CPUs not used by vCPU pins (same socket first, then any socket).
-//   - Scale the emulator cpuset size with VM size (1, 2, or up to 4 CPUs).
-//   - If no free CPU exists, fall back to a small subset of the vCPU pin set
-//     instead of allowing the emulator thread to roam across all vCPU CPUs.
-func chooseEmulatorPinCPUs(pins []VCPUPin, sockets []CPUSocket, config *CPUPinningConfig) []int {
-	pinned := collectAllCPUs(pins)
-	if len(pinned) == 0 {
+func defaultEmulatorPinCPUsFromPins(pins []VCPUPin) []int {
+	cpus := collectAllCPUs(pins)
+	if len(cpus) == 0 {
 		return nil
 	}
 
-	target := emulatorPinTargetCount(len(pinned))
-	if target <= 0 {
-		return nil
-	}
-
-	pinnedSet := make(map[int]struct{}, len(pinned))
-	for _, cpu := range pinned {
-		pinnedSet[cpu] = struct{}{}
-	}
-
-	// Topology-aware path: try to keep emulator threads off the vCPU cpus.
-	if len(sockets) > 0 {
-		var preferred []int
-		var fallback []int
-
-		selectedSocketID := -1
-		if config != nil {
-			selectedSocketID = config.SocketID
-		}
-
-		for _, sock := range sockets {
-			freeOnSocket := collectFreeSocketCPUs(sock, pinnedSet)
-			if len(freeOnSocket) == 0 {
-				continue
-			}
-
-			if sock.SocketID == selectedSocketID {
-				preferred = append(preferred, freeOnSocket...)
-			} else {
-				fallback = append(fallback, freeOnSocket...)
-			}
-		}
-
-		candidates := append([]int{}, preferred...)
-		candidates = append(candidates, fallback...)
-		if len(candidates) > 0 {
-			selected := pickPreferredCPUs(candidates, target)
-			if len(selected) > 0 {
-				return selected
-			}
-		}
-	}
-
-	// No free CPUs available (or no topology): use a compact subset of pinned CPUs.
-	return pickCompactCPUs(pinned, target)
-}
-
-func emulatorPinTargetCount(pinnedCount int) int {
+	// Generic fallback only: this helper does not know the original core range.
+	// The real pinning flow reserves physical core(s) in buildCPUPinningPlan().
+	target := 1
 	switch {
-	case pinnedCount <= 0:
-		return 0
-	case pinnedCount <= 2:
-		return 1
-	case pinnedCount <= 16:
-		return 2
-	default:
-		// Large VMs benefit from a bit more room for emulator/device work,
-		// but keeping this small avoids stealing too much CPU capacity.
-		return 4
+	case len(cpus) > 16:
+		target = 4
+	case len(cpus) > 2:
+		target = 2
 	}
-}
-
-func collectFreeSocketCPUs(sock CPUSocket, pinnedSet map[int]struct{}) []int {
-	physCores := GetPhysicalCores(sock)
-	if len(physCores) == 0 {
-		return nil
+	if target > len(cpus) {
+		target = len(cpus)
 	}
-
-	// Prefer one logical CPU per free physical core first (usually the primary
-	// thread), then HT siblings if we still need more.
-	var primary []int
-	var secondary []int
-
-	for _, core := range physCores {
-		if len(core.Siblings) == 0 {
-			continue
-		}
-
-		allPinned := true
-		for _, sib := range core.Siblings {
-			if _, used := pinnedSet[sib]; !used {
-				allPinned = false
-				break
-			}
-		}
-		if allPinned {
-			continue
-		}
-
-		for idx, sib := range core.Siblings {
-			if _, used := pinnedSet[sib]; used {
-				continue
-			}
-			if idx == 0 {
-				primary = append(primary, sib)
-			} else {
-				secondary = append(secondary, sib)
-			}
-		}
-	}
-
-	result := append(primary, secondary...)
-	return dedupeOrderedInts(result)
-}
-
-func pickCompactCPUs(cpus []int, target int) []int {
-	if target <= 0 || len(cpus) == 0 {
-		return nil
-	}
-
-	cp := append([]int(nil), cpus...)
-	sort.Ints(cp)
-	cp = dedupeSortedInts(cp)
-	if len(cp) <= target {
-		return cp
-	}
-
-	// Pick from the beginning to keep the cpuset compact and predictable.
-	return append([]int(nil), cp[:target]...)
-}
-
-func pickPreferredCPUs(cpus []int, target int) []int {
-	if target <= 0 || len(cpus) == 0 {
-		return nil
-	}
-	ordered := dedupeOrderedInts(cpus)
-	if len(ordered) <= target {
-		return append([]int(nil), ordered...)
-	}
-	return append([]int(nil), ordered[:target]...)
+	return append([]int(nil), cpus[:target]...)
 }
 
 func dedupeSortedInts(cpus []int) []int {
@@ -958,22 +947,6 @@ func dedupeSortedInts(cpus []int) []int {
 		if v != out[len(out)-1] {
 			out = append(out, v)
 		}
-	}
-	return out
-}
-
-func dedupeOrderedInts(cpus []int) []int {
-	if len(cpus) <= 1 {
-		return cpus
-	}
-	seen := make(map[int]struct{}, len(cpus))
-	out := make([]int, 0, len(cpus))
-	for _, v := range cpus {
-		if _, ok := seen[v]; ok {
-			continue
-		}
-		seen[v] = struct{}{}
-		out = append(out, v)
 	}
 	return out
 }
