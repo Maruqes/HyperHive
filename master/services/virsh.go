@@ -933,6 +933,44 @@ func (v *VirshService) GetNoVNCVideo(vmName string) (*grpcVirsh.GetNoVNCVideoRes
 	return virsh.GetNoVNCVideo(slave.Connection, vmName)
 }
 
+func (v *VirshService) GetMemoryBallooning(vmName string) (*grpcVirsh.GetMemoryBallooningResponse, error) {
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return nil, err
+	}
+	if vm == nil {
+		return nil, fmt.Errorf("vm %s does not exist", vmName)
+	}
+
+	slave := protocol.GetConnectionByMachineName(vm.MachineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s no connected", vm.MachineName)
+	}
+
+	return virsh.GetMemoryBallooning(slave.Connection, vmName)
+}
+
+func (v *VirshService) SetMemoryBallooning(vmName string, enable bool) error {
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return err
+	}
+	if vm == nil {
+		return fmt.Errorf("vm %s does not exist", vmName)
+	}
+
+	if vm.State != grpcVirsh.VmState_SHUTOFF {
+		return fmt.Errorf("vm %s needs to be shutdown", vmName)
+	}
+
+	slave := protocol.GetConnectionByMachineName(vm.MachineName)
+	if slave == nil || slave.Connection == nil {
+		return fmt.Errorf("slave %s no connected", vm.MachineName)
+	}
+
+	return virsh.SetMemoryBallooning(slave.Connection, vmName, enable)
+}
+
 func (v *VirshService) PauseVM(name string) error {
 	//find vm by name
 	exists, err := virsh.DoesVMExist(name)

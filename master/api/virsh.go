@@ -637,6 +637,59 @@ func getNoVNCVideo(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func getMemoryBallooning(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.GetMemoryBallooning(vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
+}
+
+func setMemoryBallooning(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type reqBody struct {
+		Enable *bool `json:"enable"`
+	}
+
+	var req reqBody
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if req.Enable == nil {
+		http.Error(w, "enable is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	if err := virshServices.SetMemoryBallooning(vmName, *req.Enable); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func resumeVm(w http.ResponseWriter, r *http.Request) {
 	vmName := chi.URLParam(r, "vm_name")
 	if vmName == "" {
@@ -1664,6 +1717,8 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Post("/novncvideo/add/{vm_name}", addNoVNCVideo)
 		r.Post("/novncvideo/remove/{vm_name}", removeNoVNCVideo)
 		r.Get("/novncvideo/{vm_name}", getNoVNCVideo)
+		r.Get("/ballooning/{vm_name}", getMemoryBallooning)
+		r.Post("/ballooning/{vm_name}", setMemoryBallooning)
 
 		//cpu pinning
 		r.Post("/cpupinning/{vm_name}", setCPUPinning)

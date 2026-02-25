@@ -274,6 +274,27 @@ func GetNoVNCVideo(conn *grpc.ClientConn, vmName string) (*grpcVirsh.GetNoVNCVid
 	return resp, nil
 }
 
+func GetMemoryBallooning(conn *grpc.ClientConn, vmName string) (*grpcVirsh.GetMemoryBallooningResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetMemoryBallooning(context.Background(), &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func SetMemoryBallooning(conn *grpc.ClientConn, vmName string, enable bool) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.SetMemoryBallooning(context.Background(), &grpcVirsh.SetMemoryBallooningRequest{
+		VmName: vmName,
+		Enable: enable,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func ApplyCPUPinningGRPC(conn *grpc.ClientConn, req *grpcVirsh.CPUPinningRequest) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.ApplyCPUPinning(context.Background(), req)

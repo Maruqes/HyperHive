@@ -112,6 +112,18 @@ message GetNoVNCVideoResponse {
   string video_xml = 4;
 }
 
+message SetMemoryBallooningRequest {
+  string vm_name = 1;
+  bool enable = 2;
+}
+
+message GetMemoryBallooningResponse {
+  bool enabled = 1;
+  bool memory_locked = 2;
+  bool has_memballoon = 3;
+  string memballoon_model = 4;
+}
+
 // defines on slave
 service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
@@ -141,6 +153,8 @@ service SlaveVirshService {
   rpc AddNoVNCVideo(GetVmByNameRequest) returns (OkResponse);
   rpc RemoveNoVNCVideo(GetVmByNameRequest) returns (OkResponse);
   rpc GetNoVNCVideo(GetVmByNameRequest) returns (GetNoVNCVideoResponse);
+  rpc GetMemoryBallooning(GetVmByNameRequest) returns (GetMemoryBallooningResponse);
+  rpc SetMemoryBallooning(SetMemoryBallooningRequest) returns (OkResponse);
 
   // only sees machine name, cpuCount and memoryMB
   // cpuCount and memoryMB are the new values to set
