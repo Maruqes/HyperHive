@@ -29,10 +29,10 @@ const (
     <target type='virtio' name='com.redhat.spice.0'/>
   </channel>`
 
-	defaultVNCGraphicsDeviceXML = `  <graphics type='vnc' autoport='yes' port='-1' listen='127.0.0.1'/>`
+	defaultVNCGraphicsDeviceXML = `  <graphics type='vnc' autoport='yes' port='-1' listen='0.0.0.0'/>`
 
-	defaultSpiceGraphicsDeviceXML = `  <graphics type='spice' autoport='yes' port='-1' listen='127.0.0.1'>
-    <listen type='address' address='127.0.0.1'/>
+	defaultSpiceGraphicsDeviceXML = `  <graphics type='spice' autoport='yes' port='-1' listen='0.0.0.0'>
+    <listen type='address' address='0.0.0.0'/>
     <image compression='auto_glz'/>
     <jpeg compression='auto'/>
     <zlib compression='auto'/>
