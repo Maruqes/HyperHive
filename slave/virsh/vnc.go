@@ -16,8 +16,6 @@ import (
 const (
 	virtXMLBinary  = "virt-xml"
 	virtXMLPackage = "virt-install"
-
-	noVNCEnabledVideoSpec = "model.type=virtio,model.heads=1"
 )
 
 type NoVNCVideoInfo struct {
@@ -39,6 +37,32 @@ var (
 	excessBlankLinesPattern     = regexp.MustCompile(`\n{3,}`)
 )
 
+const (
+	defaultSpiceChannelDeviceXML = `  <channel type='spicevmc'>
+    <target type='virtio' name='com.redhat.spice.0'/>
+  </channel>`
+
+	defaultVNCGraphicsDeviceXML = `  <graphics type='vnc' autoport='yes' port='-1' listen='127.0.0.1'/>`
+
+	defaultSpiceGraphicsDeviceXML = `  <graphics type='spice' autoport='yes' port='-1' listen='127.0.0.1'>
+    <listen type='address' address='127.0.0.1'/>
+    <image compression='auto_glz'/>
+    <jpeg compression='auto'/>
+    <zlib compression='auto'/>
+    <playback compression='on'/>
+    <streaming mode='all'/>
+    <clipboard copypaste='yes'/>
+    <filetransfer enable='yes'/>
+    <mouse mode='client'/>
+  </graphics>`
+
+	defaultVideoDeviceXML = `  <video>
+    <model type='virtio' heads='1'/>
+  </video>`
+
+	defaultSoundDeviceXML = `  <sound model='ich9'/>`
+)
+
 type noVNCDeviceRemovalSummary struct {
 	VNCGraphics     int
 	SpiceGraphics   int
@@ -48,6 +72,14 @@ type noVNCDeviceRemovalSummary struct {
 	SpiceChannels   int
 	SpiceRedirdevs  int
 	SpiceSmartcards int
+}
+
+type noVNCDeviceAddSummary struct {
+	SpiceChannels int
+	VNCGraphics   int
+	SpiceGraphics int
+	Videos        int
+	Sounds        int
 }
 
 func removeXMLNodesByPattern(xmlDesc string, pattern *regexp.Regexp) (string, int) {
@@ -87,6 +119,58 @@ func removeNoVNCAndSpiceDevicesFromDomainXML(xmlDesc string) (string, noVNCDevic
 		return "", summary, fmt.Errorf("removing VNC/SPICE devices produced empty domain XML")
 	}
 
+	return updatedXML, summary, nil
+}
+
+func insertDevicesBeforeDevicesCloseTag(xmlDesc string, devices ...string) (string, error) {
+	if strings.TrimSpace(xmlDesc) == "" {
+		return "", fmt.Errorf("domain XML is empty")
+	}
+	if len(devices) == 0 {
+		return xmlDesc, nil
+	}
+
+	closeIdx := strings.LastIndex(xmlDesc, "</devices>")
+	if closeIdx < 0 {
+		return "", fmt.Errorf("domain XML does not contain </devices>")
+	}
+
+	var block strings.Builder
+	for _, deviceXML := range devices {
+		if strings.TrimSpace(deviceXML) == "" {
+			continue
+		}
+		block.WriteByte('\n')
+		block.WriteString(deviceXML)
+		block.WriteByte('\n')
+	}
+	if block.Len() == 0 {
+		return xmlDesc, nil
+	}
+
+	return xmlDesc[:closeIdx] + block.String() + xmlDesc[closeIdx:], nil
+}
+
+func addNoVNCAndSpiceDevicesToDomainXML(xmlDesc string) (string, noVNCDeviceAddSummary, error) {
+	var summary noVNCDeviceAddSummary
+
+	updatedXML, err := insertDevicesBeforeDevicesCloseTag(
+		xmlDesc,
+		defaultSpiceChannelDeviceXML,
+		defaultVNCGraphicsDeviceXML,
+		defaultSpiceGraphicsDeviceXML,
+		defaultVideoDeviceXML,
+		defaultSoundDeviceXML,
+	)
+	if err != nil {
+		return "", summary, err
+	}
+
+	summary.SpiceChannels = 1
+	summary.VNCGraphics = 1
+	summary.SpiceGraphics = 1
+	summary.Videos = 1
+	summary.Sounds = 1
 	return updatedXML, summary, nil
 }
 
@@ -177,31 +261,67 @@ func AddNoVNCVideo(vmName string) error {
 		return fmt.Errorf("vm name is empty")
 	}
 
-	if err := EnsureVirtXMLInstalled(); err != nil {
-		return err
-	}
 	if err := ensureVMShutOff(vmName); err != nil {
 		return err
 	}
 
-	videoInfo, err := GetNoVNCVideo(vmName)
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close()
+
+	dom, err := conn.LookupDomainByName(vmName)
+	if err != nil {
+		return fmt.Errorf("lookup domain: %w", err)
+	}
+	defer dom.Free()
+
+	xmlDesc, err := dom.GetXMLDesc(libvirt.DOMAIN_XML_INACTIVE)
+	if err != nil {
+		xmlDesc, err = dom.GetXMLDesc(0)
+		if err != nil {
+			return fmt.Errorf("get xml: %w", err)
+		}
+	}
+
+	cleanXML, removedSummary, err := removeNoVNCAndSpiceDevicesFromDomainXML(xmlDesc)
 	if err != nil {
 		return err
 	}
 
-	args := []string{"--connect", "qemu:///system", vmName}
-	if videoInfo.VideoCount == 0 {
-		args = append(args, "--add-device")
-	} else {
-		args = append(args, "--edit", "all")
+	updatedXML, addedSummary, err := addNoVNCAndSpiceDevicesToDomainXML(cleanXML)
+	if err != nil {
+		return fmt.Errorf("restore noVNC/SPICE devices in domain XML: %w", err)
 	}
-	args = append(args, "--video", noVNCEnabledVideoSpec)
-
-	if err := runCmdDiscardOutput(virtXMLBinary, args...); err != nil {
-		return fmt.Errorf("enable noVNC video: %w", err)
+	if updatedXML == xmlDesc {
+		logger.Info("noVNC/SPICE graphics/audio devices already enabled", "vm", vmName)
+		return nil
 	}
 
-	logger.Info("enabled noVNC video", "vm", vmName)
+	newDom, err := conn.DomainDefineXML(updatedXML)
+	if err != nil {
+		return fmt.Errorf("define updated domain xml: %w", err)
+	}
+	defer newDom.Free()
+
+	logger.Info(
+		"restored noVNC/SPICE graphics/audio devices",
+		"vm", vmName,
+		"removed_vnc_graphics", removedSummary.VNCGraphics,
+		"removed_spice_graphics", removedSummary.SpiceGraphics,
+		"removed_videos", removedSummary.Videos,
+		"removed_sounds", removedSummary.Sounds,
+		"removed_audios", removedSummary.Audios,
+		"removed_spice_channels", removedSummary.SpiceChannels,
+		"removed_spice_redirdevs", removedSummary.SpiceRedirdevs,
+		"removed_spice_smartcards", removedSummary.SpiceSmartcards,
+		"added_vnc_graphics", addedSummary.VNCGraphics,
+		"added_spice_graphics", addedSummary.SpiceGraphics,
+		"added_videos", addedSummary.Videos,
+		"added_sounds", addedSummary.Sounds,
+		"added_spice_channels", addedSummary.SpiceChannels,
+	)
 	return nil
 }
 
