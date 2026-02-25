@@ -314,3 +314,37 @@ func (s *SlaveVirshService) GetCPUTopology(ctx context.Context, req *grpcVirsh.E
 		Sockets: socketInfos,
 	}, nil
 }
+
+func (s *SlaveVirshService) GetTunedAdmProfiles(ctx context.Context, req *grpcVirsh.Empty) (*grpcVirsh.TunedAdmProfilesResponse, error) {
+	profiles, err := GetTunedAdmProfiles()
+	if err != nil {
+		return nil, err
+	}
+
+	grpcProfiles := make([]*grpcVirsh.TunedAdmProfileInfo, 0, len(profiles.Profiles))
+	for _, p := range profiles.Profiles {
+		grpcProfiles = append(grpcProfiles, &grpcVirsh.TunedAdmProfileInfo{
+			Name:        p.Name,
+			Description: p.Description,
+			Active:      p.Active,
+		})
+	}
+
+	return &grpcVirsh.TunedAdmProfilesResponse{
+		Profiles:             grpcProfiles,
+		CurrentActiveProfile: profiles.CurrentActiveProfile,
+	}, nil
+}
+
+func (s *SlaveVirshService) SetTunedAdmProfile(ctx context.Context, req *grpcVirsh.SetTunedAdmProfileRequest) (*grpcVirsh.SetTunedAdmProfileResponse, error) {
+	profiles, err := SetTunedAdmProfile(req.Profile)
+	if err != nil {
+		return nil, err
+	}
+
+	return &grpcVirsh.SetTunedAdmProfileResponse{
+		Ok:                   true,
+		Message:              "tuned-adm profile applied successfully",
+		CurrentActiveProfile: profiles.CurrentActiveProfile,
+	}, nil
+}

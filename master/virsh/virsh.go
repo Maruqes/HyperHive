@@ -309,3 +309,23 @@ func GetCPUTopologyGRPC(conn *grpc.ClientConn) (*grpcVirsh.CPUTopologyResponse, 
 	}
 	return resp, nil
 }
+
+func GetTunedAdmProfilesGRPC(conn *grpc.ClientConn) (*grpcVirsh.TunedAdmProfilesResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetTunedAdmProfiles(context.Background(), &grpcVirsh.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func SetTunedAdmProfileGRPC(conn *grpc.ClientConn, profile string) (*grpcVirsh.SetTunedAdmProfileResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.SetTunedAdmProfile(context.Background(), &grpcVirsh.SetTunedAdmProfileRequest{
+		Profile: profile,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
