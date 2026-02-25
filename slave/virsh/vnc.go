@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
-	"regexp"
 	"strings"
 
 	"github.com/Maruqes/512SvMan/logger"
@@ -24,18 +23,6 @@ type NoVNCVideoInfo struct {
 	ModelType  string
 	VideoXML   string
 }
-
-var (
-	vncGraphicsDevicePattern    = regexp.MustCompile(`(?is)\n?[ \t]*<graphics\b[^>]*\btype\s*=\s*['"]vnc['"][^>]*(?:/>|>.*?</graphics>)\n?`)
-	spiceGraphicsDevicePattern  = regexp.MustCompile(`(?is)\n?[ \t]*<graphics\b[^>]*\btype\s*=\s*['"]spice['"][^>]*(?:/>|>.*?</graphics>)\n?`)
-	videoDevicePattern          = regexp.MustCompile(`(?is)\n?[ \t]*<video\b[^>]*(?:/>|>.*?</video>)\n?`)
-	soundDevicePattern          = regexp.MustCompile(`(?is)\n?[ \t]*<sound\b[^>]*(?:/>|>.*?</sound>)\n?`)
-	audioDevicePattern          = regexp.MustCompile(`(?is)\n?[ \t]*<audio\b[^>]*(?:/>|>.*?</audio>)\n?`)
-	spiceChannelDevicePattern   = regexp.MustCompile(`(?is)\n?[ \t]*<channel\b[^>]*\btype\s*=\s*['"]spicevmc['"][^>]*(?:/>|>.*?</channel>)\n?`)
-	spiceRedirdevDevicePattern  = regexp.MustCompile(`(?is)\n?[ \t]*<redirdev\b[^>]*\btype\s*=\s*['"]spicevmc['"][^>]*(?:/>|>.*?</redirdev>)\n?`)
-	spiceSmartcardDevicePattern = regexp.MustCompile(`(?is)\n?[ \t]*<smartcard\b[^>]*\btype\s*=\s*['"]spicevmc['"][^>]*(?:/>|>.*?</smartcard>)\n?`)
-	excessBlankLinesPattern     = regexp.MustCompile(`\n{3,}`)
-)
 
 const (
 	defaultSpiceChannelDeviceXML = `  <channel type='spicevmc'>
@@ -63,6 +50,8 @@ const (
 	defaultSoundDeviceXML = `  <sound model='ich9'/>`
 )
 
+const noVNCDeviceModifyFlags = libvirt.DOMAIN_DEVICE_MODIFY_CONFIG
+
 type noVNCDeviceRemovalSummary struct {
 	VNCGraphics     int
 	SpiceGraphics   int
@@ -82,96 +71,223 @@ type noVNCDeviceAddSummary struct {
 	Sounds        int
 }
 
-func removeXMLNodesByPattern(xmlDesc string, pattern *regexp.Regexp) (string, int) {
-	matches := pattern.FindAllStringIndex(xmlDesc, -1)
-	if len(matches) == 0 {
-		return xmlDesc, 0
-	}
-	return pattern.ReplaceAllString(xmlDesc, ""), len(matches)
+type rawDomainDevicesContainer struct {
+	Devices struct {
+		InnerXML string `xml:",innerxml"`
+	} `xml:"devices"`
 }
 
-func removeNoVNCAndSpiceDevicesFromDomainXML(xmlDesc string) (string, noVNCDeviceRemovalSummary, error) {
+type rawDomainDeviceElement struct {
+	XMLName  xml.Name
+	Attrs    []xml.Attr `xml:",any,attr"`
+	InnerXML string     `xml:",innerxml"`
+}
+
+type noVNCManagedDevice struct {
+	kind string
+	xml  string
+}
+
+func getDomainXMLInactiveOrCurrent(dom *libvirt.Domain) (string, error) {
+	xmlDesc, err := dom.GetXMLDesc(libvirt.DOMAIN_XML_INACTIVE)
+	if err == nil {
+		return xmlDesc, nil
+	}
+	xmlDesc, err = dom.GetXMLDesc(0)
+	if err != nil {
+		return "", fmt.Errorf("get xml: %w", err)
+	}
+	return xmlDesc, nil
+}
+
+func xmlAttrValue(attrs []xml.Attr, attrName string) string {
+	for _, attr := range attrs {
+		if strings.EqualFold(strings.TrimSpace(attr.Name.Local), attrName) {
+			return strings.TrimSpace(attr.Value)
+		}
+	}
+	return ""
+}
+
+func classifyNoVNCManagedDevice(elem rawDomainDeviceElement) (string, bool) {
+	name := strings.ToLower(strings.TrimSpace(elem.XMLName.Local))
+	switch name {
+	case "graphics":
+		switch strings.ToLower(xmlAttrValue(elem.Attrs, "type")) {
+		case "vnc":
+			return "vnc_graphics", true
+		case "spice":
+			return "spice_graphics", true
+		default:
+			return "", false
+		}
+	case "video":
+		return "video", true
+	case "sound":
+		return "sound", true
+	case "audio":
+		return "audio", true
+	case "channel":
+		if strings.EqualFold(xmlAttrValue(elem.Attrs, "type"), "spicevmc") {
+			return "spice_channel", true
+		}
+	case "redirdev":
+		if strings.EqualFold(xmlAttrValue(elem.Attrs, "type"), "spicevmc") {
+			return "spice_redirdev", true
+		}
+	case "smartcard":
+		if strings.EqualFold(xmlAttrValue(elem.Attrs, "type"), "spicevmc") {
+			return "spice_smartcard", true
+		}
+	}
+
+	return "", false
+}
+
+func addToNoVNCRemovalSummary(summary *noVNCDeviceRemovalSummary, kind string) {
+	switch kind {
+	case "vnc_graphics":
+		summary.VNCGraphics++
+	case "spice_graphics":
+		summary.SpiceGraphics++
+	case "video":
+		summary.Videos++
+	case "sound":
+		summary.Sounds++
+	case "audio":
+		summary.Audios++
+	case "spice_channel":
+		summary.SpiceChannels++
+	case "spice_redirdev":
+		summary.SpiceRedirdevs++
+	case "spice_smartcard":
+		summary.SpiceSmartcards++
+	}
+}
+
+func collectNoVNCManagedDevicesFromDomainXML(xmlDesc string) ([]noVNCManagedDevice, noVNCDeviceRemovalSummary, error) {
+	var parsed rawDomainDevicesContainer
+	if err := xml.Unmarshal([]byte(xmlDesc), &parsed); err != nil {
+		return nil, noVNCDeviceRemovalSummary{}, fmt.Errorf("parse domain xml: %w", err)
+	}
+
+	inner := parsed.Devices.InnerXML
+	if strings.TrimSpace(inner) == "" {
+		return nil, noVNCDeviceRemovalSummary{}, nil
+	}
+
+	decoder := xml.NewDecoder(strings.NewReader("<devices>" + inner + "</devices>"))
+	devices := make([]noVNCManagedDevice, 0)
 	var summary noVNCDeviceRemovalSummary
 
-	updatedXML := xmlDesc
-	updatedXML, summary.VNCGraphics = removeXMLNodesByPattern(updatedXML, vncGraphicsDevicePattern)
-	updatedXML, summary.SpiceGraphics = removeXMLNodesByPattern(updatedXML, spiceGraphicsDevicePattern)
-	updatedXML, summary.Videos = removeXMLNodesByPattern(updatedXML, videoDevicePattern)
-	updatedXML, summary.Sounds = removeXMLNodesByPattern(updatedXML, soundDevicePattern)
-	updatedXML, summary.Audios = removeXMLNodesByPattern(updatedXML, audioDevicePattern)
-	updatedXML, summary.SpiceChannels = removeXMLNodesByPattern(updatedXML, spiceChannelDevicePattern)
-	updatedXML, summary.SpiceRedirdevs = removeXMLNodesByPattern(updatedXML, spiceRedirdevDevicePattern)
-	updatedXML, summary.SpiceSmartcards = removeXMLNodesByPattern(updatedXML, spiceSmartcardDevicePattern)
+	for {
+		token, err := decoder.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, summary, fmt.Errorf("decode devices xml: %w", err)
+		}
 
-	if summary.VNCGraphics == 0 &&
-		summary.SpiceGraphics == 0 &&
-		summary.Videos == 0 &&
-		summary.Sounds == 0 &&
-		summary.Audios == 0 &&
-		summary.SpiceChannels == 0 &&
-		summary.SpiceRedirdevs == 0 &&
-		summary.SpiceSmartcards == 0 {
-		return xmlDesc, summary, nil
-	}
-
-	updatedXML = excessBlankLinesPattern.ReplaceAllString(updatedXML, "\n\n")
-	if strings.TrimSpace(updatedXML) == "" {
-		return "", summary, fmt.Errorf("removing VNC/SPICE devices produced empty domain XML")
-	}
-
-	return updatedXML, summary, nil
-}
-
-func insertDevicesBeforeDevicesCloseTag(xmlDesc string, devices ...string) (string, error) {
-	if strings.TrimSpace(xmlDesc) == "" {
-		return "", fmt.Errorf("domain XML is empty")
-	}
-	if len(devices) == 0 {
-		return xmlDesc, nil
-	}
-
-	closeIdx := strings.LastIndex(xmlDesc, "</devices>")
-	if closeIdx < 0 {
-		return "", fmt.Errorf("domain XML does not contain </devices>")
-	}
-
-	var block strings.Builder
-	for _, deviceXML := range devices {
-		if strings.TrimSpace(deviceXML) == "" {
+		start, ok := token.(xml.StartElement)
+		if !ok {
 			continue
 		}
-		block.WriteByte('\n')
-		block.WriteString(deviceXML)
-		block.WriteByte('\n')
-	}
-	if block.Len() == 0 {
-		return xmlDesc, nil
+		if strings.EqualFold(start.Name.Local, "devices") {
+			continue
+		}
+
+		var elem rawDomainDeviceElement
+		if err := decoder.DecodeElement(&elem, &start); err != nil {
+			return nil, summary, fmt.Errorf("decode device element %s: %w", start.Name.Local, err)
+		}
+
+		kind, managed := classifyNoVNCManagedDevice(elem)
+		if !managed {
+			continue
+		}
+
+		deviceXML, err := xml.Marshal(elem)
+		if err != nil {
+			return nil, summary, fmt.Errorf("marshal device element %s: %w", start.Name.Local, err)
+		}
+
+		devices = append(devices, noVNCManagedDevice{
+			kind: kind,
+			xml:  string(deviceXML),
+		})
+		addToNoVNCRemovalSummary(&summary, kind)
 	}
 
-	return xmlDesc[:closeIdx] + block.String() + xmlDesc[closeIdx:], nil
+	return devices, summary, nil
 }
 
-func addNoVNCAndSpiceDevicesToDomainXML(xmlDesc string) (string, noVNCDeviceAddSummary, error) {
-	var summary noVNCDeviceAddSummary
-
-	updatedXML, err := insertDevicesBeforeDevicesCloseTag(
-		xmlDesc,
-		defaultSpiceChannelDeviceXML,
-		defaultVNCGraphicsDeviceXML,
-		defaultSpiceGraphicsDeviceXML,
-		defaultVideoDeviceXML,
-		defaultSoundDeviceXML,
-	)
+func detachNoVNCManagedDevices(dom *libvirt.Domain) (noVNCDeviceRemovalSummary, error) {
+	xmlDesc, err := getDomainXMLInactiveOrCurrent(dom)
 	if err != nil {
-		return "", summary, err
+		return noVNCDeviceRemovalSummary{}, err
 	}
 
-	summary.SpiceChannels = 1
-	summary.VNCGraphics = 1
-	summary.SpiceGraphics = 1
-	summary.Videos = 1
-	summary.Sounds = 1
-	return updatedXML, summary, nil
+	devices, summary, err := collectNoVNCManagedDevicesFromDomainXML(xmlDesc)
+	if err != nil {
+		return noVNCDeviceRemovalSummary{}, err
+	}
+
+	for _, device := range devices {
+		if err := dom.DetachDeviceFlags(device.xml, noVNCDeviceModifyFlags); err != nil {
+			return summary, fmt.Errorf("detach %s: %w", device.kind, err)
+		}
+	}
+
+	return summary, nil
+}
+
+func attachNoVNCDefaultDevices(dom *libvirt.Domain) (noVNCDeviceAddSummary, error) {
+	devices := []struct {
+		kind string
+		xml  string
+	}{
+		{kind: "spice_channel", xml: defaultSpiceChannelDeviceXML},
+		{kind: "vnc_graphics", xml: defaultVNCGraphicsDeviceXML},
+		{kind: "spice_graphics", xml: defaultSpiceGraphicsDeviceXML},
+		{kind: "video", xml: defaultVideoDeviceXML},
+		{kind: "sound", xml: defaultSoundDeviceXML},
+	}
+
+	var summary noVNCDeviceAddSummary
+	for _, device := range devices {
+		if err := dom.AttachDeviceFlags(device.xml, noVNCDeviceModifyFlags); err != nil {
+			return summary, fmt.Errorf("attach %s: %w", device.kind, err)
+		}
+
+		switch device.kind {
+		case "spice_channel":
+			summary.SpiceChannels++
+		case "vnc_graphics":
+			summary.VNCGraphics++
+		case "spice_graphics":
+			summary.SpiceGraphics++
+		case "video":
+			summary.Videos++
+		case "sound":
+			summary.Sounds++
+		}
+	}
+
+	return summary, nil
+}
+
+func restoreDomainConfigXML(conn *libvirt.Connect, originalXML string) error {
+	if strings.TrimSpace(originalXML) == "" {
+		return fmt.Errorf("original domain XML is empty")
+	}
+
+	newDom, err := conn.DomainDefineXML(originalXML)
+	if err != nil {
+		return fmt.Errorf("restore domain xml: %w", err)
+	}
+	defer newDom.Free()
+	return nil
 }
 
 // EnsureVirtXMLInstalled verifies that virt-xml is available and installs it if missing.
@@ -277,33 +393,26 @@ func AddNoVNCVideo(vmName string) error {
 	}
 	defer dom.Free()
 
-	xmlDesc, err := dom.GetXMLDesc(libvirt.DOMAIN_XML_INACTIVE)
-	if err != nil {
-		xmlDesc, err = dom.GetXMLDesc(0)
-		if err != nil {
-			return fmt.Errorf("get xml: %w", err)
-		}
-	}
-
-	cleanXML, removedSummary, err := removeNoVNCAndSpiceDevicesFromDomainXML(xmlDesc)
+	originalXML, err := getDomainXMLInactiveOrCurrent(dom)
 	if err != nil {
 		return err
 	}
 
-	updatedXML, addedSummary, err := addNoVNCAndSpiceDevicesToDomainXML(cleanXML)
+	removedSummary, err := detachNoVNCManagedDevices(dom)
 	if err != nil {
-		return fmt.Errorf("restore noVNC/SPICE devices in domain XML: %w", err)
-	}
-	if updatedXML == xmlDesc {
-		logger.Info("noVNC/SPICE graphics/audio devices already enabled", "vm", vmName)
-		return nil
+		if restoreErr := restoreDomainConfigXML(conn, originalXML); restoreErr != nil {
+			return fmt.Errorf("clear existing noVNC/SPICE devices before add: %w (rollback failed: %v)", err, restoreErr)
+		}
+		return fmt.Errorf("clear existing noVNC/SPICE devices before add: %w", err)
 	}
 
-	newDom, err := conn.DomainDefineXML(updatedXML)
+	addedSummary, err := attachNoVNCDefaultDevices(dom)
 	if err != nil {
-		return fmt.Errorf("define updated domain xml: %w", err)
+		if restoreErr := restoreDomainConfigXML(conn, originalXML); restoreErr != nil {
+			return fmt.Errorf("attach noVNC/SPICE default devices: %w (rollback failed: %v)", err, restoreErr)
+		}
+		return fmt.Errorf("attach noVNC/SPICE default devices: %w", err)
 	}
-	defer newDom.Free()
 
 	logger.Info(
 		"restored noVNC/SPICE graphics/audio devices",
@@ -347,28 +456,29 @@ func RemoveNoVNCVideo(vmName string) error {
 	}
 	defer dom.Free()
 
-	xmlDesc, err := dom.GetXMLDesc(libvirt.DOMAIN_XML_INACTIVE)
-	if err != nil {
-		xmlDesc, err = dom.GetXMLDesc(0)
-		if err != nil {
-			return fmt.Errorf("get xml: %w", err)
-		}
-	}
-
-	updatedXML, summary, err := removeNoVNCAndSpiceDevicesFromDomainXML(xmlDesc)
+	originalXML, err := getDomainXMLInactiveOrCurrent(dom)
 	if err != nil {
 		return err
 	}
-	if updatedXML == xmlDesc {
+
+	summary, err := detachNoVNCManagedDevices(dom)
+	if err != nil {
+		if restoreErr := restoreDomainConfigXML(conn, originalXML); restoreErr != nil {
+			return fmt.Errorf("remove noVNC/SPICE devices: %w (rollback failed: %v)", err, restoreErr)
+		}
+		return fmt.Errorf("remove noVNC/SPICE devices: %w", err)
+	}
+	if summary.VNCGraphics == 0 &&
+		summary.SpiceGraphics == 0 &&
+		summary.Videos == 0 &&
+		summary.Sounds == 0 &&
+		summary.Audios == 0 &&
+		summary.SpiceChannels == 0 &&
+		summary.SpiceRedirdevs == 0 &&
+		summary.SpiceSmartcards == 0 {
 		logger.Info("no noVNC/SPICE graphics/audio devices found to remove", "vm", vmName)
 		return nil
 	}
-
-	newDom, err := conn.DomainDefineXML(updatedXML)
-	if err != nil {
-		return fmt.Errorf("define updated domain xml: %w", err)
-	}
-	defer newDom.Free()
 
 	logger.Info(
 		"removed noVNC/SPICE graphics/audio devices",
