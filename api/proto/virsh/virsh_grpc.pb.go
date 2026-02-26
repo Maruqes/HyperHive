@@ -23,6 +23,8 @@ const (
 	SlaveVirshService_GetCPUXML_FullMethodName           = "/virsh.SlaveVirshService/GetCPUXML"
 	SlaveVirshService_GetVMCPUXml_FullMethodName         = "/virsh.SlaveVirshService/GetVMCPUXml"
 	SlaveVirshService_UpdateVMCPUXml_FullMethodName      = "/virsh.SlaveVirshService/UpdateVMCPUXml"
+	SlaveVirshService_GetVMXml_FullMethodName            = "/virsh.SlaveVirshService/GetVMXml"
+	SlaveVirshService_UpdateVMXml_FullMethodName         = "/virsh.SlaveVirshService/UpdateVMXml"
 	SlaveVirshService_CreateVm_FullMethodName            = "/virsh.SlaveVirshService/CreateVm"
 	SlaveVirshService_MigrateVM_FullMethodName           = "/virsh.SlaveVirshService/MigrateVM"
 	SlaveVirshService_ShutdownVM_FullMethodName          = "/virsh.SlaveVirshService/ShutdownVM"
@@ -65,6 +67,8 @@ type SlaveVirshServiceClient interface {
 	GetCPUXML(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*CPUXMLResponse, error)
 	GetVMCPUXml(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*CPUXMLResponse, error)
 	UpdateVMCPUXml(ctx context.Context, in *UpdateVMCPUXmlRequest, opts ...grpc.CallOption) (*OkResponse, error)
+	GetVMXml(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*VMXMLResponse, error)
+	UpdateVMXml(ctx context.Context, in *UpdateVMXmlRequest, opts ...grpc.CallOption) (*OkResponse, error)
 	CreateVm(ctx context.Context, in *CreateVmRequest, opts ...grpc.CallOption) (*OkResponse, error)
 	MigrateVM(ctx context.Context, in *MigrateVmRequest, opts ...grpc.CallOption) (*OkResponse, error)
 	ShutdownVM(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
@@ -143,6 +147,26 @@ func (c *slaveVirshServiceClient) UpdateVMCPUXml(ctx context.Context, in *Update
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(OkResponse)
 	err := c.cc.Invoke(ctx, SlaveVirshService_UpdateVMCPUXml_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) GetVMXml(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*VMXMLResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VMXMLResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_GetVMXml_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) UpdateVMXml(ctx context.Context, in *UpdateVMXmlRequest, opts ...grpc.CallOption) (*OkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OkResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_UpdateVMXml_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -459,6 +483,8 @@ type SlaveVirshServiceServer interface {
 	GetCPUXML(context.Context, *Empty) (*CPUXMLResponse, error)
 	GetVMCPUXml(context.Context, *GetVmByNameRequest) (*CPUXMLResponse, error)
 	UpdateVMCPUXml(context.Context, *UpdateVMCPUXmlRequest) (*OkResponse, error)
+	GetVMXml(context.Context, *GetVmByNameRequest) (*VMXMLResponse, error)
+	UpdateVMXml(context.Context, *UpdateVMXmlRequest) (*OkResponse, error)
 	CreateVm(context.Context, *CreateVmRequest) (*OkResponse, error)
 	MigrateVM(context.Context, *MigrateVmRequest) (*OkResponse, error)
 	ShutdownVM(context.Context, *Vm) (*OkResponse, error)
@@ -514,6 +540,12 @@ func (UnimplementedSlaveVirshServiceServer) GetVMCPUXml(context.Context, *GetVmB
 }
 func (UnimplementedSlaveVirshServiceServer) UpdateVMCPUXml(context.Context, *UpdateVMCPUXmlRequest) (*OkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateVMCPUXml not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) GetVMXml(context.Context, *GetVmByNameRequest) (*VMXMLResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetVMXml not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) UpdateVMXml(context.Context, *UpdateVMXmlRequest) (*OkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateVMXml not implemented")
 }
 func (UnimplementedSlaveVirshServiceServer) CreateVm(context.Context, *CreateVmRequest) (*OkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateVm not implemented")
@@ -694,6 +726,42 @@ func _SlaveVirshService_UpdateVMCPUXml_Handler(srv interface{}, ctx context.Cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SlaveVirshServiceServer).UpdateVMCPUXml(ctx, req.(*UpdateVMCPUXmlRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_GetVMXml_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVmByNameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).GetVMXml(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_GetVMXml_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).GetVMXml(ctx, req.(*GetVmByNameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_UpdateVMXml_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateVMXmlRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).UpdateVMXml(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_UpdateVMXml_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).UpdateVMXml(ctx, req.(*UpdateVMXmlRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1260,6 +1328,14 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateVMCPUXml",
 			Handler:    _SlaveVirshService_UpdateVMCPUXml_Handler,
+		},
+		{
+			MethodName: "GetVMXml",
+			Handler:    _SlaveVirshService_GetVMXml_Handler,
+		},
+		{
+			MethodName: "UpdateVMXml",
+			Handler:    _SlaveVirshService_UpdateVMXml_Handler,
 		},
 		{
 			MethodName: "CreateVm",

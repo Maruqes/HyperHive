@@ -35,6 +35,15 @@ func GetVMCPUXml(conn *grpc.ClientConn, vmName string) (string, error) {
 	return resp.CpuXML, nil
 }
 
+func GetVMXml(conn *grpc.ClientConn, vmName string) (string, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetVMXml(context.Background(), &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return "", err
+	}
+	return resp.VmXML, nil
+}
+
 func CreateVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder, diskPath string, diskSizeGB int32, isoPath, network, VNCPassword string, cpuXML string, autoStart bool, isWindows bool) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.CreateVm(context.Background(), &grpcVirsh.CreateVmRequest{
@@ -85,6 +94,18 @@ func UpdateVMCPUXml(conn *grpc.ClientConn, vmName, cpuXml string) error {
 	_, err := client.UpdateVMCPUXml(context.Background(), &grpcVirsh.UpdateVMCPUXmlRequest{
 		Name:   vmName,
 		CpuXML: cpuXml,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func UpdateVMXml(conn *grpc.ClientConn, vmName, vmXml string) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.UpdateVMXml(context.Background(), &grpcVirsh.UpdateVMXmlRequest{
+		Name:  vmName,
+		VmXML: vmXml,
 	})
 	if err != nil {
 		return err

@@ -400,6 +400,28 @@ func (v *VirshService) UpdateCpuXml(_ context.Context, machine_name string, vmNa
 	return nil
 }
 
+func (v *VirshService) UpdateVmXML(_ context.Context, machine_name string, vmName string, vmXml string) error {
+	slaveMachine := protocol.GetConnectionByMachineName(machine_name)
+	if slaveMachine == nil {
+		return fmt.Errorf("machine %s not found", machine_name)
+	}
+
+	vm, err := virsh.GetVmByName(slaveMachine.Connection, &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return fmt.Errorf("failed to get VM by name: %v", err)
+	}
+	if vm == nil {
+		return fmt.Errorf("VM %s not found on machine %s", vmName, machine_name)
+	}
+
+	err = virsh.UpdateVMXml(slaveMachine.Connection, vmName, vmXml)
+	if err != nil {
+		return fmt.Errorf("failed to update VM XML: %v", err)
+	}
+
+	return nil
+}
+
 func (v *VirshService) GetCpuXML(machine_name string, vmName string) (string, error) {
 	slaveMachine := protocol.GetConnectionByMachineName(machine_name)
 	if slaveMachine == nil {
@@ -421,6 +443,28 @@ func (v *VirshService) GetCpuXML(machine_name string, vmName string) (string, er
 	}
 
 	return cpuXml, nil
+}
+
+func (v *VirshService) GetVmXML(machine_name string, vmName string) (string, error) {
+	slaveMachine := protocol.GetConnectionByMachineName(machine_name)
+	if slaveMachine == nil {
+		return "", fmt.Errorf("machine %s not found", machine_name)
+	}
+
+	vm, err := virsh.GetVmByName(slaveMachine.Connection, &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return "", fmt.Errorf("failed to get VM by name: %v", err)
+	}
+	if vm == nil {
+		return "", fmt.Errorf("VM %s not found on machine %s", vmName, machine_name)
+	}
+
+	vmXml, err := virsh.GetVMXml(slaveMachine.Connection, vmName)
+	if err != nil {
+		return "", fmt.Errorf("failed to get VM XML: %v", err)
+	}
+
+	return vmXml, nil
 }
 
 func (v *VirshService) DeleteVM(ctx context.Context, name string) error {

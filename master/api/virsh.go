@@ -506,6 +506,96 @@ func getCpuXML(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func getVmXML(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	machineName := strings.TrimSpace(r.URL.Query().Get("machine_name"))
+	if machineName == "" {
+		vm, err := virshServices.GetVmByName(vmName)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if vm == nil {
+			http.Error(w, "VM not found", http.StatusNotFound)
+			return
+		}
+		machineName = vm.MachineName
+	}
+
+	vmXml, err := virshServices.GetVmXML(machineName, vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(struct {
+		VmXML       string `json:"vm_xml"`
+		MachineName string `json:"machine_name"`
+	}{
+		VmXML:       vmXml,
+		MachineName: machineName,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
+}
+
+func updateVmXML(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type UpdateVmXMLRequest struct {
+		MachineName string `json:"machine_name"`
+		VmXML       string `json:"vm_xml"`
+	}
+
+	var req UpdateVmXMLRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	req.VmXML = strings.TrimSpace(req.VmXML)
+	if req.VmXML == "" {
+		http.Error(w, "vm_xml is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	req.MachineName = strings.TrimSpace(req.MachineName)
+	if req.MachineName == "" {
+		vm, err := virshServices.GetVmByName(vmName)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if vm == nil {
+			http.Error(w, "VM not found", http.StatusNotFound)
+			return
+		}
+		req.MachineName = vm.MachineName
+	}
+
+	if err := virshServices.UpdateVmXML(r.Context(), req.MachineName, vmName, req.VmXML); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("VM XML updated successfully"))
+}
+
 func removeIso(w http.ResponseWriter, r *http.Request) {
 	vmName := chi.URLParam(r, "vm_name")
 	if vmName == "" {
@@ -1699,6 +1789,8 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Post("/migratevm/{vm_name}", migrateLiveVM)
 		r.Post("/updatecpuxml/{vm_name}", updateCpuXml)
 		r.Get("/cpuxml/{vm_name}", getCpuXML)
+		r.Post("/updatevmxml/{vm_name}", updateVmXML)
+		r.Get("/vmxml/{vm_name}", getVmXML)
 
 		//controll
 		r.Delete("/deletevm/{vm_name}", deleteVM)

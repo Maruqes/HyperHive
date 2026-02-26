@@ -37,6 +37,14 @@ func (s *SlaveVirshService) GetVMCPUXml(ctx context.Context, e *grpcVirsh.GetVmB
 	return &grpcVirsh.CPUXMLResponse{CpuXML: xml}, nil
 }
 
+func (s *SlaveVirshService) GetVMXml(ctx context.Context, e *grpcVirsh.GetVmByNameRequest) (*grpcVirsh.VMXMLResponse, error) {
+	xml, err := GetVMXML(e.Name)
+	if err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.VMXMLResponse{VmXML: xml}, nil
+}
+
 func (s *SlaveVirshService) CreateVm(ctx context.Context, req *grpcVirsh.CreateVmRequest) (*grpcVirsh.OkResponse, error) {
 	params := CreateVMCustomCPUOptions{
 		ConnURI:        "qemu:///system",
@@ -102,6 +110,14 @@ func (s *SlaveVirshService) ColdMigrateVm(ctx context.Context, e *grpcVirsh.Cold
 
 func (s *SlaveVirshService) UpdateVMCPUXml(ctx context.Context, e *grpcVirsh.UpdateVMCPUXmlRequest) (*grpcVirsh.OkResponse, error) {
 	err := UpdateVMCPUXml(e.Name, e.CpuXML)
+	if err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{}, nil
+}
+
+func (s *SlaveVirshService) UpdateVMXml(ctx context.Context, e *grpcVirsh.UpdateVMXmlRequest) (*grpcVirsh.OkResponse, error) {
+	err := UpdateVMXml(e.Name, e.VmXML)
 	if err != nil {
 		return nil, err
 	}

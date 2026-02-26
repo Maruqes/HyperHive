@@ -79,9 +79,16 @@ message MigrateVmRequest {
 
 message CPUXMLResponse { string cpuXML = 1; }
 
+message VMXMLResponse { string vmXML = 1; }
+
 message UpdateVMCPUXmlRequest {
   string name = 1;
   string cpuXML = 2;
+}
+
+message UpdateVMXmlRequest {
+  string name = 1;
+  string vmXML = 2;
 }
 
 message ColdMigrationRequest {
@@ -131,6 +138,8 @@ service SlaveVirshService {
 
   rpc GetVMCPUXml(GetVmByNameRequest) returns (CPUXMLResponse);
   rpc UpdateVMCPUXml(UpdateVMCPUXmlRequest) returns (OkResponse);
+  rpc GetVMXml(GetVmByNameRequest) returns (VMXMLResponse);
+  rpc UpdateVMXml(UpdateVMXmlRequest) returns (OkResponse);
 
   rpc CreateVm(CreateVmRequest) returns (OkResponse);
 
