@@ -172,11 +172,10 @@ func ForceCorruptTempDisk(filepath string) error {
 	return nil
 }
 
-func askForSudo() {
-	//if current program is not sudo terminate
+func askForSudo(t *testing.T) {
+	t.Helper()
 	if os.Geteuid() != 0 {
-		fmt.Println("This program needs to be run as root.")
-		os.Exit(0)
+		t.Skip("requires root")
 	}
 }
 
@@ -184,7 +183,7 @@ func askForSudo() {
 func TestRaid0(t *testing.T) {
 	logger.SetType(env512.Mode)
 	logger.SetCallBack(logs512.LogMessage)
-	askForSudo()
+	askForSudo(t)
 
 	filepath0, dev0, err := CreateTempFakeDisk()
 	if err != nil {
@@ -293,7 +292,7 @@ func TestRaid0(t *testing.T) {
 func TestRaid1c2(t *testing.T) {
 	logger.SetType(env512.Mode)
 	logger.SetCallBack(logs512.LogMessage)
-	askForSudo()
+	askForSudo(t)
 
 	filepath0, dev0, err := CreateTempFakeDisk()
 	if err != nil {
@@ -402,7 +401,7 @@ func TestRaid1c2(t *testing.T) {
 func TestRaid1c3(t *testing.T) {
 	logger.SetType(env512.Mode)
 	logger.SetCallBack(logs512.LogMessage)
-	askForSudo()
+	askForSudo(t)
 
 	filepath0, dev0, err := CreateTempFakeDisk()
 	if err != nil {
@@ -510,7 +509,7 @@ func TestRaid1c3(t *testing.T) {
 func TestRaid1c4(t *testing.T) {
 	logger.SetType(env512.Mode)
 	logger.SetCallBack(logs512.LogMessage)
-	askForSudo()
+	askForSudo(t)
 
 	filepath0, dev0, err := CreateTempFakeDisk()
 	if err != nil {
@@ -630,7 +629,7 @@ func TestRaid1c4(t *testing.T) {
 func TestAddDiskToRaid(t *testing.T) {
 	logger.SetType(env512.Mode)
 	logger.SetCallBack(logs512.LogMessage)
-	askForSudo()
+	askForSudo(t)
 
 	filepath0, dev0, err := CreateTempFakeDisk()
 	if err != nil {
@@ -757,7 +756,7 @@ func TestAddDiskToRaid(t *testing.T) {
 func TestRemoveDiskFromRaid(t *testing.T) {
 	logger.SetType(env512.Mode)
 	logger.SetCallBack(logs512.LogMessage)
-	askForSudo()
+	askForSudo(t)
 
 	filepath0, dev0, err := CreateTempFakeDisk()
 	if err != nil {
@@ -884,7 +883,7 @@ func TestRemoveDiskFromRaid(t *testing.T) {
 func TestReplaceDiskFromRaid(t *testing.T) {
 	logger.SetType(env512.Mode)
 	logger.SetCallBack(logs512.LogMessage)
-	askForSudo()
+	askForSudo(t)
 
 	filepath0, dev0, err := CreateTempFakeDisk()
 	if err != nil {
@@ -1016,7 +1015,7 @@ func TestReplaceDiskFromRaid(t *testing.T) {
 func TestChangeRaidLevel(t *testing.T) {
 	logger.SetType(env512.Mode)
 	logger.SetCallBack(logs512.LogMessage)
-	askForSudo()
+	askForSudo(t)
 
 	filepath0, dev0, err := CreateTempFakeDisk()
 	if err != nil {
@@ -1109,7 +1108,7 @@ func TestChangeRaidLevel(t *testing.T) {
 func TestBalanceRaid(t *testing.T) {
 	logger.SetType(env512.Mode)
 	logger.SetCallBack(logs512.LogMessage)
-	askForSudo()
+	askForSudo(t)
 
 	filepath0, dev0, err := CreateTempFakeDisk()
 	if err != nil {
@@ -1229,7 +1228,7 @@ func TestBalanceRaid(t *testing.T) {
 func TestDefragmentRaid(t *testing.T) {
 	logger.SetType(env512.Mode)
 	logger.SetCallBack(logs512.LogMessage)
-	askForSudo()
+	askForSudo(t)
 
 	filepath0, dev0, err := CreateTempFakeDisk()
 	if err != nil {
@@ -1342,7 +1341,7 @@ func TestDefragmentRaid(t *testing.T) {
 func TestScrubRaid(t *testing.T) {
 	logger.SetType(env512.Mode)
 	logger.SetCallBack(logs512.LogMessage)
-	askForSudo()
+	askForSudo(t)
 
 	filepath0, dev0, err := CreateTempFakeDisk()
 	if err != nil {
@@ -1446,7 +1445,7 @@ func TestScrubRaid(t *testing.T) {
 func TestCheckBtrfsFunc(t *testing.T) {
 	logger.SetType(env512.Mode)
 	logger.SetCallBack(logs512.LogMessage)
-	askForSudo()
+	askForSudo(t)
 
 	filepath0, dev0, err := CreateTempFakeDisk()
 	if err != nil {
@@ -1550,7 +1549,7 @@ func TestCheckBtrfsFunc(t *testing.T) {
 func TestDiskFailure(t *testing.T) {
 	logger.SetType(env512.Mode)
 	logger.SetCallBack(logs512.LogMessage)
-	askForSudo()
+	askForSudo(t)
 
 	filepath0, dev0, err := CreateTempFakeDisk()
 	if err != nil {
@@ -1746,7 +1745,7 @@ func TestDiskFailure(t *testing.T) {
 func TestMultipleDiskFailure(t *testing.T) {
 	logger.SetType(env512.Mode)
 	logger.SetCallBack(logs512.LogMessage)
-	askForSudo()
+	askForSudo(t)
 
 	filepath0, dev0, err := CreateTempFakeDisk()
 	if err != nil {
@@ -2035,7 +2034,7 @@ func TestMultipleDiskFailure(t *testing.T) {
 func TestRemoveRaidUUID_Mounted(t *testing.T) {
 	logger.SetType(env512.Mode)
 	logger.SetCallBack(logs512.LogMessage)
-	askForSudo()
+	askForSudo(t)
 
 	filepath0, dev0, err := CreateTempFakeDisk()
 	if err != nil {
@@ -2103,7 +2102,7 @@ func TestRemoveRaidUUID_Mounted(t *testing.T) {
 func TestRemoveRaidUUID_Unmounted(t *testing.T) {
 	logger.SetType(env512.Mode)
 	logger.SetCallBack(logs512.LogMessage)
-	askForSudo()
+	askForSudo(t)
 
 	filepath0, dev0, err := CreateTempFakeDisk()
 	if err != nil {
