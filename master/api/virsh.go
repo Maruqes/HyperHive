@@ -59,6 +59,7 @@ func createVM(w http.ResponseWriter, r *http.Request) {
 		Memory      int32  `json:"memory"`
 		Vcpu        int32  `json:"vcpu"`
 		DiskSizeGB  int32  `json:"disk_sizeGB"`
+		TemplateID  int    `json:"template_id"`
 		IsoID       int    `json:"iso_id"`
 		NfsShareId  int    `json:"nfs_share_id"`
 		Network     string `json:"network"`
@@ -78,14 +79,14 @@ func createVM(w http.ResponseWriter, r *http.Request) {
 
 	virshServices := services.VirshService{}
 	if vmReq.Live {
-		err = virshServices.CreateLiveVM(r.Context(), vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml, vmReq.AutoStart, vmReq.IsWindows)
+		err = virshServices.CreateLiveVM(r.Context(), vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml, vmReq.AutoStart, vmReq.IsWindows, vmReq.TemplateID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 	} else {
-		err = virshServices.CreateVM(r.Context(), vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml, vmReq.AutoStart, vmReq.IsWindows)
+		err = virshServices.CreateVM(r.Context(), vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml, vmReq.AutoStart, vmReq.IsWindows, vmReq.TemplateID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -866,6 +867,7 @@ type VMRequestImport struct {
 	Network     string `json:"network"`
 	VNCPassword string `json:"VNC_password"`
 	CpuXML      string `json:"cpu_xml"`
+	TemplateID  int    `json:"template_id"`
 	Live        bool   `json:"live"`
 }
 
@@ -906,6 +908,13 @@ func readVMRequest(r *http.Request) (*VMRequestImport, error) {
 	vmReq.Network = q(r, "network")
 	vmReq.VNCPassword = q(r, "VNC_password")
 	vmReq.CpuXML = q(r, "cpu_xml") // URL-encode on client if it includes <, >, " …
+	if s := q(r, "template_id"); s != "" {
+		v, err := strconv.Atoi(s)
+		if err != nil {
+			return nil, fmt.Errorf("invalid template_id: %v", err)
+		}
+		vmReq.TemplateID = v
+	}
 	if s := q(r, "live"); s != "" {
 		vmReq.Live = s == "true"
 	}
@@ -1072,6 +1081,7 @@ func importVM(w http.ResponseWriter, r *http.Request) {
 			CpuXML:      vmReq.CpuXML,
 			Live:        vmReq.Live,
 		},
+		vmReq.TemplateID,
 	)
 	if err != nil {
 		http.Error(w, "error creating VM after import: "+err.Error(), http.StatusInternalServerError)
@@ -1237,7 +1247,8 @@ func useBackup(w http.ResponseWriter, r *http.Request) {
 			CpuXML:      vmReq.CpuXML,
 			DiskPath:    "", //UseBackup FUNCTION WILL SET THIS
 			Live:        vmReq.Live,
-		})
+		},
+		vmReq.TemplateID)
 	if err != nil {
 		http.Error(w, "was not possible to backup your vm err: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -1501,7 +1512,8 @@ func moveDisk(w http.ResponseWriter, r *http.Request) {
 
 	// parse optional new_name from JSON body
 	type MoveReq struct {
-		NewName string `json:"new_name"`
+		NewName    string `json:"new_name"`
+		TemplateID int    `json:"template_id"`
 	}
 	var mr MoveReq
 	if err := json.NewDecoder(r.Body).Decode(&mr); err != nil && err != io.EOF {
@@ -1518,7 +1530,7 @@ func moveDisk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshService := services.VirshService{}
-	err = virshService.MoveDisk(r.Context(), vm_name, destNfs, newName)
+	err = virshService.MoveDisk(r.Context(), vm_name, destNfs, newName, mr.TemplateID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1540,8 +1552,17 @@ func coldMigrate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	type ColdMigrateRequest struct {
+		TemplateID int `json:"template_id"`
+	}
+	var creq ColdMigrateRequest
+	if err := json.NewDecoder(r.Body).Decode(&creq); err != nil && err != io.EOF {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	virshService := services.VirshService{}
-	err := virshService.ColdMigrate(r.Context(), vm_name, dest_machine_name)
+	err := virshService.ColdMigrate(r.Context(), vm_name, dest_machine_name, creq.TemplateID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1571,7 +1592,8 @@ func cloneVM(w http.ResponseWriter, r *http.Request) {
 
 	// parse new name from JSON body
 	type CloneRequest struct {
-		NewName string `json:"new_name"`
+		NewName    string `json:"new_name"`
+		TemplateID int    `json:"template_id"`
 	}
 	var creq CloneRequest
 	if err := json.NewDecoder(r.Body).Decode(&creq); err != nil && err != io.EOF {
@@ -1588,7 +1610,7 @@ func cloneVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshService := services.VirshService{}
-	err = virshService.CloneVM(r.Context(), vm_name, newName, dest_machine_name, destNfs)
+	err = virshService.CloneVM(r.Context(), vm_name, newName, dest_machine_name, destNfs, creq.TemplateID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1782,6 +1804,8 @@ func setTunedAdmProfile(w http.ResponseWriter, r *http.Request) {
 func setupVirshAPI(r chi.Router) chi.Router {
 	extra.RegisterCallFunction(websocketusInfoVms)
 	return r.Route("/virsh", func(r chi.Router) {
+		setupVirshXMLTemplatesAPI(r)
+
 		r.Get("/getcpudisablefeatures", getCpuFeatures)
 		r.Get("/getallvms", getAllVms)
 		r.Post("/createvm", createVM)

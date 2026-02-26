@@ -380,6 +380,11 @@ func main() {
 		log.Fatalf("create vm_live table: %v", err)
 	}
 
+	err = db.CreateVMXMLTemplatesTable(ctx)
+	if err != nil {
+		log.Fatalf("create vm_xml_templates table: %v", err)
+	}
+
 	err = db.CreateLogsTable(ctx)
 	if err != nil {
 		log.Fatalf("create logs table: %v", err)

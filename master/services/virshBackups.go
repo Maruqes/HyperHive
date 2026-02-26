@@ -382,7 +382,7 @@ func (v *VirshService) DeleteBackup(ctx context.Context, bakId int) error {
 }
 
 // clonar bak para uma nova pasta e defenir
-func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName string, nfsId int, coldReq *grpcVirsh.ColdMigrationRequest) error {
+func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName string, nfsId int, coldReq *grpcVirsh.ColdMigrationRequest, templateID int) error {
 	logErr := func(e error) error {
 		logger.Error(e.Error())
 		return e
@@ -458,6 +458,10 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 	reqCopy := *coldReq
 	reqCopy.DiskPath = newDiskPath
 
+	if _, err := v.prepareVMXMLTemplateForCreate(ctx, templateID, reqCopy.VmName, reqCopy.DiskPath); err != nil {
+		return logErr(err)
+	}
+
 	go func() {
 		taskCtx, cancel := context.WithTimeout(context.Background(), longTaskTimeout)
 		defer cancel()
@@ -468,7 +472,7 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 				return fmt.Errorf("failed to copy backup file: %w", err)
 			}
 
-			if err := v.ColdMigrateVm(taskCtx, slaveName, &reqCopy); err != nil {
+			if err := v.ColdMigrateVm(taskCtx, slaveName, &reqCopy, templateID); err != nil {
 				return fmt.Errorf("ColdMigrateVm failed: %w", err)
 			}
 

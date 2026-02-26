@@ -170,7 +170,7 @@ func (v *VirshService) GetCpuDisableFeatures(conns []string) (string, error) {
 }
 
 // vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword
-func (v *VirshService) CreateVM(ctx context.Context, machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXML string, autoStart bool, isWindows bool) error {
+func (v *VirshService) CreateVM(ctx context.Context, machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXML string, autoStart bool, isWindows bool, templateID int) error {
 
 	exists, err := virsh.DoesVMExist(name)
 	if err != nil {
@@ -194,15 +194,35 @@ func (v *VirshService) CreateVM(ctx context.Context, machine_name string, name s
 		return fmt.Errorf("NFS share with ID %d not found", nfsShareId)
 	}
 
-	//get iso path from isoID
-	iso, err := db.GetIsoByID(ctx, isoID)
-	if err != nil {
-		return fmt.Errorf("failed to get ISO by ID: %v", err)
+	bootstrapMemory := memory
+	bootstrapVCPU := vcpu
+	bootstrapNetwork := strings.TrimSpace(network)
+	if templateID > 0 {
+		if bootstrapMemory <= 0 {
+			bootstrapMemory = 1024
+		}
+		if bootstrapVCPU <= 0 {
+			bootstrapVCPU = 1
+		}
+		if bootstrapNetwork == "" {
+			bootstrapNetwork = "default"
+		}
 	}
-	if iso == nil {
+
+	isoPath := ""
+	if isoID > 0 {
+		//get iso path from isoID
+		iso, err := db.GetIsoByID(ctx, isoID)
+		if err != nil {
+			return fmt.Errorf("failed to get ISO by ID: %v", err)
+		}
+		if iso == nil {
+			return fmt.Errorf("ISO with ID %d not found", isoID)
+		}
+		isoPath = iso.FilePath
+	} else if templateID <= 0 {
 		return fmt.Errorf("ISO with ID %d not found", isoID)
 	}
-	isoPath := iso.FilePath
 
 	var qcowFile string
 	fileExtension := ".qcow2"
@@ -222,7 +242,16 @@ func (v *VirshService) CreateVM(ctx context.Context, machine_name string, name s
 		diskFolder = nfsShare.Target + name
 	}
 
-	if err := virsh.CreateVM(slaveMachine.Connection, name, memory, vcpu, diskFolder, qcowFile, diskSizeGB, isoPath, network, VNCPassword, cpuXML, autoStart, isWindows); err != nil {
+	renderedTemplateXML, err := v.prepareVMXMLTemplateForCreate(ctx, templateID, name, qcowFile)
+	if err != nil {
+		return err
+	}
+
+	if err := virsh.CreateVM(slaveMachine.Connection, name, bootstrapMemory, bootstrapVCPU, diskFolder, qcowFile, diskSizeGB, isoPath, bootstrapNetwork, VNCPassword, cpuXML, autoStart, isWindows); err != nil {
+		return err
+	}
+
+	if err := v.applyRenderedVMXMLTemplateAfterCreate(ctx, slaveMachine.Connection, name, renderedTemplateXML); err != nil {
 		return err
 	}
 
@@ -232,7 +261,7 @@ func (v *VirshService) CreateVM(ctx context.Context, machine_name string, name s
 	return nil
 }
 
-func (v *VirshService) CreateLiveVM(ctx context.Context, machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXml string, autoStart bool, isWindows bool) error {
+func (v *VirshService) CreateLiveVM(ctx context.Context, machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXml string, autoStart bool, isWindows bool, templateID int) error {
 	exists, err := db.DoesVmLiveExist(ctx, name)
 	if err != nil {
 		return fmt.Errorf("failed to check if live VM exists in database: %v", err)
@@ -254,7 +283,7 @@ func (v *VirshService) CreateLiveVM(ctx context.Context, machine_name string, na
 		return fmt.Errorf("cant have live VM on a HostNormalMount NFS true, use a nfs where HostNormalMount is false")
 	}
 
-	err = v.CreateVM(ctx, machine_name, name, memory, vcpu, nfsShareId, diskSizeGB, isoID, network, VNCPassword, cpuXml, autoStart, isWindows)
+	err = v.CreateVM(ctx, machine_name, name, memory, vcpu, nfsShareId, diskSizeGB, isoID, network, VNCPassword, cpuXml, autoStart, isWindows, templateID)
 	if err != nil {
 		return err
 	}
@@ -267,10 +296,15 @@ func (v *VirshService) CreateLiveVM(ctx context.Context, machine_name string, na
 	return nil
 }
 
-func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, machine *grpcVirsh.ColdMigrationRequest) error {
+func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, machine *grpcVirsh.ColdMigrationRequest, templateID int) error {
 	originConn := protocol.GetConnectionByMachineName(slaveName)
 	if originConn == nil {
 		return fmt.Errorf("origin machine %s not found", slaveName)
+	}
+
+	renderedTemplateXML, err := v.prepareVMXMLTemplateForCreate(ctx, templateID, machine.VmName, machine.DiskPath)
+	if err != nil {
+		return err
 	}
 
 	// chmod 777 and give qemu ownership with machine.DiskPath
@@ -300,6 +334,10 @@ func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, mach
 
 	err = virsh.ColdMigrateVm(ctx, originConn.Connection, machine)
 	if err != nil {
+		return err
+	}
+
+	if err := v.applyRenderedVMXMLTemplateAfterCreate(ctx, originConn.Connection, machine.VmName, renderedTemplateXML); err != nil {
 		return err
 	}
 
@@ -1349,7 +1387,7 @@ func (v *VirshService) isVmLive(ctx context.Context, vmName string) (bool, error
 	return liveQuestion, nil
 }
 
-func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, newName string) error {
+func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, newName string, templateID int) error {
 	logErr := func(e error) error {
 		logger.Error(e.Error())
 		return e
@@ -1420,6 +1458,10 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 		Live:        liveQuestion,
 	}
 
+	if _, err := v.prepareVMXMLTemplateForCreate(ctx, templateID, coldMigr.VmName, coldMigr.DiskPath); err != nil {
+		return logErr(err)
+	}
+
 	marshaler := protojson.MarshalOptions{EmitUnpopulated: true, Indent: "  "}
 	data, err := marshaler.Marshal(&coldMigr)
 	if err != nil {
@@ -1437,7 +1479,7 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 				return fmt.Errorf("copy disk: %w", err)
 			}
 
-			if err := v.ColdMigrateVm(taskCtx, vm.MachineName, &coldMigr); err != nil {
+			if err := v.ColdMigrateVm(taskCtx, vm.MachineName, &coldMigr, templateID); err != nil {
 				return fmt.Errorf("ColdMigrateVm: %w", err)
 			}
 
@@ -1464,7 +1506,7 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 	return nil
 }
 
-func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinationMachine string) error {
+func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinationMachine string, templateID int) error {
 	logErr := func(e error) error {
 		logger.Error(e.Error())
 		return e
@@ -1511,6 +1553,10 @@ func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinati
 		Live:        liveQuestion,
 	}
 
+	if _, err := v.prepareVMXMLTemplateForCreate(ctx, templateID, coldMigr.VmName, coldMigr.DiskPath); err != nil {
+		return logErr(err)
+	}
+
 	marshaler := protojson.MarshalOptions{EmitUnpopulated: true, Indent: "  "}
 	data, err := marshaler.Marshal(&coldMigr)
 	if err != nil {
@@ -1524,7 +1570,7 @@ func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinati
 		defer cancel()
 
 		err := func() error {
-			if err := v.ColdMigrateVm(taskCtx, destinationMachine, &coldMigr); err != nil {
+			if err := v.ColdMigrateVm(taskCtx, destinationMachine, &coldMigr, templateID); err != nil {
 				return err
 			}
 
@@ -1543,7 +1589,7 @@ func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinati
 
 	return nil
 }
-func (v *VirshService) CloneVM(ctx context.Context, vmName string, newName string, destinationMachine string, nfsId int) error {
+func (v *VirshService) CloneVM(ctx context.Context, vmName string, newName string, destinationMachine string, nfsId int, templateID int) error {
 	logErr := func(e error) error {
 		logger.Error(e.Error())
 		return e
@@ -1599,6 +1645,10 @@ func (v *VirshService) CloneVM(ctx context.Context, vmName string, newName strin
 		Live:        liveQuestion,
 	}
 
+	if _, err := v.prepareVMXMLTemplateForCreate(ctx, templateID, coldMigr.VmName, coldMigr.DiskPath); err != nil {
+		return logErr(err)
+	}
+
 	marshaler := protojson.MarshalOptions{EmitUnpopulated: true, Indent: "  "}
 	data, err := marshaler.Marshal(&coldMigr)
 	if err != nil {
@@ -1640,7 +1690,7 @@ func (v *VirshService) CloneVM(ctx context.Context, vmName string, newName strin
 				}
 			}
 
-			if err := v.ColdMigrateVm(taskCtx, destinationMachine, &coldMigr); err != nil {
+			if err := v.ColdMigrateVm(taskCtx, destinationMachine, &coldMigr, templateID); err != nil {
 				return err
 			}
 			return nil
