@@ -316,6 +316,27 @@ func SetMemoryBallooning(conn *grpc.ClientConn, vmName string, enable bool) erro
 	return nil
 }
 
+func GetHugePages(conn *grpc.ClientConn, vmName string) (*grpcVirsh.GetHugePagesResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetHugePages(context.Background(), &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func SetHugePages(conn *grpc.ClientConn, vmName string, enable bool) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.SetHugePages(context.Background(), &grpcVirsh.SetHugePagesRequest{
+		VmName: vmName,
+		Enable: enable,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func ApplyCPUPinningGRPC(conn *grpc.ClientConn, req *grpcVirsh.CPUPinningRequest) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.ApplyCPUPinning(context.Background(), req)
@@ -413,6 +434,33 @@ func SetHostCoreIsolationGRPC(conn *grpc.ClientConn, req *grpcVirsh.SetHostCoreI
 func RemoveHostCoreIsolationGRPC(conn *grpc.ClientConn) (*grpcVirsh.HostCoreIsolationStateResponse, error) {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	resp, err := client.RemoveHostCoreIsolation(context.Background(), &grpcVirsh.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func GetHostHugePagesGRPC(conn *grpc.ClientConn) (*grpcVirsh.HostHugePagesStateResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetHostHugePages(context.Background(), &grpcVirsh.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func SetHostHugePagesGRPC(conn *grpc.ClientConn, req *grpcVirsh.SetHostHugePagesRequest) (*grpcVirsh.HostHugePagesStateResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.SetHostHugePages(context.Background(), req)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func RemoveHostHugePagesGRPC(conn *grpc.ClientConn) (*grpcVirsh.HostHugePagesStateResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.RemoveHostHugePages(context.Background(), &grpcVirsh.Empty{})
 	if err != nil {
 		return nil, err
 	}

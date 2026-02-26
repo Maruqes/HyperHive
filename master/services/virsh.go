@@ -1053,6 +1053,44 @@ func (v *VirshService) SetMemoryBallooning(vmName string, enable bool) error {
 	return virsh.SetMemoryBallooning(slave.Connection, vmName, enable)
 }
 
+func (v *VirshService) GetHugePages(vmName string) (*grpcVirsh.GetHugePagesResponse, error) {
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return nil, err
+	}
+	if vm == nil {
+		return nil, fmt.Errorf("vm %s does not exist", vmName)
+	}
+
+	slave := protocol.GetConnectionByMachineName(vm.MachineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s no connected", vm.MachineName)
+	}
+
+	return virsh.GetHugePages(slave.Connection, vmName)
+}
+
+func (v *VirshService) SetHugePages(vmName string, enable bool) error {
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return err
+	}
+	if vm == nil {
+		return fmt.Errorf("vm %s does not exist", vmName)
+	}
+
+	if vm.State != grpcVirsh.VmState_SHUTOFF {
+		return fmt.Errorf("vm %s needs to be shutdown", vmName)
+	}
+
+	slave := protocol.GetConnectionByMachineName(vm.MachineName)
+	if slave == nil || slave.Connection == nil {
+		return fmt.Errorf("slave %s no connected", vm.MachineName)
+	}
+
+	return virsh.SetHugePages(slave.Connection, vmName, enable)
+}
+
 func (v *VirshService) PauseVM(name string) error {
 	//find vm by name
 	exists, err := virsh.DoesVMExist(name)
@@ -1889,6 +1927,45 @@ func (v *VirshService) RemoveHostCoreIsolation(machineName string) (*grpcVirsh.H
 	resp, err := virsh.RemoveHostCoreIsolationGRPC(slave.Connection)
 	if err != nil {
 		return nil, fmt.Errorf("failed to remove host core isolation on %s: %v", machineName, err)
+	}
+	return resp, nil
+}
+
+func (v *VirshService) GetHostHugePages(machineName string) (*grpcVirsh.HostHugePagesStateResponse, error) {
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	resp, err := virsh.GetHostHugePagesGRPC(slave.Connection)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get host hugepages from %s: %v", machineName, err)
+	}
+	return resp, nil
+}
+
+func (v *VirshService) SetHostHugePages(machineName string, req *grpcVirsh.SetHostHugePagesRequest) (*grpcVirsh.HostHugePagesStateResponse, error) {
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	resp, err := virsh.SetHostHugePagesGRPC(slave.Connection, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set host hugepages on %s: %v", machineName, err)
+	}
+	return resp, nil
+}
+
+func (v *VirshService) RemoveHostHugePages(machineName string) (*grpcVirsh.HostHugePagesStateResponse, error) {
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	resp, err := virsh.RemoveHostHugePagesGRPC(slave.Connection)
+	if err != nil {
+		return nil, fmt.Errorf("failed to remove host hugepages on %s: %v", machineName, err)
 	}
 	return resp, nil
 }

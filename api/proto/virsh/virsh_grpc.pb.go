@@ -44,6 +44,8 @@ const (
 	SlaveVirshService_GetNoVNCVideo_FullMethodName           = "/virsh.SlaveVirshService/GetNoVNCVideo"
 	SlaveVirshService_GetMemoryBallooning_FullMethodName     = "/virsh.SlaveVirshService/GetMemoryBallooning"
 	SlaveVirshService_SetMemoryBallooning_FullMethodName     = "/virsh.SlaveVirshService/SetMemoryBallooning"
+	SlaveVirshService_GetHugePages_FullMethodName            = "/virsh.SlaveVirshService/GetHugePages"
+	SlaveVirshService_SetHugePages_FullMethodName            = "/virsh.SlaveVirshService/SetHugePages"
 	SlaveVirshService_EditVmResources_FullMethodName         = "/virsh.SlaveVirshService/EditVmResources"
 	SlaveVirshService_ColdMigrateVm_FullMethodName           = "/virsh.SlaveVirshService/ColdMigrateVm"
 	SlaveVirshService_FreezeDisk_FullMethodName              = "/virsh.SlaveVirshService/FreezeDisk"
@@ -60,6 +62,9 @@ const (
 	SlaveVirshService_GetHostCoreIsolation_FullMethodName    = "/virsh.SlaveVirshService/GetHostCoreIsolation"
 	SlaveVirshService_SetHostCoreIsolation_FullMethodName    = "/virsh.SlaveVirshService/SetHostCoreIsolation"
 	SlaveVirshService_RemoveHostCoreIsolation_FullMethodName = "/virsh.SlaveVirshService/RemoveHostCoreIsolation"
+	SlaveVirshService_GetHostHugePages_FullMethodName        = "/virsh.SlaveVirshService/GetHostHugePages"
+	SlaveVirshService_SetHostHugePages_FullMethodName        = "/virsh.SlaveVirshService/SetHostHugePages"
+	SlaveVirshService_RemoveHostHugePages_FullMethodName     = "/virsh.SlaveVirshService/RemoveHostHugePages"
 )
 
 // SlaveVirshServiceClient is the client API for SlaveVirshService service.
@@ -93,6 +98,8 @@ type SlaveVirshServiceClient interface {
 	GetNoVNCVideo(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*GetNoVNCVideoResponse, error)
 	GetMemoryBallooning(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*GetMemoryBallooningResponse, error)
 	SetMemoryBallooning(ctx context.Context, in *SetMemoryBallooningRequest, opts ...grpc.CallOption) (*OkResponse, error)
+	GetHugePages(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*GetHugePagesResponse, error)
+	SetHugePages(ctx context.Context, in *SetHugePagesRequest, opts ...grpc.CallOption) (*OkResponse, error)
 	// only sees machine name, cpuCount and memoryMB
 	// cpuCount and memoryMB are the new values to set
 	EditVmResources(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
@@ -115,6 +122,9 @@ type SlaveVirshServiceClient interface {
 	GetHostCoreIsolation(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*HostCoreIsolationStateResponse, error)
 	SetHostCoreIsolation(ctx context.Context, in *SetHostCoreIsolationRequest, opts ...grpc.CallOption) (*HostCoreIsolationStateResponse, error)
 	RemoveHostCoreIsolation(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*HostCoreIsolationStateResponse, error)
+	GetHostHugePages(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*HostHugePagesStateResponse, error)
+	SetHostHugePages(ctx context.Context, in *SetHostHugePagesRequest, opts ...grpc.CallOption) (*HostHugePagesStateResponse, error)
+	RemoveHostHugePages(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*HostHugePagesStateResponse, error)
 }
 
 type slaveVirshServiceClient struct {
@@ -375,6 +385,26 @@ func (c *slaveVirshServiceClient) SetMemoryBallooning(ctx context.Context, in *S
 	return out, nil
 }
 
+func (c *slaveVirshServiceClient) GetHugePages(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*GetHugePagesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetHugePagesResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_GetHugePages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) SetHugePages(ctx context.Context, in *SetHugePagesRequest, opts ...grpc.CallOption) (*OkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OkResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_SetHugePages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *slaveVirshServiceClient) EditVmResources(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(OkResponse)
@@ -535,6 +565,36 @@ func (c *slaveVirshServiceClient) RemoveHostCoreIsolation(ctx context.Context, i
 	return out, nil
 }
 
+func (c *slaveVirshServiceClient) GetHostHugePages(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*HostHugePagesStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HostHugePagesStateResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_GetHostHugePages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) SetHostHugePages(ctx context.Context, in *SetHostHugePagesRequest, opts ...grpc.CallOption) (*HostHugePagesStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HostHugePagesStateResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_SetHostHugePages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) RemoveHostHugePages(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*HostHugePagesStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HostHugePagesStateResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_RemoveHostHugePages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SlaveVirshServiceServer is the server API for SlaveVirshService service.
 // All implementations must embed UnimplementedSlaveVirshServiceServer
 // for forward compatibility.
@@ -566,6 +626,8 @@ type SlaveVirshServiceServer interface {
 	GetNoVNCVideo(context.Context, *GetVmByNameRequest) (*GetNoVNCVideoResponse, error)
 	GetMemoryBallooning(context.Context, *GetVmByNameRequest) (*GetMemoryBallooningResponse, error)
 	SetMemoryBallooning(context.Context, *SetMemoryBallooningRequest) (*OkResponse, error)
+	GetHugePages(context.Context, *GetVmByNameRequest) (*GetHugePagesResponse, error)
+	SetHugePages(context.Context, *SetHugePagesRequest) (*OkResponse, error)
 	// only sees machine name, cpuCount and memoryMB
 	// cpuCount and memoryMB are the new values to set
 	EditVmResources(context.Context, *Vm) (*OkResponse, error)
@@ -588,6 +650,9 @@ type SlaveVirshServiceServer interface {
 	GetHostCoreIsolation(context.Context, *Empty) (*HostCoreIsolationStateResponse, error)
 	SetHostCoreIsolation(context.Context, *SetHostCoreIsolationRequest) (*HostCoreIsolationStateResponse, error)
 	RemoveHostCoreIsolation(context.Context, *Empty) (*HostCoreIsolationStateResponse, error)
+	GetHostHugePages(context.Context, *Empty) (*HostHugePagesStateResponse, error)
+	SetHostHugePages(context.Context, *SetHostHugePagesRequest) (*HostHugePagesStateResponse, error)
+	RemoveHostHugePages(context.Context, *Empty) (*HostHugePagesStateResponse, error)
 	mustEmbedUnimplementedSlaveVirshServiceServer()
 }
 
@@ -673,6 +738,12 @@ func (UnimplementedSlaveVirshServiceServer) GetMemoryBallooning(context.Context,
 func (UnimplementedSlaveVirshServiceServer) SetMemoryBallooning(context.Context, *SetMemoryBallooningRequest) (*OkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetMemoryBallooning not implemented")
 }
+func (UnimplementedSlaveVirshServiceServer) GetHugePages(context.Context, *GetVmByNameRequest) (*GetHugePagesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetHugePages not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) SetHugePages(context.Context, *SetHugePagesRequest) (*OkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetHugePages not implemented")
+}
 func (UnimplementedSlaveVirshServiceServer) EditVmResources(context.Context, *Vm) (*OkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method EditVmResources not implemented")
 }
@@ -720,6 +791,15 @@ func (UnimplementedSlaveVirshServiceServer) SetHostCoreIsolation(context.Context
 }
 func (UnimplementedSlaveVirshServiceServer) RemoveHostCoreIsolation(context.Context, *Empty) (*HostCoreIsolationStateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveHostCoreIsolation not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) GetHostHugePages(context.Context, *Empty) (*HostHugePagesStateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetHostHugePages not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) SetHostHugePages(context.Context, *SetHostHugePagesRequest) (*HostHugePagesStateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetHostHugePages not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) RemoveHostHugePages(context.Context, *Empty) (*HostHugePagesStateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveHostHugePages not implemented")
 }
 func (UnimplementedSlaveVirshServiceServer) mustEmbedUnimplementedSlaveVirshServiceServer() {}
 func (UnimplementedSlaveVirshServiceServer) testEmbeddedByValue()                           {}
@@ -1192,6 +1272,42 @@ func _SlaveVirshService_SetMemoryBallooning_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SlaveVirshService_GetHugePages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVmByNameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).GetHugePages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_GetHugePages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).GetHugePages(ctx, req.(*GetVmByNameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_SetHugePages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetHugePagesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).SetHugePages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_SetHugePages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).SetHugePages(ctx, req.(*SetHugePagesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SlaveVirshService_EditVmResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Vm)
 	if err := dec(in); err != nil {
@@ -1480,6 +1596,60 @@ func _SlaveVirshService_RemoveHostCoreIsolation_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SlaveVirshService_GetHostHugePages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).GetHostHugePages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_GetHostHugePages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).GetHostHugePages(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_SetHostHugePages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetHostHugePagesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).SetHostHugePages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_SetHostHugePages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).SetHostHugePages(ctx, req.(*SetHostHugePagesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_RemoveHostHugePages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).RemoveHostHugePages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_RemoveHostHugePages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).RemoveHostHugePages(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SlaveVirshService_ServiceDesc is the grpc.ServiceDesc for SlaveVirshService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1588,6 +1758,14 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _SlaveVirshService_SetMemoryBallooning_Handler,
 		},
 		{
+			MethodName: "GetHugePages",
+			Handler:    _SlaveVirshService_GetHugePages_Handler,
+		},
+		{
+			MethodName: "SetHugePages",
+			Handler:    _SlaveVirshService_SetHugePages_Handler,
+		},
+		{
 			MethodName: "EditVmResources",
 			Handler:    _SlaveVirshService_EditVmResources_Handler,
 		},
@@ -1650,6 +1828,18 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RemoveHostCoreIsolation",
 			Handler:    _SlaveVirshService_RemoveHostCoreIsolation_Handler,
+		},
+		{
+			MethodName: "GetHostHugePages",
+			Handler:    _SlaveVirshService_GetHostHugePages_Handler,
+		},
+		{
+			MethodName: "SetHostHugePages",
+			Handler:    _SlaveVirshService_SetHostHugePages_Handler,
+		},
+		{
+			MethodName: "RemoveHostHugePages",
+			Handler:    _SlaveVirshService_RemoveHostHugePages_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

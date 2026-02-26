@@ -131,6 +131,17 @@ message GetMemoryBallooningResponse {
   string memballoon_model = 4;
 }
 
+message SetHugePagesRequest {
+  string vm_name = 1;
+  bool enable = 2;
+}
+
+message GetHugePagesResponse {
+  bool enabled = 1;
+  bool has_hugepages = 2;
+  bool memory_locked = 3;
+}
+
 // defines on slave
 service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
@@ -164,6 +175,8 @@ service SlaveVirshService {
   rpc GetNoVNCVideo(GetVmByNameRequest) returns (GetNoVNCVideoResponse);
   rpc GetMemoryBallooning(GetVmByNameRequest) returns (GetMemoryBallooningResponse);
   rpc SetMemoryBallooning(SetMemoryBallooningRequest) returns (OkResponse);
+  rpc GetHugePages(GetVmByNameRequest) returns (GetHugePagesResponse);
+  rpc SetHugePages(SetHugePagesRequest) returns (OkResponse);
 
   // only sees machine name, cpuCount and memoryMB
   // cpuCount and memoryMB are the new values to set
@@ -193,6 +206,9 @@ service SlaveVirshService {
   rpc GetHostCoreIsolation(Empty) returns (HostCoreIsolationStateResponse);
   rpc SetHostCoreIsolation(SetHostCoreIsolationRequest) returns (HostCoreIsolationStateResponse);
   rpc RemoveHostCoreIsolation(Empty) returns (HostCoreIsolationStateResponse);
+  rpc GetHostHugePages(Empty) returns (HostHugePagesStateResponse);
+  rpc SetHostHugePages(SetHostHugePagesRequest) returns (HostHugePagesStateResponse);
+  rpc RemoveHostHugePages(Empty) returns (HostHugePagesStateResponse);
 }
 
 // CPU Pinning messages
@@ -301,4 +317,27 @@ message HostCoreIsolationStateResponse {
   repeated int32 configured_cpus = 8;
   repeated int32 active_cpus = 9;
   repeated HostCoreIsolationSocketState sockets = 10;
+}
+
+message SetHostHugePagesRequest {
+  string page_size = 1;
+  int32 page_count = 2;
+}
+
+message HostHugePagesStateResponse {
+  bool enabled = 1;
+  bool reboot_required = 2;
+  string message = 3;
+
+  string page_size = 4;
+  int32 page_count = 5;
+  string active_page_size = 6;
+  int32 active_page_count = 7;
+
+  string default_hugepagesz = 8;
+  string hugepagesz = 9;
+  string hugepages = 10;
+  string active_default_hugepagesz = 11;
+  string active_hugepagesz = 12;
+  string active_hugepages = 13;
 }
