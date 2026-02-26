@@ -184,6 +184,15 @@ service SlaveVirshService {
   // Host tuned-adm profiles
   rpc GetTunedAdmProfiles(Empty) returns (TunedAdmProfilesResponse);
   rpc SetTunedAdmProfile(SetTunedAdmProfileRequest) returns (SetTunedAdmProfileResponse);
+
+  // Host irqbalance service
+  rpc GetIrqBalanceState(Empty) returns (IrqBalanceStateResponse);
+  rpc SetIrqBalanceState(SetIrqBalanceStateRequest) returns (SetIrqBalanceStateResponse);
+
+  // Host core isolation (kernel args via grubby)
+  rpc GetHostCoreIsolation(Empty) returns (HostCoreIsolationStateResponse);
+  rpc SetHostCoreIsolation(SetHostCoreIsolationRequest) returns (HostCoreIsolationStateResponse);
+  rpc RemoveHostCoreIsolation(Empty) returns (HostCoreIsolationStateResponse);
 }
 
 // CPU Pinning messages
@@ -245,4 +254,51 @@ message SetTunedAdmProfileResponse {
   bool ok = 1;
   string message = 2;
   string current_active_profile = 3;
+}
+
+message IrqBalanceStateResponse {
+  bool enabled = 1;
+  bool active = 2;
+  string unit_name = 3;
+}
+
+message SetIrqBalanceStateRequest {
+  bool enabled = 1;
+}
+
+message SetIrqBalanceStateResponse {
+  bool ok = 1;
+  string message = 2;
+  bool enabled = 3;
+  bool active = 4;
+  string unit_name = 5;
+}
+
+message HostCoreIsolationSocketSelection {
+  int32 socket_id = 1;
+  repeated int32 core_indices = 2;
+}
+
+message SetHostCoreIsolationRequest {
+  repeated HostCoreIsolationSocketSelection sockets = 1;
+}
+
+message HostCoreIsolationSocketState {
+  int32 socket_id = 1;
+  int32 total_physical_cores = 2;
+  int32 max_isolatable_cores = 3;
+  repeated int32 isolated_core_indices = 4;
+}
+
+message HostCoreIsolationStateResponse {
+  bool enabled = 1;
+  bool reboot_required = 2;
+  string message = 3;
+  string isolcpus = 4;
+  string nohz_full = 5;
+  string rcu_nocbs = 6;
+  string active_isolcpus = 7;
+  repeated int32 configured_cpus = 8;
+  repeated int32 active_cpus = 9;
+  repeated HostCoreIsolationSocketState sockets = 10;
 }

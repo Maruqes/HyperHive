@@ -1827,3 +1827,68 @@ func (v *VirshService) SetTunedAdmProfile(machineName, profile string) (*grpcVir
 	}
 	return resp, nil
 }
+
+func (v *VirshService) GetIrqBalanceState(machineName string) (*grpcVirsh.IrqBalanceStateResponse, error) {
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	resp, err := virsh.GetIrqBalanceStateGRPC(slave.Connection)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get irqbalance state from %s: %v", machineName, err)
+	}
+	return resp, nil
+}
+
+func (v *VirshService) SetIrqBalanceState(machineName string, enabled bool) (*grpcVirsh.SetIrqBalanceStateResponse, error) {
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	resp, err := virsh.SetIrqBalanceStateGRPC(slave.Connection, enabled)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set irqbalance state on %s: %v", machineName, err)
+	}
+	return resp, nil
+}
+
+func (v *VirshService) GetHostCoreIsolation(machineName string) (*grpcVirsh.HostCoreIsolationStateResponse, error) {
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	resp, err := virsh.GetHostCoreIsolationGRPC(slave.Connection)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get host core isolation from %s: %v", machineName, err)
+	}
+	return resp, nil
+}
+
+func (v *VirshService) SetHostCoreIsolation(machineName string, req *grpcVirsh.SetHostCoreIsolationRequest) (*grpcVirsh.HostCoreIsolationStateResponse, error) {
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	resp, err := virsh.SetHostCoreIsolationGRPC(slave.Connection, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set host core isolation on %s: %v", machineName, err)
+	}
+	return resp, nil
+}
+
+func (v *VirshService) RemoveHostCoreIsolation(machineName string) (*grpcVirsh.HostCoreIsolationStateResponse, error) {
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	resp, err := virsh.RemoveHostCoreIsolationGRPC(slave.Connection)
+	if err != nil {
+		return nil, fmt.Errorf("failed to remove host core isolation on %s: %v", machineName, err)
+	}
+	return resp, nil
+}

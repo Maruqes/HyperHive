@@ -371,3 +371,50 @@ func SetTunedAdmProfileGRPC(conn *grpc.ClientConn, profile string) (*grpcVirsh.S
 	}
 	return resp, nil
 }
+
+func GetIrqBalanceStateGRPC(conn *grpc.ClientConn) (*grpcVirsh.IrqBalanceStateResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetIrqBalanceState(context.Background(), &grpcVirsh.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func SetIrqBalanceStateGRPC(conn *grpc.ClientConn, enabled bool) (*grpcVirsh.SetIrqBalanceStateResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.SetIrqBalanceState(context.Background(), &grpcVirsh.SetIrqBalanceStateRequest{
+		Enabled: enabled,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func GetHostCoreIsolationGRPC(conn *grpc.ClientConn) (*grpcVirsh.HostCoreIsolationStateResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetHostCoreIsolation(context.Background(), &grpcVirsh.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func SetHostCoreIsolationGRPC(conn *grpc.ClientConn, req *grpcVirsh.SetHostCoreIsolationRequest) (*grpcVirsh.HostCoreIsolationStateResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.SetHostCoreIsolation(context.Background(), req)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func RemoveHostCoreIsolationGRPC(conn *grpc.ClientConn) (*grpcVirsh.HostCoreIsolationStateResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.RemoveHostCoreIsolation(context.Background(), &grpcVirsh.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}

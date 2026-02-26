@@ -365,3 +365,103 @@ func (s *SlaveVirshService) SetTunedAdmProfile(ctx context.Context, req *grpcVir
 		CurrentActiveProfile: profiles.CurrentActiveProfile,
 	}, nil
 }
+
+func (s *SlaveVirshService) GetIrqBalanceState(ctx context.Context, req *grpcVirsh.Empty) (*grpcVirsh.IrqBalanceStateResponse, error) {
+	state, err := GetIrqBalanceState()
+	if err != nil {
+		return nil, err
+	}
+
+	return &grpcVirsh.IrqBalanceStateResponse{
+		Enabled:  state.Enabled,
+		Active:   state.Active,
+		UnitName: state.UnitName,
+	}, nil
+}
+
+func (s *SlaveVirshService) SetIrqBalanceState(ctx context.Context, req *grpcVirsh.SetIrqBalanceStateRequest) (*grpcVirsh.SetIrqBalanceStateResponse, error) {
+	state, err := SetIrqBalanceState(req.Enabled)
+	if err != nil {
+		return nil, err
+	}
+
+	msg := "irqbalance disabled"
+	if req.Enabled {
+		msg = "irqbalance enabled"
+	}
+
+	return &grpcVirsh.SetIrqBalanceStateResponse{
+		Ok:       true,
+		Message:  msg,
+		Enabled:  state.Enabled,
+		Active:   state.Active,
+		UnitName: state.UnitName,
+	}, nil
+}
+
+func (s *SlaveVirshService) GetHostCoreIsolation(ctx context.Context, req *grpcVirsh.Empty) (*grpcVirsh.HostCoreIsolationStateResponse, error) {
+	state, err := GetHostCoreIsolation()
+	if err != nil {
+		return nil, err
+	}
+	return grpcHostCoreIsolationState(state), nil
+}
+
+func (s *SlaveVirshService) SetHostCoreIsolation(ctx context.Context, req *grpcVirsh.SetHostCoreIsolationRequest) (*grpcVirsh.HostCoreIsolationStateResponse, error) {
+	var selections []HostCoreIsolationSocketSelection
+	for _, s := range req.Sockets {
+		coreIndices := make([]int, 0, len(s.CoreIndices))
+		for _, idx := range s.CoreIndices {
+			coreIndices = append(coreIndices, int(idx))
+		}
+		selections = append(selections, HostCoreIsolationSocketSelection{
+			SocketID:    int(s.SocketId),
+			CoreIndices: coreIndices,
+		})
+	}
+
+	state, err := SetHostCoreIsolation(HostCoreIsolationRequest{Sockets: selections})
+	if err != nil {
+		return nil, err
+	}
+	return grpcHostCoreIsolationState(state), nil
+}
+
+func (s *SlaveVirshService) RemoveHostCoreIsolation(ctx context.Context, req *grpcVirsh.Empty) (*grpcVirsh.HostCoreIsolationStateResponse, error) {
+	state, err := RemoveHostCoreIsolation()
+	if err != nil {
+		return nil, err
+	}
+	return grpcHostCoreIsolationState(state), nil
+}
+
+func grpcHostCoreIsolationState(state *HostCoreIsolationState) *grpcVirsh.HostCoreIsolationStateResponse {
+	resp := &grpcVirsh.HostCoreIsolationStateResponse{
+		Enabled:        state.Enabled,
+		RebootRequired: state.RebootRequired,
+		Message:        state.Message,
+		Isolcpus:       state.Isolcpus,
+		NohzFull:       state.NohzFull,
+		RcuNocbs:       state.RcuNocbs,
+		ActiveIsolcpus: state.ActiveIsolcpus,
+	}
+
+	for _, cpu := range state.ConfiguredCPUs {
+		resp.ConfiguredCpus = append(resp.ConfiguredCpus, int32(cpu))
+	}
+	for _, cpu := range state.ActiveCPUs {
+		resp.ActiveCpus = append(resp.ActiveCpus, int32(cpu))
+	}
+	for _, sock := range state.Sockets {
+		socketState := &grpcVirsh.HostCoreIsolationSocketState{
+			SocketId:           int32(sock.SocketID),
+			TotalPhysicalCores: int32(sock.TotalPhysicalCores),
+			MaxIsolatableCores: int32(sock.MaxIsolatableCores),
+		}
+		for _, idx := range sock.IsolatedCoreIndices {
+			socketState.IsolatedCoreIndices = append(socketState.IsolatedCoreIndices, int32(idx))
+		}
+		resp.Sockets = append(resp.Sockets, socketState)
+	}
+	return resp
+}

@@ -1801,6 +1801,181 @@ func setTunedAdmProfile(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func getIrqBalanceState(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.GetIrqBalanceState(machineName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	opts := protojson.MarshalOptions{EmitUnpopulated: true}
+	data, err := opts.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
+func setIrqBalanceState(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type irqBalanceStateRequest struct {
+		Enabled *bool `json:"enabled"`
+	}
+
+	var req irqBalanceStateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if req.Enabled == nil {
+		http.Error(w, "enabled is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.SetIrqBalanceState(machineName, *req.Enabled)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	opts := protojson.MarshalOptions{EmitUnpopulated: true}
+	data, err := opts.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
+func getHostCoreIsolation(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.GetHostCoreIsolation(machineName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	opts := protojson.MarshalOptions{EmitUnpopulated: true}
+	data, err := opts.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
+func setHostCoreIsolation(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type coreIsolationSocketReq struct {
+		SocketID    *int32  `json:"socket_id"`
+		CoreIndices []int32 `json:"core_indices"`
+	}
+	type coreIsolationReq struct {
+		Sockets []coreIsolationSocketReq `json:"sockets"`
+	}
+
+	var req coreIsolationReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if len(req.Sockets) == 0 {
+		http.Error(w, "sockets is required and cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	grpcReq := &grpcVirsh.SetHostCoreIsolationRequest{}
+	for i, s := range req.Sockets {
+		if s.SocketID == nil {
+			http.Error(w, fmt.Sprintf("sockets[%d].socket_id is required", i), http.StatusBadRequest)
+			return
+		}
+		if len(s.CoreIndices) == 0 {
+			http.Error(w, fmt.Sprintf("sockets[%d].core_indices is required and cannot be empty", i), http.StatusBadRequest)
+			return
+		}
+		for _, idx := range s.CoreIndices {
+			if idx < 0 {
+				http.Error(w, fmt.Sprintf("sockets[%d].core_indices must be >= 0", i), http.StatusBadRequest)
+				return
+			}
+		}
+
+		grpcReq.Sockets = append(grpcReq.Sockets, &grpcVirsh.HostCoreIsolationSocketSelection{
+			SocketId:    *s.SocketID,
+			CoreIndices: append([]int32(nil), s.CoreIndices...),
+		})
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.SetHostCoreIsolation(machineName, grpcReq)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	opts := protojson.MarshalOptions{EmitUnpopulated: true}
+	data, err := opts.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
+func removeHostCoreIsolation(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.RemoveHostCoreIsolation(machineName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	opts := protojson.MarshalOptions{EmitUnpopulated: true}
+	data, err := opts.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
 func setupVirshAPI(r chi.Router) chi.Router {
 	extra.RegisterCallFunction(websocketusInfoVms)
 	return r.Route("/virsh", func(r chi.Router) {
@@ -1843,6 +2018,12 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Get("/cputopology/{machine_name}", getCPUTopology)
 		r.Get("/tunedadm/{machine_name}", getTunedAdmProfiles)
 		r.Post("/tunedadm/{machine_name}", setTunedAdmProfile)
+		r.Get("/irqbalance/{machine_name}", getIrqBalanceState)
+		r.Post("/irqbalance/{machine_name}", setIrqBalanceState)
+		r.Get("/coreisolation/{machine_name}", getHostCoreIsolation)
+		r.Post("/coreisolation/{machine_name}", setHostCoreIsolation)
+		r.Put("/coreisolation/{machine_name}", setHostCoreIsolation)
+		r.Delete("/coreisolation/{machine_name}", removeHostCoreIsolation)
 
 		//move
 		r.Post("/moveDisk/{vm_name}/{dest_nfs}", moveDisk)

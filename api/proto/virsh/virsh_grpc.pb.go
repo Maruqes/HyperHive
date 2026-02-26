@@ -19,42 +19,47 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SlaveVirshService_GetCpuFeatures_FullMethodName      = "/virsh.SlaveVirshService/GetCpuFeatures"
-	SlaveVirshService_GetCPUXML_FullMethodName           = "/virsh.SlaveVirshService/GetCPUXML"
-	SlaveVirshService_GetVMCPUXml_FullMethodName         = "/virsh.SlaveVirshService/GetVMCPUXml"
-	SlaveVirshService_UpdateVMCPUXml_FullMethodName      = "/virsh.SlaveVirshService/UpdateVMCPUXml"
-	SlaveVirshService_GetVMXml_FullMethodName            = "/virsh.SlaveVirshService/GetVMXml"
-	SlaveVirshService_UpdateVMXml_FullMethodName         = "/virsh.SlaveVirshService/UpdateVMXml"
-	SlaveVirshService_CreateVm_FullMethodName            = "/virsh.SlaveVirshService/CreateVm"
-	SlaveVirshService_MigrateVM_FullMethodName           = "/virsh.SlaveVirshService/MigrateVM"
-	SlaveVirshService_ShutdownVM_FullMethodName          = "/virsh.SlaveVirshService/ShutdownVM"
-	SlaveVirshService_ForceShutdownVM_FullMethodName     = "/virsh.SlaveVirshService/ForceShutdownVM"
-	SlaveVirshService_StartVM_FullMethodName             = "/virsh.SlaveVirshService/StartVM"
-	SlaveVirshService_RemoveVM_FullMethodName            = "/virsh.SlaveVirshService/RemoveVM"
-	SlaveVirshService_RestartVM_FullMethodName           = "/virsh.SlaveVirshService/RestartVM"
-	SlaveVirshService_PauseVM_FullMethodName             = "/virsh.SlaveVirshService/PauseVM"
-	SlaveVirshService_ResumeVM_FullMethodName            = "/virsh.SlaveVirshService/ResumeVM"
-	SlaveVirshService_UndefineVM_FullMethodName          = "/virsh.SlaveVirshService/UndefineVM"
-	SlaveVirshService_GetAllVms_FullMethodName           = "/virsh.SlaveVirshService/GetAllVms"
-	SlaveVirshService_GetVmByName_FullMethodName         = "/virsh.SlaveVirshService/GetVmByName"
-	SlaveVirshService_RemoveIsoFromVm_FullMethodName     = "/virsh.SlaveVirshService/RemoveIsoFromVm"
-	SlaveVirshService_ChangeNetwork_FullMethodName       = "/virsh.SlaveVirshService/ChangeNetwork"
-	SlaveVirshService_AddNoVNCVideo_FullMethodName       = "/virsh.SlaveVirshService/AddNoVNCVideo"
-	SlaveVirshService_RemoveNoVNCVideo_FullMethodName    = "/virsh.SlaveVirshService/RemoveNoVNCVideo"
-	SlaveVirshService_GetNoVNCVideo_FullMethodName       = "/virsh.SlaveVirshService/GetNoVNCVideo"
-	SlaveVirshService_GetMemoryBallooning_FullMethodName = "/virsh.SlaveVirshService/GetMemoryBallooning"
-	SlaveVirshService_SetMemoryBallooning_FullMethodName = "/virsh.SlaveVirshService/SetMemoryBallooning"
-	SlaveVirshService_EditVmResources_FullMethodName     = "/virsh.SlaveVirshService/EditVmResources"
-	SlaveVirshService_ColdMigrateVm_FullMethodName       = "/virsh.SlaveVirshService/ColdMigrateVm"
-	SlaveVirshService_FreezeDisk_FullMethodName          = "/virsh.SlaveVirshService/FreezeDisk"
-	SlaveVirshService_UnFreezeDisk_FullMethodName        = "/virsh.SlaveVirshService/UnFreezeDisk"
-	SlaveVirshService_ChangeVmPassword_FullMethodName    = "/virsh.SlaveVirshService/ChangeVmPassword"
-	SlaveVirshService_ApplyCPUPinning_FullMethodName     = "/virsh.SlaveVirshService/ApplyCPUPinning"
-	SlaveVirshService_RemoveCPUPinning_FullMethodName    = "/virsh.SlaveVirshService/RemoveCPUPinning"
-	SlaveVirshService_GetCPUPinning_FullMethodName       = "/virsh.SlaveVirshService/GetCPUPinning"
-	SlaveVirshService_GetCPUTopology_FullMethodName      = "/virsh.SlaveVirshService/GetCPUTopology"
-	SlaveVirshService_GetTunedAdmProfiles_FullMethodName = "/virsh.SlaveVirshService/GetTunedAdmProfiles"
-	SlaveVirshService_SetTunedAdmProfile_FullMethodName  = "/virsh.SlaveVirshService/SetTunedAdmProfile"
+	SlaveVirshService_GetCpuFeatures_FullMethodName          = "/virsh.SlaveVirshService/GetCpuFeatures"
+	SlaveVirshService_GetCPUXML_FullMethodName               = "/virsh.SlaveVirshService/GetCPUXML"
+	SlaveVirshService_GetVMCPUXml_FullMethodName             = "/virsh.SlaveVirshService/GetVMCPUXml"
+	SlaveVirshService_UpdateVMCPUXml_FullMethodName          = "/virsh.SlaveVirshService/UpdateVMCPUXml"
+	SlaveVirshService_GetVMXml_FullMethodName                = "/virsh.SlaveVirshService/GetVMXml"
+	SlaveVirshService_UpdateVMXml_FullMethodName             = "/virsh.SlaveVirshService/UpdateVMXml"
+	SlaveVirshService_CreateVm_FullMethodName                = "/virsh.SlaveVirshService/CreateVm"
+	SlaveVirshService_MigrateVM_FullMethodName               = "/virsh.SlaveVirshService/MigrateVM"
+	SlaveVirshService_ShutdownVM_FullMethodName              = "/virsh.SlaveVirshService/ShutdownVM"
+	SlaveVirshService_ForceShutdownVM_FullMethodName         = "/virsh.SlaveVirshService/ForceShutdownVM"
+	SlaveVirshService_StartVM_FullMethodName                 = "/virsh.SlaveVirshService/StartVM"
+	SlaveVirshService_RemoveVM_FullMethodName                = "/virsh.SlaveVirshService/RemoveVM"
+	SlaveVirshService_RestartVM_FullMethodName               = "/virsh.SlaveVirshService/RestartVM"
+	SlaveVirshService_PauseVM_FullMethodName                 = "/virsh.SlaveVirshService/PauseVM"
+	SlaveVirshService_ResumeVM_FullMethodName                = "/virsh.SlaveVirshService/ResumeVM"
+	SlaveVirshService_UndefineVM_FullMethodName              = "/virsh.SlaveVirshService/UndefineVM"
+	SlaveVirshService_GetAllVms_FullMethodName               = "/virsh.SlaveVirshService/GetAllVms"
+	SlaveVirshService_GetVmByName_FullMethodName             = "/virsh.SlaveVirshService/GetVmByName"
+	SlaveVirshService_RemoveIsoFromVm_FullMethodName         = "/virsh.SlaveVirshService/RemoveIsoFromVm"
+	SlaveVirshService_ChangeNetwork_FullMethodName           = "/virsh.SlaveVirshService/ChangeNetwork"
+	SlaveVirshService_AddNoVNCVideo_FullMethodName           = "/virsh.SlaveVirshService/AddNoVNCVideo"
+	SlaveVirshService_RemoveNoVNCVideo_FullMethodName        = "/virsh.SlaveVirshService/RemoveNoVNCVideo"
+	SlaveVirshService_GetNoVNCVideo_FullMethodName           = "/virsh.SlaveVirshService/GetNoVNCVideo"
+	SlaveVirshService_GetMemoryBallooning_FullMethodName     = "/virsh.SlaveVirshService/GetMemoryBallooning"
+	SlaveVirshService_SetMemoryBallooning_FullMethodName     = "/virsh.SlaveVirshService/SetMemoryBallooning"
+	SlaveVirshService_EditVmResources_FullMethodName         = "/virsh.SlaveVirshService/EditVmResources"
+	SlaveVirshService_ColdMigrateVm_FullMethodName           = "/virsh.SlaveVirshService/ColdMigrateVm"
+	SlaveVirshService_FreezeDisk_FullMethodName              = "/virsh.SlaveVirshService/FreezeDisk"
+	SlaveVirshService_UnFreezeDisk_FullMethodName            = "/virsh.SlaveVirshService/UnFreezeDisk"
+	SlaveVirshService_ChangeVmPassword_FullMethodName        = "/virsh.SlaveVirshService/ChangeVmPassword"
+	SlaveVirshService_ApplyCPUPinning_FullMethodName         = "/virsh.SlaveVirshService/ApplyCPUPinning"
+	SlaveVirshService_RemoveCPUPinning_FullMethodName        = "/virsh.SlaveVirshService/RemoveCPUPinning"
+	SlaveVirshService_GetCPUPinning_FullMethodName           = "/virsh.SlaveVirshService/GetCPUPinning"
+	SlaveVirshService_GetCPUTopology_FullMethodName          = "/virsh.SlaveVirshService/GetCPUTopology"
+	SlaveVirshService_GetTunedAdmProfiles_FullMethodName     = "/virsh.SlaveVirshService/GetTunedAdmProfiles"
+	SlaveVirshService_SetTunedAdmProfile_FullMethodName      = "/virsh.SlaveVirshService/SetTunedAdmProfile"
+	SlaveVirshService_GetIrqBalanceState_FullMethodName      = "/virsh.SlaveVirshService/GetIrqBalanceState"
+	SlaveVirshService_SetIrqBalanceState_FullMethodName      = "/virsh.SlaveVirshService/SetIrqBalanceState"
+	SlaveVirshService_GetHostCoreIsolation_FullMethodName    = "/virsh.SlaveVirshService/GetHostCoreIsolation"
+	SlaveVirshService_SetHostCoreIsolation_FullMethodName    = "/virsh.SlaveVirshService/SetHostCoreIsolation"
+	SlaveVirshService_RemoveHostCoreIsolation_FullMethodName = "/virsh.SlaveVirshService/RemoveHostCoreIsolation"
 )
 
 // SlaveVirshServiceClient is the client API for SlaveVirshService service.
@@ -103,6 +108,13 @@ type SlaveVirshServiceClient interface {
 	// Host tuned-adm profiles
 	GetTunedAdmProfiles(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TunedAdmProfilesResponse, error)
 	SetTunedAdmProfile(ctx context.Context, in *SetTunedAdmProfileRequest, opts ...grpc.CallOption) (*SetTunedAdmProfileResponse, error)
+	// Host irqbalance service
+	GetIrqBalanceState(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*IrqBalanceStateResponse, error)
+	SetIrqBalanceState(ctx context.Context, in *SetIrqBalanceStateRequest, opts ...grpc.CallOption) (*SetIrqBalanceStateResponse, error)
+	// Host core isolation (kernel args via grubby)
+	GetHostCoreIsolation(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*HostCoreIsolationStateResponse, error)
+	SetHostCoreIsolation(ctx context.Context, in *SetHostCoreIsolationRequest, opts ...grpc.CallOption) (*HostCoreIsolationStateResponse, error)
+	RemoveHostCoreIsolation(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*HostCoreIsolationStateResponse, error)
 }
 
 type slaveVirshServiceClient struct {
@@ -473,6 +485,56 @@ func (c *slaveVirshServiceClient) SetTunedAdmProfile(ctx context.Context, in *Se
 	return out, nil
 }
 
+func (c *slaveVirshServiceClient) GetIrqBalanceState(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*IrqBalanceStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(IrqBalanceStateResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_GetIrqBalanceState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) SetIrqBalanceState(ctx context.Context, in *SetIrqBalanceStateRequest, opts ...grpc.CallOption) (*SetIrqBalanceStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetIrqBalanceStateResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_SetIrqBalanceState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) GetHostCoreIsolation(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*HostCoreIsolationStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HostCoreIsolationStateResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_GetHostCoreIsolation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) SetHostCoreIsolation(ctx context.Context, in *SetHostCoreIsolationRequest, opts ...grpc.CallOption) (*HostCoreIsolationStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HostCoreIsolationStateResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_SetHostCoreIsolation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) RemoveHostCoreIsolation(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*HostCoreIsolationStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HostCoreIsolationStateResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_RemoveHostCoreIsolation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SlaveVirshServiceServer is the server API for SlaveVirshService service.
 // All implementations must embed UnimplementedSlaveVirshServiceServer
 // for forward compatibility.
@@ -519,6 +581,13 @@ type SlaveVirshServiceServer interface {
 	// Host tuned-adm profiles
 	GetTunedAdmProfiles(context.Context, *Empty) (*TunedAdmProfilesResponse, error)
 	SetTunedAdmProfile(context.Context, *SetTunedAdmProfileRequest) (*SetTunedAdmProfileResponse, error)
+	// Host irqbalance service
+	GetIrqBalanceState(context.Context, *Empty) (*IrqBalanceStateResponse, error)
+	SetIrqBalanceState(context.Context, *SetIrqBalanceStateRequest) (*SetIrqBalanceStateResponse, error)
+	// Host core isolation (kernel args via grubby)
+	GetHostCoreIsolation(context.Context, *Empty) (*HostCoreIsolationStateResponse, error)
+	SetHostCoreIsolation(context.Context, *SetHostCoreIsolationRequest) (*HostCoreIsolationStateResponse, error)
+	RemoveHostCoreIsolation(context.Context, *Empty) (*HostCoreIsolationStateResponse, error)
 	mustEmbedUnimplementedSlaveVirshServiceServer()
 }
 
@@ -636,6 +705,21 @@ func (UnimplementedSlaveVirshServiceServer) GetTunedAdmProfiles(context.Context,
 }
 func (UnimplementedSlaveVirshServiceServer) SetTunedAdmProfile(context.Context, *SetTunedAdmProfileRequest) (*SetTunedAdmProfileResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetTunedAdmProfile not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) GetIrqBalanceState(context.Context, *Empty) (*IrqBalanceStateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetIrqBalanceState not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) SetIrqBalanceState(context.Context, *SetIrqBalanceStateRequest) (*SetIrqBalanceStateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetIrqBalanceState not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) GetHostCoreIsolation(context.Context, *Empty) (*HostCoreIsolationStateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetHostCoreIsolation not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) SetHostCoreIsolation(context.Context, *SetHostCoreIsolationRequest) (*HostCoreIsolationStateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetHostCoreIsolation not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) RemoveHostCoreIsolation(context.Context, *Empty) (*HostCoreIsolationStateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveHostCoreIsolation not implemented")
 }
 func (UnimplementedSlaveVirshServiceServer) mustEmbedUnimplementedSlaveVirshServiceServer() {}
 func (UnimplementedSlaveVirshServiceServer) testEmbeddedByValue()                           {}
@@ -1306,6 +1390,96 @@ func _SlaveVirshService_SetTunedAdmProfile_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SlaveVirshService_GetIrqBalanceState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).GetIrqBalanceState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_GetIrqBalanceState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).GetIrqBalanceState(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_SetIrqBalanceState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetIrqBalanceStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).SetIrqBalanceState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_SetIrqBalanceState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).SetIrqBalanceState(ctx, req.(*SetIrqBalanceStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_GetHostCoreIsolation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).GetHostCoreIsolation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_GetHostCoreIsolation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).GetHostCoreIsolation(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_SetHostCoreIsolation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetHostCoreIsolationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).SetHostCoreIsolation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_SetHostCoreIsolation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).SetHostCoreIsolation(ctx, req.(*SetHostCoreIsolationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_RemoveHostCoreIsolation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).RemoveHostCoreIsolation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_RemoveHostCoreIsolation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).RemoveHostCoreIsolation(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SlaveVirshService_ServiceDesc is the grpc.ServiceDesc for SlaveVirshService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1456,6 +1630,26 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetTunedAdmProfile",
 			Handler:    _SlaveVirshService_SetTunedAdmProfile_Handler,
+		},
+		{
+			MethodName: "GetIrqBalanceState",
+			Handler:    _SlaveVirshService_GetIrqBalanceState_Handler,
+		},
+		{
+			MethodName: "SetIrqBalanceState",
+			Handler:    _SlaveVirshService_SetIrqBalanceState_Handler,
+		},
+		{
+			MethodName: "GetHostCoreIsolation",
+			Handler:    _SlaveVirshService_GetHostCoreIsolation_Handler,
+		},
+		{
+			MethodName: "SetHostCoreIsolation",
+			Handler:    _SlaveVirshService_SetHostCoreIsolation_Handler,
+		},
+		{
+			MethodName: "RemoveHostCoreIsolation",
+			Handler:    _SlaveVirshService_RemoveHostCoreIsolation_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
