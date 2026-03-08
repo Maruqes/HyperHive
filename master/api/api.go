@@ -325,6 +325,7 @@ func StartApi(exitAfterStart bool) {
 		setupGoAccessAPI(r)
 		setupStreamInfo(r)
 		setupWireguardAPI(r)
+		setupDNSMasqAPI(r)
 		setupBTRFS(r)
 		setupNotsAPI(r)
 		setupDockerAPI(r)

@@ -2,6 +2,7 @@ package wireguard
 
 import (
 	"512SvMan/db"
+	"512SvMan/dnsmasq"
 	"bytes"
 	"context"
 	"errors"
@@ -55,6 +56,7 @@ Summary:
 const iface = "wg0-hh512"
 const ServerCIDR = "10.128.0.1/24" // server address
 const listenPort = 51512
+const dnsmasqWireguardConfPath = "/etc/dnsmasq.d/hyperhive-wireguard.conf"
 
 func ListenPort() int {
 	return listenPort
@@ -285,6 +287,8 @@ func ensureMasqueradeRules(externalIface string) error {
 		{table: "nat", chain: "POSTROUTING", args: []string{"-o", externalIface, "-j", "MASQUERADE"}},
 		{table: "", chain: "FORWARD", args: []string{"-i", iface, "-o", externalIface, "-j", "ACCEPT"}},
 		{table: "", chain: "FORWARD", args: []string{"-i", externalIface, "-o", iface, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT"}},
+		{table: "", chain: "INPUT", args: []string{"-i", iface, "-p", "udp", "--dport", "53", "-j", "ACCEPT"}},
+		{table: "", chain: "INPUT", args: []string{"-i", iface, "-p", "tcp", "--dport", "53", "-j", "ACCEPT"}},
 	}
 
 	for _, rule := range rules {
@@ -296,10 +300,74 @@ func ensureMasqueradeRules(externalIface string) error {
 	return nil
 }
 
+func serverDNSIP() (string, error) {
+	serverIP, _, err := net.ParseCIDR(ServerCIDR)
+	if err != nil {
+		return "", fmt.Errorf("parse server cidr %q: %w", ServerCIDR, err)
+	}
+	ipv4 := serverIP.To4()
+	if ipv4 == nil {
+		return "", fmt.Errorf("server cidr must be IPv4: %s", ServerCIDR)
+	}
+	return ipv4.String(), nil
+}
+
+func ensureDNSMasqForWireguard() error {
+	if err := dnsmasq.Install(); err != nil {
+		return err
+	}
+
+	dnsIP, err := serverDNSIP()
+	if err != nil {
+		return err
+	}
+
+	conf := fmt.Sprintf(`# Managed by HyperHive for WireGuard
+interface=%s
+listen-address=%s
+`, iface, dnsIP)
+
+	if err := os.MkdirAll("/etc/dnsmasq.d", 0755); err != nil {
+		return fmt.Errorf("create dnsmasq config dir: %w", err)
+	}
+
+	if err := os.WriteFile(dnsmasqWireguardConfPath, []byte(conf), 0644); err != nil {
+		return fmt.Errorf("write dnsmasq wireguard config: %w", err)
+	}
+
+	enableOut, enableErr := exec.Command("systemctl", "enable", "--now", "dnsmasq").CombinedOutput()
+	if enableErr != nil {
+		return fmt.Errorf("enable/start dnsmasq: %w: %s", enableErr, strings.TrimSpace(string(enableOut)))
+	}
+
+	reloadOut, reloadErr := exec.Command("systemctl", "reload", "dnsmasq").CombinedOutput()
+	if reloadErr == nil {
+		return nil
+	}
+
+	restartOut, restartErr := exec.Command("systemctl", "restart", "dnsmasq").CombinedOutput()
+	if restartErr != nil {
+		return fmt.Errorf(
+			"reload/restart dnsmasq failed: reload error: %v (%s), restart error: %v (%s)",
+			reloadErr,
+			strings.TrimSpace(string(reloadOut)),
+			restartErr,
+			strings.TrimSpace(string(restartOut)),
+		)
+	}
+
+	return nil
+}
+
 func buildClientConfig(clientPriv wgtypes.Key, clientIPCIDR, endpoint string, keepaliveSec int) (string, error) {
 	if keepaliveSec <= 0 {
 		keepaliveSec = 25
 	}
+	dnsIP, err := serverDNSIP()
+	if err != nil {
+		return "", err
+	}
+
 	_, serverPublic, err := getServerKeys()
 	if err != nil {
 		return "", fmt.Errorf("load server keys: %w", err)
@@ -307,7 +375,7 @@ func buildClientConfig(clientPriv wgtypes.Key, clientIPCIDR, endpoint string, ke
 	cfg := fmt.Sprintf(`[Interface]
 PrivateKey = %s
 Address = %s
-DNS = 1.1.1.1
+DNS = %s
 
 [Peer]
 PublicKey = %s
@@ -317,6 +385,7 @@ PersistentKeepalive = %d
 `,
 		clientPriv.String(),
 		clientIPCIDR,
+		dnsIP,
 		serverPublic.String(),
 		endpoint,
 		keepaliveSec,
@@ -493,6 +562,10 @@ func SetupInterface() error {
 
 	if err := client.ConfigureDevice(iface, deviceCfg); err != nil {
 		return fmt.Errorf("ConfigureDevice(%s): %w", iface, err)
+	}
+
+	if err := ensureDNSMasqForWireguard(); err != nil {
+		return fmt.Errorf("configure dnsmasq for wireguard: %w", err)
 	}
 
 	return nil
