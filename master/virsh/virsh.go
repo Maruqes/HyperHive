@@ -35,6 +35,15 @@ func GetVMCPUXml(conn *grpc.ClientConn, vmName string) (string, error) {
 	return resp.CpuXML, nil
 }
 
+func GetVMXml(conn *grpc.ClientConn, vmName string) (string, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetVMXml(context.Background(), &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return "", err
+	}
+	return resp.VmXML, nil
+}
+
 func CreateVM(conn *grpc.ClientConn, name string, memory, vcpu int32, diskFolder, diskPath string, diskSizeGB int32, isoPath, network, VNCPassword string, cpuXML string, autoStart bool, isWindows bool) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.CreateVm(context.Background(), &grpcVirsh.CreateVmRequest{
@@ -85,6 +94,18 @@ func UpdateVMCPUXml(conn *grpc.ClientConn, vmName, cpuXml string) error {
 	_, err := client.UpdateVMCPUXml(context.Background(), &grpcVirsh.UpdateVMCPUXmlRequest{
 		Name:   vmName,
 		CpuXML: cpuXml,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func UpdateVMXml(conn *grpc.ClientConn, vmName, vmXml string) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.UpdateVMXml(context.Background(), &grpcVirsh.UpdateVMXmlRequest{
+		Name:  vmName,
+		VmXML: vmXml,
 	})
 	if err != nil {
 		return err
@@ -274,6 +295,48 @@ func GetNoVNCVideo(conn *grpc.ClientConn, vmName string) (*grpcVirsh.GetNoVNCVid
 	return resp, nil
 }
 
+func GetMemoryBallooning(conn *grpc.ClientConn, vmName string) (*grpcVirsh.GetMemoryBallooningResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetMemoryBallooning(context.Background(), &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func SetMemoryBallooning(conn *grpc.ClientConn, vmName string, enable bool) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.SetMemoryBallooning(context.Background(), &grpcVirsh.SetMemoryBallooningRequest{
+		VmName: vmName,
+		Enable: enable,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func GetHugePages(conn *grpc.ClientConn, vmName string) (*grpcVirsh.GetHugePagesResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetHugePages(context.Background(), &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func SetHugePages(conn *grpc.ClientConn, vmName string, enable bool) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.SetHugePages(context.Background(), &grpcVirsh.SetHugePagesRequest{
+		VmName: vmName,
+		Enable: enable,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func ApplyCPUPinningGRPC(conn *grpc.ClientConn, req *grpcVirsh.CPUPinningRequest) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.ApplyCPUPinning(context.Background(), req)
@@ -324,6 +387,80 @@ func SetTunedAdmProfileGRPC(conn *grpc.ClientConn, profile string) (*grpcVirsh.S
 	resp, err := client.SetTunedAdmProfile(context.Background(), &grpcVirsh.SetTunedAdmProfileRequest{
 		Profile: profile,
 	})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func GetIrqBalanceStateGRPC(conn *grpc.ClientConn) (*grpcVirsh.IrqBalanceStateResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetIrqBalanceState(context.Background(), &grpcVirsh.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func SetIrqBalanceStateGRPC(conn *grpc.ClientConn, enabled bool) (*grpcVirsh.SetIrqBalanceStateResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.SetIrqBalanceState(context.Background(), &grpcVirsh.SetIrqBalanceStateRequest{
+		Enabled: enabled,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func GetHostCoreIsolationGRPC(conn *grpc.ClientConn) (*grpcVirsh.HostCoreIsolationStateResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetHostCoreIsolation(context.Background(), &grpcVirsh.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func SetHostCoreIsolationGRPC(conn *grpc.ClientConn, req *grpcVirsh.SetHostCoreIsolationRequest) (*grpcVirsh.HostCoreIsolationStateResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.SetHostCoreIsolation(context.Background(), req)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func RemoveHostCoreIsolationGRPC(conn *grpc.ClientConn) (*grpcVirsh.HostCoreIsolationStateResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.RemoveHostCoreIsolation(context.Background(), &grpcVirsh.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func GetHostHugePagesGRPC(conn *grpc.ClientConn) (*grpcVirsh.HostHugePagesStateResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetHostHugePages(context.Background(), &grpcVirsh.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func SetHostHugePagesGRPC(conn *grpc.ClientConn, req *grpcVirsh.SetHostHugePagesRequest) (*grpcVirsh.HostHugePagesStateResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.SetHostHugePages(context.Background(), req)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func RemoveHostHugePagesGRPC(conn *grpc.ClientConn) (*grpcVirsh.HostHugePagesStateResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.RemoveHostHugePages(context.Background(), &grpcVirsh.Empty{})
 	if err != nil {
 		return nil, err
 	}

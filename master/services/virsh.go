@@ -170,7 +170,7 @@ func (v *VirshService) GetCpuDisableFeatures(conns []string) (string, error) {
 }
 
 // vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword
-func (v *VirshService) CreateVM(ctx context.Context, machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXML string, autoStart bool, isWindows bool) error {
+func (v *VirshService) CreateVM(ctx context.Context, machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXML string, autoStart bool, isWindows bool, templateID int) error {
 
 	exists, err := virsh.DoesVMExist(name)
 	if err != nil {
@@ -194,15 +194,35 @@ func (v *VirshService) CreateVM(ctx context.Context, machine_name string, name s
 		return fmt.Errorf("NFS share with ID %d not found", nfsShareId)
 	}
 
-	//get iso path from isoID
-	iso, err := db.GetIsoByID(ctx, isoID)
-	if err != nil {
-		return fmt.Errorf("failed to get ISO by ID: %v", err)
+	bootstrapMemory := memory
+	bootstrapVCPU := vcpu
+	bootstrapNetwork := strings.TrimSpace(network)
+	if templateID > 0 {
+		if bootstrapMemory <= 0 {
+			bootstrapMemory = 1024
+		}
+		if bootstrapVCPU <= 0 {
+			bootstrapVCPU = 1
+		}
+		if bootstrapNetwork == "" {
+			bootstrapNetwork = "default"
+		}
 	}
-	if iso == nil {
+
+	isoPath := ""
+	if isoID > 0 {
+		//get iso path from isoID
+		iso, err := db.GetIsoByID(ctx, isoID)
+		if err != nil {
+			return fmt.Errorf("failed to get ISO by ID: %v", err)
+		}
+		if iso == nil {
+			return fmt.Errorf("ISO with ID %d not found", isoID)
+		}
+		isoPath = iso.FilePath
+	} else if templateID <= 0 {
 		return fmt.Errorf("ISO with ID %d not found", isoID)
 	}
-	isoPath := iso.FilePath
 
 	var qcowFile string
 	fileExtension := ".qcow2"
@@ -222,7 +242,16 @@ func (v *VirshService) CreateVM(ctx context.Context, machine_name string, name s
 		diskFolder = nfsShare.Target + name
 	}
 
-	if err := virsh.CreateVM(slaveMachine.Connection, name, memory, vcpu, diskFolder, qcowFile, diskSizeGB, isoPath, network, VNCPassword, cpuXML, autoStart, isWindows); err != nil {
+	renderedTemplateXML, err := v.prepareVMXMLTemplateForCreate(ctx, templateID, name, qcowFile)
+	if err != nil {
+		return err
+	}
+
+	if err := virsh.CreateVM(slaveMachine.Connection, name, bootstrapMemory, bootstrapVCPU, diskFolder, qcowFile, diskSizeGB, isoPath, bootstrapNetwork, VNCPassword, cpuXML, autoStart, isWindows); err != nil {
+		return err
+	}
+
+	if err := v.applyRenderedVMXMLTemplateAfterCreate(ctx, slaveMachine.Connection, name, renderedTemplateXML); err != nil {
 		return err
 	}
 
@@ -232,7 +261,7 @@ func (v *VirshService) CreateVM(ctx context.Context, machine_name string, name s
 	return nil
 }
 
-func (v *VirshService) CreateLiveVM(ctx context.Context, machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXml string, autoStart bool, isWindows bool) error {
+func (v *VirshService) CreateLiveVM(ctx context.Context, machine_name string, name string, memory int32, vcpu int32, nfsShareId int, diskSizeGB int32, isoID int, network string, VNCPassword string, cpuXml string, autoStart bool, isWindows bool, templateID int) error {
 	exists, err := db.DoesVmLiveExist(ctx, name)
 	if err != nil {
 		return fmt.Errorf("failed to check if live VM exists in database: %v", err)
@@ -254,7 +283,7 @@ func (v *VirshService) CreateLiveVM(ctx context.Context, machine_name string, na
 		return fmt.Errorf("cant have live VM on a HostNormalMount NFS true, use a nfs where HostNormalMount is false")
 	}
 
-	err = v.CreateVM(ctx, machine_name, name, memory, vcpu, nfsShareId, diskSizeGB, isoID, network, VNCPassword, cpuXml, autoStart, isWindows)
+	err = v.CreateVM(ctx, machine_name, name, memory, vcpu, nfsShareId, diskSizeGB, isoID, network, VNCPassword, cpuXml, autoStart, isWindows, templateID)
 	if err != nil {
 		return err
 	}
@@ -267,10 +296,15 @@ func (v *VirshService) CreateLiveVM(ctx context.Context, machine_name string, na
 	return nil
 }
 
-func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, machine *grpcVirsh.ColdMigrationRequest) error {
+func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, machine *grpcVirsh.ColdMigrationRequest, templateID int) error {
 	originConn := protocol.GetConnectionByMachineName(slaveName)
 	if originConn == nil {
 		return fmt.Errorf("origin machine %s not found", slaveName)
+	}
+
+	renderedTemplateXML, err := v.prepareVMXMLTemplateForCreate(ctx, templateID, machine.VmName, machine.DiskPath)
+	if err != nil {
+		return err
 	}
 
 	// chmod 777 and give qemu ownership with machine.DiskPath
@@ -300,6 +334,10 @@ func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, mach
 
 	err = virsh.ColdMigrateVm(ctx, originConn.Connection, machine)
 	if err != nil {
+		return err
+	}
+
+	if err := v.applyRenderedVMXMLTemplateAfterCreate(ctx, originConn.Connection, machine.VmName, renderedTemplateXML); err != nil {
 		return err
 	}
 
@@ -400,6 +438,28 @@ func (v *VirshService) UpdateCpuXml(_ context.Context, machine_name string, vmNa
 	return nil
 }
 
+func (v *VirshService) UpdateVmXML(_ context.Context, machine_name string, vmName string, vmXml string) error {
+	slaveMachine := protocol.GetConnectionByMachineName(machine_name)
+	if slaveMachine == nil {
+		return fmt.Errorf("machine %s not found", machine_name)
+	}
+
+	vm, err := virsh.GetVmByName(slaveMachine.Connection, &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return fmt.Errorf("failed to get VM by name: %v", err)
+	}
+	if vm == nil {
+		return fmt.Errorf("VM %s not found on machine %s", vmName, machine_name)
+	}
+
+	err = virsh.UpdateVMXml(slaveMachine.Connection, vmName, vmXml)
+	if err != nil {
+		return fmt.Errorf("failed to update VM XML: %v", err)
+	}
+
+	return nil
+}
+
 func (v *VirshService) GetCpuXML(machine_name string, vmName string) (string, error) {
 	slaveMachine := protocol.GetConnectionByMachineName(machine_name)
 	if slaveMachine == nil {
@@ -421,6 +481,28 @@ func (v *VirshService) GetCpuXML(machine_name string, vmName string) (string, er
 	}
 
 	return cpuXml, nil
+}
+
+func (v *VirshService) GetVmXML(machine_name string, vmName string) (string, error) {
+	slaveMachine := protocol.GetConnectionByMachineName(machine_name)
+	if slaveMachine == nil {
+		return "", fmt.Errorf("machine %s not found", machine_name)
+	}
+
+	vm, err := virsh.GetVmByName(slaveMachine.Connection, &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return "", fmt.Errorf("failed to get VM by name: %v", err)
+	}
+	if vm == nil {
+		return "", fmt.Errorf("VM %s not found on machine %s", vmName, machine_name)
+	}
+
+	vmXml, err := virsh.GetVMXml(slaveMachine.Connection, vmName)
+	if err != nil {
+		return "", fmt.Errorf("failed to get VM XML: %v", err)
+	}
+
+	return vmXml, nil
 }
 
 func (v *VirshService) DeleteVM(ctx context.Context, name string) error {
@@ -933,6 +1015,82 @@ func (v *VirshService) GetNoVNCVideo(vmName string) (*grpcVirsh.GetNoVNCVideoRes
 	return virsh.GetNoVNCVideo(slave.Connection, vmName)
 }
 
+func (v *VirshService) GetMemoryBallooning(vmName string) (*grpcVirsh.GetMemoryBallooningResponse, error) {
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return nil, err
+	}
+	if vm == nil {
+		return nil, fmt.Errorf("vm %s does not exist", vmName)
+	}
+
+	slave := protocol.GetConnectionByMachineName(vm.MachineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s no connected", vm.MachineName)
+	}
+
+	return virsh.GetMemoryBallooning(slave.Connection, vmName)
+}
+
+func (v *VirshService) SetMemoryBallooning(vmName string, enable bool) error {
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return err
+	}
+	if vm == nil {
+		return fmt.Errorf("vm %s does not exist", vmName)
+	}
+
+	if vm.State != grpcVirsh.VmState_SHUTOFF {
+		return fmt.Errorf("vm %s needs to be shutdown", vmName)
+	}
+
+	slave := protocol.GetConnectionByMachineName(vm.MachineName)
+	if slave == nil || slave.Connection == nil {
+		return fmt.Errorf("slave %s no connected", vm.MachineName)
+	}
+
+	return virsh.SetMemoryBallooning(slave.Connection, vmName, enable)
+}
+
+func (v *VirshService) GetHugePages(vmName string) (*grpcVirsh.GetHugePagesResponse, error) {
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return nil, err
+	}
+	if vm == nil {
+		return nil, fmt.Errorf("vm %s does not exist", vmName)
+	}
+
+	slave := protocol.GetConnectionByMachineName(vm.MachineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s no connected", vm.MachineName)
+	}
+
+	return virsh.GetHugePages(slave.Connection, vmName)
+}
+
+func (v *VirshService) SetHugePages(vmName string, enable bool) error {
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return err
+	}
+	if vm == nil {
+		return fmt.Errorf("vm %s does not exist", vmName)
+	}
+
+	if vm.State != grpcVirsh.VmState_SHUTOFF {
+		return fmt.Errorf("vm %s needs to be shutdown", vmName)
+	}
+
+	slave := protocol.GetConnectionByMachineName(vm.MachineName)
+	if slave == nil || slave.Connection == nil {
+		return fmt.Errorf("slave %s no connected", vm.MachineName)
+	}
+
+	return virsh.SetHugePages(slave.Connection, vmName, enable)
+}
+
 func (v *VirshService) PauseVM(name string) error {
 	//find vm by name
 	exists, err := virsh.DoesVMExist(name)
@@ -1267,7 +1425,7 @@ func (v *VirshService) isVmLive(ctx context.Context, vmName string) (bool, error
 	return liveQuestion, nil
 }
 
-func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, newName string) error {
+func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, newName string, templateID int) error {
 	logErr := func(e error) error {
 		logger.Error(e.Error())
 		return e
@@ -1338,6 +1496,10 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 		Live:        liveQuestion,
 	}
 
+	if _, err := v.prepareVMXMLTemplateForCreate(ctx, templateID, coldMigr.VmName, coldMigr.DiskPath); err != nil {
+		return logErr(err)
+	}
+
 	marshaler := protojson.MarshalOptions{EmitUnpopulated: true, Indent: "  "}
 	data, err := marshaler.Marshal(&coldMigr)
 	if err != nil {
@@ -1355,7 +1517,7 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 				return fmt.Errorf("copy disk: %w", err)
 			}
 
-			if err := v.ColdMigrateVm(taskCtx, vm.MachineName, &coldMigr); err != nil {
+			if err := v.ColdMigrateVm(taskCtx, vm.MachineName, &coldMigr, templateID); err != nil {
 				return fmt.Errorf("ColdMigrateVm: %w", err)
 			}
 
@@ -1382,7 +1544,7 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 	return nil
 }
 
-func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinationMachine string) error {
+func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinationMachine string, templateID int) error {
 	logErr := func(e error) error {
 		logger.Error(e.Error())
 		return e
@@ -1429,6 +1591,10 @@ func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinati
 		Live:        liveQuestion,
 	}
 
+	if _, err := v.prepareVMXMLTemplateForCreate(ctx, templateID, coldMigr.VmName, coldMigr.DiskPath); err != nil {
+		return logErr(err)
+	}
+
 	marshaler := protojson.MarshalOptions{EmitUnpopulated: true, Indent: "  "}
 	data, err := marshaler.Marshal(&coldMigr)
 	if err != nil {
@@ -1442,7 +1608,7 @@ func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinati
 		defer cancel()
 
 		err := func() error {
-			if err := v.ColdMigrateVm(taskCtx, destinationMachine, &coldMigr); err != nil {
+			if err := v.ColdMigrateVm(taskCtx, destinationMachine, &coldMigr, templateID); err != nil {
 				return err
 			}
 
@@ -1461,7 +1627,7 @@ func (v *VirshService) ColdMigrate(ctx context.Context, vmName string, destinati
 
 	return nil
 }
-func (v *VirshService) CloneVM(ctx context.Context, vmName string, newName string, destinationMachine string, nfsId int) error {
+func (v *VirshService) CloneVM(ctx context.Context, vmName string, newName string, destinationMachine string, nfsId int, templateID int) error {
 	logErr := func(e error) error {
 		logger.Error(e.Error())
 		return e
@@ -1517,6 +1683,10 @@ func (v *VirshService) CloneVM(ctx context.Context, vmName string, newName strin
 		Live:        liveQuestion,
 	}
 
+	if _, err := v.prepareVMXMLTemplateForCreate(ctx, templateID, coldMigr.VmName, coldMigr.DiskPath); err != nil {
+		return logErr(err)
+	}
+
 	marshaler := protojson.MarshalOptions{EmitUnpopulated: true, Indent: "  "}
 	data, err := marshaler.Marshal(&coldMigr)
 	if err != nil {
@@ -1558,7 +1728,7 @@ func (v *VirshService) CloneVM(ctx context.Context, vmName string, newName strin
 				}
 			}
 
-			if err := v.ColdMigrateVm(taskCtx, destinationMachine, &coldMigr); err != nil {
+			if err := v.ColdMigrateVm(taskCtx, destinationMachine, &coldMigr, templateID); err != nil {
 				return err
 			}
 			return nil
@@ -1692,6 +1862,110 @@ func (v *VirshService) SetTunedAdmProfile(machineName, profile string) (*grpcVir
 	resp, err := virsh.SetTunedAdmProfileGRPC(slave.Connection, profile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set tuned-adm profile on %s: %v", machineName, err)
+	}
+	return resp, nil
+}
+
+func (v *VirshService) GetIrqBalanceState(machineName string) (*grpcVirsh.IrqBalanceStateResponse, error) {
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	resp, err := virsh.GetIrqBalanceStateGRPC(slave.Connection)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get irqbalance state from %s: %v", machineName, err)
+	}
+	return resp, nil
+}
+
+func (v *VirshService) SetIrqBalanceState(machineName string, enabled bool) (*grpcVirsh.SetIrqBalanceStateResponse, error) {
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	resp, err := virsh.SetIrqBalanceStateGRPC(slave.Connection, enabled)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set irqbalance state on %s: %v", machineName, err)
+	}
+	return resp, nil
+}
+
+func (v *VirshService) GetHostCoreIsolation(machineName string) (*grpcVirsh.HostCoreIsolationStateResponse, error) {
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	resp, err := virsh.GetHostCoreIsolationGRPC(slave.Connection)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get host core isolation from %s: %v", machineName, err)
+	}
+	return resp, nil
+}
+
+func (v *VirshService) SetHostCoreIsolation(machineName string, req *grpcVirsh.SetHostCoreIsolationRequest) (*grpcVirsh.HostCoreIsolationStateResponse, error) {
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	resp, err := virsh.SetHostCoreIsolationGRPC(slave.Connection, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set host core isolation on %s: %v", machineName, err)
+	}
+	return resp, nil
+}
+
+func (v *VirshService) RemoveHostCoreIsolation(machineName string) (*grpcVirsh.HostCoreIsolationStateResponse, error) {
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	resp, err := virsh.RemoveHostCoreIsolationGRPC(slave.Connection)
+	if err != nil {
+		return nil, fmt.Errorf("failed to remove host core isolation on %s: %v", machineName, err)
+	}
+	return resp, nil
+}
+
+func (v *VirshService) GetHostHugePages(machineName string) (*grpcVirsh.HostHugePagesStateResponse, error) {
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	resp, err := virsh.GetHostHugePagesGRPC(slave.Connection)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get host hugepages from %s: %v", machineName, err)
+	}
+	return resp, nil
+}
+
+func (v *VirshService) SetHostHugePages(machineName string, req *grpcVirsh.SetHostHugePagesRequest) (*grpcVirsh.HostHugePagesStateResponse, error) {
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	resp, err := virsh.SetHostHugePagesGRPC(slave.Connection, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set host hugepages on %s: %v", machineName, err)
+	}
+	return resp, nil
+}
+
+func (v *VirshService) RemoveHostHugePages(machineName string) (*grpcVirsh.HostHugePagesStateResponse, error) {
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s not connected", machineName)
+	}
+
+	resp, err := virsh.RemoveHostHugePagesGRPC(slave.Connection)
+	if err != nil {
+		return nil, fmt.Errorf("failed to remove host hugepages on %s: %v", machineName, err)
 	}
 	return resp, nil
 }

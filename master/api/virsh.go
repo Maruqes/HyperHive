@@ -59,6 +59,7 @@ func createVM(w http.ResponseWriter, r *http.Request) {
 		Memory      int32  `json:"memory"`
 		Vcpu        int32  `json:"vcpu"`
 		DiskSizeGB  int32  `json:"disk_sizeGB"`
+		TemplateID  int    `json:"template_id"`
 		IsoID       int    `json:"iso_id"`
 		NfsShareId  int    `json:"nfs_share_id"`
 		Network     string `json:"network"`
@@ -78,14 +79,14 @@ func createVM(w http.ResponseWriter, r *http.Request) {
 
 	virshServices := services.VirshService{}
 	if vmReq.Live {
-		err = virshServices.CreateLiveVM(r.Context(), vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml, vmReq.AutoStart, vmReq.IsWindows)
+		err = virshServices.CreateLiveVM(r.Context(), vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml, vmReq.AutoStart, vmReq.IsWindows, vmReq.TemplateID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 	} else {
-		err = virshServices.CreateVM(r.Context(), vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml, vmReq.AutoStart, vmReq.IsWindows)
+		err = virshServices.CreateVM(r.Context(), vmReq.MachineName, vmReq.Name, vmReq.Memory, vmReq.Vcpu, vmReq.NfsShareId, vmReq.DiskSizeGB, vmReq.IsoID, vmReq.Network, vmReq.VNCPassword, vmReq.CpuXml, vmReq.AutoStart, vmReq.IsWindows, vmReq.TemplateID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -506,6 +507,96 @@ func getCpuXML(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func getVmXML(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	machineName := strings.TrimSpace(r.URL.Query().Get("machine_name"))
+	if machineName == "" {
+		vm, err := virshServices.GetVmByName(vmName)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if vm == nil {
+			http.Error(w, "VM not found", http.StatusNotFound)
+			return
+		}
+		machineName = vm.MachineName
+	}
+
+	vmXml, err := virshServices.GetVmXML(machineName, vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(struct {
+		VmXML       string `json:"vm_xml"`
+		MachineName string `json:"machine_name"`
+	}{
+		VmXML:       vmXml,
+		MachineName: machineName,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
+}
+
+func updateVmXML(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type UpdateVmXMLRequest struct {
+		MachineName string `json:"machine_name"`
+		VmXML       string `json:"vm_xml"`
+	}
+
+	var req UpdateVmXMLRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	req.VmXML = strings.TrimSpace(req.VmXML)
+	if req.VmXML == "" {
+		http.Error(w, "vm_xml is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	req.MachineName = strings.TrimSpace(req.MachineName)
+	if req.MachineName == "" {
+		vm, err := virshServices.GetVmByName(vmName)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if vm == nil {
+			http.Error(w, "VM not found", http.StatusNotFound)
+			return
+		}
+		req.MachineName = vm.MachineName
+	}
+
+	if err := virshServices.UpdateVmXML(r.Context(), req.MachineName, vmName, req.VmXML); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("VM XML updated successfully"))
+}
+
 func removeIso(w http.ResponseWriter, r *http.Request) {
 	vmName := chi.URLParam(r, "vm_name")
 	if vmName == "" {
@@ -637,6 +728,112 @@ func getNoVNCVideo(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func getMemoryBallooning(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.GetMemoryBallooning(vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
+}
+
+func setMemoryBallooning(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type reqBody struct {
+		Enable *bool `json:"enable"`
+	}
+
+	var req reqBody
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if req.Enable == nil {
+		http.Error(w, "enable is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	if err := virshServices.SetMemoryBallooning(vmName, *req.Enable); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func getHugePages(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.GetHugePages(vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
+}
+
+func setHugePages(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type reqBody struct {
+		Enable *bool `json:"enable"`
+	}
+
+	var req reqBody
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if req.Enable == nil {
+		http.Error(w, "enable is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	if err := virshServices.SetHugePages(vmName, *req.Enable); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func resumeVm(w http.ResponseWriter, r *http.Request) {
 	vmName := chi.URLParam(r, "vm_name")
 	if vmName == "" {
@@ -723,6 +920,7 @@ type VMRequestImport struct {
 	Network     string `json:"network"`
 	VNCPassword string `json:"VNC_password"`
 	CpuXML      string `json:"cpu_xml"`
+	TemplateID  int    `json:"template_id"`
 	Live        bool   `json:"live"`
 }
 
@@ -763,6 +961,13 @@ func readVMRequest(r *http.Request) (*VMRequestImport, error) {
 	vmReq.Network = q(r, "network")
 	vmReq.VNCPassword = q(r, "VNC_password")
 	vmReq.CpuXML = q(r, "cpu_xml") // URL-encode on client if it includes <, >, " …
+	if s := q(r, "template_id"); s != "" {
+		v, err := strconv.Atoi(s)
+		if err != nil {
+			return nil, fmt.Errorf("invalid template_id: %v", err)
+		}
+		vmReq.TemplateID = v
+	}
 	if s := q(r, "live"); s != "" {
 		vmReq.Live = s == "true"
 	}
@@ -929,6 +1134,7 @@ func importVM(w http.ResponseWriter, r *http.Request) {
 			CpuXML:      vmReq.CpuXML,
 			Live:        vmReq.Live,
 		},
+		vmReq.TemplateID,
 	)
 	if err != nil {
 		http.Error(w, "error creating VM after import: "+err.Error(), http.StatusInternalServerError)
@@ -1094,7 +1300,8 @@ func useBackup(w http.ResponseWriter, r *http.Request) {
 			CpuXML:      vmReq.CpuXML,
 			DiskPath:    "", //UseBackup FUNCTION WILL SET THIS
 			Live:        vmReq.Live,
-		})
+		},
+		vmReq.TemplateID)
 	if err != nil {
 		http.Error(w, "was not possible to backup your vm err: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -1358,7 +1565,8 @@ func moveDisk(w http.ResponseWriter, r *http.Request) {
 
 	// parse optional new_name from JSON body
 	type MoveReq struct {
-		NewName string `json:"new_name"`
+		NewName    string `json:"new_name"`
+		TemplateID int    `json:"template_id"`
 	}
 	var mr MoveReq
 	if err := json.NewDecoder(r.Body).Decode(&mr); err != nil && err != io.EOF {
@@ -1375,7 +1583,7 @@ func moveDisk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshService := services.VirshService{}
-	err = virshService.MoveDisk(r.Context(), vm_name, destNfs, newName)
+	err = virshService.MoveDisk(r.Context(), vm_name, destNfs, newName, mr.TemplateID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1397,8 +1605,17 @@ func coldMigrate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	type ColdMigrateRequest struct {
+		TemplateID int `json:"template_id"`
+	}
+	var creq ColdMigrateRequest
+	if err := json.NewDecoder(r.Body).Decode(&creq); err != nil && err != io.EOF {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	virshService := services.VirshService{}
-	err := virshService.ColdMigrate(r.Context(), vm_name, dest_machine_name)
+	err := virshService.ColdMigrate(r.Context(), vm_name, dest_machine_name, creq.TemplateID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1428,7 +1645,8 @@ func cloneVM(w http.ResponseWriter, r *http.Request) {
 
 	// parse new name from JSON body
 	type CloneRequest struct {
-		NewName string `json:"new_name"`
+		NewName    string `json:"new_name"`
+		TemplateID int    `json:"template_id"`
 	}
 	var creq CloneRequest
 	if err := json.NewDecoder(r.Body).Decode(&creq); err != nil && err != io.EOF {
@@ -1445,7 +1663,7 @@ func cloneVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	virshService := services.VirshService{}
-	err = virshService.CloneVM(r.Context(), vm_name, newName, dest_machine_name, destNfs)
+	err = virshService.CloneVM(r.Context(), vm_name, newName, dest_machine_name, destNfs, creq.TemplateID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1636,9 +1854,286 @@ func setTunedAdmProfile(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func getIrqBalanceState(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.GetIrqBalanceState(machineName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	opts := protojson.MarshalOptions{EmitUnpopulated: true}
+	data, err := opts.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
+func setIrqBalanceState(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type irqBalanceStateRequest struct {
+		Enabled *bool `json:"enabled"`
+	}
+
+	var req irqBalanceStateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if req.Enabled == nil {
+		http.Error(w, "enabled is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.SetIrqBalanceState(machineName, *req.Enabled)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	opts := protojson.MarshalOptions{EmitUnpopulated: true}
+	data, err := opts.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
+func getHostCoreIsolation(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.GetHostCoreIsolation(machineName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	opts := protojson.MarshalOptions{EmitUnpopulated: true}
+	data, err := opts.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
+func setHostCoreIsolation(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type coreIsolationSocketReq struct {
+		SocketID    *int32  `json:"socket_id"`
+		CoreIndices []int32 `json:"core_indices"`
+	}
+	type coreIsolationReq struct {
+		Sockets []coreIsolationSocketReq `json:"sockets"`
+	}
+
+	var req coreIsolationReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if len(req.Sockets) == 0 {
+		http.Error(w, "sockets is required and cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	grpcReq := &grpcVirsh.SetHostCoreIsolationRequest{}
+	for i, s := range req.Sockets {
+		if s.SocketID == nil {
+			http.Error(w, fmt.Sprintf("sockets[%d].socket_id is required", i), http.StatusBadRequest)
+			return
+		}
+		if len(s.CoreIndices) == 0 {
+			http.Error(w, fmt.Sprintf("sockets[%d].core_indices is required and cannot be empty", i), http.StatusBadRequest)
+			return
+		}
+		for _, idx := range s.CoreIndices {
+			if idx < 0 {
+				http.Error(w, fmt.Sprintf("sockets[%d].core_indices must be >= 0", i), http.StatusBadRequest)
+				return
+			}
+		}
+
+		grpcReq.Sockets = append(grpcReq.Sockets, &grpcVirsh.HostCoreIsolationSocketSelection{
+			SocketId:    *s.SocketID,
+			CoreIndices: append([]int32(nil), s.CoreIndices...),
+		})
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.SetHostCoreIsolation(machineName, grpcReq)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	opts := protojson.MarshalOptions{EmitUnpopulated: true}
+	data, err := opts.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
+func removeHostCoreIsolation(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.RemoveHostCoreIsolation(machineName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	opts := protojson.MarshalOptions{EmitUnpopulated: true}
+	data, err := opts.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
+func getHostHugePages(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.GetHostHugePages(machineName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	opts := protojson.MarshalOptions{EmitUnpopulated: true}
+	data, err := opts.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
+func setHostHugePages(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type reqBody struct {
+		PageSize  string `json:"page_size"`
+		PageCount *int32 `json:"page_count"`
+	}
+
+	var req reqBody
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.PageSize) == "" {
+		http.Error(w, "page_size is required", http.StatusBadRequest)
+		return
+	}
+	if req.PageCount == nil {
+		http.Error(w, "page_count is required", http.StatusBadRequest)
+		return
+	}
+	if *req.PageCount <= 0 {
+		http.Error(w, "page_count must be > 0", http.StatusBadRequest)
+		return
+	}
+
+	grpcReq := &grpcVirsh.SetHostHugePagesRequest{
+		PageSize:  strings.TrimSpace(req.PageSize),
+		PageCount: *req.PageCount,
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.SetHostHugePages(machineName, grpcReq)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	opts := protojson.MarshalOptions{EmitUnpopulated: true}
+	data, err := opts.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
+func removeHostHugePages(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.RemoveHostHugePages(machineName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	opts := protojson.MarshalOptions{EmitUnpopulated: true}
+	data, err := opts.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
 func setupVirshAPI(r chi.Router) chi.Router {
 	extra.RegisterCallFunction(websocketusInfoVms)
 	return r.Route("/virsh", func(r chi.Router) {
+		setupVirshXMLTemplatesAPI(r)
+
 		r.Get("/getcpudisablefeatures", getCpuFeatures)
 		r.Get("/getallvms", getAllVms)
 		r.Post("/createvm", createVM)
@@ -1646,6 +2141,8 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Post("/migratevm/{vm_name}", migrateLiveVM)
 		r.Post("/updatecpuxml/{vm_name}", updateCpuXml)
 		r.Get("/cpuxml/{vm_name}", getCpuXML)
+		r.Post("/updatevmxml/{vm_name}", updateVmXML)
+		r.Get("/vmxml/{vm_name}", getVmXML)
 
 		//controll
 		r.Delete("/deletevm/{vm_name}", deleteVM)
@@ -1664,6 +2161,10 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Post("/novncvideo/add/{vm_name}", addNoVNCVideo)
 		r.Post("/novncvideo/remove/{vm_name}", removeNoVNCVideo)
 		r.Get("/novncvideo/{vm_name}", getNoVNCVideo)
+		r.Get("/ballooning/{vm_name}", getMemoryBallooning)
+		r.Post("/ballooning/{vm_name}", setMemoryBallooning)
+		r.Get("/hugepages/{vm_name}", getHugePages)
+		r.Post("/hugepages/{vm_name}", setHugePages)
 
 		//cpu pinning
 		r.Post("/cpupinning/{vm_name}", setCPUPinning)
@@ -1672,6 +2173,16 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Get("/cputopology/{machine_name}", getCPUTopology)
 		r.Get("/tunedadm/{machine_name}", getTunedAdmProfiles)
 		r.Post("/tunedadm/{machine_name}", setTunedAdmProfile)
+		r.Get("/irqbalance/{machine_name}", getIrqBalanceState)
+		r.Post("/irqbalance/{machine_name}", setIrqBalanceState)
+		r.Get("/coreisolation/{machine_name}", getHostCoreIsolation)
+		r.Post("/coreisolation/{machine_name}", setHostCoreIsolation)
+		r.Put("/coreisolation/{machine_name}", setHostCoreIsolation)
+		r.Delete("/coreisolation/{machine_name}", removeHostCoreIsolation)
+		r.Get("/hosthugepages/{machine_name}", getHostHugePages)
+		r.Post("/hosthugepages/{machine_name}", setHostHugePages)
+		r.Put("/hosthugepages/{machine_name}", setHostHugePages)
+		r.Delete("/hosthugepages/{machine_name}", removeHostHugePages)
 
 		//move
 		r.Post("/moveDisk/{vm_name}/{dest_nfs}", moveDisk)

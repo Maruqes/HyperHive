@@ -79,9 +79,16 @@ message MigrateVmRequest {
 
 message CPUXMLResponse { string cpuXML = 1; }
 
+message VMXMLResponse { string vmXML = 1; }
+
 message UpdateVMCPUXmlRequest {
   string name = 1;
   string cpuXML = 2;
+}
+
+message UpdateVMXmlRequest {
+  string name = 1;
+  string vmXML = 2;
 }
 
 message ColdMigrationRequest {
@@ -112,6 +119,29 @@ message GetNoVNCVideoResponse {
   string video_xml = 4;
 }
 
+message SetMemoryBallooningRequest {
+  string vm_name = 1;
+  bool enable = 2;
+}
+
+message GetMemoryBallooningResponse {
+  bool enabled = 1;
+  bool memory_locked = 2;
+  bool has_memballoon = 3;
+  string memballoon_model = 4;
+}
+
+message SetHugePagesRequest {
+  string vm_name = 1;
+  bool enable = 2;
+}
+
+message GetHugePagesResponse {
+  bool enabled = 1;
+  bool has_hugepages = 2;
+  bool memory_locked = 3;
+}
+
 // defines on slave
 service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
@@ -119,6 +149,8 @@ service SlaveVirshService {
 
   rpc GetVMCPUXml(GetVmByNameRequest) returns (CPUXMLResponse);
   rpc UpdateVMCPUXml(UpdateVMCPUXmlRequest) returns (OkResponse);
+  rpc GetVMXml(GetVmByNameRequest) returns (VMXMLResponse);
+  rpc UpdateVMXml(UpdateVMXmlRequest) returns (OkResponse);
 
   rpc CreateVm(CreateVmRequest) returns (OkResponse);
 
@@ -141,6 +173,10 @@ service SlaveVirshService {
   rpc AddNoVNCVideo(GetVmByNameRequest) returns (OkResponse);
   rpc RemoveNoVNCVideo(GetVmByNameRequest) returns (OkResponse);
   rpc GetNoVNCVideo(GetVmByNameRequest) returns (GetNoVNCVideoResponse);
+  rpc GetMemoryBallooning(GetVmByNameRequest) returns (GetMemoryBallooningResponse);
+  rpc SetMemoryBallooning(SetMemoryBallooningRequest) returns (OkResponse);
+  rpc GetHugePages(GetVmByNameRequest) returns (GetHugePagesResponse);
+  rpc SetHugePages(SetHugePagesRequest) returns (OkResponse);
 
   // only sees machine name, cpuCount and memoryMB
   // cpuCount and memoryMB are the new values to set
@@ -161,6 +197,18 @@ service SlaveVirshService {
   // Host tuned-adm profiles
   rpc GetTunedAdmProfiles(Empty) returns (TunedAdmProfilesResponse);
   rpc SetTunedAdmProfile(SetTunedAdmProfileRequest) returns (SetTunedAdmProfileResponse);
+
+  // Host irqbalance service
+  rpc GetIrqBalanceState(Empty) returns (IrqBalanceStateResponse);
+  rpc SetIrqBalanceState(SetIrqBalanceStateRequest) returns (SetIrqBalanceStateResponse);
+
+  // Host core isolation (kernel args via grubby)
+  rpc GetHostCoreIsolation(Empty) returns (HostCoreIsolationStateResponse);
+  rpc SetHostCoreIsolation(SetHostCoreIsolationRequest) returns (HostCoreIsolationStateResponse);
+  rpc RemoveHostCoreIsolation(Empty) returns (HostCoreIsolationStateResponse);
+  rpc GetHostHugePages(Empty) returns (HostHugePagesStateResponse);
+  rpc SetHostHugePages(SetHostHugePagesRequest) returns (HostHugePagesStateResponse);
+  rpc RemoveHostHugePages(Empty) returns (HostHugePagesStateResponse);
 }
 
 // CPU Pinning messages
@@ -222,4 +270,74 @@ message SetTunedAdmProfileResponse {
   bool ok = 1;
   string message = 2;
   string current_active_profile = 3;
+}
+
+message IrqBalanceStateResponse {
+  bool enabled = 1;
+  bool active = 2;
+  string unit_name = 3;
+}
+
+message SetIrqBalanceStateRequest {
+  bool enabled = 1;
+}
+
+message SetIrqBalanceStateResponse {
+  bool ok = 1;
+  string message = 2;
+  bool enabled = 3;
+  bool active = 4;
+  string unit_name = 5;
+}
+
+message HostCoreIsolationSocketSelection {
+  int32 socket_id = 1;
+  repeated int32 core_indices = 2;
+}
+
+message SetHostCoreIsolationRequest {
+  repeated HostCoreIsolationSocketSelection sockets = 1;
+}
+
+message HostCoreIsolationSocketState {
+  int32 socket_id = 1;
+  int32 total_physical_cores = 2;
+  int32 max_isolatable_cores = 3;
+  repeated int32 isolated_core_indices = 4;
+}
+
+message HostCoreIsolationStateResponse {
+  bool enabled = 1;
+  bool reboot_required = 2;
+  string message = 3;
+  string isolcpus = 4;
+  string nohz_full = 5;
+  string rcu_nocbs = 6;
+  string active_isolcpus = 7;
+  repeated int32 configured_cpus = 8;
+  repeated int32 active_cpus = 9;
+  repeated HostCoreIsolationSocketState sockets = 10;
+}
+
+message SetHostHugePagesRequest {
+  string page_size = 1;
+  int32 page_count = 2;
+}
+
+message HostHugePagesStateResponse {
+  bool enabled = 1;
+  bool reboot_required = 2;
+  string message = 3;
+
+  string page_size = 4;
+  int32 page_count = 5;
+  string active_page_size = 6;
+  int32 active_page_count = 7;
+
+  string default_hugepagesz = 8;
+  string hugepagesz = 9;
+  string hugepages = 10;
+  string active_default_hugepagesz = 11;
+  string active_hugepagesz = 12;
+  string active_hugepages = 13;
 }
