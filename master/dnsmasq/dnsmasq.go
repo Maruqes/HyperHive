@@ -44,6 +44,10 @@ func Install() error {
 		return fmt.Errorf("failed to install dnsmasq via dnf: %w: %s", err, strings.TrimSpace(string(output)))
 	}
 
+	if err := exec.Command("systemctl", "disable", serviceName).Run(); err != nil {
+		return fmt.Errorf("failed to disable dnsmasq: %w", err)
+	}
+
 	return nil
 }
 
