@@ -236,10 +236,27 @@ func ensureIncludeInRedeConf() error {
 }
 
 func reloadDnsmasq() error {
-	// Send SIGHUP to all running dnsmasq processes to re-read configs.
-	out, err := exec.Command("killall", "-HUP", serviceName).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("failed to send SIGHUP to dnsmasq: %w: %s", err, strings.TrimSpace(string(out)))
+	// address= directives in included config files are only read at startup,
+	// SIGHUP only re-reads /etc/hosts and leases. We need to kill and let
+	// the process managers restart the instances so they re-read configs.
+
+	// Kill the 512rede instance — it runs with -k (foreground), so its
+	// process manager will automatically restart it.
+	pidOut, _ := exec.Command("pgrep", "-f", "conf-file="+redeConfPath).CombinedOutput()
+	if pid := strings.TrimSpace(string(pidOut)); pid != "" {
+		_ = exec.Command("kill", pid).Run()
 	}
+
+	// Kill and restart the wireguard instance (we manage it ourselves).
+	wgConfPath := "/etc/hyperhive/dnsmasq-wireguard.conf"
+	wgPidOut, _ := exec.Command("pgrep", "-f", "conf-file="+wgConfPath).CombinedOutput()
+	if pid := strings.TrimSpace(string(wgPidOut)); pid != "" {
+		_ = exec.Command("kill", pid).Run()
+		startOut, startErr := exec.Command("dnsmasq", "--conf-file="+wgConfPath).CombinedOutput()
+		if startErr != nil {
+			return fmt.Errorf("restart wireguard dnsmasq: %w: %s", startErr, strings.TrimSpace(string(startOut)))
+		}
+	}
+
 	return nil
 }
