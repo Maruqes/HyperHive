@@ -343,7 +343,8 @@ interface=%s
 listen-address=%s
 bind-dynamic
 pid-file=%s
-`, iface, dnsIP, dnsmasqWireguardPidPath)
+conf-file=%s
+`, iface, dnsIP, dnsmasqWireguardPidPath, dnsmasq.AliasConfPath)
 
 	if err := os.MkdirAll("/etc/hyperhive", 0755); err != nil {
 		return fmt.Errorf("create config dir: %w", err)

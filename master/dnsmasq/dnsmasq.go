@@ -9,10 +9,11 @@ import (
 )
 
 const (
-	hostsFilePath = "/etc/hosts"
-	serviceName   = "dnsmasq"
-	markerBegin   = "# BEGIN HyperHive Aliases"
-	markerEnd     = "# END HyperHive Aliases"
+	AliasConfPath  = "/etc/hyperhive/dnsmasq-aliases.conf"
+	redeConfPath   = "/etc/dnsmasq.d/512rede-host.conf"
+	serviceName    = "dnsmasq"
+	managedComment = "# Managed by HyperHive"
+	includeLine    = "conf-file=" + AliasConfPath
 )
 
 type AliasEntry struct {
@@ -141,7 +142,7 @@ func validateAliasIP(alias, ip string) error {
 	if ip == "" {
 		return fmt.Errorf("ip is required")
 	}
-	if strings.ContainsAny(alias, " \t\r\n,/") {
+	if strings.ContainsAny(alias, " \t\r\n,") {
 		return fmt.Errorf("alias contains invalid characters")
 	}
 	if net.ParseIP(ip) == nil {
@@ -152,91 +153,90 @@ func validateAliasIP(alias, ip string) error {
 }
 
 func readAliasEntries() ([]AliasEntry, error) {
-	data, err := os.ReadFile(hostsFilePath)
+	data, err := os.ReadFile(AliasConfPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read hosts file: %w", err)
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read alias config: %w", err)
 	}
 
 	var entries []AliasEntry
-	inBlock := false
 	for _, line := range strings.Split(string(data), "\n") {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == markerBegin {
-			inBlock = true
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		if trimmed == markerEnd {
-			break
-		}
-		if !inBlock {
+		if !strings.HasPrefix(line, "address=/") {
 			continue
 		}
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+		// address=/domain/ip
+		payload := strings.TrimPrefix(line, "address=/")
+		slash := strings.LastIndex(payload, "/")
+		if slash < 1 {
 			continue
 		}
-		fields := strings.Fields(trimmed)
-		if len(fields) < 2 {
-			continue
+		alias := payload[:slash]
+		ip := payload[slash+1:]
+		if alias != "" && ip != "" {
+			entries = append(entries, AliasEntry{Alias: alias, IP: ip})
 		}
-		entries = append(entries, AliasEntry{
-			IP:    fields[0],
-			Alias: fields[1],
-		})
 	}
 
 	return entries, nil
 }
 
 func writeAliasEntries(entries []AliasEntry) error {
-	data, err := os.ReadFile(hostsFilePath)
+	if err := os.MkdirAll("/etc/hyperhive", 0755); err != nil {
+		return fmt.Errorf("create config dir: %w", err)
+	}
+
+	var sb strings.Builder
+	sb.WriteString(managedComment + "\n")
+	for _, e := range entries {
+		// address=/domain/ip — matches domain and all *.domain subdomains
+		fmt.Fprintf(&sb, "address=/%s/%s\n", e.Alias, e.IP)
+	}
+
+	if err := os.WriteFile(AliasConfPath, []byte(sb.String()), 0644); err != nil {
+		return fmt.Errorf("write alias config: %w", err)
+	}
+
+	if err := ensureIncludeInRedeConf(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ensureIncludeInRedeConf adds a conf-file= line to the 512rede dnsmasq config
+// so that the standalone 512rede dnsmasq instance picks up our aliases.
+func ensureIncludeInRedeConf() error {
+	data, err := os.ReadFile(redeConfPath)
 	if err != nil {
-		return fmt.Errorf("failed to read hosts file: %w", err)
+		return nil // 512rede config doesn't exist, nothing to include into
 	}
 
-	lines := strings.Split(string(data), "\n")
-	var result []string
-	skip := false
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == markerBegin {
-			skip = true
-			continue
-		}
-		if trimmed == markerEnd {
-			skip = false
-			continue
-		}
-		if !skip {
-			result = append(result, line)
-		}
+	if strings.Contains(string(data), includeLine) {
+		return nil // already included
 	}
 
-	// Remove trailing empty lines
-	for len(result) > 0 && strings.TrimSpace(result[len(result)-1]) == "" {
-		result = result[:len(result)-1]
+	// Append the include directive
+	f, err := os.OpenFile(redeConfPath, os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("open 512rede config for append: %w", err)
 	}
+	defer f.Close()
 
-	// Append our managed block
-	if len(entries) > 0 {
-		result = append(result, "", markerBegin)
-		for _, e := range entries {
-			result = append(result, fmt.Sprintf("%s\t%s", e.IP, e.Alias))
-		}
-		result = append(result, markerEnd)
-	}
-	result = append(result, "") // trailing newline
-
-	if err := os.WriteFile(hostsFilePath, []byte(strings.Join(result, "\n")), 0644); err != nil {
-		return fmt.Errorf("failed to write hosts file: %w", err)
+	if _, err := fmt.Fprintf(f, "\n# HyperHive aliases\n%s\n", includeLine); err != nil {
+		return fmt.Errorf("write include to 512rede config: %w", err)
 	}
 
 	return nil
 }
 
 func reloadDnsmasq() error {
-	// Send SIGHUP to all running dnsmasq processes to re-read /etc/hosts.
-	// We don't use systemctl because dnsmasq may run as standalone instances
-	// (e.g. 512rede, wireguard) rather than via the system service.
+	// Send SIGHUP to all running dnsmasq processes to re-read configs.
 	out, err := exec.Command("killall", "-HUP", serviceName).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to send SIGHUP to dnsmasq: %w: %s", err, strings.TrimSpace(string(out)))
