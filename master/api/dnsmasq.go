@@ -14,6 +14,27 @@ type dnsAliasRequest struct {
 	IP    string `json:"ip"`
 }
 
+func getAllDNSAliases(w http.ResponseWriter, r *http.Request) {
+	entries, err := dnsmasq.GetAllAliases()
+	if err != nil {
+		http.Error(w, "failed to get aliases: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	aliases := make([]dnsAliasRequest, len(entries))
+	for i, entry := range entries {
+		aliases[i] = dnsAliasRequest{
+			Alias: entry.Alias,
+			IP:    entry.IP,
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string][]dnsAliasRequest{
+		"aliases": aliases,
+	})
+}
+
 func getDNSAlias(w http.ResponseWriter, r *http.Request) {
 	alias := strings.TrimSpace(r.URL.Query().Get("alias"))
 	ip := strings.TrimSpace(r.URL.Query().Get("ip"))
@@ -72,6 +93,7 @@ func removeDNSAlias(w http.ResponseWriter, r *http.Request) {
 
 func setupDNSMasqAPI(r chi.Router) chi.Router {
 	return r.Route("/dnsmasq", func(r chi.Router) {
+		r.Get("/alias/all", getAllDNSAliases)
 		r.Get("/alias/get", getDNSAlias)
 		r.Post("/alias/add", addDNSAlias)
 		r.Delete("/alias/remove", removeDNSAlias)

@@ -22,6 +22,18 @@ type AliasEntry struct {
 	IP    string
 }
 
+func GetAllAliases() ([]AliasEntry, error) {
+	entries, err := readAliasEntries()
+	if err != nil {
+		return nil, err
+	}
+
+	// Return a copy so callers cannot mutate internal slices by accident.
+	result := make([]AliasEntry, len(entries))
+	copy(result, entries)
+	return result, nil
+}
+
 func Install() error {
 	if _, err := exec.LookPath(serviceName); err == nil {
 		return nil
