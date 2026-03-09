@@ -56,7 +56,9 @@ Summary:
 const iface = "wg0-hh512"
 const ServerCIDR = "10.128.0.1/24" // server address
 const listenPort = 51512
-const dnsmasqWireguardConfPath = "/etc/dnsmasq.d/hyperhive-wireguard.conf"
+const dnsmasqWireguardConfPath = "/etc/hyperhive/dnsmasq-wireguard.conf"
+const dnsmasqWireguardPidPath = "/run/dnsmasq-hyperhive-wg.pid"
+const oldDnsmasqWireguardConfPath = "/etc/dnsmasq.d/hyperhive-wireguard.conf"
 
 func ListenPort() int {
 	return listenPort
@@ -312,10 +314,24 @@ func serverDNSIP() (string, error) {
 	return ipv4.String(), nil
 }
 
+func stopWireguardDnsmasq() {
+	data, err := os.ReadFile(dnsmasqWireguardPidPath)
+	if err != nil {
+		return
+	}
+	pid := strings.TrimSpace(string(data))
+	if pid != "" {
+		_ = exec.Command("kill", pid).Run()
+	}
+}
+
 func ensureDNSMasqForWireguard() error {
 	if err := dnsmasq.Install(); err != nil {
 		return err
 	}
+
+	// Clean up old config that was in /etc/dnsmasq.d/ (conflicted with other instances)
+	os.Remove(oldDnsmasqWireguardConfPath)
 
 	dnsIP, err := serverDNSIP()
 	if err != nil {
@@ -326,47 +342,29 @@ func ensureDNSMasqForWireguard() error {
 interface=%s
 listen-address=%s
 bind-dynamic
-`, iface, dnsIP)
+pid-file=%s
+`, iface, dnsIP, dnsmasqWireguardPidPath)
 
-	if err := os.MkdirAll("/etc/dnsmasq.d", 0755); err != nil {
-		return fmt.Errorf("create dnsmasq config dir: %w", err)
+	if err := os.MkdirAll("/etc/hyperhive", 0755); err != nil {
+		return fmt.Errorf("create config dir: %w", err)
 	}
 
 	if err := os.WriteFile(dnsmasqWireguardConfPath, []byte(conf), 0644); err != nil {
 		return fmt.Errorf("write dnsmasq wireguard config: %w", err)
 	}
 
-	testOut, testErr := exec.Command("dnsmasq", "--test").CombinedOutput()
+	testOut, testErr := exec.Command("dnsmasq", "--test", "--conf-file="+dnsmasqWireguardConfPath).CombinedOutput()
 	if testErr != nil {
 		return fmt.Errorf("dnsmasq config test failed: %w: %s", testErr, strings.TrimSpace(string(testOut)))
 	}
 
-	isActiveErr := exec.Command("systemctl", "is-active", "--quiet", "dnsmasq").Run()
-	if isActiveErr == nil {
-		reloadOut, reloadErr := exec.Command("systemctl", "reload", "dnsmasq").CombinedOutput()
-		if reloadErr != nil {
-			restartOut, restartErr := exec.Command("systemctl", "restart", "dnsmasq").CombinedOutput()
-			if restartErr != nil {
-				return fmt.Errorf(
-					"reload/restart dnsmasq failed: reload error: %v (%s), restart error: %v (%s)",
-					reloadErr,
-					strings.TrimSpace(string(reloadOut)),
-					restartErr,
-					strings.TrimSpace(string(restartOut)),
-				)
-			}
-		}
-	} else {
-		startOut, startErr := exec.Command("systemctl", "start", "dnsmasq").CombinedOutput()
-		if startErr != nil {
-			statusOut, _ := exec.Command("systemctl", "status", "--no-pager", "dnsmasq").CombinedOutput()
-			return fmt.Errorf(
-				"start dnsmasq: %w: %s | status: %s",
-				startErr,
-				strings.TrimSpace(string(startOut)),
-				strings.TrimSpace(string(statusOut)),
-			)
-		}
+	// Stop any previous wireguard dnsmasq instance
+	stopWireguardDnsmasq()
+
+	// Start a dedicated dnsmasq instance (not the system service, to avoid conflicts)
+	startOut, startErr := exec.Command("dnsmasq", "--conf-file="+dnsmasqWireguardConfPath).CombinedOutput()
+	if startErr != nil {
+		return fmt.Errorf("start wireguard dnsmasq: %w: %s", startErr, strings.TrimSpace(string(startOut)))
 	}
 
 	return nil
