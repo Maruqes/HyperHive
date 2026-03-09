@@ -43,6 +43,7 @@ func Install() error {
 	if err != nil {
 		return fmt.Errorf("failed to install dnsmasq via dnf: %w: %s", err, strings.TrimSpace(string(output)))
 	}
+
 	return nil
 }
 
