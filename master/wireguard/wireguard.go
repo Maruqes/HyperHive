@@ -325,6 +325,7 @@ func ensureDNSMasqForWireguard() error {
 	conf := fmt.Sprintf(`# Managed by HyperHive for WireGuard
 interface=%s
 listen-address=%s
+bind-interfaces
 `, iface, dnsIP)
 
 	if err := os.MkdirAll("/etc/dnsmasq.d", 0755); err != nil {
@@ -335,25 +336,41 @@ listen-address=%s
 		return fmt.Errorf("write dnsmasq wireguard config: %w", err)
 	}
 
-	enableOut, enableErr := exec.Command("systemctl", "enable", "--now", "dnsmasq").CombinedOutput()
+	testOut, testErr := exec.Command("dnsmasq", "--test").CombinedOutput()
+	if testErr != nil {
+		return fmt.Errorf("dnsmasq config test failed: %w: %s", testErr, strings.TrimSpace(string(testOut)))
+	}
+
+	isActiveErr := exec.Command("systemctl", "is-active", "--quiet", "dnsmasq").Run()
+	if isActiveErr == nil {
+		reloadOut, reloadErr := exec.Command("systemctl", "reload", "dnsmasq").CombinedOutput()
+		if reloadErr != nil {
+			restartOut, restartErr := exec.Command("systemctl", "restart", "dnsmasq").CombinedOutput()
+			if restartErr != nil {
+				return fmt.Errorf(
+					"reload/restart dnsmasq failed: reload error: %v (%s), restart error: %v (%s)",
+					reloadErr,
+					strings.TrimSpace(string(reloadOut)),
+					restartErr,
+					strings.TrimSpace(string(restartOut)),
+				)
+			}
+		}
+	} else {
+		startOut, startErr := exec.Command("systemctl", "start", "dnsmasq").CombinedOutput()
+		if startErr != nil {
+			statusOut, _ := exec.Command("systemctl", "status", "--no-pager", "dnsmasq").CombinedOutput()
+			return fmt.Errorf(
+				"start dnsmasq: %w: %s | status: %s",
+				startErr,
+				strings.TrimSpace(string(startOut)),
+				strings.TrimSpace(string(statusOut)),
+			)
+		}
+	}
+	enableOut, enableErr := exec.Command("systemctl", "enable", "dnsmasq").CombinedOutput()
 	if enableErr != nil {
-		return fmt.Errorf("enable/start dnsmasq: %w: %s", enableErr, strings.TrimSpace(string(enableOut)))
-	}
-
-	reloadOut, reloadErr := exec.Command("systemctl", "reload", "dnsmasq").CombinedOutput()
-	if reloadErr == nil {
-		return nil
-	}
-
-	restartOut, restartErr := exec.Command("systemctl", "restart", "dnsmasq").CombinedOutput()
-	if restartErr != nil {
-		return fmt.Errorf(
-			"reload/restart dnsmasq failed: reload error: %v (%s), restart error: %v (%s)",
-			reloadErr,
-			strings.TrimSpace(string(reloadOut)),
-			restartErr,
-			strings.TrimSpace(string(restartOut)),
-		)
+		logger.Warnf("enable dnsmasq failed (service is running): %v: %s", enableErr, strings.TrimSpace(string(enableOut)))
 	}
 
 	return nil
