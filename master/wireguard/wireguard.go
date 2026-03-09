@@ -350,6 +350,13 @@ conf-file=%s
 		return fmt.Errorf("create config dir: %w", err)
 	}
 
+	// Ensure the aliases config file exists (may not yet if no aliases added)
+	if _, err := os.Stat(dnsmasq.AliasConfPath); os.IsNotExist(err) {
+		if err := os.WriteFile(dnsmasq.AliasConfPath, []byte("# Managed by HyperHive\n"), 0644); err != nil {
+			return fmt.Errorf("create empty aliases config: %w", err)
+		}
+	}
+
 	if err := os.WriteFile(dnsmasqWireguardConfPath, []byte(conf), 0644); err != nil {
 		return fmt.Errorf("write dnsmasq wireguard config: %w", err)
 	}
