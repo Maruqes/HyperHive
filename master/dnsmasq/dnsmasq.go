@@ -237,17 +237,25 @@ func ensureIncludeInRedeConf() error {
 
 func reloadDnsmasq() error {
 	// address= directives in included config files are only read at startup,
-	// SIGHUP only re-reads /etc/hosts and leases. We need to kill and let
-	// the process managers restart the instances so they re-read configs.
+	// SIGHUP only re-reads /etc/hosts and leases. We need to restart
+	// the dnsmasq processes so they re-read the alias config.
 
-	// Kill the 512rede instance — it runs with -k (foreground), so its
-	// process manager will automatically restart it.
+	// Restart the 512rede instance.
+	// It runs with -k (foreground) under a process manager, so we must
+	// restart it ourselves: kill the old one and start a new one.
 	pidOut, _ := exec.Command("pgrep", "-f", "conf-file="+redeConfPath).CombinedOutput()
 	if pid := strings.TrimSpace(string(pidOut)); pid != "" {
 		_ = exec.Command("kill", pid).Run()
+		// Start a new 512rede dnsmasq as a daemon (without -k so it forks to background).
+		// The process manager may also restart one — the first to bind wins,
+		// the second will exit harmlessly with "address already in use".
+		_ = exec.Command("dnsmasq",
+			"--conf-file="+redeConfPath,
+			"--bind-interfaces",
+			"--user=dnsmasq", "--group=dnsmasq").Start()
 	}
 
-	// Kill and restart the wireguard instance (we manage it ourselves).
+	// Restart the wireguard instance (we manage it directly).
 	wgConfPath := "/etc/hyperhive/dnsmasq-wireguard.conf"
 	wgPidOut, _ := exec.Command("pgrep", "-f", "conf-file="+wgConfPath).CombinedOutput()
 	if pid := strings.TrimSpace(string(wgPidOut)); pid != "" {
