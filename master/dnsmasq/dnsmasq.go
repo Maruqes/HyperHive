@@ -8,14 +8,18 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
 const (
-	aliasFilePath  = "/etc/dnsmasq.d/hyperhive-aliases.conf"
-	serviceName    = "dnsmasq"
-	managedComment = "# Managed by HyperHive"
+	aliasFilePath       = "/etc/dnsmasq.d/hyperhive-aliases.conf"
+	serviceName         = "dnsmasq"
+	managedComment      = "# Managed by HyperHive"
+	dedicatedDNSMasqPID = "/run/hyperhive-wireguard-dnsmasq.pid"
 )
+
+var errDedicatedDNSMasqNotConfigured = errors.New("dedicated dnsmasq instance is not configured")
 
 type AliasEntry struct {
 	Alias string
@@ -231,6 +235,11 @@ func writeAliasEntries(entries []AliasEntry) error {
 }
 
 func reloadDnsmasq() error {
+	dedicatedErr := reloadDedicatedDNSMasq()
+	if dedicatedErr == nil {
+		return nil
+	}
+
 	reloadOut, reloadErr := exec.Command("systemctl", "reload", serviceName).CombinedOutput()
 	if reloadErr == nil {
 		return nil
@@ -238,6 +247,16 @@ func reloadDnsmasq() error {
 
 	restartOut, restartErr := exec.Command("systemctl", "restart", serviceName).CombinedOutput()
 	if restartErr != nil {
+		if dedicatedErr != nil && !errors.Is(dedicatedErr, errDedicatedDNSMasqNotConfigured) {
+			return fmt.Errorf(
+				"failed to reload dedicated dnsmasq (%v) and system dnsmasq: reload error: %v (%s), restart error: %v (%s)",
+				dedicatedErr,
+				reloadErr,
+				strings.TrimSpace(string(reloadOut)),
+				restartErr,
+				strings.TrimSpace(string(restartOut)),
+			)
+		}
 		return fmt.Errorf(
 			"failed to reload/restart dnsmasq: reload error: %v (%s), restart error: %v (%s)",
 			reloadErr,
@@ -245,6 +264,30 @@ func reloadDnsmasq() error {
 			restartErr,
 			strings.TrimSpace(string(restartOut)),
 		)
+	}
+	return nil
+}
+
+func reloadDedicatedDNSMasq() error {
+	pidRaw, err := os.ReadFile(dedicatedDNSMasqPID)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return errDedicatedDNSMasqNotConfigured
+		}
+		return fmt.Errorf("read dedicated dnsmasq pid file: %w", err)
+	}
+
+	pidText := strings.TrimSpace(string(pidRaw))
+	if pidText == "" {
+		return fmt.Errorf("dedicated dnsmasq pid file is empty")
+	}
+	if _, err := strconv.Atoi(pidText); err != nil {
+		return fmt.Errorf("invalid dedicated dnsmasq pid %q: %w", pidText, err)
+	}
+
+	reloadOut, reloadErr := exec.Command("kill", "-HUP", pidText).CombinedOutput()
+	if reloadErr != nil {
+		return fmt.Errorf("reload dedicated dnsmasq pid %s: %w: %s", pidText, reloadErr, strings.TrimSpace(string(reloadOut)))
 	}
 	return nil
 }
