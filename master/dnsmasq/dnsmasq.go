@@ -1,20 +1,18 @@
 package dnsmasq
 
 import (
-	"bufio"
-	"errors"
 	"fmt"
 	"net"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
 const (
-	aliasFilePath  = "/etc/dnsmasq.d/hyperhive-aliases.conf"
-	serviceName    = "dnsmasq"
-	managedComment = "# Managed by HyperHive"
+	hostsFilePath = "/etc/hosts"
+	serviceName   = "dnsmasq"
+	markerBegin   = "# BEGIN HyperHive Aliases"
+	markerEnd     = "# END HyperHive Aliases"
 )
 
 type AliasEntry struct {
@@ -154,84 +152,89 @@ func validateAliasIP(alias, ip string) error {
 }
 
 func readAliasEntries() ([]AliasEntry, error) {
-	file, err := os.Open(aliasFilePath)
+	data, err := os.ReadFile(hostsFilePath)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return []AliasEntry{}, nil
-		}
-		return nil, fmt.Errorf("failed to open alias file: %w", err)
+		return nil, fmt.Errorf("failed to read hosts file: %w", err)
 	}
-	defer file.Close()
 
-	entries := make([]AliasEntry, 0)
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		entry, ok := parseAliasLine(scanner.Text())
-		if !ok {
+	var entries []AliasEntry
+	inBlock := false
+	for _, line := range strings.Split(string(data), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == markerBegin {
+			inBlock = true
 			continue
 		}
-		entries = append(entries, entry)
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read alias file: %w", err)
+		if trimmed == markerEnd {
+			break
+		}
+		if !inBlock {
+			continue
+		}
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		fields := strings.Fields(trimmed)
+		if len(fields) < 2 {
+			continue
+		}
+		entries = append(entries, AliasEntry{
+			IP:    fields[0],
+			Alias: fields[1],
+		})
 	}
 
 	return entries, nil
 }
 
-func parseAliasLine(line string) (AliasEntry, bool) {
-	line = strings.TrimSpace(line)
-	if line == "" || strings.HasPrefix(line, "#") {
-		return AliasEntry{}, false
-	}
-	if !strings.HasPrefix(line, "host-record=") {
-		return AliasEntry{}, false
-	}
-
-	payload := strings.TrimPrefix(line, "host-record=")
-	parts := strings.Split(payload, ",")
-	if len(parts) < 2 {
-		return AliasEntry{}, false
-	}
-
-	alias := strings.TrimSpace(parts[0])
-	ip := strings.TrimSpace(parts[1])
-	if alias == "" || ip == "" {
-		return AliasEntry{}, false
-	}
-
-	return AliasEntry{
-		Alias: alias,
-		IP:    ip,
-	}, true
-}
-
 func writeAliasEntries(entries []AliasEntry) error {
-	if err := os.MkdirAll(filepath.Dir(aliasFilePath), 0755); err != nil {
-		return fmt.Errorf("failed to create dnsmasq directory: %w", err)
-	}
-
-	file, err := os.OpenFile(aliasFilePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	data, err := os.ReadFile(hostsFilePath)
 	if err != nil {
-		return fmt.Errorf("failed to open alias file for writing: %w", err)
+		return fmt.Errorf("failed to read hosts file: %w", err)
 	}
-	defer file.Close()
 
-	if _, err := fmt.Fprintln(file, managedComment); err != nil {
-		return fmt.Errorf("failed to write alias file header: %w", err)
-	}
-	for _, entry := range entries {
-		if _, err := fmt.Fprintf(file, "host-record=%s,%s\n", entry.Alias, entry.IP); err != nil {
-			return fmt.Errorf("failed to write alias entry: %w", err)
+	lines := strings.Split(string(data), "\n")
+	var result []string
+	skip := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == markerBegin {
+			skip = true
+			continue
 		}
+		if trimmed == markerEnd {
+			skip = false
+			continue
+		}
+		if !skip {
+			result = append(result, line)
+		}
+	}
+
+	// Remove trailing empty lines
+	for len(result) > 0 && strings.TrimSpace(result[len(result)-1]) == "" {
+		result = result[:len(result)-1]
+	}
+
+	// Append our managed block
+	if len(entries) > 0 {
+		result = append(result, "", markerBegin)
+		for _, e := range entries {
+			result = append(result, fmt.Sprintf("%s\t%s", e.IP, e.Alias))
+		}
+		result = append(result, markerEnd)
+	}
+	result = append(result, "") // trailing newline
+
+	if err := os.WriteFile(hostsFilePath, []byte(strings.Join(result, "\n")), 0644); err != nil {
+		return fmt.Errorf("failed to write hosts file: %w", err)
 	}
 
 	return nil
 }
 
 func reloadDnsmasq() error {
-	// Send SIGHUP to all running dnsmasq processes to re-read config files.
+	// Send SIGHUP to all running dnsmasq processes to re-read /etc/hosts.
 	// We don't use systemctl because dnsmasq may run as standalone instances
 	// (e.g. 512rede, wireguard) rather than via the system service.
 	out, err := exec.Command("killall", "-HUP", serviceName).CombinedOutput()
