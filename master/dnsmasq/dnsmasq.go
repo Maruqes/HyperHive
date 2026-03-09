@@ -231,20 +231,12 @@ func writeAliasEntries(entries []AliasEntry) error {
 }
 
 func reloadDnsmasq() error {
-	reloadOut, reloadErr := exec.Command("systemctl", "reload", serviceName).CombinedOutput()
-	if reloadErr == nil {
-		return nil
-	}
-
-	restartOut, restartErr := exec.Command("systemctl", "restart", serviceName).CombinedOutput()
-	if restartErr != nil {
-		return fmt.Errorf(
-			"failed to reload/restart dnsmasq: reload error: %v (%s), restart error: %v (%s)",
-			reloadErr,
-			strings.TrimSpace(string(reloadOut)),
-			restartErr,
-			strings.TrimSpace(string(restartOut)),
-		)
+	// Send SIGHUP to all running dnsmasq processes to re-read config files.
+	// We don't use systemctl because dnsmasq may run as standalone instances
+	// (e.g. 512rede, wireguard) rather than via the system service.
+	out, err := exec.Command("killall", "-HUP", serviceName).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to send SIGHUP to dnsmasq: %w: %s", err, strings.TrimSpace(string(out)))
 	}
 	return nil
 }
