@@ -11,7 +11,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 
 	"github.com/Maruqes/512SvMan/logger"
@@ -58,9 +57,6 @@ const iface = "wg0-hh512"
 const ServerCIDR = "10.128.0.1/24" // server address
 const listenPort = 51512
 const dnsmasqWireguardConfPath = "/etc/dnsmasq.d/hyperhive-wireguard.conf"
-const dedicatedDNSMasqConfPath = "/etc/hyperhive/dnsmasq-wireguard.conf"
-const dedicatedDNSMasqPIDPath = "/run/hyperhive-wireguard-dnsmasq.pid"
-const dnsmasqAliasConfPath = "/etc/dnsmasq.d/hyperhive-aliases.conf"
 
 func ListenPort() int {
 	return listenPort
@@ -326,31 +322,6 @@ func ensureDNSMasqForWireguard() error {
 		return err
 	}
 
-	if err := writeSystemDNSMasqConfig(dnsIP); err != nil {
-		return err
-	}
-	if err := testDNSMasqConfig(); err != nil {
-		return err
-	}
-
-	systemErr := ensureSystemDNSMasqRunning()
-	if systemErr == nil {
-		stopDedicatedDNSMasqIfRunning()
-		return nil
-	}
-
-	if !isDNSMasqAddressInUseError(systemErr) {
-		return systemErr
-	}
-
-	logger.Warnf("system dnsmasq unavailable, falling back to dedicated WireGuard instance: %v", systemErr)
-	if err := ensureDedicatedDNSMasqRunning(dnsIP); err != nil {
-		return fmt.Errorf("fallback dedicated dnsmasq failed after system dnsmasq error (%v): %w", systemErr, err)
-	}
-	return nil
-}
-
-func writeSystemDNSMasqConfig(dnsIP string) error {
 	conf := fmt.Sprintf(`# Managed by HyperHive for WireGuard
 interface=%s
 listen-address=%s
@@ -360,21 +331,16 @@ bind-interfaces
 	if err := os.MkdirAll("/etc/dnsmasq.d", 0755); err != nil {
 		return fmt.Errorf("create dnsmasq config dir: %w", err)
 	}
+
 	if err := os.WriteFile(dnsmasqWireguardConfPath, []byte(conf), 0644); err != nil {
 		return fmt.Errorf("write dnsmasq wireguard config: %w", err)
 	}
-	return nil
-}
 
-func testDNSMasqConfig() error {
 	testOut, testErr := exec.Command("dnsmasq", "--test").CombinedOutput()
 	if testErr != nil {
 		return fmt.Errorf("dnsmasq config test failed: %w: %s", testErr, strings.TrimSpace(string(testOut)))
 	}
-	return nil
-}
 
-func ensureSystemDNSMasqRunning() error {
 	isActiveErr := exec.Command("systemctl", "is-active", "--quiet", "dnsmasq").Run()
 	if isActiveErr == nil {
 		reloadOut, reloadErr := exec.Command("systemctl", "reload", "dnsmasq").CombinedOutput()
@@ -402,128 +368,12 @@ func ensureSystemDNSMasqRunning() error {
 			)
 		}
 	}
-
 	enableOut, enableErr := exec.Command("systemctl", "enable", "dnsmasq").CombinedOutput()
 	if enableErr != nil {
 		logger.Warnf("enable dnsmasq failed (service is running): %v: %s", enableErr, strings.TrimSpace(string(enableOut)))
 	}
+
 	return nil
-}
-
-func isDNSMasqAddressInUseError(err error) bool {
-	if err == nil {
-		return false
-	}
-	errText := strings.ToLower(err.Error())
-	return strings.Contains(errText, "address already in use") || strings.Contains(errText, "failed to create listening socket")
-}
-
-func ensureDedicatedDNSMasqRunning(dnsIP string) error {
-	if err := ensureAliasConfFileExists(); err != nil {
-		return err
-	}
-
-	conf := fmt.Sprintf(`# Managed by HyperHive dedicated dnsmasq for WireGuard
-interface=%s
-listen-address=%s
-bind-interfaces
-pid-file=%s
-conf-file=%s
-`, iface, dnsIP, dedicatedDNSMasqPIDPath, dnsmasqAliasConfPath)
-
-	if err := os.MkdirAll("/etc/hyperhive", 0755); err != nil {
-		return fmt.Errorf("create dedicated dnsmasq config dir: %w", err)
-	}
-	if err := os.WriteFile(dedicatedDNSMasqConfPath, []byte(conf), 0644); err != nil {
-		return fmt.Errorf("write dedicated dnsmasq config: %w", err)
-	}
-
-	testOut, testErr := exec.Command("dnsmasq", "--test", "--conf-file", dedicatedDNSMasqConfPath).CombinedOutput()
-	if testErr != nil {
-		return fmt.Errorf("dedicated dnsmasq config test failed: %w: %s", testErr, strings.TrimSpace(string(testOut)))
-	}
-
-	pid, running, err := readRunningPID(dedicatedDNSMasqPIDPath)
-	if err != nil {
-		return err
-	}
-	if running {
-		reloadOut, reloadErr := exec.Command("kill", "-HUP", strconv.Itoa(pid)).CombinedOutput()
-		if reloadErr != nil {
-			logger.Warnf("reload dedicated dnsmasq pid %d failed, trying fresh start: %v: %s", pid, reloadErr, strings.TrimSpace(string(reloadOut)))
-			_ = os.Remove(dedicatedDNSMasqPIDPath)
-		} else {
-			return nil
-		}
-	}
-
-	startOut, startErr := exec.Command("dnsmasq", "--conf-file", dedicatedDNSMasqConfPath).CombinedOutput()
-	if startErr != nil {
-		return fmt.Errorf("start dedicated dnsmasq: %w: %s", startErr, strings.TrimSpace(string(startOut)))
-	}
-	return nil
-}
-
-func ensureAliasConfFileExists() error {
-	if err := os.MkdirAll("/etc/dnsmasq.d", 0755); err != nil {
-		return fmt.Errorf("create dnsmasq alias config dir: %w", err)
-	}
-
-	if _, err := os.Stat(dnsmasqAliasConfPath); err == nil {
-		return nil
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("stat dnsmasq alias config: %w", err)
-	}
-
-	if err := os.WriteFile(dnsmasqAliasConfPath, []byte("# Managed by HyperHive\n"), 0644); err != nil {
-		return fmt.Errorf("create dnsmasq alias config: %w", err)
-	}
-	return nil
-}
-
-func stopDedicatedDNSMasqIfRunning() {
-	pid, running, err := readRunningPID(dedicatedDNSMasqPIDPath)
-	if err != nil {
-		logger.Warnf("inspect dedicated dnsmasq state failed: %v", err)
-		return
-	}
-	if !running {
-		_ = os.Remove(dedicatedDNSMasqPIDPath)
-		return
-	}
-
-	stopOut, stopErr := exec.Command("kill", "-TERM", strconv.Itoa(pid)).CombinedOutput()
-	if stopErr != nil {
-		logger.Warnf("stop dedicated dnsmasq pid %d failed: %v: %s", pid, stopErr, strings.TrimSpace(string(stopOut)))
-		return
-	}
-	if err := os.Remove(dedicatedDNSMasqPIDPath); err != nil && !errors.Is(err, os.ErrNotExist) {
-		logger.Warnf("remove dedicated dnsmasq pid file failed: %v", err)
-	}
-}
-
-func readRunningPID(pidPath string) (int, bool, error) {
-	pidRaw, err := os.ReadFile(pidPath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return 0, false, nil
-		}
-		return 0, false, fmt.Errorf("read pid file %s: %w", pidPath, err)
-	}
-
-	pid, err := strconv.Atoi(strings.TrimSpace(string(pidRaw)))
-	if err != nil || pid <= 1 {
-		return 0, false, fmt.Errorf("invalid pid in %s: %q", pidPath, strings.TrimSpace(string(pidRaw)))
-	}
-
-	checkOut, checkErr := exec.Command("kill", "-0", strconv.Itoa(pid)).CombinedOutput()
-	if checkErr != nil {
-		if exitErr, ok := checkErr.(*exec.ExitError); ok && exitErr.ExitCode() != 0 {
-			return pid, false, nil
-		}
-		return pid, false, fmt.Errorf("check process %d from %s: %w: %s", pid, pidPath, checkErr, strings.TrimSpace(string(checkOut)))
-	}
-	return pid, true, nil
 }
 
 func buildClientConfig(clientPriv wgtypes.Key, clientIPCIDR, endpoint string, keepaliveSec int) (string, error) {
