@@ -14,14 +14,6 @@ type dnsAliasRequest struct {
 	IP    string `json:"ip"`
 }
 
-func installDNSMasq(w http.ResponseWriter, _ *http.Request) {
-	if err := dnsmasq.Install(); err != nil {
-		http.Error(w, "failed to install dnsmasq: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-}
-
 func getDNSAlias(w http.ResponseWriter, r *http.Request) {
 	alias := strings.TrimSpace(r.URL.Query().Get("alias"))
 	ip := strings.TrimSpace(r.URL.Query().Get("ip"))
@@ -80,7 +72,6 @@ func removeDNSAlias(w http.ResponseWriter, r *http.Request) {
 
 func setupDNSMasqAPI(r chi.Router) chi.Router {
 	return r.Route("/dnsmasq", func(r chi.Router) {
-		r.Post("/install", installDNSMasq)
 		r.Get("/alias/get", getDNSAlias)
 		r.Post("/alias/add", addDNSAlias)
 		r.Delete("/alias/remove", removeDNSAlias)

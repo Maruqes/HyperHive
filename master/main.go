@@ -3,6 +3,7 @@ package main
 import (
 	"512SvMan/api"
 	"512SvMan/db"
+	"512SvMan/dnsmasq"
 	"512SvMan/env512"
 	"512SvMan/info"
 	"512SvMan/logs512"
@@ -353,6 +354,11 @@ func main() {
 	err = GoAccess()
 	if err != nil {
 		log.Fatalf("install GoAccess: %v", err)
+	}
+
+	err = dnsmasq.Install()
+	if err != nil {
+		log.Fatalf("install dnsmasq: %v", err)
 	}
 
 	err = installWireGuard()
