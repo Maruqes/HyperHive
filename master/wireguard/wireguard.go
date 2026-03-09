@@ -325,7 +325,7 @@ func ensureDNSMasqForWireguard() error {
 	conf := fmt.Sprintf(`# Managed by HyperHive for WireGuard
 interface=%s
 listen-address=%s
-bind-interfaces
+bind-dynamic
 `, iface, dnsIP)
 
 	if err := os.MkdirAll("/etc/dnsmasq.d", 0755); err != nil {
