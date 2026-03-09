@@ -368,10 +368,6 @@ bind-interfaces
 			)
 		}
 	}
-	enableOut, enableErr := exec.Command("systemctl", "enable", "dnsmasq").CombinedOutput()
-	if enableErr != nil {
-		logger.Warnf("enable dnsmasq failed (service is running): %v: %s", enableErr, strings.TrimSpace(string(enableOut)))
-	}
 
 	return nil
 }
