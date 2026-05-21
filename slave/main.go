@@ -21,7 +21,6 @@ import (
 	"slave/logs512"
 	"slave/nfs"
 	ourk8s "slave/our_k8s"
-	"slave/pci"
 	"slave/protocol"
 	"slave/smartdisk"
 	"slave/virsh"
@@ -858,12 +857,12 @@ func main() {
 	}
 	logger.Info("[10/18] Set VNC ports: success")
 
-	// Detach all GPUs from host drivers
-	if err := pci.DetachAllGPUs(); err != nil {
-		logger.Warnf("[11/18] Detach all GPUs: %v (non-fatal)", err)
-	} else {
-		logger.Info("[11/18] Detach all GPUs: success")
-	}
+	logger.Info("[11/18] Preserve GPU PCI assignments on startup: skipped auto detach")
+	// if err := pci.DetachAllGPUs(); err != nil {
+	// 	logger.Warnf("[11/18] Detach unassigned GPUs: %v (non-fatal)", err)
+	// } else {
+	// 	logger.Info("[11/18] Detach unassigned GPUs: success")
+	// }
 
 	// Install NFS
 	if err := nfs.InstallNFS(); err != nil {

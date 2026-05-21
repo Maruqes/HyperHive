@@ -180,6 +180,30 @@ func TestFilterPCIDevicesWithIOMMU(t *testing.T) {
 	}
 }
 
+func TestPCIGroupAttachments(t *testing.T) {
+	input := []HostPCIDevice{
+		{Address: "0000:65:00.0", IOMMUGroup: 53, IsGPU: true},
+		{Address: "0000:65:00.1", IOMMUGroup: 53, AttachedToVMs: []string{"old-vm", " old-vm ", "target-vm"}},
+		{Address: "0000:66:00.0", IOMMUGroup: 54, AttachedToVMs: []string{"other-vm"}},
+		{Address: "0000:67:00.0", IOMMUGroup: -1, AttachedToVMs: []string{"ignored-vm"}},
+	}
+
+	groups := pciGroupAttachments(input)
+	got := groups[53]
+	want := []string{"old-vm", "target-vm"}
+	if len(got) != len(want) {
+		t.Fatalf("unexpected group attachment len: got %d want %d (%v)", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("unexpected group attachment at %d: got %q want %q", i, got[i], want[i])
+		}
+	}
+	if _, ok := groups[-1]; ok {
+		t.Fatalf("did not expect no-IOMMU devices to be grouped")
+	}
+}
+
 func TestPartitionPCIAttachments(t *testing.T) {
 	tests := []struct {
 		name              string
@@ -229,6 +253,30 @@ func TestPartitionPCIAttachments(t *testing.T) {
 	}
 }
 
+func TestPCIAttachmentConflicts(t *testing.T) {
+	addr0, err := ParsePCIAddress("0000:65:00.0")
+	if err != nil {
+		t.Fatalf("parse addr0: %v", err)
+	}
+	addr1, err := ParsePCIAddress("0000:65:00.1")
+	if err != nil {
+		t.Fatalf("parse addr1: %v", err)
+	}
+
+	attachments := map[string][]string{
+		"0000:65:00.0": {"target-vm"},
+		"0000:65:00.1": {"old-vm", "target-vm"},
+	}
+
+	conflicts := pciAttachmentConflicts(attachments, []PCIAddress{addr0, addr1}, "target-vm")
+	if len(conflicts) != 1 {
+		t.Fatalf("unexpected conflict count: got %d want 1 (%v)", len(conflicts), conflicts)
+	}
+	if conflicts[0] != "0000:65:00.1 -> old-vm" {
+		t.Fatalf("unexpected conflict: %q", conflicts[0])
+	}
+}
+
 func TestMakeAddressSetFromHostDevices(t *testing.T) {
 	input := []HostPCIDevice{
 		{Address: "0000:01:00.0"},
@@ -246,6 +294,35 @@ func TestMakeAddressSetFromHostDevices(t *testing.T) {
 	}
 	if _, ok := set["0000:02:00.0"]; !ok {
 		t.Fatalf("expected address 0000:02:00.0 in set")
+	}
+}
+
+func TestMakeVMPCIDeviceMapAndFind(t *testing.T) {
+	addr, err := ParsePCIAddress("0000:02:00.0")
+	if err != nil {
+		t.Fatalf("parse address: %v", err)
+	}
+
+	input := []VMPCIDevice{
+		{Address: "0000:01:00.0", Managed: true},
+		{Address: " 0000:02:00.0 ", Managed: false, Alias: "hostdev1"},
+		{Address: ""},
+	}
+
+	deviceMap := makeVMPCIDeviceMap(input)
+	if len(deviceMap) != 2 {
+		t.Fatalf("unexpected map size: got %d want 2", len(deviceMap))
+	}
+
+	dev, ok := findVMPCIDevice(input, addr)
+	if !ok {
+		t.Fatalf("expected VM PCI device to be found")
+	}
+	if dev.Managed {
+		t.Fatalf("expected managed=false to be preserved")
+	}
+	if dev.Alias != "hostdev1" {
+		t.Fatalf("unexpected alias: %q", dev.Alias)
 	}
 }
 
