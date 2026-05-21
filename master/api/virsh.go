@@ -979,6 +979,79 @@ func setKVMHidden(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func getHyperV(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.GetHyperV(vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(struct {
+		VMName string `json:"vm_name"`
+		HyperV bool   `json:"hyperv"`
+	}{
+		VMName: resp.VmName,
+		HyperV: resp.Hyperv,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
+}
+
+func setHyperV(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type reqBody struct {
+		HyperV *bool `json:"hyperv"`
+	}
+
+	var req reqBody
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if req.HyperV == nil {
+		http.Error(w, "hyperv is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.SetHyperV(vmName, *req.HyperV)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(struct {
+		VMName string `json:"vm_name"`
+		HyperV bool   `json:"hyperv"`
+	}{
+		VMName: resp.VmName,
+		HyperV: resp.Hyperv,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(data)
+}
+
 func resumeVm(w http.ResponseWriter, r *http.Request) {
 	vmName := chi.URLParam(r, "vm_name")
 	if vmName == "" {
@@ -2314,6 +2387,8 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Post("/machine_type/{vm_name}", setMachineType)
 		r.Get("/kvm/{vm_name}", getKVMHidden)
 		r.Post("/kvm/{vm_name}", setKVMHidden)
+		r.Get("/hyperv/{vm_name}", getHyperV)
+		r.Post("/hyperv/{vm_name}", setHyperV)
 
 		//cpu pinning
 		r.Post("/cpupinning/{vm_name}", setCPUPinning)

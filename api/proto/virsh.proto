@@ -63,6 +63,7 @@ message Vm {
   string VideoModelType = 20; // video model type (e.g., "qxl", "virtio", "vga", "none")
   string MachineType = 21; // libvirt machine type (e.g., "pc-q35-8.2", "pc-i440fx-8.2")
   bool KVMHidden = 22; // libvirt <features><kvm><hidden state='on|off'/>
+  bool HyperVEnabled = 23; // libvirt <features><hyperv .../>
 }
 
 message GetVmByNameRequest { string name = 1; }
@@ -168,6 +169,16 @@ message KVMHiddenResponse {
   bool hidden = 2;
 }
 
+message SetHyperVRequest {
+  string vm_name = 1;
+  bool hyperv = 2;
+}
+
+message HyperVResponse {
+  string vm_name = 1;
+  bool hyperv = 2;
+}
+
 // defines on slave
 service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
@@ -207,6 +218,8 @@ service SlaveVirshService {
   rpc SetMachineType(SetMachineTypeRequest) returns (MachineTypeResponse);
   rpc GetKVMHidden(GetVmByNameRequest) returns (KVMHiddenResponse);
   rpc SetKVMHidden(SetKVMHiddenRequest) returns (KVMHiddenResponse);
+  rpc GetHyperV(GetVmByNameRequest) returns (HyperVResponse);
+  rpc SetHyperV(SetHyperVRequest) returns (HyperVResponse);
 
   // only sees machine name, cpuCount and memoryMB
   // cpuCount and memoryMB are the new values to set

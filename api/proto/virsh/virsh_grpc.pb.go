@@ -50,6 +50,8 @@ const (
 	SlaveVirshService_SetMachineType_FullMethodName          = "/virsh.SlaveVirshService/SetMachineType"
 	SlaveVirshService_GetKVMHidden_FullMethodName            = "/virsh.SlaveVirshService/GetKVMHidden"
 	SlaveVirshService_SetKVMHidden_FullMethodName            = "/virsh.SlaveVirshService/SetKVMHidden"
+	SlaveVirshService_GetHyperV_FullMethodName               = "/virsh.SlaveVirshService/GetHyperV"
+	SlaveVirshService_SetHyperV_FullMethodName               = "/virsh.SlaveVirshService/SetHyperV"
 	SlaveVirshService_EditVmResources_FullMethodName         = "/virsh.SlaveVirshService/EditVmResources"
 	SlaveVirshService_ColdMigrateVm_FullMethodName           = "/virsh.SlaveVirshService/ColdMigrateVm"
 	SlaveVirshService_FreezeDisk_FullMethodName              = "/virsh.SlaveVirshService/FreezeDisk"
@@ -108,6 +110,8 @@ type SlaveVirshServiceClient interface {
 	SetMachineType(ctx context.Context, in *SetMachineTypeRequest, opts ...grpc.CallOption) (*MachineTypeResponse, error)
 	GetKVMHidden(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*KVMHiddenResponse, error)
 	SetKVMHidden(ctx context.Context, in *SetKVMHiddenRequest, opts ...grpc.CallOption) (*KVMHiddenResponse, error)
+	GetHyperV(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*HyperVResponse, error)
+	SetHyperV(ctx context.Context, in *SetHyperVRequest, opts ...grpc.CallOption) (*HyperVResponse, error)
 	// only sees machine name, cpuCount and memoryMB
 	// cpuCount and memoryMB are the new values to set
 	EditVmResources(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
@@ -453,6 +457,26 @@ func (c *slaveVirshServiceClient) SetKVMHidden(ctx context.Context, in *SetKVMHi
 	return out, nil
 }
 
+func (c *slaveVirshServiceClient) GetHyperV(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*HyperVResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HyperVResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_GetHyperV_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) SetHyperV(ctx context.Context, in *SetHyperVRequest, opts ...grpc.CallOption) (*HyperVResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HyperVResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_SetHyperV_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *slaveVirshServiceClient) EditVmResources(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(OkResponse)
@@ -680,6 +704,8 @@ type SlaveVirshServiceServer interface {
 	SetMachineType(context.Context, *SetMachineTypeRequest) (*MachineTypeResponse, error)
 	GetKVMHidden(context.Context, *GetVmByNameRequest) (*KVMHiddenResponse, error)
 	SetKVMHidden(context.Context, *SetKVMHiddenRequest) (*KVMHiddenResponse, error)
+	GetHyperV(context.Context, *GetVmByNameRequest) (*HyperVResponse, error)
+	SetHyperV(context.Context, *SetHyperVRequest) (*HyperVResponse, error)
 	// only sees machine name, cpuCount and memoryMB
 	// cpuCount and memoryMB are the new values to set
 	EditVmResources(context.Context, *Vm) (*OkResponse, error)
@@ -807,6 +833,12 @@ func (UnimplementedSlaveVirshServiceServer) GetKVMHidden(context.Context, *GetVm
 }
 func (UnimplementedSlaveVirshServiceServer) SetKVMHidden(context.Context, *SetKVMHiddenRequest) (*KVMHiddenResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetKVMHidden not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) GetHyperV(context.Context, *GetVmByNameRequest) (*HyperVResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetHyperV not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) SetHyperV(context.Context, *SetHyperVRequest) (*HyperVResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetHyperV not implemented")
 }
 func (UnimplementedSlaveVirshServiceServer) EditVmResources(context.Context, *Vm) (*OkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method EditVmResources not implemented")
@@ -1444,6 +1476,42 @@ func _SlaveVirshService_SetKVMHidden_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SlaveVirshService_GetHyperV_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVmByNameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).GetHyperV(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_GetHyperV_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).GetHyperV(ctx, req.(*GetVmByNameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_SetHyperV_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetHyperVRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).SetHyperV(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_SetHyperV_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).SetHyperV(ctx, req.(*SetHyperVRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SlaveVirshService_EditVmResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Vm)
 	if err := dec(in); err != nil {
@@ -1916,6 +1984,14 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetKVMHidden",
 			Handler:    _SlaveVirshService_SetKVMHidden_Handler,
+		},
+		{
+			MethodName: "GetHyperV",
+			Handler:    _SlaveVirshService_GetHyperV_Handler,
+		},
+		{
+			MethodName: "SetHyperV",
+			Handler:    _SlaveVirshService_SetHyperV_Handler,
 		},
 		{
 			MethodName: "EditVmResources",

@@ -987,6 +987,7 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		vncPassword string
 		machineType string
 		kvmHidden   bool
+		hyperV      bool
 	)
 	if xmlDesc != "" {
 		if p, err := vncPortFromDomainXML(xmlDesc); err != nil {
@@ -1011,6 +1012,7 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		}
 		machineType = extractMachineTypeFromDomainXML(xmlDesc)
 		kvmHidden = extractKVMHiddenFromDomainXML(xmlDesc)
+		hyperV = extractHyperVEnabledFromDomainXML(xmlDesc)
 	}
 
 	var usedMemMB int32
@@ -1083,6 +1085,7 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		RealHostMemUsage:     realHostMemUsageMB,
 		MachineType:          machineType,
 		KVMHidden:            kvmHidden,
+		HyperVEnabled:        hyperV,
 	}
 	return info, nil
 }
@@ -1179,6 +1182,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 			videoModelType := ""
 			machineType := ""
 			kvmHidden := false
+			hyperV := false
 			if xmlDesc != "" {
 				if p, err := vncPortFromDomainXML(xmlDesc); err != nil {
 					warns = append(warns, fmt.Sprintf("%s: parse vnc port: %v", name, err))
@@ -1204,6 +1208,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 				videoModelType = extractVideoModelType(xmlDesc)
 				machineType = extractMachineTypeFromDomainXML(xmlDesc)
 				kvmHidden = extractKVMHiddenFromDomainXML(xmlDesc)
+				hyperV = extractHyperVEnabledFromDomainXML(xmlDesc)
 				if parsedCPUs, parsedMemMB, err := definedResourcesFromDomainXML(xmlDesc); err != nil {
 					warns = append(warns, fmt.Sprintf("%s: defined resources: %v", name, err))
 				} else {
@@ -1242,6 +1247,7 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 			info.VideoModelType = videoModelType
 			info.MachineType = machineType
 			info.KVMHidden = kvmHidden
+			info.HyperVEnabled = hyperV
 			if diskInfo != nil {
 				info.AllocatedGb = int32(diskInfo.AllocatedGB)
 			} else {

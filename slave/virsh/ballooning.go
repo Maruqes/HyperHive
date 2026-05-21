@@ -311,7 +311,7 @@ func SetMemoryBallooning(vmName string, enable bool) error {
 		return nil
 	}
 
-	newDom, err := conn.DomainDefineXML(updatedXML)
+	newDom, err := conn.DomainDefineXMLFlags(updatedXML, libvirt.DOMAIN_DEFINE_VALIDATE)
 	if err != nil {
 		return fmt.Errorf("define updated domain xml: %w", err)
 	}

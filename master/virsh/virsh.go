@@ -379,6 +379,27 @@ func SetKVMHidden(conn *grpc.ClientConn, vmName string, hidden bool) (*grpcVirsh
 	return resp, nil
 }
 
+func GetHyperV(conn *grpc.ClientConn, vmName string) (*grpcVirsh.HyperVResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetHyperV(context.Background(), &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func SetHyperV(conn *grpc.ClientConn, vmName string, hyperV bool) (*grpcVirsh.HyperVResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.SetHyperV(context.Background(), &grpcVirsh.SetHyperVRequest{
+		VmName: vmName,
+		Hyperv: hyperV,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 func ApplyCPUPinningGRPC(conn *grpc.ClientConn, req *grpcVirsh.CPUPinningRequest) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.ApplyCPUPinning(context.Background(), req)
