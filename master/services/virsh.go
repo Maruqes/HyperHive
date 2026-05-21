@@ -1163,6 +1163,57 @@ func (v *VirshService) SetMachineType(vmName, machineType string) (*grpcVirsh.Ma
 	return resp, nil
 }
 
+func (v *VirshService) GetKVMHidden(vmName string) (*grpcVirsh.KVMHiddenResponse, error) {
+	vmName = strings.TrimSpace(vmName)
+	if vmName == "" {
+		return nil, fmt.Errorf("vm name is required")
+	}
+
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return nil, err
+	}
+	if vm == nil {
+		return nil, fmt.Errorf("vm %s does not exist", vmName)
+	}
+
+	slave := protocol.GetConnectionByMachineName(vm.MachineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s no connected", vm.MachineName)
+	}
+
+	return virsh.GetKVMHidden(slave.Connection, vmName)
+}
+
+func (v *VirshService) SetKVMHidden(vmName string, hidden bool) (*grpcVirsh.KVMHiddenResponse, error) {
+	vmName = strings.TrimSpace(vmName)
+	if vmName == "" {
+		return nil, fmt.Errorf("vm name is required")
+	}
+
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return nil, err
+	}
+	if vm == nil {
+		return nil, fmt.Errorf("vm %s does not exist", vmName)
+	}
+	if vm.State != grpcVirsh.VmState_SHUTOFF {
+		return nil, fmt.Errorf("vm %s needs to be shutdown", vmName)
+	}
+
+	slave := protocol.GetConnectionByMachineName(vm.MachineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s no connected", vm.MachineName)
+	}
+
+	resp, err := virsh.SetKVMHidden(slave.Connection, vmName, hidden)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set KVM hidden for VM %s: %v", vmName, err)
+	}
+	return resp, nil
+}
+
 func (v *VirshService) PauseVM(name string) error {
 	//find vm by name
 	exists, err := virsh.DoesVMExist(name)

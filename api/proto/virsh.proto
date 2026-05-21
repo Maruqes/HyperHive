@@ -62,6 +62,7 @@ message Vm {
   int32 RealHostMemUsage = 19;
   string VideoModelType = 20; // video model type (e.g., "qxl", "virtio", "vga", "none")
   string MachineType = 21; // libvirt machine type (e.g., "pc-q35-8.2", "pc-i440fx-8.2")
+  bool KVMHidden = 22; // libvirt <features><kvm><hidden state='on|off'/>
 }
 
 message GetVmByNameRequest { string name = 1; }
@@ -157,6 +158,16 @@ message MachineTypeResponse {
   string machine_type = 2;
 }
 
+message SetKVMHiddenRequest {
+  string vm_name = 1;
+  bool hidden = 2;
+}
+
+message KVMHiddenResponse {
+  string vm_name = 1;
+  bool hidden = 2;
+}
+
 // defines on slave
 service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
@@ -194,6 +205,8 @@ service SlaveVirshService {
   rpc SetHugePages(SetHugePagesRequest) returns (OkResponse);
   rpc ListMachineTypes(Empty) returns (MachineTypesResponse);
   rpc SetMachineType(SetMachineTypeRequest) returns (MachineTypeResponse);
+  rpc GetKVMHidden(GetVmByNameRequest) returns (KVMHiddenResponse);
+  rpc SetKVMHidden(SetKVMHiddenRequest) returns (KVMHiddenResponse);
 
   // only sees machine name, cpuCount and memoryMB
   // cpuCount and memoryMB are the new values to set

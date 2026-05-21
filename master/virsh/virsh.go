@@ -358,6 +358,27 @@ func SetMachineType(conn *grpc.ClientConn, vmName, machineType string) (*grpcVir
 	return resp, nil
 }
 
+func GetKVMHidden(conn *grpc.ClientConn, vmName string) (*grpcVirsh.KVMHiddenResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.GetKVMHidden(context.Background(), &grpcVirsh.GetVmByNameRequest{Name: vmName})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func SetKVMHidden(conn *grpc.ClientConn, vmName string, hidden bool) (*grpcVirsh.KVMHiddenResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.SetKVMHidden(context.Background(), &grpcVirsh.SetKVMHiddenRequest{
+		VmName: vmName,
+		Hidden: hidden,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 func ApplyCPUPinningGRPC(conn *grpc.ClientConn, req *grpcVirsh.CPUPinningRequest) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.ApplyCPUPinning(context.Background(), req)

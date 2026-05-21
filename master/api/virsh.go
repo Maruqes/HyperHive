@@ -906,6 +906,79 @@ func setMachineType(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func getKVMHidden(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.GetKVMHidden(vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(struct {
+		VMName string `json:"vm_name"`
+		Hidden bool   `json:"hidden"`
+	}{
+		VMName: resp.VmName,
+		Hidden: resp.Hidden,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
+}
+
+func setKVMHidden(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type reqBody struct {
+		Hidden *bool `json:"hidden"`
+	}
+
+	var req reqBody
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if req.Hidden == nil {
+		http.Error(w, "hidden is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.SetKVMHidden(vmName, *req.Hidden)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(struct {
+		VMName string `json:"vm_name"`
+		Hidden bool   `json:"hidden"`
+	}{
+		VMName: resp.VmName,
+		Hidden: resp.Hidden,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(data)
+}
+
 func resumeVm(w http.ResponseWriter, r *http.Request) {
 	vmName := chi.URLParam(r, "vm_name")
 	if vmName == "" {
@@ -2239,6 +2312,8 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Post("/hugepages/{vm_name}", setHugePages)
 		r.Get("/machine_types/{machine_name}", listMachineTypes)
 		r.Post("/machine_type/{vm_name}", setMachineType)
+		r.Get("/kvm/{vm_name}", getKVMHidden)
+		r.Post("/kvm/{vm_name}", setKVMHidden)
 
 		//cpu pinning
 		r.Post("/cpupinning/{vm_name}", setCPUPinning)

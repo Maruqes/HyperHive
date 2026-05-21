@@ -48,6 +48,8 @@ const (
 	SlaveVirshService_SetHugePages_FullMethodName            = "/virsh.SlaveVirshService/SetHugePages"
 	SlaveVirshService_ListMachineTypes_FullMethodName        = "/virsh.SlaveVirshService/ListMachineTypes"
 	SlaveVirshService_SetMachineType_FullMethodName          = "/virsh.SlaveVirshService/SetMachineType"
+	SlaveVirshService_GetKVMHidden_FullMethodName            = "/virsh.SlaveVirshService/GetKVMHidden"
+	SlaveVirshService_SetKVMHidden_FullMethodName            = "/virsh.SlaveVirshService/SetKVMHidden"
 	SlaveVirshService_EditVmResources_FullMethodName         = "/virsh.SlaveVirshService/EditVmResources"
 	SlaveVirshService_ColdMigrateVm_FullMethodName           = "/virsh.SlaveVirshService/ColdMigrateVm"
 	SlaveVirshService_FreezeDisk_FullMethodName              = "/virsh.SlaveVirshService/FreezeDisk"
@@ -104,6 +106,8 @@ type SlaveVirshServiceClient interface {
 	SetHugePages(ctx context.Context, in *SetHugePagesRequest, opts ...grpc.CallOption) (*OkResponse, error)
 	ListMachineTypes(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*MachineTypesResponse, error)
 	SetMachineType(ctx context.Context, in *SetMachineTypeRequest, opts ...grpc.CallOption) (*MachineTypeResponse, error)
+	GetKVMHidden(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*KVMHiddenResponse, error)
+	SetKVMHidden(ctx context.Context, in *SetKVMHiddenRequest, opts ...grpc.CallOption) (*KVMHiddenResponse, error)
 	// only sees machine name, cpuCount and memoryMB
 	// cpuCount and memoryMB are the new values to set
 	EditVmResources(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
@@ -429,6 +433,26 @@ func (c *slaveVirshServiceClient) SetMachineType(ctx context.Context, in *SetMac
 	return out, nil
 }
 
+func (c *slaveVirshServiceClient) GetKVMHidden(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*KVMHiddenResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(KVMHiddenResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_GetKVMHidden_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) SetKVMHidden(ctx context.Context, in *SetKVMHiddenRequest, opts ...grpc.CallOption) (*KVMHiddenResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(KVMHiddenResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_SetKVMHidden_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *slaveVirshServiceClient) EditVmResources(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(OkResponse)
@@ -654,6 +678,8 @@ type SlaveVirshServiceServer interface {
 	SetHugePages(context.Context, *SetHugePagesRequest) (*OkResponse, error)
 	ListMachineTypes(context.Context, *Empty) (*MachineTypesResponse, error)
 	SetMachineType(context.Context, *SetMachineTypeRequest) (*MachineTypeResponse, error)
+	GetKVMHidden(context.Context, *GetVmByNameRequest) (*KVMHiddenResponse, error)
+	SetKVMHidden(context.Context, *SetKVMHiddenRequest) (*KVMHiddenResponse, error)
 	// only sees machine name, cpuCount and memoryMB
 	// cpuCount and memoryMB are the new values to set
 	EditVmResources(context.Context, *Vm) (*OkResponse, error)
@@ -775,6 +801,12 @@ func (UnimplementedSlaveVirshServiceServer) ListMachineTypes(context.Context, *E
 }
 func (UnimplementedSlaveVirshServiceServer) SetMachineType(context.Context, *SetMachineTypeRequest) (*MachineTypeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetMachineType not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) GetKVMHidden(context.Context, *GetVmByNameRequest) (*KVMHiddenResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetKVMHidden not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) SetKVMHidden(context.Context, *SetKVMHiddenRequest) (*KVMHiddenResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetKVMHidden not implemented")
 }
 func (UnimplementedSlaveVirshServiceServer) EditVmResources(context.Context, *Vm) (*OkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method EditVmResources not implemented")
@@ -1376,6 +1408,42 @@ func _SlaveVirshService_SetMachineType_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SlaveVirshService_GetKVMHidden_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVmByNameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).GetKVMHidden(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_GetKVMHidden_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).GetKVMHidden(ctx, req.(*GetVmByNameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_SetKVMHidden_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetKVMHiddenRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).SetKVMHidden(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_SetKVMHidden_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).SetKVMHidden(ctx, req.(*SetKVMHiddenRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SlaveVirshService_EditVmResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Vm)
 	if err := dec(in); err != nil {
@@ -1840,6 +1908,14 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetMachineType",
 			Handler:    _SlaveVirshService_SetMachineType_Handler,
+		},
+		{
+			MethodName: "GetKVMHidden",
+			Handler:    _SlaveVirshService_GetKVMHidden_Handler,
+		},
+		{
+			MethodName: "SetKVMHidden",
+			Handler:    _SlaveVirshService_SetKVMHidden_Handler,
 		},
 		{
 			MethodName: "EditVmResources",
