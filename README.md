@@ -2,7 +2,7 @@
 
 ---
 
-## **[→ VISIT THE OFFICIAL WEBSITE ←](https://systems.hyperhive.maruqes.com/)**
+## **[→ VISIT THE OFFICIAL WEBSITE ←](https://systemshyperhive.maruqes.com/)**
 
 **Documentation • Installation • Updates**
 
