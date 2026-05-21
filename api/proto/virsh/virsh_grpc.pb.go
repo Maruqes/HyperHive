@@ -46,6 +46,8 @@ const (
 	SlaveVirshService_SetMemoryBallooning_FullMethodName     = "/virsh.SlaveVirshService/SetMemoryBallooning"
 	SlaveVirshService_GetHugePages_FullMethodName            = "/virsh.SlaveVirshService/GetHugePages"
 	SlaveVirshService_SetHugePages_FullMethodName            = "/virsh.SlaveVirshService/SetHugePages"
+	SlaveVirshService_ListMachineTypes_FullMethodName        = "/virsh.SlaveVirshService/ListMachineTypes"
+	SlaveVirshService_SetMachineType_FullMethodName          = "/virsh.SlaveVirshService/SetMachineType"
 	SlaveVirshService_EditVmResources_FullMethodName         = "/virsh.SlaveVirshService/EditVmResources"
 	SlaveVirshService_ColdMigrateVm_FullMethodName           = "/virsh.SlaveVirshService/ColdMigrateVm"
 	SlaveVirshService_FreezeDisk_FullMethodName              = "/virsh.SlaveVirshService/FreezeDisk"
@@ -100,6 +102,8 @@ type SlaveVirshServiceClient interface {
 	SetMemoryBallooning(ctx context.Context, in *SetMemoryBallooningRequest, opts ...grpc.CallOption) (*OkResponse, error)
 	GetHugePages(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*GetHugePagesResponse, error)
 	SetHugePages(ctx context.Context, in *SetHugePagesRequest, opts ...grpc.CallOption) (*OkResponse, error)
+	ListMachineTypes(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*MachineTypesResponse, error)
+	SetMachineType(ctx context.Context, in *SetMachineTypeRequest, opts ...grpc.CallOption) (*MachineTypeResponse, error)
 	// only sees machine name, cpuCount and memoryMB
 	// cpuCount and memoryMB are the new values to set
 	EditVmResources(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
@@ -405,6 +409,26 @@ func (c *slaveVirshServiceClient) SetHugePages(ctx context.Context, in *SetHugeP
 	return out, nil
 }
 
+func (c *slaveVirshServiceClient) ListMachineTypes(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*MachineTypesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MachineTypesResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_ListMachineTypes_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) SetMachineType(ctx context.Context, in *SetMachineTypeRequest, opts ...grpc.CallOption) (*MachineTypeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MachineTypeResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_SetMachineType_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *slaveVirshServiceClient) EditVmResources(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(OkResponse)
@@ -628,6 +652,8 @@ type SlaveVirshServiceServer interface {
 	SetMemoryBallooning(context.Context, *SetMemoryBallooningRequest) (*OkResponse, error)
 	GetHugePages(context.Context, *GetVmByNameRequest) (*GetHugePagesResponse, error)
 	SetHugePages(context.Context, *SetHugePagesRequest) (*OkResponse, error)
+	ListMachineTypes(context.Context, *Empty) (*MachineTypesResponse, error)
+	SetMachineType(context.Context, *SetMachineTypeRequest) (*MachineTypeResponse, error)
 	// only sees machine name, cpuCount and memoryMB
 	// cpuCount and memoryMB are the new values to set
 	EditVmResources(context.Context, *Vm) (*OkResponse, error)
@@ -743,6 +769,12 @@ func (UnimplementedSlaveVirshServiceServer) GetHugePages(context.Context, *GetVm
 }
 func (UnimplementedSlaveVirshServiceServer) SetHugePages(context.Context, *SetHugePagesRequest) (*OkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetHugePages not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) ListMachineTypes(context.Context, *Empty) (*MachineTypesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListMachineTypes not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) SetMachineType(context.Context, *SetMachineTypeRequest) (*MachineTypeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetMachineType not implemented")
 }
 func (UnimplementedSlaveVirshServiceServer) EditVmResources(context.Context, *Vm) (*OkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method EditVmResources not implemented")
@@ -1308,6 +1340,42 @@ func _SlaveVirshService_SetHugePages_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SlaveVirshService_ListMachineTypes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).ListMachineTypes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_ListMachineTypes_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).ListMachineTypes(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_SetMachineType_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetMachineTypeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).SetMachineType(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_SetMachineType_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).SetMachineType(ctx, req.(*SetMachineTypeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SlaveVirshService_EditVmResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Vm)
 	if err := dec(in); err != nil {
@@ -1764,6 +1832,14 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetHugePages",
 			Handler:    _SlaveVirshService_SetHugePages_Handler,
+		},
+		{
+			MethodName: "ListMachineTypes",
+			Handler:    _SlaveVirshService_ListMachineTypes_Handler,
+		},
+		{
+			MethodName: "SetMachineType",
+			Handler:    _SlaveVirshService_SetMachineType_Handler,
 		},
 		{
 			MethodName: "EditVmResources",

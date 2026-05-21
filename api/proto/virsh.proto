@@ -61,6 +61,7 @@ message Vm {
   int32 AllocatedGb = 18;
   int32 RealHostMemUsage = 19;
   string VideoModelType = 20; // video model type (e.g., "qxl", "virtio", "vga", "none")
+  string MachineType = 21; // libvirt machine type (e.g., "pc-q35-8.2", "pc-i440fx-8.2")
 }
 
 message GetVmByNameRequest { string name = 1; }
@@ -142,6 +143,20 @@ message GetHugePagesResponse {
   bool memory_locked = 3;
 }
 
+message MachineTypesResponse {
+  repeated string machine_types = 1;
+}
+
+message SetMachineTypeRequest {
+  string vm_name = 1;
+  string machine_type = 2;
+}
+
+message MachineTypeResponse {
+  string vm_name = 1;
+  string machine_type = 2;
+}
+
 // defines on slave
 service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
@@ -177,6 +192,8 @@ service SlaveVirshService {
   rpc SetMemoryBallooning(SetMemoryBallooningRequest) returns (OkResponse);
   rpc GetHugePages(GetVmByNameRequest) returns (GetHugePagesResponse);
   rpc SetHugePages(SetHugePagesRequest) returns (OkResponse);
+  rpc ListMachineTypes(Empty) returns (MachineTypesResponse);
+  rpc SetMachineType(SetMachineTypeRequest) returns (MachineTypeResponse);
 
   // only sees machine name, cpuCount and memoryMB
   // cpuCount and memoryMB are the new values to set

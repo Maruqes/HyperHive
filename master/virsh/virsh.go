@@ -337,6 +337,27 @@ func SetHugePages(conn *grpc.ClientConn, vmName string, enable bool) error {
 	return nil
 }
 
+func ListMachineTypes(conn *grpc.ClientConn) ([]string, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.ListMachineTypes(context.Background(), &grpcVirsh.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return resp.MachineTypes, nil
+}
+
+func SetMachineType(conn *grpc.ClientConn, vmName, machineType string) (*grpcVirsh.MachineTypeResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	resp, err := client.SetMachineType(context.Background(), &grpcVirsh.SetMachineTypeRequest{
+		VmName:      vmName,
+		MachineType: machineType,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 func ApplyCPUPinningGRPC(conn *grpc.ClientConn, req *grpcVirsh.CPUPinningRequest) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.ApplyCPUPinning(context.Background(), req)

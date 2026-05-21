@@ -1091,6 +1091,78 @@ func (v *VirshService) SetHugePages(vmName string, enable bool) error {
 	return virsh.SetHugePages(slave.Connection, vmName, enable)
 }
 
+func normalizeSupportedMachineType(machineType string, supported []string) (string, bool) {
+	machineType = strings.TrimSpace(machineType)
+	for _, supportedType := range supported {
+		if strings.TrimSpace(supportedType) == machineType {
+			return strings.TrimSpace(supportedType), true
+		}
+	}
+	for _, supportedType := range supported {
+		supportedType = strings.TrimSpace(supportedType)
+		if strings.EqualFold(supportedType, machineType) {
+			return supportedType, true
+		}
+	}
+	return "", false
+}
+
+func (v *VirshService) ListMachineTypes(machineName string) ([]string, error) {
+	machineName = strings.TrimSpace(machineName)
+	if machineName == "" {
+		return nil, fmt.Errorf("machine name is required")
+	}
+
+	slave := protocol.GetConnectionByMachineName(machineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s no connected", machineName)
+	}
+
+	return virsh.ListMachineTypes(slave.Connection)
+}
+
+func (v *VirshService) SetMachineType(vmName, machineType string) (*grpcVirsh.MachineTypeResponse, error) {
+	vmName = strings.TrimSpace(vmName)
+	if vmName == "" {
+		return nil, fmt.Errorf("vm name is required")
+	}
+	machineType = strings.TrimSpace(machineType)
+	if machineType == "" {
+		return nil, fmt.Errorf("machine_type is required")
+	}
+
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return nil, err
+	}
+	if vm == nil {
+		return nil, fmt.Errorf("vm %s does not exist", vmName)
+	}
+	if vm.State != grpcVirsh.VmState_SHUTOFF {
+		return nil, fmt.Errorf("vm %s needs to be shutdown", vmName)
+	}
+
+	slave := protocol.GetConnectionByMachineName(vm.MachineName)
+	if slave == nil || slave.Connection == nil {
+		return nil, fmt.Errorf("slave %s no connected", vm.MachineName)
+	}
+
+	supportedTypes, err := virsh.ListMachineTypes(slave.Connection)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list machine types for %s: %v", vm.MachineName, err)
+	}
+	normalizedMachineType, ok := normalizeSupportedMachineType(machineType, supportedTypes)
+	if !ok {
+		return nil, fmt.Errorf("machine type %q is not supported by %s", machineType, vm.MachineName)
+	}
+
+	resp, err := virsh.SetMachineType(slave.Connection, vmName, normalizedMachineType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set machine type for VM %s: %v", vmName, err)
+	}
+	return resp, nil
+}
+
 func (v *VirshService) PauseVM(name string) error {
 	//find vm by name
 	exists, err := virsh.DoesVMExist(name)

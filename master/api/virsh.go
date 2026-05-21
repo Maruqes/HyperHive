@@ -834,6 +834,78 @@ func setHugePages(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func listMachineTypes(w http.ResponseWriter, r *http.Request) {
+	machineName := chi.URLParam(r, "machine_name")
+	if machineName == "" {
+		http.Error(w, "machine_name is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	machineTypes, err := virshServices.ListMachineTypes(machineName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(struct {
+		MachineTypes []string `json:"machine_types"`
+	}{
+		MachineTypes: machineTypes,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
+}
+
+func setMachineType(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type reqBody struct {
+		MachineType string `json:"machine_type"`
+	}
+
+	var req reqBody
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	req.MachineType = strings.TrimSpace(req.MachineType)
+	if req.MachineType == "" {
+		http.Error(w, "machine_type is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	resp, err := virshServices.SetMachineType(vmName, req.MachineType)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(struct {
+		VMName      string `json:"vm_name"`
+		MachineType string `json:"machine_type"`
+	}{
+		VMName:      resp.VmName,
+		MachineType: resp.MachineType,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(data)
+}
+
 func resumeVm(w http.ResponseWriter, r *http.Request) {
 	vmName := chi.URLParam(r, "vm_name")
 	if vmName == "" {
@@ -2165,6 +2237,8 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Post("/ballooning/{vm_name}", setMemoryBallooning)
 		r.Get("/hugepages/{vm_name}", getHugePages)
 		r.Post("/hugepages/{vm_name}", setHugePages)
+		r.Get("/machine_types/{machine_name}", listMachineTypes)
+		r.Post("/machine_type/{vm_name}", setMachineType)
 
 		//cpu pinning
 		r.Post("/cpupinning/{vm_name}", setCPUPinning)
