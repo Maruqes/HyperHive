@@ -328,6 +328,7 @@ func StartApi(exitAfterStart bool) {
 		setupDNSMasqAPI(r)
 		setupBTRFS(r)
 		setupNotsAPI(r)
+		setupNotesAPI(r)
 		setupDockerAPI(r)
 		setupK8sAPI(r)
 		setupSPAAPI(r)

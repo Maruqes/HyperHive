@@ -158,7 +158,7 @@ func (s *NFSService) CheckFileReadable(ctx context.Context, req *pb.FolderPath) 
 }
 
 func (s *NFSService) Sync(ctx context.Context, req *pb.Empty) (*pb.OkResponse, error) {
-	err := Sync()
+	err := Sync(ctx)
 	if err != nil {
 		return nil, err
 	}

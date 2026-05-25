@@ -2097,6 +2097,7 @@ func CheckReadWrite(path string) error {
 	return nil
 }
 
-func Sync() error {
-	return runCommand("sync filesystem", "sync")
+func Sync(ctx context.Context) error {
+	const syncTimeout = 6 * time.Hour
+	return runCommandWithTimeout(ctx, syncTimeout, "sync filesystem", "sync")
 }

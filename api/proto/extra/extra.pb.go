@@ -441,6 +441,50 @@ func (x *RestartShutdownNow) GetNow() bool {
 	return false
 }
 
+type SparsifyQcow2Request struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DiskPath      string                 `protobuf:"bytes,1,opt,name=diskPath,proto3" json:"diskPath,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SparsifyQcow2Request) Reset() {
+	*x = SparsifyQcow2Request{}
+	mi := &file_extra_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SparsifyQcow2Request) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SparsifyQcow2Request) ProtoMessage() {}
+
+func (x *SparsifyQcow2Request) ProtoReflect() protoreflect.Message {
+	mi := &file_extra_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SparsifyQcow2Request.ProtoReflect.Descriptor instead.
+func (*SparsifyQcow2Request) Descriptor() ([]byte, []int) {
+	return file_extra_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SparsifyQcow2Request) GetDiskPath() string {
+	if x != nil {
+		return x.DiskPath
+	}
+	return ""
+}
+
 var File_extra_proto protoreflect.FileDescriptor
 
 const file_extra_proto_rawDesc = "" +
@@ -467,7 +511,9 @@ const file_extra_proto_rawDesc = "" +
 	"\x06relURL\x18\x03 \x01(\tR\x06relURL\x12\x1a\n" +
 	"\bcritical\x18\x04 \x01(\bR\bcritical\"&\n" +
 	"\x12RestartShutdownNow\x12\x10\n" +
-	"\x03now\x18\x01 \x01(\bR\x03now*\x8c\x01\n" +
+	"\x03now\x18\x01 \x01(\bR\x03now\"2\n" +
+	"\x14SparsifyQcow2Request\x12\x1a\n" +
+	"\bdiskPath\x18\x01 \x01(\tR\bdiskPath*\x8c\x01\n" +
 	"\x15WebSocketsMessageType\x12\x0f\n" +
 	"\vDownloadIso\x10\x00\x12\r\n" +
 	"\tMigrateVm\x10\x01\x12\f\n" +
@@ -477,14 +523,15 @@ const file_extra_proto_rawDesc = "" +
 	"\rDockerCompose\x10\x05\x12\n" +
 	"\n" +
 	"\x06VMInfo\x10\x06\x12\t\n" +
-	"\x05Error\x10\a2\xd7\x02\n" +
+	"\x05Error\x10\a2\x93\x03\n" +
 	"\fExtraService\x12=\n" +
 	"\x14SendWebsocketMessage\x12\x17.extra.WebsocketMessage\x1a\f.extra.Empty\x122\n" +
 	"\x0fCheckForUpdates\x12\f.extra.Empty\x1a\x11.extra.AllUpdates\x123\n" +
 	"\rPerformUpdate\x12\x14.extra.UpdateRequest\x1a\f.extra.Empty\x126\n" +
 	"\x11SendNotifications\x12\x13.extra.Notification\x1a\f.extra.Empty\x123\n" +
 	"\bShutDown\x12\x19.extra.RestartShutdownNow\x1a\f.extra.Empty\x122\n" +
-	"\aRestart\x12\x19.extra.RestartShutdownNow\x1a\f.extra.EmptyB3Z1github.com/Maruqes/512SvMan/api/proto/extra;protob\x06proto3"
+	"\aRestart\x12\x19.extra.RestartShutdownNow\x1a\f.extra.Empty\x12:\n" +
+	"\rSparsifyQcow2\x12\x1b.extra.SparsifyQcow2Request\x1a\f.extra.EmptyB3Z1github.com/Maruqes/512SvMan/api/proto/extra;protob\x06proto3"
 
 var (
 	file_extra_proto_rawDescOnce sync.Once
@@ -499,16 +546,17 @@ func file_extra_proto_rawDescGZIP() []byte {
 }
 
 var file_extra_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_extra_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_extra_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_extra_proto_goTypes = []any{
-	(WebSocketsMessageType)(0), // 0: extra.WebSocketsMessageType
-	(*WebsocketMessage)(nil),   // 1: extra.WebsocketMessage
-	(*Empty)(nil),              // 2: extra.Empty
-	(*UpdateInfo)(nil),         // 3: extra.UpdateInfo
-	(*AllUpdates)(nil),         // 4: extra.AllUpdates
-	(*UpdateRequest)(nil),      // 5: extra.UpdateRequest
-	(*Notification)(nil),       // 6: extra.Notification
-	(*RestartShutdownNow)(nil), // 7: extra.RestartShutdownNow
+	(WebSocketsMessageType)(0),   // 0: extra.WebSocketsMessageType
+	(*WebsocketMessage)(nil),     // 1: extra.WebsocketMessage
+	(*Empty)(nil),                // 2: extra.Empty
+	(*UpdateInfo)(nil),           // 3: extra.UpdateInfo
+	(*AllUpdates)(nil),           // 4: extra.AllUpdates
+	(*UpdateRequest)(nil),        // 5: extra.UpdateRequest
+	(*Notification)(nil),         // 6: extra.Notification
+	(*RestartShutdownNow)(nil),   // 7: extra.RestartShutdownNow
+	(*SparsifyQcow2Request)(nil), // 8: extra.SparsifyQcow2Request
 }
 var file_extra_proto_depIdxs = []int32{
 	0, // 0: extra.WebsocketMessage.type:type_name -> extra.WebSocketsMessageType
@@ -519,14 +567,16 @@ var file_extra_proto_depIdxs = []int32{
 	6, // 5: extra.ExtraService.SendNotifications:input_type -> extra.Notification
 	7, // 6: extra.ExtraService.ShutDown:input_type -> extra.RestartShutdownNow
 	7, // 7: extra.ExtraService.Restart:input_type -> extra.RestartShutdownNow
-	2, // 8: extra.ExtraService.SendWebsocketMessage:output_type -> extra.Empty
-	4, // 9: extra.ExtraService.CheckForUpdates:output_type -> extra.AllUpdates
-	2, // 10: extra.ExtraService.PerformUpdate:output_type -> extra.Empty
-	2, // 11: extra.ExtraService.SendNotifications:output_type -> extra.Empty
-	2, // 12: extra.ExtraService.ShutDown:output_type -> extra.Empty
-	2, // 13: extra.ExtraService.Restart:output_type -> extra.Empty
-	8, // [8:14] is the sub-list for method output_type
-	2, // [2:8] is the sub-list for method input_type
+	8, // 8: extra.ExtraService.SparsifyQcow2:input_type -> extra.SparsifyQcow2Request
+	2, // 9: extra.ExtraService.SendWebsocketMessage:output_type -> extra.Empty
+	4, // 10: extra.ExtraService.CheckForUpdates:output_type -> extra.AllUpdates
+	2, // 11: extra.ExtraService.PerformUpdate:output_type -> extra.Empty
+	2, // 12: extra.ExtraService.SendNotifications:output_type -> extra.Empty
+	2, // 13: extra.ExtraService.ShutDown:output_type -> extra.Empty
+	2, // 14: extra.ExtraService.Restart:output_type -> extra.Empty
+	2, // 15: extra.ExtraService.SparsifyQcow2:output_type -> extra.Empty
+	9, // [9:16] is the sub-list for method output_type
+	2, // [2:9] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
@@ -543,7 +593,7 @@ func file_extra_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_extra_proto_rawDesc), len(file_extra_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -34,6 +34,7 @@ type VirshService struct {
 }
 
 const longTaskTimeout = 7 * 24 * time.Hour
+const coldMigrateSyncTimeout = 6 * time.Hour
 
 func ClusterSafeFeatures(all [][]string) []string {
 	if len(all) == 0 {
@@ -298,8 +299,8 @@ func (v *VirshService) CreateLiveVM(ctx context.Context, machine_name string, na
 
 func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, machine *grpcVirsh.ColdMigrationRequest, templateID int) error {
 	originConn := protocol.GetConnectionByMachineName(slaveName)
-	if originConn == nil {
-		return fmt.Errorf("origin machine %s not found", slaveName)
+	if originConn == nil || originConn.Connection == nil {
+		return fmt.Errorf("machine %s not found or not connected", slaveName)
 	}
 
 	renderedTemplateXML, err := v.prepareVMXMLTemplateForCreate(ctx, templateID, machine.VmName, machine.DiskPath)
@@ -326,15 +327,13 @@ func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, mach
 		return fmt.Errorf("failed to chmod %s: %v", machine.DiskPath, err)
 	}
 
-	//flush before to make sure everything is on disk
-	err = nfs.Sync(originConn.Connection)
-	if err != nil {
-		return err
+	// Flush before defining the VM so large copied disks are visible and durable on NFS.
+	if err := nfs.SyncWithTimeout(ctx, originConn.Connection, coldMigrateSyncTimeout); err != nil {
+		return fmt.Errorf("pre-create sync filesystem on %s: %w", slaveName, err)
 	}
 
-	err = virsh.ColdMigrateVm(ctx, originConn.Connection, machine)
-	if err != nil {
-		return err
+	if err := virsh.ColdMigrateVm(ctx, originConn.Connection, machine); err != nil {
+		return fmt.Errorf("create migrated VM on %s: %w", slaveName, err)
 	}
 
 	if err := v.applyRenderedVMXMLTemplateAfterCreate(ctx, originConn.Connection, machine.VmName, renderedTemplateXML); err != nil {
@@ -342,11 +341,15 @@ func (v *VirshService) ColdMigrateVm(ctx context.Context, slaveName string, mach
 	}
 
 	if machine.Live {
-		db.AddVmLive(ctx, machine.VmName)
+		if err := db.AddVmLive(ctx, machine.VmName); err != nil {
+			return fmt.Errorf("mark VM %s as live-migratable: %w", machine.VmName, err)
+		}
 	}
 
 	//flush after also for redundancy
-	nfs.Sync(originConn.Connection)
+	if err := nfs.SyncWithTimeout(ctx, originConn.Connection, coldMigrateSyncTimeout); err != nil {
+		return fmt.Errorf("post-create sync filesystem on %s: %w", slaveName, err)
+	}
 
 	return nil
 }
@@ -1687,7 +1690,7 @@ func (v *VirshService) MoveDisk(ctx context.Context, vmName string, nfsId int, n
 		defer cancel()
 
 		err := func() error {
-			if err := copyFile(vm.DiskPath, finalFile, newName); err != nil {
+			if err := copyFile(taskCtx, vm.DiskPath, finalFile, newName); err != nil {
 				return fmt.Errorf("copy disk: %w", err)
 			}
 
@@ -1893,11 +1896,11 @@ func (v *VirshService) CloneVM(ctx context.Context, vmName string, newName strin
 				}()
 
 				logger.Info("Copying")
-				if err := copyFile(vm.DiskPath, finalFile, vmName); err != nil {
+				if err := copyFile(taskCtx, vm.DiskPath, finalFile, vmName); err != nil {
 					return err
 				}
 			} else {
-				if err := copyFile(vm.DiskPath, finalFile, vmName); err != nil {
+				if err := copyFile(taskCtx, vm.DiskPath, finalFile, vmName); err != nil {
 					return err
 				}
 			}

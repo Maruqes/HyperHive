@@ -263,13 +263,23 @@ func CheckFileReadable(conn *grpc.ClientConn, path string) error {
 	return nil
 }
 
-func Sync(conn *grpc.ClientConn) error {
-	client := pbnfs.NewNFSServiceClient(conn)
-	ctx, cancel := context.WithTimeout(context.Background(), defaultNFSTimeout)
-	defer cancel()
-	_, err := client.Sync(ctx, &pbnfs.Empty{})
-	if err != nil {
-		return err
+func SyncWithTimeout(ctx context.Context, conn *grpc.ClientConn, timeout time.Duration) error {
+	if ctx == nil {
+		ctx = context.Background()
 	}
-	return nil
+	if timeout <= 0 {
+		timeout = defaultNFSTimeout
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	return withRetry(conn, func() error {
+		client := pbnfs.NewNFSServiceClient(conn)
+		_, err := client.Sync(ctx, &pbnfs.Empty{})
+		return err
+	})
+}
+
+func Sync(conn *grpc.ClientConn) error {
+	return SyncWithTimeout(context.Background(), conn, defaultNFSTimeout)
 }

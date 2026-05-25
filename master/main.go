@@ -463,6 +463,11 @@ func main() {
 		log.Fatalf("create nots table: %v", err)
 	}
 
+	err = db.CreateNotesTable(ctx)
+	if err != nil {
+		log.Fatalf("create notes table: %v", err)
+	}
+
 	db.StartSQLiteBackupLoop(ctx)
 
 	if err := setupFrontendContainer(); err != nil {

@@ -219,6 +219,9 @@ func rewriteMachineTypeInDomainXML(domainXML, machineType string) (string, error
 				t.Attr = setXMLAttr(t.Attr, "machine", machineType)
 				machineTypeSet = true
 			}
+			if shouldRewriteITCOWatchdogForMachineType(t, machineType) {
+				t.Attr = setXMLAttr(t.Attr, "model", "i6300esb")
+			}
 
 			if err := encoder.EncodeToken(t); err != nil {
 				return "", err
@@ -249,6 +252,20 @@ func rewriteMachineTypeInDomainXML(domainXML, machineType string) (string, error
 		return "", err
 	}
 	return buf.String(), nil
+}
+
+func shouldRewriteITCOWatchdogForMachineType(start xml.StartElement, machineType string) bool {
+	if !strings.EqualFold(strings.TrimSpace(start.Name.Local), "watchdog") {
+		return false
+	}
+	if !strings.EqualFold(xmlAttrValue(start.Attr, "model"), "itco") {
+		return false
+	}
+	return !machineTypeSupportsITCOWatchdog(machineType)
+}
+
+func machineTypeSupportsITCOWatchdog(machineType string) bool {
+	return strings.Contains(strings.ToLower(strings.TrimSpace(machineType)), "q35")
 }
 
 func shouldDropForMachineTypeRewrite(start xml.StartElement) bool {

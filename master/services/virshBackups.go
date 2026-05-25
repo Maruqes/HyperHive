@@ -16,7 +16,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -27,9 +26,12 @@ import (
 	"github.com/google/uuid"
 )
 
-var copyFileMu sync.Mutex
+var copyFileSlots = make(chan struct{}, 1)
 
-func copyFile(origin, dest, vmName string) (err error) {
+func copyFile(ctx context.Context, origin, dest, vmName string) (err error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	defer func() {
 		if err != nil {
@@ -37,8 +39,12 @@ func copyFile(origin, dest, vmName string) (err error) {
 		}
 	}()
 
-	copyFileMu.Lock()
-	defer copyFileMu.Unlock()
+	select {
+	case copyFileSlots <- struct{}{}:
+		defer func() { <-copyFileSlots }()
+	case <-ctx.Done():
+		return fmt.Errorf("copy canceled before start: %w", ctx.Err())
+	}
 
 	//actually write the file using buffered I/O with progress tracking
 	input, err := os.Open(origin)
@@ -67,6 +73,10 @@ func copyFile(origin, dest, vmName string) (err error) {
 	identifier := fmt.Sprintf("%s-%d", vmName, time.Now().Unix())
 
 	for {
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("copy canceled after %d/%d bytes: %w", copied, totalSize, err)
+		}
+
 		n, err := input.Read(buf)
 		if n > 0 {
 			_, writeErr := output.Write(buf[:n])
@@ -298,14 +308,14 @@ func (v *VirshService) BackupVM(ctx context.Context, vmName string, nfsID int, a
 			}()
 
 			logger.Info("Copying")
-			err = copyFile(vm.DiskPath, backup.Path, vmName)
+			err = copyFile(taskCtx, vm.DiskPath, backup.Path, vmName)
 			if err != nil {
 				sendImportantNotification("BackupVM: copyFile failed", err)
 				return err
 			}
 
 		} else {
-			err = copyFile(vm.DiskPath, backup.Path, vmName)
+			err = copyFile(taskCtx, vm.DiskPath, backup.Path, vmName)
 			if err != nil {
 				sendImportantNotification("BackupVM: copyFile failed", err)
 				return err
@@ -467,7 +477,7 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 		defer cancel()
 
 		err := func() error {
-			if err := copyFile(backup.Path, newDiskPath, reqCopy.VmName); err != nil {
+			if err := copyFile(taskCtx, backup.Path, newDiskPath, reqCopy.VmName); err != nil {
 				_ = os.RemoveAll(newFolder)
 				return fmt.Errorf("failed to copy backup file: %w", err)
 			}
