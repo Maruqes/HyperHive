@@ -316,6 +316,7 @@ func StartApi(exitAfterStart bool) {
 		setupVirshAPI(r)
 		setupPCIAPI(r)
 		setupNFSAPI(r)
+		setupVMDiskAPI(r)
 		setupProtocolAPI(r)
 		setupLogsAPI(r)
 		setupISOAPI(r)

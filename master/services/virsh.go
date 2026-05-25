@@ -550,6 +550,10 @@ func (v *VirshService) DeleteVM(ctx context.Context, name string) error {
 				return fmt.Errorf("failed to remove autostart for VM %s: %v", name, err)
 			}
 
+			if err := db.ClearVMDiskAttachmentsByVM(ctx, name); err != nil {
+				return fmt.Errorf("failed to clear VM disk attachments for VM %s: %v", name, err)
+			}
+
 			return nil
 		}
 	}
@@ -911,6 +915,110 @@ func (v *VirshService) RemoveIso(vmName string) error {
 		}
 	}
 	return fmt.Errorf("failed to find VM %s on any machine", vmName)
+}
+
+func (v *VirshService) AddVMDisk(ctx context.Context, vmName string, vmDiskID int) (*db.VMDisk, error) {
+	vmName = strings.TrimSpace(vmName)
+	if vmName == "" {
+		return nil, fmt.Errorf("vm name is required")
+	}
+
+	disk, err := db.GetVMDiskByID(ctx, vmDiskID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get VM disk: %w", err)
+	}
+	if disk == nil {
+		return nil, fmt.Errorf("VM disk with ID %d not found", vmDiskID)
+	}
+	if strings.TrimSpace(disk.AttachedVMName) != "" {
+		return nil, fmt.Errorf("VM disk %d is already attached to VM %s", vmDiskID, disk.AttachedVMName)
+	}
+
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return nil, err
+	}
+	if vm == nil {
+		return nil, fmt.Errorf("VM %s not found", vmName)
+	}
+	conn := protocol.GetConnectionByMachineName(vm.MachineName)
+	if conn == nil || conn.Connection == nil {
+		return nil, fmt.Errorf("machine %s not connected", vm.MachineName)
+	}
+	if err := nfs.CheckFileReadable(conn.Connection, disk.DiskPath); err != nil {
+		return nil, fmt.Errorf("VM disk file is not readable on %s: %w", vm.MachineName, err)
+	}
+
+	reserved, err := db.ReserveVMDiskAttachment(ctx, disk.Id, vmName, vm.MachineName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reserve VM disk attachment: %w", err)
+	}
+	if !reserved {
+		return nil, fmt.Errorf("VM disk %d is already attached", disk.Id)
+	}
+
+	if _, err := virsh.AttachExternalDisk(conn.Connection, vmName, disk.DiskPath, disk.Format); err != nil {
+		_ = db.ClearVMDiskAttachment(ctx, disk.Id)
+		return nil, fmt.Errorf("failed to attach VM disk %d to VM %s: %w", disk.Id, vmName, err)
+	}
+
+	updated, err := db.GetVMDiskByID(ctx, disk.Id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reload VM disk: %w", err)
+	}
+	return updated, nil
+}
+
+func (v *VirshService) ListVMDisk(ctx context.Context, vmName string) ([]db.VMDisk, error) {
+	vmName = strings.TrimSpace(vmName)
+	if vmName == "" {
+		return nil, fmt.Errorf("vm name is required")
+	}
+	return db.GetVMDiskByAttachedVM(ctx, vmName)
+}
+
+func (v *VirshService) RemoveVMDisk(ctx context.Context, vmName string, vmDiskID int) (*db.VMDisk, error) {
+	vmName = strings.TrimSpace(vmName)
+	if vmName == "" {
+		return nil, fmt.Errorf("vm name is required")
+	}
+
+	disk, err := db.GetVMDiskByID(ctx, vmDiskID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get VM disk: %w", err)
+	}
+	if disk == nil {
+		return nil, fmt.Errorf("VM disk with ID %d not found", vmDiskID)
+	}
+	if strings.TrimSpace(disk.AttachedVMName) == "" {
+		return nil, fmt.Errorf("VM disk %d is not attached", vmDiskID)
+	}
+	if disk.AttachedVMName != vmName {
+		return nil, fmt.Errorf("VM disk %d is attached to VM %s, not %s", vmDiskID, disk.AttachedVMName, vmName)
+	}
+
+	vm, err := v.GetVmByName(vmName)
+	if err != nil {
+		return nil, err
+	}
+	if vm == nil {
+		return nil, fmt.Errorf("VM %s not found", vmName)
+	}
+	conn := protocol.GetConnectionByMachineName(vm.MachineName)
+	if conn == nil || conn.Connection == nil {
+		return nil, fmt.Errorf("machine %s not connected", vm.MachineName)
+	}
+
+	if _, err := virsh.DetachExternalDisk(conn.Connection, vmName, disk.DiskPath, disk.Format); err != nil {
+		return nil, fmt.Errorf("failed to detach VM disk %d from VM %s: %w", disk.Id, vmName, err)
+	}
+	if err := db.ClearVMDiskAttachment(ctx, disk.Id); err != nil {
+		return nil, fmt.Errorf("failed to clear VM disk attachment: %w", err)
+	}
+
+	disk.AttachedVMName = ""
+	disk.AttachedMachineName = ""
+	return disk, nil
 }
 
 func (v *VirshService) ChangeNetwork(vmName string, newNetwork string) error {

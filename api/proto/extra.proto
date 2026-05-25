@@ -43,6 +43,8 @@ message Notification {
 
 message RestartShutdownNow { bool now = 1; }
 
+message SparsifyQcow2Request { string diskPath = 1; }
+
 // master service
 service ExtraService {
   // master
@@ -56,4 +58,5 @@ service ExtraService {
   
   rpc ShutDown(RestartShutdownNow)returns(Empty);
   rpc Restart(RestartShutdownNow)returns(Empty);
+  rpc SparsifyQcow2(SparsifyQcow2Request)returns(Empty);
 }

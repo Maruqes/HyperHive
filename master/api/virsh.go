@@ -615,6 +615,70 @@ func removeIso(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ISO removed from VM successfully"))
 }
 
+func addVmDiskToVM(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	var req struct {
+		VMDiskID int `json:"vm_disk_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+	if req.VMDiskID <= 0 {
+		http.Error(w, "vm_disk_id is required", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	res, err := virshServices.AddVMDisk(r.Context(), vmName, req.VMDiskID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func listVmDisksForVM(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	virshServices := services.VirshService{}
+	res, err := virshServices.ListVMDisk(r.Context(), vmName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func removeVmDiskFromVM(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	id, err := strconv.Atoi(chi.URLParam(r, "vm_disk_id"))
+	if err != nil || id <= 0 {
+		http.Error(w, "invalid vm_disk_id", http.StatusBadRequest)
+		return
+	}
+
+	virshServices := services.VirshService{}
+	res, err := virshServices.RemoveVMDisk(r.Context(), vmName, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func changeVmNetwork(w http.ResponseWriter, r *http.Request) {
 	vmName := chi.URLParam(r, "vm_name")
 	if vmName == "" {
@@ -2373,6 +2437,9 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Post("/resumevm/{vm_name}", resumeVm)
 		r.Get("/getvmbyname/{vm_name}", getVmByName)
 		r.Post("/removeiso/{vm_name}", removeIso)
+		r.Post("/vm_disk/{vm_name}", addVmDiskToVM)
+		r.Get("/vm_disk/{vm_name}", listVmDisksForVM)
+		r.Delete("/vm_disk/{vm_name}/{vm_disk_id}", removeVmDiskFromVM)
 
 		r.Post("/change_vm_network/{vm_name}", changeVmNetwork)
 		r.Post("/change_vnc_password/{vm_name}", changeVmVncPassword)

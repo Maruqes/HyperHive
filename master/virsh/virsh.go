@@ -214,6 +214,24 @@ func RemoveIso(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
 	return nil
 }
 
+func AttachExternalDisk(conn *grpc.ClientConn, vmName, diskPath, format string) (*grpcVirsh.ExternalDiskResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	return client.AttachExternalDisk(context.Background(), &grpcVirsh.ExternalDiskRequest{
+		VmName:   vmName,
+		DiskPath: diskPath,
+		Format:   format,
+	})
+}
+
+func DetachExternalDisk(conn *grpc.ClientConn, vmName, diskPath, format string) (*grpcVirsh.ExternalDiskResponse, error) {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	return client.DetachExternalDisk(context.Background(), &grpcVirsh.ExternalDiskRequest{
+		VmName:   vmName,
+		DiskPath: diskPath,
+		Format:   format,
+	})
+}
+
 func PauseVM(conn *grpc.ClientConn, req *grpcVirsh.Vm) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.PauseVM(context.Background(), req)

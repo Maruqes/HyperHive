@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package vm_disk;
+
+option go_package = "github.com/Maruqes/512SvMan/api/proto/vm_disk;proto";
+
+message CreateVMDiskRequest {
+  string basePath = 1;
+  string name = 2;
+  int64 sizeGB = 3;
+  string format = 4;
+}
+
+message VMDiskByNameRequest {
+  string basePath = 1;
+  string name = 2;
+}
+
+message GrowVMDiskRequest {
+  string basePath = 1;
+  string name = 2;
+  int64 sizeGB = 3;
+}
+
+message VMDiskResponse {
+  bool ok = 1;
+  string diskPath = 2;
+  string folderPath = 3;
+  string format = 4;
+  int64 sizeGB = 5;
+  double occupiedGB = 6;
+  int64 occupiedBytes = 7;
+}
+
+service VMDiskService {
+  rpc CreateVMDisk(CreateVMDiskRequest) returns (VMDiskResponse);
+  rpc DeleteVMDisk(VMDiskByNameRequest) returns (VMDiskResponse);
+  rpc GrowVMDisk(GrowVMDiskRequest) returns (VMDiskResponse);
+  rpc GetVMDiskInfo(VMDiskByNameRequest) returns (VMDiskResponse);
+}

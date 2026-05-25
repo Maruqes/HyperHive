@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	logger "github.com/Maruqes/512SvMan/logger"
@@ -16,7 +17,7 @@ import (
 
 const (
 	sqliteDatabaseFile          = "data.db"
-	sqliteBackupRetention       = 5
+	sqliteBackupRetentionMonths = 1
 	sqliteBackupInterval        = 24 * time.Hour
 	sqliteBackupTimestampFormat = "2006-01-02_15-04-05"
 	sqliteBackupStepPages       = 256
@@ -54,7 +55,7 @@ func RunSQLiteBackup(ctx context.Context) error {
 	if err := backupSQLiteDB(ctx, DB, backupPath); err != nil {
 		return err
 	}
-	if err := pruneSQLiteBackups(filepath.Dir(backupPath), filepath.Base(sqliteDatabaseFile)+".bak.", sqliteBackupRetention); err != nil {
+	if err := pruneSQLiteBackups(filepath.Dir(backupPath), filepath.Base(sqliteDatabaseFile)+".bak.", sqliteBackupRetentionMonths, time.Now()); err != nil {
 		return err
 	}
 
@@ -127,9 +128,9 @@ func backupSQLiteDB(ctx context.Context, src *sql.DB, backupPath string) error {
 	})
 }
 
-func pruneSQLiteBackups(dir, prefix string, keep int) error {
-	if keep < 1 {
-		return fmt.Errorf("sqlite backup retention must be at least 1")
+func pruneSQLiteBackups(dir, prefix string, retentionMonths int, now time.Time) error {
+	if retentionMonths < 1 {
+		return fmt.Errorf("sqlite backup retention months must be at least 1")
 	}
 
 	pattern := filepath.Join(dir, prefix+"*")
@@ -137,13 +138,13 @@ func pruneSQLiteBackups(dir, prefix string, keep int) error {
 	if err != nil {
 		return err
 	}
-	if len(matches) <= keep {
+	if len(matches) == 0 {
 		return nil
 	}
 
 	type entry struct {
-		path string
-		mod  time.Time
+		path      string
+		createdAt time.Time
 	}
 	entries := make([]entry, 0, len(matches))
 	for _, match := range matches {
@@ -151,18 +152,29 @@ func pruneSQLiteBackups(dir, prefix string, keep int) error {
 		if err != nil {
 			continue
 		}
-		entries = append(entries, entry{path: match, mod: info.ModTime()})
+		if info.IsDir() {
+			continue
+		}
+		createdAt, ok := sqliteBackupCreatedAt(filepath.Base(match), prefix)
+		if !ok {
+			createdAt = info.ModTime()
+		}
+		entries = append(entries, entry{path: match, createdAt: createdAt})
 	}
-	if len(entries) <= keep {
+	if len(entries) == 0 {
 		return nil
 	}
 
 	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].mod.After(entries[j].mod)
+		return entries[i].createdAt.After(entries[j].createdAt)
 	})
 
+	cutoff := now.AddDate(0, -retentionMonths, 0)
 	var lastErr error
-	for _, entry := range entries[keep:] {
+	for _, entry := range entries {
+		if !entry.createdAt.Before(cutoff) {
+			continue
+		}
 		if err := os.Remove(entry.path); err != nil {
 			lastErr = err
 		}
@@ -171,4 +183,15 @@ func pruneSQLiteBackups(dir, prefix string, keep int) error {
 		return fmt.Errorf("sqlite backup cleanup failed: %w", lastErr)
 	}
 	return nil
+}
+
+func sqliteBackupCreatedAt(name, prefix string) (time.Time, bool) {
+	if !strings.HasPrefix(name, prefix) {
+		return time.Time{}, false
+	}
+	ts, err := time.ParseInLocation(sqliteBackupTimestampFormat, name[len(prefix):], time.Local)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return ts, true
 }

@@ -179,6 +179,17 @@ message HyperVResponse {
   bool hyperv = 2;
 }
 
+message ExternalDiskRequest {
+  string vm_name = 1;
+  string disk_path = 2;
+  string format = 3;
+}
+
+message ExternalDiskResponse {
+  bool ok = 1;
+  string target_dev = 2;
+}
+
 // defines on slave
 service SlaveVirshService {
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
@@ -220,6 +231,8 @@ service SlaveVirshService {
   rpc SetKVMHidden(SetKVMHiddenRequest) returns (KVMHiddenResponse);
   rpc GetHyperV(GetVmByNameRequest) returns (HyperVResponse);
   rpc SetHyperV(SetHyperVRequest) returns (HyperVResponse);
+  rpc AttachExternalDisk(ExternalDiskRequest) returns (ExternalDiskResponse);
+  rpc DetachExternalDisk(ExternalDiskRequest) returns (ExternalDiskResponse);
 
   // only sees machine name, cpuCount and memoryMB
   // cpuCount and memoryMB are the new values to set

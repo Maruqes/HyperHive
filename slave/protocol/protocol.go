@@ -16,6 +16,7 @@ import (
 	pciservice "slave/pci"
 	smartdisk "slave/smartdisk"
 	"slave/virsh"
+	vmdiskservice "slave/vm_disk"
 	"sync"
 	"syscall"
 	"time"
@@ -30,6 +31,7 @@ import (
 	pb "github.com/Maruqes/512SvMan/api/proto/protocol"
 	smartdiskGrpc "github.com/Maruqes/512SvMan/api/proto/smartdisk"
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
+	vmDiskGrpc "github.com/Maruqes/512SvMan/api/proto/vm_disk"
 
 	"github.com/Maruqes/512SvMan/logger"
 	"google.golang.org/grpc"
@@ -115,6 +117,7 @@ func listenGRPC() {
 		//registar services
 		pb.RegisterClientServiceServer(s, &clientServer{})
 		nfsproto.RegisterNFSServiceServer(s, &nfsservice.NFSService{})
+		vmDiskGrpc.RegisterVMDiskServiceServer(s, &vmdiskservice.Service{})
 		grpcVirsh.RegisterSlaveVirshServiceServer(s, &virsh.SlaveVirshService{})
 		extraGrpc.RegisterExtraServiceServer(s, &extra.ExtraService{})
 		pciGrpc.RegisterSlavePCIServiceServer(s, &pciservice.PCIService{})

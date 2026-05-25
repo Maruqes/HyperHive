@@ -124,6 +124,22 @@ func (s *SlaveVirshService) UpdateVMXml(ctx context.Context, e *grpcVirsh.Update
 	return &grpcVirsh.OkResponse{}, nil
 }
 
+func (s *SlaveVirshService) AttachExternalDisk(ctx context.Context, req *grpcVirsh.ExternalDiskRequest) (*grpcVirsh.ExternalDiskResponse, error) {
+	targetDev, err := AttachExternalDisk(req.VmName, req.DiskPath, req.Format)
+	if err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.ExternalDiskResponse{Ok: true, TargetDev: targetDev}, nil
+}
+
+func (s *SlaveVirshService) DetachExternalDisk(ctx context.Context, req *grpcVirsh.ExternalDiskRequest) (*grpcVirsh.ExternalDiskResponse, error) {
+	targetDev, err := DetachExternalDisk(req.VmName, req.DiskPath)
+	if err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.ExternalDiskResponse{Ok: true, TargetDev: targetDev}, nil
+}
+
 func (s *SlaveVirshService) GetAllVms(ctx context.Context, e *grpcVirsh.Empty) (*grpcVirsh.GetAllVmsResponse, error) {
 	vms, warnings, err := GetAllVMs()
 	if err != nil {

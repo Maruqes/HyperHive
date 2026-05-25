@@ -52,6 +52,8 @@ const (
 	SlaveVirshService_SetKVMHidden_FullMethodName            = "/virsh.SlaveVirshService/SetKVMHidden"
 	SlaveVirshService_GetHyperV_FullMethodName               = "/virsh.SlaveVirshService/GetHyperV"
 	SlaveVirshService_SetHyperV_FullMethodName               = "/virsh.SlaveVirshService/SetHyperV"
+	SlaveVirshService_AttachExternalDisk_FullMethodName      = "/virsh.SlaveVirshService/AttachExternalDisk"
+	SlaveVirshService_DetachExternalDisk_FullMethodName      = "/virsh.SlaveVirshService/DetachExternalDisk"
 	SlaveVirshService_EditVmResources_FullMethodName         = "/virsh.SlaveVirshService/EditVmResources"
 	SlaveVirshService_ColdMigrateVm_FullMethodName           = "/virsh.SlaveVirshService/ColdMigrateVm"
 	SlaveVirshService_FreezeDisk_FullMethodName              = "/virsh.SlaveVirshService/FreezeDisk"
@@ -112,6 +114,8 @@ type SlaveVirshServiceClient interface {
 	SetKVMHidden(ctx context.Context, in *SetKVMHiddenRequest, opts ...grpc.CallOption) (*KVMHiddenResponse, error)
 	GetHyperV(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*HyperVResponse, error)
 	SetHyperV(ctx context.Context, in *SetHyperVRequest, opts ...grpc.CallOption) (*HyperVResponse, error)
+	AttachExternalDisk(ctx context.Context, in *ExternalDiskRequest, opts ...grpc.CallOption) (*ExternalDiskResponse, error)
+	DetachExternalDisk(ctx context.Context, in *ExternalDiskRequest, opts ...grpc.CallOption) (*ExternalDiskResponse, error)
 	// only sees machine name, cpuCount and memoryMB
 	// cpuCount and memoryMB are the new values to set
 	EditVmResources(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
@@ -477,6 +481,26 @@ func (c *slaveVirshServiceClient) SetHyperV(ctx context.Context, in *SetHyperVRe
 	return out, nil
 }
 
+func (c *slaveVirshServiceClient) AttachExternalDisk(ctx context.Context, in *ExternalDiskRequest, opts ...grpc.CallOption) (*ExternalDiskResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ExternalDiskResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_AttachExternalDisk_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) DetachExternalDisk(ctx context.Context, in *ExternalDiskRequest, opts ...grpc.CallOption) (*ExternalDiskResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ExternalDiskResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_DetachExternalDisk_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *slaveVirshServiceClient) EditVmResources(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(OkResponse)
@@ -706,6 +730,8 @@ type SlaveVirshServiceServer interface {
 	SetKVMHidden(context.Context, *SetKVMHiddenRequest) (*KVMHiddenResponse, error)
 	GetHyperV(context.Context, *GetVmByNameRequest) (*HyperVResponse, error)
 	SetHyperV(context.Context, *SetHyperVRequest) (*HyperVResponse, error)
+	AttachExternalDisk(context.Context, *ExternalDiskRequest) (*ExternalDiskResponse, error)
+	DetachExternalDisk(context.Context, *ExternalDiskRequest) (*ExternalDiskResponse, error)
 	// only sees machine name, cpuCount and memoryMB
 	// cpuCount and memoryMB are the new values to set
 	EditVmResources(context.Context, *Vm) (*OkResponse, error)
@@ -839,6 +865,12 @@ func (UnimplementedSlaveVirshServiceServer) GetHyperV(context.Context, *GetVmByN
 }
 func (UnimplementedSlaveVirshServiceServer) SetHyperV(context.Context, *SetHyperVRequest) (*HyperVResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetHyperV not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) AttachExternalDisk(context.Context, *ExternalDiskRequest) (*ExternalDiskResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AttachExternalDisk not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) DetachExternalDisk(context.Context, *ExternalDiskRequest) (*ExternalDiskResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DetachExternalDisk not implemented")
 }
 func (UnimplementedSlaveVirshServiceServer) EditVmResources(context.Context, *Vm) (*OkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method EditVmResources not implemented")
@@ -1512,6 +1544,42 @@ func _SlaveVirshService_SetHyperV_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SlaveVirshService_AttachExternalDisk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExternalDiskRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).AttachExternalDisk(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_AttachExternalDisk_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).AttachExternalDisk(ctx, req.(*ExternalDiskRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_DetachExternalDisk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExternalDiskRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).DetachExternalDisk(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_DetachExternalDisk_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).DetachExternalDisk(ctx, req.(*ExternalDiskRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SlaveVirshService_EditVmResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Vm)
 	if err := dec(in); err != nil {
@@ -1992,6 +2060,14 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetHyperV",
 			Handler:    _SlaveVirshService_SetHyperV_Handler,
+		},
+		{
+			MethodName: "AttachExternalDisk",
+			Handler:    _SlaveVirshService_AttachExternalDisk_Handler,
+		},
+		{
+			MethodName: "DetachExternalDisk",
+			Handler:    _SlaveVirshService_DetachExternalDisk_Handler,
 		},
 		{
 			MethodName: "EditVmResources",
