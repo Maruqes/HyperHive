@@ -360,6 +360,17 @@ func BuildCPUTuneXML(pins []VCPUPin, indent string) string {
 // BuildCPUTuneXMLWithEmulatorPin generates the <cputune> XML block for libvirt.
 // If emulatorCPUs is empty, the <emulatorpin> element is omitted.
 func BuildCPUTuneXMLWithEmulatorPin(pins []VCPUPin, emulatorCPUs []int, indent string) string {
+	return buildCPUTuneXML(pins, emulatorCPUs, nil, indent)
+}
+
+// BuildCPUTuneXMLWithEmulatorAndIOThreadPin generates the <cputune> XML block
+// for libvirt, pinning IOThreads to the same CPU set used for QEMU emulator
+// threads.
+func BuildCPUTuneXMLWithEmulatorAndIOThreadPin(pins []VCPUPin, emulatorCPUs []int, ioThreadIDs []int, indent string) string {
+	return buildCPUTuneXML(pins, emulatorCPUs, ioThreadIDs, indent)
+}
+
+func buildCPUTuneXML(pins []VCPUPin, emulatorCPUs []int, ioThreadIDs []int, indent string) string {
 	var sb strings.Builder
 	sb.WriteString(indent + "<cputune>\n")
 	for _, pin := range pins {
@@ -367,7 +378,11 @@ func BuildCPUTuneXMLWithEmulatorPin(pins []VCPUPin, emulatorCPUs []int, indent s
 	}
 
 	if len(emulatorCPUs) > 0 {
-		sb.WriteString(fmt.Sprintf("%s  <emulatorpin cpuset='%s'/>\n", indent, formatCPUSet(emulatorCPUs)))
+		emulatorCPUSet := formatCPUSet(emulatorCPUs)
+		sb.WriteString(fmt.Sprintf("%s  <emulatorpin cpuset='%s'/>\n", indent, emulatorCPUSet))
+		for _, id := range ioThreadIDs {
+			sb.WriteString(fmt.Sprintf("%s  <iothreadpin iothread='%d' cpuset='%s'/>\n", indent, id, emulatorCPUSet))
+		}
 	}
 
 	sb.WriteString(indent + "</cputune>")
@@ -492,20 +507,19 @@ func buildEmulatorPinCPUsFromPhysicalCores(cores []PhysicalCore, hyperThreading 
 	return dedupeSortedInts(cpus)
 }
 
-func emulatorReservedPhysicalCoreCount(config CPUPinningConfig, selectedPhysicalCores int) int {
+func emulatorReservedPhysicalCoreCount(_ CPUPinningConfig, selectedPhysicalCores int) int {
 	if selectedPhysicalCores <= 1 {
 		return 0
 	}
 
-	requestedVCPUs := selectedPhysicalCores
-	if config.HyperThreading {
-		requestedVCPUs *= 2
-	}
-
-	// Tiny VMs share the same cpuset to avoid wasting half the allocation.
-	if requestedVCPUs <= 2 {
+	// Small VM allocations should not lose a whole physical core to QEMU
+	// overhead. This is especially important with SMT enabled: stealing one
+	// core from a 2-core HT allocation leaves the guest with only sibling
+	// threads on a single physical core.
+	if selectedPhysicalCores < 4 {
 		return 0
 	}
+
 	// Reserve at most one physical core for emulator threads.
 	// With HT enabled this corresponds to two logical CPUs.
 	return 1
@@ -571,25 +585,10 @@ func ApplyCPUPinning(vmName string, config CPUPinningConfig) error {
 		return fmt.Errorf("get xml: %w", err)
 	}
 
-	// Update vcpu count to match pins (with HT: cores*2, without: cores)
-	vcpuCount := len(pins)
-	updatedXML, err := updateVcpuTag(xmlDesc, vcpuCount)
+	updatedXML, err := rewriteCPUPinningPlanInDomainXML(xmlDesc, plan)
 	if err != nil {
-		return fmt.Errorf("update vcpu count: %w", err)
+		return err
 	}
-
-	// Update CPU topology (threads='2' if HT, threads='1' otherwise)
-	updatedXML, err = updateCPUTopologyForPinning(updatedXML, plan.GuestPhysicalCores, plan.ThreadsPerCore)
-	if err != nil {
-		return fmt.Errorf("update cpu topology: %w", err)
-	}
-
-	// Remove existing <cputune> if present
-	updatedXML = removeCPUTuneBlock(updatedXML)
-
-	// Insert new <cputune> block after </vcpu>.
-	cputuneXML := BuildCPUTuneXMLWithEmulatorPin(pins, plan.EmulatorCPUs, "  ")
-	updatedXML = insertCPUTuneBlock(updatedXML, cputuneXML)
 
 	// Redefine the domain
 	newDom, err := conn.DomainDefineXML(updatedXML)
@@ -602,6 +601,43 @@ func ApplyCPUPinning(vmName string, config CPUPinningConfig) error {
 		len(pins), vmName, config.SocketID, config.RangeStart, config.RangeEnd, config.HyperThreading)
 
 	return nil
+}
+
+func rewriteCPUPinningInDomainXML(xmlDesc string, config CPUPinningConfig, sockets []CPUSocket) (string, error) {
+	plan, err := buildCPUPinningPlan(config, sockets)
+	if err != nil {
+		return "", fmt.Errorf("build cpu pinning plan: %w", err)
+	}
+	return rewriteCPUPinningPlanInDomainXML(xmlDesc, plan)
+}
+
+func rewriteCPUPinningPlanInDomainXML(xmlDesc string, plan *cpupinningPlan) (string, error) {
+	pins := plan.GuestPins
+	if len(pins) == 0 {
+		return "", fmt.Errorf("no vcpu pins generated")
+	}
+
+	// Update vcpu count to match pins (with HT: cores*2, without: cores)
+	vcpuCount := len(pins)
+	updatedXML, err := updateVcpuTag(xmlDesc, vcpuCount)
+	if err != nil {
+		return "", fmt.Errorf("update vcpu count: %w", err)
+	}
+
+	// Update CPU topology (threads='2' if HT, threads='1' otherwise)
+	updatedXML, err = updateCPUTopologyForPinning(updatedXML, plan.GuestPhysicalCores, plan.ThreadsPerCore)
+	if err != nil {
+		return "", fmt.Errorf("update cpu topology: %w", err)
+	}
+
+	// Remove existing <cputune> if present
+	updatedXML = removeCPUTuneBlock(updatedXML)
+
+	// Insert new <cputune> block after </vcpu>.
+	cputuneXML := BuildCPUTuneXMLWithEmulatorAndIOThreadPin(pins, plan.EmulatorCPUs, parseIOThreadIDsFromXML(xmlDesc), "  ")
+	updatedXML = insertCPUTuneBlock(updatedXML, cputuneXML)
+
+	return updatedXML, nil
 }
 
 // RemoveCPUPinning removes the <cputune> block from a VM's XML definition.
@@ -789,6 +825,41 @@ func parseCPUPinningFromXML(xmlStr string) (*CPUPinningResult, error) {
 	}
 
 	return result, nil
+}
+
+func parseIOThreadIDsFromXML(xmlStr string) []int {
+	explicitRe := regexp.MustCompile(`<iothread\s+[^>]*\bid=['"](\d+)['"][^>]*/?>`)
+	explicitMatches := explicitRe.FindAllStringSubmatch(xmlStr, -1)
+	if len(explicitMatches) > 0 {
+		ids := make([]int, 0, len(explicitMatches))
+		for _, match := range explicitMatches {
+			if len(match) != 2 {
+				continue
+			}
+			id, err := strconv.Atoi(match[1])
+			if err != nil || id <= 0 {
+				continue
+			}
+			ids = append(ids, id)
+		}
+		sort.Ints(ids)
+		return dedupeSortedInts(ids)
+	}
+
+	countRe := regexp.MustCompile(`<iothreads\b[^>]*>\s*(\d+)\s*</iothreads>`)
+	match := countRe.FindStringSubmatch(xmlStr)
+	if len(match) != 2 {
+		return nil
+	}
+	count, err := strconv.Atoi(match[1])
+	if err != nil || count <= 0 {
+		return nil
+	}
+	ids := make([]int, 0, count)
+	for id := 1; id <= count; id++ {
+		ids = append(ids, id)
+	}
+	return ids
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
