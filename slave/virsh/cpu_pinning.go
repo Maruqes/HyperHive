@@ -33,7 +33,7 @@ func GetCPUSockets() ([]CPUSocket, error) {
 
 	entries, err := os.ReadDir(basePath)
 	if err != nil {
-		logger.Debugf("ERROR", fmt.Sprintf("cpu_pinning: failed to read %s: %v", basePath, err))
+		logger.Debugf("cpu_pinning: failed to read %s: %v", basePath, err)
 		return nil, fmt.Errorf("failed to read cpu directory: %w", err)
 	}
 
@@ -88,7 +88,7 @@ func GetCPUSockets() ([]CPUSocket, error) {
 		return sockets[i].SocketID < sockets[j].SocketID
 	})
 
-	logger.Debugf("INFO", fmt.Sprintf("cpu_pinning: found %d socket(s)", len(sockets)))
+	logger.Debugf("cpu_pinning: found %d socket(s)", len(sockets))
 	return sockets, nil
 }
 
@@ -598,8 +598,8 @@ func ApplyCPUPinning(vmName string, config CPUPinningConfig) error {
 	}
 	defer newDom.Free()
 
-	logger.Debugf("INFO", fmt.Sprintf("cpu_pinning: applied %d vcpu pin(s) to vm %q (socket %d, cores %d-%d, ht=%v)",
-		len(pins), vmName, config.SocketID, config.RangeStart, config.RangeEnd, config.HyperThreading))
+	logger.Debugf("cpu_pinning: applied %d vcpu pin(s) to vm %q (socket %d, cores %d-%d, ht=%v)",
+		len(pins), vmName, config.SocketID, config.RangeStart, config.RangeEnd, config.HyperThreading)
 
 	return nil
 }
@@ -656,7 +656,7 @@ func RemoveCPUPinning(vmName string) error {
 	}
 	defer newDom.Free()
 
-	logger.Debugf("INFO", fmt.Sprintf("cpu_pinning: removed cpu pinning from vm %q", vmName))
+	logger.Debugf("cpu_pinning: removed cpu pinning from vm %q", vmName)
 	return nil
 }
 

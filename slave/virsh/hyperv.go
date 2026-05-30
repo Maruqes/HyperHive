@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	libvirt "libvirt.org/go/libvirt"
@@ -16,9 +17,10 @@ type hyperVFeature struct {
 }
 
 type hyperVConfig struct {
-	Mode        string
-	Features    []hyperVFeature
-	EnsureClock bool
+	Mode                        string
+	Features                    []hyperVFeature
+	EnsureClock                 bool
+	NestedVirtualizationFeature string
 }
 
 const (
@@ -91,6 +93,12 @@ func SetHyperV(vmName string, enabled bool) (bool, error) {
 			return false, err
 		}
 	}
+	if enabled {
+		updatedXML, err = rewriteNestedVirtualizationInDomainXML(updatedXML, config.NestedVirtualizationFeature)
+		if err != nil {
+			return false, err
+		}
+	}
 	if strings.TrimSpace(updatedXML) == "" {
 		return false, fmt.Errorf("rewritten domain XML is empty")
 	}
@@ -157,11 +165,20 @@ func getHyperVConfigForDomainXML(domainXML string) (hyperVConfig, error) {
 	}
 	defer conn.Close()
 
+	nestedFeature, err := getHostNestedVirtualizationFeature(conn)
+	if err != nil {
+		return hyperVConfig{}, err
+	}
+	if err := validateHostNestedVirtualizationEnabled(nestedFeature); err != nil {
+		return hyperVConfig{}, err
+	}
+
 	libvirtVersion, err := conn.GetLibVersion()
 	if err != nil {
 		return hyperVConfig{}, fmt.Errorf("get libvirt version for Hyper-V: %w", err)
 	}
 	if config, ok := selectHostAwareHyperVConfig(libvirtVersion); ok {
+		config.NestedVirtualizationFeature = nestedFeature
 		return config, nil
 	}
 
@@ -175,11 +192,15 @@ func getHyperVConfigForDomainXML(domainXML string) (hyperVConfig, error) {
 	if err == nil {
 		supported, parseErr := parseSupportedHyperVFeaturesFromDomainCapabilities(capsXML)
 		if parseErr == nil {
-			return customHyperVConfig(selectSupportedHyperVFeatures(supported)), nil
+			config := customHyperVConfig(selectSupportedHyperVFeatures(supported))
+			config.NestedVirtualizationFeature = nestedFeature
+			return config, nil
 		}
 	}
 
-	return customHyperVConfig(legacyHyperVFeatures), nil
+	config := customHyperVConfig(legacyHyperVFeatures)
+	config.NestedVirtualizationFeature = nestedFeature
+	return config, nil
 }
 
 func extractHyperVCapabilityRequestFromDomainXML(domainXML string) (hyperVCapabilityRequest, error) {
@@ -302,6 +323,100 @@ func customHyperVConfig(features []hyperVFeature) hyperVConfig {
 		Features:    features,
 		EnsureClock: hasHyperVFeature(features, "stimer"),
 	}
+}
+
+func getHostNestedVirtualizationFeature(conn *libvirt.Connect) (string, error) {
+	capsXML, err := conn.GetCapabilities()
+	if err == nil {
+		if feature := parseNestedVirtualizationFeatureFromCapabilities(capsXML); feature != "" {
+			return feature, nil
+		}
+	}
+
+	if feature := detectNestedVirtualizationFeatureFromProcCPUInfo(); feature != "" {
+		return feature, nil
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("get host capabilities for nested virtualization: %w", err)
+	}
+	return "", fmt.Errorf("host CPU does not report vmx or svm; cannot enable full Windows Hyper-V nested virtualization")
+}
+
+func parseNestedVirtualizationFeatureFromCapabilities(capsXML string) string {
+	type cpuFeatureXML struct {
+		Name string `xml:"name,attr"`
+	}
+	type hostCapabilitiesXML struct {
+		Host struct {
+			CPU struct {
+				Features []cpuFeatureXML `xml:"feature"`
+			} `xml:"cpu"`
+		} `xml:"host"`
+	}
+
+	var parsed hostCapabilitiesXML
+	if err := xml.Unmarshal([]byte(capsXML), &parsed); err != nil {
+		return ""
+	}
+	seen := make(map[string]struct{}, len(parsed.Host.CPU.Features))
+	for _, feature := range parsed.Host.CPU.Features {
+		name := strings.ToLower(strings.TrimSpace(feature.Name))
+		if name != "" {
+			seen[name] = struct{}{}
+		}
+	}
+	return selectNestedVirtualizationFeature(seen)
+}
+
+func detectNestedVirtualizationFeatureFromProcCPUInfo() string {
+	data, err := os.ReadFile("/proc/cpuinfo")
+	if err != nil {
+		return ""
+	}
+	fields := strings.Fields(strings.ToLower(string(data)))
+	seen := make(map[string]struct{}, len(fields))
+	for _, field := range fields {
+		seen[field] = struct{}{}
+	}
+	return selectNestedVirtualizationFeature(seen)
+}
+
+func selectNestedVirtualizationFeature(features map[string]struct{}) string {
+	if _, ok := features["vmx"]; ok {
+		return "vmx"
+	}
+	if _, ok := features["svm"]; ok {
+		return "svm"
+	}
+	return ""
+}
+
+func validateHostNestedVirtualizationEnabled(feature string) error {
+	feature = strings.ToLower(strings.TrimSpace(feature))
+	var paths []string
+	switch feature {
+	case "vmx":
+		paths = []string{"/sys/module/kvm_intel/parameters/nested"}
+	case "svm":
+		paths = []string{"/sys/module/kvm_amd/parameters/nested"}
+	default:
+		return fmt.Errorf("unsupported nested virtualization CPU feature %q", feature)
+	}
+
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		switch strings.ToLower(strings.TrimSpace(string(data))) {
+		case "1", "y", "yes", "on", "true":
+			return nil
+		default:
+			return fmt.Errorf("host CPU supports %s, but KVM nested virtualization is disabled in %s", feature, path)
+		}
+	}
+	return fmt.Errorf("host CPU supports %s, but the KVM nested virtualization parameter was not found", feature)
 }
 
 func hyperVFeatureDependenciesSelected(name string, selected map[string]struct{}) bool {
@@ -540,6 +655,156 @@ func rewriteHyperVClockInDomainXML(domainXML string) (string, error) {
 		return "", err
 	}
 	return buf.String(), nil
+}
+
+func rewriteNestedVirtualizationInDomainXML(domainXML, feature string) (string, error) {
+	domainXML = strings.TrimSpace(domainXML)
+	if domainXML == "" {
+		return "", fmt.Errorf("domain XML is empty")
+	}
+	feature = strings.ToLower(strings.TrimSpace(feature))
+	if feature != "vmx" && feature != "svm" {
+		return "", fmt.Errorf("unsupported nested virtualization CPU feature %q", feature)
+	}
+
+	hasCPU, err := hasRootDomainElement(domainXML, "cpu")
+	if err != nil {
+		return "", err
+	}
+	hasFeatures, err := hasRootDomainElement(domainXML, "features")
+	if err != nil {
+		return "", err
+	}
+
+	decoder := xml.NewDecoder(strings.NewReader(domainXML))
+	var buf bytes.Buffer
+	encoder := xml.NewEncoder(&buf)
+
+	depth := 0
+	inCPU := false
+	cpuDepth := -1
+	cpuHadFeature := false
+	insertedCPU := false
+	skipDepth := 0
+
+	for {
+		tok, err := decoder.Token()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return "", err
+		}
+
+		if skipDepth > 0 {
+			switch tok.(type) {
+			case xml.StartElement:
+				skipDepth++
+			case xml.EndElement:
+				skipDepth--
+			}
+			continue
+		}
+
+		switch t := tok.(type) {
+		case xml.StartElement:
+			if depth == 1 && strings.EqualFold(t.Name.Local, "cpu") {
+				inCPU = true
+				cpuDepth = depth + 1
+				cpuHadFeature = false
+			}
+			if inCPU && depth == cpuDepth && strings.EqualFold(t.Name.Local, "feature") &&
+				strings.EqualFold(xmlAttrValue(t.Attr, "name"), feature) {
+				if cpuHadFeature {
+					skipDepth = 1
+					continue
+				}
+				t.Attr = setXMLAttr(t.Attr, "policy", "require")
+				t.Attr = setXMLAttr(t.Attr, "name", feature)
+				cpuHadFeature = true
+			}
+
+			if err := encoder.EncodeToken(t); err != nil {
+				return "", err
+			}
+			depth++
+		case xml.EndElement:
+			if inCPU && depth == cpuDepth && strings.EqualFold(t.Name.Local, "cpu") && !cpuHadFeature {
+				if err := writeNestedVirtualizationFeature(encoder, feature); err != nil {
+					return "", err
+				}
+			}
+
+			if err := encoder.EncodeToken(t); err != nil {
+				return "", err
+			}
+
+			if !hasCPU && !insertedCPU && depth == 2 {
+				switch {
+				case hasFeatures && strings.EqualFold(t.Name.Local, "features"):
+					if err := writeNestedVirtualizationCPUBlock(encoder, feature); err != nil {
+						return "", err
+					}
+					insertedCPU = true
+				case !hasFeatures && strings.EqualFold(t.Name.Local, "os"):
+					if err := writeNestedVirtualizationCPUBlock(encoder, feature); err != nil {
+						return "", err
+					}
+					insertedCPU = true
+				}
+			}
+			if inCPU && depth == cpuDepth && strings.EqualFold(t.Name.Local, "cpu") {
+				inCPU = false
+				cpuDepth = -1
+			}
+			if depth > 0 {
+				depth--
+			}
+		default:
+			if err := encoder.EncodeToken(tok); err != nil {
+				return "", err
+			}
+		}
+	}
+
+	if !hasCPU && !insertedCPU {
+		return "", fmt.Errorf("domain XML has no root <features> or <os> element to insert nested virtualization CPU config")
+	}
+	if err := encoder.Flush(); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+func writeNestedVirtualizationCPUBlock(encoder *xml.Encoder, feature string) error {
+	cpuStart := xml.StartElement{
+		Name: xml.Name{Local: "cpu"},
+		Attr: []xml.Attr{
+			{Name: xml.Name{Local: "mode"}, Value: "host-passthrough"},
+			{Name: xml.Name{Local: "check"}, Value: "none"},
+		},
+	}
+	if err := encoder.EncodeToken(cpuStart); err != nil {
+		return err
+	}
+	if err := writeNestedVirtualizationFeature(encoder, feature); err != nil {
+		return err
+	}
+	return encoder.EncodeToken(xml.EndElement{Name: cpuStart.Name})
+}
+
+func writeNestedVirtualizationFeature(encoder *xml.Encoder, feature string) error {
+	start := xml.StartElement{
+		Name: xml.Name{Local: "feature"},
+		Attr: []xml.Attr{
+			{Name: xml.Name{Local: "policy"}, Value: "require"},
+			{Name: xml.Name{Local: "name"}, Value: feature},
+		},
+	}
+	if err := encoder.EncodeToken(start); err != nil {
+		return err
+	}
+	return encoder.EncodeToken(xml.EndElement{Name: start.Name})
 }
 
 func writeHyperVClockBlock(encoder *xml.Encoder) error {

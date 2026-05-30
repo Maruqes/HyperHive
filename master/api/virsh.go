@@ -1976,6 +1976,57 @@ func websocketusInfoVms() {
 
 // ─── CPU Pinning API ─────────────────────────────────────────────────────────
 
+type cpuPinningAPIRequest struct {
+	RangeStart     int32
+	RangeEnd       int32
+	HyperThreading bool
+	SocketID       int32
+}
+
+func decodeCPUPinningAPIRequest(r io.Reader) (cpuPinningAPIRequest, error) {
+	type rawCPUPinningRequest struct {
+		RangeStart          *int32 `json:"range_start"`
+		RangeStartCamel     *int32 `json:"rangeStart"`
+		RangeEnd            *int32 `json:"range_end"`
+		RangeEndCamel       *int32 `json:"rangeEnd"`
+		HyperThreading      *bool  `json:"hyper_threading"`
+		HyperThreadingCamel *bool  `json:"hyperThreading"`
+		SocketID            *int32 `json:"socket_id"`
+		SocketIDCamel       *int32 `json:"socketId"`
+	}
+
+	var raw rawCPUPinningRequest
+	if err := json.NewDecoder(r).Decode(&raw); err != nil {
+		return cpuPinningAPIRequest{}, err
+	}
+
+	req := cpuPinningAPIRequest{
+		RangeStart:     firstInt32(raw.RangeStart, raw.RangeStartCamel),
+		RangeEnd:       firstInt32(raw.RangeEnd, raw.RangeEndCamel),
+		HyperThreading: firstBool(raw.HyperThreading, raw.HyperThreadingCamel),
+		SocketID:       firstInt32(raw.SocketID, raw.SocketIDCamel),
+	}
+	return req, nil
+}
+
+func firstInt32(values ...*int32) int32 {
+	for _, value := range values {
+		if value != nil {
+			return *value
+		}
+	}
+	return 0
+}
+
+func firstBool(values ...*bool) bool {
+	for _, value := range values {
+		if value != nil {
+			return *value
+		}
+	}
+	return false
+}
+
 func setCPUPinning(w http.ResponseWriter, r *http.Request) {
 	vmName := chi.URLParam(r, "vm_name")
 	if vmName == "" {
@@ -1983,21 +2034,14 @@ func setCPUPinning(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type CPUPinningRequest struct {
-		RangeStart     int32 `json:"range_start"`
-		RangeEnd       int32 `json:"range_end"`
-		HyperThreading bool  `json:"hyper_threading"`
-		SocketID       int32 `json:"socket_id"`
-	}
-
-	var req CPUPinningRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	req, err := decodeCPUPinningAPIRequest(r.Body)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	virshServices := services.VirshService{}
-	err := virshServices.SetCPUPinning(vmName, req.RangeStart, req.RangeEnd, req.HyperThreading, req.SocketID)
+	err = virshServices.SetCPUPinning(vmName, req.RangeStart, req.RangeEnd, req.HyperThreading, req.SocketID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
