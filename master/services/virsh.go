@@ -1103,49 +1103,7 @@ type AddSSHKeyBatchResult struct {
 	Results   []AddSSHKeyResult `json:"results"`
 }
 
-func (v *VirshService) AddSSHKeyAll(ctx context.Context, sshKey string) (*AddSSHKeyBatchResult, error) {
-	if _, err := normalizeSSHPublicKey(sshKey); err != nil {
-		return nil, fmt.Errorf("invalid ssh key: %w", err)
-	}
 
-	vms, _, err := v.GetAllVms(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("get all vms: %w", err)
-	}
-
-	result := &AddSSHKeyBatchResult{Total: len(vms)}
-	for _, vm := range vms {
-		r := AddSSHKeyResult{VMName: vm.Name}
-
-		if vm.State != grpcVirsh.VmState_SHUTOFF {
-			r.Status = "skipped_running"
-			result.Skipped++
-			result.Results = append(result.Results, r)
-			continue
-		}
-
-		slave := protocol.GetConnectionByMachineName(vm.MachineName)
-		if slave == nil || slave.Connection == nil {
-			r.Status = "error"
-			r.Error = "slave not connected"
-			result.Failed++
-			result.Results = append(result.Results, r)
-			continue
-		}
-
-		if err := virsh.AddSSHKey(slave.Connection, vm.Name, sshKey); err != nil {
-			r.Status = "error"
-			r.Error = err.Error()
-			result.Failed++
-		} else {
-			r.Status = "ok"
-			result.Succeeded++
-		}
-		result.Results = append(result.Results, r)
-	}
-
-	return result, nil
-}
 func (v *VirshService) AddNoVNCVideo(vmName string) error {
 	vm, err := v.GetVmByName(vmName)
 	if err != nil {

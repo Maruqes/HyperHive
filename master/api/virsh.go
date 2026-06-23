@@ -763,23 +763,6 @@ func addSSHKey(w http.ResponseWriter, r *http.Request) {
 	caller := GetTokenFromContext(r)
 	svc := services.VirshService{}
 
-	if vmName == services.AllVMsTarget {
-		result, err := svc.AddSSHKeyAll(r.Context(), req.SshKey)
-		if err != nil {
-			logger.Errorf("add_ssh_key all failed: %v", err)
-			if strings.HasPrefix(err.Error(), "invalid ssh key") {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-			} else {
-				http.Error(w, "internal error", http.StatusInternalServerError)
-			}
-			return
-		}
-		logger.Infof("ssh key added to all vms by %s: succeeded=%d skipped=%d failed=%d",
-			caller, result.Succeeded, result.Skipped, result.Failed)
-		writeJSONWithStatus(w, http.StatusOK, result)
-		return
-	}
-
 	err := svc.AddSSHKey(vmName, req.SshKey)
 	if err != nil {
 		logger.Errorf("add_ssh_key %s failed: %v", vmName, err)
