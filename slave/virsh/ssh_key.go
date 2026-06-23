@@ -48,8 +48,14 @@ func AddSSHKey(vmName, sshKey string) error {
 	if err != nil {
 		return fmt.Errorf("get state: %w", err)
 	}
-	if state != libvirt.DOMAIN_SHUTOFF {
-		return fmt.Errorf("domain %s must be shut off to customize disk", vmName)
+
+	wasRunning := state == libvirt.DOMAIN_RUNNING || state == libvirt.DOMAIN_PAUSED || state == libvirt.DOMAIN_BLOCKED
+	if wasRunning {
+		if err := ShutdownVM(vmName); err != nil {
+			if err := ForceShutdownVM(vmName); err != nil {
+				return fmt.Errorf("shutdown vm %s to customize disk: %w", vmName, err)
+			}
+		}
 	}
 
 	xmlDesc, err := dom.GetXMLDesc(libvirt.DOMAIN_XML_INACTIVE)
@@ -82,9 +88,21 @@ func AddSSHKey(vmName, sshKey string) error {
 	if err != nil {
 		msg := strings.TrimSpace(string(out))
 		if msg != "" {
+			if wasRunning {
+				_ = StartVM(vmName)
+			}
 			return fmt.Errorf("virt-customize add ssh key: %s", msg)
 		}
+		if wasRunning {
+			_ = StartVM(vmName)
+		}
 		return fmt.Errorf("virt-customize add ssh key: %w", err)
+	}
+
+	if wasRunning {
+		if err := StartVM(vmName); err != nil {
+			return fmt.Errorf("ssh key added but failed to restart vm %s: %w", vmName, err)
+		}
 	}
 
 	return nil
