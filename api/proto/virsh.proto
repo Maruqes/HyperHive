@@ -115,6 +115,11 @@ message ChangeVncPassword {
   string new_password = 2;
 }
 
+message AddSSHKeyRequest {
+  string vm_name = 1;
+  string ssh_key = 2;
+}
+
 message GetNoVNCVideoResponse {
   bool enabled = 1;
   int32 video_count = 2;
@@ -243,6 +248,7 @@ service SlaveVirshService {
   rpc FreezeDisk(Vm) returns (OkResponse);
   rpc UnFreezeDisk(Vm) returns (OkResponse);
   rpc ChangeVmPassword(ChangeVncPassword) returns (Empty);
+  rpc AddSSHKey(AddSSHKeyRequest) returns (OkResponse);
 
   // CPU Pinning
   rpc ApplyCPUPinning(CPUPinningRequest) returns (OkResponse);

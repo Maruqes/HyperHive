@@ -286,6 +286,15 @@ func ChangeVncPassword(conn *grpc.ClientConn, req *grpcVirsh.ChangeVncPassword) 
 	return nil
 }
 
+func AddSSHKey(conn *grpc.ClientConn, vmName, sshKey string) error {
+	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
+	_, err := client.AddSSHKey(context.Background(), &grpcVirsh.AddSSHKeyRequest{
+		VmName: vmName,
+		SshKey: sshKey,
+	})
+	return err
+}
+
 func AddNoVNCVideo(conn *grpc.ClientConn, vmName string) error {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
 	_, err := client.AddNoVNCVideo(context.Background(), &grpcVirsh.GetVmByNameRequest{Name: vmName})

@@ -737,6 +737,69 @@ func changeVmVncPassword(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func addSSHKey(w http.ResponseWriter, r *http.Request) {
+	vmName := chi.URLParam(r, "vm_name")
+	if vmName == "" {
+		http.Error(w, "vm_name is required", http.StatusBadRequest)
+		return
+	}
+
+	type Req struct {
+		SshKey string `json:"ssh_key"`
+	}
+
+	var req Req
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if strings.TrimSpace(req.SshKey) == "" {
+		http.Error(w, "ssh_key is required", http.StatusBadRequest)
+		return
+	}
+
+	caller := GetTokenFromContext(r)
+	svc := services.VirshService{}
+
+	if vmName == services.AllVMsTarget {
+		result, err := svc.AddSSHKeyAll(r.Context(), req.SshKey)
+		if err != nil {
+			logger.Errorf("add_ssh_key all failed: %v", err)
+			if strings.HasPrefix(err.Error(), "invalid ssh key") {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, "internal error", http.StatusInternalServerError)
+			}
+			return
+		}
+		logger.Infof("ssh key added to all vms by %s: succeeded=%d skipped=%d failed=%d",
+			caller, result.Succeeded, result.Skipped, result.Failed)
+		writeJSONWithStatus(w, http.StatusOK, result)
+		return
+	}
+
+	err := svc.AddSSHKey(vmName, req.SshKey)
+	if err != nil {
+		logger.Errorf("add_ssh_key %s failed: %v", vmName, err)
+		switch {
+		case errors.Is(err, services.ErrVMNotFound):
+			http.Error(w, "vm not found", http.StatusNotFound)
+		case errors.Is(err, services.ErrVMRunning):
+			http.Error(w, "vm is running, shut it down first", http.StatusConflict)
+		case strings.HasPrefix(err.Error(), "invalid ssh key"):
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		default:
+			http.Error(w, "internal error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	logger.Infof("ssh key added to vm %s by %s", vmName, caller)
+	w.WriteHeader(http.StatusOK)
+}
+
 func addNoVNCVideo(w http.ResponseWriter, r *http.Request) {
 	vmName := chi.URLParam(r, "vm_name")
 	if vmName == "" {
@@ -2487,6 +2550,7 @@ func setupVirshAPI(r chi.Router) chi.Router {
 
 		r.Post("/change_vm_network/{vm_name}", changeVmNetwork)
 		r.Post("/change_vnc_password/{vm_name}", changeVmVncPassword)
+		r.Post("/add_ssh_key/{vm_name}", addSSHKey)
 		r.Post("/novncvideo/add/{vm_name}", addNoVNCVideo)
 		r.Post("/novncvideo/remove/{vm_name}", removeNoVNCVideo)
 		r.Get("/novncvideo/{vm_name}", getNoVNCVideo)

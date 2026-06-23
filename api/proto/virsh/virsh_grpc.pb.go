@@ -59,6 +59,7 @@ const (
 	SlaveVirshService_FreezeDisk_FullMethodName              = "/virsh.SlaveVirshService/FreezeDisk"
 	SlaveVirshService_UnFreezeDisk_FullMethodName            = "/virsh.SlaveVirshService/UnFreezeDisk"
 	SlaveVirshService_ChangeVmPassword_FullMethodName        = "/virsh.SlaveVirshService/ChangeVmPassword"
+	SlaveVirshService_AddSSHKey_FullMethodName               = "/virsh.SlaveVirshService/AddSSHKey"
 	SlaveVirshService_ApplyCPUPinning_FullMethodName         = "/virsh.SlaveVirshService/ApplyCPUPinning"
 	SlaveVirshService_RemoveCPUPinning_FullMethodName        = "/virsh.SlaveVirshService/RemoveCPUPinning"
 	SlaveVirshService_GetCPUPinning_FullMethodName           = "/virsh.SlaveVirshService/GetCPUPinning"
@@ -123,6 +124,7 @@ type SlaveVirshServiceClient interface {
 	FreezeDisk(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
 	UnFreezeDisk(ctx context.Context, in *Vm, opts ...grpc.CallOption) (*OkResponse, error)
 	ChangeVmPassword(ctx context.Context, in *ChangeVncPassword, opts ...grpc.CallOption) (*Empty, error)
+	AddSSHKey(ctx context.Context, in *AddSSHKeyRequest, opts ...grpc.CallOption) (*OkResponse, error)
 	// CPU Pinning
 	ApplyCPUPinning(ctx context.Context, in *CPUPinningRequest, opts ...grpc.CallOption) (*OkResponse, error)
 	RemoveCPUPinning(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*OkResponse, error)
@@ -551,6 +553,16 @@ func (c *slaveVirshServiceClient) ChangeVmPassword(ctx context.Context, in *Chan
 	return out, nil
 }
 
+func (c *slaveVirshServiceClient) AddSSHKey(ctx context.Context, in *AddSSHKeyRequest, opts ...grpc.CallOption) (*OkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OkResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_AddSSHKey_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *slaveVirshServiceClient) ApplyCPUPinning(ctx context.Context, in *CPUPinningRequest, opts ...grpc.CallOption) (*OkResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(OkResponse)
@@ -739,6 +751,7 @@ type SlaveVirshServiceServer interface {
 	FreezeDisk(context.Context, *Vm) (*OkResponse, error)
 	UnFreezeDisk(context.Context, *Vm) (*OkResponse, error)
 	ChangeVmPassword(context.Context, *ChangeVncPassword) (*Empty, error)
+	AddSSHKey(context.Context, *AddSSHKeyRequest) (*OkResponse, error)
 	// CPU Pinning
 	ApplyCPUPinning(context.Context, *CPUPinningRequest) (*OkResponse, error)
 	RemoveCPUPinning(context.Context, *GetVmByNameRequest) (*OkResponse, error)
@@ -886,6 +899,9 @@ func (UnimplementedSlaveVirshServiceServer) UnFreezeDisk(context.Context, *Vm) (
 }
 func (UnimplementedSlaveVirshServiceServer) ChangeVmPassword(context.Context, *ChangeVncPassword) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChangeVmPassword not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) AddSSHKey(context.Context, *AddSSHKeyRequest) (*OkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddSSHKey not implemented")
 }
 func (UnimplementedSlaveVirshServiceServer) ApplyCPUPinning(context.Context, *CPUPinningRequest) (*OkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ApplyCPUPinning not implemented")
@@ -1670,6 +1686,24 @@ func _SlaveVirshService_ChangeVmPassword_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SlaveVirshService_AddSSHKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddSSHKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).AddSSHKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_AddSSHKey_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).AddSSHKey(ctx, req.(*AddSSHKeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SlaveVirshService_ApplyCPUPinning_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CPUPinningRequest)
 	if err := dec(in); err != nil {
@@ -2088,6 +2122,10 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ChangeVmPassword",
 			Handler:    _SlaveVirshService_ChangeVmPassword_Handler,
+		},
+		{
+			MethodName: "AddSSHKey",
+			Handler:    _SlaveVirshService_AddSSHKey_Handler,
 		},
 		{
 			MethodName: "ApplyCPUPinning",

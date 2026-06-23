@@ -218,6 +218,13 @@ func (s *SlaveVirshService) ChangeVmPassword(ctx context.Context, req *grpcVirsh
 	return &grpcVirsh.Empty{}, nil
 }
 
+func (s *SlaveVirshService) AddSSHKey(ctx context.Context, req *grpcVirsh.AddSSHKeyRequest) (*grpcVirsh.OkResponse, error) {
+	if err := AddSSHKey(req.VmName, req.SshKey); err != nil {
+		return nil, err
+	}
+	return &grpcVirsh.OkResponse{Ok: true}, nil
+}
+
 func (s *SlaveVirshService) RemoveIsoFromVm(ctx context.Context, req *grpcVirsh.Vm) (*grpcVirsh.OkResponse, error) {
 	if err := RemoveIsoFromVM(req.Name); err != nil {
 		return nil, err
