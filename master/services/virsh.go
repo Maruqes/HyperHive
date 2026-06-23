@@ -1080,9 +1080,6 @@ func (v *VirshService) AddSSHKey(vmName, sshKey string) error {
 	if vm == nil {
 		return fmt.Errorf("%w: %s", ErrVMNotFound, vmName)
 	}
-	if vm.State != grpcVirsh.VmState_SHUTOFF {
-		return fmt.Errorf("%w: %s", ErrVMRunning, vmName)
-	}
 
 	slave := protocol.GetConnectionByMachineName(vm.MachineName)
 	if slave == nil || slave.Connection == nil {

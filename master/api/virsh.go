@@ -786,8 +786,6 @@ func addSSHKey(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, services.ErrVMNotFound):
 			http.Error(w, "vm not found", http.StatusNotFound)
-		case errors.Is(err, services.ErrVMRunning):
-			http.Error(w, "vm is running, shut it down first", http.StatusConflict)
 		case strings.HasPrefix(err.Error(), "invalid ssh key"):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		default:
