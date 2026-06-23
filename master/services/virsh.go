@@ -1089,6 +1089,20 @@ func (v *VirshService) AddSSHKey(vmName, sshKey string) error {
 	return virsh.AddSSHKey(slave.Connection, vmName, sshKey)
 }
 
+type AddSSHKeyResult struct {
+	VMName string `json:"vm_name"`
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
+}
+
+type AddSSHKeyBatchResult struct {
+	Total     int               `json:"total"`
+	Succeeded int               `json:"succeeded"`
+	Skipped   int               `json:"skipped"`
+	Failed    int               `json:"failed"`
+	Results   []AddSSHKeyResult `json:"results"`
+}
+
 func (v *VirshService) AddSSHKeyAll(ctx context.Context, sshKey string) (*AddSSHKeyBatchResult, error) {
 	if _, err := normalizeSSHPublicKey(sshKey); err != nil {
 		return nil, fmt.Errorf("invalid ssh key: %w", err)
