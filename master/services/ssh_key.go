@@ -11,28 +11,12 @@ var (
 	ErrVMRunning  = errors.New("vm is running")
 )
 
-const AllVMsTarget = "all-hyperhive-all"
-
 var supportedSSHKeyTypes = map[string]bool{
 	"ssh-rsa":             true,
 	"ssh-ed25519":         true,
 	"ecdsa-sha2-nistp256": true,
 	"ecdsa-sha2-nistp384": true,
 	"ecdsa-sha2-nistp521": true,
-}
-
-type AddSSHKeyResult struct {
-	VMName string `json:"vm_name"`
-	Status string `json:"status"`
-	Error  string `json:"error,omitempty"`
-}
-
-type AddSSHKeyBatchResult struct {
-	Total     int               `json:"total"`
-	Succeeded int               `json:"succeeded"`
-	Skipped   int               `json:"skipped"`
-	Failed    int               `json:"failed"`
-	Results   []AddSSHKeyResult `json:"results"`
 }
 
 func normalizeSSHPublicKey(sshKey string) (string, error) {
