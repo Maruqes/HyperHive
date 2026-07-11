@@ -85,6 +85,27 @@ func editNote(w http.ResponseWriter, r *http.Request) {
 	writeJSONWithStatus(w, http.StatusOK, note)
 }
 
+func deleteNote(w http.ResponseWriter, r *http.Request) {
+	id, ok := noteIDFromRequest(w, r)
+	if !ok {
+		return
+	}
+
+	if err := db.DeleteNoteByID(r.Context(), id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			http.Error(w, "note not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSONWithStatus(w, http.StatusOK, map[string]any{
+		"status": "deleted",
+		"id":     id,
+	})
+}
+
 func decodeNoteRequest(w http.ResponseWriter, r *http.Request) (noteRequest, bool) {
 	defer r.Body.Close()
 
@@ -121,5 +142,6 @@ func setupNotesAPI(r chi.Router) chi.Router {
 		r.Post("/", createNote)
 		r.Put("/{id}", editNote)
 		r.Patch("/{id}", editNote)
+		r.Delete("/{id}", deleteNote)
 	})
 }

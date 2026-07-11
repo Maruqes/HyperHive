@@ -136,3 +136,21 @@ func UpdateNoteByID(ctx context.Context, id int, titulo, nota string) (*Note, er
 	}
 	return &note, nil
 }
+
+func DeleteNoteByID(ctx context.Context, id int) error {
+	const query = `DELETE FROM notes WHERE id = ?;`
+
+	res, err := DB.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
