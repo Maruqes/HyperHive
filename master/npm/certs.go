@@ -93,7 +93,7 @@ func handleCertValidate(baseURL, token string, cert Cert) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 && resp.StatusCode != 201 {
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		b, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("cert validate failed (%d): %s", resp.StatusCode, b)
 	}
@@ -139,7 +139,7 @@ func certUpload(baseURL, token string, certID int, cert Cert) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 && resp.StatusCode != 201 {
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		b, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("cert upload failed (%d): %s", resp.StatusCode, b)
 	}
@@ -148,7 +148,17 @@ func certUpload(baseURL, token string, certID int, cert Cert) error {
 }
 
 func CreateCert(baseURL, token string, cert Cert) (int, error) {
-	//validate first then create it
+	if strings.TrimSpace(cert.Name) == "" {
+		return 0, fmt.Errorf("certificate name is required")
+	}
+	if len(cert.CertPem) == 0 {
+		return 0, fmt.Errorf("certificate file is required")
+	}
+	if len(cert.KeyPem) == 0 {
+		return 0, fmt.Errorf("certificate key file is required")
+	}
+
+	// Validate the files before creating the certificate record.
 	if err := handleCertValidate(baseURL+"/api/nginx/certificates/validate", token, cert); err != nil {
 		return 0, err
 	}
@@ -174,16 +184,24 @@ func CreateCert(baseURL, token string, cert Cert) (int, error) {
 		return 0, fmt.Errorf("create cert failed (%d): %s", resp.StatusCode, respBody)
 	}
 
-	//print body
-	id := -1
-	var respData map[string]any
-	if err := json.Unmarshal(respBody, &respData); err == nil {
-		if d, ok := respData["id"].(float64); ok {
-			id = int(d)
-		}
+	var created struct {
+		ID int `json:"id"`
+	}
+	if err := json.Unmarshal(respBody, &created); err != nil {
+		return 0, fmt.Errorf("invalid create cert response: %w", err)
+	}
+	if created.ID <= 0 {
+		return 0, fmt.Errorf("invalid certificate id in create response")
 	}
 
-	return id, nil
+	if err := certUpload(baseURL, token, created.ID, cert); err != nil {
+		if rollbackErr := DeleteCert(baseURL, token, created.ID); rollbackErr != nil {
+			return 0, fmt.Errorf("upload certificate: %w; rollback certificate %d: %w", err, created.ID, rollbackErr)
+		}
+		return 0, fmt.Errorf("upload certificate: %w (created certificate %d rolled back)", err, created.ID)
+	}
+
+	return created.ID, nil
 }
 
 type LetsEncryptCert struct {
@@ -339,6 +357,10 @@ func RenewCert(baseURL, token string, certID int) error {
 }
 
 func DeleteCert(baseURL, token string, certID int) error {
+	if certID <= 0 {
+		return fmt.Errorf("invalid certificate id")
+	}
+
 	resp, err := MakeRequest(http.MethodDelete, fmt.Sprintf("%s/api/nginx/certificates/%d", baseURL, certID), token, nil, 60)
 	if err != nil {
 		return err
