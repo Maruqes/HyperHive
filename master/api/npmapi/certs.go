@@ -91,14 +91,14 @@ func createCert(w http.ResponseWriter, r *http.Request) {
 
 	loginToken := GetTokenFromContext(r)
 
-	id, createErr := npm.CreateCert(baseURL, loginToken, cert)
+	created, createErr := npm.CreateCertDetails(baseURL, loginToken, cert)
 	if createErr != nil {
 		http.Error(w, "failed to create certificate", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"id": id})
+	json.NewEncoder(w).Encode(created)
 }
 
 func createCertLetsEncrypt(w http.ResponseWriter, r *http.Request) {

@@ -3,6 +3,7 @@ package npmapi
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"mime/multipart"
 	"net/http"
@@ -10,6 +11,44 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestCreateCertReturnsPostUploadMetadata(t *testing.T) {
+	originalBaseURL := baseURL
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/nginx/certificates/validate":
+			w.WriteHeader(http.StatusOK)
+		case r.URL.Path == "/api/nginx/certificates" && r.Method == http.MethodPost:
+			fmt.Fprint(w, `{"id":31}`)
+		case r.URL.Path == "/api/nginx/certificates/31/upload":
+			fmt.Fprint(w, `{"id":31,"nice_name":"manual cert","provider":"other","domain_names":["handler.example"],"expires_on":"2037-03-04 05:06:07"}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	baseURL = server.URL
+	defer func() { baseURL = originalBaseURL }()
+
+	req := newCertRequest(t, true, "manual cert", "certPem", []byte("cert"), "keyPem", []byte("key"), "", nil)
+	response := httptest.NewRecorder()
+	createCert(response, req)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("response status = %d, body = %q", response.Code, response.Body.String())
+	}
+	var payload struct {
+		ID          int      `json:"id"`
+		DomainNames []string `json:"domain_names"`
+		ExpiresOn   string   `json:"expires_on"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.ID != 31 || payload.ExpiresOn != "2037-03-04 05:06:07" || len(payload.DomainNames) != 1 || payload.DomainNames[0] != "handler.example" {
+		t.Fatalf("response payload = %#v, want post-upload metadata", payload)
+	}
+}
 
 func TestCreateCertRequiresNameAndNonemptyFiles(t *testing.T) {
 	for _, test := range []struct {
