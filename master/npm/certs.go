@@ -2,13 +2,12 @@ package npm
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
-	"net/textproto"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -40,117 +39,127 @@ type Certificate struct {
 	RawCertData   json.RawMessage `json:"certificate"`
 }
 
-func addPart(fieldName, filename, contentType string, data []byte, w *multipart.Writer) error {
-	h := make(textproto.MIMEHeader)
-	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fieldName, filename))
-	if contentType != "" {
-		h.Set("Content-Type", contentType)
+// UnmarshalJSON retains the legacy UpdatedOn field while accepting NPM's
+// actual modified_on field. Marshaling Certificate remains unchanged.
+func (c *Certificate) UnmarshalJSON(data []byte) error {
+	type certificateAlias Certificate
+	var decoded struct {
+		certificateAlias
+		ModifiedOn string `json:"modified_on"`
 	}
-	part, err := w.CreatePart(h)
-	if err != nil {
+	if err := json.Unmarshal(data, &decoded); err != nil {
 		return err
 	}
-	_, err = part.Write(data)
-	return err
+	*c = Certificate(decoded.certificateAlias)
+	if decoded.ModifiedOn != "" {
+		c.UpdatedOn = decoded.ModifiedOn
+	}
+	return nil
+}
+
+// CertificateDetails is the additive response returned after creating a
+// manual certificate.
+type CertificateDetails struct {
+	ID            int             `json:"id"`
+	OwnerUserID   int             `json:"owner_user_id,omitempty"`
+	OwnerTeamID   int             `json:"owner_team_id,omitempty"`
+	NiceName      string          `json:"nice_name,omitempty"`
+	Provider      string          `json:"provider,omitempty"`
+	Status        string          `json:"status,omitempty"`
+	DomainNames   []string        `json:"domain_names,omitempty"`
+	ExpiresOn     string          `json:"expires_on,omitempty"`
+	CreatedOn     string          `json:"created_on,omitempty"`
+	ModifiedOn    string          `json:"modified_on,omitempty"`
+	Meta          map[string]any  `json:"meta,omitempty"`
+	RequestConfig json.RawMessage `json:"request_config,omitempty"`
+	RawCertData   json.RawMessage `json:"certificate,omitempty"`
 }
 
 func handleCertValidate(baseURL, token string, cert Cert) error {
-	var body bytes.Buffer
-	w := multipart.NewWriter(&body)
-
-	// Match the field names & filenames from your example
-	if err := addPart("certificate", "cert.crt", "application/x-x509-ca-cert", cert.CertPem, w); err != nil {
-		return err
-	}
-	if err := addPart("certificate_key", "cert.key", "application/vnd.apple.keynote", cert.KeyPem, w); err != nil { // NPM doesn't care; type can be octet-stream too
-		return err
-	}
-	if len(cert.IntermediateCSR) > 0 {
-		if err := addPart("intermediate_certificate", "cert.csr", "application/octet-stream", cert.IntermediateCSR, w); err != nil {
-			return err
-		}
-	}
-
-	if err := w.Close(); err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, baseURL, &body)
+	body, contentType, err := buildCertificateMultipart(cert)
 	if err != nil {
-		return err
+		return newCertOperationError("validate", 0, "multipart", err)
 	}
-	// Required headers
+	req, err := http.NewRequest(http.MethodPost, baseURL, body)
+	if err != nil {
+		return newCertOperationError("validate", 0, "request", err)
+	}
 	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", w.FormDataContentType())
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	resp, err := client.Do(req.WithContext(ctx))
+	req.Header.Set("Content-Type", contentType)
+	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
 	if err != nil {
-		return err
+		return newCertOperationError("validate", 0, "transport", err)
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		b, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("cert validate failed (%d): %s", resp.StatusCode, b)
+	// NPM 2.13.5 defines both manual-certificate multipart calls as HTTP 200
+	// JSON contracts; other 2xx responses do not prove validation succeeded.
+	if resp.StatusCode != http.StatusOK {
+		return newCertOperationError("validate", resp.StatusCode, "status", nil)
+	}
+	var validated struct {
+		Certificate    map[string]json.RawMessage `json:"certificate"`
+		CertificateKey bool                       `json:"certificate_key"`
+	}
+	if err := decodeSingleJSON(resp.Body, &validated); err != nil || len(validated.Certificate) == 0 || !validated.CertificateKey {
+		return newCertOperationError("validate", resp.StatusCode, "contract", err)
 	}
 	return nil
 }
 
 func certUpload(baseURL, token string, certID int, cert Cert) error {
-	var body bytes.Buffer
-	w := multipart.NewWriter(&body)
-
-	// Match the field names & filenames from your example
-	if err := addPart("certificate", "cert.crt", "application/x-x509-ca-cert", cert.CertPem, w); err != nil {
-		return err
-	}
-	if err := addPart("certificate_key", "cert.key", "application/vnd.apple.keynote", cert.KeyPem, w); err != nil { // NPM doesn't care; type can be octet-stream too
-		return err
-	}
-	if len(cert.IntermediateCSR) > 0 {
-		if err := addPart("intermediate_certificate", "cert.csr", "application/octet-stream", cert.IntermediateCSR, w); err != nil {
-			return err
-		}
-	}
-
-	if err := w.Close(); err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/nginx/certificates/%d/upload", baseURL, certID), &body)
+	body, contentType, err := buildCertificateMultipart(cert)
 	if err != nil {
-		return err
+		return newCertOperationError("upload", 0, "multipart", err)
 	}
-	// Required headers
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/nginx/certificates/%d/upload", baseURL, certID), body)
+	if err != nil {
+		return newCertOperationError("upload", 0, "request", err)
+	}
 	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", w.FormDataContentType())
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	resp, err := client.Do(req.WithContext(ctx))
+	req.Header.Set("Content-Type", contentType)
+	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
 	if err != nil {
-		return err
+		return newCertOperationError("upload", 0, "transport", err)
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		b, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("cert upload failed (%d): %s", resp.StatusCode, b)
+	// The NPM 2.13.5 upload contract is exactly HTTP 200 plus echoed PEM JSON.
+	if resp.StatusCode != http.StatusOK {
+		return newCertOperationError("upload", resp.StatusCode, "status", nil)
 	}
-
+	var uploaded uploadedCertificatePEM
+	if err := decodeSingleJSON(resp.Body, &uploaded); err != nil {
+		return newCertOperationError("upload", resp.StatusCode, "contract", err)
+	}
+	if uploaded.Certificate == nil || uploaded.CertificateKey == nil ||
+		!bytes.Equal([]byte(*uploaded.Certificate), cert.CertPem) ||
+		!bytes.Equal([]byte(*uploaded.CertificateKey), cert.KeyPem) ||
+		!optionalUploadedPEMMatches(uploaded.IntermediateCertificate, cert.IntermediateCSR) {
+		return newCertOperationError("upload", resp.StatusCode, "content-mismatch", nil)
+	}
 	return nil
 }
 
 func CreateCert(baseURL, token string, cert Cert) (int, error) {
-	//validate first then create it
-	if err := handleCertValidate(baseURL+"/api/nginx/certificates/validate", token, cert); err != nil {
+	created, err := CreateCertDetails(baseURL, token, cert)
+	if err != nil {
 		return 0, err
+	}
+	return created.ID, nil
+}
+
+// CreateCertDetails creates and uploads a manual certificate and returns the
+// certificate metadata reported by NPM after the upload.
+func CreateCertDetails(baseURL, token string, cert Cert) (CertificateDetails, error) {
+	if strings.TrimSpace(cert.Name) == "" {
+		return CertificateDetails{}, newCertValidationError("certificate name is required")
+	}
+	normalized, leaf, err := normalizeCertificate(cert)
+	if err != nil {
+		return CertificateDetails{}, err
+	}
+
+	if err := handleCertValidate(baseURL+"/api/nginx/certificates/validate", token, normalized); err != nil {
+		return CertificateDetails{}, err
 	}
 
 	//send {"nice_name":"aaaa","provider":"other"}
@@ -160,30 +169,139 @@ func CreateCert(baseURL, token string, cert Cert) (int, error) {
 	}
 	payload, err := json.Marshal(data)
 	if err != nil {
-		return 0, err
+		return CertificateDetails{}, err
 	}
 
 	resp, err := MakeRequest("POST", baseURL+"/api/nginx/certificates", token, bytes.NewReader(payload), 30)
 	if err != nil {
-		return 0, err
+		return CertificateDetails{}, newCertOperationError("create", 0, "transport", err)
 	}
 	defer resp.Body.Close()
 
-	respBody, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		return 0, fmt.Errorf("create cert failed (%d): %s", resp.StatusCode, respBody)
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return CertificateDetails{}, newCertOperationError("create", resp.StatusCode, "status", nil)
 	}
 
-	//print body
-	id := -1
-	var respData map[string]any
-	if err := json.Unmarshal(respBody, &respData); err == nil {
-		if d, ok := respData["id"].(float64); ok {
-			id = int(d)
+	createdID, err := decodeCreatedCertificateID(resp.Body)
+	if err != nil {
+		responseErr := newCertOperationError("create", resp.StatusCode, "response", err)
+		if createdID > 0 {
+			return CertificateDetails{}, rollbackCreatedCertificate(baseURL, token, createdID, responseErr)
 		}
+		return CertificateDetails{}, responseErr
+	}
+	if createdID <= 0 {
+		return CertificateDetails{}, newCertOperationError("create", resp.StatusCode, "response", nil)
 	}
 
+	if err := certUpload(baseURL, token, createdID, normalized); err != nil {
+		return CertificateDetails{}, rollbackCreatedCertificate(baseURL, token, createdID, err)
+	}
+
+	confirmed, err := confirmCertificate(baseURL, token, createdID, leaf.NotAfter)
+	if err != nil {
+		return CertificateDetails{}, rollbackCreatedCertificate(baseURL, token, createdID, err)
+	}
+	return newCertificateDetails(confirmed), nil
+}
+
+func decodeCreatedCertificateID(r io.Reader) (int, error) {
+	decoder := json.NewDecoder(r)
+	decoder.UseNumber()
+	token, err := decoder.Token()
+	if err != nil {
+		return 0, err
+	}
+	if delimiter, ok := token.(json.Delim); !ok || delimiter != '{' {
+		return 0, fmt.Errorf("create response is not an object")
+	}
+
+	id := 0
+	seenID := false
+	for decoder.More() {
+		keyToken, err := decoder.Token()
+		if err != nil {
+			return id, err
+		}
+		key, ok := keyToken.(string)
+		if !ok {
+			return id, fmt.Errorf("invalid create response field")
+		}
+		if key != "id" {
+			var ignored json.RawMessage
+			if err := decoder.Decode(&ignored); err != nil {
+				return id, err
+			}
+			continue
+		}
+		if seenID {
+			return id, fmt.Errorf("duplicate certificate id")
+		}
+		seenID = true
+		var number json.Number
+		if err := decoder.Decode(&number); err != nil {
+			return id, err
+		}
+		parsed, err := strconv.ParseInt(string(number), 10, 0)
+		if err != nil {
+			return id, fmt.Errorf("invalid certificate id")
+		}
+		id = int(parsed)
+	}
+	if _, err := decoder.Token(); err != nil {
+		return id, err
+	}
+	var extra any
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		if err == nil {
+			return id, fmt.Errorf("multiple create response values")
+		}
+		return id, err
+	}
 	return id, nil
+}
+
+func newCertificateDetails(cert Certificate) CertificateDetails {
+	return CertificateDetails{
+		ID:            cert.ID,
+		OwnerUserID:   cert.OwnerUserID,
+		OwnerTeamID:   cert.OwnerTeamID,
+		NiceName:      cert.NiceName,
+		Provider:      cert.Provider,
+		Status:        cert.Status,
+		DomainNames:   cert.DomainNames,
+		ExpiresOn:     cert.ExpiresOn,
+		CreatedOn:     cert.CreatedOn,
+		ModifiedOn:    cert.UpdatedOn,
+		Meta:          cert.Meta,
+		RequestConfig: cert.RequestConfig,
+		RawCertData:   cert.RawCertData,
+	}
+}
+
+func getCertificate(baseURL, token string, certID int) (Certificate, error) {
+	resp, err := MakeRequest(http.MethodGet, fmt.Sprintf("%s/api/nginx/certificates/%d", baseURL, certID), token, nil, 60)
+	if err != nil {
+		return Certificate{}, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return Certificate{}, err
+	}
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return Certificate{}, newCertOperationError("confirm", resp.StatusCode, "status", nil)
+	}
+
+	var cert Certificate
+	if err := json.Unmarshal(body, &cert); err != nil {
+		return Certificate{}, newCertOperationError("confirm", resp.StatusCode, "contract", err)
+	}
+	if cert.ID <= 0 {
+		return Certificate{}, newCertOperationError("confirm", resp.StatusCode, "contract", nil)
+	}
+	return cert, nil
 }
 
 type LetsEncryptCert struct {
@@ -339,6 +457,10 @@ func RenewCert(baseURL, token string, certID int) error {
 }
 
 func DeleteCert(baseURL, token string, certID int) error {
+	if certID <= 0 {
+		return fmt.Errorf("invalid certificate id")
+	}
+
 	resp, err := MakeRequest(http.MethodDelete, fmt.Sprintf("%s/api/nginx/certificates/%d", baseURL, certID), token, nil, 60)
 	if err != nil {
 		return err

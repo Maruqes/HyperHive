@@ -9,8 +9,11 @@ import (
 	"net/http"
 	"strings"
 
+	logger "github.com/Maruqes/512SvMan/logger"
 	"github.com/go-chi/chi/v5"
 )
+
+const maxManualCertBodyBytes int64 = 32 << 20
 
 func readFormFile(r *http.Request, fieldNames ...string) ([]byte, error) {
 	for _, field := range fieldNames {
@@ -32,20 +35,41 @@ func readFormFile(r *http.Request, fieldNames ...string) ([]byte, error) {
 }
 
 func createCert(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseMultipartForm(32 << 20); err != nil { // 32MB upper bound
-		http.Error(w, "invalid multipart form: "+err.Error(), http.StatusBadRequest)
+	r.Body = http.MaxBytesReader(w, r.Body, maxManualCertBodyBytes)
+	if err := r.ParseMultipartForm(maxManualCertBodyBytes); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			http.Error(w, "multipart form exceeds 32 MiB limit", http.StatusRequestEntityTooLarge)
+			return
+		}
+		http.Error(w, "invalid multipart form", http.StatusBadRequest)
+		return
+	}
+	defer r.MultipartForm.RemoveAll()
+
+	name := strings.TrimSpace(r.FormValue("name"))
+	if name == "" {
+		http.Error(w, "name is required", http.StatusBadRequest)
 		return
 	}
 
 	certPem, err := readFormFile(r, "certPem", "cert_pem", "certificate")
 	if err != nil {
-		http.Error(w, "missing certificate: "+err.Error(), http.StatusBadRequest)
+		http.Error(w, "missing certificate", http.StatusBadRequest)
+		return
+	}
+	if len(certPem) == 0 {
+		http.Error(w, "certificate must not be empty", http.StatusBadRequest)
 		return
 	}
 
 	keyPem, err := readFormFile(r, "keyPem", "key_pem", "certificate_key")
 	if err != nil {
-		http.Error(w, "missing key: "+err.Error(), http.StatusBadRequest)
+		http.Error(w, "missing key", http.StatusBadRequest)
+		return
+	}
+	if len(keyPem) == 0 {
+		http.Error(w, "key must not be empty", http.StatusBadRequest)
 		return
 	}
 
@@ -60,7 +84,7 @@ func createCert(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cert := npm.Cert{
-		Name:            r.FormValue("name"),
+		Name:            name,
 		CertPem:         certPem,
 		KeyPem:          keyPem,
 		IntermediateCSR: intermediateCSR,
@@ -68,14 +92,20 @@ func createCert(w http.ResponseWriter, r *http.Request) {
 
 	loginToken := GetTokenFromContext(r)
 
-	id, createErr := npm.CreateCert(baseURL, loginToken, cert)
+	created, createErr := npm.CreateCertDetails(baseURL, loginToken, cert)
 	if createErr != nil {
-		http.Error(w, "failed to create cert: "+createErr.Error(), http.StatusInternalServerError)
+		stage, category, status := npm.CertFailureInfo(createErr)
+		logger.Errorf("manual certificate creation failed: stage=%s category=%s status=%d", stage, category, status)
+		if errors.Is(createErr, npm.ErrCertValidation) {
+			http.Error(w, "invalid certificate upload", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, "failed to create certificate", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"id": id})
+	json.NewEncoder(w).Encode(created)
 }
 
 func createCertLetsEncrypt(w http.ResponseWriter, r *http.Request) {
@@ -223,7 +253,7 @@ func deleteCert(w http.ResponseWriter, r *http.Request) {
 
 	loginToken := GetTokenFromContext(r)
 	if err := npm.DeleteCert(baseURL, loginToken, payload.ID); err != nil {
-		http.Error(w, "failed to delete cert: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "failed to delete certificate", http.StatusInternalServerError)
 		return
 	}
 
