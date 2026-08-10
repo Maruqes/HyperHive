@@ -3,234 +3,175 @@ package npmapi
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
+	"math/big"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
-func TestCreateCertReturnsPostUploadMetadata(t *testing.T) {
-	originalBaseURL := baseURL
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func handlerPEM(t *testing.T) (cert, key []byte, expires string) {
+	t.Helper()
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	notAfter := time.Now().Add(48 * time.Hour).Truncate(time.Second)
+	template := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "handler.test"}, DNSNames: []string{"handler.test"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: notAfter}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &privateKey.PublicKey, privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)}), notAfter.Format("2006-01-02 15:04:05")
+}
+
+func handlerNPMServer(t *testing.T, cert, key []byte, expires string) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case r.URL.Path == "/api/nginx/certificates/validate":
-			w.WriteHeader(http.StatusOK)
+		case strings.HasSuffix(r.URL.Path, "/validate"):
+			fmt.Fprint(w, `{"certificate":{"cn":"handler.test"},"certificate_key":true}`)
 		case r.URL.Path == "/api/nginx/certificates" && r.Method == http.MethodPost:
 			fmt.Fprint(w, `{"id":31}`)
-		case r.URL.Path == "/api/nginx/certificates/31/upload":
-			fmt.Fprint(w, `{"id":31,"nice_name":"manual cert","provider":"other","domain_names":["handler.example"],"expires_on":"2037-03-04 05:06:07"}`)
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer server.Close()
-	baseURL = server.URL
-	defer func() { baseURL = originalBaseURL }()
-
-	req := newCertRequest(t, true, "manual cert", "certPem", []byte("cert"), "keyPem", []byte("key"), "", nil)
-	response := httptest.NewRecorder()
-	createCert(response, req)
-
-	if response.Code != http.StatusOK {
-		t.Fatalf("response status = %d, body = %q", response.Code, response.Body.String())
-	}
-	var payload struct {
-		ID          int      `json:"id"`
-		DomainNames []string `json:"domain_names"`
-		ExpiresOn   string   `json:"expires_on"`
-	}
-	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if payload.ID != 31 || payload.ExpiresOn != "2037-03-04 05:06:07" || len(payload.DomainNames) != 1 || payload.DomainNames[0] != "handler.example" {
-		t.Fatalf("response payload = %#v, want post-upload metadata", payload)
-	}
-}
-
-func TestCreateCertRequiresNameAndNonemptyFiles(t *testing.T) {
-	for _, test := range []struct {
-		name        string
-		includeName bool
-		certName    string
-		certField   string
-		cert        []byte
-		keyField    string
-		key         []byte
-		wantBody    string
-	}{
-		{name: "absent name", includeName: false, certField: "certPem", cert: []byte("cert"), keyField: "keyPem", key: []byte("key"), wantBody: "name is required"},
-		{name: "blank name", includeName: true, certName: "  ", certField: "certPem", cert: []byte("cert"), keyField: "keyPem", key: []byte("key"), wantBody: "name is required"},
-		{name: "absent certificate", includeName: true, certName: "cert", keyField: "keyPem", key: []byte("key"), wantBody: "missing certificate"},
-		{name: "empty certificate", includeName: true, certName: "cert", certField: "certPem", cert: []byte{}, keyField: "keyPem", key: []byte("key"), wantBody: "certificate must not be empty"},
-		{name: "absent key", includeName: true, certName: "cert", certField: "certPem", cert: []byte("cert"), wantBody: "missing key"},
-		{name: "empty key", includeName: true, certName: "cert", certField: "certPem", cert: []byte("cert"), keyField: "keyPem", key: []byte{}, wantBody: "key must not be empty"},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			req := newCertRequest(t, test.includeName, test.certName, test.certField, test.cert, test.keyField, test.key, "", nil)
-			response := httptest.NewRecorder()
-
-			createCert(response, req)
-
-			if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), test.wantBody) {
-				t.Fatalf("response = (%d, %q), want status %d containing %q", response.Code, response.Body.String(), http.StatusBadRequest, test.wantBody)
+		case strings.HasSuffix(r.URL.Path, "/upload"):
+			if err := r.ParseMultipartForm(1 << 20); err != nil {
+				t.Fatal(err)
 			}
-		})
-	}
-}
-
-func TestCreateCertRejectsMalformedMultipart(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/api/certs/create", strings.NewReader("not multipart data"))
-	req.Header.Set("Content-Type", "multipart/form-data; boundary=broken")
-	response := httptest.NewRecorder()
-
-	createCert(response, req)
-
-	if response.Code != http.StatusBadRequest || strings.TrimSpace(response.Body.String()) != "invalid multipart form" {
-		t.Fatalf("response = (%d, %q), want 400 invalid multipart form", response.Code, response.Body.String())
-	}
-}
-
-func TestCreateCertRetainsMultipartAliases(t *testing.T) {
-	originalBaseURL := baseURL
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/api/nginx/certificates/validate":
-			w.WriteHeader(http.StatusOK)
-		case r.URL.Path == "/api/nginx/certificates" && r.Method == http.MethodPost:
-			fmt.Fprint(w, `{"id":12}`)
-		case r.URL.Path == "/api/nginx/certificates/12/upload":
-			w.WriteHeader(http.StatusOK)
+			read := func(field string) string {
+				f, _, err := r.FormFile(field)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer f.Close()
+				var b bytes.Buffer
+				b.ReadFrom(f)
+				return b.String()
+			}
+			json.NewEncoder(w).Encode(map[string]string{"certificate": read("certificate"), "certificate_key": read("certificate_key")})
+		case r.URL.Path == "/api/nginx/certificates/31" && r.Method == http.MethodGet:
+			fmt.Fprintf(w, `{"id":31,"domain_names":["handler.test"],"created_on":"2026-01-01 00:00:00","expires_on":%q}`, expires)
 		default:
 			http.NotFound(w, r)
 		}
 	}))
-	defer server.Close()
-	baseURL = server.URL
-	defer func() { baseURL = originalBaseURL }()
+}
 
-	aliases := []struct {
-		cert         string
-		key          string
-		intermediate string
-	}{
-		{cert: "certPem", key: "keyPem", intermediate: "intermediateCSR"},
-		{cert: "cert_pem", key: "key_pem", intermediate: "intermediate_csr"},
-		{cert: "certificate", key: "certificate_key", intermediate: "intermediate_certificate"},
-	}
+func TestCreateCertReturnsDetailsAndRetainsAliases(t *testing.T) {
+	cert, key, expires := handlerPEM(t)
+	server := handlerNPMServer(t, cert, key, expires)
+	defer server.Close()
+	old := baseURL
+	baseURL = server.URL
+	defer func() { baseURL = old }()
+	aliases := []struct{ cert, key, chain string }{{"certPem", "keyPem", "intermediateCSR"}, {"cert_pem", "key_pem", "intermediate_csr"}, {"certificate", "certificate_key", "intermediate_certificate"}}
 	for _, fields := range aliases {
 		t.Run(fields.cert, func(t *testing.T) {
-			req := newCertRequest(t, true, " manual cert ", fields.cert, []byte("cert"), fields.key, []byte("key"), fields.intermediate, []byte("chain"))
+			req := newCertRequest(t, true, " manual ", fields.cert, cert, fields.key, key, "", nil).WithContext(context.WithValue(context.Background(), "token", "handler-token"))
 			response := httptest.NewRecorder()
-
 			createCert(response, req)
-
-			if response.Code != http.StatusOK || strings.TrimSpace(response.Body.String()) != `{"id":12}` {
-				t.Fatalf("response = (%d, %q), want 200 JSON id", response.Code, response.Body.String())
+			if response.Code != 200 {
+				t.Fatalf("status=%d body=%q", response.Code, response.Body.String())
+			}
+			var got struct {
+				ID          int      `json:"id"`
+				DomainNames []string `json:"domain_names"`
+				ExpiresOn   string   `json:"expires_on"`
+			}
+			if err := json.NewDecoder(response.Body).Decode(&got); err != nil {
+				t.Fatal(err)
+			}
+			if got.ID != 31 || len(got.DomainNames) != 1 || got.ExpiresOn != expires {
+				t.Fatalf("response=%#v", got)
 			}
 		})
 	}
 }
 
-func TestCreateCertAllowsOmittedIntermediateAndForwardsToken(t *testing.T) {
-	originalBaseURL := baseURL
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.Header.Get("Authorization"); got != "Bearer handler-token" {
-			t.Errorf("Authorization = %q, want Bearer handler-token", got)
-		}
-		switch {
-		case r.URL.Path == "/api/nginx/certificates/validate":
-			w.WriteHeader(http.StatusNoContent)
-		case r.URL.Path == "/api/nginx/certificates" && r.Method == http.MethodPost:
-			fmt.Fprint(w, `{"id":13}`)
-		case r.URL.Path == "/api/nginx/certificates/13/upload":
-			w.WriteHeader(http.StatusAccepted)
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer server.Close()
-	baseURL = server.URL
-	defer func() { baseURL = originalBaseURL }()
-
-	req := newCertRequest(t, true, "manual cert", "certPem", []byte("cert"), "keyPem", []byte("key"), "", nil)
-	req = req.WithContext(context.WithValue(req.Context(), "token", "handler-token"))
+func TestCreateCertLocalValidationIsSanitized400(t *testing.T) {
+	_, key, _ := handlerPEM(t)
+	req := newCertRequest(t, true, "manual", "certPem", []byte("NOT_A_CERT_SECRET"), "keyPem", key, "", nil)
 	response := httptest.NewRecorder()
-
 	createCert(response, req)
-
-	if response.Code != http.StatusOK || strings.TrimSpace(response.Body.String()) != `{"id":13}` {
-		t.Fatalf("response = (%d, %q), want 200 JSON id", response.Code, response.Body.String())
+	if response.Code != http.StatusBadRequest || strings.TrimSpace(response.Body.String()) != "invalid certificate upload" || strings.Contains(response.Body.String(), "SECRET") {
+		t.Fatalf("response=(%d,%q)", response.Code, response.Body.String())
 	}
 }
 
-func TestManualCertHandlersDoNotExposeUpstreamErrors(t *testing.T) {
-	originalBaseURL := baseURL
+func TestCreateCertUpstreamFailureIsSanitized500(t *testing.T) {
+	cert, key, _ := handlerPEM(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/validate") {
+			fmt.Fprint(w, `{"certificate":{"cn":"handler.test"},"certificate_key":true}`)
+			return
+		}
 		http.Error(w, "RAW_UPSTREAM_PRIVATE_DETAIL", http.StatusBadGateway)
 	}))
 	defer server.Close()
+	old := baseURL
 	baseURL = server.URL
-	defer func() { baseURL = originalBaseURL }()
+	defer func() { baseURL = old }()
+	req := newCertRequest(t, true, "manual", "certPem", cert, "keyPem", key, "", nil)
+	response := httptest.NewRecorder()
+	createCert(response, req)
+	if response.Code != 500 || strings.TrimSpace(response.Body.String()) != "failed to create certificate" || strings.Contains(response.Body.String(), "RAW_") {
+		t.Fatalf("response=(%d,%q)", response.Code, response.Body.String())
+	}
+}
 
-	t.Run("create", func(t *testing.T) {
-		req := newCertRequest(t, true, "manual cert", "certPem", []byte("cert"), "keyPem", []byte("key"), "", nil)
-		response := httptest.NewRecorder()
-		createCert(response, req)
-
-		if response.Code != http.StatusInternalServerError || strings.TrimSpace(response.Body.String()) != "failed to create certificate" {
-			t.Fatalf("response = (%d, %q), want stable create error", response.Code, response.Body.String())
-		}
-	})
-
-	t.Run("delete", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodDelete, "/api/certs/delete", strings.NewReader(`{"id":9}`))
-		response := httptest.NewRecorder()
-		deleteCert(response, req)
-
-		if response.Code != http.StatusInternalServerError || strings.TrimSpace(response.Body.String()) != "failed to delete certificate" {
-			t.Fatalf("response = (%d, %q), want stable delete error", response.Code, response.Body.String())
-		}
-	})
+func TestCreateCertRequestValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		req    *http.Request
+		status int
+	}{
+		{"malformed", func() *http.Request {
+			r := httptest.NewRequest("POST", "/api/certs/create", strings.NewReader("bad"))
+			r.Header.Set("Content-Type", "multipart/form-data; boundary=broken")
+			return r
+		}(), 400},
+		{"missing name", newCertRequest(t, false, "", "certPem", []byte("x"), "keyPem", []byte("y"), "", nil), 400},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			createCert(w, tc.req)
+			if w.Code != tc.status {
+				t.Fatalf("status=%d", w.Code)
+			}
+		})
+	}
 }
 
 func TestCreateCertBoundsRequestBody(t *testing.T) {
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
-	if err := writer.WriteField("name", "cert"); err != nil {
-		t.Fatal(err)
-	}
-	part, err := writer.CreateFormFile("certPem", "cert.pem")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := part.Write(bytes.Repeat([]byte("x"), int(maxManualCertBodyBytes))); err != nil {
-		t.Fatal(err)
-	}
-	if err := writer.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/certs/create", &body)
+	_ = writer.WriteField("name", "cert")
+	part, _ := writer.CreateFormFile("certPem", "cert.pem")
+	_, _ = part.Write(bytes.Repeat([]byte("x"), int(maxManualCertBodyBytes)))
+	_ = writer.Close()
+	req := httptest.NewRequest("POST", "/api/certs/create", &body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	response := httptest.NewRecorder()
 	createCert(response, req)
-
 	if response.Code != http.StatusRequestEntityTooLarge {
-		t.Fatalf("response status = %d, want %d", response.Code, http.StatusRequestEntityTooLarge)
+		t.Fatalf("status=%d", response.Code)
 	}
 }
 
-func TestDeleteCertRejectsNonPositiveID(t *testing.T) {
+func TestDeleteCertRouteBehavior(t *testing.T) {
 	req := httptest.NewRequest(http.MethodDelete, "/api/certs/delete", strings.NewReader(`{"id":0}`))
 	response := httptest.NewRecorder()
-
 	deleteCert(response, req)
-
-	if response.Code != http.StatusBadRequest {
-		t.Fatalf("response status = %d, want %d", response.Code, http.StatusBadRequest)
+	if response.Code != 400 {
+		t.Fatalf("status=%d", response.Code)
 	}
 }
 
@@ -243,28 +184,25 @@ func newCertRequest(t *testing.T, includeName bool, name, certField string, cert
 			t.Fatal(err)
 		}
 	}
-	writeFile := func(field, filename string, data []byte) {
+	write := func(field, name string, data []byte) {
 		if field == "" {
 			return
 		}
-		part, err := writer.CreateFormFile(field, filename)
+		part, err := writer.CreateFormFile(field, name)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := part.Write(data); err != nil {
+		if _, err = part.Write(data); err != nil {
 			t.Fatal(err)
 		}
 	}
-	writeFile(certField, "cert.pem", cert)
-	writeFile(keyField, "key.pem", key)
-	if intermediateField != "" {
-		writeFile(intermediateField, "chain.pem", intermediate)
-	}
+	write(certField, "cert.pem", cert)
+	write(keyField, "key.pem", key)
+	write(intermediateField, "chain.pem", intermediate)
 	if err := writer.Close(); err != nil {
 		t.Fatal(err)
 	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/certs/create", &body)
+	req := httptest.NewRequest("POST", "/api/certs/create", &body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	return req
 }

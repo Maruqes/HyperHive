@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 
+	logger "github.com/Maruqes/512SvMan/logger"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -93,6 +94,12 @@ func createCert(w http.ResponseWriter, r *http.Request) {
 
 	created, createErr := npm.CreateCertDetails(baseURL, loginToken, cert)
 	if createErr != nil {
+		stage, category, status := npm.CertFailureInfo(createErr)
+		logger.Errorf("manual certificate creation failed: stage=%s category=%s status=%d", stage, category, status)
+		if errors.Is(createErr, npm.ErrCertValidation) {
+			http.Error(w, "invalid certificate upload", http.StatusBadRequest)
+			return
+		}
 		http.Error(w, "failed to create certificate", http.StatusInternalServerError)
 		return
 	}
