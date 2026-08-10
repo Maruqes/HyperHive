@@ -1,0 +1,12 @@
+	github.com/Maruqes/512SvMan/api/proto/btrfs		coverage: 0.0% of statements
+	github.com/Maruqes/512SvMan/api/proto/docker		coverage: 0.0% of statements
+	github.com/Maruqes/512SvMan/api/proto/extra		coverage: 0.0% of statements
+	github.com/Maruqes/512SvMan/api/proto/info		coverage: 0.0% of statements
+	github.com/Maruqes/512SvMan/api/proto/k8s		coverage: 0.0% of statements
+	github.com/Maruqes/512SvMan/api/proto/logsserve		coverage: 0.0% of statements
+	github.com/Maruqes/512SvMan/api/proto/nfs		coverage: 0.0% of statements
+	github.com/Maruqes/512SvMan/api/proto/pci		coverage: 0.0% of statements
+	github.com/Maruqes/512SvMan/api/proto/protocol		coverage: 0.0% of statements
+	github.com/Maruqes/512SvMan/api/proto/smartdisk		coverage: 0.0% of statements
+	github.com/Maruqes/512SvMan/api/proto/virsh		coverage: 0.0% of statements
+	github.com/Maruqes/512SvMan/api/proto/vm_disk		coverage: 0.0% of statements

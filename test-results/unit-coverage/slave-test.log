@@ -1,0 +1,17 @@
+ok  	slave	0.037s	coverage: 16.3% of statements
+ok  	slave/btrfs	0.019s	coverage: 15.3% of statements
+	slave/cmd/cpu_pinning		coverage: 0.0% of statements
+ok  	slave/docker	0.009s	coverage: 1.3% of statements
+	slave/docker_git/portainer/traefik-golang/backend		coverage: 0.0% of statements
+	slave/env512		coverage: 0.0% of statements
+ok  	slave/extra	0.007s	coverage: 23.7% of statements
+ok  	slave/info	0.011s	coverage: 3.9% of statements
+	slave/logs512		coverage: 0.0% of statements
+ok  	slave/nfs	0.011s	coverage: 11.5% of statements
+	slave/our_k8s		coverage: 0.0% of statements
+ok  	slave/pci	0.026s	coverage: 25.8% of statements
+	slave/pci/cmd/pci-tui		coverage: 0.0% of statements
+	slave/protocol		coverage: 0.0% of statements
+ok  	slave/smartdisk	0.007s	coverage: 37.3% of statements
+ok  	slave/virsh	0.029s	coverage: 20.3% of statements
+ok  	slave/vm_disk	0.006s	coverage: 23.8% of statements

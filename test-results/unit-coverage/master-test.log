@@ -1,0 +1,24 @@
+ok  	512SvMan	0.023s	coverage: 10.3% of statements
+ok  	512SvMan/api	0.032s	coverage: 5.0% of statements
+ok  	512SvMan/api/npmapi	0.752s	coverage: 11.2% of statements
+	512SvMan/btrfs		coverage: 0.0% of statements
+ok  	512SvMan/db	0.014s	coverage: 12.6% of statements
+ok  	512SvMan/dnsmasq	0.010s	coverage: 8.9% of statements
+	512SvMan/docker		coverage: 0.0% of statements
+ok  	512SvMan/env512	0.013s	coverage: 98.6% of statements
+	512SvMan/extra		coverage: 0.0% of statements
+	512SvMan/info		coverage: 0.0% of statements
+	512SvMan/k8s		coverage: 0.0% of statements
+	512SvMan/logs512		coverage: 0.0% of statements
+	512SvMan/nfs		coverage: 0.0% of statements
+	512SvMan/nots		coverage: 0.0% of statements
+ok  	512SvMan/npm	2.818s	coverage: 22.8% of statements
+	512SvMan/pci		coverage: 0.0% of statements
+	512SvMan/protocol		coverage: 0.0% of statements
+ok  	512SvMan/services	0.028s	coverage: 6.3% of statements
+	512SvMan/smartdisk		coverage: 0.0% of statements
+ok  	512SvMan/spa	0.005s	coverage: 25.8% of statements
+	512SvMan/virsh		coverage: 0.0% of statements
+	512SvMan/vm_disk		coverage: 0.0% of statements
+	512SvMan/websocket		coverage: 0.0% of statements
+	512SvMan/wireguard		coverage: 0.0% of statements

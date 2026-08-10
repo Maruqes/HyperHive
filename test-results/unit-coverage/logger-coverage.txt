@@ -1,0 +1,14 @@
+github.com/Maruqes/512SvMan/logger/logger.go:15:	init		0.0%
+github.com/Maruqes/512SvMan/logger/logger.go:21:	SetType		0.0%
+github.com/Maruqes/512SvMan/logger/logger.go:44:	SetCallBack	0.0%
+github.com/Maruqes/512SvMan/logger/logger.go:54:	toFields	0.0%
+github.com/Maruqes/512SvMan/logger/logger.go:91:	Info		0.0%
+github.com/Maruqes/512SvMan/logger/logger.go:98:	Error		0.0%
+github.com/Maruqes/512SvMan/logger/logger.go:105:	Warn		0.0%
+github.com/Maruqes/512SvMan/logger/logger.go:112:	Debug		0.0%
+github.com/Maruqes/512SvMan/logger/logger.go:121:	Infof		0.0%
+github.com/Maruqes/512SvMan/logger/logger.go:130:	Errorf		0.0%
+github.com/Maruqes/512SvMan/logger/logger.go:138:	Warnf		0.0%
+github.com/Maruqes/512SvMan/logger/logger.go:146:	Debugf		0.0%
+github.com/Maruqes/512SvMan/logger/logger.go:155:	Sync		0.0%
+total:							(statements)	0.0%
