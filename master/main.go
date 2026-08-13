@@ -336,6 +336,9 @@ func main() {
 	}
 
 	db.InitDB(ctx)
+	if err := db.CreateResourceDescriptionsTable(ctx); err != nil {
+		log.Fatalf("create resource descriptions table: %v", err)
+	}
 	if err := db.CreateSPAPortsTable(ctx); err != nil {
 		log.Fatalf("create spa table: %v", err)
 	}
@@ -424,11 +427,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("create stream metrics table: %v", err)
 	}
-	err = db.CreateResourceDescriptionsTable(ctx)
-	if err != nil {
-		log.Fatalf("create resource descriptions table: %v", err)
-	}
-
 	err = db.InitSmartDiskDB(ctx)
 	if err != nil {
 		log.Fatalf("create stream metrics table: %v", err)

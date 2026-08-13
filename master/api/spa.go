@@ -1,6 +1,7 @@
 package api
 
 import (
+	"512SvMan/db"
 	"512SvMan/services"
 	"encoding/json"
 	"errors"
@@ -14,12 +15,15 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+const spaPortResourceType = "spa_port"
+
 func createSPAHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	var req struct {
-		Port     int    `json:"port"`
-		Password string `json:"password"`
+		Port        int    `json:"port"`
+		Password    string `json:"password"`
+		Description string `json:"description"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
@@ -33,6 +37,10 @@ func createSPAHandler(w http.ResponseWriter, r *http.Request) {
 	svc := services.SPAService{}
 	if err := svc.Create(r.Context(), req.Port, req.Password); err != nil {
 		writeSPAError(w, err)
+		return
+	}
+	if err := db.SetResourceDescription(r.Context(), spaPortResourceType, req.Port, req.Description); err != nil {
+		http.Error(w, "failed to save SPA port description: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -53,6 +61,10 @@ func deleteSPAHandler(w http.ResponseWriter, r *http.Request) {
 	svc := services.SPAService{}
 	if err := svc.Delete(r.Context(), port); err != nil {
 		writeSPAError(w, err)
+		return
+	}
+	if err := db.DeleteResourceDescription(r.Context(), spaPortResourceType, port); err != nil {
+		http.Error(w, "failed to delete SPA port description: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -170,14 +182,25 @@ func listSPAHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type spaOut struct {
-		Port      int       `json:"port"`
-		CreatedAt time.Time `json:"created_at"`
+		Port        int       `json:"port"`
+		Description string    `json:"description"`
+		CreatedAt   time.Time `json:"created_at"`
+	}
+	ports := make([]int, 0, len(entries))
+	for _, entry := range entries {
+		ports = append(ports, entry.Port)
+	}
+	descriptions, err := db.GetResourceDescriptions(r.Context(), spaPortResourceType, ports)
+	if err != nil {
+		http.Error(w, "failed to get SPA port descriptions: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 	out := make([]spaOut, 0, len(entries))
 	for _, e := range entries {
 		out = append(out, spaOut{
-			Port:      e.Port,
-			CreatedAt: e.CreatedAt,
+			Port:        e.Port,
+			Description: descriptions[e.Port],
+			CreatedAt:   e.CreatedAt,
 		})
 	}
 
