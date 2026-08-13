@@ -27,6 +27,7 @@ import (
 
 type Stream struct {
 	ID              int    `json:"id"`
+	Description     string `json:"description"`
 	Incoming_port   int    `json:"incoming_port"`
 	Forwarding_host string `json:"forwarding_host"`
 	Forwarding_port int    `json:"forwarding_port"`
@@ -76,6 +77,9 @@ func CreateStream(baseURL, token string, p Stream) (int, error) {
 		if d, ok := respData["id"].(float64); ok {
 			id = int(d)
 		}
+	}
+	if id < 0 {
+		return 0, fmt.Errorf("create stream response did not include an id")
 	}
 	return id, nil
 }

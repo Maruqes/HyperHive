@@ -424,6 +424,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("create stream metrics table: %v", err)
 	}
+	err = db.CreateResourceDescriptionsTable(ctx)
+	if err != nil {
+		log.Fatalf("create resource descriptions table: %v", err)
+	}
 
 	err = db.InitSmartDiskDB(ctx)
 	if err != nil {

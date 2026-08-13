@@ -1,12 +1,15 @@
 package npmapi
 
 import (
+	"512SvMan/db"
 	"512SvMan/npm"
 	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 )
+
+const streamResourceType = "npm_stream"
 
 func listStream(w http.ResponseWriter, r *http.Request) {
 	loginToken := GetTokenFromContext(r)
@@ -15,6 +18,18 @@ func listStream(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "failed to get Stream hosts: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+	ids := make([]int, 0, len(streams))
+	for _, stream := range streams {
+		ids = append(ids, stream.ID)
+	}
+	descriptions, err := db.GetResourceDescriptions(r.Context(), streamResourceType, ids)
+	if err != nil {
+		http.Error(w, "failed to get stream descriptions: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	for i := range streams {
+		streams[i].Description = descriptions[streams[i].ID]
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -34,9 +49,13 @@ func createStream(w http.ResponseWriter, r *http.Request) {
 
 	loginToken := GetTokenFromContext(r)
 
-	_, err := npm.CreateStream(baseURL, loginToken, p)
+	id, err := npm.CreateStream(baseURL, loginToken, p)
 	if err != nil {
 		http.Error(w, "failed to create Stream host: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := db.SetResourceDescription(r.Context(), streamResourceType, id, p.Description); err != nil {
+		http.Error(w, "failed to save stream description: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -57,6 +76,10 @@ func editStream(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to edit Stream host: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+	if err := db.SetResourceDescription(r.Context(), streamResourceType, p.ID, p.Description); err != nil {
+		http.Error(w, "failed to save stream description: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -75,6 +98,10 @@ func deleteStream(w http.ResponseWriter, r *http.Request) {
 	err := npm.DeleteStream(baseURL, loginToken, payload.ID)
 	if err != nil {
 		http.Error(w, "failed to delete Stream host: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := db.DeleteResourceDescription(r.Context(), streamResourceType, payload.ID); err != nil {
+		http.Error(w, "failed to delete stream description: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
