@@ -11,6 +11,7 @@ import (
 const (
 	AliasConfPath  = "/etc/hyperhive/dnsmasq-aliases.conf"
 	redeConfPath   = "/etc/dnsmasq.d/512rede-host.conf"
+	redeService    = "dnsmasq-512rede-host.service"
 	serviceName    = "dnsmasq"
 	managedComment = "# Managed by HyperHive"
 	includeLine    = "conf-file=" + AliasConfPath
@@ -240,19 +241,15 @@ func reloadDnsmasq() error {
 	// SIGHUP only re-reads /etc/hosts and leases. We need to restart
 	// the dnsmasq processes so they re-read the alias config.
 
-	// Restart the 512rede instance.
-	// It runs with -k (foreground) under a process manager, so we must
-	// restart it ourselves: kill the old one and start a new one.
-	pidOut, _ := exec.Command("pgrep", "-f", "conf-file="+redeConfPath).CombinedOutput()
-	if pid := strings.TrimSpace(string(pidOut)); pid != "" {
-		_ = exec.Command("kill", pid).Run()
-		// Start a new 512rede dnsmasq as a daemon (without -k so it forks to background).
-		// The process manager may also restart one — the first to bind wins,
-		// the second will exit harmlessly with "address already in use".
-		_ = exec.Command("dnsmasq",
-			"--conf-file="+redeConfPath,
-			"--bind-interfaces",
-			"--user=dnsmasq", "--group=dnsmasq").Start()
+	// Keep the 512rede instance owned by systemd. Starting dnsmasq directly
+	// here races the service restart and can leave an orphan holding port 53.
+	if _, err := os.Stat(redeConfPath); err == nil {
+		out, restartErr := exec.Command("systemctl", "restart", redeService).CombinedOutput()
+		if restartErr != nil {
+			return fmt.Errorf("restart %s: %w: %s", redeService, restartErr, strings.TrimSpace(string(out)))
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("stat 512rede dnsmasq config: %w", err)
 	}
 
 	// Restart the wireguard instance (we manage it directly).
