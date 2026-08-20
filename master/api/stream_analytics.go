@@ -4,8 +4,10 @@ import (
 	"512SvMan/db"
 	"512SvMan/dnsmasq"
 	"512SvMan/npm"
+	"container/heap"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -25,6 +27,9 @@ const (
 	analyticsMaxPathLimit        = 500
 	analyticsDefaultSessionLimit = 50
 	analyticsMaxSessionLimit     = 200
+	analyticsDefaultSourceLimit  = 100
+	analyticsMaxSourceLimit      = 500
+	analyticsMaxSourceCursorSize = 4096
 	analyticsMaxDestinations     = 500
 	analyticsMaxTimelinePoints   = 744
 	analyticsMaxBreakdownItems   = 100
@@ -102,6 +107,24 @@ type analyticsDestination struct {
 	Countries       []string          `json:"countries"`
 }
 
+type analyticsSource struct {
+	Source             analyticsEndpoint `json:"source"`
+	Connections        int               `json:"connections"`
+	FailureCount       int               `json:"failure_count"`
+	FailureRate        float64           `json:"failure_rate"`
+	BytesSent          int64             `json:"bytes_sent"`
+	BytesReceived      int64             `json:"bytes_received"`
+	TotalBytes         int64             `json:"total_bytes"`
+	AvgSession         float64           `json:"avg_session_seconds"`
+	MaxSession         float64           `json:"max_session_seconds"`
+	FirstSeen          string            `json:"first_seen"`
+	LastSeen           string            `json:"last_seen"`
+	UniqueListeners    int               `json:"unique_listeners"`
+	UniqueDestinations int               `json:"unique_destinations"`
+	Protocols          []string          `json:"protocols"`
+	Countries          []string          `json:"countries"`
+}
+
 type analyticsTimelinePoint struct {
 	Timestamp          string  `json:"timestamp"`
 	Connections        int     `json:"connections"`
@@ -144,6 +167,7 @@ type analyticsBreakdowns struct {
 	Countries         []analyticsBreakdownItem `json:"countries"`
 	Ports             []analyticsBreakdownItem `json:"ports"`
 	Outcomes          []analyticsBreakdownItem `json:"outcomes"`
+	Statuses          []analyticsBreakdownItem `json:"statuses"`
 	SourceScopes      []analyticsBreakdownItem `json:"source_scopes"`
 	DestinationScopes []analyticsBreakdownItem `json:"destination_scopes"`
 }
@@ -179,11 +203,17 @@ type analyticsAvailability struct {
 type analyticsLimits struct {
 	PathLimit                      int             `json:"path_limit"`
 	SessionLimit                   int             `json:"session_limit"`
+	SourceLimit                    int             `json:"source_limit"`
+	SourceCursor                   string          `json:"source_cursor"`
 	DestinationLimit               int             `json:"destination_limit"`
 	TimelineLimit                  int             `json:"timeline_limit"`
 	BreakdownLimit                 int             `json:"breakdown_limit"`
 	PathsAvailable                 int             `json:"paths_available"`
 	SessionsAvailable              int             `json:"sessions_available"`
+	SourcesAvailable               int             `json:"sources_available"`
+	SourcesReturned                int             `json:"sources_returned"`
+	SourcesHasMore                 bool            `json:"sources_has_more"`
+	SourcesNextCursor              string          `json:"sources_next_cursor"`
 	DestinationsAvailable          int             `json:"destinations_available"`
 	TimelinePointsAvailable        int             `json:"timeline_points_available"`
 	BreakdownItemsAvailable        int             `json:"breakdown_items_available"`
@@ -193,6 +223,7 @@ type analyticsLimits struct {
 	BreakdownsTruncatedByDimension map[string]bool `json:"breakdowns_truncated_by_dimension"`
 	PathsTruncated                 bool            `json:"paths_truncated"`
 	SessionsTruncated              bool            `json:"sessions_truncated"`
+	SourcesTruncated               bool            `json:"sources_truncated"`
 	DestinationsTruncated          bool            `json:"destinations_truncated"`
 	TimelineTruncated              bool            `json:"timeline_truncated"`
 	BreakdownsTruncated            bool            `json:"breakdowns_truncated"`
@@ -213,6 +244,7 @@ type analyticsResponse struct {
 	Metadata       analyticsMetadata        `json:"metadata"`
 	Summary        analyticsSummary         `json:"summary"`
 	Paths          []analyticsPath          `json:"paths"`
+	Sources        []analyticsSource        `json:"sources"`
 	Destinations   []analyticsDestination   `json:"destinations"`
 	HourlyTimeline []analyticsTimelinePoint `json:"hourly_timeline"`
 	RecentSessions []analyticsSession       `json:"recent_sessions"`
@@ -220,16 +252,23 @@ type analyticsResponse struct {
 }
 
 type analyticsFilters struct {
-	start        time.Time
-	endExclusive time.Time
-	source       string
-	listener     string
-	destination  string
-	protocol     string
-	country      string
-	outcome      string
-	pathLimit    int
-	sessionLimit int
+	start         time.Time
+	endExclusive  time.Time
+	source        string
+	listener      string
+	destination   string
+	protocol      string
+	country       string
+	outcome       string
+	pathID        string
+	sourceIP      string
+	listenerIP    string
+	destinationIP string
+	pathLimit     int
+	sessionLimit  int
+	sourceLimit   int
+	sourceCursor  string
+	sourceAfter   string
 }
 
 type analyticsEndpointParts struct {
@@ -267,6 +306,28 @@ type analyticsDestinationAccumulator struct {
 	listeners map[string]struct{}
 	protocols map[string]struct{}
 	countries map[string]struct{}
+}
+
+type analyticsSourceAccumulator struct {
+	raw                string
+	metrics            analyticsAccumulator
+	uniqueListeners    int
+	uniqueDestinations int
+	protocols          map[string]struct{}
+	countries          map[string]struct{}
+}
+
+type analyticsSourcePageHeap []string
+
+func (values analyticsSourcePageHeap) Len() int           { return len(values) }
+func (values analyticsSourcePageHeap) Less(i, j int) bool { return values[i] > values[j] }
+func (values analyticsSourcePageHeap) Swap(i, j int)      { values[i], values[j] = values[j], values[i] }
+func (values *analyticsSourcePageHeap) Push(value any)    { *values = append(*values, value.(string)) }
+func (values *analyticsSourcePageHeap) Pop() any {
+	old := *values
+	last := old[len(old)-1]
+	*values = old[:len(old)-1]
+	return last
 }
 
 type analyticsTimelineAccumulator struct {
@@ -359,8 +420,33 @@ func parseAnalyticsFilters(r *http.Request) (analyticsFilters, error) {
 		protocol:     strings.TrimSpace(query.Get("protocol")),
 		country:      strings.TrimSpace(query.Get("country")),
 		outcome:      strings.ToLower(strings.TrimSpace(query.Get("outcome"))),
+		pathID:       strings.TrimSpace(query.Get("path_id")),
 		pathLimit:    analyticsDefaultPathLimit,
 		sessionLimit: analyticsDefaultSessionLimit,
+		sourceLimit:  analyticsDefaultSourceLimit,
+	}
+	if filters.pathID != "" && !analyticsValidPathID(filters.pathID) {
+		return analyticsFilters{}, errors.New("path_id must use path_ followed by 16 lowercase hexadecimal characters")
+	}
+
+	exactIPFilters := []struct {
+		name   string
+		value  string
+		target *string
+	}{
+		{name: "source_ip", value: strings.TrimSpace(query.Get("source_ip")), target: &filters.sourceIP},
+		{name: "listener_ip", value: strings.TrimSpace(query.Get("listener_ip")), target: &filters.listenerIP},
+		{name: "destination_ip", value: strings.TrimSpace(query.Get("destination_ip")), target: &filters.destinationIP},
+	}
+	for _, exact := range exactIPFilters {
+		if exact.value == "" {
+			continue
+		}
+		ip := net.ParseIP(exact.value)
+		if ip == nil {
+			return analyticsFilters{}, errors.New(exact.name + " must be a valid IP address")
+		}
+		*exact.target = ip.String()
 	}
 
 	const dateLayout = "2006-01-02"
@@ -394,6 +480,15 @@ func parseAnalyticsFilters(r *http.Request) (analyticsFilters, error) {
 	if err != nil {
 		return analyticsFilters{}, err
 	}
+	filters.sourceLimit, err = parseAnalyticsLimit(query.Get("source_limit"), analyticsDefaultSourceLimit, analyticsMaxSourceLimit, "source_limit")
+	if err != nil {
+		return analyticsFilters{}, err
+	}
+	filters.sourceCursor = query.Get("source_cursor")
+	filters.sourceAfter, err = parseAnalyticsSourceCursor(filters.sourceCursor)
+	if err != nil {
+		return analyticsFilters{}, err
+	}
 	return filters, nil
 }
 
@@ -409,6 +504,37 @@ func parseAnalyticsLimit(value string, defaultValue, maxValue int, name string) 
 		return maxValue, nil
 	}
 	return parsed, nil
+}
+
+func parseAnalyticsSourceCursor(value string) (string, error) {
+	if value == "" {
+		return "", nil
+	}
+	if len(value) > analyticsMaxSourceCursorSize {
+		return "", errors.New("source_cursor must be a valid cursor")
+	}
+	decoded, err := base64.RawURLEncoding.DecodeString(value)
+	const prefix = "v1\x00"
+	if err != nil || len(decoded) < len(prefix) || string(decoded[:len(prefix)]) != prefix || base64.RawURLEncoding.EncodeToString(decoded) != value {
+		return "", errors.New("source_cursor must be a valid cursor")
+	}
+	return string(decoded[len(prefix):]), nil
+}
+
+func encodeAnalyticsSourceCursor(identity string) string {
+	return base64.RawURLEncoding.EncodeToString([]byte("v1\x00" + identity))
+}
+
+func analyticsValidPathID(value string) bool {
+	if len(value) != len("path_")+16 || !strings.HasPrefix(value, "path_") {
+		return false
+	}
+	for _, char := range value[len("path_"):] {
+		if (char < '0' || char > '9') && (char < 'a' || char > 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 func parseAnalyticsEndpoint(raw string) analyticsEndpointParts {
@@ -582,10 +708,19 @@ func filterAnalyticsEntries(entries []streamLogEntry, filters analyticsFilters, 
 		if filters.source != "" && !analyticsEndpointMatches(enrichAnalyticsEndpoint(entry.ClientIP, aliases), filters.source) {
 			continue
 		}
+		if filters.sourceIP != "" && parseAnalyticsEndpoint(entry.ClientIP).ip != filters.sourceIP {
+			continue
+		}
 		if filters.listener != "" && !analyticsEndpointMatches(enrichAnalyticsListener(entry.ProxyAddr, aliases), filters.listener) {
 			continue
 		}
+		if filters.listenerIP != "" && parseAnalyticsListener(entry.ProxyAddr).ip != filters.listenerIP {
+			continue
+		}
 		if filters.destination != "" && !analyticsEndpointMatches(enrichAnalyticsEndpoint(entry.UpstreamAddr, aliases), filters.destination) {
+			continue
+		}
+		if filters.destinationIP != "" && parseAnalyticsEndpoint(entry.UpstreamAddr).ip != filters.destinationIP {
 			continue
 		}
 		if filters.protocol != "" && !analyticsContains(entry.Protocol, filters.protocol) {
@@ -596,6 +731,9 @@ func filterAnalyticsEntries(entries []streamLogEntry, filters analyticsFilters, 
 		}
 		outcome := analyticsOutcome(entry.Status)
 		if filters.outcome != "" && outcome != filters.outcome {
+			continue
+		}
+		if filters.pathID != "" && analyticsPathID(analyticsPathKey(entry)) != filters.pathID {
 			continue
 		}
 		filtered = append(filtered, entry)
@@ -623,9 +761,16 @@ func analyticsContains(value, search string) bool {
 }
 
 func aggregateStreamAnalytics(entries []streamLogEntry, aliases map[string][]string, streams []npm.Stream, descriptions map[int]string, streamsAvailable bool, filters analyticsFilters) analyticsResponse {
+	sourceLimit := filters.sourceLimit
+	if sourceLimit < 1 {
+		sourceLimit = analyticsDefaultSourceLimit
+	} else if sourceLimit > analyticsMaxSourceLimit {
+		sourceLimit = analyticsMaxSourceLimit
+	}
 	response := analyticsResponse{
 		PathSemantics:  "Paths represent only observed log fields: source -> observed proxy/listener -> logged upstream destination. No unobserved network hops or interfaces are claimed. DNS aliases and stream correlations use current configuration and may not describe historical state.",
 		Paths:          make([]analyticsPath, 0),
+		Sources:        make([]analyticsSource, 0),
 		Destinations:   make([]analyticsDestination, 0),
 		HourlyTimeline: make([]analyticsTimelinePoint, 0),
 		RecentSessions: make([]analyticsSession, 0),
@@ -634,6 +779,7 @@ func aggregateStreamAnalytics(entries []streamLogEntry, aliases map[string][]str
 			Countries:         make([]analyticsBreakdownItem, 0),
 			Ports:             make([]analyticsBreakdownItem, 0),
 			Outcomes:          make([]analyticsBreakdownItem, 0),
+			Statuses:          make([]analyticsBreakdownItem, 0),
 			SourceScopes:      make([]analyticsBreakdownItem, 0),
 			DestinationScopes: make([]analyticsBreakdownItem, 0),
 		},
@@ -650,15 +796,17 @@ func aggregateStreamAnalytics(entries []streamLogEntry, aliases map[string][]str
 		make(map[string]*analyticsBreakdownItem), make(map[string]*analyticsBreakdownItem),
 		make(map[string]*analyticsBreakdownItem), make(map[string]*analyticsBreakdownItem),
 		make(map[string]*analyticsBreakdownItem), make(map[string]*analyticsBreakdownItem),
+		make(map[string]*analyticsBreakdownItem),
 	}
 
 	for _, entry := range entries {
 		country := analyticsCountry(entry.Country)
 		protocol := strings.ToUpper(entry.Protocol)
-		pathKey := strings.Join([]string{entry.ClientIP, entry.ProxyAddr, entry.UpstreamAddr, protocol, country}, "\x00")
+		sourceIdentity := analyticsSourceIdentity(entry.ClientIP)
+		pathKey := analyticsPathKey(entry)
 		path := pathMap[pathKey]
 		if path == nil {
-			path = &analyticsPathAccumulator{key: pathKey, source: entry.ClientIP, listener: entry.ProxyAddr, destination: entry.UpstreamAddr, protocol: protocol, country: country}
+			path = &analyticsPathAccumulator{key: pathKey, source: sourceIdentity, listener: entry.ProxyAddr, destination: entry.UpstreamAddr, protocol: protocol, country: country}
 			pathMap[pathKey] = path
 		}
 		addAnalyticsMetrics(&path.metrics, entry)
@@ -672,7 +820,7 @@ func aggregateStreamAnalytics(entries []streamLogEntry, aliases map[string][]str
 			destinationMap[entry.UpstreamAddr] = destination
 		}
 		addAnalyticsMetrics(&destination.metrics, entry)
-		destination.sources[entry.ClientIP] = struct{}{}
+		destination.sources[sourceIdentity] = struct{}{}
 		destination.listeners[entry.ProxyAddr] = struct{}{}
 		destination.protocols[protocol] = struct{}{}
 		destination.countries[country] = struct{}{}
@@ -687,13 +835,13 @@ func aggregateStreamAnalytics(entries []streamLogEntry, aliases map[string][]str
 			}
 			bucket := timelineMap[hour]
 			addAnalyticsMetrics(&bucket.metrics, entry)
-			bucket.sources[entry.ClientIP] = struct{}{}
+			bucket.sources[sourceIdentity] = struct{}{}
 			bucket.destinations[entry.UpstreamAddr] = struct{}{}
 		}
 
 		sourceEndpoint := enrichAnalyticsEndpoint(entry.ClientIP, aliases)
 		destinationEndpoint := enrichAnalyticsEndpoint(entry.UpstreamAddr, aliases)
-		values := []string{protocol, country, analyticsPort(entry.UpstreamAddr), analyticsOutcome(entry.Status), sourceEndpoint.Scope, destinationEndpoint.Scope}
+		values := []string{protocol, country, analyticsPort(entry.UpstreamAddr), analyticsOutcome(entry.Status), strconv.Itoa(entry.Status), sourceEndpoint.Scope, destinationEndpoint.Scope}
 		for i, value := range values {
 			item := breakdownMaps[i][value]
 			if item == nil {
@@ -707,7 +855,7 @@ func aggregateStreamAnalytics(entries []streamLogEntry, aliases map[string][]str
 			item.TotalBytes += entry.BytesSent + entry.BytesReceived
 		}
 
-		sources[entry.ClientIP] = struct{}{}
+		sources[sourceIdentity] = struct{}{}
 		listeners[entry.ProxyAddr] = struct{}{}
 		destinations[entry.UpstreamAddr] = struct{}{}
 		if country != "Unknown" {
@@ -716,18 +864,36 @@ func aggregateStreamAnalytics(entries []streamLogEntry, aliases map[string][]str
 		addAnalyticsSummary(&response.Summary, entry)
 	}
 
-	response.Summary.UniqueSources = len(sources)
+	sourcesAvailable := len(sources)
+	response.Summary.UniqueSources = sourcesAvailable
 	response.Summary.UniqueListeners = len(listeners)
 	response.Summary.UniqueDestinations = len(destinations)
 	response.Summary.UniqueCountries = len(countries)
 	if response.Summary.TotalConnections > 0 {
 		response.Summary.AvgSession /= float64(response.Summary.TotalConnections)
 	}
+	selectedSources, sourcesHasMore := analyticsSourcePage(sources, filters.sourceAfter, filters.sourceCursor != "", sourceLimit)
+	sourceMap := make(map[string]*analyticsSourceAccumulator, len(selectedSources))
+	for _, identity := range selectedSources {
+		sourceMap[identity] = &analyticsSourceAccumulator{
+			raw: identity, protocols: make(map[string]struct{}), countries: make(map[string]struct{}),
+		}
+	}
+	for _, entry := range entries {
+		source := sourceMap[analyticsSourceIdentity(entry.ClientIP)]
+		if source == nil {
+			continue
+		}
+		addAnalyticsMetrics(&source.metrics, entry)
+		source.protocols[strings.ToUpper(entry.Protocol)] = struct{}{}
+		source.countries[analyticsCountry(entry.Country)] = struct{}{}
+	}
 
 	pathAccumulators := make([]*analyticsPathAccumulator, 0, len(pathMap))
 	for _, accumulator := range pathMap {
 		pathAccumulators = append(pathAccumulators, accumulator)
 	}
+	countAnalyticsSourceDimensions(pathAccumulators, sourceMap)
 	sort.Slice(pathAccumulators, func(i, j int) bool {
 		left := pathAccumulators[i]
 		right := pathAccumulators[j]
@@ -761,6 +927,24 @@ func aggregateStreamAnalytics(entries []streamLogEntry, aliases map[string][]str
 		})
 	}
 
+	for _, identity := range selectedSources {
+		accumulator := sourceMap[identity]
+		response.Sources = append(response.Sources, analyticsSource{
+			Source: enrichAnalyticsEndpoint(accumulator.raw, aliases), Connections: accumulator.metrics.connections,
+			FailureCount: accumulator.metrics.failures, FailureRate: analyticsFailureRate(accumulator.metrics),
+			BytesSent: accumulator.metrics.bytesSent, BytesReceived: accumulator.metrics.bytesReceived,
+			TotalBytes: accumulator.metrics.bytesSent + accumulator.metrics.bytesReceived,
+			AvgSession: analyticsAverageSession(accumulator.metrics), MaxSession: accumulator.metrics.maxSession,
+			FirstSeen: analyticsTime(accumulator.metrics.firstSeen), LastSeen: analyticsTime(accumulator.metrics.lastSeen),
+			UniqueListeners: accumulator.uniqueListeners, UniqueDestinations: accumulator.uniqueDestinations,
+			Protocols: sortedSet(accumulator.protocols), Countries: sortedSet(accumulator.countries),
+		})
+	}
+	sourcesReturned := len(response.Sources)
+	sourcesNextCursor := ""
+	if sourcesHasMore && len(selectedSources) > 0 {
+		sourcesNextCursor = encodeAnalyticsSourceCursor(selectedSources[len(selectedSources)-1])
+	}
 	for _, accumulator := range destinationMap {
 		response.Destinations = append(response.Destinations, analyticsDestination{
 			Destination: enrichAnalyticsEndpoint(accumulator.raw, aliases), Connections: accumulator.metrics.connections,
@@ -834,12 +1018,13 @@ func aggregateStreamAnalytics(entries []streamLogEntry, aliases map[string][]str
 	breakdownsAvailable := make(map[string]int, len(breakdownMaps))
 	breakdownsReturned := make(map[string]int, len(breakdownMaps))
 	breakdownsTruncatedByDimension := make(map[string]bool, len(breakdownMaps))
-	breakdownNames := []string{"protocols", "countries", "ports", "outcomes", "source_scopes", "destination_scopes"}
+	breakdownNames := []string{"protocols", "countries", "ports", "outcomes", "statuses", "source_scopes", "destination_scopes"}
 	breakdownTargets := []*[]analyticsBreakdownItem{
 		&response.Breakdowns.Protocols,
 		&response.Breakdowns.Countries,
 		&response.Breakdowns.Ports,
 		&response.Breakdowns.Outcomes,
+		&response.Breakdowns.Statuses,
 		&response.Breakdowns.SourceScopes,
 		&response.Breakdowns.DestinationScopes,
 	}
@@ -856,19 +1041,94 @@ func aggregateStreamAnalytics(entries []streamLogEntry, aliases map[string][]str
 	}
 	response.Metadata.Limits = analyticsLimits{
 		PathLimit: filters.pathLimit, SessionLimit: filters.sessionLimit,
+		SourceLimit: sourceLimit, SourceCursor: filters.sourceCursor,
 		DestinationLimit: analyticsMaxDestinations, TimelineLimit: analyticsMaxTimelinePoints,
 		BreakdownLimit: analyticsMaxBreakdownItems, PathsAvailable: pathsAvailable,
-		SessionsAvailable: sessionsAvailable, DestinationsAvailable: destinationsAvailable,
+		SessionsAvailable: sessionsAvailable, SourcesAvailable: sourcesAvailable,
+		SourcesReturned: sourcesReturned, SourcesHasMore: sourcesHasMore, SourcesNextCursor: sourcesNextCursor,
+		DestinationsAvailable:   destinationsAvailable,
 		TimelinePointsAvailable: timelinePointsAvailable, BreakdownItemsAvailable: breakdownItemsAvailable,
 		BreakdownItemsReturned: breakdownItemsReturned, BreakdownsAvailable: breakdownsAvailable,
 		BreakdownsReturned: breakdownsReturned, BreakdownsTruncatedByDimension: breakdownsTruncatedByDimension,
 		PathsTruncated:        pathsAvailable > filters.pathLimit,
 		SessionsTruncated:     sessionsAvailable > filters.sessionLimit,
+		SourcesTruncated:      analyticsCollectionTruncated(sourcesAvailable, len(response.Sources)),
 		DestinationsTruncated: analyticsCollectionTruncated(destinationsAvailable, len(response.Destinations)),
 		TimelineTruncated:     analyticsCollectionTruncated(timelinePointsAvailable, len(response.HourlyTimeline)),
 		BreakdownsTruncated:   breakdownsTruncated,
 	}
 	return response
+}
+
+func countAnalyticsSourceDimensions(paths []*analyticsPathAccumulator, sources map[string]*analyticsSourceAccumulator) {
+	sort.Slice(paths, func(i, j int) bool {
+		if paths[i].source != paths[j].source {
+			return paths[i].source < paths[j].source
+		}
+		if paths[i].listener != paths[j].listener {
+			return paths[i].listener < paths[j].listener
+		}
+		return paths[i].key < paths[j].key
+	})
+	previousSource, previousListener := "", ""
+	havePrevious := false
+	for _, path := range paths {
+		source := sources[path.source]
+		if source == nil {
+			continue
+		}
+		if !havePrevious || path.source != previousSource || path.listener != previousListener {
+			source.uniqueListeners++
+			previousSource, previousListener = path.source, path.listener
+			havePrevious = true
+		}
+	}
+
+	sort.Slice(paths, func(i, j int) bool {
+		if paths[i].source != paths[j].source {
+			return paths[i].source < paths[j].source
+		}
+		if paths[i].destination != paths[j].destination {
+			return paths[i].destination < paths[j].destination
+		}
+		return paths[i].key < paths[j].key
+	})
+	previousSource, previousDestination := "", ""
+	havePrevious = false
+	for _, path := range paths {
+		source := sources[path.source]
+		if source == nil {
+			continue
+		}
+		if !havePrevious || path.source != previousSource || path.destination != previousDestination {
+			source.uniqueDestinations++
+			previousSource, previousDestination = path.source, path.destination
+			havePrevious = true
+		}
+	}
+}
+
+func analyticsSourcePage(sources map[string]struct{}, after string, hasCursor bool, limit int) ([]string, bool) {
+	candidates := make(analyticsSourcePageHeap, 0, limit+1)
+	for identity := range sources {
+		if hasCursor && identity <= after {
+			continue
+		}
+		if len(candidates) < limit+1 {
+			heap.Push(&candidates, identity)
+			continue
+		}
+		if identity < candidates[0] {
+			candidates[0] = identity
+			heap.Fix(&candidates, 0)
+		}
+	}
+	sort.Strings(candidates)
+	hasMore := len(candidates) > limit
+	if hasMore {
+		candidates = candidates[:limit]
+	}
+	return candidates, hasMore
 }
 
 func addAnalyticsMetrics(metrics *analyticsAccumulator, entry streamLogEntry) {
@@ -1078,6 +1338,18 @@ func capLatestAnalyticsTimeline(points []analyticsTimelinePoint, limit int) ([]a
 
 func analyticsCollectionTruncated(available, returned int) bool {
 	return available > returned
+}
+
+func analyticsPathKey(entry streamLogEntry) string {
+	return strings.Join([]string{analyticsSourceIdentity(entry.ClientIP), entry.ProxyAddr, entry.UpstreamAddr, strings.ToUpper(entry.Protocol)}, "\x00")
+}
+
+func analyticsSourceIdentity(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if ip := net.ParseIP(raw); ip != nil {
+		return ip.String()
+	}
+	return raw
 }
 
 func analyticsPathID(key string) string {

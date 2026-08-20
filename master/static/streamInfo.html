@@ -201,6 +201,20 @@
       font-size: 11px;
     }
     .filter-foot code { color: var(--muted); font-family: var(--mono); }
+    .exact-scope {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 14px;
+      border: 1px solid #277c87;
+      border-left: 3px solid var(--cyan);
+      border-radius: var(--radius);
+      background: #0b202c;
+      padding: 10px 13px;
+    }
+    .exact-scope-label { min-width: 0; color: var(--cyan-soft); font: 700 11px/1.4 var(--mono); overflow-wrap: anywhere; }
+    .exact-scope-label strong { color: var(--ink); }
 
     .notice {
       display: flex;
@@ -365,7 +379,19 @@
     .detail-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 20px; padding: 15px 18px; }
     .detail-item dt { color: var(--faint); font: 700 9px/1.3 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
     .detail-item dd { margin: 4px 0 0; color: #c7d5df; font: 11px/1.45 var(--mono); overflow-wrap: anywhere; }
+    .detail-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; grid-column: 1 / -1; margin: 0; }
+    .detail-row td > .detail-actions { padding: 0 18px 15px; }
     .empty-cell { padding: 32px 16px; color: var(--muted); text-align: center; }
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-top: 1px solid var(--line);
+      padding: 11px 14px;
+    }
+    .pagination-status { color: var(--muted); font: 700 10px/1.4 var(--mono); }
+    .pagination-actions { display: flex; gap: 8px; }
 
     .chart-box { height: 245px; padding: 13px 14px 16px; }
     .chart-box .route-empty { min-height: 210px; }
@@ -490,7 +516,8 @@
     }
     table { min-width: 780px; }
     .path-table { min-width: 1100px; }
-    .destination-table { min-width: 840px; }
+    .source-table { min-width: 1180px; }
+    .destination-table { min-width: 980px; }
     th { position: static; }
     .endpoint,
     .path-node,
@@ -553,6 +580,8 @@
       .primary-filter-grid .filter-actions { grid-column: 1 / -1; }
       .filter-foot { display: block; }
       .filter-foot span { display: block; margin-top: 5px; }
+      .exact-scope { align-items: flex-start; }
+      .pagination { flex-wrap: wrap; }
       .panel-head { flex-direction: column; align-items: stretch; gap: 7px; }
       .section-count { white-space: normal; }
       .summary-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -584,6 +613,7 @@
       .secondary-filter-grid { grid-template-columns: minmax(0, 1fr); }
       .primary-filter-grid .filter-actions { grid-column: 1; flex-wrap: wrap; }
       .filter-actions .button { flex: 1 1 130px; }
+      .exact-scope { flex-direction: column; }
       .summary-strip { grid-template-columns: minmax(0, 1fr); }
       .metric,
       .metric:nth-child(2n),
@@ -687,10 +717,15 @@
           </div>
         </details>
         <div class="filter-foot">
-          <span id="filterHint">All panels show the last server-applied query. Updates are manual.</span>
+          <span id="filterHint" aria-live="polite">All panels show the last server-applied query. Updates are manual.</span>
         </div>
       </form>
     </section>
+
+    <div id="exactScopeBar" class="exact-scope" role="status" hidden>
+      <div class="exact-scope-label"><strong>Exact scope:</strong> <span id="exactScopeLabel"></span></div>
+      <button class="button" id="exitDrillButton" type="button">Exit drill-down</button>
+    </div>
 
     <div id="staleNotice" class="notice error" role="status" hidden>
       <strong>Showing stale data.</strong>
@@ -705,7 +740,7 @@
       <div>
         <div class="spinner" id="initialSpinner" aria-hidden="true"></div>
         <h2 id="initialTitle">Loading stream evidence</h2>
-        <p id="initialMessage">Requesting paths, destinations, timeline, breakdowns, and recent sessions in one analytics response.</p>
+        <p id="initialMessage">Requesting sources, paths, destinations, timeline, breakdowns, and recent sessions in one analytics response.</p>
         <button class="button" id="retryButton" type="button" hidden>Retry analytics request</button>
       </div>
     </section>
@@ -714,7 +749,7 @@
       <dl class="summary-strip" aria-label="Connection summary">
         <div class="metric"><dt>Connections</dt><dd id="metricConnections">0</dd><small id="metricWindow">No observed window</small></div>
         <div class="metric"><dt>Observed traffic</dt><dd id="metricTraffic">0 B</dd><small id="metricDirections">0 B sent · 0 B received</small></div>
-        <div class="metric"><dt>Failures</dt><dd class="diagnostic" id="metricFailures">0</dd><small id="metricSuccess">0% successful · 0s avg</small></div>
+        <div class="metric"><dt>Failures</dt><dd class="diagnostic" id="metricFailures">0</dd><small id="metricSuccess">0% successful · 0s avg · 0s max</small></div>
         <div class="metric coverage-metric">
           <dt>Coverage</dt>
           <dd id="metricSources">0</dd>
@@ -730,6 +765,7 @@
       <nav class="tabs" role="tablist" aria-label="Analytics views">
         <button class="tab-button" id="tab-overview" type="button" role="tab" aria-selected="true" aria-controls="panel-overview" tabindex="0" data-tab="overview">Overview</button>
         <button class="tab-button" id="tab-routes" type="button" role="tab" aria-selected="false" aria-controls="panel-routes" tabindex="-1" data-tab="routes">Routes</button>
+        <button class="tab-button" id="tab-sources" type="button" role="tab" aria-selected="false" aria-controls="panel-sources" tabindex="-1" data-tab="sources">IPs</button>
         <button class="tab-button" id="tab-destinations" type="button" role="tab" aria-selected="false" aria-controls="panel-destinations" tabindex="-1" data-tab="destinations">Destinations</button>
         <button class="tab-button" id="tab-evidence" type="button" role="tab" aria-selected="false" aria-controls="panel-evidence" tabindex="-1" data-tab="evidence">Evidence</button>
       </nav>
@@ -746,7 +782,7 @@
               <span class="section-count" id="timelineCount">0 points</span>
             </div>
             <div class="chart-box">
-              <canvas id="timelineChart" aria-label="Connections, failures, and traffic over time"></canvas>
+              <canvas id="timelineChart" aria-label="Connections, failures, traffic, and average session duration over time"></canvas>
               <div class="route-empty" id="timelineEmpty" hidden>No timeline buckets were returned for this query.</div>
             </div>
           </section>
@@ -829,6 +865,49 @@
         </div>
       </section>
 
+      <section class="tab-panel" id="panel-sources" role="tabpanel" aria-labelledby="tab-sources" tabindex="0" hidden>
+        <div class="stack">
+          <section class="panel" aria-labelledby="sourceHeading">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">Source inventory</span>
+                <h2 id="sourceHeading">Observed source IP evidence</h2>
+                <p>Aggregated source endpoints in the returned window. Expand a row for exact address evidence and drill-down.</p>
+              </div>
+              <span class="section-count" id="sourceCount">0 sources</span>
+            </div>
+            <p class="scroll-hint">Scroll horizontally for all columns.</p>
+            <div class="table-wrap">
+              <table class="source-table">
+                <caption class="sr-only">Observed source IP inventory</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Details</th>
+                    <th scope="col">Source</th>
+                    <th scope="col">Protocols / countries</th>
+                    <th scope="col" class="number">Connections</th>
+                    <th scope="col" class="number">Listeners / destinations</th>
+                    <th scope="col" class="number">Traffic sent / received / total</th>
+                    <th scope="col" class="number">Failures</th>
+                    <th scope="col" class="number">Avg / max duration</th>
+                    <th scope="col">First / last seen</th>
+                  </tr>
+                </thead>
+                <tbody id="sourceTableBody"></tbody>
+              </table>
+            </div>
+            <div class="pagination" aria-label="Source IP pages">
+              <span class="pagination-status" id="sourcePageStatus" aria-live="polite" aria-describedby="sourcePageHelp">Page 1 · 0 IPs shown · 0 total</span>
+              <span class="sr-only" id="sourcePageHelp">Source pages follow canonical identity order. Return to or refresh page 1 to include newly observed lower identities.</span>
+              <div class="pagination-actions">
+                <button class="button" id="sourcePrevious" type="button" disabled>Previous</button>
+                <button class="button" id="sourceNext" type="button" disabled>Next</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
       <section class="tab-panel" id="panel-destinations" role="tabpanel" aria-labelledby="tab-destinations" tabindex="0" hidden>
         <div class="stack">
           <section class="panel" aria-labelledby="destinationHeading">
@@ -851,6 +930,7 @@
                     <th scope="col" class="number">Sources / listeners</th>
                     <th scope="col" class="number">Traffic</th>
                     <th scope="col" class="number">Failures</th>
+                    <th scope="col" class="number">Avg / max duration</th>
                     <th scope="col">First / last seen</th>
                   </tr>
                 </thead>
@@ -901,8 +981,11 @@
     const ANALYTICS_ENDPOINT = '/api/streamInfo/analytics';
     const SANKEY_PATH_LIMIT = 40;
     const TABLE_ROW_LIMIT = 250;
+    const SOURCE_PAGE_SIZE = 100;
     const SESSION_ROW_LIMIT = 50;
     const QUERY_FIELDS = ['start', 'end', 'source', 'listener', 'destination', 'protocol', 'country', 'outcome'];
+    const EXACT_QUERY_KEYS = ['path_id', 'source_ip', 'listener_ip', 'destination_ip'];
+    const PAGE_QUERY_KEYS = ['source_cursor', 'source_limit'];
 
     const state = {
       data: null,
@@ -910,9 +993,13 @@
       timelineChart: null,
       lastSuccessAt: null,
       expandedPathId: null,
+      expandedSourceId: null,
       resizeTimer: null,
       renderFrame: null,
       appliedQuery: null,
+      lastRequestedQuery: null,
+      sourceCursorHistory: [],
+      clearExactOnApply: false,
       activeTab: 'overview'
     };
 
@@ -923,7 +1010,9 @@
       'filterHint', 'resultCount', 'staleNotice', 'staleMessage', 'warningNotice',
       'warningList', 'initialState', 'initialSpinner', 'initialTitle', 'initialMessage',
       'retryButton', 'dashboard', 'routeVisual', 'routeLimitLabel', 'routeCaption',
-      'pathTableBody', 'pathTableCount', 'destinationTableBody', 'destinationCount',
+      'exactScopeBar', 'exactScopeLabel', 'exitDrillButton', 'pathTableBody', 'pathTableCount',
+      'sourceTableBody', 'sourceCount', 'sourcePageStatus', 'sourcePrevious', 'sourceNext',
+      'destinationTableBody', 'destinationCount',
       'breakdowns', 'sessionList', 'sessionCount', 'timelineEmpty', 'timelineCount'
     ];
     const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
@@ -1063,6 +1152,7 @@
 
     function normalizePath(item, index) {
       const path = item && typeof item === 'object' ? item : {};
+      const exactId = textValue(path, ['id', 'path_id', 'key'], '');
       const sent = numberValue(path, valueKeys.bytesSent);
       const received = numberValue(path, valueKeys.bytesReceived);
       const streamMatchStatus = textValue(path, ['stream_match_status', 'streamMatchStatus', 'match_status'], '');
@@ -1071,7 +1161,8 @@
       const primaryStream = streams[0] || normalizeStream({});
       primaryStream.matched = matchedFromStatus(streamMatchStatus, primaryStream.matched);
       return {
-        id: textValue(path, ['id', 'path_id', 'key'], `path-${index}`),
+        id: exactId || `path-${index}`,
+        exactId,
         source: normalizeEndpoint(firstValue(path, ['source', 'src', 'client'], {})),
         listener: normalizeEndpoint(firstValue(path, ['observed_listener', 'listener', 'npm_listener', 'ingress', 'proxy'], {})),
         destination: normalizeEndpoint(firstValue(path, ['destination', 'dest', 'upstream', 'target'], {})),
@@ -1113,8 +1204,40 @@
         bytesReceived: received,
         totalBytes: numberValue(destination, valueKeys.totalBytes, sent + received),
         avgDuration: numberValue(destination, valueKeys.avgDuration),
+        maxDuration: numberValue(destination, valueKeys.maxDuration),
         firstSeen: firstValue(destination, ['first_seen', 'first_timestamp'], null),
         lastSeen: firstValue(destination, ['last_seen', 'last_timestamp'], null)
+      };
+    }
+
+    function normalizeSource(item, index) {
+      const source = item && typeof item === 'object' ? item : {};
+      const sent = numberValue(source, valueKeys.bytesSent);
+      const received = numberValue(source, valueKeys.bytesReceived);
+      const protocols = arrayValue(firstValue(source, ['protocols', 'protocol'], []))
+        .map((protocol) => typeof protocol === 'object' ? textValue(protocol, ['name', 'protocol'], '') : String(protocol))
+        .filter(Boolean);
+      const countries = arrayValue(firstValue(source, ['countries', 'country'], []))
+        .map((country) => typeof country === 'object' ? textValue(country, ['name', 'country', 'code'], '') : String(country))
+        .filter(Boolean);
+      const endpoint = normalizeEndpoint(firstValue(source, ['source', 'endpoint'], source));
+      return {
+        id: `source-${index}`,
+        endpoint,
+        protocols,
+        countries,
+        connections: numberValue(source, valueKeys.connections),
+        uniqueListeners: numberValue(source, ['unique_listeners']),
+        uniqueDestinations: numberValue(source, ['unique_destinations']),
+        failed: numberValue(source, valueKeys.failed),
+        failureRate: numberValue(source, ['failure_rate']),
+        bytesSent: sent,
+        bytesReceived: received,
+        totalBytes: numberValue(source, valueKeys.totalBytes, sent + received),
+        avgDuration: numberValue(source, valueKeys.avgDuration),
+        maxDuration: numberValue(source, valueKeys.maxDuration),
+        firstSeen: firstValue(source, ['first_seen'], null),
+        lastSeen: firstValue(source, ['last_seen'], null)
       };
     }
 
@@ -1153,7 +1276,7 @@
       return arrayValue(value).map((item) => {
         if (typeof item !== 'object' || item === null) return { name: String(item), connections: 0, totalBytes: 0 };
         return {
-          name: textValue(item, ['name', 'label', 'value', 'protocol', 'country', 'port', 'outcome', 'scope'], 'Unknown'),
+          name: textValue(item, ['name', 'label', 'value', 'protocol', 'country', 'port', 'outcome', 'status', 'scope'], 'Unknown'),
           connections: numberValue(item, valueKeys.connections),
           failed: numberValue(item, valueKeys.failed),
           totalBytes: numberValue(item, valueKeys.totalBytes)
@@ -1169,6 +1292,17 @@
       };
     }
 
+    function normalizeSourcePagination(limits) {
+      return {
+        limit: optionalNumberValue(limits, ['source_limit']),
+        available: optionalNumberValue(limits, ['sources_available']),
+        cursor: textValue(limits, ['source_cursor'], ''),
+        returned: optionalNumberValue(limits, ['sources_returned']),
+        hasMore: booleanValue(limits, ['sources_has_more'], false),
+        nextCursor: textValue(limits, ['sources_next_cursor'], '')
+      };
+    }
+
     function normalizeResponse(payload) {
       const root = payload && typeof payload === 'object' ? payload : {};
       const meta = firstValue(root, ['meta', 'metadata'], {}) || {};
@@ -1176,12 +1310,13 @@
       const summary = firstValue(root, ['summary', 'totals'], {}) || {};
       const dateRange = firstValue(summary, ['date_range', 'dateRange'], {}) || {};
       const breakdownRoot = firstValue(root, ['breakdowns', 'facets', 'distributions'], {}) || {};
-      const limits = firstValue(meta, ['limits'], {}) || {};
+      const limits = { ...meta, ...(firstValue(meta, ['limits'], {}) || {}) };
       const timeline = arrayValue(firstValue(root, ['hourly_timeline', 'timeline', 'activity', 'time_series'], [])).map((item) => ({
         timestamp: firstValue(item, ['timestamp', 'time', 'date', 'bucket'], null),
         connections: numberValue(item, valueKeys.connections),
         failed: numberValue(item, valueKeys.failed),
         totalBytes: numberValue(item, valueKeys.totalBytes),
+        avgDuration: numberValue(item, valueKeys.avgDuration),
         uniqueSources: numberValue(item, ['unique_sources', 'unique_ips']),
         uniqueDestinations: numberValue(item, ['unique_destinations', 'unique_upstreams'])
       }));
@@ -1201,6 +1336,7 @@
               available: ['paths_available', 'path_available', 'total_paths'],
               truncated: ['paths_truncated', 'path_truncated']
             }),
+            sources: normalizeSourcePagination(limits),
             destinations: normalizeCollectionLimit(limits, {
               limit: ['destination_limit', 'destinations_limit'],
               available: ['destinations_available', 'destination_available', 'total_destinations'],
@@ -1230,17 +1366,19 @@
           successful: numberValue(summary, ['successful_connections', 'successes', 'successful']),
           failed: numberValue(summary, valueKeys.failed),
           avgDuration: numberValue(summary, valueKeys.avgDuration),
+          maxDuration: numberValue(summary, valueKeys.maxDuration),
           firstSeen: firstValue(dateRange, ['first_seen', 'min_date', 'start'], firstValue(summary, ['first_seen', 'min_date', 'start'], null)),
           lastSeen: firstValue(dateRange, ['last_seen', 'max_date', 'end'], firstValue(summary, ['last_seen', 'max_date', 'end'], null))
         },
         paths: arrayValue(firstValue(root, ['paths', 'routes', 'observed_paths'], [])).map(normalizePath),
+        sources: arrayValue(firstValue(root, ['sources'], [])).map(normalizeSource),
         destinations: arrayValue(firstValue(root, ['destinations', 'upstreams', 'destination_inventory'], [])).map(normalizeDestination),
         timeline,
         breakdowns: {
           protocols: normalizeBreakdownItems(firstValue(breakdownRoot, ['protocols', 'protocol'], [])),
           countries: normalizeBreakdownItems(firstValue(breakdownRoot, ['countries', 'country'], [])),
           ports: normalizeBreakdownItems(firstValue(breakdownRoot, ['ports', 'destination_ports', 'port'], [])),
-          outcomes: normalizeBreakdownItems(firstValue(breakdownRoot, ['outcomes', 'statuses', 'status'], [])),
+          statuses: normalizeBreakdownItems(firstValue(breakdownRoot, ['statuses'], [])),
           sourceScopes: normalizeBreakdownItems(firstValue(breakdownRoot, ['source_scopes', 'sourceScopes'], [])),
           destinationScopes: normalizeBreakdownItems(firstValue(breakdownRoot, ['destination_scopes', 'destinationScopes'], []))
         },
@@ -1373,12 +1511,6 @@
       }));
     }
 
-    function applyControlQuery() {
-      state.appliedQuery = Object.freeze(captureControlQuery());
-      el.filterForm.querySelectorAll('.control').forEach((control) => control.classList.remove('pending'));
-      el.filterHint.textContent = 'All panels show this server-applied query. Manual Refresh reuses it until Apply is selected again.';
-    }
-
     function updatePendingControls() {
       const applied = state.appliedQuery || {};
       let pendingCount = 0;
@@ -1389,33 +1521,136 @@
         control.classList.toggle('pending', pending);
         if (pending) pendingCount += 1;
       });
-      el.filterHint.textContent = pendingCount
-        ? `${pendingCount} pending ${pendingCount === 1 ? 'edit is' : 'edits are'} not reflected below. Select Apply to run a new server query.`
-        : 'All panels show the last server-applied query. Updates are manual.';
+      if (state.loading) {
+        el.filterHint.textContent = 'A server query is in progress. Displayed analytics and scope remain unchanged until it succeeds.';
+      } else if (pendingCount || state.clearExactOnApply) {
+        const pending = [];
+        if (pendingCount) pending.push(`${pendingCount} pending control ${pendingCount === 1 ? 'edit' : 'edits'}`);
+        if (state.clearExactOnApply) pending.push('the exact scope queued to clear');
+        el.filterHint.textContent = `Pending query: ${pending.join(' and ')}. Displayed analytics remain unchanged until Apply succeeds.`;
+      } else {
+        el.filterHint.textContent = 'All panels show the last successful server-applied query. Manual Refresh reuses exactly this query.';
+      }
     }
 
-    function buildRequestUrl() {
+    function buildRequestUrl(query) {
       const params = new URLSearchParams();
-      const query = state.appliedQuery || {};
       QUERY_FIELDS.forEach((key) => {
         if (query[key]) params.set(key, query[key]);
+      });
+      EXACT_QUERY_KEYS.forEach((key) => {
+        if (query[key]) params.set(key, query[key]);
+      });
+      PAGE_QUERY_KEYS.forEach((key) => {
+        if (query[key] !== undefined && query[key] !== null && query[key] !== '') params.set(key, String(query[key]));
       });
       params.set('path_limit', String(Math.max(1, Math.min(TABLE_ROW_LIMIT, 500))));
       params.set('session_limit', String(Math.max(1, Math.min(SESSION_ROW_LIMIT, 200))));
       return `${ANALYTICS_ENDPOINT}?${params.toString()}`;
     }
 
+    function exactScopeFromQuery(query) {
+      for (const key of EXACT_QUERY_KEYS) {
+        if (query && query[key]) return { key, value: String(query[key]) };
+      }
+      return null;
+    }
+
+    function exactScopeLabel(scope) {
+      const labels = {
+        path_id: 'Route path ID',
+        source_ip: 'Source IP',
+        listener_ip: 'Listener IP',
+        destination_ip: 'Destination IP'
+      };
+      return `${labels[scope.key]}: ${scope.value}`;
+    }
+
+    function renderExactScope() {
+      const scope = exactScopeFromQuery(state.appliedQuery);
+      el.exactScopeBar.hidden = !scope;
+      el.exactScopeLabel.textContent = scope ? exactScopeLabel(scope) : '';
+    }
+
+    function withFirstSourcePage(query) {
+      const { source_cursor: ignoredCursor, ...firstPageQuery } = query;
+      return { ...firstPageQuery, source_limit: SOURCE_PAGE_SIZE };
+    }
+
+    function queryForApply() {
+      const query = captureControlQuery();
+      if (!state.clearExactOnApply) {
+        const scope = exactScopeFromQuery(state.appliedQuery);
+        if (scope) query[scope.key] = scope.value;
+      }
+      return withFirstSourcePage(query);
+    }
+
+    function requestExactScope(key, value) {
+      if (state.loading || !EXACT_QUERY_KEYS.includes(key) || !value) return;
+      // Drill from displayed evidence without applying pending form or Clear edits.
+      const baseQuery = state.appliedQuery || captureControlQuery();
+      const query = Object.fromEntries(Object.entries(baseQuery).filter(([queryKey]) => !EXACT_QUERY_KEYS.includes(queryKey)));
+      query[key] = String(value);
+      fetchAnalytics(withFirstSourcePage(query), {
+        focusAfterSuccess: true,
+        preserveExactClear: state.clearExactOnApply,
+        onSuccess: () => { state.sourceCursorHistory = []; }
+      });
+    }
+
+    function exitDrillDown() {
+      if (state.loading || !state.appliedQuery) return;
+      const query = Object.fromEntries(Object.entries(state.appliedQuery).filter(([key]) => !EXACT_QUERY_KEYS.includes(key)));
+      fetchAnalytics(withFirstSourcePage(query), {
+        focusAfterSuccess: true,
+        onSuccess: () => { state.sourceCursorHistory = []; }
+      });
+    }
+
+    function isValidIPAddress(value) {
+      const address = String(value || '').trim().replace(/^\[|\]$/g, '');
+      const ipv4Parts = address.split('.');
+      if (ipv4Parts.length === 4 && ipv4Parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255)) return true;
+      if (!address.includes(':') || !/^[0-9a-f:.]+$/i.test(address)) return false;
+      try {
+        return new URL(`http://[${address}]/`).hostname.length > 0;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function createDrillButton(label, key, value) {
+      const button = document.createElement('button');
+      const valid = key === 'path_id' ? Boolean(value) : isValidIPAddress(value);
+      button.type = 'button';
+      button.className = 'button drill-action';
+      button.textContent = label;
+      button.dataset.exactValid = String(valid);
+      button.disabled = state.loading || !valid;
+      if (!valid) button.title = key === 'path_id' ? 'No exact path ID was returned.' : 'No valid exact IP address was returned.';
+      button.addEventListener('click', () => requestExactScope(key, value));
+      return button;
+    }
+
     function setLoading(loading) {
       state.loading = loading;
       el.applyButton.disabled = loading;
+      el.clearButton.disabled = loading;
       el.headerRefresh.disabled = loading;
       el.retryButton.disabled = loading;
+      el.exitDrillButton.disabled = loading;
+      document.querySelectorAll('.drill-action').forEach((button) => {
+        button.disabled = loading || button.dataset.exactValid === 'false';
+      });
+      updateSourcePagination();
       el.applyButton.textContent = loading ? 'Refreshing…' : 'Apply / refresh';
-      el.healthDot.className = `health-dot ${loading ? 'busy' : state.data ? 'live' : ''}`;
+      if (loading) el.healthDot.className = 'health-dot busy';
       if (loading) {
         el.freshnessLabel.textContent = state.data ? 'Manual refresh in progress' : 'Loading telemetry';
         el.freshnessDetail.textContent = state.data ? 'Current evidence remains usable' : 'One analytics request in progress';
       }
+      updatePendingControls();
     }
 
     async function responseError(response) {
@@ -1430,19 +1665,22 @@
       return new Error(detail ? `${status}: ${detail.slice(0, 500)}` : status);
     }
 
-    async function fetchAnalytics() {
+    async function fetchAnalytics(requestedQuery, options = {}) {
       if (state.loading) return;
+      const { focusAfterSuccess = false, preserveExactClear = false, onSuccess = null } = options;
+      const query = Object.freeze({ ...(requestedQuery || state.appliedQuery || state.lastRequestedQuery || captureControlQuery()) });
+      state.lastRequestedQuery = query;
       setLoading(true);
       if (!state.data) {
         el.initialState.hidden = false;
         el.initialSpinner.hidden = false;
         el.retryButton.hidden = true;
         el.initialTitle.textContent = 'Loading stream evidence';
-        el.initialMessage.textContent = 'Requesting paths, destinations, timeline, breakdowns, and recent sessions in one analytics response.';
+        el.initialMessage.textContent = 'Requesting sources, paths, destinations, timeline, breakdowns, and recent sessions in one analytics response.';
       }
 
       try {
-        const response = await fetch(buildRequestUrl(), {
+        const response = await fetch(buildRequestUrl(query), {
           method: 'GET',
           credentials: 'same-origin',
           cache: 'no-store',
@@ -1451,8 +1689,12 @@
         if (!response.ok) throw await responseError(response);
         const payload = await response.json();
         state.data = normalizeResponse(payload);
+        state.appliedQuery = query;
+        if (!preserveExactClear) state.clearExactOnApply = false;
         state.lastSuccessAt = new Date();
         state.expandedPathId = null;
+        state.expandedSourceId = null;
+        if (onSuccess) onSuccess();
         populateFilterOptions();
         el.initialState.hidden = true;
         el.dashboard.hidden = false;
@@ -1461,6 +1703,8 @@
         el.healthDot.className = 'health-dot live';
         el.freshnessLabel.textContent = 'Telemetry snapshot loaded';
         el.freshnessDetail.textContent = `Loaded ${state.lastSuccessAt.toLocaleTimeString()} · refresh manually`;
+        updatePendingControls();
+        if (focusAfterSuccess) focusActiveTab();
       } catch (error) {
         console.error('Unable to load stream analytics:', error);
         el.healthDot.className = 'health-dot error';
@@ -1509,6 +1753,7 @@
 
     function populateFilterOptions() {
       populateDatalist('sourceOptions', [
+        ...state.data.sources.flatMap((source) => endpointFilterValues(source.endpoint)),
         ...state.data.paths.flatMap((path) => endpointFilterValues(path.source)),
         ...state.data.sessions.flatMap((session) => endpointFilterValues(session.source))
       ]);
@@ -1522,12 +1767,14 @@
         ...state.data.sessions.flatMap((session) => endpointFilterValues(session.destination))
       ]);
       populateDatalist('protocolOptions', [
+        ...state.data.sources.flatMap((source) => source.protocols),
         ...state.data.paths.map((path) => path.protocol),
         ...state.data.destinations.flatMap((destination) => destination.protocols),
         ...state.data.sessions.map((session) => session.protocol),
         ...state.data.breakdowns.protocols.map((item) => item.name)
       ]);
       populateDatalist('countryOptions', [
+        ...state.data.sources.flatMap((source) => source.countries),
         ...state.data.paths.map((path) => path.country),
         ...state.data.sessions.map((session) => session.country),
         ...state.data.breakdowns.countries.map((item) => item.name)
@@ -1537,8 +1784,10 @@
     function renderAll() {
       if (!state.data) return;
       renderSummary();
+      renderExactScope();
       renderWarnings();
       renderPathTable(state.data.paths);
+      renderSourceTable(state.data.sources);
       renderDestinationTable(state.data.destinations);
       renderBreakdowns();
       renderSessions(state.data.sessions);
@@ -1561,7 +1810,7 @@
       setText('metricListeners', formatInteger(summary.uniqueListeners));
       setText('metricDestinations', formatInteger(summary.uniqueDestinations));
       setText('metricFailures', formatInteger(summary.failed));
-      setText('metricSuccess', `${successRate.toFixed(1)}% successful · ${formatDuration(summary.avgDuration)} avg`);
+      setText('metricSuccess', `${successRate.toFixed(1)}% successful · ${formatDuration(summary.avgDuration)} avg · ${formatDuration(summary.maxDuration)} max`);
       setText('metricWindow', `${formatDateTime(summary.firstSeen, true)} → ${formatDateTime(summary.lastSeen, true)}`);
     }
 
@@ -1581,6 +1830,10 @@
         const limit = limits.limit === null ? '' : `; server limit ${formatInteger(limits.limit)}`;
         warnings.push(`${label} truncated: ${formatInteger(returned)} returned of ${available}${limit}.`);
       });
+      const sourcePage = sourcePageDetails(state.data.sources);
+      if (state.sourceCursorHistory.length || sourcePage.hasMore) {
+        warnings.push(`Source inventory is paginated: ${sourcePageStatusText(sourcePage)}. Use Previous and Next in the IPs panel to navigate all source IPs.`);
+      }
       const fragment = document.createDocumentFragment();
       [...new Set(warnings)].forEach((warning) => appendTextElement(fragment, 'li', warning));
       el.warningList.replaceChildren(fragment);
@@ -1594,6 +1847,59 @@
     function collectionCountText(returned, limits, noun) {
       if (limits.available !== null) return `${formatInteger(returned)} of ${formatInteger(limits.available)} ${noun}`;
       return `${formatInteger(returned)} ${noun}`;
+    }
+
+    function sourcePageDetails(sources) {
+      const limits = state.data ? state.data.meta.limits.sources : {};
+      const available = limits.available === null || limits.available === undefined ? null : Math.max(0, limits.available);
+      const nextCursor = String(limits.nextCursor || '');
+      return {
+        pageNumber: state.sourceCursorHistory.length + 1,
+        shown: sources.length,
+        available,
+        hasMore: Boolean(limits.hasMore),
+        nextCursor
+      };
+    }
+
+    function sourcePageStatusText(page) {
+      const total = page.available === null ? 'total unknown' : `${formatInteger(page.available)} total`;
+      return `Page ${formatInteger(page.pageNumber)} · ${formatInteger(page.shown)} IPs shown · ${total}`;
+    }
+
+    function updateSourcePagination() {
+      if (!state.data) {
+        el.sourcePageStatus.textContent = 'Page 1 · 0 IPs shown · 0 total';
+        el.sourcePrevious.disabled = true;
+        el.sourceNext.disabled = true;
+        return;
+      }
+      const page = sourcePageDetails(state.data.sources);
+      el.sourcePageStatus.textContent = sourcePageStatusText(page);
+      el.sourcePrevious.disabled = state.loading || state.sourceCursorHistory.length === 0;
+      el.sourceNext.disabled = state.loading || !page.hasMore || !page.nextCursor;
+    }
+
+    function requestSourcePage(direction) {
+      if (state.loading || !state.appliedQuery) return;
+      const page = sourcePageDetails(state.data.sources);
+      const previous = direction < 0;
+      if (previous && !state.sourceCursorHistory.length) return;
+      if (!previous && (!page.hasMore || !page.nextCursor)) return;
+      const cursor = previous
+        ? state.sourceCursorHistory[state.sourceCursorHistory.length - 1]
+        : page.nextCursor;
+      const query = { ...state.appliedQuery, source_limit: SOURCE_PAGE_SIZE };
+      if (cursor) query.source_cursor = cursor;
+      else delete query.source_cursor;
+      const currentCursor = String(state.appliedQuery.source_cursor || '');
+      fetchAnalytics(query, {
+        preserveExactClear: state.clearExactOnApply,
+        onSuccess: () => {
+          if (previous) state.sourceCursorHistory.pop();
+          else state.sourceCursorHistory.push(currentCursor);
+        }
+      });
     }
 
     function truncateLabel(value, length = 30) {
@@ -1799,7 +2105,7 @@
         ['Duration', `${formatDuration(path.avgDuration)} average · ${formatDuration(path.maxDuration)} maximum`],
         ['Observed window', `${formatDateTime(path.firstSeen)} → ${formatDateTime(path.lastSeen)}`],
         ['Protocol / country', `${path.protocol} · ${path.country}`],
-        ['Path ID', path.id]
+        ['Path ID', path.exactId || 'Not returned']
       ];
       details.forEach(([term, description]) => {
         const item = document.createElement('div');
@@ -1809,6 +2115,14 @@
         grid.appendChild(item);
       });
       cell.appendChild(grid);
+      const actions = document.createElement('div');
+      actions.className = 'detail-actions';
+      actions.setAttribute('aria-label', 'Exact route drill-down actions');
+      actions.appendChild(createDrillButton('Open exact route', 'path_id', path.exactId));
+      actions.appendChild(createDrillButton('Open source IP', 'source_ip', path.source.ip));
+      actions.appendChild(createDrillButton('Open listener IP', 'listener_ip', path.listener.ip));
+      actions.appendChild(createDrillButton('Open destination IP', 'destination_ip', path.destination.ip));
+      cell.appendChild(actions);
       row.appendChild(cell);
       return row;
     }
@@ -1829,7 +2143,7 @@
           detailButton.type = 'button';
           detailButton.id = toggleId;
           detailButton.setAttribute('aria-expanded', String(state.expandedPathId === path.id));
-          detailButton.setAttribute('aria-controls', detailId);
+          if (state.expandedPathId === path.id) detailButton.setAttribute('aria-controls', detailId);
           detailButton.addEventListener('click', () => {
             state.expandedPathId = state.expandedPathId === path.id ? null : path.id;
             renderPathTable(state.data.paths);
@@ -1881,10 +2195,83 @@
       el.pathTableCount.textContent = collectionCountText(visiblePaths.length, state.data.meta.limits.paths, 'paths');
     }
 
+    function createSourceDetailRow(source, detailId) {
+      const row = document.createElement('tr');
+      row.className = 'detail-row';
+      row.id = detailId;
+      const cell = document.createElement('td');
+      cell.colSpan = 9;
+      const grid = document.createElement('dl');
+      grid.className = 'detail-grid';
+      const details = [
+        ['Aliases', source.endpoint.aliases.join(', ') || 'None returned'],
+        ['Scope', source.endpoint.scope || 'Not returned'],
+        ['Exact IP', source.endpoint.ip || 'Not returned'],
+        ['Observed endpoint', ipWithPort(source.endpoint)]
+      ];
+      details.forEach(([term, description]) => {
+        const item = document.createElement('div');
+        item.className = 'detail-item';
+        appendTextElement(item, 'dt', term);
+        appendTextElement(item, 'dd', description);
+        grid.appendChild(item);
+      });
+      cell.appendChild(grid);
+      const actions = document.createElement('div');
+      actions.className = 'detail-actions';
+      actions.appendChild(createDrillButton('Open this source', 'source_ip', source.endpoint.ip));
+      cell.appendChild(actions);
+      row.appendChild(cell);
+      return row;
+    }
+
+    function renderSourceTable(sources) {
+      const fragment = document.createDocumentFragment();
+      const visibleSources = sources;
+      if (!visibleSources.length) {
+        fragment.appendChild(createEmptyRow(9, 'The applied server query returned no source inventory entries.'));
+      } else {
+        visibleSources.forEach((source, sourceIndex) => {
+          const row = document.createElement('tr');
+          row.className = 'data-row';
+          const detailCell = document.createElement('td');
+          const detailId = `source-detail-${sourceIndex}`;
+          const toggleId = `source-toggle-${sourceIndex}`;
+          const expanded = state.expandedSourceId === source.id;
+          const detailButton = appendTextElement(detailCell, 'button', expanded ? 'Collapse' : 'Inspect', 'detail-button');
+          detailButton.type = 'button';
+          detailButton.id = toggleId;
+          detailButton.setAttribute('aria-expanded', String(expanded));
+          if (expanded) detailButton.setAttribute('aria-controls', detailId);
+          detailButton.addEventListener('click', () => {
+            state.expandedSourceId = expanded ? null : source.id;
+            renderSourceTable(state.data.sources);
+            const replacementToggle = document.getElementById(toggleId);
+            if (replacementToggle) replacementToggle.focus();
+          });
+          row.appendChild(detailCell);
+          appendEndpointCell(row, source.endpoint);
+          createCell(row, `${source.protocols.join(', ') || 'Unknown'} / ${source.countries.join(', ') || 'Unknown'}`);
+          createCell(row, formatInteger(source.connections), 'number');
+          createCell(row, `${formatInteger(source.uniqueListeners)} / ${formatInteger(source.uniqueDestinations)}`, 'number');
+          createCell(row, `${formatBytes(source.bytesSent)} / ${formatBytes(source.bytesReceived)} / ${formatBytes(source.totalBytes)}`, 'number');
+          createCell(row, `${formatInteger(source.failed)} · ${formatPercent(source.failureRate, source.failed, source.connections)}`, 'number');
+          createCell(row, `${formatDuration(source.avgDuration)} / ${formatDuration(source.maxDuration)}`, 'number');
+          const seenCell = createCell(row, `${formatDateTime(source.firstSeen, true)} / ${formatDateTime(source.lastSeen, true)}`, 'seen-cell');
+          seenCell.title = `${formatDateTime(source.firstSeen)} / ${formatDateTime(source.lastSeen)}`;
+          fragment.appendChild(row);
+          if (expanded) fragment.appendChild(createSourceDetailRow(source, detailId));
+        });
+      }
+      el.sourceTableBody.replaceChildren(fragment);
+      el.sourceCount.textContent = `${formatInteger(visibleSources.length)} ${visibleSources.length === 1 ? 'IP' : 'IPs'} on this page`;
+      updateSourcePagination();
+    }
+
     function renderDestinationTable(destinations) {
       const fragment = document.createDocumentFragment();
       if (!destinations.length) {
-        fragment.appendChild(createEmptyRow(7, 'The applied server query returned no destination inventory entries.'));
+        fragment.appendChild(createEmptyRow(8, 'The applied server query returned no destination inventory entries.'));
       } else {
         destinations.forEach((destination) => {
           const row = document.createElement('tr');
@@ -1895,6 +2282,7 @@
           createCell(row, `${formatInteger(destination.uniqueSources)} / ${formatInteger(destination.uniqueListeners)}`, 'number');
           createCell(row, formatBytes(destination.totalBytes), 'number');
           createCell(row, `${formatInteger(destination.failed)} · ${formatPercent(destination.failureRate, destination.failed, destination.connections)}`, 'number');
+          createCell(row, `${formatDuration(destination.avgDuration)} / ${formatDuration(destination.maxDuration)}`, 'number');
           const seenCell = createCell(row, `${formatDateTime(destination.firstSeen, true)} / ${formatDateTime(destination.lastSeen, true)}`, 'seen-cell');
           seenCell.title = `${formatDateTime(destination.firstSeen)} / ${formatDateTime(destination.lastSeen)}`;
           fragment.appendChild(row);
@@ -1971,7 +2359,12 @@
           interaction: { mode: 'index', intersect: false },
           plugins: {
             legend: { position: 'bottom', labels: { color: '#8fa2b5', boxWidth: 10, boxHeight: 2, font: { size: 10, family: 'monospace' } } },
-            tooltip: { callbacks: { label: (context) => context.dataset.yAxisID === 'traffic' ? `Traffic: ${formatBytes(context.parsed.y)}` : `${context.dataset.label}: ${formatInteger(context.parsed.y)}` } }
+            tooltip: {
+              callbacks: {
+                label: (context) => context.dataset.yAxisID === 'traffic' ? `Traffic: ${formatBytes(context.parsed.y)}` : `${context.dataset.label}: ${formatInteger(context.parsed.y)}`,
+                afterBody: (contexts) => contexts.length ? `Average duration: ${formatDuration(timeline[contexts[0].dataIndex].avgDuration)}` : ''
+              }
+            }
           },
           scales: {
             x: { ticks: { color: '#667b8f', maxTicksLimit: 6, font: { size: 9, family: 'monospace' } }, grid: { color: 'rgba(32, 56, 75, 0.45)' } },
@@ -2028,7 +2421,7 @@
         ['Protocols', state.data.breakdowns.protocols],
         ['Countries', state.data.breakdowns.countries],
         ['Destination ports', state.data.breakdowns.ports],
-        ['Outcomes', state.data.breakdowns.outcomes],
+        ['Statuses', state.data.breakdowns.statuses],
         ['Source scopes', state.data.breakdowns.sourceScopes],
         ['Destination scopes', state.data.breakdowns.destinationScopes]
       ];
@@ -2092,8 +2485,11 @@
 
     function clearFilters() {
       el.filterForm.reset();
+      state.clearExactOnApply = Boolean(exactScopeFromQuery(state.appliedQuery));
       updatePendingControls();
-      el.filterHint.textContent = 'Controls are cleared, but displayed analytics are unchanged. Select Apply to request full history.';
+      el.filterHint.textContent = state.clearExactOnApply
+        ? 'Controls and the exact scope are cleared for the next Apply. Displayed analytics remain unchanged until that request succeeds.'
+        : 'Controls are cleared for the next Apply. Displayed analytics remain unchanged until that request succeeds.';
     }
 
     function scheduleVisibleVisuals() {
@@ -2126,6 +2522,19 @@
       scheduleVisibleVisuals();
     }
 
+    function focusActiveTab() {
+      const selected = document.querySelector(`[role="tab"][data-tab="${state.activeTab}"]`);
+      if (!selected) return;
+      const panel = document.getElementById(selected.getAttribute('aria-controls'));
+      const heading = panel ? panel.querySelector('h2, h3') : null;
+      if (heading) {
+        heading.tabIndex = -1;
+        heading.focus();
+      } else {
+        selected.focus();
+      }
+    }
+
     const tabs = [...document.querySelectorAll('[role="tab"][data-tab]')];
     tabs.forEach((tab) => {
       tab.addEventListener('click', () => activateTab(tab.dataset.tab));
@@ -2154,12 +2563,14 @@
     el.filterForm.addEventListener('submit', (event) => {
       event.preventDefault();
       if (state.loading) return;
-      applyControlQuery();
-      fetchAnalytics();
+      fetchAnalytics(queryForApply(), { onSuccess: () => { state.sourceCursorHistory = []; } });
     });
-    el.headerRefresh.addEventListener('click', fetchAnalytics);
-    el.retryButton.addEventListener('click', fetchAnalytics);
+    el.headerRefresh.addEventListener('click', () => fetchAnalytics(state.appliedQuery));
+    el.retryButton.addEventListener('click', () => fetchAnalytics(state.lastRequestedQuery));
     el.clearButton.addEventListener('click', clearFilters);
+    el.exitDrillButton.addEventListener('click', exitDrillDown);
+    el.sourcePrevious.addEventListener('click', () => requestSourcePage(-1));
+    el.sourceNext.addEventListener('click', () => requestSourcePage(1));
 
     el.filterForm.querySelectorAll('.control').forEach((control) => {
       control.addEventListener('input', updatePendingControls);
@@ -2178,9 +2589,10 @@
     });
 
     initializeOperationalWindow();
-    applyControlQuery();
     activateTab(state.activeTab);
-    fetchAnalytics();
+    fetchAnalytics(withFirstSourcePage(captureControlQuery()), {
+      onSuccess: () => { state.sourceCursorHistory = []; }
+    });
   </script>
 </body>
 </html>

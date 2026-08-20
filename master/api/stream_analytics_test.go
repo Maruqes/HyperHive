@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -120,6 +121,9 @@ func TestParseAnalyticsFiltersValidationAndLimits(t *testing.T) {
 		{query: "outcome=maybe", want: "outcome must be success or failed"},
 		{query: "path_limit=0", want: "path_limit must be a positive integer"},
 		{query: "session_limit=nope", want: "session_limit must be a positive integer"},
+		{query: "source_limit=0", want: "source_limit must be a positive integer"},
+		{query: "source_limit=nope", want: "source_limit must be a positive integer"},
+		{query: "source_cursor=not*a*cursor", want: "source_cursor must be a valid cursor"},
 	}
 	for _, test := range tests {
 		req := httptest.NewRequest(http.MethodGet, "/streamInfo/analytics?"+test.query, nil)
@@ -129,13 +133,64 @@ func TestParseAnalyticsFiltersValidationAndLimits(t *testing.T) {
 		}
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/streamInfo/analytics?path_limit=99999&session_limit=99999", nil)
+	req := httptest.NewRequest(http.MethodGet, "/streamInfo/analytics", nil)
 	filters, err := parseAnalyticsFilters(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filters.sourceLimit != analyticsDefaultSourceLimit || filters.sourceCursor != "" || filters.sourceAfter != "" {
+		t.Fatalf("default source page = %#v", filters)
+	}
+
+	cursor := encodeAnalyticsSourceCursor("2001:db8::2a")
+	req = httptest.NewRequest(http.MethodGet, "/streamInfo/analytics?path_limit=99999&session_limit=99999&source_limit=99999&source_cursor="+cursor, nil)
+	filters, err = parseAnalyticsFilters(req)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if filters.pathLimit != analyticsMaxPathLimit || filters.sessionLimit != analyticsMaxSessionLimit {
 		t.Fatalf("limits = %d/%d; want %d/%d", filters.pathLimit, filters.sessionLimit, analyticsMaxPathLimit, analyticsMaxSessionLimit)
+	}
+	if filters.sourceLimit != analyticsMaxSourceLimit || filters.sourceCursor != cursor || filters.sourceAfter != "2001:db8::2a" {
+		t.Fatalf("source page = %#v", filters)
+	}
+
+	oversized := strings.Repeat("a", analyticsMaxSourceCursorSize+1)
+	req = httptest.NewRequest(http.MethodGet, "/streamInfo/analytics?source_cursor="+oversized, nil)
+	if _, err := parseAnalyticsFilters(req); err == nil || err.Error() != "source_cursor must be a valid cursor" {
+		t.Fatalf("oversized cursor error = %v", err)
+	}
+}
+
+func TestParseAnalyticsExactFilters(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/streamInfo/analytics?path_id=path_0123456789abcdef&source_ip=2001:0db8:0:0::1&listener_ip=192.168.001.1&destination_ip=2001:db8::2", nil)
+	filters, err := parseAnalyticsFilters(req)
+	if err == nil {
+		t.Fatal("non-canonical IPv4 with leading zeroes must be rejected")
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/streamInfo/analytics?path_id=path_0123456789abcdef&source_ip=2001:0db8:0:0::1&listener_ip=192.168.1.1&destination_ip=2001:0db8::2", nil)
+	filters, err = parseAnalyticsFilters(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filters.pathID != "path_0123456789abcdef" || filters.sourceIP != "2001:db8::1" || filters.listenerIP != "192.168.1.1" || filters.destinationIP != "2001:db8::2" {
+		t.Fatalf("exact filters were not canonicalized: %#v", filters)
+	}
+
+	invalid := map[string]string{
+		"path_id=path_0123456789abcde":  "path_id must use path_ followed by 16 lowercase hexadecimal characters",
+		"path_id=path_0123456789abcdeF": "path_id must use path_ followed by 16 lowercase hexadecimal characters",
+		"source_ip=not-an-ip":           "source_ip must be a valid IP address",
+		"listener_ip=10.0.0.999":        "listener_ip must be a valid IP address",
+		"destination_ip=host.example":   "destination_ip must be a valid IP address",
+	}
+	for query, want := range invalid {
+		req := httptest.NewRequest(http.MethodGet, "/streamInfo/analytics?"+query, nil)
+		_, err := parseAnalyticsFilters(req)
+		if err == nil || err.Error() != want {
+			t.Errorf("query %q error = %v; want %q", query, err, want)
+		}
 	}
 }
 
@@ -165,6 +220,50 @@ func TestFilterAnalyticsEntriesComposesSearches(t *testing.T) {
 	got := filterAnalyticsEntries(entries, filters, aliases)
 	if len(got) != 1 || got[0].Status != 502 {
 		t.Fatalf("filtered entries = %#v", got)
+	}
+}
+
+func TestFilterAnalyticsEntriesExactIPs(t *testing.T) {
+	entries := []streamLogEntry{
+		{ClientIP: "10.0.0.2", ProxyAddr: "[2001:db8::1]:443", UpstreamAddr: "192.168.1.20:80"},
+		{ClientIP: "10.0.0.20", ProxyAddr: "[2001:db8::1]:443", UpstreamAddr: "192.168.1.20:80"},
+		{ClientIP: "10.0.0.2", ProxyAddr: "[2001:db8::10]:443", UpstreamAddr: "192.168.1.20:80"},
+		{ClientIP: "10.0.0.2", ProxyAddr: "[2001:db8::1]:443", UpstreamAddr: "192.168.1.200:80"},
+	}
+	filters := analyticsFilters{sourceIP: "10.0.0.2", listenerIP: "2001:db8::1", destinationIP: "192.168.1.20"}
+	got := filterAnalyticsEntries(entries, filters, map[string][]string{})
+	if len(got) != 1 || got[0].ClientIP != "10.0.0.2" || got[0].ProxyAddr != "[2001:db8::1]:443" || got[0].UpstreamAddr != "192.168.1.20:80" {
+		t.Fatalf("exact IP filters matched substring collisions: %#v", got)
+	}
+}
+
+func TestAnalyticsPathIDStableAndFilterable(t *testing.T) {
+	entry := streamLogEntry{
+		ClientIP: "10.0.0.2", ProxyAddr: "2001:db8::1:25565", UpstreamAddr: "192.168.76.165:25565",
+		Protocol: "TCP", Country: "Portugal", Status: http.StatusOK,
+	}
+	const pathID = "path_145235a4b54524f8"
+	if got := analyticsPathID(analyticsPathKey(entry)); got != pathID {
+		t.Fatalf("path ID changed: got %q, want %q", got, pathID)
+	}
+	otherCountry := entry
+	otherCountry.Country = "United States"
+	if got := analyticsPathID(analyticsPathKey(otherCountry)); got != pathID {
+		t.Fatalf("country changed path ID: got %q, want %q", got, pathID)
+	}
+
+	entries := []streamLogEntry{entry, otherCountry}
+	response := aggregateStreamAnalytics(entries, map[string][]string{}, []npm.Stream{}, map[int]string{}, true, analyticsFilters{pathLimit: 10, sessionLimit: 10})
+	if len(response.Paths) != 1 || response.Paths[0].ID != pathID || response.Paths[0].Connections != 2 {
+		t.Fatalf("aggregated paths = %#v", response.Paths)
+	}
+	matched := filterAnalyticsEntries(entries, analyticsFilters{pathID: pathID}, map[string][]string{})
+	if len(matched) != 2 {
+		t.Fatalf("known path ID returned %#v", matched)
+	}
+	unknown := filterAnalyticsEntries(entries, analyticsFilters{pathID: "path_0000000000000000"}, map[string][]string{})
+	if len(unknown) != 0 {
+		t.Fatalf("unknown valid path ID returned %#v", unknown)
 	}
 }
 
@@ -235,6 +334,173 @@ func TestAggregateStreamAnalytics(t *testing.T) {
 	}
 	if response.Metadata.Limits.BreakdownsAvailable["protocols"] != 1 || response.Metadata.Limits.BreakdownsTruncatedByDimension["protocols"] {
 		t.Fatalf("breakdown limits = %#v", response.Metadata.Limits)
+	}
+	if len(response.Sources) != 1 {
+		t.Fatalf("sources = %#v", response.Sources)
+	}
+	source := response.Sources[0]
+	if source.Source.RawAddress != "10.0.0.2" || source.Connections != 2 || source.FailureCount != 1 || source.FailureRate != 0.5 || source.BytesSent != 400 || source.BytesReceived != 100 || source.TotalBytes != 500 || source.AvgSession != 4 || source.MaxSession != 6 || source.UniqueListeners != 1 || source.UniqueDestinations != 1 {
+		t.Fatalf("source metrics = %#v", source)
+	}
+	if !reflect.DeepEqual(source.Protocols, []string{"TCP"}) || !reflect.DeepEqual(source.Countries, []string{"Portugal"}) || source.FirstSeen != t1.Format(time.RFC3339) || source.LastSeen != t2.Format(time.RFC3339) {
+		t.Fatalf("source dimensions/times = %#v", source)
+	}
+	if len(response.Breakdowns.Statuses) != 2 || response.Breakdowns.Statuses[0].Value != "502" || response.Breakdowns.Statuses[1].Value != "200" {
+		t.Fatalf("status breakdown = %#v", response.Breakdowns.Statuses)
+	}
+	if response.Metadata.Limits.BreakdownsAvailable["statuses"] != 2 || response.Metadata.Limits.BreakdownsReturned["statuses"] != 2 || response.Metadata.Limits.BreakdownsTruncatedByDimension["statuses"] {
+		t.Fatalf("status limits = %#v", response.Metadata.Limits)
+	}
+}
+
+func TestAnalyticsSourcesSortAndDimensions(t *testing.T) {
+	entries := []streamLogEntry{
+		{ClientIP: "source-c", ProxyAddr: "listener-1", UpstreamAddr: "destination-1", Protocol: "udp", Country: "US", Status: 200, BytesSent: 100},
+		{ClientIP: "source-b", ProxyAddr: "listener-1", UpstreamAddr: "destination-1", Protocol: "tcp", Country: "PT", Status: 200, BytesSent: 100},
+		{ClientIP: "source-a", ProxyAddr: "listener-1", UpstreamAddr: "destination-1", Protocol: "tcp", Country: "PT", Status: 200, BytesSent: 50},
+		{ClientIP: "source-a", ProxyAddr: "listener-2", UpstreamAddr: "destination-2", Protocol: "udp", Country: "US", Status: 502, BytesSent: 50},
+		{ClientIP: "source-d", ProxyAddr: "listener-1", UpstreamAddr: "destination-1", Protocol: "tcp", Country: "PT", Status: 200, BytesSent: 200},
+	}
+	response := aggregateStreamAnalytics(entries, map[string][]string{}, []npm.Stream{}, map[int]string{}, true, analyticsFilters{pathLimit: 10, sessionLimit: 10})
+	wantOrder := []string{"source-a", "source-b", "source-c", "source-d"}
+	for i, want := range wantOrder {
+		if response.Sources[i].Source.RawAddress != want {
+			t.Fatalf("source order at %d = %q; want %q", i, response.Sources[i].Source.RawAddress, want)
+		}
+	}
+	if response.Sources[0].UniqueListeners != 2 || response.Sources[0].UniqueDestinations != 2 || !reflect.DeepEqual(response.Sources[0].Protocols, []string{"TCP", "UDP"}) || !reflect.DeepEqual(response.Sources[0].Countries, []string{"PT", "US"}) {
+		t.Fatalf("source unique dimensions = %#v", response.Sources[0])
+	}
+
+}
+
+func TestAnalyticsSourcePaginationIsComplete(t *testing.T) {
+	const totalSources = 1201
+	entries := make([]streamLogEntry, totalSources)
+	for i := range entries {
+		entries[i] = streamLogEntry{
+			ClientIP: fmt.Sprintf("2001:db8::%x", i+1), ProxyAddr: "192.168.1.10:443", UpstreamAddr: "192.168.1.20:80",
+			Protocol: "TCP", Country: "PT", Status: 200, BytesSent: int64(i + 1),
+		}
+	}
+
+	seen := make(map[string]struct{}, totalSources)
+	cursor := ""
+	previousIdentity := ""
+	havePrevious := false
+	for {
+		url := "/streamInfo/analytics?source_limit=500"
+		if cursor != "" {
+			url += "&source_cursor=" + cursor
+		}
+		filters, err := parseAnalyticsFilters(httptest.NewRequest(http.MethodGet, url, nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		filters.pathLimit = 1
+		filters.sessionLimit = 1
+		response := aggregateStreamAnalytics(entries, map[string][]string{}, []npm.Stream{}, map[int]string{}, true, filters)
+		limits := response.Metadata.Limits
+		if limits.SourceLimit != analyticsMaxSourceLimit || limits.SourceCursor != cursor || limits.SourcesReturned != len(response.Sources) || limits.SourcesAvailable != totalSources || !limits.SourcesTruncated {
+			t.Fatalf("cursor page %q limits = %#v", cursor, limits)
+		}
+		for _, source := range response.Sources {
+			identity := source.Source.RawAddress
+			if havePrevious && identity <= previousIdentity {
+				t.Fatalf("source ordering is not ascending: %q after %q", identity, previousIdentity)
+			}
+			previousIdentity = identity
+			havePrevious = true
+			if _, duplicate := seen[identity]; duplicate {
+				t.Fatalf("duplicate paged source %q", identity)
+			}
+			seen[identity] = struct{}{}
+		}
+		if !limits.SourcesHasMore {
+			if limits.SourcesNextCursor != "" {
+				t.Fatalf("final page has next cursor %q", limits.SourcesNextCursor)
+			}
+			break
+		}
+		if limits.SourcesNextCursor == "" || limits.SourcesNextCursor == cursor {
+			t.Fatalf("cursor did not advance: current %q, next %q", cursor, limits.SourcesNextCursor)
+		}
+		cursor = limits.SourcesNextCursor
+	}
+	if len(seen) != totalSources {
+		t.Fatalf("paged sources = %d; want %d", len(seen), totalSources)
+	}
+
+	afterCursor := encodeAnalyticsSourceCursor("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")
+	afterEnd := aggregateStreamAnalytics(entries, map[string][]string{}, []npm.Stream{}, map[int]string{}, true, analyticsFilters{
+		pathLimit: 1, sessionLimit: 1, sourceLimit: 100, sourceCursor: afterCursor, sourceAfter: "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+	})
+	if len(afterEnd.Sources) != 0 || afterEnd.Metadata.Limits.SourcesReturned != 0 || afterEnd.Metadata.Limits.SourcesHasMore || afterEnd.Metadata.Limits.SourcesAvailable != totalSources {
+		t.Fatalf("after-end source page = sources %d, limits %#v", len(afterEnd.Sources), afterEnd.Metadata.Limits)
+	}
+	if afterEnd.Metadata.Limits.SourceCursor != afterCursor || afterEnd.Metadata.Limits.SourcesNextCursor != "" {
+		t.Fatalf("after-end cursors = %#v", afterEnd.Metadata.Limits)
+	}
+}
+
+func TestAnalyticsSourceCursorStableAcrossAppends(t *testing.T) {
+	entries := []streamLogEntry{
+		{ClientIP: "source-b", Status: 200},
+		{ClientIP: "source-d", Status: 200},
+	}
+	first := aggregateStreamAnalytics(entries, map[string][]string{}, []npm.Stream{}, map[int]string{}, true, analyticsFilters{pathLimit: 1, sessionLimit: 1, sourceLimit: 1})
+	if len(first.Sources) != 1 || first.Sources[0].Source.RawAddress != "source-b" || first.Metadata.Limits.SourcesNextCursor == "" {
+		t.Fatalf("first cursor page = sources %#v, limits %#v", first.Sources, first.Metadata.Limits)
+	}
+
+	entries = append(entries, streamLogEntry{ClientIP: "source-a", Status: 200}, streamLogEntry{ClientIP: "source-c", Status: 200})
+	after, err := parseAnalyticsSourceCursor(first.Metadata.Limits.SourcesNextCursor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	continued := aggregateStreamAnalytics(entries, map[string][]string{}, []npm.Stream{}, map[int]string{}, true, analyticsFilters{
+		pathLimit: 1, sessionLimit: 1, sourceLimit: 1, sourceCursor: first.Metadata.Limits.SourcesNextCursor, sourceAfter: after,
+	})
+	if len(continued.Sources) != 1 || continued.Sources[0].Source.RawAddress != "source-c" {
+		t.Fatalf("continued cursor page = %#v", continued.Sources)
+	}
+	fresh := aggregateStreamAnalytics(entries, map[string][]string{}, []npm.Stream{}, map[int]string{}, true, analyticsFilters{pathLimit: 1, sessionLimit: 1, sourceLimit: 1})
+	if len(fresh.Sources) != 1 || fresh.Sources[0].Source.RawAddress != "source-a" {
+		t.Fatalf("fresh cursor traversal = %#v", fresh.Sources)
+	}
+}
+
+func TestAnalyticsCanonicalSourceIdentity(t *testing.T) {
+	hour := time.Date(2026, 8, 20, 10, 0, 0, 0, time.UTC)
+	entries := []streamLogEntry{
+		{ClientIP: "2001:0db8:0:0:0:0:0:1", ProxyAddr: "192.168.1.10:443", UpstreamAddr: "192.168.1.20:80", Protocol: "TCP", Country: "PT", Status: 200, BytesSent: 100, BytesReceived: 25, SessionTime: 2, Time: hour.Add(5 * time.Minute)},
+		{ClientIP: "2001:db8::1", ProxyAddr: "192.168.1.10:443", UpstreamAddr: "192.168.1.20:80", Protocol: "TCP", Country: "US", Status: 502, BytesSent: 200, BytesReceived: 75, SessionTime: 6, Time: hour.Add(10 * time.Minute)},
+	}
+	response := aggregateStreamAnalytics(entries, map[string][]string{}, []npm.Stream{}, map[int]string{}, true, analyticsFilters{pathLimit: 10, sessionLimit: 10})
+	if response.Summary.UniqueSources != 1 || len(response.Sources) != 1 {
+		t.Fatalf("canonical source counts = summary %d, sources %#v", response.Summary.UniqueSources, response.Sources)
+	}
+	source := response.Sources[0]
+	if source.Source.RawAddress != "2001:db8::1" || source.Source.IP != "2001:db8::1" || source.Connections != 2 || source.FailureCount != 1 || source.BytesSent != 300 || source.BytesReceived != 100 || source.TotalBytes != 400 || source.AvgSession != 4 || source.MaxSession != 6 || source.UniqueListeners != 1 || source.UniqueDestinations != 1 {
+		t.Fatalf("canonical source aggregate = %#v", source)
+	}
+	if len(response.Paths) != 1 || response.Paths[0].Connections != 2 || len(response.Destinations) != 1 || response.Destinations[0].UniqueSources != 1 || len(response.HourlyTimeline) != 1 || response.HourlyTimeline[0].UniqueSources != 1 {
+		t.Fatalf("canonical route aggregates = paths %#v, destinations %#v, timeline %#v", response.Paths, response.Destinations, response.HourlyTimeline)
+	}
+	pathEntries := filterAnalyticsEntries(entries, analyticsFilters{pathID: response.Paths[0].ID}, map[string][]string{})
+	if len(pathEntries) != 2 {
+		t.Fatalf("canonical path drill returned %#v", pathEntries)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/streamInfo/analytics?source_ip=2001:0db8::1", nil)
+	filters, err := parseAnalyticsFilters(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	filtered := filterAnalyticsEntries(entries, filters, map[string][]string{})
+	filteredResponse := aggregateStreamAnalytics(filtered, map[string][]string{}, []npm.Stream{}, map[int]string{}, true, analyticsFilters{pathLimit: 10, sessionLimit: 10})
+	if len(filtered) != 2 || len(filteredResponse.Sources) != 1 || filteredResponse.Sources[0].Connections != 2 || filteredResponse.Metadata.Limits.SourcesAvailable != 1 || filteredResponse.Metadata.Limits.SourcesReturned != 1 || filteredResponse.Metadata.Limits.SourcesHasMore {
+		t.Fatalf("exact canonical source filter returned entries=%d sources=%#v", len(filtered), filteredResponse.Sources)
 	}
 }
 
@@ -361,32 +627,87 @@ func TestStreamAnalyticsHandlerReadsOnceAndReturnsEmptyArrays(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	for _, field := range []string{"paths", "destinations", "hourly_timeline", "recent_sessions"} {
+	for _, field := range []string{"paths", "sources", "destinations", "hourly_timeline", "recent_sessions"} {
 		value, ok := body[field].([]any)
 		if !ok || len(value) != 0 {
 			t.Errorf("%s = %#v; want []", field, body[field])
 		}
 	}
 	breakdowns := body["breakdowns"].(map[string]any)
-	for _, field := range []string{"protocols", "countries", "ports", "outcomes", "source_scopes", "destination_scopes"} {
+	for _, field := range []string{"protocols", "countries", "ports", "outcomes", "statuses", "source_scopes", "destination_scopes"} {
 		if value, ok := breakdowns[field].([]any); !ok || len(value) != 0 {
 			t.Errorf("breakdowns.%s = %#v; want []", field, breakdowns[field])
 		}
 	}
+	for _, field := range []string{"path_semantics", "metadata", "summary", "paths", "sources", "destinations", "hourly_timeline", "recent_sessions", "breakdowns"} {
+		if _, ok := body[field]; !ok {
+			t.Errorf("top-level JSON field %q is missing", field)
+		}
+	}
+	metadata := body["metadata"].(map[string]any)
+	limits := metadata["limits"].(map[string]any)
+	for _, field := range []string{"source_limit", "source_cursor", "sources_returned", "sources_available", "sources_has_more", "sources_next_cursor", "sources_truncated"} {
+		if _, ok := limits[field]; !ok {
+			t.Errorf("metadata.limits JSON field %q is missing", field)
+		}
+	}
+	available := limits["breakdowns_available"].(map[string]any)
+	if _, ok := available["statuses"]; !ok {
+		t.Error("metadata.limits.breakdowns_available.statuses is missing")
+	}
 }
 
 func TestStreamAnalyticsHandlerRejectsInvalidQueryBeforeLoading(t *testing.T) {
+	for _, query := range []string{
+		"start=bad",
+		"path_id=path_ABCDEF0123456789",
+		"source_ip=invalid",
+		"listener_ip=invalid",
+		"destination_ip=invalid",
+		"source_limit=0",
+		"source_cursor=not*a*cursor",
+		"source_cursor=" + strings.Repeat("a", analyticsMaxSourceCursorSize+1),
+	} {
+		t.Run(query, func(t *testing.T) {
+			deps := analyticsDependencies{
+				loadEntries: func() ([]streamLogEntry, *geoip2.Reader, error) {
+					t.Fatal("loadEntries must not run for an invalid query")
+					return nil, nil, errors.New("unreachable")
+				},
+			}
+			req := httptest.NewRequest(http.MethodGet, "/streamInfo/analytics?"+query, nil)
+			recorder := httptest.NewRecorder()
+			serveStreamAnalytics(recorder, req, deps)
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestStreamAnalyticsHandlerUnknownPathIDReturnsEmptyOK(t *testing.T) {
 	deps := analyticsDependencies{
 		loadEntries: func() ([]streamLogEntry, *geoip2.Reader, error) {
-			t.Fatal("loadEntries must not run for an invalid query")
-			return nil, nil, errors.New("unreachable")
+			return []streamLogEntry{{ClientIP: "10.0.0.2", ProxyAddr: "192.168.1.10:443", UpstreamAddr: "192.168.1.20:80", Protocol: "TCP", Status: 200}}, nil, nil
+		},
+		getAliases:  func() ([]dnsmasq.AliasEntry, error) { return []dnsmasq.AliasEntry{}, nil },
+		listStreams: func(string, string) ([]npm.Stream, error) { return []npm.Stream{}, nil },
+		getDescriptions: func(context.Context, string, []int) (map[int]string, error) {
+			return map[int]string{}, nil
 		},
 	}
-	req := httptest.NewRequest(http.MethodGet, "/streamInfo/analytics?start=bad", nil)
+	req := httptest.NewRequest(http.MethodGet, "/streamInfo/analytics?path_id=path_0000000000000000", nil)
 	recorder := httptest.NewRecorder()
 	serveStreamAnalytics(recorder, req, deps)
-	if recorder.Code != http.StatusBadRequest {
+	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var response analyticsResponse
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Metadata.FilteredEntries != 0 || len(response.Paths) != 0 || len(response.Sources) != 0 {
+		t.Fatalf("unknown path response = %#v", response)
 	}
 }
 
