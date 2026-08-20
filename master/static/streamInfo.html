@@ -73,7 +73,7 @@
     }
     .skip-link:focus { top: 12px; }
 
-    .shell { width: min(1580px, calc(100% - 32px)); margin: 0 auto; }
+    .shell { width: min(1440px, calc(100% - 32px)); margin: 0 auto; }
     .masthead {
       position: sticky;
       top: 0;
@@ -126,11 +126,12 @@
     .health-dot.error { background: var(--red); }
 
     main { padding: 20px 0 56px; }
+    #main-content { scroll-margin-top: 78px; }
     .panel {
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      background: rgba(12, 25, 37, 0.96);
-      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.14);
+      background: #0b1824;
+      box-shadow: none;
     }
     .panel-head {
       display: flex;
@@ -148,7 +149,7 @@
     .section-count { color: var(--muted); font: 600 11px/1.4 var(--mono); white-space: nowrap; }
 
     .filter-panel { margin-bottom: 14px; }
-    .filter-form { padding: 15px 18px 17px; }
+    .filter-form { padding: 14px 18px; }
     .filter-grid {
       display: grid;
       grid-template-columns: repeat(10, minmax(110px, 1fr));
@@ -176,7 +177,7 @@
     .control::placeholder { color: #607689; }
     .control:hover { border-color: #3c647e; }
     .control.pending { border-color: var(--amber); }
-    .filter-actions { display: flex; gap: 8px; grid-column: span 2; }
+    .filter-actions { display: flex; gap: 8px; grid-column: auto; }
     .button {
       min-height: 36px;
       border: 1px solid var(--line-strong);
@@ -193,9 +194,9 @@
     .button:disabled { cursor: wait; opacity: 0.6; }
     .filter-foot {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-start;
       gap: 16px;
-      margin-top: 11px;
+      margin-top: 9px;
       color: var(--faint);
       font-size: 11px;
     }
@@ -239,26 +240,27 @@
 
     .summary-strip {
       display: grid;
-      grid-template-columns: repeat(6, 1fr);
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       margin: 0 0 14px;
       border: 1px solid var(--line);
       border-radius: var(--radius);
       background: rgba(9, 22, 33, 0.98);
     }
-    .metric { min-width: 0; padding: 13px 16px 14px; border-right: 1px solid var(--line); }
+    .metric { position: relative; min-width: 0; min-height: 102px; padding: 14px 17px; border-right: 1px solid var(--line); }
     .metric:last-child { border-right: 0; }
     .metric dt { color: var(--muted); font: 700 10px/1.2 var(--mono); letter-spacing: 0.05em; text-transform: uppercase; }
     .metric dd { margin: 5px 0 0; color: var(--ink); font: 700 clamp(18px, 2vw, 24px)/1.1 var(--mono); letter-spacing: -0.04em; }
-    .metric small { display: block; margin-top: 4px; color: var(--faint); font-size: 10px; }
+    .metric small { display: block; margin-top: 4px; color: var(--faint); font-size: 10px; overflow-wrap: anywhere; }
     .metric .diagnostic { color: var(--amber); }
 
-    .route-panel { margin-bottom: 14px; border-color: #23606d; }
-    .route-panel .panel-head { background: linear-gradient(90deg, rgba(39, 211, 226, 0.065), transparent 60%); }
+    .route-panel { margin: 0; border: 0; border-radius: 0; }
+    .route-panel .panel-head { background: rgba(39, 211, 226, 0.025); }
     .stage-rail {
       display: grid;
-      grid-template-columns: 1fr 56px 1fr 56px 1fr;
+      grid-template-columns: max-content minmax(24px, 1fr) max-content minmax(24px, 1fr) max-content;
       align-items: center;
-      padding: 14px 24px 8px;
+      gap: 8px;
+      padding: 13px 80px 7px;
       color: var(--muted);
       font: 800 11px/1.2 var(--mono);
       letter-spacing: 0.08em;
@@ -289,13 +291,13 @@
       border-right: 1px solid var(--cyan);
       transform: rotate(45deg);
     }
-    .route-visual { position: relative; min-height: 390px; padding: 0 10px 8px; overflow-x: auto; }
+    .route-visual { position: relative; width: 100%; max-width: 100%; min-height: 330px; padding: 0; overflow: hidden; }
     .route-visual svg { display: block; overflow: visible; }
-    .route-empty { min-height: 360px; display: grid; place-items: center; color: var(--muted); text-align: center; }
+    .route-empty { min-height: 300px; display: grid; place-items: center; padding: 20px; color: var(--muted); text-align: center; }
     .sankey-link { fill: none; stroke: var(--cyan); stroke-opacity: 0.22; transition: stroke-opacity 120ms ease; }
     .sankey-link:hover, .sankey-link:focus { stroke-opacity: 0.72; outline: none; }
     .sankey-node rect { shape-rendering: crispEdges; }
-    .sankey-label { fill: #b9c8d5; font: 10px/1 var(--mono); pointer-events: none; }
+    .sankey-label { fill: #b9c8d5; font: 9px/1 var(--mono); pointer-events: none; }
     .route-caption {
       display: flex;
       justify-content: space-between;
@@ -307,20 +309,12 @@
     }
     .route-caption strong { color: var(--amber); font-weight: 650; }
 
-    .workspace {
-      display: grid;
-      grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.75fr);
-      gap: 14px;
-      align-items: start;
-    }
     .stack { display: grid; gap: 14px; min-width: 0; }
-    .table-wrap { overflow: auto; }
+    .table-wrap { width: 100%; overflow-x: auto; overflow-y: visible; overscroll-behavior-inline: contain; }
     table { width: 100%; border-collapse: collapse; font-size: 12px; }
     caption { padding: 10px 16px; color: var(--muted); text-align: left; }
     th {
-      position: sticky;
-      top: 0;
-      z-index: 2;
+      position: static;
       background: #0a1722;
       color: #91a8bb;
       font: 700 10px/1.25 var(--mono);
@@ -333,7 +327,7 @@
     td { color: #c8d5df; }
     tbody tr.data-row:hover { background: rgba(31, 65, 87, 0.24); }
     tbody tr.data-row:focus-within { background: rgba(39, 211, 226, 0.06); }
-    .endpoint { display: block; min-width: 155px; max-width: 255px; color: #e0e9f0; font: 600 11px/1.45 var(--mono); overflow-wrap: anywhere; }
+    .endpoint { display: block; min-width: 0; max-width: 280px; color: #e0e9f0; font: 600 11px/1.45 var(--mono); overflow-wrap: anywhere; }
     .subvalue { display: block; margin-top: 2px; color: var(--faint); font-size: 10px; }
     .number { font-family: var(--mono); text-align: right; white-space: nowrap; }
     th.number { text-align: right; }
@@ -368,7 +362,7 @@
       text-underline-offset: 3px;
     }
     .detail-row td { padding: 0; background: #091621; }
-    .detail-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 20px; padding: 15px 18px 17px 46px; }
+    .detail-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 20px; padding: 15px 18px; }
     .detail-item dt { color: var(--faint); font: 700 9px/1.3 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
     .detail-item dd { margin: 4px 0 0; color: #c7d5df; font: 11px/1.45 var(--mono); overflow-wrap: anywhere; }
     .empty-cell { padding: 32px 16px; color: var(--muted); text-align: center; }
@@ -409,48 +403,197 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     @keyframes pulse { 50% { opacity: 0.42; } }
 
-    @media (max-width: 1320px) {
-      .filter-grid { grid-template-columns: repeat(4, 1fr); }
-      .filter-actions { grid-column: span 2; }
+    /* Operator workflow */
+    body { background: var(--base); }
+    .shell { width: min(1440px, calc(100% - 32px)); }
+    .masthead-row { min-height: 62px; }
+    .identity-mark { width: 34px; height: 34px; }
+    .panel,
+    .filter-panel,
+    .route-panel,
+    .tab-panel,
+    .overview-grid,
+    .evidence-grid,
+    .stack,
+    .table-wrap { min-width: 0; max-width: 100%; }
+    .primary-filter-grid {
+      grid-template-columns: minmax(130px, 0.75fr) minmax(130px, 0.75fr) minmax(210px, 1.35fr) minmax(150px, 0.8fr) minmax(240px, auto);
     }
+    .secondary-filter-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-top: 12px;
+    }
+    .filter-more,
+    .route-disclosure,
+    .quality-disclosure { min-width: 0; border-top: 1px solid var(--line); }
+    .filter-more { margin-top: 13px; }
+    .filter-more summary,
+    .route-disclosure > summary,
+    .quality-disclosure > summary {
+      width: fit-content;
+      padding: 10px 2px 2px;
+      color: var(--cyan-soft);
+      cursor: pointer;
+      font: 700 11px/1.3 var(--mono);
+    }
+    .filter-more summary:hover,
+    .route-disclosure > summary:hover,
+    .quality-disclosure > summary:hover { color: var(--ink); }
+    .coverage-metric { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-content: start; }
+    .coverage-metric dt,
+    .coverage-values { grid-column: 1 / -1; }
+    .coverage-metric dd { grid-column: 1; }
+    .coverage-metric > small { grid-column: 2; align-self: end; margin-bottom: 2px; }
+    .coverage-values {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px 12px;
+      margin-top: 7px;
+      color: var(--faint);
+      font-size: 10px;
+    }
+    .coverage-values strong { color: var(--muted); font: 700 10px/1.2 var(--mono); }
+
+    .tabs {
+      display: flex;
+      max-width: 100%;
+      margin-bottom: 14px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--line-strong);
+      scrollbar-width: thin;
+    }
+    .tab-button {
+      flex: 0 0 auto;
+      min-width: 116px;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      padding: 11px 16px 10px;
+      color: var(--muted);
+      cursor: pointer;
+      font: 700 11px/1.2 var(--mono);
+    }
+    .tab-button:hover { color: var(--ink); background: rgba(39, 211, 226, 0.035); }
+    .tab-button[aria-selected="true"] { border-bottom-color: var(--cyan); color: var(--cyan-soft); }
+    .tab-panel { outline: none; }
+    .overview-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.8fr); gap: 14px; align-items: start; }
+    .evidence-grid,
+    .stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+
+    .scroll-hint {
+      display: none;
+      margin: 0;
+      border-bottom: 1px solid var(--line);
+      padding: 8px 14px;
+      color: var(--amber);
+      font: 600 10px/1.3 var(--mono);
+    }
+    table { min-width: 780px; }
+    .path-table { min-width: 1100px; }
+    .destination-table { min-width: 840px; }
+    th { position: static; }
+    .endpoint,
+    .path-node,
+    .detail-item dd,
+    .session-route strong { overflow-wrap: anywhere; }
+    .endpoint-cell { min-width: 170px; max-width: 290px; }
+    .seen-cell { min-width: 160px; font: 600 11px/1.45 var(--mono); }
+    .path-node { min-width: 0; }
+    .detail-row > td { position: relative; }
+    .detail-grid {
+      position: sticky;
+      left: 0;
+      width: min(100%, calc(100vw - 36px));
+      max-width: calc(100vw - 36px);
+    }
+
+    .route-disclosure { border: 1px solid var(--line); border-radius: var(--radius); background: #091722; }
+    .route-disclosure > summary { width: auto; padding: 12px 15px; }
+    .route-disclosure[open] > summary { border-bottom: 1px solid var(--line); }
+    .route-map-scroll {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      overscroll-behavior-inline: contain;
+    }
+    .route-map-canvas { width: 100%; min-width: 0; }
+    .stage { min-width: 0; }
+    .stage > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .quality-disclosure { border: 1px solid var(--line); border-radius: var(--radius); background: #091722; }
+    .quality-disclosure > summary { width: auto; padding: 12px 15px; }
+    .quality-disclosure[open] > summary { border-bottom: 1px solid var(--line); }
+    .quality-body { padding: 14px 16px 16px; }
+    .quality-body > p { margin: 0; color: var(--muted); font-size: 12px; }
+    .quality-body .meta-line { padding: 12px 0; }
+    .provenance-note { border-top: 1px solid var(--line); padding-top: 12px; }
+
     @media (max-width: 1180px) {
-      .summary-strip { grid-template-columns: repeat(3, 1fr); }
-      .metric:nth-child(3) { border-right: 0; }
-      .metric:nth-child(-n+3) { border-bottom: 1px solid var(--line); }
-      .workspace { grid-template-columns: 1fr; }
+      .primary-filter-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .primary-filter-grid .filter-actions { grid-column: 1 / -1; }
+      .secondary-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .summary-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .metric { border-right: 1px solid var(--line); border-bottom: 0; }
+      .metric:nth-child(2n) { border-right: 0; }
+      .metric:nth-child(3) { border-right: 1px solid var(--line); }
+      .metric:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .overview-grid { grid-template-columns: minmax(0, 1fr); }
+      .scroll-hint { display: block; }
+      .detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .route-map-canvas { min-width: 720px; }
     }
     @media (max-width: 720px) {
-      .shell { width: min(100% - 20px, 1580px); }
-      .masthead-row { min-height: 64px; }
-      .identity-mark { display: none; }
-      .freshness span { display: none; }
+      .shell { width: min(100% - 20px, 1440px); }
       main { padding-top: 10px; }
       .panel-head { padding: 13px 14px; }
       .filter-form { padding: 12px 14px 14px; }
-      .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .filter-actions { grid-column: 1 / -1; }
+      .primary-filter-grid,
+      .secondary-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .primary-filter-grid .filter-actions { grid-column: 1 / -1; }
       .filter-foot { display: block; }
       .filter-foot span { display: block; margin-top: 5px; }
-      .summary-strip { grid-template-columns: repeat(2, 1fr); }
-      .metric { border-bottom: 1px solid var(--line); }
+      .panel-head { flex-direction: column; align-items: stretch; gap: 7px; }
+      .section-count { white-space: normal; }
+      .summary-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .metric { border-right: 1px solid var(--line); border-bottom: 0; }
       .metric:nth-child(2n) { border-right: 0; }
-      .metric:nth-last-child(-n+2) { border-bottom: 0; }
-      .stage-rail { min-width: 620px; padding-inline: 18px; }
-      .route-visual { min-height: 350px; }
+      .metric:nth-child(3) { border-right: 1px solid var(--line); }
+      .metric:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .detail-grid { padding: 14px; }
       .route-caption { display: block; }
       .route-caption span { display: block; margin-top: 4px; }
-      .detail-grid { grid-template-columns: repeat(2, 1fr); padding-left: 18px; }
-      .session { grid-template-columns: 64px 1fr; }
+      .session { grid-template-columns: 64px minmax(0, 1fr); }
       .session-traffic { grid-column: 2; text-align: left; }
       .session-traffic strong, .session-traffic span { display: inline; }
     }
+    @media (max-width: 520px) {
+      .masthead-row { flex-direction: column; align-items: flex-start; gap: 7px; padding-block: 9px; }
+      .identity { gap: 8px; }
+      .identity-mark,
+      .status-cluster .button,
+      .freshness span { display: none; }
+      .eyebrow { font-size: 9px; }
+      h1 { font-size: 18px; }
+      .status-cluster { justify-content: flex-start; gap: 9px; }
+      .freshness { text-align: left; }
+    }
     @media (max-width: 440px) {
-      .status-cluster .button { display: none; }
-      .filter-grid { grid-template-columns: 1fr; }
-      .filter-actions { grid-column: 1; }
-      .summary-strip { grid-template-columns: 1fr 1fr; }
+      .shell { width: min(100% - 16px, 1440px); }
+      .primary-filter-grid,
+      .secondary-filter-grid { grid-template-columns: minmax(0, 1fr); }
+      .primary-filter-grid .filter-actions { grid-column: 1; flex-wrap: wrap; }
+      .filter-actions .button { flex: 1 1 130px; }
+      .summary-strip { grid-template-columns: minmax(0, 1fr); }
+      .metric,
+      .metric:nth-child(2n),
+      .metric:nth-child(3) { min-height: 0; border-right: 0; border-bottom: 1px solid var(--line); }
+      .metric:last-child { border-bottom: 0; }
       .metric { padding: 11px 12px; }
       .metric dd { font-size: 17px; }
+      .tab-button { min-width: 94px; padding-inline: 12px; }
+      .detail-grid { grid-template-columns: minmax(0, 1fr); }
+      .route-caption { padding-inline: 12px; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
@@ -491,7 +634,7 @@
         <span class="section-count" id="resultCount">0 paths</span>
       </div>
       <form id="filterForm" class="filter-form">
-        <div class="filter-grid">
+        <div class="filter-grid primary-filter-grid">
           <div class="field">
             <label for="startDate">Start date</label>
             <input class="control" type="date" id="startDate" name="start">
@@ -501,29 +644,9 @@
             <input class="control" type="date" id="endDate" name="end">
           </div>
           <div class="field">
-            <label for="sourceFilter">Source</label>
-            <input class="control" type="search" id="sourceFilter" name="source" list="sourceOptions" placeholder="IP or DNS label" autocomplete="off">
-            <datalist id="sourceOptions"></datalist>
-          </div>
-          <div class="field">
-            <label for="listenerFilter">NPM listener</label>
-            <input class="control" type="search" id="listenerFilter" name="listener" list="listenerOptions" placeholder="Listener or port" autocomplete="off">
-            <datalist id="listenerOptions"></datalist>
-          </div>
-          <div class="field">
             <label for="destinationFilter">Destination</label>
             <input class="control" type="search" id="destinationFilter" name="destination" list="destinationOptions" placeholder="Upstream endpoint" autocomplete="off">
             <datalist id="destinationOptions"></datalist>
-          </div>
-          <div class="field">
-            <label for="protocolFilter">Protocol</label>
-            <input class="control" type="search" id="protocolFilter" name="protocol" list="protocolOptions" placeholder="All protocols" autocomplete="off">
-            <datalist id="protocolOptions"></datalist>
-          </div>
-          <div class="field">
-            <label for="countryFilter">Country</label>
-            <input class="control" type="search" id="countryFilter" name="country" list="countryOptions" placeholder="All countries" autocomplete="off">
-            <datalist id="countryOptions"></datalist>
           </div>
           <div class="field">
             <label for="outcomeFilter">Outcome</label>
@@ -538,9 +661,33 @@
             <button class="button" id="clearButton" type="button">Clear filters</button>
           </div>
         </div>
+        <details class="filter-more">
+          <summary>More filters</summary>
+          <div class="filter-grid secondary-filter-grid">
+            <div class="field">
+              <label for="sourceFilter">Source</label>
+              <input class="control" type="search" id="sourceFilter" name="source" list="sourceOptions" placeholder="IP or DNS label" autocomplete="off">
+              <datalist id="sourceOptions"></datalist>
+            </div>
+            <div class="field">
+              <label for="listenerFilter">NPM listener</label>
+              <input class="control" type="search" id="listenerFilter" name="listener" list="listenerOptions" placeholder="Listener or port" autocomplete="off">
+              <datalist id="listenerOptions"></datalist>
+            </div>
+            <div class="field">
+              <label for="protocolFilter">Protocol</label>
+              <input class="control" type="search" id="protocolFilter" name="protocol" list="protocolOptions" placeholder="All protocols" autocomplete="off">
+              <datalist id="protocolOptions"></datalist>
+            </div>
+            <div class="field">
+              <label for="countryFilter">Country</label>
+              <input class="control" type="search" id="countryFilter" name="country" list="countryOptions" placeholder="All countries" autocomplete="off">
+              <datalist id="countryOptions"></datalist>
+            </div>
+          </div>
+        </details>
         <div class="filter-foot">
           <span id="filterHint">All panels show the last server-applied query. Updates are manual.</span>
-          <code>GET /api/streamInfo/analytics · one request per manual action</code>
         </div>
       </form>
     </section>
@@ -567,36 +714,57 @@
       <dl class="summary-strip" aria-label="Connection summary">
         <div class="metric"><dt>Connections</dt><dd id="metricConnections">0</dd><small id="metricWindow">No observed window</small></div>
         <div class="metric"><dt>Observed traffic</dt><dd id="metricTraffic">0 B</dd><small id="metricDirections">0 B sent · 0 B received</small></div>
-        <div class="metric"><dt>Sources</dt><dd id="metricSources">0</dd><small id="metricCountries">0 countries</small></div>
-        <div class="metric"><dt>Listeners</dt><dd id="metricListeners">0</dd><small>NPM ingress endpoints</small></div>
-        <div class="metric"><dt>Destinations</dt><dd id="metricDestinations">0</dd><small>Observed upstream endpoints</small></div>
         <div class="metric"><dt>Failures</dt><dd class="diagnostic" id="metricFailures">0</dd><small id="metricSuccess">0% successful · 0s avg</small></div>
+        <div class="metric coverage-metric">
+          <dt>Coverage</dt>
+          <dd id="metricSources">0</dd>
+          <small>sources</small>
+          <div class="coverage-values" aria-label="Coverage details">
+            <span><strong id="metricCountries">0</strong> countries</span>
+            <span><strong id="metricListeners">0</strong> listeners</span>
+            <span><strong id="metricDestinations">0</strong> destinations</span>
+          </div>
+        </div>
       </dl>
 
-      <section class="panel route-panel" aria-labelledby="routeHeading">
-        <div class="panel-head">
-          <div>
-            <span class="section-kicker">Observed route rail</span>
-            <h2 id="routeHeading">Who connected where through NPM</h2>
-            <p>Link width represents connection count. Managed DNS aliases and current NPM config may not represent their historical state.</p>
-          </div>
-          <span class="section-count" id="routeLimitLabel">Top 0 paths</span>
-        </div>
-        <div class="stage-rail" aria-hidden="true">
-          <div class="stage"><span class="stage-index">01</span> Source</div>
-          <div class="rail-arrow"></div>
-          <div class="stage"><span class="stage-index">02</span> NPM listener</div>
-          <div class="rail-arrow"></div>
-          <div class="stage"><span class="stage-index">03</span> Destination</div>
-        </div>
-        <div class="route-visual" id="routeVisual" role="img" aria-label="Observed source to NPM listener to destination path diagram"></div>
-        <div class="route-caption">
-          <strong>Observed proxy stages, not traceroute hops.</strong>
-          <span id="routeCaption">The diagram is capped to keep route evidence legible.</span>
+      <nav class="tabs" role="tablist" aria-label="Analytics views">
+        <button class="tab-button" id="tab-overview" type="button" role="tab" aria-selected="true" aria-controls="panel-overview" tabindex="0" data-tab="overview">Overview</button>
+        <button class="tab-button" id="tab-routes" type="button" role="tab" aria-selected="false" aria-controls="panel-routes" tabindex="-1" data-tab="routes">Routes</button>
+        <button class="tab-button" id="tab-destinations" type="button" role="tab" aria-selected="false" aria-controls="panel-destinations" tabindex="-1" data-tab="destinations">Destinations</button>
+        <button class="tab-button" id="tab-evidence" type="button" role="tab" aria-selected="false" aria-controls="panel-evidence" tabindex="-1" data-tab="evidence">Evidence</button>
+      </nav>
+
+      <section class="tab-panel" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" tabindex="0">
+        <div class="overview-grid">
+          <section class="panel" aria-labelledby="timelineHeading">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">Query timeline</span>
+                <h2 id="timelineHeading">Connection and traffic activity</h2>
+                <p>Server-returned buckets for the applied query.</p>
+              </div>
+              <span class="section-count" id="timelineCount">0 points</span>
+            </div>
+            <div class="chart-box">
+              <canvas id="timelineChart" aria-label="Connections, failures, and traffic over time"></canvas>
+              <div class="route-empty" id="timelineEmpty" hidden>No timeline buckets were returned for this query.</div>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="breakdownHeading">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">Server breakdowns</span>
+                <h2 id="breakdownHeading">Factual breakdowns</h2>
+                <p>Returned for the same applied query as the summary.</p>
+              </div>
+            </div>
+            <div class="breakdowns" id="breakdowns"></div>
+          </section>
         </div>
       </section>
 
-      <div class="workspace">
+      <section class="tab-panel" id="panel-routes" role="tabpanel" aria-labelledby="tab-routes" tabindex="0" hidden>
         <div class="stack">
           <section class="panel" aria-labelledby="pathsHeading">
             <div class="panel-head">
@@ -607,8 +775,9 @@
               </div>
               <span class="section-count" id="pathTableCount">0 rows</span>
             </div>
+            <p class="scroll-hint">Scroll horizontally for all columns.</p>
             <div class="table-wrap">
-              <table>
+              <table class="path-table">
                 <caption class="sr-only">Exact observed proxy paths</caption>
                 <thead>
                   <tr>
@@ -627,6 +796,41 @@
             </div>
           </section>
 
+          <details class="route-disclosure" id="routeMapDisclosure">
+            <summary>Route map visual summary (optional, capped)</summary>
+            <section class="panel route-panel" aria-labelledby="routeHeading">
+              <div class="panel-head">
+                <div>
+                  <span class="section-kicker">Observed route rail</span>
+                  <h2 id="routeHeading">Who connected where through NPM</h2>
+                  <p>A capped visual summary of the exact path table. Link width represents connection count.</p>
+                </div>
+                <span class="section-count" id="routeLimitLabel">Map not rendered</span>
+              </div>
+              <p class="scroll-hint">Scroll horizontally to keep stage headings aligned with the route map.</p>
+              <div class="route-map-scroll" id="routeMapScroll" tabindex="0" aria-label="Scrollable route map visual summary">
+                <div class="route-map-canvas" id="routeMapCanvas">
+                  <div class="stage-rail" aria-hidden="true">
+                    <div class="stage"><span class="stage-index">01</span><span>Source</span></div>
+                    <div class="rail-arrow"></div>
+                    <div class="stage"><span class="stage-index">02</span><span>NPM listener</span></div>
+                    <div class="rail-arrow"></div>
+                    <div class="stage"><span class="stage-index">03</span><span>Destination</span></div>
+                  </div>
+                  <div class="route-visual" id="routeVisual" role="img" aria-label="Capped visual summary of observed source to NPM listener to destination paths" aria-describedby="routeEvidenceNote routeCaption"></div>
+                </div>
+              </div>
+              <div class="route-caption">
+                <strong id="routeEvidenceNote">Visual summary only. Use the exact path table above as the authoritative returned evidence.</strong>
+                <span id="routeCaption">The diagram is capped to keep route evidence legible.</span>
+              </div>
+            </section>
+          </details>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="panel-destinations" role="tabpanel" aria-labelledby="tab-destinations" tabindex="0" hidden>
+        <div class="stack">
           <section class="panel" aria-labelledby="destinationHeading">
             <div class="panel-head">
               <div>
@@ -636,8 +840,9 @@
               </div>
               <span class="section-count" id="destinationCount">0 endpoints</span>
             </div>
+            <p class="scroll-hint">Scroll horizontally for all columns.</p>
             <div class="table-wrap">
-              <table>
+              <table class="destination-table">
                 <thead>
                   <tr>
                     <th scope="col">Destination</th>
@@ -654,34 +859,10 @@
             </div>
           </section>
         </div>
+      </section>
 
-        <aside class="stack" aria-label="Supporting analytics">
-          <section class="panel" aria-labelledby="timelineHeading">
-            <div class="panel-head">
-              <div>
-                <span class="section-kicker">Query timeline</span>
-                <h3 id="timelineHeading">Connection and traffic activity</h3>
-                <p>Server-returned buckets for the applied query.</p>
-              </div>
-              <span class="section-count" id="timelineCount">0 points</span>
-            </div>
-            <div class="chart-box">
-              <canvas id="timelineChart" aria-label="Connections, failures, and traffic over time"></canvas>
-              <div class="route-empty" id="timelineEmpty" hidden>No timeline buckets were returned for this query.</div>
-            </div>
-          </section>
-
-          <section class="panel" aria-labelledby="breakdownHeading">
-            <div class="panel-head">
-              <div>
-                <span class="section-kicker">Server breakdowns</span>
-                <h3 id="breakdownHeading">Factual breakdowns</h3>
-                <p>Returned for the same applied query as the summary and tables.</p>
-              </div>
-            </div>
-            <div class="breakdowns" id="breakdowns"></div>
-          </section>
-
+      <section class="tab-panel" id="panel-evidence" role="tabpanel" aria-labelledby="tab-evidence" tabindex="0" hidden>
+        <div class="evidence-grid">
           <section class="panel" aria-labelledby="sessionsHeading">
             <div class="panel-head">
               <div>
@@ -693,17 +874,24 @@
             </div>
             <ol class="session-list" id="sessionList"></ol>
           </section>
-        </aside>
-      </div>
 
-      <footer class="meta-line" aria-label="Analytics response metadata">
-        <span>Generated <strong id="metaGenerated">unknown</strong></span>
-        <span>Available entries <strong id="metaAvailable">0</strong></span>
-        <span>Returned entries <strong id="metaFiltered">0</strong></span>
-        <span>Managed DNS aliases <strong id="metaDns">unknown</strong></span>
-        <span>Current NPM config <strong id="metaStreamConfig">unknown</strong></span>
-        <span>Path semantics <strong id="metaSemantics">observed proxy stages</strong></span>
-      </footer>
+          <details class="quality-disclosure">
+            <summary>Data quality &amp; provenance</summary>
+            <div class="quality-body">
+              <p>Response metadata and interpretation notes for the currently applied server query.</p>
+              <div class="meta-line" aria-label="Analytics response metadata">
+                <span>Generated <strong id="metaGenerated">unknown</strong></span>
+                <span>Available entries <strong id="metaAvailable">0</strong></span>
+                <span>Returned entries <strong id="metaFiltered">0</strong></span>
+                <span>Managed DNS aliases <strong id="metaDns">unknown</strong></span>
+                <span>Current NPM config <strong id="metaStreamConfig">unknown</strong></span>
+                <span>Path semantics <strong id="metaSemantics">observed proxy stages</strong></span>
+              </div>
+              <p class="provenance-note">Paths represent observed source → NPM listener → destination proxy stages, not network traceroute hops. DNS aliases and NPM stream candidates describe current configuration and may differ from historical state.</p>
+            </div>
+          </details>
+        </div>
+      </section>
     </div>
   </main>
 
@@ -723,7 +911,9 @@
       lastSuccessAt: null,
       expandedPathId: null,
       resizeTimer: null,
-      appliedQuery: null
+      renderFrame: null,
+      appliedQuery: null,
+      activeTab: 'overview'
     };
 
     const ids = [
@@ -1264,10 +1454,10 @@
         state.lastSuccessAt = new Date();
         state.expandedPathId = null;
         populateFilterOptions();
-        renderAll();
-        el.staleNotice.hidden = true;
         el.initialState.hidden = true;
         el.dashboard.hidden = false;
+        renderAll();
+        el.staleNotice.hidden = true;
         el.healthDot.className = 'health-dot live';
         el.freshnessLabel.textContent = 'Telemetry snapshot loaded';
         el.freshnessDetail.textContent = `Loaded ${state.lastSuccessAt.toLocaleTimeString()} · refresh manually`;
@@ -1348,14 +1538,14 @@
       if (!state.data) return;
       renderSummary();
       renderWarnings();
-      renderSankey(state.data.paths);
       renderPathTable(state.data.paths);
       renderDestinationTable(state.data.destinations);
-      renderTimeline();
       renderBreakdowns();
       renderSessions(state.data.sessions);
       renderMetadata();
+      el.timelineCount.textContent = collectionCountText(state.data.timeline.length, state.data.meta.limits.timeline, 'points');
       el.resultCount.textContent = collectionCountText(state.data.paths.length, state.data.meta.limits.paths, 'paths');
+      scheduleVisibleVisuals();
     }
 
     function renderSummary() {
@@ -1367,7 +1557,7 @@
       setText('metricTraffic', formatBytes(totalBytes));
       setText('metricDirections', `${formatBytes(summary.bytesSent)} sent · ${formatBytes(summary.bytesReceived)} received`);
       setText('metricSources', formatInteger(summary.uniqueSources));
-      setText('metricCountries', `${formatInteger(summary.uniqueCountries)} countries`);
+      setText('metricCountries', formatInteger(summary.uniqueCountries));
       setText('metricListeners', formatInteger(summary.uniqueListeners));
       setText('metricDestinations', formatInteger(summary.uniqueDestinations));
       setText('metricFailures', formatInteger(summary.failed));
@@ -1412,6 +1602,10 @@
     }
 
     function renderSankey(paths) {
+      const disclosure = document.getElementById('routeMapDisclosure');
+      const routesPanel = document.getElementById('panel-routes');
+      const mapCanvas = document.getElementById('routeMapCanvas');
+      if (state.activeTab !== 'routes' || !disclosure.open || routesPanel.hidden || el.dashboard.hidden) return;
       el.routeVisual.replaceChildren();
       if (!paths.length) {
         appendTextElement(el.routeVisual, 'div', 'The applied server query returned no observed routes.', 'route-empty');
@@ -1469,14 +1663,14 @@
       });
 
       const links = [...linkMap.values()];
-      const viewportWidth = Math.max(el.routeVisual.clientWidth - 20, 620);
+      const viewportWidth = Math.max(mapCanvas.clientWidth, 720);
       const height = Math.max(350, Math.min(620, nodes.length * 17));
-      const margin = { top: 12, right: 142, bottom: 12, left: 142 };
+      const margin = { top: 12, right: 126, bottom: 12, left: 126 };
       const width = viewportWidth;
       const graph = d3.sankey()
         .nodeId((node) => node.index)
         .nodeWidth(8)
-        .nodePadding(10)
+        .nodePadding(9)
         .nodeAlign(d3.sankeyJustify)
         .extent([[margin.left, margin.top], [width - margin.right, height - margin.bottom]])({
           nodes: nodes.map((node) => ({ ...node })),
@@ -1514,13 +1708,21 @@
         .attr('opacity', (node) => node.stage === 'listener' ? 0.9 : 0.7)
         .append('title')
         .text((node) => `${node.name}\n${formatInteger(node.value)} connections`);
-      nodeSelection.append('text')
+      const labeledNodeKeys = new Set();
+      ['source', 'listener', 'destination'].forEach((stage) => {
+        graph.nodes
+          .filter((node) => node.stage === stage)
+          .sort((left, right) => right.value - left.value)
+          .slice(0, stage === 'listener' ? 8 : 6)
+          .forEach((node) => labeledNodeKeys.add(node.key));
+      });
+      nodeSelection.filter((node) => labeledNodeKeys.has(node.key)).append('text')
         .attr('class', 'sankey-label')
         .attr('x', (node) => node.stage === 'source' ? node.x0 - 7 : node.stage === 'destination' ? node.x1 + 7 : (node.x0 + node.x1) / 2)
         .attr('y', (node) => (node.y0 + node.y1) / 2)
         .attr('dy', '0.35em')
         .attr('text-anchor', (node) => node.stage === 'source' ? 'end' : node.stage === 'destination' ? 'start' : 'middle')
-        .text((node) => truncateLabel(node.name, node.stage === 'listener' ? 22 : 26));
+        .text((node) => truncateLabel(node.name, node.stage === 'listener' ? 16 : 20));
 
       const availablePaths = state.data.meta.limits.paths.available;
       el.routeLimitLabel.textContent = availablePaths === null
@@ -1568,16 +1770,18 @@
 
     function appendEndpointCell(row, endpoint) {
       const cell = document.createElement('td');
-      appendTextElement(cell, 'span', endpointLabel(endpoint), 'endpoint');
+      cell.className = 'endpoint-cell';
+      const label = appendTextElement(cell, 'span', endpointLabel(endpoint), 'endpoint');
+      label.title = endpointLabel(endpoint);
       if (endpoint.scope) appendTextElement(cell, 'span', endpoint.scope, 'subvalue');
       row.appendChild(cell);
       return cell;
     }
 
-    function createPathDetailRow(path) {
+    function createPathDetailRow(path, detailId) {
       const row = document.createElement('tr');
       row.className = 'detail-row';
-      row.id = `detail-${path.id.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+      row.id = detailId;
       const cell = document.createElement('td');
       cell.colSpan = 8;
       const grid = document.createElement('dl');
@@ -1615,17 +1819,22 @@
       if (!visiblePaths.length) {
         fragment.appendChild(createEmptyRow(8, 'The applied server query returned no exact paths.'));
       } else {
-        visiblePaths.forEach((path) => {
+        visiblePaths.forEach((path, pathIndex) => {
           const row = document.createElement('tr');
           row.className = 'data-row';
           const detailCell = document.createElement('td');
+          const detailId = `path-detail-${pathIndex}`;
+          const toggleId = `path-toggle-${pathIndex}`;
           const detailButton = appendTextElement(detailCell, 'button', state.expandedPathId === path.id ? 'Collapse' : 'Inspect', 'detail-button');
           detailButton.type = 'button';
+          detailButton.id = toggleId;
           detailButton.setAttribute('aria-expanded', String(state.expandedPathId === path.id));
-          detailButton.setAttribute('aria-controls', `detail-${path.id.replace(/[^a-zA-Z0-9_-]/g, '-')}`);
+          detailButton.setAttribute('aria-controls', detailId);
           detailButton.addEventListener('click', () => {
             state.expandedPathId = state.expandedPathId === path.id ? null : path.id;
             renderPathTable(state.data.paths);
+            const replacementToggle = document.getElementById(toggleId);
+            if (replacementToggle) replacementToggle.focus();
           });
           row.appendChild(detailCell);
 
@@ -1633,17 +1842,22 @@
           pathCell.className = 'path-cell';
           const pathLine = document.createElement('div');
           pathLine.className = 'path-line';
-          appendTextElement(pathLine, 'span', endpointLabel(path.source), 'path-node');
+          const sourceNode = appendTextElement(pathLine, 'span', endpointLabel(path.source), 'path-node');
+          sourceNode.title = endpointLabel(path.source);
           appendTextElement(pathLine, 'span', '→', 'path-separator');
-          appendTextElement(pathLine, 'span', endpointLabel(path.listener), 'path-node');
+          const listenerNode = appendTextElement(pathLine, 'span', endpointLabel(path.listener), 'path-node');
+          listenerNode.title = endpointLabel(path.listener);
           appendTextElement(pathLine, 'span', '→', 'path-separator');
-          appendTextElement(pathLine, 'span', endpointLabel(path.destination), 'path-node');
+          const destinationNode = appendTextElement(pathLine, 'span', endpointLabel(path.destination), 'path-node');
+          destinationNode.title = endpointLabel(path.destination);
           pathLine.title = `${endpointLabel(path.source)} → ${endpointLabel(path.listener)} → ${endpointLabel(path.destination)}`;
           pathCell.appendChild(pathLine);
           row.appendChild(pathCell);
 
           const contextCell = document.createElement('td');
-          appendTextElement(contextCell, 'span', compactStreamLabel(path), 'endpoint');
+          contextCell.className = 'endpoint-cell';
+          const streamNode = appendTextElement(contextCell, 'span', compactStreamLabel(path), 'endpoint');
+          streamNode.title = allStreamLabels(path.streams);
           const contextLine = document.createElement('span');
           contextLine.className = 'subvalue';
           contextLine.textContent = `${path.protocol} · ${path.country} · `;
@@ -1657,9 +1871,10 @@
           createCell(row, `${formatInteger(path.failed)} · ${formatPercent(path.failureRate, path.failed, path.connections)}`, 'number');
           createCell(row, `${formatDuration(path.avgDuration)} / ${formatDuration(path.maxDuration)}`, 'number');
           const seenCell = createCell(row, `${formatDateTime(path.firstSeen, true)} / ${formatDateTime(path.lastSeen, true)}`);
-          seenCell.className = 'endpoint';
+          seenCell.className = 'seen-cell';
+          seenCell.title = `${formatDateTime(path.firstSeen)} / ${formatDateTime(path.lastSeen)}`;
           fragment.appendChild(row);
-          if (state.expandedPathId === path.id) fragment.appendChild(createPathDetailRow(path));
+          if (state.expandedPathId === path.id) fragment.appendChild(createPathDetailRow(path, detailId));
         });
       }
       el.pathTableBody.replaceChildren(fragment);
@@ -1680,7 +1895,8 @@
           createCell(row, `${formatInteger(destination.uniqueSources)} / ${formatInteger(destination.uniqueListeners)}`, 'number');
           createCell(row, formatBytes(destination.totalBytes), 'number');
           createCell(row, `${formatInteger(destination.failed)} · ${formatPercent(destination.failureRate, destination.failed, destination.connections)}`, 'number');
-          createCell(row, `${formatDateTime(destination.firstSeen, true)} / ${formatDateTime(destination.lastSeen, true)}`, 'endpoint');
+          const seenCell = createCell(row, `${formatDateTime(destination.firstSeen, true)} / ${formatDateTime(destination.lastSeen, true)}`, 'seen-cell');
+          seenCell.title = `${formatDateTime(destination.firstSeen)} / ${formatDateTime(destination.lastSeen)}`;
           fragment.appendChild(row);
         });
       }
@@ -1689,7 +1905,11 @@
     }
 
     function renderTimeline() {
-      el.timelineCount.textContent = collectionCountText(state.data.timeline.length, state.data.meta.limits.timeline, 'points');
+      const overviewPanel = document.getElementById('panel-overview');
+      if (state.activeTab !== 'overview' || overviewPanel.hidden || el.dashboard.hidden) {
+        destroyTimeline();
+        return;
+      }
       if (state.timelineChart) {
         state.timelineChart.destroy();
         state.timelineChart = null;
@@ -1762,6 +1982,12 @@
       });
     }
 
+    function destroyTimeline() {
+      if (!state.timelineChart) return;
+      state.timelineChart.destroy();
+      state.timelineChart = null;
+    }
+
     function appendBreakdownGroup(parent, title, items) {
       const group = document.createElement('section');
       group.className = 'breakdown-group';
@@ -1830,7 +2056,9 @@
           if (session.timestamp) time.dateTime = String(session.timestamp);
           const route = document.createElement('div');
           route.className = 'session-route';
-          appendTextElement(route, 'strong', `${endpointShortLabel(session.source)} → ${endpointShortLabel(session.listener)} → ${endpointShortLabel(session.destination)}`);
+          const routeLabel = `${endpointShortLabel(session.source)} → ${endpointShortLabel(session.listener)} → ${endpointShortLabel(session.destination)}`;
+          const routeText = appendTextElement(route, 'strong', routeLabel);
+          routeText.title = routeLabel;
           const detail = document.createElement('span');
           detail.textContent = `${session.protocol} · ${session.country} · `;
           appendTextElement(detail, 'span', session.statusLabel, `tag ${statusClass(session.outcome)}`);
@@ -1868,6 +2096,61 @@
       el.filterHint.textContent = 'Controls are cleared, but displayed analytics are unchanged. Select Apply to request full history.';
     }
 
+    function scheduleVisibleVisuals() {
+      if (!state.data || el.dashboard.hidden) return;
+      if (state.renderFrame !== null) window.cancelAnimationFrame(state.renderFrame);
+      state.renderFrame = window.requestAnimationFrame(() => {
+        state.renderFrame = null;
+        if (state.activeTab === 'overview') renderTimeline();
+        if (state.activeTab === 'routes' && document.getElementById('routeMapDisclosure').open) {
+          renderSankey(state.data.paths);
+        }
+      });
+    }
+
+    function activateTab(tabName, moveFocus = false) {
+      const tabs = [...document.querySelectorAll('[role="tab"][data-tab]')];
+      const selected = tabs.find((tab) => tab.dataset.tab === tabName);
+      if (!selected) return;
+      state.activeTab = tabName;
+      tabs.forEach((tab) => {
+        const active = tab === selected;
+        tab.setAttribute('aria-selected', String(active));
+        tab.tabIndex = active ? 0 : -1;
+        const panel = document.getElementById(tab.getAttribute('aria-controls'));
+        panel.hidden = !active;
+      });
+      if (tabName !== 'overview') destroyTimeline();
+      if (tabName !== 'routes') el.routeVisual.replaceChildren();
+      if (moveFocus) selected.focus();
+      scheduleVisibleVisuals();
+    }
+
+    const tabs = [...document.querySelectorAll('[role="tab"][data-tab]')];
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => activateTab(tab.dataset.tab));
+      tab.addEventListener('keydown', (event) => {
+        const currentIndex = tabs.indexOf(tab);
+        let nextIndex = null;
+        if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+        if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+        if (event.key === 'Home') nextIndex = 0;
+        if (event.key === 'End') nextIndex = tabs.length - 1;
+        if (nextIndex === null) return;
+        event.preventDefault();
+        activateTab(tabs[nextIndex].dataset.tab, true);
+      });
+    });
+
+    document.getElementById('routeMapDisclosure').addEventListener('toggle', (event) => {
+      if (!event.currentTarget.open) {
+        el.routeVisual.replaceChildren();
+        el.routeLimitLabel.textContent = 'Map not rendered';
+        return;
+      }
+      scheduleVisibleVisuals();
+    });
+
     el.filterForm.addEventListener('submit', (event) => {
       event.preventDefault();
       if (state.loading) return;
@@ -1886,11 +2169,17 @@
     window.addEventListener('resize', () => {
       if (!state.data) return;
       window.clearTimeout(state.resizeTimer);
-      state.resizeTimer = window.setTimeout(() => renderSankey(state.data.paths), 140);
+      state.resizeTimer = window.setTimeout(() => {
+        if (state.activeTab === 'overview' && state.timelineChart) state.timelineChart.resize();
+        if (state.activeTab === 'routes' && document.getElementById('routeMapDisclosure').open) {
+          renderSankey(state.data.paths);
+        }
+      }, 140);
     });
 
     initializeOperationalWindow();
     applyControlQuery();
+    activateTab(state.activeTab);
     fetchAnalytics();
   </script>
 </body>
