@@ -1,172 +1,1897 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Stream Analytics Dashboard</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-<script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12"></script>
-<script>
-tailwind.config={darkMode:'class',theme:{extend:{colors:{dark:{bg:'#0f172a',card:'#1e293b',border:'#334155'}}}}};
-</script>
-<style>
-.stat-card{transition:transform 0.2s,box-shadow 0.2s}
-.stat-card:hover{transform:translateY(-2px);box-shadow:0 20px 25px -5px rgba(0,0,0,0.5)}
-.loader{border-top-color:#3b82f6;animation:spinner 1s linear infinite}
-@keyframes spinner{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
-.table-row:hover{background-color:rgba(51,65,85,0.5)}
-body{background-color:#0f172a}
-.sankey-link{fill:none;stroke-opacity:0.5}
-.sankey-link:hover{stroke-opacity:0.8}
-.sankey-node rect{cursor:move;fill-opacity:0.9;shape-rendering:crispEdges}
-.sankey-node text{pointer-events:none;text-shadow:0 1px 0 #000}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stream Analytics | HyperHive</title>
+  <!-- Ops hardening item: self-host these pinned assets or add verified SRI hashes. -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #e7eef5;
+      --muted: #8fa2b5;
+      --faint: #667b8f;
+      --base: #07111b;
+      --panel: #0c1925;
+      --panel-raised: #102131;
+      --line: #20384b;
+      --line-strong: #2c4d64;
+      --cyan: #27d3e2;
+      --cyan-soft: #8eeaf1;
+      --amber: #f2b84b;
+      --red: #ef6a6a;
+      --green: #72d6a0;
+      --radius: 6px;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: "IBM Plex Mono", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { background: var(--base); scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background:
+        linear-gradient(rgba(39, 211, 226, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(39, 211, 226, 0.025) 1px, transparent 1px),
+        var(--base);
+      background-size: 32px 32px;
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    [hidden] { display: none !important; }
+    a { color: var(--cyan-soft); }
+    :focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .skip-link {
+      position: fixed;
+      left: 12px;
+      top: -60px;
+      z-index: 100;
+      padding: 10px 14px;
+      background: var(--cyan);
+      color: #041016;
+      font-weight: 800;
+    }
+    .skip-link:focus { top: 12px; }
+
+    .shell { width: min(1580px, calc(100% - 32px)); margin: 0 auto; }
+    .masthead {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      border-bottom: 1px solid var(--line);
+      background: rgba(7, 17, 27, 0.94);
+      backdrop-filter: blur(14px);
+    }
+    .masthead-row {
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+    .identity { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .identity-mark {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      font: 800 14px/1 var(--mono);
+      clip-path: polygon(0 0, 82% 0, 100% 18%, 100% 100%, 18% 100%, 0 82%);
+    }
+    .eyebrow {
+      margin: 0 0 2px;
+      color: var(--cyan-soft);
+      font: 700 10px/1.2 var(--mono);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 0; font-size: clamp(19px, 2vw, 25px); line-height: 1.1; letter-spacing: -0.02em; }
+    .status-cluster { display: flex; align-items: center; justify-content: flex-end; gap: 14px; }
+    .freshness { text-align: right; }
+    .freshness strong, .freshness span { display: block; }
+    .freshness strong { font: 700 11px/1.4 var(--mono); color: var(--ink); }
+    .freshness span { font-size: 11px; color: var(--muted); }
+    .health-dot {
+      width: 8px;
+      height: 8px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--faint);
+      box-shadow: 0 0 0 4px rgba(102, 123, 143, 0.12);
+    }
+    .health-dot.live { background: var(--green); box-shadow: 0 0 0 4px rgba(114, 214, 160, 0.12); }
+    .health-dot.busy { background: var(--cyan); animation: pulse 1.4s ease-in-out infinite; }
+    .health-dot.error { background: var(--red); }
+
+    main { padding: 20px 0 56px; }
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(12, 25, 37, 0.96);
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.14);
+    }
+    .panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .panel-head h2, .panel-head h3 { margin: 0; letter-spacing: -0.015em; }
+    .panel-head h2 { font-size: 17px; }
+    .panel-head h3 { font-size: 15px; }
+    .panel-head p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .section-kicker { color: var(--cyan); font: 700 10px/1.2 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; }
+    .section-count { color: var(--muted); font: 600 11px/1.4 var(--mono); white-space: nowrap; }
+
+    .filter-panel { margin-bottom: 14px; }
+    .filter-form { padding: 15px 18px 17px; }
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(10, minmax(110px, 1fr));
+      gap: 10px;
+      align-items: end;
+    }
+    .field { min-width: 0; }
+    .field label {
+      display: block;
+      margin: 0 0 6px;
+      color: var(--muted);
+      font: 700 10px/1.2 var(--mono);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .control {
+      width: 100%;
+      height: 36px;
+      border: 1px solid var(--line-strong);
+      border-radius: 4px;
+      background: #091722;
+      color: var(--ink);
+      padding: 0 10px;
+    }
+    .control::placeholder { color: #607689; }
+    .control:hover { border-color: #3c647e; }
+    .control.pending { border-color: var(--amber); }
+    .filter-actions { display: flex; gap: 8px; grid-column: span 2; }
+    .button {
+      min-height: 36px;
+      border: 1px solid var(--line-strong);
+      border-radius: 4px;
+      background: #102334;
+      padding: 8px 13px;
+      cursor: pointer;
+      font: 700 11px/1.2 var(--mono);
+      letter-spacing: 0.03em;
+    }
+    .button:hover:not(:disabled) { border-color: var(--cyan); background: #142b3e; }
+    .button.primary { border-color: #168c99; background: #0e5963; color: #edfeff; flex: 1; }
+    .button.primary:hover:not(:disabled) { background: #126a75; }
+    .button:disabled { cursor: wait; opacity: 0.6; }
+    .filter-foot {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 11px;
+      color: var(--faint);
+      font-size: 11px;
+    }
+    .filter-foot code { color: var(--muted); font-family: var(--mono); }
+
+    .notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 12px;
+      border: 1px solid var(--line-strong);
+      border-left: 3px solid var(--amber);
+      border-radius: 4px;
+      background: #1b1b19;
+      padding: 11px 13px;
+      color: #e7d6b5;
+      font-size: 12px;
+    }
+    .notice.error { border-left-color: var(--red); background: #211719; color: #f2c3c3; }
+    .notice strong { color: inherit; }
+    .notice-list { margin: 0; padding-left: 18px; }
+
+    .initial-state {
+      min-height: 430px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: var(--muted);
+    }
+    .initial-state h2 { margin: 16px 0 5px; color: var(--ink); font-size: 18px; }
+    .initial-state p { margin: 0; max-width: 440px; }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      margin: 0 auto;
+      border: 2px solid var(--line-strong);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .summary-strip {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      margin: 0 0 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(9, 22, 33, 0.98);
+    }
+    .metric { min-width: 0; padding: 13px 16px 14px; border-right: 1px solid var(--line); }
+    .metric:last-child { border-right: 0; }
+    .metric dt { color: var(--muted); font: 700 10px/1.2 var(--mono); letter-spacing: 0.05em; text-transform: uppercase; }
+    .metric dd { margin: 5px 0 0; color: var(--ink); font: 700 clamp(18px, 2vw, 24px)/1.1 var(--mono); letter-spacing: -0.04em; }
+    .metric small { display: block; margin-top: 4px; color: var(--faint); font-size: 10px; }
+    .metric .diagnostic { color: var(--amber); }
+
+    .route-panel { margin-bottom: 14px; border-color: #23606d; }
+    .route-panel .panel-head { background: linear-gradient(90deg, rgba(39, 211, 226, 0.065), transparent 60%); }
+    .stage-rail {
+      display: grid;
+      grid-template-columns: 1fr 56px 1fr 56px 1fr;
+      align-items: center;
+      padding: 14px 24px 8px;
+      color: var(--muted);
+      font: 800 11px/1.2 var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .stage { display: flex; align-items: center; gap: 9px; }
+    .stage:nth-of-type(3) { justify-content: center; }
+    .stage:nth-of-type(5) { justify-content: flex-end; }
+    .stage-index {
+      display: grid;
+      width: 24px;
+      height: 24px;
+      place-items: center;
+      border: 1px solid #277c87;
+      border-radius: 50%;
+      color: var(--cyan);
+      font-size: 10px;
+    }
+    .rail-arrow { height: 1px; position: relative; background: #277c87; }
+    .rail-arrow::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      top: -3px;
+      width: 6px;
+      height: 6px;
+      border-top: 1px solid var(--cyan);
+      border-right: 1px solid var(--cyan);
+      transform: rotate(45deg);
+    }
+    .route-visual { position: relative; min-height: 390px; padding: 0 10px 8px; overflow-x: auto; }
+    .route-visual svg { display: block; overflow: visible; }
+    .route-empty { min-height: 360px; display: grid; place-items: center; color: var(--muted); text-align: center; }
+    .sankey-link { fill: none; stroke: var(--cyan); stroke-opacity: 0.22; transition: stroke-opacity 120ms ease; }
+    .sankey-link:hover, .sankey-link:focus { stroke-opacity: 0.72; outline: none; }
+    .sankey-node rect { shape-rendering: crispEdges; }
+    .sankey-label { fill: #b9c8d5; font: 10px/1 var(--mono); pointer-events: none; }
+    .route-caption {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 10px 18px 13px;
+      border-top: 1px solid var(--line);
+      color: var(--faint);
+      font-size: 11px;
+    }
+    .route-caption strong { color: var(--amber); font-weight: 650; }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.75fr);
+      gap: 14px;
+      align-items: start;
+    }
+    .stack { display: grid; gap: 14px; min-width: 0; }
+    .table-wrap { overflow: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    caption { padding: 10px 16px; color: var(--muted); text-align: left; }
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #0a1722;
+      color: #91a8bb;
+      font: 700 10px/1.25 var(--mono);
+      letter-spacing: 0.055em;
+      text-align: left;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    th, td { padding: 10px 12px; border-bottom: 1px solid rgba(32, 56, 75, 0.72); vertical-align: top; }
+    td { color: #c8d5df; }
+    tbody tr.data-row:hover { background: rgba(31, 65, 87, 0.24); }
+    tbody tr.data-row:focus-within { background: rgba(39, 211, 226, 0.06); }
+    .endpoint { display: block; min-width: 155px; max-width: 255px; color: #e0e9f0; font: 600 11px/1.45 var(--mono); overflow-wrap: anywhere; }
+    .subvalue { display: block; margin-top: 2px; color: var(--faint); font-size: 10px; }
+    .number { font-family: var(--mono); text-align: right; white-space: nowrap; }
+    th.number { text-align: right; }
+    .path-cell { min-width: 230px; }
+    .path-line { display: grid; grid-template-columns: 1fr 16px 1fr 16px 1fr; align-items: center; gap: 2px; }
+    .path-node { overflow: hidden; color: #d9e5ed; font: 600 10px/1.35 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+    .path-separator { color: var(--cyan); text-align: center; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 21px;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      padding: 2px 7px;
+      color: #aebdca;
+      font: 700 9px/1 var(--mono);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .tag.good { border-color: rgba(114, 214, 160, 0.35); color: var(--green); }
+    .tag.bad { border-color: rgba(239, 106, 106, 0.4); color: #f08c8c; }
+    .tag.warn { border-color: rgba(242, 184, 75, 0.4); color: var(--amber); }
+    .detail-button {
+      border: 0;
+      background: transparent;
+      color: var(--cyan-soft);
+      padding: 2px 3px;
+      cursor: pointer;
+      font: 700 10px/1.3 var(--mono);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    .detail-row td { padding: 0; background: #091621; }
+    .detail-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 20px; padding: 15px 18px 17px 46px; }
+    .detail-item dt { color: var(--faint); font: 700 9px/1.3 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
+    .detail-item dd { margin: 4px 0 0; color: #c7d5df; font: 11px/1.45 var(--mono); overflow-wrap: anywhere; }
+    .empty-cell { padding: 32px 16px; color: var(--muted); text-align: center; }
+
+    .chart-box { height: 245px; padding: 13px 14px 16px; }
+    .chart-box .route-empty { min-height: 210px; }
+    .breakdowns { padding: 8px 16px 15px; }
+    .breakdown-group { padding: 10px 0 7px; border-bottom: 1px solid var(--line); }
+    .breakdown-group:last-child { border-bottom: 0; }
+    .breakdown-title { display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--muted); font: 700 10px/1.2 var(--mono); text-transform: uppercase; }
+    .bar-list { display: grid; gap: 7px; }
+    .bar-row { display: grid; grid-template-columns: minmax(70px, 0.8fr) 1.4fr auto; align-items: center; gap: 8px; }
+    .bar-label { overflow: hidden; color: #bdcbd6; font: 10px/1.2 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+    .bar-track { height: 3px; background: #1c3344; }
+    .bar-fill { height: 100%; background: #3e9daa; }
+    .bar-value { color: var(--faint); font: 9px/1.2 var(--mono); white-space: nowrap; }
+
+    .session-list { margin: 0; padding: 0; list-style: none; }
+    .session {
+      display: grid;
+      grid-template-columns: 76px 1fr auto;
+      gap: 10px;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    .session:last-child { border-bottom: 0; }
+    .session time { color: var(--faint); font: 10px/1.35 var(--mono); }
+    .session-route { min-width: 0; }
+    .session-route strong { display: block; overflow: hidden; color: #cfdae3; font: 600 10px/1.35 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+    .session-route span { display: block; margin-top: 3px; color: var(--faint); font-size: 10px; }
+    .session-traffic { text-align: right; }
+    .session-traffic strong { display: block; color: #c9d7e0; font: 700 10px/1.35 var(--mono); }
+    .session-traffic span { color: var(--faint); font-size: 9px; }
+
+    .meta-line { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 12px 4px 0; color: var(--faint); font: 10px/1.45 var(--mono); }
+    .meta-line strong { color: var(--muted); font-weight: 600; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 50% { opacity: 0.42; } }
+
+    @media (max-width: 1320px) {
+      .filter-grid { grid-template-columns: repeat(4, 1fr); }
+      .filter-actions { grid-column: span 2; }
+    }
+    @media (max-width: 1180px) {
+      .summary-strip { grid-template-columns: repeat(3, 1fr); }
+      .metric:nth-child(3) { border-right: 0; }
+      .metric:nth-child(-n+3) { border-bottom: 1px solid var(--line); }
+      .workspace { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+      .shell { width: min(100% - 20px, 1580px); }
+      .masthead-row { min-height: 64px; }
+      .identity-mark { display: none; }
+      .freshness span { display: none; }
+      main { padding-top: 10px; }
+      .panel-head { padding: 13px 14px; }
+      .filter-form { padding: 12px 14px 14px; }
+      .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .filter-actions { grid-column: 1 / -1; }
+      .filter-foot { display: block; }
+      .filter-foot span { display: block; margin-top: 5px; }
+      .summary-strip { grid-template-columns: repeat(2, 1fr); }
+      .metric { border-bottom: 1px solid var(--line); }
+      .metric:nth-child(2n) { border-right: 0; }
+      .metric:nth-last-child(-n+2) { border-bottom: 0; }
+      .stage-rail { min-width: 620px; padding-inline: 18px; }
+      .route-visual { min-height: 350px; }
+      .route-caption { display: block; }
+      .route-caption span { display: block; margin-top: 4px; }
+      .detail-grid { grid-template-columns: repeat(2, 1fr); padding-left: 18px; }
+      .session { grid-template-columns: 64px 1fr; }
+      .session-traffic { grid-column: 2; text-align: left; }
+      .session-traffic strong, .session-traffic span { display: inline; }
+    }
+    @media (max-width: 440px) {
+      .status-cluster .button { display: none; }
+      .filter-grid { grid-template-columns: 1fr; }
+      .filter-actions { grid-column: 1; }
+      .summary-strip { grid-template-columns: 1fr 1fr; }
+      .metric { padding: 11px 12px; }
+      .metric dd { font-size: 17px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+    }
+  </style>
 </head>
-<body class="bg-slate-900 text-gray-100">
-<header class="bg-slate-800 shadow-lg border-b border-slate-700">
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-<div class="flex justify-between items-center flex-wrap gap-4">
-<div>
-<h1 class="text-3xl font-bold text-white">Stream Analytics</h1>
-<p class="text-sm text-gray-400 mt-1">Real-time traffic monitoring and analysis</p>
-</div>
-<div class="flex items-center space-x-4 flex-wrap gap-2">
-<div class="flex items-center space-x-2">
-<label class="text-sm text-gray-400">From:</label>
-<input type="date" id="startDate" class="bg-slate-700 text-white px-3 py-1 rounded text-sm border border-slate-600">
-</div>
-<div class="flex items-center space-x-2">
-<label class="text-sm text-gray-400">To:</label>
-<input type="date" id="endDate" class="bg-slate-700 text-white px-3 py-1 rounded text-sm border border-slate-600">
-</div>
-<button onclick="refreshData()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition shadow-lg">
-<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-<span>Refresh</span>
-</button>
-<span id="lastUpdate" class="text-sm text-gray-400"></span>
-</div>
-</div>
-</div>
-</header>
-<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-<div id="loading" class="flex justify-center items-center py-20">
-<div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-700 h-12 w-12"></div>
-</div>
-<div id="dashboard" class="hidden space-y-6">
-<div id="dateInfo" class="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg shadow-xl p-4 border border-blue-700">
-<div class="flex justify-between items-center">
-<div>
-<h3 class="text-lg font-semibold text-white">Dataset Information</h3>
-<p class="text-sm text-gray-300 mt-1">Viewing <span id="datasetDays" class="font-bold">-</span> days of data</p>
-</div>
-<div class="text-right">
-<p class="text-sm text-gray-300"><span id="datasetRange" class="font-mono">-</span></p>
-<p class="text-xs text-gray-400"><span id="datasetTotal" class="font-bold">-</span> total entries</p>
-</div>
-</div>
-</div>
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-<div class="stat-card bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-<div class="flex items-center justify-between">
-<div><p class="text-sm font-medium text-gray-400">Total Connections</p><p id="totalConns" class="text-3xl font-bold text-white mt-2">-</p></div>
-<div class="bg-blue-900 p-3 rounded-full"><svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg></div>
-</div>
-<p class="text-xs text-gray-400 mt-3"><span id="successRate" class="text-green-400 font-semibold">-</span> success rate</p>
-</div>
-<div class="stat-card bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-<div class="flex items-center justify-between">
-<div><p class="text-sm font-medium text-gray-400">Unique IPs</p><p id="uniqueIPs" class="text-3xl font-bold text-white mt-2">-</p></div>
-<div class="bg-green-900 p-3 rounded-full"><svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg></div>
-</div>
-<p class="text-xs text-gray-400 mt-3">From <span id="uniqueCountries" class="font-semibold text-gray-200">-</span> countries</p>
-</div>
-<div class="stat-card bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-<div class="flex items-center justify-between">
-<div><p class="text-sm font-medium text-gray-400">Total Traffic</p><p id="totalBytes" class="text-3xl font-bold text-white mt-2">-</p></div>
-<div class="bg-purple-900 p-3 rounded-full"><svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg></div>
-</div>
-<p class="text-xs text-gray-400 mt-3"><span id="avgSession" class="font-semibold text-gray-200">-</span>s avg session</p>
-</div>
-<div class="stat-card bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-<div class="flex items-center justify-between">
-<div><p class="text-sm font-medium text-gray-400">Failed Connections</p><p id="failedConns" class="text-3xl font-bold text-red-400 mt-2">-</p></div>
-<div class="bg-red-900 p-3 rounded-full"><svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg></div>
-</div>
-<p id="dateRange" class="text-xs text-gray-400 mt-3">-</p>
-</div>
-</div>
-<div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg shadow-2xl p-6 border-2 border-purple-500">
-<div class="flex justify-between items-center mb-4">
-<div>
-<h3 class="text-2xl font-bold text-white flex items-center"><svg class="w-8 h-8 mr-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>Connection Flow Analysis</h3>
-<p class="text-sm text-gray-400 mt-1">Visualizing traffic flow from countries to destination ports</p>
-</div>
-<div class="text-right">
-<p class="text-sm text-gray-400">Showing top <span id="flowCount" class="font-bold text-purple-400">-</span> flows</p>
-<p class="text-xs text-gray-500">Hover over flows for details</p>
-</div>
-</div>
-<div id="sankeyChart" style="width:100%;height:600px;background:rgba(15,23,42,0.5);border-radius:8px;overflow:hidden"></div>
-</div>
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-<h3 class="text-lg font-semibold text-white mb-4">Daily Activity</h3>
-<div style="position:relative;height:250px"><canvas id="dailyChart"></canvas></div>
-</div>
-<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-<h3 class="text-lg font-semibold text-white mb-4">Hourly Distribution (24h)</h3>
-<div style="position:relative;height:250px"><canvas id="hourlyChart"></canvas></div>
-</div>
-</div>
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-<h3 class="text-lg font-semibold text-white mb-4">Top Countries by Traffic</h3>
-<div style="position:relative;height:250px"><canvas id="countriesChart"></canvas></div>
-</div>
-<div class="bg-slate-800 rounded-lg shadow-xl p-6 border border-slate-700">
-<h3 class="text-lg font-semibold text-white mb-4">Top Ports by Connections</h3>
-<div style="position:relative;height:250px"><canvas id="portsChart"></canvas></div>
-</div>
-</div>
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
-<div class="px-6 py-4 border-b border-slate-700"><h3 class="text-lg font-semibold text-white">Top Talkers</h3><p class="text-sm text-gray-400">IPs with highest traffic volume</p></div>
-<div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-700"><thead class="bg-slate-900"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">IP Address</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Country</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Traffic</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Conns</th></tr></thead><tbody id="topTalkersTable" class="divide-y divide-slate-700"></tbody></table></div>
-</div>
-<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
-<div class="px-6 py-4 border-b border-slate-700"><h3 class="text-lg font-semibold text-white">Traffic by Protocol</h3><p class="text-sm text-gray-400">Protocol distribution</p></div>
-<div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-700"><thead class="bg-slate-900"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Protocol</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Connections</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Unique IPs</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Total Traffic</th></tr></thead><tbody id="protocolTable" class="divide-y divide-slate-700"></tbody></table></div>
-</div>
-</div>
-<div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700">
-<div class="px-6 py-4 border-b border-slate-700"><h3 class="text-lg font-semibold text-white">Upstream Servers</h3><p class="text-sm text-gray-400">Backend server statistics</p></div>
-<div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-700"><thead class="bg-slate-900"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Server</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Connections</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Unique IPs</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Traffic</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Avg Session</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Failed</th></tr></thead><tbody id="upstreamTable" class="divide-y divide-slate-700"></tbody></table></div>
-</div>
-</div>
-</main>
-<script>
-let charts={};let isLoadingData=false;const streamInfoAPI='/api/streamInfo';Chart.defaults.color='#9ca3af';Chart.defaults.borderColor='#374151';
-function formatBytes(b){if(b===0)return '0 B';const k=1024,s=['B','KB','MB','GB','TB'],i=Math.floor(Math.log(b)/Math.log(k));return parseFloat((b/Math.pow(k,i)).toFixed(2))+' '+s[i]}
-function formatTime(t){return new Date(t).toLocaleString()}
-function destroyChart(n){if(charts[n]){charts[n].destroy();charts[n]=null}}
-function getDateParams(extra={}){const params=new URLSearchParams(extra),start=document.getElementById('startDate').value,end=document.getElementById('endDate').value;if(start)params.set('start',start);if(end)params.set('end',end);const query=params.toString();return query?'?'+query:''}
-async function fetchJSON(url){const response=await fetch(url,{cache:'no-store'});if(!response.ok)throw new Error(`${response.status} ${response.statusText}: ${url}`);return response.json()}
-async function loadData(){if(isLoadingData)return;isLoadingData=true;try{const params=getDateParams();const[dateInfo,summary,flow,daily,hourly,topCountries,topPorts,topTalkers,protocol,upstream]=await Promise.all([fetchJSON(streamInfoAPI+'/daterange'+params),fetchJSON(streamInfoAPI+'/summary'+params),fetchJSON(streamInfoAPI+'/flow'+getDateParams({limit:50})),fetchJSON(streamInfoAPI+'/stats/daily'+params),fetchJSON(streamInfoAPI+'/stats/hourly'+params),fetchJSON(streamInfoAPI+'/top/countries'+params),fetchJSON(streamInfoAPI+'/top/ports'+params),fetchJSON(streamInfoAPI+'/top/talkers'+params),fetchJSON(streamInfoAPI+'/traffic/by-protocol'+params),fetchJSON(streamInfoAPI+'/upstream'+params)]);updateDateInfo(dateInfo);updateSummaryCards(summary);updateSankeyChart(flow);updateDailyChart(daily);updateHourlyChart(hourly);updateCountriesChart(topCountries);updatePortsChart(topPorts);updateTopTalkersTable(topTalkers);updateProtocolTable(protocol);updateUpstreamTable(upstream);document.getElementById('loading').classList.add('hidden');document.getElementById('dashboard').classList.remove('hidden');document.getElementById('lastUpdate').textContent='Last updated: '+new Date().toLocaleTimeString()}catch(e){console.error('Error loading data:',e);alert('Failed to load data. Please try again.')}finally{isLoadingData=false}}
-function updateDateInfo(d){document.getElementById('datasetDays').textContent=d.total_days||'-';document.getElementById('datasetRange').textContent=(d.min_date&&d.max_date)?(d.min_date+' to '+d.max_date):'-';document.getElementById('datasetTotal').textContent=(d.total_entries||0).toLocaleString()}
-function updateSummaryCards(d){document.getElementById('totalConns').textContent=d.total_connections.toLocaleString();document.getElementById('uniqueIPs').textContent=d.unique_ips.toLocaleString();document.getElementById('uniqueCountries').textContent=d.unique_countries;document.getElementById('totalBytes').textContent=formatBytes(d.total_bytes);document.getElementById('avgSession').textContent=d.avg_session_time_seconds.toFixed(2);document.getElementById('failedConns').textContent=d.failed_connections.toLocaleString();document.getElementById('dateRange').textContent=d.date_range;const sr=((d.successful_connections/d.total_connections)*100).toFixed(1);document.getElementById('successRate').textContent=sr+'%'}
-function updateSankeyChart(data){const container=document.getElementById('sankeyChart');container.innerHTML='';if(!data||data.length===0){container.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af">No flow data available</div>';return}document.getElementById('flowCount').textContent=data.length;const margin={top:10,right:10,bottom:10,left:10};const width=container.offsetWidth-margin.left-margin.right;const height=600-margin.top-margin.bottom;const svg=d3.select('#sankeyChart').append('svg').attr('width',width+margin.left+margin.right).attr('height',height+margin.top+margin.bottom).append('g').attr('transform',`translate(${margin.left},${margin.top})`);const nodes=[];const nodeMap=new Map();data.forEach(d=>{if(!nodeMap.has(d.source)){nodeMap.set(d.source,nodes.length);nodes.push({name:d.source,type:'source'})}if(!nodeMap.has(d.destination)){nodeMap.set(d.destination,nodes.length);nodes.push({name:d.destination,type:'dest'})}});const links=data.map(d=>({source:nodeMap.get(d.source),target:nodeMap.get(d.destination),value:d.connections,bytes:d.total_bytes}));const sankey=d3.sankey().nodeWidth(15).nodePadding(10).extent([[1,1],[width-1,height-6]]);const{nodes:sankeyNodes,links:sankeyLinks}=sankey({nodes:nodes.map(d=>Object.assign({},d)),links:links.map(d=>Object.assign({},d))});const colorScale=d3.scaleOrdinal(d3.schemeCategory10);svg.append('g').selectAll('rect').data(sankeyNodes).join('rect').attr('x',d=>d.x0).attr('y',d=>d.y0).attr('height',d=>d.y1-d.y0).attr('width',d=>d.x1-d.x0).attr('fill',d=>colorScale(d.name)).attr('opacity',0.8).append('title').text(d=>`${d.name}\n${d.value} connections`);const link=svg.append('g').attr('fill','none').selectAll('g').data(sankeyLinks).join('g').attr('stroke',d=>colorScale(sankeyNodes[d.source.index].name)).attr('opacity',0.5);link.append('path').attr('d',d3.sankeyLinkHorizontal()).attr('stroke-width',d=>Math.max(1,d.width)).on('mouseover',function(){d3.select(this).attr('opacity',0.8)}).on('mouseout',function(){d3.select(this).attr('opacity',0.5)});link.append('title').text(d=>`${sankeyNodes[d.source.index].name} → ${sankeyNodes[d.target.index].name}\n${d.value} connections\n${formatBytes(d.bytes)}`);svg.append('g').selectAll('text').data(sankeyNodes).join('text').attr('x',d=>d.x0<width/2?d.x1+6:d.x0-6).attr('y',d=>(d.y1+d.y0)/2).attr('dy','0.35em').attr('text-anchor',d=>d.x0<width/2?'start':'end').attr('fill','#e5e7eb').attr('font-size','12px').text(d=>d.name)}
-function updateDailyChart(d){destroyChart('daily');const ctx=document.getElementById('dailyChart').getContext('2d');charts.daily=new Chart(ctx,{type:'line',data:{labels:d.map(x=>x.date),datasets:[{label:'Connections',data:d.map(x=>x.connections),borderColor:'rgb(59,130,246)',backgroundColor:'rgba(59,130,246,0.1)',tension:0.4,fill:true},{label:'Unique IPs',data:d.map(x=>x.unique_ips),borderColor:'rgb(34,197,94)',backgroundColor:'rgba(34,197,94,0.1)',tension:0.4,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{color:'#e5e7eb'}}},scales:{y:{beginAtZero:true,ticks:{color:'#9ca3af'},grid:{color:'#374151'}},x:{ticks:{color:'#9ca3af'},grid:{color:'#374151'}}}}})}
-function updateHourlyChart(d){destroyChart('hourly');const ctx=document.getElementById('hourlyChart').getContext('2d');charts.hourly=new Chart(ctx,{type:'bar',data:{labels:d.map(x=>x.hour+':00'),datasets:[{label:'Connections',data:d.map(x=>x.connections),backgroundColor:'rgba(147,51,234,0.6)',borderColor:'rgb(147,51,234)',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{color:'#9ca3af'},grid:{color:'#374151'}},x:{ticks:{color:'#9ca3af'},grid:{color:'#374151'}}}}})}
-function updateCountriesChart(d){destroyChart('countries');const ctx=document.getElementById('countriesChart').getContext('2d');charts.countries=new Chart(ctx,{type:'doughnut',data:{labels:d.map(x=>x.country),datasets:[{data:d.map(x=>x.total_bytes),backgroundColor:['rgba(59,130,246,0.8)','rgba(34,197,94,0.8)','rgba(251,146,60,0.8)','rgba(239,68,68,0.8)','rgba(147,51,234,0.8)','rgba(236,72,153,0.8)','rgba(14,165,233,0.8)','rgba(132,204,22,0.8)','rgba(250,204,21,0.8)','rgba(168,85,247,0.8)'],borderColor:'#1e293b',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#e5e7eb',padding:10}},tooltip:{callbacks:{label:function(c){return c.label+': '+formatBytes(c.parsed)}}}}}})}
-function updatePortsChart(d){destroyChart('ports');const ctx=document.getElementById('portsChart').getContext('2d');charts.ports=new Chart(ctx,{type:'bar',data:{labels:d.map(x=>'Port '+x.port),datasets:[{label:'Connections',data:d.map(x=>x.connections),backgroundColor:'rgba(34,197,94,0.6)',borderColor:'rgb(34,197,94)',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{color:'#9ca3af'},grid:{color:'#374151'}},y:{ticks:{color:'#9ca3af'},grid:{color:'#374151'}}}}})}
-function updateTopTalkersTable(d){document.getElementById('topTalkersTable').innerHTML=d.map(i=>'<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">'+i.ip+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">'+(i.country||'Unknown')+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right font-semibold">'+formatBytes(i.total_bytes)+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">'+i.connections+'</td></tr>').join('')}
-function updateProtocolTable(d){document.getElementById('protocolTable').innerHTML=d.map(i=>'<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-200">'+i.protocol+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">'+i.connections.toLocaleString()+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">'+i.unique_ips+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">'+formatBytes(i.total_bytes)+'</td></tr>').join('')}
-function updateUpstreamTable(d){document.getElementById('upstreamTable').innerHTML=d.map(i=>'<tr class="table-row"><td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-200">'+i.upstream_addr+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">'+i.connections.toLocaleString()+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">'+i.unique_ips+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200 text-right">'+formatBytes(i.total_bytes)+'</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-right">'+i.avg_session_time_seconds.toFixed(2)+'s</td><td class="px-6 py-4 whitespace-nowrap text-sm '+(i.failed_connections>0?'text-red-400':'text-gray-400')+' text-right">'+i.failed_connections+'</td></tr>').join('')}
-function refreshData(){if(isLoadingData)return;document.getElementById('loading').classList.remove('hidden');document.getElementById('dashboard').classList.add('hidden');loadData()}
-async function initializeDateRange(){try{const dateInfo=await fetchJSON(streamInfoAPI+'/daterange');if(dateInfo.min_date&&dateInfo.max_date){document.getElementById('startDate').value=dateInfo.min_date;document.getElementById('endDate').value=dateInfo.max_date}}catch(e){console.error('Error loading date range:',e)}}
-window.addEventListener('DOMContentLoaded',()=>{initializeDateRange();loadData()});setInterval(refreshData,60000);
-</script>
+<body>
+  <a class="skip-link" href="#main-content">Skip to stream analytics</a>
+
+  <header class="masthead">
+    <div class="shell masthead-row">
+      <div class="identity">
+        <div class="identity-mark" aria-hidden="true">HH</div>
+        <div>
+          <p class="eyebrow">Network operations / stream evidence</p>
+          <h1>Stream Analytics</h1>
+        </div>
+      </div>
+      <div class="status-cluster" aria-live="polite">
+        <div class="health-dot" id="healthDot" aria-hidden="true"></div>
+        <div class="freshness">
+          <strong id="freshnessLabel">Awaiting telemetry</strong>
+          <span id="freshnessDetail">Manual refresh only</span>
+        </div>
+        <button class="button" id="headerRefresh" type="button">Refresh</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content" class="shell">
+    <section class="panel filter-panel" aria-labelledby="filterHeading">
+      <div class="panel-head">
+        <div>
+          <span class="section-kicker">Query controls</span>
+          <h2 id="filterHeading">Scope the evidence</h2>
+          <p>All controls are server-applied together. Pending edits do not change the displayed analytics until Apply.</p>
+        </div>
+        <span class="section-count" id="resultCount">0 paths</span>
+      </div>
+      <form id="filterForm" class="filter-form">
+        <div class="filter-grid">
+          <div class="field">
+            <label for="startDate">Start date</label>
+            <input class="control" type="date" id="startDate" name="start">
+          </div>
+          <div class="field">
+            <label for="endDate">End date</label>
+            <input class="control" type="date" id="endDate" name="end">
+          </div>
+          <div class="field">
+            <label for="sourceFilter">Source</label>
+            <input class="control" type="search" id="sourceFilter" name="source" list="sourceOptions" placeholder="IP or DNS label" autocomplete="off">
+            <datalist id="sourceOptions"></datalist>
+          </div>
+          <div class="field">
+            <label for="listenerFilter">NPM listener</label>
+            <input class="control" type="search" id="listenerFilter" name="listener" list="listenerOptions" placeholder="Listener or port" autocomplete="off">
+            <datalist id="listenerOptions"></datalist>
+          </div>
+          <div class="field">
+            <label for="destinationFilter">Destination</label>
+            <input class="control" type="search" id="destinationFilter" name="destination" list="destinationOptions" placeholder="Upstream endpoint" autocomplete="off">
+            <datalist id="destinationOptions"></datalist>
+          </div>
+          <div class="field">
+            <label for="protocolFilter">Protocol</label>
+            <input class="control" type="search" id="protocolFilter" name="protocol" list="protocolOptions" placeholder="All protocols" autocomplete="off">
+            <datalist id="protocolOptions"></datalist>
+          </div>
+          <div class="field">
+            <label for="countryFilter">Country</label>
+            <input class="control" type="search" id="countryFilter" name="country" list="countryOptions" placeholder="All countries" autocomplete="off">
+            <datalist id="countryOptions"></datalist>
+          </div>
+          <div class="field">
+            <label for="outcomeFilter">Outcome</label>
+            <select class="control" id="outcomeFilter" name="outcome">
+              <option value="">All outcomes</option>
+              <option value="success">Successful</option>
+              <option value="failed">Failed / mixed</option>
+            </select>
+          </div>
+          <div class="filter-actions">
+            <button class="button primary" id="applyButton" type="submit">Apply / refresh</button>
+            <button class="button" id="clearButton" type="button">Clear filters</button>
+          </div>
+        </div>
+        <div class="filter-foot">
+          <span id="filterHint">All panels show the last server-applied query. Updates are manual.</span>
+          <code>GET /api/streamInfo/analytics · one request per manual action</code>
+        </div>
+      </form>
+    </section>
+
+    <div id="staleNotice" class="notice error" role="status" hidden>
+      <strong>Showing stale data.</strong>
+      <span id="staleMessage">The latest refresh failed; the last usable response remains visible.</span>
+    </div>
+    <div id="warningNotice" class="notice" role="status" hidden>
+      <strong>Metadata diagnostics</strong>
+      <ul class="notice-list" id="warningList"></ul>
+    </div>
+
+    <section id="initialState" class="panel initial-state" aria-live="polite">
+      <div>
+        <div class="spinner" id="initialSpinner" aria-hidden="true"></div>
+        <h2 id="initialTitle">Loading stream evidence</h2>
+        <p id="initialMessage">Requesting paths, destinations, timeline, breakdowns, and recent sessions in one analytics response.</p>
+        <button class="button" id="retryButton" type="button" hidden>Retry analytics request</button>
+      </div>
+    </section>
+
+    <div id="dashboard" hidden>
+      <dl class="summary-strip" aria-label="Connection summary">
+        <div class="metric"><dt>Connections</dt><dd id="metricConnections">0</dd><small id="metricWindow">No observed window</small></div>
+        <div class="metric"><dt>Observed traffic</dt><dd id="metricTraffic">0 B</dd><small id="metricDirections">0 B sent · 0 B received</small></div>
+        <div class="metric"><dt>Sources</dt><dd id="metricSources">0</dd><small id="metricCountries">0 countries</small></div>
+        <div class="metric"><dt>Listeners</dt><dd id="metricListeners">0</dd><small>NPM ingress endpoints</small></div>
+        <div class="metric"><dt>Destinations</dt><dd id="metricDestinations">0</dd><small>Observed upstream endpoints</small></div>
+        <div class="metric"><dt>Failures</dt><dd class="diagnostic" id="metricFailures">0</dd><small id="metricSuccess">0% successful · 0s avg</small></div>
+      </dl>
+
+      <section class="panel route-panel" aria-labelledby="routeHeading">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">Observed route rail</span>
+            <h2 id="routeHeading">Who connected where through NPM</h2>
+            <p>Link width represents connection count. Managed DNS aliases and current NPM config may not represent their historical state.</p>
+          </div>
+          <span class="section-count" id="routeLimitLabel">Top 0 paths</span>
+        </div>
+        <div class="stage-rail" aria-hidden="true">
+          <div class="stage"><span class="stage-index">01</span> Source</div>
+          <div class="rail-arrow"></div>
+          <div class="stage"><span class="stage-index">02</span> NPM listener</div>
+          <div class="rail-arrow"></div>
+          <div class="stage"><span class="stage-index">03</span> Destination</div>
+        </div>
+        <div class="route-visual" id="routeVisual" role="img" aria-label="Observed source to NPM listener to destination path diagram"></div>
+        <div class="route-caption">
+          <strong>Observed proxy stages, not traceroute hops.</strong>
+          <span id="routeCaption">The diagram is capped to keep route evidence legible.</span>
+        </div>
+      </section>
+
+      <div class="workspace">
+        <div class="stack">
+          <section class="panel" aria-labelledby="pathsHeading">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">Exact path explorer</span>
+                <h2 id="pathsHeading">Observed source → listener → destination paths</h2>
+                <p>Expand a row for aliases, current stream config candidates, timing, directional traffic, and failure evidence.</p>
+              </div>
+              <span class="section-count" id="pathTableCount">0 rows</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <caption class="sr-only">Exact observed proxy paths</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Details</th>
+                    <th scope="col">Observed path</th>
+                    <th scope="col">Current config candidate / context</th>
+                    <th scope="col" class="number">Connections</th>
+                    <th scope="col" class="number">Traffic ↑ / ↓</th>
+                    <th scope="col" class="number">Failures</th>
+                    <th scope="col" class="number">Avg / max duration</th>
+                    <th scope="col">First / last seen</th>
+                  </tr>
+                </thead>
+                <tbody id="pathTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="destinationHeading">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">Upstream inventory</span>
+                <h2 id="destinationHeading">Destination evidence</h2>
+                <p>Aggregated endpoints reached through NPM in the returned window.</p>
+              </div>
+              <span class="section-count" id="destinationCount">0 endpoints</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Destination</th>
+                    <th scope="col">Protocols</th>
+                    <th scope="col" class="number">Connections</th>
+                    <th scope="col" class="number">Sources / listeners</th>
+                    <th scope="col" class="number">Traffic</th>
+                    <th scope="col" class="number">Failures</th>
+                    <th scope="col">First / last seen</th>
+                  </tr>
+                </thead>
+                <tbody id="destinationTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <aside class="stack" aria-label="Supporting analytics">
+          <section class="panel" aria-labelledby="timelineHeading">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">Query timeline</span>
+                <h3 id="timelineHeading">Connection and traffic activity</h3>
+                <p>Server-returned buckets for the applied query.</p>
+              </div>
+              <span class="section-count" id="timelineCount">0 points</span>
+            </div>
+            <div class="chart-box">
+              <canvas id="timelineChart" aria-label="Connections, failures, and traffic over time"></canvas>
+              <div class="route-empty" id="timelineEmpty" hidden>No timeline buckets were returned for this query.</div>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="breakdownHeading">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">Server breakdowns</span>
+                <h3 id="breakdownHeading">Factual breakdowns</h3>
+                <p>Returned for the same applied query as the summary and tables.</p>
+              </div>
+            </div>
+            <div class="breakdowns" id="breakdowns"></div>
+          </section>
+
+          <section class="panel" aria-labelledby="sessionsHeading">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">Session evidence</span>
+                <h3 id="sessionsHeading">Recent observed sessions</h3>
+                <p>Newest matching connection records in this response.</p>
+              </div>
+              <span class="section-count" id="sessionCount">0 records</span>
+            </div>
+            <ol class="session-list" id="sessionList"></ol>
+          </section>
+        </aside>
+      </div>
+
+      <footer class="meta-line" aria-label="Analytics response metadata">
+        <span>Generated <strong id="metaGenerated">unknown</strong></span>
+        <span>Available entries <strong id="metaAvailable">0</strong></span>
+        <span>Returned entries <strong id="metaFiltered">0</strong></span>
+        <span>Managed DNS aliases <strong id="metaDns">unknown</strong></span>
+        <span>Current NPM config <strong id="metaStreamConfig">unknown</strong></span>
+        <span>Path semantics <strong id="metaSemantics">observed proxy stages</strong></span>
+      </footer>
+    </div>
+  </main>
+
+  <script>
+    'use strict';
+
+    const ANALYTICS_ENDPOINT = '/api/streamInfo/analytics';
+    const SANKEY_PATH_LIMIT = 40;
+    const TABLE_ROW_LIMIT = 250;
+    const SESSION_ROW_LIMIT = 50;
+    const QUERY_FIELDS = ['start', 'end', 'source', 'listener', 'destination', 'protocol', 'country', 'outcome'];
+
+    const state = {
+      data: null,
+      loading: false,
+      timelineChart: null,
+      lastSuccessAt: null,
+      expandedPathId: null,
+      resizeTimer: null,
+      appliedQuery: null
+    };
+
+    const ids = [
+      'healthDot', 'freshnessLabel', 'freshnessDetail', 'headerRefresh', 'filterForm',
+      'startDate', 'endDate', 'sourceFilter', 'listenerFilter', 'destinationFilter',
+      'protocolFilter', 'countryFilter', 'outcomeFilter', 'applyButton', 'clearButton',
+      'filterHint', 'resultCount', 'staleNotice', 'staleMessage', 'warningNotice',
+      'warningList', 'initialState', 'initialSpinner', 'initialTitle', 'initialMessage',
+      'retryButton', 'dashboard', 'routeVisual', 'routeLimitLabel', 'routeCaption',
+      'pathTableBody', 'pathTableCount', 'destinationTableBody', 'destinationCount',
+      'breakdowns', 'sessionList', 'sessionCount', 'timelineEmpty', 'timelineCount'
+    ];
+    const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
+
+    const valueKeys = {
+      connections: ['connections', 'connection_count', 'count', 'total_connections'],
+      failed: ['failure_count', 'failed_connections', 'failures', 'failed', 'error_count'],
+      bytesSent: ['bytes_sent', 'sent_bytes', 'bytes_out', 'tx_bytes'],
+      bytesReceived: ['bytes_received', 'received_bytes', 'bytes_in', 'rx_bytes'],
+      totalBytes: ['total_bytes', 'bytes', 'traffic_bytes'],
+      avgDuration: ['avg_session_seconds', 'avg_session_time_seconds', 'average_session_time_seconds', 'avg_duration_seconds', 'avg_duration'],
+      maxDuration: ['max_session_seconds', 'max_session_time_seconds', 'maximum_session_time_seconds', 'max_duration_seconds', 'max_duration']
+    };
+
+    function firstValue(object, keys, fallback = undefined) {
+      if (!object || typeof object !== 'object') return fallback;
+      for (const key of keys) {
+        if (object[key] !== undefined && object[key] !== null) return object[key];
+      }
+      return fallback;
+    }
+
+    function textValue(object, keys, fallback = '') {
+      const value = firstValue(object, keys, fallback);
+      return value === undefined || value === null ? fallback : String(value);
+    }
+
+    function numberValue(object, keys, fallback = 0) {
+      const value = Number(firstValue(object, keys, fallback));
+      return Number.isFinite(value) ? value : fallback;
+    }
+
+    function optionalNumberValue(object, keys) {
+      const raw = firstValue(object, keys, null);
+      if (raw === null || raw === '') return null;
+      const value = Number(raw);
+      return Number.isFinite(value) ? value : null;
+    }
+
+    function booleanValue(object, keys, fallback = null) {
+      const value = firstValue(object, keys, fallback);
+      if (value === true || value === false) return value;
+      if (value === 'true' || value === 1 || value === '1') return true;
+      if (value === 'false' || value === 0 || value === '0') return false;
+      return fallback;
+    }
+
+    function arrayValue(value) {
+      if (Array.isArray(value)) return value;
+      if (value === undefined || value === null || value === '') return [];
+      return [value];
+    }
+
+    function normalizeAliases(value) {
+      return arrayValue(value)
+        .flatMap((item) => typeof item === 'string' ? item.split(',') : [textValue(item, ['name', 'hostname', 'alias'], '')])
+        .map((item) => String(item).trim())
+        .filter(Boolean);
+    }
+
+    function normalizeEndpoint(value) {
+      if (typeof value === 'string' || typeof value === 'number') {
+        const raw = String(value);
+        return { ip: raw, port: '', raw, serverDisplay: raw, aliases: [], scope: '' };
+      }
+      const endpoint = value && typeof value === 'object' ? value : {};
+      return {
+        ip: textValue(endpoint, ['ip', 'address', 'host', 'hostname'], ''),
+        port: textValue(endpoint, ['port', 'service_port'], ''),
+        raw: textValue(endpoint, ['raw_address', 'raw', 'endpoint', 'address_port'], ''),
+        serverDisplay: textValue(endpoint, ['display', 'label', 'formatted'], ''),
+        aliases: normalizeAliases(firstValue(endpoint, ['aliases', 'dns_aliases', 'names', 'dns_names', 'alias'], [])),
+        scope: textValue(endpoint, ['scope', 'network_scope', 'address_scope'], '')
+      };
+    }
+
+    function ipWithPort(endpoint) {
+      if (!endpoint.ip) return endpoint.raw || endpoint.serverDisplay || 'Unknown endpoint';
+      if (!endpoint.port) return endpoint.ip;
+      const wrappedIp = endpoint.ip.includes(':') && !endpoint.ip.startsWith('[') ? `[${endpoint.ip}]` : endpoint.ip;
+      return `${wrappedIp}:${endpoint.port}`;
+    }
+
+    function endpointLabel(endpoint) {
+      const address = ipWithPort(endpoint);
+      if (endpoint.aliases.length && endpoint.ip) {
+        return `${endpoint.aliases[0]} (${endpoint.ip})${endpoint.port ? `:${endpoint.port}` : ''}`;
+      }
+      return endpoint.serverDisplay || endpoint.raw || address;
+    }
+
+    function endpointShortLabel(endpoint) {
+      return endpoint.aliases[0] || endpoint.ip || endpoint.serverDisplay || endpoint.raw || 'Unknown';
+    }
+
+    function endpointKey(endpoint) {
+      return `${endpoint.ip}|${endpoint.port}|${endpoint.raw || endpoint.serverDisplay}`.toLocaleLowerCase();
+    }
+
+    function normalizeStream(value) {
+      if (typeof value === 'string' || typeof value === 'number') {
+        return { id: String(value), description: '', display: String(value), enabled: null, matched: null };
+      }
+      const stream = value && typeof value === 'object' ? value : {};
+      return {
+        id: textValue(stream, ['id', 'stream_id', 'config_id'], ''),
+        description: textValue(stream, ['description', 'name', 'comment'], ''),
+        display: textValue(stream, ['display', 'label'], ''),
+        enabled: booleanValue(stream, ['enabled', 'is_enabled'], null),
+        matched: booleanValue(stream, ['matched', 'config_matched', 'match'], null)
+      };
+    }
+
+    function matchedFromStatus(status, fallback = null) {
+      const normalized = String(status || '').trim().toLocaleLowerCase();
+      if (normalized === 'matched') return true;
+      if (normalized === 'unmatched') return false;
+      if (normalized === 'ambiguous' || normalized === 'unavailable' || !normalized) return fallback;
+      return fallback;
+    }
+
+    function normalizeStreams(value, matchStatus = '') {
+      const matched = matchedFromStatus(matchStatus, null);
+      return arrayValue(value)
+        .map(normalizeStream)
+        .map((stream) => ({ ...stream, matched: matched === null ? stream.matched : matched }))
+        .sort((left, right) => {
+          const leftID = Number(left.id);
+          const rightID = Number(right.id);
+          const leftNumeric = Number.isFinite(leftID);
+          const rightNumeric = Number.isFinite(rightID);
+          if (leftNumeric && rightNumeric && leftID !== rightID) return leftID - rightID;
+          if (leftNumeric !== rightNumeric) return leftNumeric ? -1 : 1;
+          return (left.description || left.display || left.id).localeCompare(right.description || right.display || right.id);
+        });
+    }
+
+    function normalizePath(item, index) {
+      const path = item && typeof item === 'object' ? item : {};
+      const sent = numberValue(path, valueKeys.bytesSent);
+      const received = numberValue(path, valueKeys.bytesReceived);
+      const streamMatchStatus = textValue(path, ['stream_match_status', 'streamMatchStatus', 'match_status'], '');
+      const streamValue = firstValue(path, ['streams'], firstValue(path, ['stream', 'stream_config', 'config'], []));
+      const streams = normalizeStreams(streamValue, streamMatchStatus);
+      const primaryStream = streams[0] || normalizeStream({});
+      primaryStream.matched = matchedFromStatus(streamMatchStatus, primaryStream.matched);
+      return {
+        id: textValue(path, ['id', 'path_id', 'key'], `path-${index}`),
+        source: normalizeEndpoint(firstValue(path, ['source', 'src', 'client'], {})),
+        listener: normalizeEndpoint(firstValue(path, ['observed_listener', 'listener', 'npm_listener', 'ingress', 'proxy'], {})),
+        destination: normalizeEndpoint(firstValue(path, ['destination', 'dest', 'upstream', 'target'], {})),
+        protocol: textValue(path, ['protocol', 'transport', 'scheme'], 'Unknown'),
+        country: textValue(path, ['country', 'country_code', 'source_country'], 'Unknown'),
+        stream: primaryStream,
+        streams,
+        streamMatchStatus,
+        connections: numberValue(path, valueKeys.connections),
+        failed: numberValue(path, valueKeys.failed),
+        failureRate: numberValue(path, ['failure_rate', 'failed_rate', 'error_rate'], 0),
+        bytesSent: sent,
+        bytesReceived: received,
+        totalBytes: numberValue(path, valueKeys.totalBytes, sent + received),
+        avgDuration: numberValue(path, valueKeys.avgDuration),
+        maxDuration: numberValue(path, valueKeys.maxDuration),
+        firstSeen: firstValue(path, ['first_seen', 'first_timestamp', 'started_at'], null),
+        lastSeen: firstValue(path, ['last_seen', 'last_timestamp', 'ended_at'], null)
+      };
+    }
+
+    function normalizeDestination(item, index) {
+      const destination = item && typeof item === 'object' ? item : {};
+      const sent = numberValue(destination, valueKeys.bytesSent);
+      const received = numberValue(destination, valueKeys.bytesReceived);
+      const protocols = arrayValue(firstValue(destination, ['protocols', 'protocol'], []))
+        .map((protocol) => typeof protocol === 'object' ? textValue(protocol, ['name', 'protocol'], '') : String(protocol))
+        .filter(Boolean);
+      return {
+        id: `destination-${index}`,
+        endpoint: normalizeEndpoint(firstValue(destination, ['endpoint', 'destination', 'upstream', 'target'], destination)),
+        protocols,
+        connections: numberValue(destination, valueKeys.connections),
+        uniqueSources: numberValue(destination, ['unique_sources', 'source_count', 'unique_ips']),
+        uniqueListeners: numberValue(destination, ['unique_listeners', 'listener_count']),
+        failed: numberValue(destination, valueKeys.failed),
+        failureRate: numberValue(destination, ['failure_rate', 'failed_rate', 'error_rate']),
+        bytesSent: sent,
+        bytesReceived: received,
+        totalBytes: numberValue(destination, valueKeys.totalBytes, sent + received),
+        avgDuration: numberValue(destination, valueKeys.avgDuration),
+        firstSeen: firstValue(destination, ['first_seen', 'first_timestamp'], null),
+        lastSeen: firstValue(destination, ['last_seen', 'last_timestamp'], null)
+      };
+    }
+
+    function normalizeSession(item, index) {
+      const session = item && typeof item === 'object' ? item : {};
+      const sent = numberValue(session, valueKeys.bytesSent);
+      const received = numberValue(session, valueKeys.bytesReceived);
+      const status = firstValue(session, ['status', 'status_code', 'http_status'], null);
+      const explicitOutcome = textValue(session, ['outcome', 'result'], '');
+      const outcome = canonicalOutcome(explicitOutcome, status);
+      const streamMatchStatus = textValue(session, ['stream_match_status', 'streamMatchStatus', 'match_status'], '');
+      const streamValue = firstValue(session, ['streams'], firstValue(session, ['stream', 'stream_config', 'config'], []));
+      const streams = normalizeStreams(streamValue, streamMatchStatus);
+      return {
+        id: `session-${index}`,
+        timestamp: firstValue(session, ['timestamp', 'time', 'started_at', 'created_at'], null),
+        source: normalizeEndpoint(firstValue(session, ['source', 'src', 'client'], {})),
+        listener: normalizeEndpoint(firstValue(session, ['observed_listener', 'listener', 'npm_listener', 'ingress'], {})),
+        destination: normalizeEndpoint(firstValue(session, ['destination', 'dest', 'upstream', 'target'], {})),
+        protocol: textValue(session, ['protocol', 'transport'], 'Unknown'),
+        country: textValue(session, ['country', 'country_code', 'source_country'], 'Unknown'),
+        status,
+        outcome,
+        statusLabel: sessionStatusLabel(explicitOutcome, status, outcome),
+        bytesSent: sent,
+        bytesReceived: received,
+        totalBytes: numberValue(session, valueKeys.totalBytes, sent + received),
+        duration: numberValue(session, ['session_seconds', 'session_time_seconds', 'duration_seconds', 'duration']),
+        stream: streams[0] || normalizeStream({}),
+        streams,
+        streamMatchStatus
+      };
+    }
+
+    function normalizeBreakdownItems(value) {
+      return arrayValue(value).map((item) => {
+        if (typeof item !== 'object' || item === null) return { name: String(item), connections: 0, totalBytes: 0 };
+        return {
+          name: textValue(item, ['name', 'label', 'value', 'protocol', 'country', 'port', 'outcome', 'scope'], 'Unknown'),
+          connections: numberValue(item, valueKeys.connections),
+          failed: numberValue(item, valueKeys.failed),
+          totalBytes: numberValue(item, valueKeys.totalBytes)
+        };
+      });
+    }
+
+    function normalizeCollectionLimit(limits, keys) {
+      return {
+        limit: optionalNumberValue(limits, keys.limit),
+        available: optionalNumberValue(limits, keys.available),
+        truncated: booleanValue(limits, keys.truncated, false)
+      };
+    }
+
+    function normalizeResponse(payload) {
+      const root = payload && typeof payload === 'object' ? payload : {};
+      const meta = firstValue(root, ['meta', 'metadata'], {}) || {};
+      const availability = firstValue(meta, ['availability'], {}) || {};
+      const summary = firstValue(root, ['summary', 'totals'], {}) || {};
+      const dateRange = firstValue(summary, ['date_range', 'dateRange'], {}) || {};
+      const breakdownRoot = firstValue(root, ['breakdowns', 'facets', 'distributions'], {}) || {};
+      const limits = firstValue(meta, ['limits'], {}) || {};
+      const timeline = arrayValue(firstValue(root, ['hourly_timeline', 'timeline', 'activity', 'time_series'], [])).map((item) => ({
+        timestamp: firstValue(item, ['timestamp', 'time', 'date', 'bucket'], null),
+        connections: numberValue(item, valueKeys.connections),
+        failed: numberValue(item, valueKeys.failed),
+        totalBytes: numberValue(item, valueKeys.totalBytes),
+        uniqueSources: numberValue(item, ['unique_sources', 'unique_ips']),
+        uniqueDestinations: numberValue(item, ['unique_destinations', 'unique_upstreams'])
+      }));
+
+      return {
+        meta: {
+          generatedAt: firstValue(meta, ['generated_at', 'generatedAt', 'timestamp'], null),
+          totalAvailable: numberValue(meta, ['total_available_entries', 'total_entries', 'available_entries']),
+          filteredEntries: numberValue(meta, ['filtered_entries', 'returned_entries', 'entry_count']),
+          dnsAvailable: booleanValue(availability, ['dns_aliases'], booleanValue(meta, ['dns_aliases_available', 'dns_available', 'aliases_available'], null)),
+          streamConfigAvailable: booleanValue(availability, ['npm_streams'], booleanValue(meta, ['stream_config_available', 'config_available'], null)),
+          warnings: arrayValue(firstValue(meta, ['warnings', 'warning'], [])).map(String),
+          pathSemantics: textValue(root, ['path_semantics', 'pathSemantics'], textValue(meta, ['path_semantics', 'pathSemantics'], 'Observed proxy stages')),
+          limits: {
+            paths: normalizeCollectionLimit(limits, {
+              limit: ['path_limit', 'paths_limit'],
+              available: ['paths_available', 'path_available', 'total_paths'],
+              truncated: ['paths_truncated', 'path_truncated']
+            }),
+            destinations: normalizeCollectionLimit(limits, {
+              limit: ['destination_limit', 'destinations_limit'],
+              available: ['destinations_available', 'destination_available', 'total_destinations'],
+              truncated: ['destinations_truncated', 'destination_truncated']
+            }),
+            sessions: normalizeCollectionLimit(limits, {
+              limit: ['session_limit', 'sessions_limit'],
+              available: ['sessions_available', 'session_available', 'total_sessions'],
+              truncated: ['sessions_truncated', 'session_truncated']
+            }),
+            timeline: normalizeCollectionLimit(limits, {
+              limit: ['timeline_limit', 'timeline_points_limit', 'hour_limit'],
+              available: ['timeline_available', 'timeline_points_available', 'hours_available', 'total_timeline_points'],
+              truncated: ['timeline_truncated', 'timeline_points_truncated', 'hours_truncated']
+            })
+          }
+        },
+        summary: {
+          totalConnections: numberValue(summary, ['total_connections', 'connections', 'connection_count']),
+          uniqueSources: numberValue(summary, ['unique_sources', 'unique_ips', 'source_count']),
+          uniqueListeners: numberValue(summary, ['unique_listeners', 'listener_count']),
+          uniqueDestinations: numberValue(summary, ['unique_destinations', 'destination_count', 'unique_upstreams']),
+          uniqueCountries: numberValue(summary, ['unique_countries', 'country_count']),
+          bytesSent: numberValue(summary, valueKeys.bytesSent),
+          bytesReceived: numberValue(summary, valueKeys.bytesReceived),
+          totalBytes: numberValue(summary, valueKeys.totalBytes),
+          successful: numberValue(summary, ['successful_connections', 'successes', 'successful']),
+          failed: numberValue(summary, valueKeys.failed),
+          avgDuration: numberValue(summary, valueKeys.avgDuration),
+          firstSeen: firstValue(dateRange, ['first_seen', 'min_date', 'start'], firstValue(summary, ['first_seen', 'min_date', 'start'], null)),
+          lastSeen: firstValue(dateRange, ['last_seen', 'max_date', 'end'], firstValue(summary, ['last_seen', 'max_date', 'end'], null))
+        },
+        paths: arrayValue(firstValue(root, ['paths', 'routes', 'observed_paths'], [])).map(normalizePath),
+        destinations: arrayValue(firstValue(root, ['destinations', 'upstreams', 'destination_inventory'], [])).map(normalizeDestination),
+        timeline,
+        breakdowns: {
+          protocols: normalizeBreakdownItems(firstValue(breakdownRoot, ['protocols', 'protocol'], [])),
+          countries: normalizeBreakdownItems(firstValue(breakdownRoot, ['countries', 'country'], [])),
+          ports: normalizeBreakdownItems(firstValue(breakdownRoot, ['ports', 'destination_ports', 'port'], [])),
+          outcomes: normalizeBreakdownItems(firstValue(breakdownRoot, ['outcomes', 'statuses', 'status'], [])),
+          sourceScopes: normalizeBreakdownItems(firstValue(breakdownRoot, ['source_scopes', 'sourceScopes'], [])),
+          destinationScopes: normalizeBreakdownItems(firstValue(breakdownRoot, ['destination_scopes', 'destinationScopes'], []))
+        },
+        sessions: arrayValue(firstValue(root, ['recent_sessions', 'sessions', 'recent'], [])).map(normalizeSession)
+      };
+    }
+
+    function formatInteger(value) {
+      return Math.max(0, Number(value) || 0).toLocaleString();
+    }
+
+    function formatBytes(value) {
+      const bytes = Math.max(0, Number(value) || 0);
+      if (bytes < 1024) return `${Math.round(bytes)} B`;
+      const units = ['KB', 'MB', 'GB', 'TB', 'PB'];
+      let current = bytes;
+      let unitIndex = -1;
+      do {
+        current /= 1024;
+        unitIndex += 1;
+      } while (current >= 1024 && unitIndex < units.length - 1);
+      const precision = current >= 100 ? 0 : current >= 10 ? 1 : 2;
+      return `${current.toFixed(precision)} ${units[unitIndex]}`;
+    }
+
+    function formatDuration(value) {
+      const seconds = Math.max(0, Number(value) || 0);
+      if (seconds < 1) return `${Math.round(seconds * 1000)}ms`;
+      if (seconds < 60) return `${seconds.toFixed(seconds < 10 ? 1 : 0)}s`;
+      if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+      return `${Math.floor(seconds / 3600)}h ${Math.round((seconds % 3600) / 60)}m`;
+    }
+
+    function parseDate(value) {
+      if (!value) return null;
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function formatDateTime(value, compact = false) {
+      const date = parseDate(value);
+      if (!date) return 'Unknown';
+      const options = compact
+        ? { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
+        : { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+      return new Intl.DateTimeFormat(undefined, options).format(date);
+    }
+
+    function formatPercent(value, fallbackNumerator = 0, fallbackDenominator = 0) {
+      let percent = Number(value);
+      if (!Number.isFinite(percent) || percent === 0 && fallbackNumerator > 0) {
+        percent = fallbackDenominator > 0 ? fallbackNumerator / fallbackDenominator * 100 : 0;
+      }
+      if (percent > 0 && percent <= 1) percent *= 100;
+      return `${percent.toFixed(percent < 10 ? 1 : 0)}%`;
+    }
+
+    function setText(id, value) {
+      const node = document.getElementById(id);
+      if (node) node.textContent = value;
+    }
+
+    function appendTextElement(parent, tagName, text, className = '') {
+      const node = document.createElement(tagName);
+      if (className) node.className = className;
+      node.textContent = text;
+      parent.appendChild(node);
+      return node;
+    }
+
+    function createCell(row, text, className = '') {
+      const cell = document.createElement('td');
+      if (className) cell.className = className;
+      cell.textContent = text;
+      row.appendChild(cell);
+      return cell;
+    }
+
+    function createEmptyRow(columnCount, message) {
+      const row = document.createElement('tr');
+      const cell = createCell(row, message, 'empty-cell');
+      cell.colSpan = columnCount;
+      return row;
+    }
+
+    function canonicalOutcome(explicitOutcome, status) {
+      const explicit = String(explicitOutcome || '').trim().toLocaleLowerCase();
+      if (/^(success|successful|ok|connected|complete|completed)$/.test(explicit)) return 'success';
+      if (/^(failed|failure|error|denied|timeout|rejected|closed)$/.test(explicit)) return 'failed';
+
+      if (status !== null && status !== undefined && String(status).trim() !== '') {
+        const statusCode = Number(status);
+        if (Number.isFinite(statusCode)) return statusCode === 200 ? 'success' : 'failed';
+        const statusText = String(status).trim().toLocaleLowerCase();
+        if (/success|connected|complete|\bok\b/.test(statusText)) return 'success';
+        if (/fail|error|denied|timeout|reject|closed/.test(statusText)) return 'failed';
+      }
+      return 'unknown';
+    }
+
+    function sessionStatusLabel(explicitOutcome, status, outcome) {
+      const explicit = String(explicitOutcome || '').trim();
+      const hasStatus = status !== null && status !== undefined && String(status).trim() !== '';
+      if (explicit) return hasStatus ? `${explicit} · HTTP ${status}` : explicit;
+      if (hasStatus && Number.isFinite(Number(status))) {
+        return `${outcome === 'success' ? 'Success' : 'Failed'} · HTTP ${status}`;
+      }
+      return hasStatus ? String(status) : outcome === 'unknown' ? 'Unknown' : outcome;
+    }
+
+    function formatDateInput(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function initializeOperationalWindow() {
+      const today = new Date();
+      const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      start.setDate(start.getDate() - 6);
+      el.startDate.value = formatDateInput(start);
+      el.endDate.value = formatDateInput(today);
+    }
+
+    function captureControlQuery() {
+      return Object.fromEntries(QUERY_FIELDS.map((name) => {
+        const control = el.filterForm.elements.namedItem(name);
+        return [name, control ? String(control.value).trim() : ''];
+      }));
+    }
+
+    function applyControlQuery() {
+      state.appliedQuery = Object.freeze(captureControlQuery());
+      el.filterForm.querySelectorAll('.control').forEach((control) => control.classList.remove('pending'));
+      el.filterHint.textContent = 'All panels show this server-applied query. Manual Refresh reuses it until Apply is selected again.';
+    }
+
+    function updatePendingControls() {
+      const applied = state.appliedQuery || {};
+      let pendingCount = 0;
+      QUERY_FIELDS.forEach((name) => {
+        const control = el.filterForm.elements.namedItem(name);
+        if (!control) return;
+        const pending = String(control.value).trim() !== String(applied[name] || '');
+        control.classList.toggle('pending', pending);
+        if (pending) pendingCount += 1;
+      });
+      el.filterHint.textContent = pendingCount
+        ? `${pendingCount} pending ${pendingCount === 1 ? 'edit is' : 'edits are'} not reflected below. Select Apply to run a new server query.`
+        : 'All panels show the last server-applied query. Updates are manual.';
+    }
+
+    function buildRequestUrl() {
+      const params = new URLSearchParams();
+      const query = state.appliedQuery || {};
+      QUERY_FIELDS.forEach((key) => {
+        if (query[key]) params.set(key, query[key]);
+      });
+      params.set('path_limit', String(Math.max(1, Math.min(TABLE_ROW_LIMIT, 500))));
+      params.set('session_limit', String(Math.max(1, Math.min(SESSION_ROW_LIMIT, 200))));
+      return `${ANALYTICS_ENDPOINT}?${params.toString()}`;
+    }
+
+    function setLoading(loading) {
+      state.loading = loading;
+      el.applyButton.disabled = loading;
+      el.headerRefresh.disabled = loading;
+      el.retryButton.disabled = loading;
+      el.applyButton.textContent = loading ? 'Refreshing…' : 'Apply / refresh';
+      el.healthDot.className = `health-dot ${loading ? 'busy' : state.data ? 'live' : ''}`;
+      if (loading) {
+        el.freshnessLabel.textContent = state.data ? 'Manual refresh in progress' : 'Loading telemetry';
+        el.freshnessDetail.textContent = state.data ? 'Current evidence remains usable' : 'One analytics request in progress';
+      }
+    }
+
+    async function responseError(response) {
+      let detail = '';
+      try {
+        const payload = await response.json();
+        detail = textValue(payload, ['error', 'message'], '').trim();
+      } catch (parseError) {
+        console.debug('Analytics error response was not JSON:', parseError);
+      }
+      const status = `Analytics request returned HTTP ${response.status}`;
+      return new Error(detail ? `${status}: ${detail.slice(0, 500)}` : status);
+    }
+
+    async function fetchAnalytics() {
+      if (state.loading) return;
+      setLoading(true);
+      if (!state.data) {
+        el.initialState.hidden = false;
+        el.initialSpinner.hidden = false;
+        el.retryButton.hidden = true;
+        el.initialTitle.textContent = 'Loading stream evidence';
+        el.initialMessage.textContent = 'Requesting paths, destinations, timeline, breakdowns, and recent sessions in one analytics response.';
+      }
+
+      try {
+        const response = await fetch(buildRequestUrl(), {
+          method: 'GET',
+          credentials: 'same-origin',
+          cache: 'no-store',
+          headers: { Accept: 'application/json' }
+        });
+        if (!response.ok) throw await responseError(response);
+        const payload = await response.json();
+        state.data = normalizeResponse(payload);
+        state.lastSuccessAt = new Date();
+        state.expandedPathId = null;
+        populateFilterOptions();
+        renderAll();
+        el.staleNotice.hidden = true;
+        el.initialState.hidden = true;
+        el.dashboard.hidden = false;
+        el.healthDot.className = 'health-dot live';
+        el.freshnessLabel.textContent = 'Telemetry snapshot loaded';
+        el.freshnessDetail.textContent = `Loaded ${state.lastSuccessAt.toLocaleTimeString()} · refresh manually`;
+      } catch (error) {
+        console.error('Unable to load stream analytics:', error);
+        el.healthDot.className = 'health-dot error';
+        if (state.data) {
+          el.staleNotice.hidden = false;
+          el.staleMessage.textContent = `${error.message}. Last usable response remains visible.`;
+          el.freshnessLabel.textContent = 'Refresh failed';
+          el.freshnessDetail.textContent = `Showing data from ${state.lastSuccessAt.toLocaleTimeString()}`;
+        } else {
+          el.initialSpinner.hidden = true;
+          el.initialTitle.textContent = 'Analytics unavailable';
+          el.initialMessage.textContent = `${error.message}. Verify the analytics endpoint and your session, then retry.`;
+          el.retryButton.hidden = false;
+          el.freshnessLabel.textContent = 'No usable telemetry';
+          el.freshnessDetail.textContent = error.message;
+        }
+      } finally {
+        setLoading(false);
+        if (!state.data) el.healthDot.className = 'health-dot error';
+      }
+    }
+
+    function populateDatalist(id, values) {
+      const list = document.getElementById(id);
+      const fragment = document.createDocumentFragment();
+      [...new Set(values.filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+        .slice(0, 500)
+        .forEach((value) => {
+          const option = document.createElement('option');
+          option.value = value;
+          fragment.appendChild(option);
+        });
+      list.replaceChildren(fragment);
+    }
+
+    function endpointFilterValues(endpoint) {
+      return [
+        ...endpoint.aliases,
+        endpoint.raw,
+        endpoint.ip,
+        endpoint.ip ? ipWithPort(endpoint) : '',
+        endpoint.serverDisplay
+      ].filter(Boolean);
+    }
+
+    function populateFilterOptions() {
+      populateDatalist('sourceOptions', [
+        ...state.data.paths.flatMap((path) => endpointFilterValues(path.source)),
+        ...state.data.sessions.flatMap((session) => endpointFilterValues(session.source))
+      ]);
+      populateDatalist('listenerOptions', [
+        ...state.data.paths.flatMap((path) => endpointFilterValues(path.listener)),
+        ...state.data.sessions.flatMap((session) => endpointFilterValues(session.listener))
+      ]);
+      populateDatalist('destinationOptions', [
+        ...state.data.paths.flatMap((path) => endpointFilterValues(path.destination)),
+        ...state.data.destinations.flatMap((destination) => endpointFilterValues(destination.endpoint)),
+        ...state.data.sessions.flatMap((session) => endpointFilterValues(session.destination))
+      ]);
+      populateDatalist('protocolOptions', [
+        ...state.data.paths.map((path) => path.protocol),
+        ...state.data.destinations.flatMap((destination) => destination.protocols),
+        ...state.data.sessions.map((session) => session.protocol),
+        ...state.data.breakdowns.protocols.map((item) => item.name)
+      ]);
+      populateDatalist('countryOptions', [
+        ...state.data.paths.map((path) => path.country),
+        ...state.data.sessions.map((session) => session.country),
+        ...state.data.breakdowns.countries.map((item) => item.name)
+      ]);
+    }
+
+    function renderAll() {
+      if (!state.data) return;
+      renderSummary();
+      renderWarnings();
+      renderSankey(state.data.paths);
+      renderPathTable(state.data.paths);
+      renderDestinationTable(state.data.destinations);
+      renderTimeline();
+      renderBreakdowns();
+      renderSessions(state.data.sessions);
+      renderMetadata();
+      el.resultCount.textContent = collectionCountText(state.data.paths.length, state.data.meta.limits.paths, 'paths');
+    }
+
+    function renderSummary() {
+      const summary = state.data.summary;
+      const totalBytes = summary.totalBytes || summary.bytesSent + summary.bytesReceived;
+      const successful = summary.successful || Math.max(0, summary.totalConnections - summary.failed);
+      const successRate = summary.totalConnections ? successful / summary.totalConnections * 100 : 0;
+      setText('metricConnections', formatInteger(summary.totalConnections));
+      setText('metricTraffic', formatBytes(totalBytes));
+      setText('metricDirections', `${formatBytes(summary.bytesSent)} sent · ${formatBytes(summary.bytesReceived)} received`);
+      setText('metricSources', formatInteger(summary.uniqueSources));
+      setText('metricCountries', `${formatInteger(summary.uniqueCountries)} countries`);
+      setText('metricListeners', formatInteger(summary.uniqueListeners));
+      setText('metricDestinations', formatInteger(summary.uniqueDestinations));
+      setText('metricFailures', formatInteger(summary.failed));
+      setText('metricSuccess', `${successRate.toFixed(1)}% successful · ${formatDuration(summary.avgDuration)} avg`);
+      setText('metricWindow', `${formatDateTime(summary.firstSeen, true)} → ${formatDateTime(summary.lastSeen, true)}`);
+    }
+
+    function renderWarnings() {
+      const warnings = [...state.data.meta.warnings];
+      if (state.data.meta.dnsAvailable === false) warnings.push('DNS aliases are unavailable; endpoint labels fall back to observed addresses.');
+      if (state.data.meta.streamConfigAvailable === false) warnings.push('Current NPM stream configuration is unavailable; config candidate validation is indeterminate.');
+      const collections = [
+        ['Paths', state.data.paths.length, state.data.meta.limits.paths],
+        ['Destinations', state.data.destinations.length, state.data.meta.limits.destinations],
+        ['Recent sessions', state.data.sessions.length, state.data.meta.limits.sessions],
+        ['Timeline points', state.data.timeline.length, state.data.meta.limits.timeline]
+      ];
+      collections.forEach(([label, returned, limits]) => {
+        if (!collectionIsTruncated(returned, limits)) return;
+        const available = limits.available === null ? 'an unspecified available total' : `${formatInteger(limits.available)} available`;
+        const limit = limits.limit === null ? '' : `; server limit ${formatInteger(limits.limit)}`;
+        warnings.push(`${label} truncated: ${formatInteger(returned)} returned of ${available}${limit}.`);
+      });
+      const fragment = document.createDocumentFragment();
+      [...new Set(warnings)].forEach((warning) => appendTextElement(fragment, 'li', warning));
+      el.warningList.replaceChildren(fragment);
+      el.warningNotice.hidden = warnings.length === 0;
+    }
+
+    function collectionIsTruncated(returned, limits) {
+      return Boolean(limits.truncated || limits.available !== null && limits.available > returned);
+    }
+
+    function collectionCountText(returned, limits, noun) {
+      if (limits.available !== null) return `${formatInteger(returned)} of ${formatInteger(limits.available)} ${noun}`;
+      return `${formatInteger(returned)} ${noun}`;
+    }
+
+    function truncateLabel(value, length = 30) {
+      const text = String(value || 'Unknown');
+      return text.length > length ? `${text.slice(0, length - 1)}…` : text;
+    }
+
+    function renderSankey(paths) {
+      el.routeVisual.replaceChildren();
+      if (!paths.length) {
+        appendTextElement(el.routeVisual, 'div', 'The applied server query returned no observed routes.', 'route-empty');
+        el.routeLimitLabel.textContent = 'No returned paths';
+        el.routeCaption.textContent = 'Edit the query controls and select Apply to request different route evidence.';
+        return;
+      }
+      if (!window.d3 || typeof window.d3.sankey !== 'function') {
+        appendTextElement(el.routeVisual, 'div', 'Route visualization library is unavailable. Exact path evidence remains available below.', 'route-empty');
+        el.routeLimitLabel.textContent = 'Visualization unavailable';
+        return;
+      }
+
+      const selectedPaths = [...paths]
+        .sort((a, b) => b.connections - a.connections || b.totalBytes - a.totalBytes)
+        .slice(0, SANKEY_PATH_LIMIT);
+      const nodeMap = new Map();
+      const nodes = [];
+      const linkMap = new Map();
+
+      function addNode(stage, endpoint) {
+        const key = `${stage}:${endpointKey(endpoint)}`;
+        if (!nodeMap.has(key)) {
+          nodeMap.set(key, nodes.length);
+          nodes.push({ key, stage, name: endpointLabel(endpoint), endpoint });
+        }
+        return nodeMap.get(key);
+      }
+
+      function addLink(source, target, path, segment) {
+        const key = `${source}>${target}`;
+        const existing = linkMap.get(key);
+        if (existing) {
+          existing.value += Math.max(1, path.connections);
+          existing.paths += 1;
+          existing.totalBytes += path.totalBytes;
+        } else {
+          linkMap.set(key, {
+            source,
+            target,
+            value: Math.max(1, path.connections),
+            paths: 1,
+            totalBytes: path.totalBytes,
+            segment
+          });
+        }
+      }
+
+      selectedPaths.forEach((path) => {
+        const source = addNode('source', path.source);
+        const listener = addNode('listener', path.listener);
+        const destination = addNode('destination', path.destination);
+        addLink(source, listener, path, 'Source to NPM listener');
+        addLink(listener, destination, path, 'NPM listener to destination');
+      });
+
+      const links = [...linkMap.values()];
+      const viewportWidth = Math.max(el.routeVisual.clientWidth - 20, 620);
+      const height = Math.max(350, Math.min(620, nodes.length * 17));
+      const margin = { top: 12, right: 142, bottom: 12, left: 142 };
+      const width = viewportWidth;
+      const graph = d3.sankey()
+        .nodeId((node) => node.index)
+        .nodeWidth(8)
+        .nodePadding(10)
+        .nodeAlign(d3.sankeyJustify)
+        .extent([[margin.left, margin.top], [width - margin.right, height - margin.bottom]])({
+          nodes: nodes.map((node) => ({ ...node })),
+          links: links.map((link) => ({ ...link }))
+        });
+
+      const svg = d3.select(el.routeVisual)
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height)
+        .attr('viewBox', `0 0 ${width} ${height}`)
+        .attr('aria-hidden', 'true');
+
+      const linkSelection = svg.append('g')
+        .selectAll('path')
+        .data(graph.links)
+        .join('path')
+        .attr('class', 'sankey-link')
+        .attr('d', d3.sankeyLinkHorizontal())
+        .attr('stroke-width', (link) => Math.max(1.25, link.width));
+      linkSelection.append('title').text((link) =>
+        `${link.segment}: ${formatInteger(link.value)} connections across ${formatInteger(link.paths)} paths, ${formatBytes(link.totalBytes)}`
+      );
+
+      const nodeSelection = svg.append('g')
+        .selectAll('g')
+        .data(graph.nodes)
+        .join('g');
+      nodeSelection.append('rect')
+        .attr('x', (node) => node.x0)
+        .attr('y', (node) => node.y0)
+        .attr('width', (node) => node.x1 - node.x0)
+        .attr('height', (node) => Math.max(2, node.y1 - node.y0))
+        .attr('fill', (node) => node.stage === 'listener' ? '#f2b84b' : '#27d3e2')
+        .attr('opacity', (node) => node.stage === 'listener' ? 0.9 : 0.7)
+        .append('title')
+        .text((node) => `${node.name}\n${formatInteger(node.value)} connections`);
+      nodeSelection.append('text')
+        .attr('class', 'sankey-label')
+        .attr('x', (node) => node.stage === 'source' ? node.x0 - 7 : node.stage === 'destination' ? node.x1 + 7 : (node.x0 + node.x1) / 2)
+        .attr('y', (node) => (node.y0 + node.y1) / 2)
+        .attr('dy', '0.35em')
+        .attr('text-anchor', (node) => node.stage === 'source' ? 'end' : node.stage === 'destination' ? 'start' : 'middle')
+        .text((node) => truncateLabel(node.name, node.stage === 'listener' ? 22 : 26));
+
+      const availablePaths = state.data.meta.limits.paths.available;
+      el.routeLimitLabel.textContent = availablePaths === null
+        ? `Top ${formatInteger(selectedPaths.length)} of ${formatInteger(paths.length)} returned paths`
+        : `Top ${formatInteger(selectedPaths.length)} of ${formatInteger(availablePaths)} available paths`;
+      el.routeCaption.textContent = `${formatInteger(nodes.length)} staged endpoints · ${formatInteger(links.length)} aggregated route segments · capped at ${SANKEY_PATH_LIMIT} paths`;
+    }
+
+    function pathOutcome(path) {
+      if (path.failed <= 0) return { text: 'Healthy', className: 'good' };
+      if (path.connections > 0 && path.failed >= path.connections) return { text: 'Failed', className: 'bad' };
+      return { text: 'Mixed', className: 'warn' };
+    }
+
+    function streamLabel(stream) {
+      return stream.description || stream.display || (stream.id ? `Stream ${stream.id}` : 'Unnamed stream');
+    }
+
+    function compactStreamLabel(record) {
+      if (!record.streams.length) {
+        const status = record.streamMatchStatus.toLocaleLowerCase();
+        if (status === 'unmatched') return 'No current config candidate';
+        if (status === 'unavailable') return 'Current config unavailable';
+        if (status === 'ambiguous') return 'Current config candidates ambiguous';
+        return 'Current config candidate indeterminate';
+      }
+      const label = streamLabel(record.stream);
+      return record.streams.length > 1 ? `${label} (+${record.streams.length - 1})` : label;
+    }
+
+    function allStreamLabels(streams) {
+      if (!streams.length) return 'None returned';
+      return streams.map((stream) => {
+        const label = streamLabel(stream);
+        return stream.id && label !== `Stream ${stream.id}` ? `${label} (ID ${stream.id})` : label;
+      }).join('; ');
+    }
+
+    function streamMatchLabel(path) {
+      if (path.streamMatchStatus.toLocaleLowerCase() === 'ambiguous') return 'Ambiguous (multiple matching streams)';
+      if (path.streamMatchStatus.toLocaleLowerCase() === 'unavailable') return 'Unavailable';
+      const derived = path.stream.matched === true ? 'Matched' : path.stream.matched === false ? 'Unmatched' : 'Indeterminate';
+      return path.streamMatchStatus ? `${derived} (${path.streamMatchStatus})` : derived;
+    }
+
+    function appendEndpointCell(row, endpoint) {
+      const cell = document.createElement('td');
+      appendTextElement(cell, 'span', endpointLabel(endpoint), 'endpoint');
+      if (endpoint.scope) appendTextElement(cell, 'span', endpoint.scope, 'subvalue');
+      row.appendChild(cell);
+      return cell;
+    }
+
+    function createPathDetailRow(path) {
+      const row = document.createElement('tr');
+      row.className = 'detail-row';
+      row.id = `detail-${path.id.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+      const cell = document.createElement('td');
+      cell.colSpan = 8;
+      const grid = document.createElement('dl');
+      grid.className = 'detail-grid';
+      const details = [
+        ['Source aliases', path.source.aliases.join(', ') || 'None returned'],
+        ['NPM listener aliases', path.listener.aliases.join(', ') || 'None returned'],
+        ['Destination aliases', path.destination.aliases.join(', ') || 'None returned'],
+        ['Current stream config candidate', `${compactStreamLabel(path)}${path.stream.id ? ` · ID ${path.stream.id}` : ''}`],
+        ['All current config candidates', allStreamLabels(path.streams)],
+        ['Current config match status', streamMatchLabel(path)],
+        ['Current config enabled', path.stream.enabled === true ? 'Enabled' : path.stream.enabled === false ? 'Disabled' : 'Indeterminate'],
+        ['Directional traffic', `${formatBytes(path.bytesSent)} sent · ${formatBytes(path.bytesReceived)} received · ${formatBytes(path.totalBytes)} total`],
+        ['Failure evidence', `${formatInteger(path.failed)} failed · ${formatPercent(path.failureRate, path.failed, path.connections)} failure rate`],
+        ['Duration', `${formatDuration(path.avgDuration)} average · ${formatDuration(path.maxDuration)} maximum`],
+        ['Observed window', `${formatDateTime(path.firstSeen)} → ${formatDateTime(path.lastSeen)}`],
+        ['Protocol / country', `${path.protocol} · ${path.country}`],
+        ['Path ID', path.id]
+      ];
+      details.forEach(([term, description]) => {
+        const item = document.createElement('div');
+        item.className = 'detail-item';
+        appendTextElement(item, 'dt', term);
+        appendTextElement(item, 'dd', description);
+        grid.appendChild(item);
+      });
+      cell.appendChild(grid);
+      row.appendChild(cell);
+      return row;
+    }
+
+    function renderPathTable(paths) {
+      const fragment = document.createDocumentFragment();
+      const visiblePaths = paths.slice(0, TABLE_ROW_LIMIT);
+      if (!visiblePaths.length) {
+        fragment.appendChild(createEmptyRow(8, 'The applied server query returned no exact paths.'));
+      } else {
+        visiblePaths.forEach((path) => {
+          const row = document.createElement('tr');
+          row.className = 'data-row';
+          const detailCell = document.createElement('td');
+          const detailButton = appendTextElement(detailCell, 'button', state.expandedPathId === path.id ? 'Collapse' : 'Inspect', 'detail-button');
+          detailButton.type = 'button';
+          detailButton.setAttribute('aria-expanded', String(state.expandedPathId === path.id));
+          detailButton.setAttribute('aria-controls', `detail-${path.id.replace(/[^a-zA-Z0-9_-]/g, '-')}`);
+          detailButton.addEventListener('click', () => {
+            state.expandedPathId = state.expandedPathId === path.id ? null : path.id;
+            renderPathTable(state.data.paths);
+          });
+          row.appendChild(detailCell);
+
+          const pathCell = document.createElement('td');
+          pathCell.className = 'path-cell';
+          const pathLine = document.createElement('div');
+          pathLine.className = 'path-line';
+          appendTextElement(pathLine, 'span', endpointLabel(path.source), 'path-node');
+          appendTextElement(pathLine, 'span', '→', 'path-separator');
+          appendTextElement(pathLine, 'span', endpointLabel(path.listener), 'path-node');
+          appendTextElement(pathLine, 'span', '→', 'path-separator');
+          appendTextElement(pathLine, 'span', endpointLabel(path.destination), 'path-node');
+          pathLine.title = `${endpointLabel(path.source)} → ${endpointLabel(path.listener)} → ${endpointLabel(path.destination)}`;
+          pathCell.appendChild(pathLine);
+          row.appendChild(pathCell);
+
+          const contextCell = document.createElement('td');
+          appendTextElement(contextCell, 'span', compactStreamLabel(path), 'endpoint');
+          const contextLine = document.createElement('span');
+          contextLine.className = 'subvalue';
+          contextLine.textContent = `${path.protocol} · ${path.country} · `;
+          const outcome = pathOutcome(path);
+          appendTextElement(contextLine, 'span', outcome.text, `tag ${outcome.className}`);
+          contextCell.appendChild(contextLine);
+          row.appendChild(contextCell);
+
+          createCell(row, formatInteger(path.connections), 'number');
+          createCell(row, `${formatBytes(path.bytesSent)} / ${formatBytes(path.bytesReceived)}`, 'number');
+          createCell(row, `${formatInteger(path.failed)} · ${formatPercent(path.failureRate, path.failed, path.connections)}`, 'number');
+          createCell(row, `${formatDuration(path.avgDuration)} / ${formatDuration(path.maxDuration)}`, 'number');
+          const seenCell = createCell(row, `${formatDateTime(path.firstSeen, true)} / ${formatDateTime(path.lastSeen, true)}`);
+          seenCell.className = 'endpoint';
+          fragment.appendChild(row);
+          if (state.expandedPathId === path.id) fragment.appendChild(createPathDetailRow(path));
+        });
+      }
+      el.pathTableBody.replaceChildren(fragment);
+      el.pathTableCount.textContent = collectionCountText(visiblePaths.length, state.data.meta.limits.paths, 'paths');
+    }
+
+    function renderDestinationTable(destinations) {
+      const fragment = document.createDocumentFragment();
+      if (!destinations.length) {
+        fragment.appendChild(createEmptyRow(7, 'The applied server query returned no destination inventory entries.'));
+      } else {
+        destinations.forEach((destination) => {
+          const row = document.createElement('tr');
+          row.className = 'data-row';
+          appendEndpointCell(row, destination.endpoint);
+          createCell(row, destination.protocols.join(', ') || 'Unknown');
+          createCell(row, formatInteger(destination.connections), 'number');
+          createCell(row, `${formatInteger(destination.uniqueSources)} / ${formatInteger(destination.uniqueListeners)}`, 'number');
+          createCell(row, formatBytes(destination.totalBytes), 'number');
+          createCell(row, `${formatInteger(destination.failed)} · ${formatPercent(destination.failureRate, destination.failed, destination.connections)}`, 'number');
+          createCell(row, `${formatDateTime(destination.firstSeen, true)} / ${formatDateTime(destination.lastSeen, true)}`, 'endpoint');
+          fragment.appendChild(row);
+        });
+      }
+      el.destinationTableBody.replaceChildren(fragment);
+      el.destinationCount.textContent = collectionCountText(destinations.length, state.data.meta.limits.destinations, 'endpoints');
+    }
+
+    function renderTimeline() {
+      el.timelineCount.textContent = collectionCountText(state.data.timeline.length, state.data.meta.limits.timeline, 'points');
+      if (state.timelineChart) {
+        state.timelineChart.destroy();
+        state.timelineChart = null;
+      }
+      const canvas = document.getElementById('timelineChart');
+      if (!window.Chart || !state.data.timeline.length) {
+        canvas.hidden = true;
+        el.timelineEmpty.hidden = false;
+        el.timelineEmpty.textContent = window.Chart
+          ? 'No timeline buckets were returned for this query.'
+          : 'The timeline library is unavailable; tables and route evidence remain usable.';
+        return;
+      }
+      canvas.hidden = false;
+      el.timelineEmpty.hidden = true;
+      const timeline = state.data.timeline;
+      state.timelineChart = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: timeline.map((point) => formatDateTime(point.timestamp, true)),
+          datasets: [
+            {
+              label: 'Connections',
+              data: timeline.map((point) => point.connections),
+              borderColor: '#27d3e2',
+              backgroundColor: 'rgba(39, 211, 226, 0.08)',
+              borderWidth: 1.5,
+              pointRadius: timeline.length > 40 ? 0 : 1.5,
+              fill: true,
+              tension: 0.2,
+              yAxisID: 'connections'
+            },
+            {
+              label: 'Failed',
+              data: timeline.map((point) => point.failed),
+              borderColor: '#f2b84b',
+              backgroundColor: 'transparent',
+              borderWidth: 1.2,
+              pointRadius: 0,
+              tension: 0.2,
+              yAxisID: 'connections'
+            },
+            {
+              label: 'Traffic',
+              data: timeline.map((point) => point.totalBytes),
+              borderColor: '#617b91',
+              backgroundColor: 'transparent',
+              borderDash: [3, 3],
+              borderWidth: 1,
+              pointRadius: 0,
+              yAxisID: 'traffic'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : { duration: 250 },
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#8fa2b5', boxWidth: 10, boxHeight: 2, font: { size: 10, family: 'monospace' } } },
+            tooltip: { callbacks: { label: (context) => context.dataset.yAxisID === 'traffic' ? `Traffic: ${formatBytes(context.parsed.y)}` : `${context.dataset.label}: ${formatInteger(context.parsed.y)}` } }
+          },
+          scales: {
+            x: { ticks: { color: '#667b8f', maxTicksLimit: 6, font: { size: 9, family: 'monospace' } }, grid: { color: 'rgba(32, 56, 75, 0.45)' } },
+            connections: { position: 'left', beginAtZero: true, ticks: { color: '#667b8f', precision: 0, font: { size: 9 } }, grid: { color: 'rgba(32, 56, 75, 0.45)' } },
+            traffic: { position: 'right', beginAtZero: true, ticks: { color: '#667b8f', callback: (value) => formatBytes(value), font: { size: 9 } }, grid: { drawOnChartArea: false } }
+          }
+        }
+      });
+    }
+
+    function appendBreakdownGroup(parent, title, items) {
+      const group = document.createElement('section');
+      group.className = 'breakdown-group';
+      const heading = document.createElement('div');
+      heading.className = 'breakdown-title';
+      appendTextElement(heading, 'span', title);
+      appendTextElement(heading, 'span', `${formatInteger(items.length)} values`);
+      group.appendChild(heading);
+      if (!items.length) {
+        appendTextElement(group, 'div', 'No matching values', 'subvalue');
+      } else {
+        const list = document.createElement('div');
+        list.className = 'bar-list';
+        const visible = items.slice(0, 6);
+        const maximum = Math.max(...visible.map((item) => item.connections), 1);
+        visible.forEach((item) => {
+          const row = document.createElement('div');
+          row.className = 'bar-row';
+          appendTextElement(row, 'span', item.name || 'Unknown', 'bar-label');
+          const track = document.createElement('div');
+          track.className = 'bar-track';
+          const fill = document.createElement('div');
+          fill.className = 'bar-fill';
+          fill.style.width = `${Math.max(2, item.connections / maximum * 100)}%`;
+          track.appendChild(fill);
+          row.appendChild(track);
+          appendTextElement(row, 'span', `${formatInteger(item.connections)} · ${formatBytes(item.totalBytes)}`, 'bar-value');
+          list.appendChild(row);
+        });
+        group.appendChild(list);
+      }
+      parent.appendChild(group);
+    }
+
+    function renderBreakdowns() {
+      const fragment = document.createDocumentFragment();
+      const breakdownSets = [
+        ['Protocols', state.data.breakdowns.protocols],
+        ['Countries', state.data.breakdowns.countries],
+        ['Destination ports', state.data.breakdowns.ports],
+        ['Outcomes', state.data.breakdowns.outcomes],
+        ['Source scopes', state.data.breakdowns.sourceScopes],
+        ['Destination scopes', state.data.breakdowns.destinationScopes]
+      ];
+      breakdownSets.forEach(([title, items]) => appendBreakdownGroup(fragment, title, items));
+      el.breakdowns.replaceChildren(fragment);
+    }
+
+    function statusClass(outcome) {
+      if (outcome === 'failed') return 'bad';
+      if (outcome === 'success') return 'good';
+      return 'warn';
+    }
+
+    function renderSessions(sessions) {
+      const fragment = document.createDocumentFragment();
+      const visibleSessions = sessions.slice(0, SESSION_ROW_LIMIT);
+      if (!visibleSessions.length) {
+        const empty = appendTextElement(fragment, 'li', 'The applied server query returned no recent sessions.', 'empty-cell');
+        empty.setAttribute('role', 'status');
+      } else {
+        visibleSessions.forEach((session) => {
+          const item = document.createElement('li');
+          item.className = 'session';
+          const time = appendTextElement(item, 'time', formatDateTime(session.timestamp, true));
+          if (session.timestamp) time.dateTime = String(session.timestamp);
+          const route = document.createElement('div');
+          route.className = 'session-route';
+          appendTextElement(route, 'strong', `${endpointShortLabel(session.source)} → ${endpointShortLabel(session.listener)} → ${endpointShortLabel(session.destination)}`);
+          const detail = document.createElement('span');
+          detail.textContent = `${session.protocol} · ${session.country} · `;
+          appendTextElement(detail, 'span', session.statusLabel, `tag ${statusClass(session.outcome)}`);
+          route.appendChild(detail);
+          item.appendChild(route);
+          const traffic = document.createElement('div');
+          traffic.className = 'session-traffic';
+          appendTextElement(traffic, 'strong', formatBytes(session.totalBytes));
+          appendTextElement(traffic, 'span', `${formatDuration(session.duration)} · ${compactStreamLabel(session)}`);
+          item.appendChild(traffic);
+          fragment.appendChild(item);
+        });
+      }
+      el.sessionList.replaceChildren(fragment);
+      el.sessionCount.textContent = collectionCountText(visibleSessions.length, state.data.meta.limits.sessions, 'records');
+    }
+
+    function availabilityLabel(value) {
+      return value === true ? 'available' : value === false ? 'unavailable' : 'not reported';
+    }
+
+    function renderMetadata() {
+      const meta = state.data.meta;
+      setText('metaGenerated', formatDateTime(meta.generatedAt));
+      setText('metaAvailable', formatInteger(meta.totalAvailable));
+      setText('metaFiltered', formatInteger(meta.filteredEntries));
+      setText('metaDns', availabilityLabel(meta.dnsAvailable));
+      setText('metaStreamConfig', availabilityLabel(meta.streamConfigAvailable));
+      setText('metaSemantics', meta.pathSemantics || 'Observed proxy stages');
+    }
+
+    function clearFilters() {
+      el.filterForm.reset();
+      updatePendingControls();
+      el.filterHint.textContent = 'Controls are cleared, but displayed analytics are unchanged. Select Apply to request full history.';
+    }
+
+    el.filterForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (state.loading) return;
+      applyControlQuery();
+      fetchAnalytics();
+    });
+    el.headerRefresh.addEventListener('click', fetchAnalytics);
+    el.retryButton.addEventListener('click', fetchAnalytics);
+    el.clearButton.addEventListener('click', clearFilters);
+
+    el.filterForm.querySelectorAll('.control').forEach((control) => {
+      control.addEventListener('input', updatePendingControls);
+      control.addEventListener('change', updatePendingControls);
+    });
+
+    window.addEventListener('resize', () => {
+      if (!state.data) return;
+      window.clearTimeout(state.resizeTimer);
+      state.resizeTimer = window.setTimeout(() => renderSankey(state.data.paths), 140);
+    });
+
+    initializeOperationalWindow();
+    applyControlQuery();
+    fetchAnalytics();
+  </script>
 </body>
 </html>
