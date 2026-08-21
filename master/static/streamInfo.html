@@ -242,6 +242,8 @@
     }
     .initial-state h2 { margin: 16px 0 5px; color: var(--ink); font-size: 18px; }
     .initial-state p { margin: 0; max-width: 440px; }
+    .initial-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 16px; }
+    .initial-actions .button { min-height: 40px; }
     .spinner {
       width: 36px;
       height: 36px;
@@ -426,6 +428,69 @@
     .meta-line { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 12px 4px 0; color: var(--faint); font: 10px/1.45 var(--mono); }
     .meta-line strong { color: var(--muted); font-weight: 600; }
 
+    .historical-provenance { display: flex; align-items: center; gap: 9px; margin: 0 0 10px; color: var(--muted); font: 700 10px/1.35 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; }
+    .historical-provenance::before { content: ""; width: 22px; height: 1px; background: var(--amber); }
+    .live-view .historical-only { display: none !important; }
+    .tab-button.live-tab { color: #afeecb; }
+    .tab-button.live-tab[aria-selected="true"] { border-bottom-color: var(--green); color: #d5f9e5; background: rgba(114, 214, 160, 0.045); }
+    .button.capture { border-color: rgba(114, 214, 160, 0.55); background: #12372d; color: #d5f9e5; }
+    .button.capture:hover:not(:disabled) { border-color: var(--green); background: #17473a; }
+    .live-stack { display: grid; gap: 14px; min-width: 0; }
+    .live-console { overflow: hidden; border-color: #285365; background: #081620; }
+    .live-console-head { align-items: center; border-bottom-color: #285365; background: linear-gradient(90deg, rgba(39, 211, 226, 0.065), transparent 62%); }
+    .live-title-line { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .live-title-line h2 { font: 750 clamp(19px, 2.4vw, 28px)/1.05 var(--mono); letter-spacing: -0.055em; }
+    .live-badges { display: flex; flex-wrap: wrap; gap: 7px; }
+    .live-badge { display: inline-flex; min-height: 25px; align-items: center; border: 1px solid var(--line-strong); border-radius: 3px; padding: 4px 8px; color: var(--muted); font: 800 9px/1 var(--mono); letter-spacing: 0.07em; text-transform: uppercase; }
+    .live-badge.good { border-color: rgba(114, 214, 160, 0.5); color: var(--green); }
+    .live-badge.warn { border-color: rgba(242, 184, 75, 0.5); color: var(--amber); }
+    .live-badge.bad { border-color: rgba(239, 106, 106, 0.5); color: #f08c8c; }
+    .live-scope { padding: 10px 18px; border-bottom: 1px solid var(--line); color: #9cb0c1; font: 10px/1.5 var(--mono); }
+    .live-scope strong { color: var(--cyan-soft); }
+    .tcp-rail { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); position: relative; margin: 0; padding: 17px 18px 15px; background: #07141e; }
+    .tcp-rail::before { content: ""; position: absolute; left: 8.5%; right: 8.5%; top: 28px; height: 1px; background: linear-gradient(90deg, #287785, var(--cyan), #287785); opacity: 0.7; }
+    .tcp-state { position: relative; z-index: 1; min-width: 0; text-align: center; }
+    .tcp-node { display: block; width: 9px; height: 9px; margin: 7px auto 9px; border: 2px solid #07141e; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 0 1px #3995a0; }
+    .tcp-state:first-child .tcp-node { background: var(--ink); }
+    .tcp-state:nth-child(2) .tcp-node { animation: pulse 1.8s ease-in-out infinite; }
+    .tcp-state:nth-child(3) .tcp-node { background: var(--green); }
+    .tcp-state:nth-child(4) .tcp-node { background: var(--amber); }
+    .tcp-state:nth-child(5) .tcp-node { background: var(--red); }
+    .tcp-state dt { overflow: hidden; color: var(--faint); font: 750 9px/1.2 var(--mono); letter-spacing: 0.06em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+    .tcp-state dd { margin: 4px 0 0; color: var(--ink); font: 800 clamp(15px, 2vw, 21px)/1 var(--mono); }
+    .live-observation-band { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--line); }
+    .live-observation { min-width: 0; padding: 11px 14px; border-right: 1px solid var(--line); }
+    .live-observation:last-child { border-right: 0; }
+    .live-observation span { display: block; color: var(--faint); font: 700 9px/1.25 var(--mono); letter-spacing: 0.05em; text-transform: uppercase; }
+    .live-observation strong { display: block; margin-top: 3px; color: #cbd8e2; font: 700 11px/1.35 var(--mono); overflow-wrap: anywhere; }
+    .live-controls { padding: 14px 18px 16px; }
+    .live-filter-grid { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 10px; align-items: end; }
+    .live-filter-grid .wide-field { grid-column: span 2; }
+    .checkbox-field { min-height: 36px; display: flex; align-items: center; gap: 9px; border: 1px solid var(--line-strong); border-radius: 4px; background: #091722; padding: 0 10px; color: var(--muted); font: 700 10px/1.2 var(--mono); text-transform: uppercase; }
+    .checkbox-field input { width: 17px; height: 17px; margin: 0; accent-color: var(--cyan); }
+    .live-filter-actions { display: flex; flex-wrap: wrap; gap: 8px; grid-column: span 2; }
+    .live-filter-actions .button { min-height: 40px; }
+    .live-filter-actions .primary { flex: 1 1 190px; }
+    .live-filter-note { margin: 10px 0 0; color: var(--faint); font-size: 11px; }
+    .live-filter-note strong { color: var(--amber); font-family: var(--mono); }
+    .live-notice { margin: 0; border-radius: 0; border-width: 0 0 1px; }
+    .live-empty { min-height: 235px; display: grid; place-items: center; padding: 26px; text-align: center; }
+    .live-empty-mark { width: min(280px, 80vw); height: 34px; margin: 0 auto 18px; border-block: 1px solid #285365; background: repeating-linear-gradient(90deg, transparent 0 18px, rgba(39, 211, 226, 0.22) 18px 19px); }
+    .live-empty h3 { margin: 0 0 6px; color: var(--ink); font-size: 17px; }
+    .live-empty p { max-width: 520px; margin: 0 0 15px; color: var(--muted); }
+    .live-table { min-width: 1320px; }
+    .live-table .endpoint-pair { min-width: 270px; }
+    .live-endpoints { display: grid; grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr); gap: 5px; align-items: center; font: 600 10px/1.45 var(--mono); }
+    .live-endpoints .arrow { color: var(--cyan); text-align: center; }
+    .live-endpoints span:not(.arrow) { overflow-wrap: anywhere; }
+    .live-state-tag { border-radius: 3px; }
+    .live-current-config { min-width: 210px; }
+    .live-detail-intro { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 11px; }
+    .live-detail-intro strong { color: var(--cyan-soft); font-family: var(--mono); }
+    .live-detail-row td > .detail-actions { padding: 0 18px 16px; }
+    .live-pagination .button { min-width: 92px; min-height: 44px; }
+    .live-status-line { min-height: 18px; color: var(--muted); font: 700 10px/1.4 var(--mono); }
+
     @keyframes spin { to { transform: rotate(360deg); } }
     @keyframes pulse { 50% { opacity: 0.42; } }
 
@@ -569,6 +634,7 @@
       .scroll-hint { display: block; }
       .detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .route-map-canvas { min-width: 720px; }
+      .live-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 720px) {
       .shell { width: min(100% - 20px, 1440px); }
@@ -595,6 +661,11 @@
       .session { grid-template-columns: 64px minmax(0, 1fr); }
       .session-traffic { grid-column: 2; text-align: left; }
       .session-traffic strong, .session-traffic span { display: inline; }
+      .tcp-rail { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 14px; }
+      .tcp-rail::before { display: none; }
+      .live-observation-band { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .live-observation:nth-child(2) { border-right: 0; }
+      .live-observation:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
     }
     @media (max-width: 520px) {
       .masthead-row { flex-direction: column; align-items: flex-start; gap: 7px; padding-block: 9px; }
@@ -624,6 +695,13 @@
       .tab-button { min-width: 94px; padding-inline: 12px; }
       .detail-grid { grid-template-columns: minmax(0, 1fr); }
       .route-caption { padding-inline: 12px; }
+      .live-filter-grid { grid-template-columns: minmax(0, 1fr); }
+      .live-filter-grid .wide-field,
+      .live-filter-actions { grid-column: 1; }
+      .live-filter-actions .button { flex: 1 1 150px; }
+      .live-pagination { align-items: stretch; }
+      .live-pagination .pagination-actions { width: 100%; }
+      .live-pagination .button { flex: 1; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
@@ -642,7 +720,7 @@
           <h1>Stream Analytics</h1>
         </div>
       </div>
-      <div class="status-cluster" aria-live="polite">
+      <div class="status-cluster historical-only" aria-live="polite">
         <div class="health-dot" id="healthDot" aria-hidden="true"></div>
         <div class="freshness">
           <strong id="freshnessLabel">Awaiting telemetry</strong>
@@ -654,10 +732,10 @@
   </header>
 
   <main id="main-content" class="shell">
-    <section class="panel filter-panel" aria-labelledby="filterHeading">
+    <section class="panel filter-panel historical-only" aria-labelledby="filterHeading">
       <div class="panel-head">
         <div>
-          <span class="section-kicker">Query controls</span>
+          <span class="section-kicker">Historical log / query controls</span>
           <h2 id="filterHeading">Scope the evidence</h2>
           <p>All controls are server-applied together. Pending edits do not change the displayed analytics until Apply.</p>
         </div>
@@ -722,16 +800,16 @@
       </form>
     </section>
 
-    <div id="exactScopeBar" class="exact-scope" role="status" hidden>
+    <div id="exactScopeBar" class="exact-scope historical-only" role="status" hidden>
       <div class="exact-scope-label"><strong>Exact scope:</strong> <span id="exactScopeLabel"></span></div>
       <button class="button" id="exitDrillButton" type="button">Exit drill-down</button>
     </div>
 
-    <div id="staleNotice" class="notice error" role="status" hidden>
+    <div id="staleNotice" class="notice error historical-only" role="status" hidden>
       <strong>Showing stale data.</strong>
       <span id="staleMessage">The latest refresh failed; the last usable response remains visible.</span>
     </div>
-    <div id="warningNotice" class="notice" role="status" hidden>
+    <div id="warningNotice" class="notice historical-only" role="status" hidden>
       <strong>Metadata diagnostics</strong>
       <ul class="notice-list" id="warningList"></ul>
     </div>
@@ -741,12 +819,16 @@
         <div class="spinner" id="initialSpinner" aria-hidden="true"></div>
         <h2 id="initialTitle">Loading stream evidence</h2>
         <p id="initialMessage">Requesting sources, paths, destinations, timeline, breakdowns, and recent sessions in one analytics response.</p>
-        <button class="button" id="retryButton" type="button" hidden>Retry analytics request</button>
+        <div class="initial-actions">
+          <button class="button" id="retryButton" type="button" hidden>Retry analytics request</button>
+          <button class="button capture" id="openLiveButton" type="button">Open Live now</button>
+        </div>
       </div>
     </section>
 
     <div id="dashboard" hidden>
-      <dl class="summary-strip" aria-label="Connection summary">
+      <p class="historical-provenance historical-only">Historical log · server-applied query window</p>
+      <dl class="summary-strip historical-only" aria-label="Historical log connection summary">
         <div class="metric"><dt>Connections</dt><dd id="metricConnections">0</dd><small id="metricWindow">No observed window</small></div>
         <div class="metric"><dt>Observed traffic</dt><dd id="metricTraffic">0 B</dd><small id="metricDirections">0 B sent · 0 B received</small></div>
         <div class="metric"><dt>Failures</dt><dd class="diagnostic" id="metricFailures">0</dd><small id="metricSuccess">0% successful · 0s avg · 0s max</small></div>
@@ -764,6 +846,7 @@
 
       <nav class="tabs" role="tablist" aria-label="Analytics views">
         <button class="tab-button" id="tab-overview" type="button" role="tab" aria-selected="true" aria-controls="panel-overview" tabindex="0" data-tab="overview">Overview</button>
+        <button class="tab-button live-tab" id="tab-live" type="button" role="tab" aria-selected="false" aria-controls="panel-live" tabindex="-1" data-tab="live">Live now</button>
         <button class="tab-button" id="tab-routes" type="button" role="tab" aria-selected="false" aria-controls="panel-routes" tabindex="-1" data-tab="routes">Routes</button>
         <button class="tab-button" id="tab-sources" type="button" role="tab" aria-selected="false" aria-controls="panel-sources" tabindex="-1" data-tab="sources">IPs</button>
         <button class="tab-button" id="tab-destinations" type="button" role="tab" aria-selected="false" aria-controls="panel-destinations" tabindex="-1" data-tab="destinations">Destinations</button>
@@ -800,12 +883,153 @@
         </div>
       </section>
 
+      <section class="tab-panel" id="panel-live" role="tabpanel" aria-labelledby="tab-live" tabindex="0" hidden>
+        <div class="live-stack">
+          <section class="panel live-console" aria-labelledby="liveHeading">
+            <div class="panel-head live-console-head">
+              <div>
+                <span class="section-kicker">Live snapshot</span>
+                <div class="live-title-line">
+                  <h2 id="liveHeading">Socket state, captured on demand</h2>
+                  <div class="live-badges" aria-label="Live snapshot availability">
+                    <span class="live-badge" id="liveAvailabilityBadge">Not captured</span>
+                    <span class="live-badge" id="livePartialBadge" hidden>Partial</span>
+                  </div>
+                </div>
+                <p id="liveCaptureMeta">Open this view to take a manual capture. Live values never alter historical log totals.</p>
+              </div>
+              <button class="button capture" id="liveHeaderCapture" type="button">Capture now</button>
+            </div>
+            <div class="live-scope"><strong>Scope:</strong> master host network namespace · process attribution unavailable · socket diagnostics at capture time</div>
+            <dl class="tcp-rail" aria-label="TCP state rail">
+              <div class="tcp-state"><span class="tcp-node" aria-hidden="true"></span><dt>Filtered</dt><dd id="liveTotal">—</dd></div>
+              <div class="tcp-state"><span class="tcp-node" aria-hidden="true"></span><dt>Established</dt><dd id="liveEstablished">—</dd></div>
+              <div class="tcp-state"><span class="tcp-node" aria-hidden="true"></span><dt>Listening</dt><dd id="liveListening">—</dd></div>
+              <div class="tcp-state"><span class="tcp-node" aria-hidden="true"></span><dt>Handshake</dt><dd id="liveHandshake">—</dd></div>
+              <div class="tcp-state"><span class="tcp-node" aria-hidden="true"></span><dt>Closing</dt><dd id="liveClosing">—</dd></div>
+              <div class="tcp-state"><span class="tcp-node" aria-hidden="true"></span><dt>Queue depth</dt><dd id="liveQueueDepth">—</dd></div>
+            </dl>
+            <div class="live-observation-band">
+              <div class="live-observation"><span>Observed sent</span><strong id="liveBytesSent">—</strong></div>
+              <div class="live-observation"><span>Observed received</span><strong id="liveBytesReceived">—</strong></div>
+              <div class="live-observation"><span>Observed retransmissions</span><strong id="liveRetransmissions">—</strong></div>
+              <div class="live-observation"><span>Capture provenance</span><strong id="liveProvenance">LIVE SNAPSHOT · not captured</strong></div>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="liveControlsHeading">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">Snapshot controls</span>
+                <h3 id="liveControlsHeading">Filter this immutable capture</h3>
+                <p>Apply and page within the current snapshot. Capture now omits its token and creates a fresh snapshot.</p>
+              </div>
+              <span class="live-status-line" id="liveStatus" aria-live="polite">No live request made.</span>
+            </div>
+            <form class="live-controls" id="liveFilterForm">
+              <div class="live-filter-grid">
+                <div class="field">
+                  <label for="liveStateFilter">State</label>
+                  <select class="control" id="liveStateFilter" name="state">
+                    <option value="established" selected>Established</option>
+                    <option value="all">All states</option>
+                    <option value="listen">Listening</option>
+                    <option value="handshake">Handshake</option>
+                    <option value="closing">Closing</option>
+                  </select>
+                </div>
+                <div class="field wide-field">
+                  <label for="liveSearchFilter">Endpoint search</label>
+                  <input class="control" type="search" id="liveSearchFilter" name="search" placeholder="Address, port, interface, or state" autocomplete="off">
+                </div>
+                <label class="checkbox-field" for="liveNpmOnly"><input type="checkbox" id="liveNpmOnly" name="npm_only"> NPM candidates only</label>
+                <div class="field">
+                  <label for="liveLocalIp">Local exact IP</label>
+                  <input class="control" id="liveLocalIp" name="local_ip" inputmode="text" autocomplete="off" placeholder="10.0.0.8">
+                </div>
+                <div class="field">
+                  <label for="liveRemoteIp">Remote exact IP</label>
+                  <input class="control" id="liveRemoteIp" name="remote_ip" inputmode="text" autocomplete="off" placeholder="2001:db8::8">
+                </div>
+                <div class="field">
+                  <label for="liveLocalPort">Local port</label>
+                  <input class="control" id="liveLocalPort" name="local_port" inputmode="numeric" autocomplete="off" placeholder="443">
+                </div>
+                <div class="field">
+                  <label for="liveRemotePort">Remote port</label>
+                  <input class="control" id="liveRemotePort" name="remote_port" inputmode="numeric" autocomplete="off" placeholder="5432">
+                </div>
+                <div class="live-filter-actions">
+                  <button class="button primary" id="liveApply" type="submit">Apply to current snapshot</button>
+                  <button class="button" id="liveClear" type="button">Clear</button>
+                  <button class="button capture" id="liveCapture" type="button">Capture now</button>
+                </div>
+              </div>
+              <p class="live-filter-note"><strong>Manual only.</strong> Filter changes remain pending until Apply. No automatic refresh.</p>
+            </form>
+          </section>
+
+          <div class="notice error live-notice" id="liveStaleNotice" role="status" hidden>
+            <strong id="liveStaleTitle">Live refresh failed.</strong>
+            <span id="liveStaleMessage">The last live snapshot remains visible.</span>
+          </div>
+
+          <section class="panel" aria-labelledby="liveTableHeading">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">Live snapshot / socket evidence</span>
+                <h3 id="liveTableHeading">Active TCP connections</h3>
+                <p>Current config correlation is a candidate assessment, not historical log proof. Expand a row for returned TCP diagnostics.</p>
+              </div>
+              <span class="section-count" id="liveTableCount">No capture</span>
+            </div>
+            <div class="live-empty" id="liveEmpty">
+              <div>
+                <div class="live-empty-mark" aria-hidden="true"></div>
+                <h3 id="liveEmptyTitle">Capture the master socket table</h3>
+                <p id="liveEmptyMessage">A manual capture reads the master host network namespace. Historical log evidence remains available in the other views.</p>
+                <button class="button capture" id="liveEmptyCapture" type="button">Capture now</button>
+              </div>
+            </div>
+            <div id="liveTableRegion" hidden>
+              <p class="scroll-hint">Scroll horizontally for all live diagnostics.</p>
+              <div class="table-wrap">
+                <table class="live-table">
+                  <caption class="sr-only">Connections in the current immutable live snapshot</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Details</th>
+                      <th scope="col">State</th>
+                      <th scope="col">Local ↔ remote</th>
+                      <th scope="col">Role / current NPM candidate</th>
+                      <th scope="col" class="number">RTT / RTO</th>
+                      <th scope="col" class="number">Sent / received</th>
+                      <th scope="col" class="number">Retrans / lost</th>
+                      <th scope="col" class="number">Read / write queue</th>
+                      <th scope="col">Interface / UID</th>
+                    </tr>
+                  </thead>
+                  <tbody id="liveTableBody"></tbody>
+                </table>
+              </div>
+              <div class="pagination live-pagination" aria-label="Live connection pages">
+                <span class="pagination-status" id="livePageStatus" aria-live="polite">0 sockets · page 1</span>
+                <div class="pagination-actions">
+                  <button class="button" id="livePrevious" type="button" disabled>Previous</button>
+                  <button class="button" id="liveNext" type="button" disabled>Next</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
       <section class="tab-panel" id="panel-routes" role="tabpanel" aria-labelledby="tab-routes" tabindex="0" hidden>
         <div class="stack">
           <section class="panel" aria-labelledby="pathsHeading">
             <div class="panel-head">
               <div>
-                <span class="section-kicker">Exact path explorer</span>
+                <span class="section-kicker">Historical log / exact path explorer</span>
                 <h2 id="pathsHeading">Observed source → listener → destination paths</h2>
                 <p>Expand a row for aliases, current stream config candidates, timing, directional traffic, and failure evidence.</p>
               </div>
@@ -837,7 +1061,7 @@
             <section class="panel route-panel" aria-labelledby="routeHeading">
               <div class="panel-head">
                 <div>
-                  <span class="section-kicker">Observed route rail</span>
+                  <span class="section-kicker">Historical log / observed route rail</span>
                   <h2 id="routeHeading">Who connected where through NPM</h2>
                   <p>A capped visual summary of the exact path table. Link width represents connection count.</p>
                 </div>
@@ -870,7 +1094,7 @@
           <section class="panel" aria-labelledby="sourceHeading">
             <div class="panel-head">
               <div>
-                <span class="section-kicker">Source inventory</span>
+                <span class="section-kicker">Historical log / source inventory</span>
                 <h2 id="sourceHeading">Observed source IP evidence</h2>
                 <p>Aggregated source endpoints in the returned window. Expand a row for exact address evidence and drill-down.</p>
               </div>
@@ -913,7 +1137,7 @@
           <section class="panel" aria-labelledby="destinationHeading">
             <div class="panel-head">
               <div>
-                <span class="section-kicker">Upstream inventory</span>
+                <span class="section-kicker">Historical log / upstream inventory</span>
                 <h2 id="destinationHeading">Destination evidence</h2>
                 <p>Aggregated endpoints reached through NPM in the returned window.</p>
               </div>
@@ -946,7 +1170,7 @@
           <section class="panel" aria-labelledby="sessionsHeading">
             <div class="panel-head">
               <div>
-                <span class="section-kicker">Session evidence</span>
+                <span class="section-kicker">Historical log / session evidence</span>
                 <h3 id="sessionsHeading">Recent observed sessions</h3>
                 <p>Newest matching connection records in this response.</p>
               </div>
@@ -964,7 +1188,7 @@
                 <span>Available entries <strong id="metaAvailable">0</strong></span>
                 <span>Returned entries <strong id="metaFiltered">0</strong></span>
                 <span>Managed DNS aliases <strong id="metaDns">unknown</strong></span>
-                <span>Current NPM config <strong id="metaStreamConfig">unknown</strong></span>
+                <span>CURRENT CONFIG / NPM <strong id="metaStreamConfig">unknown</strong></span>
                 <span>Path semantics <strong id="metaSemantics">observed proxy stages</strong></span>
               </div>
               <p class="provenance-note">Paths represent observed source → NPM listener → destination proxy stages, not network traceroute hops. DNS aliases and NPM stream candidates describe current configuration and may differ from historical state.</p>
@@ -979,9 +1203,11 @@
     'use strict';
 
     const ANALYTICS_ENDPOINT = '/api/streamInfo/analytics';
+    const LIVE_ENDPOINT = '/api/streamInfo/active-connections';
     const SANKEY_PATH_LIMIT = 40;
     const TABLE_ROW_LIMIT = 250;
     const SOURCE_PAGE_SIZE = 100;
+    const LIVE_PAGE_SIZE = 100;
     const SESSION_ROW_LIMIT = 50;
     const QUERY_FIELDS = ['start', 'end', 'source', 'listener', 'destination', 'protocol', 'country', 'outcome'];
     const EXACT_QUERY_KEYS = ['path_id', 'source_ip', 'listener_ip', 'destination_ip'];
@@ -998,9 +1224,21 @@
       renderFrame: null,
       appliedQuery: null,
       lastRequestedQuery: null,
+      analyticsError: null,
+      analyticsRequestSequence: 0,
       sourceCursorHistory: [],
       clearExactOnApply: false,
-      activeTab: 'overview'
+      activeTab: 'overview',
+      live: {
+        data: null,
+        loading: false,
+        opened: false,
+        requestSequence: 0,
+        controller: null,
+        expandedId: null,
+        appliedFilters: null,
+        expired: false
+      }
     };
 
     const ids = [
@@ -1009,11 +1247,21 @@
       'protocolFilter', 'countryFilter', 'outcomeFilter', 'applyButton', 'clearButton',
       'filterHint', 'resultCount', 'staleNotice', 'staleMessage', 'warningNotice',
       'warningList', 'initialState', 'initialSpinner', 'initialTitle', 'initialMessage',
-      'retryButton', 'dashboard', 'routeVisual', 'routeLimitLabel', 'routeCaption',
+      'retryButton', 'openLiveButton', 'dashboard', 'routeVisual', 'routeLimitLabel', 'routeCaption',
       'exactScopeBar', 'exactScopeLabel', 'exitDrillButton', 'pathTableBody', 'pathTableCount',
       'sourceTableBody', 'sourceCount', 'sourcePageStatus', 'sourcePrevious', 'sourceNext',
       'destinationTableBody', 'destinationCount',
-      'breakdowns', 'sessionList', 'sessionCount', 'timelineEmpty', 'timelineCount'
+      'breakdowns', 'sessionList', 'sessionCount', 'timelineEmpty', 'timelineCount',
+      'liveHeading', 'liveAvailabilityBadge', 'livePartialBadge', 'liveCaptureMeta',
+      'liveHeaderCapture', 'liveTotal', 'liveEstablished', 'liveListening', 'liveHandshake',
+      'liveClosing', 'liveQueueDepth', 'liveBytesSent', 'liveBytesReceived',
+      'liveRetransmissions', 'liveProvenance', 'liveStatus', 'liveFilterForm',
+      'liveStateFilter', 'liveSearchFilter', 'liveNpmOnly', 'liveLocalIp', 'liveRemoteIp',
+      'liveLocalPort', 'liveRemotePort', 'liveApply', 'liveClear', 'liveCapture',
+      'liveStaleNotice', 'liveStaleTitle', 'liveStaleMessage', 'liveTableHeading',
+      'liveTableCount', 'liveEmpty', 'liveEmptyTitle', 'liveEmptyMessage',
+      'liveEmptyCapture', 'liveTableRegion', 'liveTableBody', 'livePageStatus',
+      'livePrevious', 'liveNext'
     ];
     const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 
@@ -1148,6 +1396,230 @@
           if (leftNumeric !== rightNumeric) return leftNumeric ? -1 : 1;
           return (left.description || left.display || left.id).localeCompare(right.description || right.display || right.id);
         });
+    }
+
+    const tcpMetricDefinitions = {
+      rtt_us: ['Smoothed RTT', 'microseconds'],
+      rtt_ms: ['Smoothed RTT', 'milliseconds'],
+      rtt_variance_us: ['RTT variance', 'microseconds'],
+      rttvar_us: ['RTT variance', 'microseconds'],
+      rtt_variance_ms: ['RTT variance', 'milliseconds'],
+      rto_us: ['Retransmission timeout (RTO)', 'microseconds'],
+      rto_ms: ['Retransmission timeout (RTO)', 'milliseconds'],
+      ato_us: ['ACK timeout (ATO)', 'microseconds'],
+      min_rtt_us: ['Minimum RTT', 'microseconds'],
+      min_rtt_ms: ['Minimum RTT', 'milliseconds'],
+      rcv_rtt_us: ['Receive RTT', 'microseconds'],
+      pacing_rate_bps: ['Pacing rate', 'bits per second'],
+      max_pacing_rate_bps: ['Maximum pacing rate', 'bits per second'],
+      delivery_rate_bps: ['Delivery rate', 'bits per second'],
+      bytes_sent: ['Bytes sent', 'bytes'],
+      bytes_received: ['Bytes received', 'bytes'],
+      bytes_acked: ['Bytes acknowledged', 'bytes'],
+      bytes_retrans: ['Bytes retransmitted', 'bytes'],
+      bytes_retransmitted: ['Bytes retransmitted', 'bytes'],
+      notsent_bytes: ['Bytes not yet sent', 'bytes'],
+      busy_time_ms: ['Socket busy time', 'milliseconds'],
+      rwnd_limited_ms: ['Receive-window-limited time', 'milliseconds'],
+      sndbuf_limited_ms: ['Send-buffer-limited time', 'milliseconds'],
+      last_data_sent_ms: ['Time since data sent', 'milliseconds'],
+      last_ack_sent_ms: ['Time since ACK sent', 'milliseconds'],
+      last_data_received_ms: ['Time since data received', 'milliseconds'],
+      last_ack_received_ms: ['Time since ACK received', 'milliseconds'],
+      snd_mss: ['Send maximum segment size', 'bytes'],
+      send_mss: ['Send maximum segment size', 'bytes'],
+      rcv_mss: ['Receive maximum segment size', 'bytes'],
+      receive_mss: ['Receive maximum segment size', 'bytes'],
+      advmss: ['Advertised maximum segment size', 'bytes'],
+      pmtu: ['Path maximum transmission unit', 'bytes'],
+      rcv_space: ['Receive buffer space', 'bytes'],
+      snd_wnd: ['Send window', 'bytes'],
+      rcv_ssthresh: ['Receive slow-start threshold', 'bytes'],
+      unacked: ['Unacknowledged segments', 'segments'],
+      unacked_segments: ['Unacknowledged segments', 'segments'],
+      sacked: ['Selectively acknowledged segments', 'segments'],
+      sacked_segments: ['Selectively acknowledged segments', 'segments'],
+      lost: ['Lost segments', 'segments'],
+      lost_segments: ['Lost segments', 'segments'],
+      retrans: ['Retransmitted segments', 'segments'],
+      retransmissions: ['Retransmissions', 'segments'],
+      retransmitted_segments: ['Retransmitted segments', 'segments'],
+      total_retrans: ['Total retransmissions', 'segments'],
+      total_retransmissions: ['Total retransmissions', 'segments'],
+      fackets: ['Forward ACK segments', 'segments'],
+      reordering: ['Reordering threshold', 'segments'],
+      segs_out: ['Segments sent', 'segments'],
+      segs_in: ['Segments received', 'segments'],
+      segments_out: ['Segments sent', 'segments'],
+      segments_in: ['Segments received', 'segments'],
+      data_segs_out: ['Data segments sent', 'segments'],
+      data_segs_in: ['Data segments received', 'segments'],
+      delivered: ['Segments delivered', 'segments'],
+      delivered_ce: ['Congestion-experienced deliveries', 'segments'],
+      dsack_dups: ['Duplicate SACKs', 'segments'],
+      reord_seen: ['Reordering events observed', 'events'],
+      rcv_ooopack: ['Out-of-order packets received', 'packets'],
+      congestion_window: ['Congestion window', 'segments'],
+      receive_window: ['Receive window', 'bytes'],
+      send_window: ['Send window', 'bytes'],
+      delivery_rate_bytes_per_second: ['Delivery rate', 'bytes per second'],
+      pacing_rate_bytes_per_second: ['Pacing rate', 'bytes per second']
+    };
+
+    function normalizeLiveStream(value) {
+      const stream = value && typeof value === 'object' ? value : {};
+      const base = normalizeStream(value);
+      return {
+        ...base,
+        incomingPort: textValue(stream, ['incoming_port', 'listen_port', 'port'], ''),
+        forwardHost: textValue(stream, ['forwarding_host', 'forward_host', 'destination_host', 'upstream_host'], ''),
+        forwardPort: textValue(stream, ['forwarding_port', 'forward_port', 'destination_port', 'upstream_port'], ''),
+        protocol: arrayValue(firstValue(stream, ['protocols', 'protocol', 'scheme'], [])).map(String).filter(Boolean).join(', ')
+      };
+    }
+
+    function tcpMetricLabel(key) {
+      const definition = tcpMetricDefinitions[key];
+      if (definition) return `${definition[0]} (${definition[1]})`;
+      return `${key.replaceAll('_', ' ')} (as returned)`;
+    }
+
+    function normalizeTcpDiagnostics(connection) {
+      const nested = firstValue(connection, ['tcp_info', 'tcp_diagnostics', 'diagnostics'], {});
+      const diagnostics = nested && typeof nested === 'object' && !Array.isArray(nested) ? { ...nested } : {};
+      const excluded = new Set([
+        'id', 'connection_id', 'socket_id', 'family', 'address_family', 'state', 'tcp_state', 'state_group', 'group',
+        'local', 'local_endpoint', 'local_ip', 'local_port', 'remote', 'remote_endpoint', 'remote_ip', 'remote_port',
+        'interface_name', 'interface', 'interface_index', 'ifindex', 'uid', 'user_id', 'inode', 'socket_inode',
+        'queues', 'read_queue_bytes', 'recv_queue_bytes', 'rx_queue_bytes', 'write_queue_bytes', 'send_queue_bytes', 'tx_queue_bytes',
+        'streams', 'stream', 'stream_candidates', 'npm_streams', 'correlation_role', 'role', 'correlation_confidence',
+        'confidence', 'correlation_status', 'stream_match_status', 'match_status', 'tcp_info', 'tcp_diagnostics', 'diagnostics',
+        'pid', 'process', 'process_name', 'connection_age', 'age'
+      ]);
+      Object.entries(connection).forEach(([key, value]) => {
+        const diagnosticName = Object.prototype.hasOwnProperty.call(tcpMetricDefinitions, key) || /rtt|rto|retrans|lost|acked|sack|mss|pmtu|cwnd|ssthresh|congestion|pacing|delivery|segment|segs|window|wnd|bytes|packet|notsent|reorder|delivered|busy|limited|timeout/i.test(key);
+        if (!excluded.has(key) && diagnosticName && value !== undefined && value !== null) diagnostics[key] = value;
+      });
+      return Object.entries(diagnostics)
+        .filter(([, value]) => ['string', 'number', 'boolean'].includes(typeof value))
+        .map(([key, value]) => ({ key, label: tcpMetricLabel(key), value }))
+        .sort((left, right) => left.label.localeCompare(right.label));
+    }
+
+    function normalizeLiveConnection(item, index) {
+      const connection = item && typeof item === 'object' ? item : {};
+      const correlationValue = firstValue(connection, ['correlation', 'npm_correlation'], {});
+      const correlation = correlationValue && typeof correlationValue === 'object' ? correlationValue : {};
+      const correlationStatus = textValue(connection, ['correlation_status', 'stream_match_status', 'match_status'], textValue(correlation, ['status', 'correlation_status'], 'indeterminate'));
+      const streams = arrayValue(firstValue(connection, ['streams', 'stream_candidates', 'npm_streams', 'stream'], firstValue(correlation, ['streams', 'candidates'], [])))
+        .map(normalizeLiveStream);
+      const diagnostics = normalizeTcpDiagnostics(connection);
+      const metric = (key) => {
+        const diagnostic = diagnostics.find((entry) => entry.key === key);
+        return diagnostic ? optionalNumberValue({ value: diagnostic.value }, ['value']) : null;
+      };
+      const rttMicroseconds = optionalNumberValue(connection, ['rtt_us', 'smoothed_rtt_us']) ?? metric('rtt_us');
+      const rtoMicroseconds = optionalNumberValue(connection, ['rto_us']) ?? metric('rto_us');
+      const rttMilliseconds = optionalNumberValue(connection, ['rtt_ms']) ?? metric('rtt_ms');
+      const rtoMilliseconds = optionalNumberValue(connection, ['rto_ms']) ?? metric('rto_ms');
+      const queues = firstValue(connection, ['queues'], {}) || {};
+      return {
+        id: textValue(connection, ['id', 'connection_id', 'socket_id'], '') || `live-${index}`,
+        family: textValue(connection, ['family', 'address_family'], 'Unknown'),
+        state: textValue(connection, ['state', 'tcp_state'], 'Unknown'),
+        stateGroup: textValue(connection, ['state_group', 'group'], ''),
+        local: normalizeEndpoint(firstValue(connection, ['local', 'local_endpoint'], { ip: firstValue(connection, ['local_ip'], ''), port: firstValue(connection, ['local_port'], '') })),
+        remote: normalizeEndpoint(firstValue(connection, ['remote', 'remote_endpoint'], { ip: firstValue(connection, ['remote_ip'], ''), port: firstValue(connection, ['remote_port'], '') })),
+        interfaceName: textValue(connection, ['interface_name', 'interface'], ''),
+        interfaceIndex: textValue(connection, ['interface_index', 'ifindex'], ''),
+        uid: textValue(connection, ['uid', 'user_id'], ''),
+        inode: textValue(connection, ['inode', 'socket_inode'], ''),
+        readQueueBytes: numberValue(connection, ['read_queue_bytes', 'recv_queue_bytes', 'rx_queue_bytes'], numberValue(queues, ['read'])),
+        writeQueueBytes: numberValue(connection, ['write_queue_bytes', 'send_queue_bytes', 'tx_queue_bytes'], numberValue(queues, ['write'])),
+        bytesSent: optionalNumberValue(connection, ['bytes_sent', 'sent_bytes']) ?? metric('bytes_sent'),
+        bytesReceived: optionalNumberValue(connection, ['bytes_received', 'received_bytes']) ?? metric('bytes_received'),
+        retransmissions: optionalNumberValue(connection, ['total_retrans', 'total_retransmissions', 'retransmissions', 'retrans']) ?? metric('total_retrans') ?? metric('total_retransmissions') ?? metric('retrans'),
+        lost: optionalNumberValue(connection, ['lost', 'lost_segments']) ?? metric('lost'),
+        rttUs: rttMicroseconds ?? (rttMilliseconds === null ? null : rttMilliseconds * 1000),
+        rtoUs: rtoMicroseconds ?? (rtoMilliseconds === null ? null : rtoMilliseconds * 1000),
+        correlationRole: textValue(connection, ['correlation_role', 'role'], textValue(correlation, ['role'], '')) || 'Unclassified',
+        correlationConfidence: textValue(connection, ['correlation_confidence', 'confidence'], textValue(correlation, ['confidence'], '')) || 'not reported',
+        correlationStatus,
+        streams,
+        diagnostics
+      };
+    }
+
+    function normalizeLiveResponse(payload) {
+      const root = payload && typeof payload === 'object' ? payload : {};
+      const provenanceValue = firstValue(root, ['provenance'], {});
+      const provenance = provenanceValue && typeof provenanceValue === 'object' ? provenanceValue : {};
+      const availabilityValue = firstValue(root, ['availability'], {});
+      const availability = availabilityValue && typeof availabilityValue === 'object' ? availabilityValue : {};
+      const summary = firstValue(root, ['summary'], {}) || {};
+      const stateCounts = firstValue(summary, ['state_groups', 'states', 'state_counts'], {}) || {};
+      const pagination = firstValue(root, ['pagination'], {}) || {};
+      const snapshotValue = firstValue(root, ['snapshot', 'snapshot_token'], firstValue(pagination, ['snapshot', 'snapshot_token'], firstValue(provenance, ['snapshot_token'], '')));
+      const snapshot = snapshotValue && typeof snapshotValue === 'object' ? snapshotValue : {};
+      const snapshotToken = typeof snapshotValue === 'string'
+        ? snapshotValue
+        : textValue(snapshot, ['token', 'id', 'snapshot'], textValue(pagination, ['snapshot_token'], ''));
+      const connections = arrayValue(firstValue(root, ['connections'], [])).map(normalizeLiveConnection);
+      const aggregate = connections.reduce((totals, connection) => {
+        const group = `${connection.state} ${connection.stateGroup}`.toLocaleLowerCase();
+        if (/establish/.test(group)) totals.established += 1;
+        if (/listen/.test(group)) totals.listening += 1;
+        if (/syn|handshake/.test(group)) totals.handshake += 1;
+        if (/close|fin|time.wait|last.ack/.test(group)) totals.closing += 1;
+        totals.readQueueBytes += connection.readQueueBytes;
+        totals.writeQueueBytes += connection.writeQueueBytes;
+        totals.bytesSent += connection.bytesSent || 0;
+        totals.bytesReceived += connection.bytesReceived || 0;
+        totals.retransmissions += connection.retransmissions || 0;
+        return totals;
+      }, { established: 0, listening: 0, handshake: 0, closing: 0, readQueueBytes: 0, writeQueueBytes: 0, bytesSent: 0, bytesReceived: 0, retransmissions: 0 });
+      const offset = numberValue(pagination, ['offset'], 0);
+      const limit = Math.max(1, numberValue(pagination, ['limit'], LIVE_PAGE_SIZE));
+      const total = numberValue(pagination, ['total', 'total_filtered', 'filtered'], numberValue(summary, ['total_filtered', 'filtered_sockets', 'total'], numberValue(root, ['total_filtered'], connections.length)));
+      const availabilityStatus = typeof availabilityValue === 'string' ? availabilityValue.toLocaleLowerCase() : '';
+      const availableFlag = typeof availabilityValue === 'boolean'
+        ? availabilityValue
+        : availabilityStatus ? !/unavailable|disabled|error/.test(availabilityStatus) : booleanValue(availability, ['available', 'active_connections', 'socket_diagnostics'], booleanValue(root, ['available'], true));
+      const partial = booleanValue(availability, ['partial'], booleanValue(root, ['partial'], /partial|degraded/.test(availabilityStatus)));
+      return {
+        provenance: {
+          capturedAt: firstValue(provenance, ['captured_at', 'capture_time', 'generated_at', 'timestamp'], firstValue(snapshot, ['captured_at', 'created_at'], firstValue(root, ['captured_at'], null))),
+          label: typeof provenanceValue === 'string' ? provenanceValue : textValue(provenance, ['scope', 'kind', 'source', 'label', 'collector'], 'master host network namespace')
+        },
+        availability: {
+          available: availableFlag,
+          partial,
+          message: textValue(availability, ['message', 'reason', 'detail'], textValue(root, ['message'], ''))
+        },
+        summary: {
+          total: numberValue(summary, ['total_filtered', 'filtered_sockets', 'total'], total),
+          established: numberValue(summary, ['established', 'established_sockets'], numberValue(stateCounts, ['established', 'active'], aggregate.established)),
+          listening: numberValue(summary, ['listening', 'listen', 'listening_sockets'], numberValue(stateCounts, ['listening', 'listen'], aggregate.listening)),
+          handshake: numberValue(summary, ['handshake', 'handshaking', 'handshake_sockets'], numberValue(stateCounts, ['handshake', 'handshaking'], aggregate.handshake)),
+          closing: numberValue(summary, ['closing', 'closing_sockets'], numberValue(stateCounts, ['closing'], aggregate.closing)),
+          readQueueBytes: numberValue(summary, ['total_read_queue', 'read_queue_bytes', 'total_read_queue_bytes'], aggregate.readQueueBytes),
+          writeQueueBytes: numberValue(summary, ['total_write_queue', 'write_queue_bytes', 'total_write_queue_bytes'], aggregate.writeQueueBytes),
+          queueDepthBytes: optionalNumberValue(summary, ['queue_depth_bytes', 'total_queue_bytes']),
+          bytesSent: numberValue(summary, ['bytes_sent', 'observed_bytes_sent'], aggregate.bytesSent),
+          bytesReceived: numberValue(summary, ['bytes_received', 'observed_bytes_received'], aggregate.bytesReceived),
+          retransmissions: numberValue(summary, ['total_retransmissions', 'total_retrans', 'retransmissions', 'observed_retransmissions'], aggregate.retransmissions)
+        },
+        connections,
+        warnings: arrayValue(firstValue(root, ['warnings'], [])).map(String),
+        pagination: {
+          snapshot: snapshotToken,
+          offset,
+          limit,
+          total,
+          returned: numberValue(pagination, ['returned', 'count'], connections.length),
+          hasMore: booleanValue(pagination, ['has_more'], offset + connections.length < total)
+        }
+      };
     }
 
     function normalizePath(item, index) {
@@ -1586,7 +2058,7 @@
       return withFirstSourcePage(query);
     }
 
-    function requestExactScope(key, value) {
+    function requestExactScope(key, value, targetTab = null) {
       if (state.loading || !EXACT_QUERY_KEYS.includes(key) || !value) return;
       // Drill from displayed evidence without applying pending form or Clear edits.
       const baseQuery = state.appliedQuery || captureControlQuery();
@@ -1595,7 +2067,10 @@
       fetchAnalytics(withFirstSourcePage(query), {
         focusAfterSuccess: true,
         preserveExactClear: state.clearExactOnApply,
-        onSuccess: () => { state.sourceCursorHistory = []; }
+        onSuccess: () => {
+          state.sourceCursorHistory = [];
+          if (targetTab) activateTab(targetTab);
+        }
       });
     }
 
@@ -1633,6 +2108,16 @@
       return button;
     }
 
+    function syncShellVisibility() {
+      const liveActive = state.activeTab === 'live';
+      const showDashboard = Boolean(state.data) || liveActive;
+      el.dashboard.hidden = !showDashboard;
+      el.initialState.hidden = showDashboard;
+      el.openLiveButton.hidden = false;
+      el.openLiveButton.disabled = false;
+      el.retryButton.hidden = state.loading || !state.analyticsError;
+    }
+
     function setLoading(loading) {
       state.loading = loading;
       el.applyButton.disabled = loading;
@@ -1651,44 +2136,57 @@
         el.freshnessDetail.textContent = state.data ? 'Current evidence remains usable' : 'One analytics request in progress';
       }
       updatePendingControls();
+      syncShellVisibility();
     }
 
-    async function responseError(response) {
+    async function responseError(response, requestLabel) {
       let detail = '';
       try {
         const payload = await response.json();
         detail = textValue(payload, ['error', 'message'], '').trim();
       } catch (parseError) {
-        console.debug('Analytics error response was not JSON:', parseError);
+        console.debug(`${requestLabel} error response was not JSON:`, parseError);
       }
-      const status = `Analytics request returned HTTP ${response.status}`;
-      return new Error(detail ? `${status}: ${detail.slice(0, 500)}` : status);
+      const status = `${requestLabel} request returned HTTP ${response.status}`;
+      const error = new Error(detail ? `${status}: ${detail.slice(0, 500)}` : status);
+      error.status = response.status;
+      return error;
+    }
+
+    async function requestJSON(url, options = {}) {
+      const { signal, label = 'Data' } = options;
+      const response = await fetch(url, {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: { Accept: 'application/json' },
+        signal
+      });
+      if (!response.ok) throw await responseError(response, label);
+      return response.json();
     }
 
     async function fetchAnalytics(requestedQuery, options = {}) {
       if (state.loading) return;
       const { focusAfterSuccess = false, preserveExactClear = false, onSuccess = null } = options;
       const query = Object.freeze({ ...(requestedQuery || state.appliedQuery || state.lastRequestedQuery || captureControlQuery()) });
+      const requestSequence = state.analyticsRequestSequence + 1;
+      state.analyticsRequestSequence = requestSequence;
       state.lastRequestedQuery = query;
+      state.analyticsError = null;
       setLoading(true);
       if (!state.data) {
-        el.initialState.hidden = false;
         el.initialSpinner.hidden = false;
-        el.retryButton.hidden = true;
         el.initialTitle.textContent = 'Loading stream evidence';
         el.initialMessage.textContent = 'Requesting sources, paths, destinations, timeline, breakdowns, and recent sessions in one analytics response.';
+        syncShellVisibility();
       }
 
       try {
-        const response = await fetch(buildRequestUrl(query), {
-          method: 'GET',
-          credentials: 'same-origin',
-          cache: 'no-store',
-          headers: { Accept: 'application/json' }
-        });
-        if (!response.ok) throw await responseError(response);
-        const payload = await response.json();
+        const payload = await requestJSON(buildRequestUrl(query), { label: 'Analytics' });
+        if (requestSequence !== state.analyticsRequestSequence) return;
         state.data = normalizeResponse(payload);
+        state.analyticsError = null;
         state.appliedQuery = query;
         if (!preserveExactClear) state.clearExactOnApply = false;
         state.lastSuccessAt = new Date();
@@ -1696,8 +2194,7 @@
         state.expandedSourceId = null;
         if (onSuccess) onSuccess();
         populateFilterOptions();
-        el.initialState.hidden = true;
-        el.dashboard.hidden = false;
+        syncShellVisibility();
         renderAll();
         el.staleNotice.hidden = true;
         el.healthDot.className = 'health-dot live';
@@ -1706,24 +2203,29 @@
         updatePendingControls();
         if (focusAfterSuccess) focusActiveTab();
       } catch (error) {
-        console.error('Unable to load stream analytics:', error);
+        if (requestSequence !== state.analyticsRequestSequence) return;
+        const failure = error;
+        console.error('Unable to load stream analytics:', failure);
+        state.analyticsError = failure;
         el.healthDot.className = 'health-dot error';
         if (state.data) {
           el.staleNotice.hidden = false;
-          el.staleMessage.textContent = `${error.message}. Last usable response remains visible.`;
+          el.staleMessage.textContent = `${failure.message}. Last usable response remains visible.`;
           el.freshnessLabel.textContent = 'Refresh failed';
           el.freshnessDetail.textContent = `Showing data from ${state.lastSuccessAt.toLocaleTimeString()}`;
         } else {
           el.initialSpinner.hidden = true;
           el.initialTitle.textContent = 'Analytics unavailable';
-          el.initialMessage.textContent = `${error.message}. Verify the analytics endpoint and your session, then retry.`;
-          el.retryButton.hidden = false;
+          el.initialMessage.textContent = `${failure.message}. Verify the analytics endpoint and your session, then retry.`;
           el.freshnessLabel.textContent = 'No usable telemetry';
-          el.freshnessDetail.textContent = error.message;
+          el.freshnessDetail.textContent = failure.message;
         }
+        syncShellVisibility();
       } finally {
-        setLoading(false);
-        if (!state.data) el.healthDot.className = 'health-dot error';
+        if (requestSequence === state.analyticsRequestSequence) {
+          setLoading(false);
+          if (!state.data) el.healthDot.className = 'health-dot error';
+        }
       }
     }
 
@@ -1900,6 +2402,342 @@
           else state.sourceCursorHistory.push(currentCursor);
         }
       });
+    }
+
+    function captureLiveFilters() {
+      const fields = ['state', 'search', 'local_ip', 'remote_ip', 'local_port', 'remote_port'];
+      const filters = Object.fromEntries(fields.map((name) => {
+        const control = el.liveFilterForm.elements.namedItem(name);
+        return [name, control ? String(control.value).trim() : ''];
+      }));
+      filters.npm_only = el.liveNpmOnly.checked;
+      return filters;
+    }
+
+    function buildLiveRequestUrl(filters, offset, snapshot = '') {
+      const params = new URLSearchParams();
+      ['state', 'search', 'local_ip', 'remote_ip', 'local_port', 'remote_port'].forEach((key) => {
+        if (filters[key]) params.set(key, filters[key]);
+      });
+      if (filters.npm_only) params.set('npm_only', 'true');
+      if (snapshot) params.set('snapshot', snapshot);
+      params.set('offset', String(Math.max(0, offset)));
+      params.set('limit', String(LIVE_PAGE_SIZE));
+      return `${LIVE_ENDPOINT}?${params.toString()}`;
+    }
+
+    function formatOptionalInteger(value) {
+      return value === null || value === undefined ? 'Not reported' : formatInteger(value);
+    }
+
+    function formatMicroseconds(value) {
+      if (value === null || value === undefined) return 'Not reported';
+      const microseconds = Math.max(0, Number(value) || 0);
+      if (microseconds < 1000) return `${formatInteger(microseconds)} µs`;
+      if (microseconds < 1000000) return `${(microseconds / 1000).toFixed(microseconds < 10000 ? 2 : 1)} ms`;
+      return `${(microseconds / 1000000).toFixed(2)} s`;
+    }
+
+    function formatRate(value) {
+      const bits = Math.max(0, Number(value) || 0);
+      if (bits < 1000) return `${formatInteger(bits)} bps`;
+      const units = ['Kbps', 'Mbps', 'Gbps', 'Tbps'];
+      let current = bits;
+      let index = -1;
+      do {
+        current /= 1000;
+        index += 1;
+      } while (current >= 1000 && index < units.length - 1);
+      return `${current.toFixed(current >= 100 ? 0 : current >= 10 ? 1 : 2)} ${units[index]}`;
+    }
+
+    function formatTcpMetric(metric) {
+      const definition = tcpMetricDefinitions[metric.key];
+      if (!definition) return String(metric.value);
+      if (definition[1] === 'microseconds') return formatMicroseconds(metric.value);
+      if (definition[1] === 'bits per second') return formatRate(metric.value);
+      if (definition[1] === 'bytes per second') return `${formatBytes(metric.value)}/s`;
+      if (definition[1] === 'bytes') return formatBytes(metric.value);
+      if (definition[1] === 'milliseconds') return `${formatInteger(metric.value)} ms`;
+      return `${formatInteger(metric.value)} ${definition[1]}`;
+    }
+
+    function liveCaptureAge(value) {
+      const captured = parseDate(value);
+      if (!captured) return 'capture time not reported';
+      const seconds = Math.max(0, Math.floor((Date.now() - captured.getTime()) / 1000));
+      if (seconds < 60) return `${seconds}s old`;
+      if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s old`;
+      return `${Math.floor(seconds / 3600)}h ${Math.floor(seconds % 3600 / 60)}m old`;
+    }
+
+    function liveAvailabilityClass(live) {
+      if (live.availability.available === false) return 'bad';
+      if (live.availability.partial) return 'warn';
+      return 'good';
+    }
+
+    function liveStateClass(connection) {
+      const stateName = `${connection.state} ${connection.stateGroup}`.toLocaleLowerCase();
+      if (/establish/.test(stateName)) return 'good';
+      if (/close|fin|time.wait|last.ack/.test(stateName)) return 'bad';
+      return 'warn';
+    }
+
+    function liveCandidateLabel(stream) {
+      const identity = stream.description || stream.display || (stream.id ? `Stream ${stream.id}` : 'Unnamed stream');
+      const route = [stream.incomingPort ? `listen ${stream.incomingPort}` : '', stream.forwardHost, stream.forwardPort].filter(Boolean).join(' → ');
+      return [identity, stream.id && identity !== `Stream ${stream.id}` ? `ID ${stream.id}` : '', route, stream.protocol, stream.enabled === true ? 'enabled' : stream.enabled === false ? 'disabled' : 'enabled state not reported'].filter(Boolean).join(' · ');
+    }
+
+    function liveCorrelationLabel(connection) {
+      const candidate = connection.streams[0];
+      const label = candidate ? liveCandidateLabel(candidate) : 'No current config candidate returned';
+      return `${connection.correlationRole} · ${label}`;
+    }
+
+    function appendLiveHistoricalButton(actions, label, key, value, targetTab) {
+      if (!isValidIPAddress(value)) return;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'button drill-action';
+      button.dataset.exactValid = 'true';
+      button.textContent = label;
+      button.disabled = state.loading;
+      button.addEventListener('click', () => requestExactScope(key, value, targetTab));
+      actions.appendChild(button);
+    }
+
+    function appendDetailItem(grid, term, description) {
+      const item = document.createElement('div');
+      item.className = 'detail-item';
+      appendTextElement(item, 'dt', term);
+      appendTextElement(item, 'dd', description);
+      grid.appendChild(item);
+    }
+
+    function createLiveDetailRow(connection, detailId) {
+      const row = document.createElement('tr');
+      row.className = 'detail-row live-detail-row';
+      row.id = detailId;
+      const cell = document.createElement('td');
+      cell.colSpan = 9;
+      const grid = document.createElement('dl');
+      grid.className = 'detail-grid';
+      const intro = appendTextElement(grid, 'div', 'CURRENT CONFIG correlation is a present-time candidate assessment. Historical searches below do not prove this live socket is a logged session.', 'live-detail-intro');
+      intro.setAttribute('role', 'note');
+      [
+        ['Address family', connection.family],
+        ['TCP state', connection.state],
+        ['TCP state group', connection.stateGroup || 'Not returned'],
+        ['Local endpoint', ipWithPort(connection.local)],
+        ['Remote endpoint', ipWithPort(connection.remote)],
+        ['Interface', connection.interfaceName || 'Not returned'],
+        ['Interface index', connection.interfaceIndex || 'Not returned'],
+        ['User ID (UID)', connection.uid || 'Not returned'],
+        ['Socket inode', connection.inode || 'Not returned'],
+        ['Read queue (bytes)', formatInteger(connection.readQueueBytes)],
+        ['Write queue (bytes)', formatInteger(connection.writeQueueBytes)],
+        ['CURRENT CONFIG correlation role', connection.correlationRole],
+        ['CURRENT CONFIG confidence', connection.correlationConfidence],
+        ['CURRENT CONFIG status', connection.correlationStatus],
+        ['All CURRENT CONFIG candidates', connection.streams.length ? connection.streams.map(liveCandidateLabel).join('; ') : 'None returned']
+      ].forEach(([term, description]) => appendDetailItem(grid, term, description));
+      connection.diagnostics.forEach((metric) => appendDetailItem(grid, metric.label, formatTcpMetric(metric)));
+      cell.appendChild(grid);
+      const actions = document.createElement('div');
+      actions.className = 'detail-actions';
+      actions.setAttribute('aria-label', 'Historical log searches for this live connection');
+      appendLiveHistoricalButton(actions, 'Open local as listener', 'listener_ip', connection.local.ip, 'routes');
+      appendLiveHistoricalButton(actions, 'Open remote as source', 'source_ip', connection.remote.ip, 'sources');
+      appendLiveHistoricalButton(actions, 'Open remote as destination', 'destination_ip', connection.remote.ip, 'destinations');
+      if (actions.childElementCount) cell.appendChild(actions);
+      row.appendChild(cell);
+      return row;
+    }
+
+    function renderLiveTable(live) {
+      const fragment = document.createDocumentFragment();
+      live.connections.forEach((connection, index) => {
+        const expanded = state.live.expandedId === connection.id;
+        const row = document.createElement('tr');
+        row.className = 'data-row';
+        const detailId = `live-detail-${index}`;
+        const toggleId = `live-toggle-${index}`;
+        const detailCell = document.createElement('td');
+        const button = appendTextElement(detailCell, 'button', expanded ? 'Collapse' : 'Inspect', 'detail-button');
+        button.type = 'button';
+        button.id = toggleId;
+        button.setAttribute('aria-expanded', String(expanded));
+        if (expanded) button.setAttribute('aria-controls', detailId);
+        button.addEventListener('click', () => {
+          state.live.expandedId = expanded ? null : connection.id;
+          renderLive();
+          const replacement = document.getElementById(toggleId);
+          if (replacement) replacement.focus();
+        });
+        row.appendChild(detailCell);
+        const stateCell = document.createElement('td');
+        appendTextElement(stateCell, 'span', connection.state, `tag live-state-tag ${liveStateClass(connection)}`);
+        if (connection.stateGroup) appendTextElement(stateCell, 'span', connection.stateGroup, 'subvalue');
+        row.appendChild(stateCell);
+        const endpointsCell = document.createElement('td');
+        endpointsCell.className = 'endpoint-pair';
+        const endpoints = document.createElement('div');
+        endpoints.className = 'live-endpoints';
+        appendTextElement(endpoints, 'span', ipWithPort(connection.local));
+        appendTextElement(endpoints, 'span', '↔', 'arrow');
+        appendTextElement(endpoints, 'span', ipWithPort(connection.remote));
+        endpointsCell.appendChild(endpoints);
+        row.appendChild(endpointsCell);
+        const configCell = createCell(row, liveCorrelationLabel(connection), 'live-current-config');
+        appendTextElement(configCell, 'span', `CURRENT CONFIG · confidence ${connection.correlationConfidence} · status ${connection.correlationStatus}`, 'subvalue');
+        createCell(row, `${formatMicroseconds(connection.rttUs)} / ${formatMicroseconds(connection.rtoUs)}`, 'number');
+        createCell(row, `${connection.bytesSent === null ? '—' : formatBytes(connection.bytesSent)} / ${connection.bytesReceived === null ? '—' : formatBytes(connection.bytesReceived)}`, 'number');
+        createCell(row, `${formatOptionalInteger(connection.retransmissions)} / ${formatOptionalInteger(connection.lost)}`, 'number');
+        createCell(row, `${formatBytes(connection.readQueueBytes)} / ${formatBytes(connection.writeQueueBytes)}`, 'number');
+        createCell(row, `${connection.interfaceName || 'Unknown'}${connection.interfaceIndex ? ` (#${connection.interfaceIndex})` : ''} / ${connection.uid || 'UID not returned'}`);
+        fragment.appendChild(row);
+        if (expanded) fragment.appendChild(createLiveDetailRow(connection, detailId));
+      });
+      el.liveTableBody.replaceChildren(fragment);
+    }
+
+    function renderLive() {
+      const live = state.live.data;
+      const hasData = Boolean(live);
+      const unavailable = hasData && live.availability.available === false;
+      const empty = !hasData || unavailable || live.connections.length === 0;
+      el.liveTableRegion.hidden = empty;
+      el.liveEmpty.hidden = !empty;
+      el.liveApply.disabled = state.live.loading || !hasData || unavailable || state.live.expired || !live.pagination.snapshot;
+      el.liveClear.disabled = state.live.loading;
+      el.liveCapture.disabled = state.live.loading;
+      el.liveHeaderCapture.disabled = state.live.loading;
+      el.liveEmptyCapture.disabled = state.live.loading;
+
+      if (!hasData) {
+        ['liveTotal', 'liveEstablished', 'liveListening', 'liveHandshake', 'liveClosing', 'liveQueueDepth', 'liveBytesSent', 'liveBytesReceived', 'liveRetransmissions'].forEach((id) => setText(id, '—'));
+        el.liveAvailabilityBadge.className = 'live-badge';
+        el.liveAvailabilityBadge.textContent = state.live.loading ? 'Capturing' : state.live.expired ? 'Snapshot expired' : 'Not captured';
+        el.livePartialBadge.hidden = true;
+        el.liveProvenance.textContent = 'LIVE SNAPSHOT · not captured';
+        el.liveCaptureMeta.textContent = 'Open this view to take a manual capture. Live values never alter historical log totals.';
+        el.liveTableCount.textContent = 'No capture';
+        el.livePageStatus.textContent = '0 sockets · page 1';
+        el.liveEmptyTitle.textContent = state.live.expired ? 'Snapshot expired or unknown' : 'Capture the master socket table';
+        el.liveEmptyMessage.textContent = state.live.expired
+          ? 'This immutable snapshot can no longer be queried. Select Capture now to create a fresh snapshot.'
+          : 'A manual capture reads the master host network namespace. Historical log evidence remains available in the other views.';
+        el.livePrevious.disabled = true;
+        el.liveNext.disabled = true;
+        return;
+      }
+
+      const summary = live.summary;
+      const page = live.pagination;
+      const queueBytes = summary.queueDepthBytes ?? summary.readQueueBytes + summary.writeQueueBytes;
+      el.liveAvailabilityBadge.className = `live-badge ${liveAvailabilityClass(live)}`;
+      el.liveAvailabilityBadge.textContent = live.availability.available === false ? 'Unavailable' : live.availability.partial ? 'Available with gaps' : 'Available';
+      el.livePartialBadge.hidden = !live.availability.partial;
+      el.livePartialBadge.className = 'live-badge warn';
+      setText('liveTotal', formatInteger(summary.total));
+      setText('liveEstablished', formatInteger(summary.established));
+      setText('liveListening', formatInteger(summary.listening));
+      setText('liveHandshake', formatInteger(summary.handshake));
+      setText('liveClosing', formatInteger(summary.closing));
+      setText('liveQueueDepth', formatBytes(queueBytes));
+      setText('liveBytesSent', formatBytes(summary.bytesSent));
+      setText('liveBytesReceived', formatBytes(summary.bytesReceived));
+      setText('liveRetransmissions', formatInteger(summary.retransmissions));
+      const warningSuffix = live.availability.partial && live.warnings.length ? ` · ${live.warnings[0]}` : '';
+      el.liveCaptureMeta.textContent = `Captured ${formatDateTime(live.provenance.capturedAt)} · ${liveCaptureAge(live.provenance.capturedAt)} · ${formatInteger(summary.total)} filtered sockets${warningSuffix}`;
+      el.liveProvenance.textContent = `LIVE SNAPSHOT · ${(live.provenance.label || 'master host network namespace').replaceAll('_', ' ')}`;
+      el.liveTableCount.textContent = `${formatInteger(live.connections.length)} shown · ${formatInteger(page.total)} filtered total`;
+      const start = page.total ? page.offset + 1 : 0;
+      const end = Math.min(page.offset + live.connections.length, page.total);
+      el.livePageStatus.textContent = `${formatInteger(start)}–${formatInteger(end)} of ${formatInteger(page.total)} filtered sockets · 100 per page`;
+      el.livePrevious.disabled = state.live.loading || state.live.expired || page.offset <= 0;
+      el.liveNext.disabled = state.live.loading || state.live.expired || !page.hasMore;
+      el.liveEmptyTitle.textContent = unavailable ? 'Live socket capture unavailable' : 'No sockets match this snapshot filter';
+      el.liveEmptyMessage.textContent = unavailable
+        ? `${live.availability.message || live.warnings[0] || 'The master socket collector is unavailable.'} Historical log evidence remains available in the other views.`
+        : 'Change the live-only filters and apply them to this snapshot, or capture a fresh socket table.';
+      renderLiveTable(live);
+    }
+
+    function setLiveLoading(loading, operation = 'capture') {
+      state.live.loading = loading;
+      if (loading) {
+        el.liveStatus.textContent = operation === 'capture' ? 'Capturing a fresh socket snapshot…' : 'Querying the current immutable snapshot…';
+      }
+      renderLive();
+    }
+
+    function focusLiveResult() {
+      el.liveTableHeading.tabIndex = -1;
+      el.liveTableHeading.focus();
+    }
+
+    async function fetchLive(options = {}) {
+      const { fresh = false, offset = 0, filters = fresh ? captureLiveFilters() : state.live.appliedFilters || captureLiveFilters() } = options;
+      const snapshot = fresh || !state.live.data ? '' : state.live.data.pagination.snapshot;
+      if (!fresh && !snapshot) return;
+      if (state.live.controller) state.live.controller.abort();
+      const controller = new AbortController();
+      const sequence = state.live.requestSequence + 1;
+      state.live.requestSequence = sequence;
+      state.live.controller = controller;
+      state.live.expired = false;
+      setLiveLoading(true, fresh ? 'capture' : 'filter');
+      try {
+        const payload = await requestJSON(buildLiveRequestUrl(filters, offset, snapshot), { signal: controller.signal, label: 'Live snapshot' });
+        if (sequence !== state.live.requestSequence) return;
+        state.live.data = normalizeLiveResponse(payload);
+        state.live.appliedFilters = Object.freeze({ ...filters });
+        state.live.expandedId = null;
+        state.live.expired = false;
+        el.liveStaleNotice.hidden = true;
+        el.liveStatus.textContent = fresh ? 'Fresh live snapshot captured.' : offset ? 'Live snapshot page loaded.' : 'Filters applied to the current snapshot.';
+        renderLive();
+        focusLiveResult();
+      } catch (error) {
+        if (error.name === 'AbortError' || sequence !== state.live.requestSequence) return;
+        console.error('Unable to load live socket snapshot:', error);
+        const expired = error.status === 410;
+        state.live.expired = expired;
+        el.liveStaleNotice.hidden = false;
+        el.liveStaleTitle.textContent = expired ? 'Snapshot expired or unknown.' : 'Live refresh failed.';
+        el.liveStaleMessage.textContent = expired
+          ? 'Capture now to create a fresh immutable snapshot. The last live snapshot remains visible when available.'
+          : `${error.message}. The last live snapshot remains visible when available; historical log views are unaffected.`;
+        el.liveStatus.textContent = expired ? 'Capture now is required.' : 'Live request failed; retained the last snapshot.';
+        renderLive();
+        if (!state.live.data) focusLiveResult();
+      } finally {
+        if (sequence === state.live.requestSequence) {
+          state.live.controller = null;
+          setLiveLoading(false);
+        }
+      }
+    }
+
+    function clearLiveFilters() {
+      el.liveFilterForm.reset();
+      if (state.live.data && state.live.data.pagination.snapshot && !state.live.expired) {
+        fetchLive({ filters: captureLiveFilters(), offset: 0 });
+      } else {
+        el.liveStatus.textContent = 'Live controls reset. Capture now to create a snapshot.';
+      }
+    }
+
+    function requestLivePage(direction) {
+      const live = state.live.data;
+      if (!live || state.live.loading || state.live.expired) return;
+      const offset = Math.max(0, live.pagination.offset + direction * LIVE_PAGE_SIZE);
+      if (direction < 0 && live.pagination.offset <= 0) return;
+      if (direction > 0 && !live.pagination.hasMore) return;
+      fetchLive({ offset, filters: state.live.appliedFilters });
     }
 
     function truncateLabel(value, length = 30) {
@@ -2508,7 +3346,17 @@
       const tabs = [...document.querySelectorAll('[role="tab"][data-tab]')];
       const selected = tabs.find((tab) => tab.dataset.tab === tabName);
       if (!selected) return;
+      if (state.activeTab === 'live' && tabName !== 'live' && state.live.controller) {
+        state.live.requestSequence += 1;
+        state.live.controller.abort();
+        state.live.controller = null;
+        state.live.loading = false;
+        if (!state.live.data) state.live.opened = false;
+        el.liveStatus.textContent = 'Live request canceled when its view closed.';
+        renderLive();
+      }
       state.activeTab = tabName;
+      document.body.classList.toggle('live-view', tabName === 'live');
       tabs.forEach((tab) => {
         const active = tab === selected;
         tab.setAttribute('aria-selected', String(active));
@@ -2516,10 +3364,33 @@
         const panel = document.getElementById(tab.getAttribute('aria-controls'));
         panel.hidden = !active;
       });
+      syncShellVisibility();
       if (tabName !== 'overview') destroyTimeline();
       if (tabName !== 'routes') el.routeVisual.replaceChildren();
-      if (moveFocus) selected.focus();
+      if (!state.data && tabName !== 'live') {
+        el.initialTitle.tabIndex = -1;
+        el.initialTitle.focus();
+      } else if (moveFocus) {
+        selected.focus();
+      }
+      if (tabName === 'live') {
+        renderLive();
+        if (!state.live.opened) {
+          state.live.opened = true;
+          fetchLive({ fresh: true });
+        }
+      }
       scheduleVisibleVisuals();
+    }
+
+    function openLiveFromInitial() {
+      el.dashboard.hidden = false;
+      el.initialState.hidden = true;
+      activateTab('live', true);
+      if (!state.live.loading) {
+        state.live.opened = true;
+        fetchLive({ fresh: true });
+      }
     }
 
     function focusActiveTab() {
@@ -2567,10 +3438,21 @@
     });
     el.headerRefresh.addEventListener('click', () => fetchAnalytics(state.appliedQuery));
     el.retryButton.addEventListener('click', () => fetchAnalytics(state.lastRequestedQuery));
+    el.openLiveButton.addEventListener('click', openLiveFromInitial);
     el.clearButton.addEventListener('click', clearFilters);
     el.exitDrillButton.addEventListener('click', exitDrillDown);
     el.sourcePrevious.addEventListener('click', () => requestSourcePage(-1));
     el.sourceNext.addEventListener('click', () => requestSourcePage(1));
+    el.liveFilterForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!state.live.loading) fetchLive({ filters: captureLiveFilters(), offset: 0 });
+    });
+    [el.liveHeaderCapture, el.liveCapture, el.liveEmptyCapture].forEach((button) => {
+      button.addEventListener('click', () => fetchLive({ fresh: true, offset: 0 }));
+    });
+    el.liveClear.addEventListener('click', clearLiveFilters);
+    el.livePrevious.addEventListener('click', () => requestLivePage(-1));
+    el.liveNext.addEventListener('click', () => requestLivePage(1));
 
     el.filterForm.querySelectorAll('.control').forEach((control) => {
       control.addEventListener('input', updatePendingControls);
@@ -2589,6 +3471,7 @@
     });
 
     initializeOperationalWindow();
+    renderLive();
     activateTab(state.activeTab);
     fetchAnalytics(withFirstSourcePage(captureControlQuery()), {
       onSuccess: () => { state.sourceCursorHistory = []; }

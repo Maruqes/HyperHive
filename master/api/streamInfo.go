@@ -1979,6 +1979,7 @@ func setupStreamInfo(r chi.Router) chi.Router {
 
 		// Summary and overview
 		r.Get("/analytics", getStreamAnalytics)
+		r.Get("/active-connections", getActiveConnections)
 		r.Get("/summary", getSummary)
 
 		// Traffic by different dimensions
