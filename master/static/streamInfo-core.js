@@ -75,6 +75,10 @@ function endpointShort(ep) {
   if (ep.aliases && ep.aliases.length) return ep.aliases[0];
   return ep.ip || ep.raw_address || 'unknown';
 }
+function sourceEndpoint(ip, data = state.data) {
+  const source = (data && data.sources || []).find(item => item.ip === ip);
+  return source ? source : { ip };
+}
 
 /* ================= time range ================= */
 function localInputToRFC3339(value) {

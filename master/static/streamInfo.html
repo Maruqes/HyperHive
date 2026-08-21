@@ -19,10 +19,23 @@
     <div class="masthead-right">
       <span class="live-pill" id="livePill"><span class="dot" aria-hidden="true"></span><span id="livePillText">LIVE —</span></span>
       <span class="autorefresh-note" id="freshnessNote">auto-refresh 30s</span>
-      <button class="refresh-btn" id="refreshBtn" type="button">Refresh</button>
+       <button class="refresh-btn" id="addAliasBtn" type="button">Add Alias</button>
+       <button class="refresh-btn" id="refreshBtn" type="button">Refresh</button>
     </div>
   </div>
 </header>
+
+<div id="aliasDialog" hidden class="fixed inset-0 z-[80] grid place-items-center bg-black/70 p-5">
+  <form id="aliasForm" class="w-full max-w-md rounded-lg border border-hh-line2 bg-hh-panel p-5 shadow-2xl">
+    <div class="mb-4 flex items-start justify-between gap-4">
+      <div><span class="kicker">Identity</span><h2 class="m-0 text-lg">Add IP alias</h2><p class="mt-1 text-xs text-hh-muted">Names appear everywhere as <span class="font-mono">alias (IP)</span>.</p></div>
+      <button id="aliasCancel" class="text-xl text-hh-muted" type="button" aria-label="Close">×</button>
+    </div>
+    <label class="mb-3 block text-xs text-hh-muted">IP address<input id="aliasIp" required type="text" inputmode="decimal" placeholder="192.168.76.1" class="mt-1 h-9 w-full rounded border border-hh-line2 bg-hh-bg2 px-3 font-mono text-sm"></label>
+    <label class="mb-4 block text-xs text-hh-muted">Alias<input id="aliasName" required type="text" pattern="[^\s,]+" placeholder="vm.minelive" class="mt-1 h-9 w-full rounded border border-hh-line2 bg-hh-bg2 px-3 font-mono text-sm"></label>
+    <div class="flex justify-end gap-2"><button id="aliasCancelBottom" class="refresh-btn" type="button">Cancel</button><button class="refresh-btn border-hh-cyan text-hh-cyan" type="submit">Save Alias</button></div>
+  </form>
+</div>
 
 <div class="globalsearch">
   <form class="globalsearch-form" id="searchForm" autocomplete="off">

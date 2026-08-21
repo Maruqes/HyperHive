@@ -5,7 +5,7 @@ function dropRender(matching) {
   let html = '';
   if (matching.sources.length) {
     html += '<div class="drop-section"><div class="drop-label">IPs</div>' + matching.sources.slice(0, 8).map(s =>
-      '<button class="drop-item" data-kind="ip" data-id="' + esc(s.ip) + '"><span class="kind" style="background:var(--cyan)"></span><span class="k">' + esc(s.ip) + (s.aliases && s.aliases.length ? ' · ' + esc(s.aliases[0]) : '') + '</span><span class="m">' + s.connections + ' sessions' + (s.active_now ? ' · active' : '') + '</span></button>'
+      '<button class="drop-item" data-kind="ip" data-id="' + esc(s.ip) + '"><span class="kind" style="background:var(--cyan)"></span><span class="k">' + esc(endpointLabel(s)) + '</span><span class="m">' + s.connections + ' sessions' + (s.active_now ? ' · active' : '') + '</span></button>'
     ).join('') + '</div>';
   }
   if (matching.destinations.length) {
@@ -81,7 +81,36 @@ async function deleteEntityLogs(kind, value, label) {
   }
 }
 
+function closeAliasDialog() {
+  $('aliasDialog').hidden = true;
+}
+
+async function addAlias(e) {
+  e.preventDefault();
+  const ip = $('aliasIp').value.trim();
+  const alias = $('aliasName').value.trim();
+  try {
+    const res = await fetch('/api/dnsmasq/alias/add', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ ip, alias })
+    });
+    if (!res.ok) throw new Error((await res.text()) || 'HTTP ' + res.status);
+    $('aliasForm').reset();
+    closeAliasDialog();
+    await loadIntel();
+  } catch (err) {
+    const box = $('errorNotice');
+    box.innerHTML = '<strong>Could not save alias.</strong> ' + esc(err.message);
+    box.hidden = false;
+  }
+}
+
 function wireEvents() {
+  $('addAliasBtn').addEventListener('click', () => { $('aliasDialog').hidden = false; $('aliasIp').focus(); });
+  $('aliasCancel').addEventListener('click', closeAliasDialog);
+  $('aliasCancelBottom').addEventListener('click', closeAliasDialog);
+  $('aliasForm').addEventListener('submit', addAlias);
+  $('aliasDialog').addEventListener('click', e => { if (e.target === $('aliasDialog')) closeAliasDialog(); });
   // time range presets
   document.querySelectorAll('#rangePresets .rbtn').forEach(btn => {
     btn.addEventListener('click', () => applyRange(btn.dataset.range, '', ''));

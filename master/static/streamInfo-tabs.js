@@ -160,7 +160,7 @@ function renderRoutesTab(d, nowMs) {
 function routeSourcesHTML(r) {
   const sources = (r.source_ips || []).slice(0, 3);
   if (!sources.length) return '<span class="pipeline-node source">' + esc(r.source_count + ' sources') + '</span>';
-  const links = sources.map(ip => '<a class="pipeline-node source" href="#/ips/' + esc(ip) + '" onclick="event.stopPropagation()">' + esc(ip) + '</a>');
+  const links = sources.map(ip => '<a class="pipeline-node source" href="#/ips/' + esc(ip) + '" onclick="event.stopPropagation()">' + esc(endpointLabel(sourceEndpoint(ip))) + '</a>');
   if (r.source_count > sources.length) links.push('<span class="pipeline-node source">+' + (r.source_count - sources.length) + '</span>');
   return links.join('<span class="pipeline-more">, </span>');
 }
@@ -222,7 +222,7 @@ function renderIpsTab(d, nowMs) {
     const expanded = state.expanded.ips.has(s.ip);
     return '<tr class="' + (expanded ? 'open' : '') + '" data-ip="' + esc(s.ip) + '">' +
       '<td>' + stateBadge(s, nowMs) + '</td>' +
-      '<td class="wrap"><a class="mono" style="font-size:12px" href="#/ips/' + esc(s.ip) + '">' + esc(s.ip) + '</a>' +
+      '<td class="wrap"><a class="mono" style="font-size:12px" href="#/ips/' + esc(s.ip) + '">' + esc(endpointLabel(s)) + '</a>' +
       (s.aliases && s.aliases.length ? '<br><span class="faint" style="font-size:10.5px">' + esc(s.aliases.join(', ')) + '</span>' : '') + '</td>' +
       '<td class="num">' + s.connections.toLocaleString() + '</td>' +
       '<td class="num">' + s.unique_destinations + '</td>' +

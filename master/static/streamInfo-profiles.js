@@ -163,8 +163,7 @@ function renderProfile(d, nowMs) {
   if (p.kind === 'source' && p.source) {
     const s = p.source;
     head.innerHTML =
-      '<div><div class="big">' + esc(s.ip) + '</div>' +
-      (s.aliases && s.aliases.length ? '<div class="dim">' + esc(s.aliases.join(', ')) + '</div>' : '') +
+      '<div><div class="big">' + esc(endpointLabel(s)) + '</div>' +
       '<div style="margin-top:8px">' + stateBadge(s, nowMs) + ' ' + signalsHTML(s.signals) + '</div>' + winHTML + '</div>' +
       '<div class="facts">' +
       '<div class="fact"><div class="k">Active conns</div><div class="v" style="color:var(--green)">' + s.active_connections + '</div></div>' +

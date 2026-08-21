@@ -52,7 +52,7 @@ function renderOverview(d, nowMs) {
     kv('Captured', live.captured_at ? ago(live.captured_at, nowMs) : '—') +
     '</div>' +
     ((ov.active_ips || []).length
-      ? '<div class="chiprow" style="margin-top:8px">' + ov.active_ips.slice(0, 12).map(ip => '<span class="chip"><a href="#/ips/' + esc(ip) + '">' + esc(ip) + '</a></span>').join('') + '</div>'
+       ? '<div class="chiprow" style="margin-top:8px">' + ov.active_ips.slice(0, 12).map(ip => '<span class="chip"><a href="#/ips/' + esc(ip) + '">' + esc(endpointLabel(sourceEndpoint(ip, d))) + '</a></span>').join('') + '</div>'
       : '<p class="faint" style="margin:6px 0 0">No external inbound connections in the live snapshot.</p>');
 
   // top talkers & destinations
@@ -69,7 +69,7 @@ function renderOverview(d, nowMs) {
   // longest sessions & recent
   const sessionRow = (s) =>
     '<div class="session"><div class="t">' + esc(fmtWhen(s.timestamp)) + '</div>' +
-    '<div class="flow"><button class="ip-link" data-ip="' + esc(s.source.ip) + '">' + esc(s.source.ip) + '</button>' +
+     '<div class="flow"><button class="ip-link" data-ip="' + esc(s.source.ip) + '">' + esc(endpointLabel(s.source)) + '</button>' +
     '<span class="arrow">→</span><span class="faint">' + esc(endpointShort(s.observed_listener)) + '</span>' +
     '<span class="arrow">→</span><a href="#/destinations/' + encodeURIComponent(s.destination.raw_address || ipPort(s.destination.ip, s.destination.port)) + '">' + esc(endpointShort(s.destination)) + '</a>' +
     (s.country && s.country !== 'Unknown' ? ' <span class="faint">· ' + esc(s.country) + '</span>' : '') + '</div>' +
