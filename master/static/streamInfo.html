@@ -49,6 +49,17 @@ a:hover { text-decoration: underline; }
 .globalsearch input::placeholder { color: var(--faint); }
 .globalsearch button { height: 40px; padding: 0 18px; background: var(--cyan-dim); border: none; border-radius: 6px; font: 700 12px/1 var(--mono); color: #06222a; cursor: pointer; }
 .globalsearch .hint { margin: 6px 2px 0; color: var(--faint); font-size: 11px; }
+
+/* ---------- time range bar ---------- */
+.rangebar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px auto 0; padding: 9px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); }
+.rgroup { display: flex; gap: 4px; flex-wrap: wrap; }
+.rbtn { background: var(--bg2); border: 1px solid var(--line2); border-radius: 99px; padding: 5px 13px; cursor: pointer; font: 600 11.5px/1.3 var(--mono); color: var(--muted); }
+.rbtn:hover { color: var(--ink); border-color: var(--cyan-dim); }
+.rbtn.on { color: var(--cyan); border-color: var(--cyan); background: rgba(56,217,232,.08); }
+.rangebar input[type="datetime-local"] { height: 32px; background: var(--bg2); border: 1px solid var(--line2); border-radius: 5px; padding: 0 8px; color-scheme: dark; font-size: 12px; }
+.rangebar .sep { color: var(--faint); }
+.rangebar .apply { height: 32px; padding: 0 14px; background: var(--cyan-dim); border: none; border-radius: 5px; font: 700 11px/1 var(--mono); color: #06222a; cursor: pointer; }
+.rangelabel { margin-left: auto; color: var(--muted); font: 600 11px/1.4 var(--mono); white-space: nowrap; }
 .search-drop { position: relative; flex: 1; }
 .search-drop .drop { position: absolute; top: 44px; left: 0; right: 0; background: var(--panel2); border: 1px solid var(--line2); border-radius: 8px; z-index: 60; max-height: 420px; overflow: auto; box-shadow: 0 16px 40px rgba(0,0,0,.5); }
 .drop-section { padding: 8px 0; }
@@ -155,7 +166,7 @@ tr.expand-row > td { padding: 0; border-bottom: 1px solid var(--line); }
 
 /* ---------- filters bar ---------- */
 .filterbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 11px 16px; }
-.filterbar input, .filterbar select { height: 32px; background: var(--bg2); border: 1px solid var(--line2); border-radius: 5px; padding: 0 9px; min-width: 110px; }
+.filterbar input, .filterbar select { height: 32px; background: var(--bg2); border: 1px solid var(--line2); border-radius: 5px; padding: 0 9px; min-width: 110px; color-scheme: dark; }
 .filterbar input[type="search"] { min-width: 200px; }
 .filterbar label.check { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); font-size: 12px; cursor: pointer; }
 .fchip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 99px; border: 1px solid var(--cyan-dim); background: rgba(56,217,232,.06); font: 600 11px/1.5 var(--mono); }
@@ -277,6 +288,24 @@ tr.group-head .gcount { color: var(--faint); font: 500 11px/1.4 var(--mono); mar
 </div>
 
 <main>
+  <div class="rangebar" id="rangeBar">
+    <div class="rgroup" id="rangePresets">
+      <button class="rbtn" type="button" data-range="24h">24h</button>
+      <button class="rbtn" type="button" data-range="7d">7d</button>
+      <button class="rbtn" type="button" data-range="14d">14d</button>
+      <button class="rbtn" type="button" data-range="1mo">1 mo</button>
+      <button class="rbtn" type="button" data-range="3mo">3 mo</button>
+      <button class="rbtn" type="button" data-range="6mo">6 mo</button>
+      <button class="rbtn" type="button" data-range="1y">1 y</button>
+      <button class="rbtn on" type="button" data-range="all">All</button>
+    </div>
+    <span class="sep">or custom</span>
+    <input type="datetime-local" id="rangeStart" title="Custom start" aria-label="Custom start timestamp">
+    <span class="sep">→</span>
+    <input type="datetime-local" id="rangeEnd" title="Custom end" aria-label="Custom end timestamp">
+    <button class="apply" id="rangeCustomApply" type="button">Apply</button>
+    <span class="rangelabel" id="rangeLabel">All time</span>
+  </div>
   <div class="loadbar" id="loadbar" hidden><i></i></div>
   <div class="notice error" id="errorNotice" hidden></div>
   <div class="notice" id="warnNotice" hidden><strong>Data quality</strong><ul id="warnList"></ul></div>
@@ -299,7 +328,7 @@ tr.group-head .gcount { color: var(--faint); font: 500 11px/1.4 var(--mono); mar
       <div class="overview-grid">
         <div class="panel">
           <div class="panel-head">
-            <div><span class="kicker">Activity</span><h2>Connection timeline (7d hourly)</h2></div>
+            <div><span class="kicker">Activity</span><h2 id="ovChartTitle">Connection timeline</h2></div>
             <span class="section-count" id="ovTimelineCount"></span>
           </div>
           <div class="chart-box"><canvas id="ovChart" role="img" aria-label="Connections and failures per hour"></canvas></div>
@@ -462,8 +491,8 @@ tr.group-head .gcount { color: var(--faint); font: 500 11px/1.4 var(--mono); mar
         <div class="filterbar">
           <select id="evEntityKind"><option value="">All entities</option><option value="source">Source IP</option><option value="route">Route</option><option value="destination">Destination</option></select>
           <select id="evEntity" disabled><option value="">Select entity…</option></select>
-          <input type="date" id="evStart" title="Start date">
-          <input type="date" id="evEnd" title="End date">
+          <input type="datetime-local" id="evStart" title="Start timestamp">
+          <input type="datetime-local" id="evEnd" title="End timestamp">
           <select id="evOutcome"><option value="">All outcomes</option><option value="success">Successful</option><option value="failed">Failed</option></select>
           <button class="refresh-btn" id="evApply" type="button">Reconstruct</button>
           <button class="refresh-btn" id="evClear" type="button">Clear</button>
@@ -502,6 +531,8 @@ const REFRESH_MS = 30000;
 
 const state = {
   data: null, loading: false, timer: null, tab: 'overview',
+  timeRange: { token: 'all', start: '', end: '' },
+  profileTarget: null,
   expanded: { routes: new Set(), ips: new Set(), dests: new Set(), live: new Set() },
   filters: {
     live: { search: '', scope: '', direction: '', sort: 'recent', npmOnly: false, hideLocal: true },
@@ -570,6 +601,49 @@ function endpointShort(ep) {
   return ep.ip || ep.raw_address || 'unknown';
 }
 
+/* ================= time range ================= */
+function localInputToRFC3339(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toISOString();
+}
+
+function rangeParams() {
+  const tr = state.timeRange;
+  if (tr.token === 'custom') {
+    const p = {};
+    if (tr.start) p.start = localInputToRFC3339(tr.start);
+    if (tr.end) p.end = localInputToRFC3339(tr.end);
+    return p;
+  }
+  return { range: tr.token };
+}
+
+function refreshRangeUI() {
+  document.querySelectorAll('#rangePresets .rbtn').forEach(b => {
+    b.classList.toggle('on', b.dataset.range === state.timeRange.token);
+  });
+  if (state.timeRange.token !== 'custom') {
+    $('rangeStart').value = '';
+    $('rangeEnd').value = '';
+  }
+}
+
+function applyRange(token, start, end) {
+  state.timeRange = { token, start: start || '', end: end || '' };
+  refreshRangeUI();
+  reloadWithRange();
+}
+
+function reloadWithRange() {
+  if (state.tab === 'profile' && state.profileTarget) {
+    openProfile(state.profileTarget.kind, state.profileTarget.id);
+    return;
+  }
+  loadIntel();
+}
+
 /* ================= data loading ================= */
 function buildQuery(extra = {}) {
   const params = new URLSearchParams();
@@ -580,12 +654,13 @@ function buildQuery(extra = {}) {
   return params.toString();
 }
 
-async function loadIntel(query = {}) {
+async function loadIntel(extra = {}) {
   if (state.loading) return;
   state.loading = true;
   $('loadbar').hidden = false;
   $('refreshBtn').disabled = true;
   try {
+    const query = { ...rangeParams(), ...extra };
     const qs = buildQuery(query);
     const res = await fetch(INTEL_ENDPOINT + (qs ? '?' + qs : ''), { headers: { 'Accept': 'application/json' } });
     if (!res.ok) {
@@ -634,6 +709,7 @@ function renderAll() {
   const nowMs = Date.now();
   renderWarnings(d);
   renderLivePill(d.live);
+  renderRangeLabel(d);
   renderOverview(d, nowMs);
   renderLiveTab(d, nowMs);
   renderRoutesTab(d, nowMs);
@@ -642,7 +718,26 @@ function renderAll() {
   renderEvidenceTab();
   renderProfile(d, nowMs);
   updateTabCounts(d);
-  $('freshnessNote').textContent = 'generated ' + ago(d.generated_at, nowMs) + ' · auto-refresh 30s';
+  const rangeLabel = (d.query && d.query.range_label) || 'All time';
+  $('freshnessNote').textContent = rangeLabel + ' · generated ' + ago(d.generated_at, nowMs) + ' · auto-refresh 30s';
+}
+
+function renderRangeLabel(d) {
+  const q = d.query || {};
+  let label = q.range_label || 'All time';
+  if (q.range === 'custom' && (q.window_start || q.window_end)) {
+    label = (q.window_start ? fmtWhen(q.window_start) : '…') + ' → ' + (q.window_end ? fmtWhen(q.window_end) : 'now');
+  }
+  $('rangeLabel').textContent = label;
+}
+
+function granularityLabel(query) {
+  try {
+    const s = query && query.window_start ? new Date(query.window_start).getTime() : null;
+    const e = query && query.window_end ? new Date(query.window_end).getTime() : null;
+    if (s && e && e - s > 72 * 3600 * 1000) return 'daily';
+    return 'hourly';
+  } catch (err) { return 'hourly'; }
 }
 
 function renderWarnings(d) {
@@ -675,13 +770,14 @@ function updateTabCounts(d) {
 }
 
 /* ================= sparkline ================= */
-function sparkHTML(spark, max) {
+function sparkHTML(spark, max, labels) {
   const values = spark || [];
   if (!values.length) return '<span class="faint">—</span>';
   const peak = Math.max(1, max || Math.max(...values));
-  const n = values.length;
   const keep = values.slice(-24);
-  return '<span class="spark" title="last ' + keep.length + ' active hours">' +
+  const daily = labels && labels.length && /^\d{2}-\d{2}$/.test(labels[0]);
+  const title = (daily ? 'daily connections · last ' : 'hourly connections · last ') + keep.length + (daily ? ' days' : ' hours');
+  return '<span class="spark" title="' + esc(title) + '">' +
     keep.map(v => {
       const h = Math.max(2, Math.round((num(v) / peak) * 22));
       return '<i' + (num(v) === peak && peak > 0 ? ' class="hot"' : '') + ' style="height:' + h + 'px"></i>';
@@ -741,7 +837,9 @@ function renderOverview(d, nowMs) {
 
   // timeline chart
   renderOverviewChart(ov.hourly || []);
-  $('ovTimelineCount').textContent = (ov.hourly || []).length + ' hours';
+  $('ovTimelineCount').textContent = (ov.hourly || []).length + ' buckets';
+  const chartTitle = $('ovChartTitle');
+  if (chartTitle) chartTitle.textContent = 'Connection timeline — ' + granularityLabel(d.query);
 
   // live panel
   const live = d.live || {};
@@ -1003,7 +1101,7 @@ function renderRoutesTab(d, nowMs) {
       '<td class="num">' + (r.failed ? '<span style="color:var(--red)">' + r.failed + '</span>' : '0') + '</td>' +
       '<td class="num">' + fmtDur(r.avg_session_seconds) + ' / ' + fmtDur(r.max_session_seconds) + '</td>' +
       '<td class="mono dim" style="font-size:11px">' + esc(fmtWhen(r.first_seen)) + '<br>' + esc(fmtWhen(r.last_seen)) + '</td>' +
-      '<td>' + sparkHTML(r.spark, maxSpark) + '</td></tr>' +
+      '<td>' + sparkHTML(r.spark, maxSpark, r.spark_hours) + '</td></tr>' +
       (expanded ? '<tr class="expand-row"><td colspan="9"><div class="expand-box">' + routeExpandBox(r) + '</div></td></tr>' : '');
   }).join('');
 }
@@ -1074,7 +1172,7 @@ function renderIpsTab(d, nowMs) {
       '<td class="num">' + (s.failed ? '<span style="color:var(--red)">' + s.failed + '</span>' : '0') + '</td>' +
       '<td class="num">' + fmtDur(s.avg_session_seconds) + ' / ' + fmtDur(s.max_session_seconds) + '</td>' +
       '<td class="mono dim" style="font-size:11px">' + esc(fmtWhen(s.first_seen)) + '<br>' + esc(fmtWhen(s.last_seen)) + '</td>' +
-      '<td>' + sparkHTML(s.spark, maxSpark) + '</td>' +
+      '<td>' + sparkHTML(s.spark, maxSpark, s.spark_hours) + '</td>' +
       '<td>' + signalsHTML(s.signals) + '</td></tr>' +
       (expanded ? '<tr class="expand-row"><td colspan="11"><div class="expand-box">' + ipExpandBox(s) + '</div></td></tr>' : '');
   }).join('');
@@ -1136,7 +1234,7 @@ function renderDestsTab(d, nowMs) {
       '<td class="num">' + (x.failed ? '<span style="color:var(--red)">' + x.failed + '</span>' : '0') + '</td>' +
       '<td class="num">' + fmtDur(x.avg_session_seconds) + ' / ' + fmtDur(x.max_session_seconds) + '</td>' +
       '<td class="mono dim" style="font-size:11px">' + esc(fmtWhen(x.first_seen)) + '<br>' + esc(fmtWhen(x.last_seen)) + '</td>' +
-      '<td>' + sparkHTML(x.spark, maxSpark) + '</td>' +
+      '<td>' + sparkHTML(x.spark, maxSpark, x.spark_hours) + '</td>' +
       '<td>' + signalsHTML(x.signals) + '</td></tr>' +
       (expanded ? '<tr class="expand-row"><td colspan="10"><div class="expand-box">' + destExpandBox(x) + '</div></td></tr>' : '');
   }).join('');
@@ -1177,6 +1275,12 @@ function renderEvidenceTab() {
 async function runEvidenceReconstruct() {
   const ev = state.evidence;
   const params = {};
+  if (ev.start || ev.end) {
+    if (ev.start) params.start = localInputToRFC3339(ev.start);
+    if (ev.end) params.end = localInputToRFC3339(ev.end);
+  } else {
+    Object.assign(params, rangeParams());
+  }
   if (ev.kind === 'source' && ev.entity) params.source_ip = ev.entity;
   if (ev.kind === 'route' && ev.entity) params.route_id = ev.entity;
   if (ev.kind === 'destination' && ev.entity) params.destination_exact = ev.entity;
@@ -1281,7 +1385,8 @@ function buildNarrative(orderedSessions) {
 
 /* ================= PROFILE ================= */
 async function openProfile(kind, id) {
-  const params = { live: 'true', session_limit: '300' };
+  state.profileTarget = { kind, id };
+  const params = { live: 'true', session_limit: '300', ...rangeParams() };
   if (kind === 'ip') params.source_ip = id;
   else if (kind === 'route') params.route_id = id;
   else if (kind === 'destination') params.destination_exact = id;
@@ -1308,12 +1413,15 @@ function renderProfile(d, nowMs) {
   const p = d.profile;
   const head = $('profileHead');
   const facts = $('profileFacts');
+  const winLabel = (d.query && d.query.range_label) || 'All time';
+  const gran = granularityLabel(d.query);
+  const winHTML = '<div class="faint" style="font-size:11px;margin-top:4px">Window: ' + esc(winLabel) + ' · ' + esc(gran) + ' buckets · <span id="profileRangeHint">change the time range above to re-scope this profile</span></div>';
   if (p.kind === 'source' && p.source) {
     const s = p.source;
     head.innerHTML =
       '<div><div class="big">' + esc(s.ip) + '</div>' +
       (s.aliases && s.aliases.length ? '<div class="dim">' + esc(s.aliases.join(', ')) + '</div>' : '') +
-      '<div style="margin-top:8px">' + stateBadge(s, nowMs) + ' ' + signalsHTML(s.signals) + '</div></div>' +
+      '<div style="margin-top:8px">' + stateBadge(s, nowMs) + ' ' + signalsHTML(s.signals) + '</div>' + winHTML + '</div>' +
       '<div class="facts">' +
       '<div class="fact"><div class="k">Active conns</div><div class="v" style="color:var(--green)">' + s.active_connections + '</div></div>' +
       '<div class="fact"><div class="k">First seen</div><div class="v">' + esc(fmtWhen(s.first_seen)) + '</div></div>' +
@@ -1334,7 +1442,7 @@ function renderProfile(d, nowMs) {
     head.innerHTML =
       '<div><div class="big mono" style="font-size:16px">' + esc(endpointLabel(r.listener)) + ' → ' + esc(endpointLabel(r.destination)) + '</div>' +
       '<div class="dim" style="margin-top:4px">' + esc(r.protocol) + ' · ' + esc(r.stream_match_status) + '</div>' +
-      '<div style="margin-top:8px">' + stateBadge(r, nowMs) + ' ' + signalsHTML(r.signals) + '</div></div>' +
+      '<div style="margin-top:8px">' + stateBadge(r, nowMs) + ' ' + signalsHTML(r.signals) + '</div>' + winHTML + '</div>' +
       '<div class="facts">' +
       '<div class="fact"><div class="k">Active conns</div><div class="v" style="color:var(--green)">' + r.active_connections + '</div></div>' +
       '<div class="fact"><div class="k">Sources</div><div class="v">' + r.source_count + '</div></div>' +
@@ -1353,7 +1461,7 @@ function renderProfile(d, nowMs) {
     head.innerHTML =
       '<div><div class="big mono" style="font-size:17px">' + esc(endpointLabel(x.endpoint)) + '</div>' +
       '<div class="dim" style="margin-top:4px">' + esc(x.endpoint.scope || '') + ' · ' + (x.protocols || []).join(', ') + '</div>' +
-      '<div style="margin-top:8px">' + stateBadge(x, nowMs) + ' ' + signalsHTML(x.signals) + '</div></div>' +
+      '<div style="margin-top:8px">' + stateBadge(x, nowMs) + ' ' + signalsHTML(x.signals) + '</div>' + winHTML + '</div>' +
       '<div class="facts">' +
       '<div class="fact"><div class="k">Active conns</div><div class="v" style="color:var(--green)">' + x.active_connections + '</div></div>' +
       '<div class="fact"><div class="k">Unique sources</div><div class="v">' + x.unique_sources + '</div></div>' +
@@ -1460,7 +1568,8 @@ async function searchDropUpdate() {
   const drop = $('searchDrop');
   if (q.length < 2) { drop.hidden = true; return; }
   try {
-    const res = await fetch(INTEL_ENDPOINT + '?q=' + encodeURIComponent(q) + '&live=false&session_limit=1');
+    const rp = new URLSearchParams(rangeParams()).toString();
+    const res = await fetch(INTEL_ENDPOINT + '?q=' + encodeURIComponent(q) + (rp ? '&' + rp : '') + '&live=false&session_limit=1');
     if (!res.ok) return;
     const payload = await res.json();
     if (payload.search_matches) dropRender(payload.search_matches);
@@ -1495,6 +1604,24 @@ function handleHash() {
 
 /* ================= EVENTS ================= */
 function wireEvents() {
+  // time range presets
+  document.querySelectorAll('#rangePresets .rbtn').forEach(btn => {
+    btn.addEventListener('click', () => applyRange(btn.dataset.range, '', ''));
+  });
+  $('rangeCustomApply').addEventListener('click', () => {
+    const start = $('rangeStart').value;
+    const end = $('rangeEnd').value;
+    if (!start && !end) { applyRange('all', '', ''); return; }
+    if (start && end && start >= end) {
+      const box = $('errorNotice');
+      box.innerHTML = '<strong>Invalid custom range.</strong> Start must be before end.';
+      box.hidden = false;
+      setTimeout(() => { if (box.innerHTML.includes('Invalid custom range')) box.hidden = true; }, 4000);
+      return;
+    }
+    applyRange('custom', start, end);
+  });
+
   // tabs
   document.querySelectorAll('.tab-button').forEach(btn => {
     btn.addEventListener('click', () => {

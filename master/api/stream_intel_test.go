@@ -1,6 +1,7 @@
 package api
 
 import (
+	"regexp"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -15,6 +16,8 @@ import (
 
 	"github.com/oschwald/geoip2-golang"
 )
+
+var regexpDailyLabel = regexp.MustCompile(`^\d{2}-\d{2}$`)
 
 type intelHarness struct {
 	dependencies intelDependencies
@@ -497,5 +500,182 @@ func containsString(values []string, target string) bool {
 		}
 	}
 	return false
+}
+
+func TestIntelRangeTokenFiltersWindow(t *testing.T) {
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	entries := []streamLogEntry{
+		intelEntryAt("10.0.0.5", "192.168.1.175:25565", "192.168.76.77:25565", now.Add(-10*24*time.Hour), 60, 200),
+		intelEntryAt("10.0.0.5", "192.168.1.175:25565", "192.168.76.77:25565", now.Add(-2*24*time.Hour), 60, 200),
+		intelEntryAt("10.0.0.5", "192.168.1.175:25565", "192.168.76.77:25565", now.Add(-1*24*time.Hour), 60, 200),
+	}
+	harness := newIntelHarness(entries, nil)
+	recorder, payload := harness.serve("range=7d&live=false")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if payload.FilteredEntries != 2 {
+		t.Fatalf("expected 2 entries within 7d, got %d", payload.FilteredEntries)
+	}
+	if payload.Query.Range != "7d" || payload.Query.RangeLabel != "Last 7 days" {
+		t.Fatalf("unexpected range echo: %+v", payload.Query)
+	}
+	if payload.Query.WindowStart == "" || payload.Query.WindowEnd == "" {
+		t.Fatalf("expected window bounds, got %+v", payload.Query)
+	}
+	if payload.Overview == nil || payload.Overview.TotalConnections != 2 {
+		t.Fatalf("expected overview scoped to window: %+v", payload.Overview)
+	}
+}
+
+func TestIntelRangeTokenAliasesAndInvalid(t *testing.T) {
+	harness := newIntelHarness(nil, nil)
+	for _, token := range []string{"24h", "1d", "7d", "14d", "1mo", "30d", "3mo", "90d", "6mo", "180d", "1y", "365d", "all"} {
+		recorder, payload := harness.serve("range=" + token + "&live=false")
+		if recorder.Code != http.StatusOK || payload.Query.Range != token {
+			t.Fatalf("token %s rejected: %d", token, recorder.Code)
+		}
+	}
+	recorder, _ := harness.serve("range=5x&live=false")
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for invalid range token, got %d", recorder.Code)
+	}
+}
+
+func TestIntelCustomTimestampWindow(t *testing.T) {
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	entries := []streamLogEntry{
+		intelEntryAt("10.0.0.5", "192.168.1.175:25565", "192.168.76.77:25565", now.Add(-10*24*time.Hour), 60, 200),
+		intelEntryAt("10.0.0.5", "192.168.1.175:25565", "192.168.76.77:25565", now.Add(-5*24*time.Hour), 60, 200),
+		intelEntryAt("10.0.0.5", "192.168.1.175:25565", "192.168.76.77:25565", now.Add(-24*time.Hour), 60, 200),
+	}
+	harness := newIntelHarness(entries, nil)
+	start := now.Add(-6 * 24 * time.Hour).Format(time.RFC3339)
+	end := now.Add(-2 * 24 * time.Hour).Format(time.RFC3339)
+	recorder, payload := harness.serve("start=" + start + "&end=" + end + "&live=false")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if payload.FilteredEntries != 1 {
+		t.Fatalf("expected 1 entry in custom window, got %d", payload.FilteredEntries)
+	}
+	if payload.Query.Range != "custom" || payload.Query.RangeLabel != "Custom range" {
+		t.Fatalf("unexpected custom range echo: %+v", payload.Query)
+	}
+}
+
+func TestIntelCustomDateOnlyWindow(t *testing.T) {
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	entries := []streamLogEntry{
+		intelEntryAt("10.0.0.5", "192.168.1.175:25565", "192.168.76.77:25565", now.Add(-48*time.Hour), 60, 200),
+		intelEntryAt("10.0.0.9", "192.168.1.175:25565", "192.168.76.77:25565", now.Add(-24*time.Hour), 60, 200),
+	}
+	harness := newIntelHarness(entries, nil)
+	recorder, payload := harness.serve("start=2026-08-19&end=2026-08-20&live=false")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	// end date is inclusive of the whole day: covers Aug 19 and Aug 20
+	if payload.FilteredEntries != 2 {
+		t.Fatalf("expected 2 entries with inclusive end date, got %d", payload.FilteredEntries)
+	}
+	if len(payload.Sessions) != 2 {
+		t.Fatalf("expected 2 sessions, got %d", len(payload.Sessions))
+	}
+	recorder, _ = harness.serve("start=notadate&live=false")
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for bad start, got %d", recorder.Code)
+	}
+	recorder, _ = harness.serve("start=2026-08-21&end=2026-08-19&live=false")
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for inverted range, got %d", recorder.Code)
+	}
+}
+
+func TestIntelRangeAppliesToProfiles(t *testing.T) {
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	entries := []streamLogEntry{
+		intelEntryAt("10.0.0.5", "192.168.1.175:25565", "192.168.76.77:25565", now.Add(-40*24*time.Hour), 60, 200),
+		intelEntryAt("10.0.0.5", "192.168.1.175:25565", "192.168.76.77:25565", now.Add(-2*24*time.Hour), 90, 200),
+	}
+	harness := newIntelHarness(entries, nil)
+	recorder, payload := harness.serve("source_ip=10.0.0.5&range=7d&live=false")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if payload.Profile == nil || payload.Profile.Source == nil {
+		t.Fatal("expected source profile")
+	}
+	if payload.Profile.Source.Connections != 1 {
+		t.Fatalf("expected 1 connection within 7d profile, got %d", payload.Profile.Source.Connections)
+	}
+	if payload.Query.Range != "7d" {
+		t.Fatalf("expected range echo on profile, got %q", payload.Query.Range)
+	}
+}
+
+func TestIntelAdaptiveDailySeries(t *testing.T) {
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	entries := make([]streamLogEntry, 0)
+	for day := 0; day < 30; day++ {
+		at := now.Add(-time.Hour).Add(time.Duration(day-29) * 24 * time.Hour)
+		entries = append(entries, intelEntryAt("10.0.0.5", "192.168.1.175:25565", "192.168.76.77:25565", at, 60, 200))
+	}
+	harness := newIntelHarness(entries, nil)
+	_, payload := harness.serve("range=30d&live=false")
+	if payload.Overview == nil {
+		t.Fatal("expected overview")
+	}
+	series := payload.Overview.Hourly
+	if len(series) < 28 || len(series) > 32 {
+		t.Fatalf("expected ~30 daily buckets, got %d", len(series))
+	}
+	for _, point := range series {
+		if !strings.HasSuffix(point.Timestamp, "T00:00:00Z") {
+			t.Fatalf("expected daily (midnight) buckets, got %s", point.Timestamp)
+		}
+	}
+	total := 0
+	for _, point := range series {
+		total += point.Connections
+	}
+	if total != 30 {
+		t.Fatalf("expected 30 connections across daily buckets, got %d", total)
+	}
+	// spark labels should be compact daily labels
+	if len(payload.Sources) == 1 {
+		for _, label := range payload.Sources[0].SparkHours {
+			if !regexpDailyLabel.MatchString(label) {
+				t.Fatalf("expected MM-DD spark label, got %q", label)
+			}
+		}
+	}
+}
+
+func TestIntelHourlySeriesForShortWindows(t *testing.T) {
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	entries := []streamLogEntry{
+		intelEntryAt("10.0.0.5", "192.168.1.175:25565", "192.168.76.77:25565", now.Add(-20*time.Hour), 60, 200),
+		intelEntryAt("10.0.0.5", "192.168.1.175:25565", "192.168.76.77:25565", now.Add(-2*time.Hour), 60, 200),
+	}
+	harness := newIntelHarness(entries, nil)
+	_, payload := harness.serve("range=24h&live=false")
+	series := payload.Overview.Hourly
+	if len(series) < 20 || len(series) > 26 {
+		t.Fatalf("expected ~24 hourly buckets, got %d", len(series))
+	}
+	for _, point := range series {
+		if !strings.HasSuffix(point.Timestamp, ":00Z") {
+			t.Fatalf("expected hourly buckets, got %s", point.Timestamp)
+		}
+	}
+}
+
+func TestIntelAllTimeDefaultLabel(t *testing.T) {
+	harness := newIntelHarness([]streamLogEntry{}, nil)
+	_, payload := harness.serve("live=false")
+	if payload.Query.RangeLabel != "All time" {
+		t.Fatalf("expected All time label by default, got %q", payload.Query.RangeLabel)
+	}
 }
 

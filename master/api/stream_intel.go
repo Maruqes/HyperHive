@@ -9,6 +9,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strconv"
@@ -23,14 +24,15 @@ import (
 )
 
 const (
-	intelRecencyWindow         = 10 * time.Minute
-	intelNewEntityWindow       = 24 * time.Hour
-	intelLiveTTL               = 20 * time.Second
-	intelMaxSources            = 2000
-	intelMaxRoutes             = 2000
-	intelMaxDestinations       = 1000
-	intelDefaultSparkHours    = 24
-	intelProfileHours          = 72
+	intelRecencyWindow      = 10 * time.Minute
+	intelNewEntityWindow    = 24 * time.Hour
+	intelLiveTTL            = 20 * time.Second
+	intelMaxSources         = 2000
+	intelMaxRoutes          = 2000
+	intelMaxDestinations    = 1000
+	intelMaxSeriesPoints    = 400
+	intelSparkMaxBuckets    = 30
+	intelDailyStepThreshold = 72 * time.Hour
 	intelMaxSourceDests        = 50
 	intelMaxSourceRoutes       = 50
 	intelMaxRouteSources       = 100
@@ -270,17 +272,21 @@ type intelSearchMatches struct {
 }
 
 type intelQuery struct {
-	Search            string `json:"search"`
-	SourceIP          string `json:"source_ip,omitempty"`
-	ListenerIP        string `json:"listener_ip,omitempty"`
-	DestinationIP     string `json:"destination_ip,omitempty"`
-	RouteID           string `json:"route_id,omitempty"`
-	DestinationExact  string `json:"destination_exact,omitempty"`
-	Start             string `json:"start,omitempty"`
-	End               string `json:"end,omitempty"`
-	Protocol          string `json:"protocol,omitempty"`
-	Country           string `json:"country,omitempty"`
-	Outcome           string `json:"outcome,omitempty"`
+	Search           string `json:"search"`
+	SourceIP         string `json:"source_ip,omitempty"`
+	ListenerIP       string `json:"listener_ip,omitempty"`
+	DestinationIP    string `json:"destination_ip,omitempty"`
+	RouteID          string `json:"route_id,omitempty"`
+	DestinationExact string `json:"destination_exact,omitempty"`
+	Start            string `json:"start,omitempty"`
+	End              string `json:"end,omitempty"`
+	Protocol         string `json:"protocol,omitempty"`
+	Country          string `json:"country,omitempty"`
+	Outcome          string `json:"outcome,omitempty"`
+	Range            string `json:"range,omitempty"`
+	RangeLabel       string `json:"range_label,omitempty"`
+	WindowStart      string `json:"window_start,omitempty"`
+	WindowEnd        string `json:"window_end,omitempty"`
 }
 
 type intelResponse struct {
@@ -366,11 +372,25 @@ func intelEndpointKey(ip, port string) string {
 }
 
 func serveStreamIntel(w http.ResponseWriter, r *http.Request, deps intelDependencies) {
-	filters, err := parseAnalyticsFilters(r)
+	now := deps.now().UTC()
+	timeWindow, err := parseIntelTimeWindow(r.URL.Query(), now)
 	if err != nil {
 		respondJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	sanitizedQuery := r.URL.Query()
+	sanitizedQuery.Del("start")
+	sanitizedQuery.Del("end")
+	sanitizedQuery.Del("range")
+	sanitized := r.Clone(r.Context())
+	sanitized.URL = &url.URL{Path: r.URL.Path, RawQuery: sanitizedQuery.Encode()}
+	filters, err := parseAnalyticsFilters(sanitized)
+	if err != nil {
+		respondJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	filters.start = timeWindow.start
+	filters.endExclusive = timeWindow.end
 	query := r.URL.Query()
 	search := strings.TrimSpace(query.Get("q"))
 	routeID := strings.TrimSpace(query.Get("route_id"))
@@ -396,7 +416,6 @@ func serveStreamIntel(w http.ResponseWriter, r *http.Request, deps intelDependen
 		includeLive = false
 	}
 
-	now := deps.now().UTC()
 	response := intelResponse{
 		Now:          now.Format(time.RFC3339),
 		Mode:         "overview",
@@ -412,12 +431,15 @@ func serveStreamIntel(w http.ResponseWriter, r *http.Request, deps intelDependen
 		Search: search, SourceIP: filters.sourceIP, ListenerIP: filters.listenerIP,
 		DestinationIP: filters.destinationIP, RouteID: routeID, DestinationExact: destinationExact,
 		Protocol: filters.protocol, Country: filters.country, Outcome: filters.outcome,
+		Range: timeWindow.token, RangeLabel: timeWindow.label,
 	}
-	if !filters.start.IsZero() {
-		response.Query.Start = filters.start.Format("2006-01-02")
+	if !timeWindow.start.IsZero() {
+		response.Query.Start = timeWindow.start.UTC().Format("2006-01-02")
+		response.Query.WindowStart = timeWindow.start.UTC().Format(time.RFC3339)
 	}
-	if !filters.endExclusive.IsZero() {
-		response.Query.End = filters.endExclusive.AddDate(0, 0, -1).Format("2006-01-02")
+	if !timeWindow.end.IsZero() {
+		response.Query.End = timeWindow.end.UTC().Add(-time.Second).Format("2006-01-02")
+		response.Query.WindowEnd = timeWindow.end.UTC().Format(time.RFC3339)
 	}
 
 	entries, geoIPDB, err := deps.loadEntries()
@@ -488,6 +510,26 @@ func serveStreamIntel(w http.ResponseWriter, r *http.Request, deps intelDependen
 	sourceAggs, routeAggs, destAggs, globalHourly := intelAggregate(entries)
 	sessions := intelBuildSessions(entries, aliases, streams, descriptions, streamsAvailable)
 
+	dataStart, dataEnd := intelHourlyBounds(globalHourly)
+	axisStart, axisEnd := timeWindow.start, timeWindow.end
+	if axisStart.IsZero() {
+		axisStart = dataStart
+	}
+	if axisEnd.IsZero() {
+		axisEnd = dataEnd
+		if !dataEnd.IsZero() {
+			axisEnd = dataEnd.Add(time.Hour)
+		}
+	}
+	if !dataStart.IsZero() && response.Query.WindowStart == "" {
+		response.Query.WindowStart = dataStart.UTC().Format(time.RFC3339)
+	}
+	if !dataEnd.IsZero() && response.Query.WindowEnd == "" {
+		response.Query.WindowEnd = dataEnd.Add(time.Hour).UTC().Format(time.RFC3339)
+	}
+	denseAxis := intelBuildAxis(axisStart, axisEnd, intelMaxSeriesPoints)
+	sparkAxis := intelSparkAxis(denseAxis)
+
 	profileMode := "overview"
 	switch {
 	case filters.sourceIP != "":
@@ -501,12 +543,9 @@ func serveStreamIntel(w http.ResponseWriter, r *http.Request, deps intelDependen
 	}
 	response.Mode = profileMode
 
-	sparkHours := intelSparkHours(globalHourly, intelDefaultSparkHours)
-	profileHours := intelSparkHours(globalHourly, intelProfileHours)
-
-	response.Sources = intelBuildSources(sourceAggs, aliases, liveRemoteSources, now, sparkHours, intelMaxSources)
-	response.Routes = intelBuildRoutes(routeAggs, aliases, streams, descriptions, streamsAvailable, liveDestSockets, now, sparkHours, intelMaxRoutes)
-	response.Destinations = intelBuildDestinations(destAggs, aliases, liveDestSockets, now, sparkHours, intelMaxDestinations)
+	response.Sources = intelBuildSources(sourceAggs, aliases, liveRemoteSources, now, sparkAxis, intelMaxSources)
+	response.Routes = intelBuildRoutes(routeAggs, aliases, streams, descriptions, streamsAvailable, liveDestSockets, now, sparkAxis, intelMaxRoutes)
+	response.Destinations = intelBuildDestinations(destAggs, aliases, liveDestSockets, now, sparkAxis, intelMaxDestinations)
 
 	sessionsAvailable := len(sessions)
 	if sessionsAvailable > sessionLimit {
@@ -517,19 +556,19 @@ func serveStreamIntel(w http.ResponseWriter, r *http.Request, deps intelDependen
 
 	switch profileMode {
 	case "source":
-		response.Profile = intelSourceProfile(sourceAggs, filters.sourceIP, aliases, liveRemoteSources, now, profileHours)
+		response.Profile = intelSourceProfile(sourceAggs, filters.sourceIP, aliases, liveRemoteSources, now, sparkAxis, denseAxis)
 		if response.Profile == nil {
 			respondJSONError(w, http.StatusNotFound, "no telemetry for source IP in the applied window")
 			return
 		}
 	case "route":
-		response.Profile = intelRouteProfile(routeAggs, routeID, aliases, streams, descriptions, streamsAvailable, liveDestSockets, now, profileHours)
+		response.Profile = intelRouteProfile(routeAggs, routeID, aliases, streams, descriptions, streamsAvailable, liveDestSockets, now, sparkAxis, denseAxis)
 		if response.Profile == nil {
 			respondJSONError(w, http.StatusNotFound, "no telemetry for route in the applied window")
 			return
 		}
 	case "destination":
-		response.Profile = intelDestinationProfile(destAggs, destinationExact, aliases, liveDestSockets, now, profileHours)
+		response.Profile = intelDestinationProfile(destAggs, destinationExact, aliases, liveDestSockets, now, sparkAxis, denseAxis)
 		if response.Profile == nil {
 			respondJSONError(w, http.StatusNotFound, "no telemetry for destination in the applied window")
 			return
@@ -539,7 +578,7 @@ func serveStreamIntel(w http.ResponseWriter, r *http.Request, deps intelDependen
 	}
 
 	if profileMode == "overview" {
-		response.Overview = intelBuildOverview(entries, sessions, sourceAggs, routeAggs, destAggs, globalHourly, response.Live, liveRemoteSources, liveDestSockets, now, aliases)
+		response.Overview = intelBuildOverview(entries, sessions, sourceAggs, routeAggs, destAggs, globalHourly, denseAxis, response.Live, liveRemoteSources, liveDestSockets, now, aliases)
 		response.Insights = intelBuildInsights(sourceAggs, routeAggs, globalHourly, sessions, now)
 	}
 
@@ -731,28 +770,188 @@ func intelAggregate(entries []streamLogEntry) (map[string]*intelSourceAgg, map[s
 	return sourceAggs, routeAggs, destAggs, globalHourly
 }
 
-func intelSparkHours(hourly map[time.Time]*intelHourPoint, limit int) []time.Time {
-	hours := make([]time.Time, 0, len(hourly))
-	for hour := range hourly {
-		hours = append(hours, hour)
-	}
-	sort.Slice(hours, func(i, j int) bool { return hours[i].Before(hours[j]) })
-	if len(hours) > limit {
-		hours = hours[len(hours)-limit:]
-	}
-	return hours
+type intelTimeWindow struct {
+	start time.Time
+	end   time.Time
+	token string
+	label string
 }
 
-func intelSpark(hourly map[time.Time]*intelHourPoint, axis []time.Time) ([]int, []string) {
-	values := make([]int, len(axis))
-	labels := make([]string, len(axis))
-	for i, hour := range axis {
-		labels[i] = hour.Format(time.RFC3339)
-		if bucket := hourly[hour]; bucket != nil {
-			values[i] = bucket.Connections
+func intelRangeForToken(token string, now time.Time) (time.Time, time.Time, string, bool) {
+	if token == "all" {
+		return time.Time{}, time.Time{}, "All time", true
+	}
+	ranges := map[string]struct {
+		duration time.Duration
+		label    string
+	}{
+		"24h":  {24 * time.Hour, "Last 24 hours"},
+		"1d":   {24 * time.Hour, "Last 24 hours"},
+		"7d":   {7 * 24 * time.Hour, "Last 7 days"},
+		"14d":  {14 * 24 * time.Hour, "Last 14 days"},
+		"1mo":  {30 * 24 * time.Hour, "Last 30 days"},
+		"30d":  {30 * 24 * time.Hour, "Last 30 days"},
+		"3mo":  {90 * 24 * time.Hour, "Last 90 days"},
+		"90d":  {90 * 24 * time.Hour, "Last 90 days"},
+		"6mo":  {180 * 24 * time.Hour, "Last 180 days"},
+		"180d": {180 * 24 * time.Hour, "Last 180 days"},
+		"1y":   {365 * 24 * time.Hour, "Last year"},
+		"365d": {365 * 24 * time.Hour, "Last year"},
+	}
+	window, ok := ranges[token]
+	if !ok {
+		return time.Time{}, time.Time{}, "", false
+	}
+	return now.Add(-window.duration), now, window.label, true
+}
+
+func parseIntelTimeValue(raw string, endOfDay bool) (time.Time, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return time.Time{}, true
+	}
+	if parsed, err := time.Parse("2006-01-02", raw); err == nil {
+		if endOfDay {
+			return parsed.AddDate(0, 0, 1), true
+		}
+		return parsed, true
+	}
+	for _, layout := range []string{time.RFC3339, "2006-01-02T15:04", "2006-01-02T15:04:05"} {
+		if parsed, err := time.Parse(layout, raw); err == nil {
+			return parsed, true
 		}
 	}
+	return time.Time{}, false
+}
+
+func parseIntelTimeWindow(query url.Values, now time.Time) (intelTimeWindow, error) {
+	token := strings.ToLower(strings.TrimSpace(query.Get("range")))
+	window := intelTimeWindow{token: "all", label: "All time"}
+	if token != "" {
+		start, end, label, ok := intelRangeForToken(token, now)
+		if !ok {
+			return intelTimeWindow{}, errors.New("range must be one of 24h, 7d, 14d, 1mo, 3mo, 6mo, 1y, all")
+		}
+		window.start, window.end, window.token, window.label = start, end, token, label
+		return window, nil
+	}
+	startRaw := strings.TrimSpace(query.Get("start"))
+	endRaw := strings.TrimSpace(query.Get("end"))
+	if startRaw == "" && endRaw == "" {
+		return window, nil
+	}
+	start, ok := parseIntelTimeValue(startRaw, false)
+	if !ok {
+		return intelTimeWindow{}, errors.New("start must use YYYY-MM-DD, YYYY-MM-DDTHH:MM, or RFC3339")
+	}
+	end, ok := parseIntelTimeValue(endRaw, true)
+	if !ok {
+		return intelTimeWindow{}, errors.New("end must use YYYY-MM-DD, YYYY-MM-DDTHH:MM, or RFC3339")
+	}
+	if !start.IsZero() && !end.IsZero() && !start.Before(end) {
+		return intelTimeWindow{}, errors.New("start must be before end")
+	}
+	window.start, window.end = start.UTC(), end.UTC()
+	window.token, window.label = "custom", "Custom range"
+	return window, nil
+}
+
+type intelAxis struct {
+	buckets []time.Time
+	step    time.Duration
+}
+
+func intelBuildAxis(start, end time.Time, maxPoints int) intelAxis {
+	axis := intelAxis{}
+	if start.IsZero() || end.IsZero() || end.Before(start) {
+		return axis
+	}
+	span := end.Sub(start)
+	step := time.Hour
+	if span > intelDailyStepThreshold {
+		step = 24 * time.Hour
+	}
+	count := int(span/step) + 1
+	if count > maxPoints {
+		factor := (count + maxPoints - 1) / maxPoints
+		step *= time.Duration(factor)
+	}
+	buckets := make([]time.Time, 0, count)
+	for bucket := start.Truncate(step); !bucket.After(end); bucket = bucket.Add(step) {
+		buckets = append(buckets, bucket)
+	}
+	axis.buckets = buckets
+	axis.step = step
+	return axis
+}
+
+func intelSparkAxis(axis intelAxis) intelAxis {
+	if len(axis.buckets) > intelSparkMaxBuckets {
+		axis.buckets = append([]time.Time(nil), axis.buckets[len(axis.buckets)-intelSparkMaxBuckets:]...)
+	}
+	return axis
+}
+
+func intelHourlyBounds(hourly map[time.Time]*intelHourPoint) (time.Time, time.Time) {
+	var min, max time.Time
+	for hour := range hourly {
+		if min.IsZero() || hour.Before(min) {
+			min = hour
+		}
+		if max.IsZero() || hour.After(max) {
+			max = hour
+		}
+	}
+	return min, max
+}
+
+func intelSparkLabelLayout(step time.Duration) string {
+	if step >= 24*time.Hour {
+		return "01-02"
+	}
+	return "15:04"
+}
+
+func intelSpark(hourly map[time.Time]*intelHourPoint, axis intelAxis) ([]int, []string) {
+	values := make([]int, len(axis.buckets))
+	labels := make([]string, len(axis.buckets))
+	if len(axis.buckets) == 0 {
+		return values, labels
+	}
+	counts := make(map[time.Time]int, len(hourly))
+	for hour, bucket := range hourly {
+		counts[hour.Truncate(axis.step)] += bucket.Connections
+	}
+	layout := intelSparkLabelLayout(axis.step)
+	for i, bucket := range axis.buckets {
+		labels[i] = bucket.Format(layout)
+		values[i] = counts[bucket]
+	}
 	return values, labels
+}
+
+func intelHourlySeries(hourly map[time.Time]*intelHourPoint, axis intelAxis) []intelHourPoint {
+	result := make([]intelHourPoint, 0, len(axis.buckets))
+	if len(axis.buckets) == 0 {
+		return result
+	}
+	aggregated := make(map[time.Time]*intelHourPoint, len(axis.buckets))
+	for _, bucket := range axis.buckets {
+		aggregated[bucket] = &intelHourPoint{Timestamp: bucket.Format(time.RFC3339)}
+	}
+	for hour, point := range hourly {
+		bucket := aggregated[hour.Truncate(axis.step)]
+		if bucket == nil {
+			continue
+		}
+		bucket.Connections += point.Connections
+		bucket.Failed += point.Failed
+		bucket.TotalBytes += point.TotalBytes
+	}
+	for _, bucket := range axis.buckets {
+		result = append(result, *aggregated[bucket])
+	}
+	return result
 }
 
 func intelSourceSignals(agg *intelSourceAgg, active bool, now time.Time) []string {
@@ -772,7 +971,7 @@ func intelSourceSignals(agg *intelSourceAgg, active bool, now time.Time) []strin
 	return signals
 }
 
-func intelBuildSources(aggs map[string]*intelSourceAgg, aliases map[string][]string, liveSources map[string]int, now time.Time, sparkAxis []time.Time, limit int) []intelSource {
+func intelBuildSources(aggs map[string]*intelSourceAgg, aliases map[string][]string, liveSources map[string]int, now time.Time, sparkAxis intelAxis, limit int) []intelSource {
 	result := make([]intelSource, 0, len(aggs))
 	for _, agg := range aggs {
 		endpoint := enrichAnalyticsEndpoint(agg.ip, aliases)
@@ -877,7 +1076,7 @@ func intelShortLabel(endpoint analyticsEndpoint) string {
 	return endpoint.RawAddress
 }
 
-func intelBuildRoutes(aggs map[string]*intelRouteAgg, aliases map[string][]string, streams []npm.Stream, descriptions map[int]string, streamsAvailable bool, liveDestinations map[string]int, now time.Time, sparkAxis []time.Time, limit int) []intelRoute {
+func intelBuildRoutes(aggs map[string]*intelRouteAgg, aliases map[string][]string, streams []npm.Stream, descriptions map[int]string, streamsAvailable bool, liveDestinations map[string]int, now time.Time, sparkAxis intelAxis, limit int) []intelRoute {
 	result := make([]intelRoute, 0, len(aggs))
 	for _, agg := range aggs {
 		listener := enrichAnalyticsListener(agg.listenerRaw, aliases)
@@ -930,7 +1129,7 @@ func intelBuildRoutes(aggs map[string]*intelRouteAgg, aliases map[string][]strin
 	return result
 }
 
-func intelBuildDestinations(aggs map[string]*intelDestinationAgg, aliases map[string][]string, liveDestinations map[string]int, now time.Time, sparkAxis []time.Time, limit int) []intelDestination {
+func intelBuildDestinations(aggs map[string]*intelDestinationAgg, aliases map[string][]string, liveDestinations map[string]int, now time.Time, sparkAxis intelAxis, limit int) []intelDestination {
 	result := make([]intelDestination, 0, len(aggs))
 	for _, agg := range aggs {
 		endpoint := enrichAnalyticsEndpoint(agg.raw, aliases)
@@ -1038,7 +1237,7 @@ func intelSessionTime(session intelSession) time.Time {
 	return time.Time{}
 }
 
-func intelBuildOverview(entries []streamLogEntry, sessions []intelSession, sourceAggs map[string]*intelSourceAgg, routeAggs map[string]*intelRouteAgg, destAggs map[string]*intelDestinationAgg, globalHourly map[time.Time]*intelHourPoint, live intelLiveSummary, liveSources, liveDestinations map[string]int, now time.Time, aliases map[string][]string) *intelOverview {
+func intelBuildOverview(entries []streamLogEntry, sessions []intelSession, sourceAggs map[string]*intelSourceAgg, routeAggs map[string]*intelRouteAgg, destAggs map[string]*intelDestinationAgg, globalHourly map[time.Time]*intelHourPoint, denseAxis intelAxis, live intelLiveSummary, liveSources, liveDestinations map[string]int, now time.Time, aliases map[string][]string) *intelOverview {
 	overview := &intelOverview{Live: live, ActiveIPs: make([]string, 0), ActiveRoutes: make([]string, 0)}
 
 	activeIPs := make([]string, 0)
@@ -1165,7 +1364,7 @@ func intelBuildOverview(entries []streamLogEntry, sessions []intelSession, sourc
 	}
 
 	overview.Spikes = intelDetectSpikes(globalHourly)
-	overview.Hourly = intelHourlySeries(globalHourly, 168)
+	overview.Hourly = intelHourlySeries(globalHourly, denseAxis)
 	return overview
 }
 
@@ -1372,7 +1571,7 @@ func intelBuildInsights(sourceAggs map[string]*intelSourceAgg, routeAggs map[str
 	return insights
 }
 
-func intelSourceProfile(aggs map[string]*intelSourceAgg, ip string, aliases map[string][]string, liveSources map[string]int, now time.Time, sparkAxis []time.Time) *intelProfile {
+func intelSourceProfile(aggs map[string]*intelSourceAgg, ip string, aliases map[string][]string, liveSources map[string]int, now time.Time, sparkAxis intelAxis, denseAxis intelAxis) *intelProfile {
 	agg := aggs[ip]
 	if agg == nil {
 		return nil
@@ -1383,11 +1582,11 @@ func intelSourceProfile(aggs map[string]*intelSourceAgg, ip string, aliases map[
 	if len(built) == 1 {
 		profile.Source = &built[0]
 	}
-	profile.Hourly = intelHourlySeries(agg.hourly, intelProfileHours)
+	profile.Hourly = intelHourlySeries(agg.hourly, denseAxis)
 	return profile
 }
 
-func intelRouteProfile(aggs map[string]*intelRouteAgg, routeID string, aliases map[string][]string, streams []npm.Stream, descriptions map[int]string, streamsAvailable bool, liveDestinations map[string]int, now time.Time, sparkAxis []time.Time) *intelProfile {
+func intelRouteProfile(aggs map[string]*intelRouteAgg, routeID string, aliases map[string][]string, streams []npm.Stream, descriptions map[int]string, streamsAvailable bool, liveDestinations map[string]int, now time.Time, sparkAxis intelAxis, denseAxis intelAxis) *intelProfile {
 	for key, agg := range aggs {
 		if intelRouteID(key) != routeID {
 			continue
@@ -1397,13 +1596,13 @@ func intelRouteProfile(aggs map[string]*intelRouteAgg, routeID string, aliases m
 		if len(built) == 1 {
 			profile.Route = &built[0]
 		}
-		profile.Hourly = intelHourlySeries(agg.hourly, intelProfileHours)
+		profile.Hourly = intelHourlySeries(agg.hourly, denseAxis)
 		return profile
 	}
 	return nil
 }
 
-func intelDestinationProfile(aggs map[string]*intelDestinationAgg, raw string, aliases map[string][]string, liveDestinations map[string]int, now time.Time, sparkAxis []time.Time) *intelProfile {
+func intelDestinationProfile(aggs map[string]*intelDestinationAgg, raw string, aliases map[string][]string, liveDestinations map[string]int, now time.Time, sparkAxis intelAxis, denseAxis intelAxis) *intelProfile {
 	agg := aggs[raw]
 	if agg == nil {
 		return nil
@@ -1413,19 +1612,8 @@ func intelDestinationProfile(aggs map[string]*intelDestinationAgg, raw string, a
 	if len(built) == 1 {
 		profile.Destination = &built[0]
 	}
-	profile.Hourly = intelHourlySeries(agg.hourly, intelProfileHours)
+	profile.Hourly = intelHourlySeries(agg.hourly, denseAxis)
 	return profile
-}
-
-func intelHourlySeries(hourly map[time.Time]*intelHourPoint, limit int) []intelHourPoint {
-	axis := intelSparkHours(hourly, limit)
-	result := make([]intelHourPoint, 0, len(axis))
-	for _, hour := range axis {
-		if bucket := hourly[hour]; bucket != nil {
-			result = append(result, *bucket)
-		}
-	}
-	return result
 }
 
 func intelSearchEntityMatches(search string, sources []intelSource, routes []intelRoute, destinations []intelDestination) *intelSearchMatches {
