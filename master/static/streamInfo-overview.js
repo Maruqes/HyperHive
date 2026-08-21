@@ -123,6 +123,6 @@ function renderOverviewChart(hourly) {
     const d = new Date(p.timestamp);
     return '<text x="' + x(i) + '" y="' + (height - 10) + '" text-anchor="middle">' + String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '</text>';
   }).join('');
-  chart.innerHTML = '<svg class="activity-chart" viewBox="0 0 ' + width + ' ' + height + '" preserveAspectRatio="none" aria-hidden="true"><g class="activity-grid">' + grid + '</g><polygon class="activity-area" points="' + area + '"></polygon><polyline class="activity-line connections" points="' + points + '"></polyline><polyline class="activity-line failures" points="' + failed + '"></polyline><g class="activity-labels">' + labels + '</g></svg>';
+  chart.innerHTML = '<svg class="activity-chart" viewBox="0 0 ' + width + ' ' + height + '" preserveAspectRatio="none" aria-hidden="true"><g class="activity-grid">' + grid + '</g><polygon class="activity-area" fill="rgba(56,217,232,.12)" points="' + area + '"></polygon><polyline class="activity-line connections" fill="none" stroke="#38d9e8" points="' + points + '"></polyline><polyline class="activity-line failures" fill="none" stroke="#f87171" stroke-dasharray="5 4" points="' + failed + '"></polyline><g class="activity-labels">' + labels + '</g></svg>';
   ovChart = { data, maxV };
 }

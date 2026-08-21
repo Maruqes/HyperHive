@@ -85,6 +85,38 @@ function closeAliasDialog() {
   $('aliasDialog').hidden = true;
 }
 
+async function loadAliases() {
+  const list = $('aliasList');
+  list.innerHTML = '<p class="m-2 text-xs text-hh-faint">Loading aliases…</p>';
+  try {
+    const res = await fetch('/api/dnsmasq/alias/all', { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const payload = await res.json();
+    const aliases = payload.aliases || [];
+    list.innerHTML = aliases.length ? aliases.map(item =>
+      '<div class="flex items-center justify-between gap-3 border-b border-hh-line px-2 py-2 last:border-0"><span class="font-mono text-xs text-hh-ink">' + esc(item.alias) + ' <span class="text-hh-faint">(' + esc(item.ip) + ')</span></span><button class="danger-btn" type="button" data-remove-alias="1" data-alias="' + esc(item.alias) + '" data-alias-ip="' + esc(item.ip) + '">Remove</button></div>'
+    ).join('') : '<p class="m-2 text-xs text-hh-faint">No aliases configured.</p>';
+  } catch (err) {
+    list.innerHTML = '<p class="m-2 text-xs text-hh-red">Could not load aliases: ' + esc(err.message) + '</p>';
+  }
+}
+
+async function removeAlias(alias, ip) {
+  if (!confirm('Remove alias ' + alias + ' (' + ip + ')?')) return;
+  const res = await fetch('/api/dnsmasq/alias/remove', {
+    method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ alias, ip })
+  });
+  if (!res.ok) throw new Error((await res.text()) || 'HTTP ' + res.status);
+  await loadAliases();
+  await loadIntel();
+}
+
+function openAliasDialog() {
+  $('aliasDialog').hidden = false;
+  loadAliases();
+  $('aliasIp').focus();
+}
+
 async function addAlias(e) {
   e.preventDefault();
   const ip = $('aliasIp').value.trim();
@@ -106,11 +138,21 @@ async function addAlias(e) {
 }
 
 function wireEvents() {
-  $('addAliasBtn').addEventListener('click', () => { $('aliasDialog').hidden = false; $('aliasIp').focus(); });
+  $('manageAliasBtn').addEventListener('click', openAliasDialog);
   $('aliasCancel').addEventListener('click', closeAliasDialog);
   $('aliasCancelBottom').addEventListener('click', closeAliasDialog);
   $('aliasForm').addEventListener('submit', addAlias);
   $('aliasDialog').addEventListener('click', e => { if (e.target === $('aliasDialog')) closeAliasDialog(); });
+  $('aliasList').addEventListener('click', async e => {
+    const button = e.target.closest('[data-remove-alias]');
+    if (!button) return;
+    try { await removeAlias(button.dataset.alias, button.dataset.aliasIp); }
+    catch (err) {
+      const box = $('errorNotice');
+      box.innerHTML = '<strong>Could not remove alias.</strong> ' + esc(err.message);
+      box.hidden = false;
+    }
+  });
   // time range presets
   document.querySelectorAll('#rangePresets .rbtn').forEach(btn => {
     btn.addEventListener('click', () => applyRange(btn.dataset.range, '', ''));
