@@ -123,14 +123,14 @@ function renderOverviewChart(hourly) {
   const grid = [0, 1, 2, 3, 4].map(step => {
     const value = Math.round(maxV * (1 - step / 4));
     const yy = pad.t + plotH * step / 4;
-    return '<line x1="' + pad.l + '" x2="' + (width - pad.r) + '" y1="' + yy + '" y2="' + yy + '"/><text x="6" y="' + (yy + 4) + '">' + value + '</text>';
+    return '<line x1="' + pad.l + '" x2="' + (width - pad.r) + '" y1="' + yy + '" y2="' + yy + '" stroke="#1e2d3a" stroke-width="1"/><text x="6" y="' + (yy + 4) + '" fill="#5d7488" font-family="IBM Plex Mono, monospace" font-size="10">' + value + '</text>';
   }).join('');
   const labels = data.map((p, i) => {
     const step = Math.max(1, Math.ceil(data.length / 7));
     if (i % step) return '';
     const d = new Date(p.timestamp);
-    return '<text x="' + x(i) + '" y="' + (height - 10) + '" text-anchor="middle">' + String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '</text>';
+    return '<text x="' + x(i) + '" y="' + (height - 10) + '" text-anchor="middle" fill="#5d7488" font-family="IBM Plex Mono, monospace" font-size="10">' + String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '</text>';
   }).join('');
-  chart.innerHTML = '<svg class="activity-chart" viewBox="0 0 ' + width + ' ' + height + '" preserveAspectRatio="none" aria-hidden="true"><g class="activity-grid">' + grid + '</g><polygon class="activity-area" fill="rgba(56,217,232,.12)" points="' + area + '"></polygon><polyline class="activity-line connections" fill="none" stroke="#38d9e8" points="' + points + '"></polyline><polyline class="activity-line failures" fill="none" stroke="#f87171" stroke-dasharray="5 4" points="' + failed + '"></polyline><g class="activity-labels">' + labels + '</g></svg>';
+  chart.innerHTML = '<svg style="display:block;width:100%;height:100%" viewBox="0 0 ' + width + ' ' + height + '" preserveAspectRatio="none" aria-hidden="true"><g>' + grid + '</g><polygon fill="rgba(56,217,232,.12)" points="' + area + '"></polygon><polyline fill="none" stroke="#38d9e8" stroke-width="2" vector-effect="non-scaling-stroke" points="' + points + '"></polyline><polyline fill="none" stroke="#f87171" stroke-width="2" vector-effect="non-scaling-stroke" stroke-dasharray="5 4" points="' + failed + '"></polyline><g>' + labels + '</g></svg>';
   ovChart = { data, maxV };
 }

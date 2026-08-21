@@ -32,13 +32,14 @@ async function runEvidenceReconstruct() {
   if (ev.outcome) params.outcome = ev.outcome;
   params.live = 'false';
   params.npm_only = state.npmOnly ? 'true' : 'false';
-  params.session_limit = '500';
+  params.session_limit = '10000';
   $('loadbar').hidden = false;
   try {
     const qs = buildQuery(params);
     const res = await fetch(INTEL_ENDPOINT + '?' + qs);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     state.evData = await res.json();
+    state.pages.evidence = 1;
     renderEvidenceResults();
   } catch (err) {
     $('evTimeline').innerHTML = '<div class="empty"><h3>Reconstruction failed</h3><p>' + esc(err.message) + '</p></div>';
@@ -132,7 +133,7 @@ function buildNarrative(orderedSessions) {
 /* ================= PROFILE ================= */
 async function openProfile(kind, id) {
   state.profileTarget = { kind, id };
-  const params = { live: 'true', session_limit: '300', npm_only: state.npmOnly ? 'true' : 'false', ...rangeParams() };
+  const params = { live: 'true', session_limit: '10000', npm_only: state.npmOnly ? 'true' : 'false', ...rangeParams() };
   if (kind === 'ip') params.source_ip = id;
   else if (kind === 'route') params.route_id = id;
   else if (kind === 'destination') params.destination_exact = id;
@@ -142,6 +143,7 @@ async function openProfile(kind, id) {
     const res = await fetch(INTEL_ENDPOINT + '?' + qs);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     state.profile = await res.json();
+    state.pages.profile = 1;
     switchTab('profile');
     renderProfile(state.profile, Date.now());
     history.replaceState(null, '', '#/' + (kind === 'ip' ? 'ips/' : kind === 'route' ? 'routes/' : 'destinations/') + (kind === 'route' ? id : encodeURIComponent(id)));

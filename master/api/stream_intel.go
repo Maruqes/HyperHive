@@ -27,9 +27,9 @@ const (
 	intelRecencyWindow         = 10 * time.Minute
 	intelNewEntityWindow       = 24 * time.Hour
 	intelLiveTTL               = 20 * time.Second
-	intelMaxSources            = 2000
-	intelMaxRoutes             = 2000
-	intelMaxDestinations       = 1000
+	intelMaxSources            = 10000
+	intelMaxRoutes             = 10000
+	intelMaxDestinations       = 10000
 	intelMaxSeriesPoints       = 400
 	intelSparkMaxBuckets       = 30
 	intelDailyStepThreshold    = 72 * time.Hour
@@ -39,7 +39,7 @@ const (
 	intelMaxDestinationSources = 100
 	intelMaxDestinationRoutes  = 100
 	intelDefaultSessionLimit   = 100
-	intelMaxSessionLimit       = 500
+	intelMaxSessionLimit       = 10000
 	intelLongSessionSeconds    = 4 * 3600
 	intelSpikeBaselineBuckets  = 24
 	intelSpikeMinBaseline      = 6
@@ -70,7 +70,7 @@ type intelDependencies struct {
 
 var productionIntelDependencies = intelDependencies{
 	loadEntries:     loadEntriesWithGeoIP,
-	getAliases:      dnsmasq.GetAllAliases,
+	getAliases:      getCombinedAliases,
 	listStreams:     npm.ListStreams,
 	getDescriptions: db.GetResourceDescriptions,
 	captureLive: func(ctx context.Context, authToken string) (*liveSnapshot, error) {

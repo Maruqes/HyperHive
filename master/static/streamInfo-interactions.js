@@ -85,11 +85,13 @@ function closeAliasDialog() {
   $('aliasDialog').hidden = true;
 }
 
+const ALIAS_ENDPOINT = '/api/streamInfo/ip-aliases';
+
 async function loadAliases() {
   const list = $('aliasList');
   list.innerHTML = '<p class="m-2 text-xs text-hh-faint">Loading aliases…</p>';
   try {
-    const res = await fetch('/api/dnsmasq/alias/all', { headers: { 'Accept': 'application/json' } });
+    const res = await fetch(ALIAS_ENDPOINT, { headers: { 'Accept': 'application/json' } });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const payload = await res.json();
     const aliases = payload.aliases || [];
@@ -103,7 +105,7 @@ async function loadAliases() {
 
 async function removeAlias(alias, ip) {
   if (!confirm('Remove alias ' + alias + ' (' + ip + ')?')) return;
-  const res = await fetch('/api/dnsmasq/alias/remove', {
+  const res = await fetch(ALIAS_ENDPOINT, {
     method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ alias, ip })
   });
   if (!res.ok) throw new Error((await res.text()) || 'HTTP ' + res.status);
@@ -122,14 +124,15 @@ async function addAlias(e) {
   const ip = $('aliasIp').value.trim();
   const alias = $('aliasName').value.trim();
   try {
-    const res = await fetch('/api/dnsmasq/alias/add', {
+    const res = await fetch(ALIAS_ENDPOINT, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify({ ip, alias })
     });
     if (!res.ok) throw new Error((await res.text()) || 'HTTP ' + res.status);
     $('aliasForm').reset();
-    closeAliasDialog();
+    await loadAliases();
     await loadIntel();
+    $('aliasIp').focus();
   } catch (err) {
     const box = $('errorNotice');
     box.innerHTML = '<strong>Could not save alias.</strong> ' + esc(err.message);
@@ -137,12 +140,17 @@ async function addAlias(e) {
   }
 }
 
+function on(id, event, handler) {
+  const el = $(id);
+  if (el) el.addEventListener(event, handler);
+}
+
 function wireEvents() {
-  $('manageAliasBtn').addEventListener('click', openAliasDialog);
-  $('aliasCancel').addEventListener('click', closeAliasDialog);
-  $('aliasCancelBottom').addEventListener('click', closeAliasDialog);
-  $('aliasForm').addEventListener('submit', addAlias);
-  $('aliasDialog').addEventListener('click', e => { if (e.target === $('aliasDialog')) closeAliasDialog(); });
+  on('manageAliasBtn', 'click', openAliasDialog);
+  on('aliasCancel', 'click', closeAliasDialog);
+  on('aliasCancelBottom', 'click', closeAliasDialog);
+  on('aliasForm', 'submit', addAlias);
+  on('aliasDialog', 'click', e => { if (e.target === $('aliasDialog')) closeAliasDialog(); });
   $('aliasList').addEventListener('click', async e => {
     const button = e.target.closest('[data-remove-alias]');
     if (!button) return;
@@ -219,6 +227,7 @@ function wireEvents() {
   liveInputs.forEach(([id, key, prop]) => {
     $(id).addEventListener('input', () => {
       state.filters.live[key] = $(id)[prop];
+      state.pages.live = 1;
       renderLiveTab(state.data, Date.now());
     });
   });
@@ -235,6 +244,7 @@ function wireEvents() {
     defs.forEach(([id, fkey, prop]) => {
       $(id).addEventListener('input', () => {
         state.filters[key][fkey] = $(id)[prop];
+        state.pages[key] = 1;
         const d = state.data;
         if (!d) return;
         if (key === 'routes') renderRoutesTab(d, Date.now());

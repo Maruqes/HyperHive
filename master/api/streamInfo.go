@@ -2202,27 +2202,25 @@ func getDateRange(w http.ResponseWriter, r *http.Request) {
 func setupStreamInfo(r chi.Router) chi.Router {
 	return r.Route("/streamInfo", func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Cache-Control", "no-cache")
 			http.ServeFile(w, r, "static/streamInfo.html")
 		})
 		r.Delete("/logs", deleteStreamLogs)
-		r.Get("/streamInfo.css", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, "static/streamInfo.css")
-		})
-		r.Get("/streamInfo-core.js", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, "static/streamInfo-core.js")
-		})
-		r.Get("/streamInfo-overview.js", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, "static/streamInfo-overview.js")
-		})
-		r.Get("/streamInfo-tabs.js", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, "static/streamInfo-tabs.js")
-		})
-		r.Get("/streamInfo-profiles.js", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, "static/streamInfo-profiles.js")
-		})
-		r.Get("/streamInfo-interactions.js", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, "static/streamInfo-interactions.js")
-		})
+		r.Get("/ip-aliases", listObservabilityAliases)
+		r.Post("/ip-aliases", addObservabilityAlias)
+		r.Delete("/ip-aliases", removeObservabilityAlias)
+		serveStatic := func(path string) http.HandlerFunc {
+			return func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Cache-Control", "no-cache")
+				http.ServeFile(w, r, path)
+			}
+		}
+		r.Get("/streamInfo.css", serveStatic("static/streamInfo.css"))
+		r.Get("/streamInfo-core.js", serveStatic("static/streamInfo-core.js"))
+		r.Get("/streamInfo-overview.js", serveStatic("static/streamInfo-overview.js"))
+		r.Get("/streamInfo-tabs.js", serveStatic("static/streamInfo-tabs.js"))
+		r.Get("/streamInfo-profiles.js", serveStatic("static/streamInfo-profiles.js"))
+		r.Get("/streamInfo-interactions.js", serveStatic("static/streamInfo-interactions.js"))
 
 		// Raw data
 		r.Get("/data", getData)
