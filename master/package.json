@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "scripts": {
+    "build:stream-analytics": "tailwindcss -i ./static/streamInfo.input.css -o ./static/streamInfo.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}

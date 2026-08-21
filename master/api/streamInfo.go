@@ -2,6 +2,7 @@ package api
 
 import (
 	"bufio"
+	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"errors"
@@ -45,6 +46,7 @@ var (
 		"GeoIP2-Country.mmdb",
 	}
 	errGeoIPUnavailable = errors.New("geoip database not found")
+	streamLogMutationMu sync.Mutex
 )
 
 type streamLogEntry struct {
@@ -430,6 +432,125 @@ func readStreamLogFile(path string) ([]streamLogEntry, error) {
 	}
 
 	return entries, nil
+}
+
+func deleteStreamLogs(w http.ResponseWriter, r *http.Request) {
+	kind := strings.TrimSpace(r.URL.Query().Get("kind"))
+	value := strings.TrimSpace(r.URL.Query().Get("value"))
+	if value == "" {
+		respondJSONError(w, http.StatusBadRequest, "value is required")
+		return
+	}
+	if kind != "source" && kind != "destination" && kind != "route" {
+		respondJSONError(w, http.StatusBadRequest, "kind must be source, destination or route")
+		return
+	}
+	if kind == "source" {
+		ip := net.ParseIP(value)
+		if ip == nil {
+			respondJSONError(w, http.StatusBadRequest, "source value must be a valid IP address")
+			return
+		}
+		value = ip.String()
+	}
+	if kind == "route" && !intelValidRouteID(value) {
+		respondJSONError(w, http.StatusBadRequest, "route value must use route_ followed by 12 lowercase hexadecimal characters")
+		return
+	}
+
+	streamLogMutationMu.Lock()
+	defer streamLogMutationMu.Unlock()
+	deleted, err := rewriteStreamLogFamily(func(entry streamLogEntry) bool {
+		switch kind {
+		case "source":
+			return analyticsSourceIdentity(entry.ClientIP) == value
+		case "destination":
+			return entry.UpstreamAddr == value
+		case "route":
+			return len(intelFilterByRoute([]streamLogEntry{entry}, value)) > 0
+		default:
+			return false
+		}
+	})
+	if err != nil {
+		respondJSONError(w, http.StatusInternalServerError, "failed to rewrite stream logs")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"deleted": deleted, "kind": kind, "value": value})
+}
+
+func rewriteStreamLogFamily(remove func(streamLogEntry) bool) (int, error) {
+	deleted := 0
+	for _, path := range streamLogFamilyPaths(streamLogPath, streamMaxRotatedLogs) {
+		content, err := readStreamLogBytes(path)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return deleted, err
+		}
+		var kept bytes.Buffer
+		scanner := bufio.NewScanner(bytes.NewReader(content))
+		scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+		for scanner.Scan() {
+			line := scanner.Text()
+			entry, ok := parseStreamLogLine(strings.TrimSpace(line))
+			if ok && remove(entry) {
+				deleted++
+				continue
+			}
+			kept.WriteString(line)
+			kept.WriteByte('\n')
+		}
+		if err := scanner.Err(); err != nil {
+			return deleted, err
+		}
+		if kept.Len() == len(content) {
+			continue
+		}
+		tmp := path + ".rewrite"
+		if strings.HasSuffix(path, ".gz") {
+			var compressed bytes.Buffer
+			gz := gzip.NewWriter(&compressed)
+			if _, err := gz.Write(kept.Bytes()); err != nil {
+				return deleted, err
+			}
+			if err := gz.Close(); err != nil {
+				return deleted, err
+			}
+			if err := os.WriteFile(tmp, compressed.Bytes(), 0o644); err != nil {
+				return deleted, err
+			}
+		} else if err := os.WriteFile(tmp, kept.Bytes(), 0o644); err != nil {
+			return deleted, err
+		}
+		if err := os.Rename(tmp, path); err != nil {
+			_ = os.Remove(tmp)
+			return deleted, err
+		}
+	}
+	streamLogCache.Lock()
+	streamLogCache.files = make(map[string]streamLogCacheEntry)
+	streamLogCache.Unlock()
+	return deleted, nil
+}
+
+func readStreamLogBytes(path string) ([]byte, error) {
+	content, err := os.ReadFile(path)
+	if err != nil || !strings.HasSuffix(path, ".gz") {
+		return content, err
+	}
+	gz, err := gzip.NewReader(bytes.NewReader(content))
+	if err != nil {
+		return nil, err
+	}
+	decompressed, readErr := io.ReadAll(gz)
+	closeErr := gz.Close()
+	if readErr != nil {
+		return nil, readErr
+	}
+	return decompressed, closeErr
 }
 
 func parseStreamLogLine(line string) (streamLogEntry, bool) {
@@ -2082,6 +2203,25 @@ func setupStreamInfo(r chi.Router) chi.Router {
 	return r.Route("/streamInfo", func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, "static/streamInfo.html")
+		})
+		r.Delete("/logs", deleteStreamLogs)
+		r.Get("/streamInfo.css", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, "static/streamInfo.css")
+		})
+		r.Get("/streamInfo-core.js", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, "static/streamInfo-core.js")
+		})
+		r.Get("/streamInfo-overview.js", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, "static/streamInfo-overview.js")
+		})
+		r.Get("/streamInfo-tabs.js", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, "static/streamInfo-tabs.js")
+		})
+		r.Get("/streamInfo-profiles.js", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, "static/streamInfo-profiles.js")
+		})
+		r.Get("/streamInfo-interactions.js", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, "static/streamInfo-interactions.js")
 		})
 
 		// Raw data

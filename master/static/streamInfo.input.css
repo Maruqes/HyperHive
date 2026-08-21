@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { @apply bg-hh-bg text-hh-ink; }
+  body { @apply m-0 font-sans text-[13.5px] leading-[1.45]; }
+  button, input, select { @apply text-inherit; font: inherit; }
+  [hidden] { display: none !important; }
+  a { @apply text-hh-cyan no-underline; }
+  a:hover { @apply underline; }
+  :focus-visible { @apply outline-2 outline-hh-cyan outline-offset-1; }
+}
+
+@layer components {
+  .masthead { @apply sticky top-0 z-50 border-b border-hh-line bg-hh-bg/90 backdrop-blur-xl; }
+  .masthead-row { @apply mx-auto flex max-w-screen items-center gap-4 px-5 py-2.5; }
+  .brand { @apply flex min-w-0 items-center gap-3; }
+  .brand-mark { @apply grid h-[34px] w-[34px] place-items-center border border-hh-cyan font-mono text-xs font-extrabold text-hh-cyan; clip-path: polygon(0 0,82% 0,100% 18%,100% 100%,18% 100%,0 82%); }
+  .brand h1 { @apply m-0 whitespace-nowrap text-base tracking-tight; }
+  .brand .sub { @apply m-0 font-mono text-[10px] font-semibold uppercase tracking-[.12em] text-hh-faint; }
+  .masthead-right { @apply ml-auto flex items-center gap-3; }
+  .live-pill { @apply inline-flex items-center gap-2 rounded-full border border-hh-line2 px-3 py-1 font-mono text-[11px] font-bold; }
+  .live-pill .dot { @apply h-2 w-2 rounded-full bg-hh-faint; }
+  .live-pill.on { @apply border-hh-green/40 text-hh-green; }
+  .live-pill.on .dot { @apply animate-blink bg-hh-green shadow-[0_0_8px_rgba(74,222,128,.7)]; }
+  .refresh-btn { @apply cursor-pointer rounded-md border border-hh-line2 bg-hh-panel2 px-3.5 py-1.5 font-mono text-[11px] font-bold; }
+  .refresh-btn:hover { @apply border-hh-cyan; }
+  .refresh-btn:disabled { @apply cursor-wait opacity-50; }
+  .globalsearch { @apply mx-auto mt-3.5 max-w-screen px-5; }
+  .globalsearch-form { @apply flex gap-2; }
+  .search-drop { @apply relative flex-1; }
+  .globalsearch input, .filterbar input, .filterbar select, .rangebar input, .groupbar select { @apply border border-hh-line2 bg-hh-bg2; }
+  .globalsearch input { @apply h-10 w-full rounded-md px-3.5; }
+  .globalsearch button, .rangebar .apply { @apply cursor-pointer rounded-md border-0 bg-hh-cyan-dim font-mono font-bold text-[#06222a]; }
+  .globalsearch button { @apply h-10 px-[18px] text-xs; }
+  .globalsearch .hint { @apply m-[6px_2px_0] text-[11px] text-hh-faint; }
+  .search-drop .drop { @apply absolute left-0 right-0 top-11 z-[60] max-h-[420px] overflow-auto rounded-lg border border-hh-line2 bg-hh-panel2 shadow-2xl; }
+  .drop-section { @apply py-2; }
+  .drop-section + .drop-section { @apply border-t border-hh-line; }
+  .drop-label { @apply px-3.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-hh-faint; }
+  .drop-item { @apply flex w-full cursor-pointer items-center gap-2.5 border-0 bg-transparent px-3.5 py-1.5 text-left; }
+  .drop-item:hover { @apply bg-hh-cyan/10; }
+  .drop-item .k { @apply font-mono text-[12.5px] font-semibold; }
+  .drop-item .m { @apply ml-auto whitespace-nowrap text-[11px] text-hh-faint; }
+  .drop-item .kind { @apply h-2 w-2 flex-none rounded-sm; }
+  main { @apply mx-auto max-w-screen px-5 pb-[60px]; }
+  .rangebar { @apply mx-auto mt-3 flex flex-wrap items-center gap-2.5 rounded-hh border border-hh-line bg-hh-panel px-3.5 py-2; }
+  .rgroup { @apply flex flex-wrap gap-1; }
+  .rbtn { @apply cursor-pointer rounded-full border border-hh-line2 bg-hh-bg2 px-3 py-1.5 font-mono text-[11.5px] font-semibold text-hh-muted; }
+  .rbtn:hover { @apply border-hh-cyan-dim text-hh-ink; }
+  .rbtn.on { @apply border-hh-cyan bg-hh-cyan/10 text-hh-cyan; }
+  .rangebar input { @apply h-8 rounded px-2 text-xs; }
+  .rangebar .sep { @apply text-hh-faint; }
+  .rangebar .apply { @apply h-8 rounded px-3.5 text-[11px]; }
+  .rangelabel { @apply ml-auto whitespace-nowrap font-mono text-[11px] font-semibold text-hh-muted; }
+  .tabs { @apply my-4 flex gap-0.5 overflow-x-auto border-b border-hh-line; }
+  .tab-button { @apply cursor-pointer whitespace-nowrap border-0 border-b-2 border-transparent bg-transparent px-4 py-2 font-sans text-[13px] font-semibold text-hh-muted; }
+  .tab-button:hover { @apply text-hh-ink; }
+  .tab-button[aria-selected="true"] { @apply border-hh-cyan text-hh-cyan; }
+  .tab-button .cnt { @apply ml-1.5 font-mono text-[10px] font-semibold text-hh-faint; }
+  .tab-button .pulse { @apply ml-1.5 inline-block h-1.5 w-1.5 animate-blink rounded-full bg-hh-green; }
+  .panel, .metric { @apply mb-3.5 rounded-hh border border-hh-line bg-hh-panel; }
+  .panel-head { @apply flex items-start justify-between gap-3.5 border-b border-hh-line px-4 py-3; }
+  .panel-head h2, .panel-head h3 { @apply m-0 text-[14.5px]; }
+  .panel-head p { @apply mt-0.5 mb-0 text-[11.5px] text-hh-muted; }
+  .kicker { @apply mb-0.5 block font-mono text-[10px] font-bold uppercase tracking-widest text-hh-cyan; }
+  .panel-body { @apply px-4 py-3.5; }
+  .section-count { @apply whitespace-nowrap font-mono text-[11px] text-hh-muted; }
+  .metrics { @apply mb-3.5 grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5; }
+  .metric { @apply p-3; }
+  .metric .label { @apply font-mono text-[10px] font-bold uppercase tracking-wider text-hh-muted; }
+  .metric .value { @apply mt-0.5 font-mono text-[22px] font-bold leading-tight; }
+  .metric .sub { @apply mt-0.5 text-[10.5px] text-hh-faint; }
+  .metric.clickable { @apply cursor-pointer; }
+  .metric.clickable:hover { @apply border-hh-cyan-dim; }
+  .value.green, .metric .value.green { @apply text-hh-green; }
+  .value.red, .metric .value.red { @apply text-hh-red; }
+  .value.amber, .metric .value.amber { @apply text-hh-amber; }
+  .value.cyan, .metric .value.cyan { @apply text-hh-cyan; }
+  .value.violet, .metric .value.violet { @apply text-hh-violet; }
+  .grid-2, .grid-3, .grid-32, .overview-grid { @apply grid gap-3.5; }
+  .grid-2 { @apply grid-cols-2; } .grid-3 { @apply grid-cols-3; } .grid-32 { @apply grid-cols-[2fr_1fr]; } .overview-grid { @apply grid-cols-[1.6fr_1fr]; }
+  .table-wrap { @apply overflow-auto; }
+  table { @apply w-full border-collapse; }
+  th { @apply sticky top-0 z-[2] cursor-pointer whitespace-nowrap border-b border-hh-line bg-hh-panel px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-hh-muted; }
+  th.nosort { @apply cursor-default; } th .arr { @apply ml-0.5 text-hh-cyan; }
+  td { @apply whitespace-nowrap border-b border-hh-line px-2.5 py-2 align-middle; } td.wrap { @apply min-w-[220px] whitespace-normal; }
+  tbody tr { @apply cursor-pointer; } tbody tr:hover { @apply bg-hh-cyan/[.045]; } tbody tr.open { @apply bg-hh-cyan/[.07]; }
+  .mono { @apply font-mono text-xs; } .dim { @apply text-hh-muted; } .faint { @apply text-hh-faint; } .num { @apply text-right font-mono text-xs; }
+  .state, .sig, .chip, .badge-out { @apply inline-flex items-center rounded border font-mono text-[10px] font-bold; }
+  .state { @apply gap-1.5 px-2 py-0.5 uppercase tracking-wider; } .state::before { content: ''; @apply h-1.5 w-1.5 rounded-full bg-current; }
+  .state.active { @apply border-hh-green/35 bg-hh-green/[.08] text-hh-green; } .state.active::before { @apply animate-blink; }
+  .state.recent { @apply border-hh-cyan/35 bg-hh-cyan/[.07] text-hh-cyan; } .state.inactive { @apply border-hh-line2 text-hh-faint; }
+  .state.new { @apply border-hh-violet/35 bg-hh-violet/[.08] text-hh-violet; }
+  .sig { @apply px-1.5 py-0.5 font-semibold text-hh-muted; } .sig.long_session { @apply border-hh-amber/35 text-hh-amber; } .sig.many_destinations { @apply border-hh-violet/35 text-hh-violet; } .sig.failure_burst { @apply border-hh-red/35 text-hh-red; } .sig.new_ip { @apply border-hh-blue/35 text-hh-blue; }
+  .kv { @apply mb-2.5 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-5 gap-y-2; } .kv .item .k { @apply font-mono text-[10px] font-semibold uppercase text-hh-faint; } .kv .item .v { @apply mt-px break-words font-mono text-xs; }
+  .chiprow { @apply flex flex-wrap gap-1; } .chip { @apply border-hh-line2 px-2 py-0.5 font-medium text-hh-muted; } .chip a { @apply text-inherit; }
+  .expand-box { @apply bg-hh-bg2 px-4 py-3; } tr.expand-row > td { @apply p-0; }
+  .filterbar { @apply flex flex-wrap items-center gap-2 px-4 py-2.5; } .filterbar input, .filterbar select { @apply h-8 min-w-[110px] rounded px-2 text-sm; } .filterbar input[type="search"] { @apply min-w-[200px]; } .filterbar label.check { @apply inline-flex cursor-pointer items-center gap-1.5 text-xs text-hh-muted; }
+  .insight { @apply mb-2 flex cursor-pointer items-start gap-3 rounded-md border border-hh-line bg-hh-bg2 px-3.5 py-2.5; } .insight:hover { @apply border-hh-cyan-dim; } .insight .sev { @apply w-1 flex-none self-stretch rounded-sm; } .insight .sev.info { @apply bg-hh-blue; } .insight .sev.warning { @apply bg-hh-amber; } .insight .sev.critical { @apply bg-hh-red; } .insight .title { @apply text-[13px] font-semibold; } .insight .detail { @apply mt-px text-xs text-hh-muted; } .insight .when { @apply ml-auto whitespace-nowrap font-mono text-[10.5px] text-hh-faint; }
+  .session { @apply grid grid-cols-[130px_1fr_auto] items-center gap-3 border-b border-hh-line px-3.5 py-2.5; } .session:hover { @apply bg-hh-cyan/[.04]; } .session .t { @apply font-mono text-[11px] font-semibold text-hh-muted; } .session .flow { @apply flex flex-wrap items-center gap-2 font-mono text-xs; } .session .meta { @apply whitespace-nowrap text-right font-mono text-[11px] leading-7 text-hh-muted; }
+  .chart-box { @apply relative h-[240px] p-2.5; } .chart-legend { @apply flex flex-wrap gap-3.5 px-3.5 pb-2.5 text-[11px] text-hh-muted; } .chart-legend i { @apply mr-1 inline-block h-2 w-2 align-[-1px] rounded-sm; }
+  .tl { @apply relative m-0 list-none p-0; } .tl::before { content: ''; @apply absolute bottom-1.5 left-1.5 top-1.5 w-px bg-hh-line2; } .tl-item { @apply relative py-1.5 pl-7; } .tl-item::before { content: ''; @apply absolute left-[3px] top-[11px] h-[9px] w-[9px] rounded-full border-2 border-hh-cyan-dim bg-hh-bg; } .tl-item.ok::before { @apply border-hh-green; } .tl-item.fail::before { @apply border-hh-red; } .tl-item .when { @apply font-mono text-[10.5px] font-semibold text-hh-faint; } .tl-item .what { @apply text-[12.5px]; } .tl-item .what .route { @apply text-hh-muted; } .tl-item .meta { @apply text-[11px] text-hh-faint; }
+  .profile-head { @apply flex flex-wrap items-center gap-4 p-4; } .profile-head .big { @apply font-mono text-xl font-bold; } .profile-head .facts { @apply ml-auto flex flex-wrap gap-[18px]; } .profile-head .fact { @apply text-right; } .profile-head .fact .k { @apply font-mono text-[9.5px] uppercase text-hh-faint; } .profile-head .fact .v { @apply font-mono text-[13px] font-semibold; }
+  .notice { @apply mb-3 flex items-start gap-2.5 rounded-md border border-l-[3px] border-hh-line2 border-l-hh-amber bg-hh-bg2 px-3 py-2.5 text-xs text-hh-muted; } .notice.error { @apply border-l-hh-red; }
+  .empty { @apply p-10 text-center text-hh-muted; } .empty h3 { @apply mb-1 mt-2 text-hh-ink; } .spinner { @apply mx-auto my-[60px] h-[30px] w-[30px] animate-spin rounded-full border-[3px] border-hh-line border-t-hh-cyan; } .loadbar { @apply mb-2.5 h-0.5 overflow-hidden bg-transparent; } .loadbar i { @apply block h-full w-2/5 animate-slide bg-hh-cyan; }
+  .autorefresh-note, .footer-note { @apply text-[11px] text-hh-faint; } .autorefresh-note { @apply inline-flex items-center gap-1.5; } .footer-note { @apply px-0.5 py-2; }
+  .route-pipeline { @apply mb-1.5 flex flex-wrap items-center gap-1.5; } .pipeline-node { @apply inline-flex min-h-6 items-center rounded border px-1.5 py-1 font-mono text-[11px] font-semibold; } .pipeline-node.source { @apply border-hh-cyan/45 bg-hh-cyan/[.08] text-hh-cyan; } .pipeline-node.listener { @apply border-hh-amber/40 bg-hh-amber/[.07] text-hh-amber; } .pipeline-node.destination { @apply border-hh-violet/40 bg-hh-violet/[.07] text-hh-violet; } .pipeline-arrow, .pipeline-more { @apply font-mono text-hh-faint; }
+  .entity-actions { @apply mt-2.5 flex flex-wrap items-center gap-3; } .danger-btn { @apply cursor-pointer rounded border border-hh-red/35 bg-hh-red/[.06] px-2 py-1 font-mono text-[10px] font-bold text-hh-red; } .danger-btn:hover { @apply border-hh-red bg-hh-red/[.14]; }
+}
+
+@media (max-width: 1100px) { .grid-2, .grid-3, .grid-32, .overview-grid { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .masthead-row { @apply flex-wrap; } .session { @apply grid-cols-1; } .session .meta { @apply text-left; } }

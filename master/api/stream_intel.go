@@ -283,6 +283,7 @@ type intelQuery struct {
 	Protocol         string `json:"protocol,omitempty"`
 	Country          string `json:"country,omitempty"`
 	Outcome          string `json:"outcome,omitempty"`
+	NPMOnly          bool   `json:"npm_only"`
 	Range            string `json:"range,omitempty"`
 	RangeLabel       string `json:"range_label,omitempty"`
 	WindowStart      string `json:"window_start,omitempty"`
@@ -393,6 +394,7 @@ func serveStreamIntel(w http.ResponseWriter, r *http.Request, deps intelDependen
 	filters.endExclusive = timeWindow.end
 	query := r.URL.Query()
 	search := strings.TrimSpace(query.Get("q"))
+	npmOnly := strings.ToLower(strings.TrimSpace(query.Get("npm_only"))) == "true" || strings.TrimSpace(query.Get("npm_only")) == "1"
 	routeID := strings.TrimSpace(query.Get("route_id"))
 	destinationExact := strings.TrimSpace(query.Get("destination_exact"))
 	if routeID != "" && !intelValidRouteID(routeID) {
@@ -431,7 +433,7 @@ func serveStreamIntel(w http.ResponseWriter, r *http.Request, deps intelDependen
 		Search: search, SourceIP: filters.sourceIP, ListenerIP: filters.listenerIP,
 		DestinationIP: filters.destinationIP, RouteID: routeID, DestinationExact: destinationExact,
 		Protocol: filters.protocol, Country: filters.country, Outcome: filters.outcome,
-		Range: timeWindow.token, RangeLabel: timeWindow.label,
+		Range: timeWindow.token, RangeLabel: timeWindow.label, NPMOnly: npmOnly,
 	}
 	if !timeWindow.start.IsZero() {
 		response.Query.Start = timeWindow.start.UTC().Format("2006-01-02")
@@ -484,6 +486,9 @@ func serveStreamIntel(w http.ResponseWriter, r *http.Request, deps intelDependen
 		}
 	}
 	streamsAvailable := streamErr == nil
+	if npmOnly && streamsAvailable {
+		entries = filterIntelNPMEntries(entries, aliases, streams, descriptions)
+	}
 
 	entries = filterAnalyticsEntries(entries, filters, aliases)
 	if search != "" {
@@ -585,6 +590,19 @@ func serveStreamIntel(w http.ResponseWriter, r *http.Request, deps intelDependen
 	response.GeneratedAt = time.Now().UTC().Format(time.RFC3339)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(response)
+}
+
+func filterIntelNPMEntries(entries []streamLogEntry, aliases map[string][]string, streams []npm.Stream, descriptions map[int]string) []streamLogEntry {
+	filtered := make([]streamLogEntry, 0, len(entries))
+	for _, entry := range entries {
+		listener := enrichAnalyticsListener(entry.ProxyAddr, aliases)
+		destination := enrichAnalyticsEndpoint(entry.UpstreamAddr, aliases)
+		matched, _ := matchAnalyticsStreams(listener, destination, entry.Protocol, aliases, streams, descriptions, true)
+		if len(matched) > 0 {
+			filtered = append(filtered, entry)
+		}
+	}
+	return filtered
 }
 
 func intelFilterBySearch(entries []streamLogEntry, search string, aliases map[string][]string) []streamLogEntry {
