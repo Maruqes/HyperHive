@@ -271,6 +271,24 @@ function wireEvents() {
 
   // table row expansion + profile links (delegated)
   document.addEventListener('click', (e) => {
+    const pageButton = e.target.closest('[data-page-key]');
+    if (pageButton && !pageButton.disabled) {
+      const key = pageButton.dataset.pageKey;
+      const totalPages = pageButton.parentElement.querySelector('strong')?.textContent.match(/of (\d+)/)?.[1];
+      const maxPage = Number(totalPages) || state.pages[key];
+      state.pages[key] = pageButton.dataset.page === 'next'
+        ? Math.min(maxPage, state.pages[key] + 1)
+        : Math.max(1, state.pages[key] - 1);
+      const d = state.data;
+      if (key === 'live') renderLiveTab(d, Date.now());
+      else if (key === 'routes') renderRoutesTab(d, Date.now());
+      else if (key === 'ips') renderIpsTab(d, Date.now());
+      else if (key === 'dests') renderDestsTab(d, Date.now());
+      else if (key === 'evidence') renderEvidenceResults();
+      else if (key === 'profile') renderProfile(state.profile, Date.now());
+      else if (['insights', 'longest', 'recent', 'spikes'].includes(key)) renderOverview(state.data, Date.now());
+      return;
+    }
     const deleteButton = e.target.closest('[data-delete-kind]');
     if (deleteButton) {
       e.preventDefault();

@@ -17,7 +17,8 @@ const state = {
   },
   evidence: { kind: '', entity: '', start: '', end: '', outcome: '' },
   search: { query: '', seq: 0, dropResults: null },
-  profile: null, evData: null
+  profile: null, evData: null,
+  pages: { live: 1, routes: 1, ips: 1, dests: 1, evidence: 1, profile: 1, insights: 1, longest: 1, recent: 1, spikes: 1 }
 };
 
 /* ================= helpers ================= */
@@ -78,6 +79,21 @@ function endpointShort(ep) {
 function sourceEndpoint(ip, data = state.data) {
   const source = (data && data.sources || []).find(item => item.ip === ip);
   return source ? source : { ip };
+}
+
+const PAGE_SIZE = 25;
+function pageItems(items, key) {
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  state.pages[key] = Math.min(Math.max(1, state.pages[key] || 1), totalPages);
+  const start = (state.pages[key] - 1) * PAGE_SIZE;
+  return { items: items.slice(start, start + PAGE_SIZE), totalPages };
+}
+function renderPagination(id, key, total, totalPages) {
+  const target = $(id);
+  if (!target) return;
+  if (totalPages <= 1) { target.innerHTML = ''; return; }
+  const current = state.pages[key];
+  target.innerHTML = '<div class="pagination"><span>' + total.toLocaleString() + ' items</span><button type="button" data-page-key="' + key + '" data-page="prev" ' + (current === 1 ? 'disabled' : '') + '>Previous</button><strong>Page ' + current + ' of ' + totalPages + '</strong><button type="button" data-page-key="' + key + '" data-page="next" ' + (current === totalPages ? 'disabled' : '') + '>Next</button></div>';
 }
 
 /* ================= time range ================= */

@@ -3,7 +3,7 @@ function renderOverview(d, nowMs) {
   const ov = d.overview;
   if (!ov) {
     $('overviewMetrics').innerHTML = '';
-    ['ovLivePanel', 'ovTopSources', 'ovTopDestinations', 'ovLongest', 'ovRecent', 'ovSpikes'].forEach(id => { $(id).innerHTML = ''; });
+    ['ovLivePanel', 'ovTopSources', 'ovTopDestinations', 'ovLongest', 'ovRecent', 'ovSpikes', 'ovInsightsPagination', 'ovLongestPagination', 'ovRecentPagination', 'ovSpikesPagination'].forEach(id => { $(id).innerHTML = ''; });
     $('ovTimelineCount').textContent = '';
     $('ovSpikeCount').textContent = '';
     $('ovInsightCount').textContent = '';
@@ -27,15 +27,17 @@ function renderOverview(d, nowMs) {
 
   // insights
   const insights = d.insights || [];
+  const insightPage = pageItems(insights, 'insights');
   $('ovInsightCount').textContent = insights.length + ' findings';
   $('ovInsights').innerHTML = insights.length
-    ? insights.map(i =>
+    ? insightPage.items.map(i =>
       '<div class="insight" data-link="' + esc(i.link || '') + '" role="button" tabindex="0">' +
       '<span class="sev ' + esc(i.severity) + '"></span>' +
       '<div><div class="title">' + esc(i.title) + '</div><div class="detail">' + esc(i.detail) + '</div></div>' +
       '<span class="when">' + esc(ago(i.timestamp, nowMs)) + '</span></div>'
     ).join('')
     : '<div class="empty"><h3>Nothing unusual</h3><p>No anomalies, new IPs or long-lived sessions detected in this window.</p></div>';
+  renderPagination('ovInsightsPagination', 'insights', insights.length, insightPage.totalPages);
 
   // timeline chart
   renderOverviewChart(ov.hourly || []);
@@ -74,14 +76,19 @@ function renderOverview(d, nowMs) {
     '<span class="arrow">→</span><a href="#/destinations/' + encodeURIComponent(s.destination.raw_address || ipPort(s.destination.ip, s.destination.port)) + '">' + esc(endpointShort(s.destination)) + '</a>' +
     (s.country && s.country !== 'Unknown' ? ' <span class="faint">· ' + esc(s.country) + '</span>' : '') + '</div>' +
     '<div class="meta">' + esc(fmtDur(s.session_seconds)) + ' · ' + fmtBytes(s.total_bytes) + '<br><span class="badge-out ' + esc(s.outcome) + '">' + esc(s.outcome) + '</span></div></div>';
-  $('ovLongest').innerHTML = (ov.longest_sessions || []).map(sessionRow).join('') || '<div class="empty"><h3>No sessions</h3></div>';
-  $('ovRecent').innerHTML = (ov.recent_sessions || []).map(sessionRow).join('') || '<div class="empty"><h3>No sessions</h3></div>';
+  const longestPage = pageItems(ov.longest_sessions || [], 'longest');
+  const recentPage = pageItems(ov.recent_sessions || [], 'recent');
+  $('ovLongest').innerHTML = longestPage.items.map(sessionRow).join('') || '<div class="empty"><h3>No sessions</h3></div>';
+  $('ovRecent').innerHTML = recentPage.items.map(sessionRow).join('') || '<div class="empty"><h3>No sessions</h3></div>';
+  renderPagination('ovLongestPagination', 'longest', (ov.longest_sessions || []).length, longestPage.totalPages);
+  renderPagination('ovRecentPagination', 'recent', (ov.recent_sessions || []).length, recentPage.totalPages);
 
   // spikes
   const spikes = ov.spikes || [];
+  const spikePage = pageItems(spikes, 'spikes');
   $('ovSpikeCount').textContent = spikes.length ? spikes.length + ' detected' : 'none';
   $('ovSpikes').innerHTML = spikes.length
-    ? spikes.map(s =>
+     ? spikePage.items.map(s =>
       '<div class="insight" data-link="#/evidence" role="button" tabindex="0">' +
       '<span class="sev ' + esc(s.severity) + '"></span>' +
       '<div><div class="title">' + (s.kind === 'failure_burst' ? 'Failure burst' : 'Connection spike') + ' at ' + esc(fmtWhen(s.timestamp)) + '</div>' +
@@ -90,6 +97,7 @@ function renderOverview(d, nowMs) {
       '<span class="when">' + esc(ago(s.timestamp, nowMs)) + '</span></div>'
     ).join('')
     : '<div class="empty"><h3>No spikes</h3><p>Hourly volume stayed within its rolling baseline.</p></div>';
+  renderPagination('ovSpikesPagination', 'spikes', spikes.length, spikePage.totalPages);
 }
 
 function kv(k, v) { return '<div class="item"><div class="k">' + esc(k) + '</div><div class="v">' + esc(v) + '</div></div>'; }

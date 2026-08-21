@@ -104,7 +104,8 @@
         </div>
         <div class="panel">
           <div class="panel-head"><div><span class="kicker">Attention</span><h2>Insights</h2><p>New IPs, spikes, long-lived sessions, unusual breadth.</p></div><span class="section-count" id="ovInsightCount"></span></div>
-          <div class="panel-body" id="ovInsights"></div>
+           <div class="panel-body" id="ovInsights"></div>
+           <div id="ovInsightsPagination"></div>
         </div>
       </div>
       <div class="grid-3">
@@ -124,16 +125,17 @@
       <div class="grid-2">
         <div class="panel">
           <div class="panel-head"><div><span class="kicker">Longest lived</span><h3>Longest active-duration sessions</h3></div></div>
-          <div id="ovLongest"></div>
+           <div id="ovLongest"></div><div id="ovLongestPagination"></div>
         </div>
         <div class="panel">
           <div class="panel-head"><div><span class="kicker">Latest</span><h3>Recent activity</h3></div></div>
-          <div id="ovRecent"></div>
+           <div id="ovRecent"></div><div id="ovRecentPagination"></div>
         </div>
       </div>
       <div class="panel">
         <div class="panel-head"><div><span class="kicker">Anomalies</span><h3>Connection spikes &amp; failure bursts</h3><p>Hourly buckets compared against a rolling 24h baseline.</p></div><span class="section-count" id="ovSpikeCount"></span></div>
-        <div class="panel-body" id="ovSpikes"></div>
+         <div class="panel-body" id="ovSpikes"></div>
+         <div id="ovSpikesPagination"></div>
       </div>
     </section>
 
@@ -163,7 +165,8 @@
             <tbody id="liveTableBody"></tbody>
           </table>
         </div>
-        <div class="empty" id="liveEmpty" hidden><h3>No connections match</h3><p>Adjust filters, or the snapshot may be empty for this state.</p></div>
+         <div class="empty" id="liveEmpty" hidden><h3>No connections match</h3><p>Adjust filters, or the snapshot may be empty for this state.</p></div>
+         <div id="livePagination"></div>
       </div>
     </section>
 
@@ -190,7 +193,8 @@
             <tbody id="routesTableBody"></tbody>
           </table>
         </div>
-        <div class="empty" id="routesEmpty" hidden><h3>No routes match</h3><p>Try clearing the search or state filter.</p></div>
+         <div class="empty" id="routesEmpty" hidden><h3>No routes match</h3><p>Try clearing the search or state filter.</p></div>
+         <div id="routesPagination"></div>
       </div>
     </section>
 
@@ -216,7 +220,8 @@
             <tbody id="ipsTableBody"></tbody>
           </table>
         </div>
-        <div class="empty" id="ipsEmpty" hidden><h3>No IPs match</h3></div>
+         <div class="empty" id="ipsEmpty" hidden><h3>No IPs match</h3></div>
+         <div id="ipsPagination"></div>
       </div>
     </section>
 
@@ -242,7 +247,8 @@
             <tbody id="destTableBody"></tbody>
           </table>
         </div>
-        <div class="empty" id="destEmpty" hidden><h3>No destinations match</h3></div>
+         <div class="empty" id="destEmpty" hidden><h3>No destinations match</h3></div>
+         <div id="destPagination"></div>
       </div>
     </section>
 
@@ -266,7 +272,8 @@
       <div class="grid-32">
         <div class="panel">
           <div class="panel-head"><div><span class="kicker">Chronology</span><h3 id="evTitle">Session reconstruction</h3></div></div>
-          <div id="evTimeline"></div>
+           <div id="evTimeline"></div>
+           <div id="evidencePagination"></div>
         </div>
         <div class="panel">
           <div class="panel-head"><div><span class="kicker">Summary</span><h3>Reconstruction facts</h3></div></div>
@@ -282,7 +289,8 @@
         <div class="panel-body" id="profileFacts"></div>
         <div class="chart-box" id="profileChartBox"><canvas id="profileChart" role="img" aria-label="Activity per hour"></canvas></div>
         <div class="panel-head"><div><span class="kicker">History</span><h3>Activity timeline</h3><p>Newest first — click any row for the raw session.</p></div><span class="section-count" id="profileTimelineCount"></span></div>
-        <div class="table-wrap"><table><tbody id="profileTimeline"></tbody></table></div>
+         <div class="table-wrap"><table><tbody id="profileTimeline"></tbody></table></div>
+         <div id="profilePagination"></div>
       </div>
     </section>
   </div>

@@ -63,14 +63,16 @@ function renderEvidenceResults() {
   // narrative timeline, oldest → newest
   const ordered = [...sessions].reverse();
   const story = buildNarrative(ordered);
+  const storyPage = pageItems(story, 'evidence');
   $('evTimeline').innerHTML = story.length
-    ? '<ol class="tl">' + story.map(step =>
+    ? '<ol class="tl">' + storyPage.items.map(step =>
       '<li class="tl-item ' + step.cls + '">' +
       '<div class="when">' + esc(step.when) + '</div>' +
       '<div class="what">' + step.what + '</div>' +
       (step.meta ? '<div class="meta">' + step.meta + '</div>' : '') +
       '</li>').join('') + '</ol>'
-    : '<div class="empty"><h3>No sessions in scope</h3><p>Widen the time range or pick another entity.</p></div>';
+     : '<div class="empty"><h3>No sessions in scope</h3><p>Widen the time range or pick another entity.</p></div>';
+  renderPagination('evidencePagination', 'evidence', story.length, storyPage.totalPages);
 
   // facts summary
   const total = sessions.length;
@@ -224,9 +226,10 @@ function renderProfile(d, nowMs) {
   renderProfileChart(p.hourly || []);
 
   // session timeline for this profile
-  const sessions = (d.sessions || []).slice(0, 100);
+  const sessions = d.sessions || [];
+  const sessionPage = pageItems(sessions, 'profile');
   $('profileTimelineCount').textContent = sessions.length + ' sessions (newest first)';
-  $('profileTimeline').innerHTML = sessions.map(s =>
+  $('profileTimeline').innerHTML = sessionPage.items.map(s =>
     '<tr style="cursor:default"><td class="mono dim" style="width:130px">' + esc(fmtWhen(s.timestamp)) + '</td>' +
     '<td class="wrap"><span class="mono" style="font-size:12px">' +
     '<a href="#/ips/' + esc(s.source.ip) + '">' + esc(s.source.ip) + '</a> <span class="arrow">→</span> ' +
@@ -237,6 +240,7 @@ function renderProfile(d, nowMs) {
     '<td class="num" style="width:90px">' + fmtBytes(s.total_bytes) + '</td>' +
     '<td style="width:70px"><span class="badge-out ' + esc(s.outcome) + '">' + esc(s.outcome) + '</span></td></tr>'
   ).join('') || '<tr><td class="empty">No sessions in this window.</td></tr>';
+  renderPagination('profilePagination', 'profile', sessions.length, sessionPage.totalPages);
 }
 
 function renderProfileChart(hourly) {

@@ -118,6 +118,11 @@
   .autorefresh-note, .footer-note { @apply text-[11px] text-hh-faint; } .autorefresh-note { @apply inline-flex items-center gap-1.5; } .footer-note { @apply px-0.5 py-2; }
   .route-pipeline { @apply mb-1.5 flex flex-wrap items-center gap-1.5; } .pipeline-node { @apply inline-flex min-h-6 items-center rounded border px-1.5 py-1 font-mono text-[11px] font-semibold; } .pipeline-node.source { @apply border-hh-cyan/45 bg-hh-cyan/[.08] text-hh-cyan; } .pipeline-node.listener { @apply border-hh-amber/40 bg-hh-amber/[.07] text-hh-amber; } .pipeline-node.destination { @apply border-hh-violet/40 bg-hh-violet/[.07] text-hh-violet; } .pipeline-arrow, .pipeline-more { @apply font-mono text-hh-faint; }
   .entity-actions { @apply mt-2.5 flex flex-wrap items-center gap-3; } .danger-btn { @apply cursor-pointer rounded border border-hh-red/35 bg-hh-red/[.06] px-2 py-1 font-mono text-[10px] font-bold text-hh-red; } .danger-btn:hover { @apply border-hh-red bg-hh-red/[.14]; }
+  .pagination { @apply flex flex-wrap items-center justify-end gap-3 border-t border-hh-line px-4 py-3 font-mono text-[11px] text-hh-muted; }
+  .pagination button { @apply cursor-pointer rounded border border-hh-line2 bg-hh-bg2 px-2.5 py-1 text-hh-cyan; }
+  .pagination button:hover:not(:disabled) { @apply border-hh-cyan; }
+  .pagination button:disabled { @apply cursor-not-allowed opacity-40; }
+  .pagination strong { @apply font-semibold text-hh-ink; }
 }
 
 @media (max-width: 1100px) { .grid-2, .grid-3, .grid-32, .overview-grid { grid-template-columns: 1fr; } }
