@@ -2,9 +2,11 @@ package api
 
 import (
 	"bufio"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net"
 	"net/http"
@@ -15,6 +17,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -28,6 +31,9 @@ const (
 	topTalkersLimit      = 5
 	topCountryEntries    = 5
 	countryIPDetailLimit = 20
+	// logrotate keeps 730 rotated copies; read the whole family so history
+	// survives the daily copytruncate rotation.
+	streamMaxRotatedLogs = 740
 )
 
 var (
@@ -301,15 +307,112 @@ func getData(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+type streamLogCacheEntry struct {
+	size    int64
+	modTime time.Time
+	entries []streamLogEntry
+}
+
+var streamLogCache = struct {
+	sync.Mutex
+	files map[string]streamLogCacheEntry
+}{files: make(map[string]streamLogCacheEntry)}
+
+// readStreamLogEntries loads the live log plus every rotated sibling
+// (stream-proxy.log.1 … stream-proxy.log.N.gz), oldest first, so analytics
+// cover the full logrotate retention window instead of just the current day.
+// The returned slice is freshly allocated and safe for callers to mutate.
 func readStreamLogEntries() ([]streamLogEntry, error) {
-	file, err := os.Open(streamLogPath)
+	return readStreamLogFamily(streamLogPath, streamMaxRotatedLogs)
+}
+
+func readStreamLogFamily(basePath string, maxRotated int) ([]streamLogEntry, error) {
+	entries := make([]streamLogEntry, 0, 1024)
+	readable := 0
+	var firstErr error
+	for _, path := range streamLogFamilyPaths(basePath, maxRotated) {
+		fileEntries, err := readStreamLogFileCached(path)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		readable++
+		entries = append(entries, fileEntries...)
+	}
+	if readable == 0 {
+		if firstErr != nil {
+			return nil, firstErr
+		}
+		return nil, os.ErrNotExist
+	}
+	return entries, nil
+}
+
+// streamLogFamilyPaths lists the log family oldest-first: rotated copies
+// (.N.gz preferred over .N when both exist, per logrotate delaycompress)
+// followed by the live file. Gaps in rotation numbering are tolerated.
+func streamLogFamilyPaths(basePath string, maxRotated int) []string {
+	paths := make([]string, 0, 8)
+	for i := maxRotated; i >= 1; i-- {
+		plain := fmt.Sprintf("%s.%d", basePath, i)
+		gzipped := plain + ".gz"
+		if _, err := os.Stat(gzipped); err == nil {
+			paths = append(paths, gzipped)
+			continue
+		}
+		if _, err := os.Stat(plain); err == nil {
+			paths = append(paths, plain)
+		}
+	}
+	return append(paths, basePath)
+}
+
+func readStreamLogFileCached(path string) ([]streamLogEntry, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	streamLogCache.Lock()
+	cached, ok := streamLogCache.files[path]
+	streamLogCache.Unlock()
+	if ok && cached.size == info.Size() && cached.modTime.Equal(info.ModTime()) {
+		return cached.entries, nil
+	}
+	entries, err := readStreamLogFile(path)
+	if err != nil {
+		return nil, err
+	}
+	streamLogCache.Lock()
+	streamLogCache.files[path] = streamLogCacheEntry{size: info.Size(), modTime: info.ModTime(), entries: entries}
+	streamLogCache.Unlock()
+	return entries, nil
+}
+
+func readStreamLogFile(path string) ([]streamLogEntry, error) {
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	entries := make([]streamLogEntry, 0, 128)
+	var reader io.Reader = file
+	if strings.HasSuffix(path, ".gz") {
+		gz, gzErr := gzip.NewReader(file)
+		if gzErr != nil {
+			return nil, gzErr
+		}
+		defer gz.Close()
+		reader = gz
+	}
+
+	entries := make([]streamLogEntry, 0, 256)
+	scanner := bufio.NewScanner(reader)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
@@ -616,10 +719,17 @@ func loadEntriesWithGeoIP() ([]streamLogEntry, *geoip2.Reader, error) {
 		}
 	}
 
-	// Add country information to entries
+	// Add country information to entries (memoized per unique client IP)
 	if geoIPDB != nil {
+		countryMemo := make(map[string]string, 64)
 		for i := range entries {
-			entries[i].Country = getCountryFromIP(geoIPDB, entries[i].ClientIP)
+			ip := entries[i].ClientIP
+			country, memoized := countryMemo[ip]
+			if !memoized {
+				country = getCountryFromIP(geoIPDB, ip)
+				countryMemo[ip] = country
+			}
+			entries[i].Country = country
 		}
 	}
 

@@ -1,12 +1,12 @@
 package api
 
 import (
-	"regexp"
 	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -84,14 +84,14 @@ func TestIntelOverviewCountsLiveAndEntities(t *testing.T) {
 		connections: []liveConnection{
 			{
 				ID: "conn_a", State: "established", StateGroup: "active",
-				Local:  analyticsEndpoint{IP: "192.168.1.175", Port: "25565"},
-				Remote: analyticsEndpoint{IP: "10.0.0.5", Port: "51000"},
+				Local:       analyticsEndpoint{IP: "192.168.1.175", Port: "25565"},
+				Remote:      analyticsEndpoint{IP: "10.0.0.5", Port: "51000"},
 				Correlation: liveCorrelation{Role: "inbound_listener", Status: "matched"},
 			},
 			{
 				ID: "conn_b", State: "established", StateGroup: "active",
-				Local:  analyticsEndpoint{IP: "192.168.1.175", Port: "52000"},
-				Remote: analyticsEndpoint{IP: "192.168.76.77", Port: "25565"},
+				Local:       analyticsEndpoint{IP: "192.168.1.175", Port: "52000"},
+				Remote:      analyticsEndpoint{IP: "192.168.76.77", Port: "25565"},
 				Correlation: liveCorrelation{Role: "outbound_upstream", Status: "matched"},
 			},
 			{
@@ -678,4 +678,3 @@ func TestIntelAllTimeDefaultLabel(t *testing.T) {
 		t.Fatalf("expected All time label by default, got %q", payload.Query.RangeLabel)
 	}
 }
-

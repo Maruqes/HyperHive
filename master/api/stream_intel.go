@@ -24,15 +24,15 @@ import (
 )
 
 const (
-	intelRecencyWindow      = 10 * time.Minute
-	intelNewEntityWindow    = 24 * time.Hour
-	intelLiveTTL            = 20 * time.Second
-	intelMaxSources         = 2000
-	intelMaxRoutes          = 2000
-	intelMaxDestinations    = 1000
-	intelMaxSeriesPoints    = 400
-	intelSparkMaxBuckets    = 30
-	intelDailyStepThreshold = 72 * time.Hour
+	intelRecencyWindow         = 10 * time.Minute
+	intelNewEntityWindow       = 24 * time.Hour
+	intelLiveTTL               = 20 * time.Second
+	intelMaxSources            = 2000
+	intelMaxRoutes             = 2000
+	intelMaxDestinations       = 1000
+	intelMaxSeriesPoints       = 400
+	intelSparkMaxBuckets       = 30
+	intelDailyStepThreshold    = 72 * time.Hour
 	intelMaxSourceDests        = 50
 	intelMaxSourceRoutes       = 50
 	intelMaxRouteSources       = 100
@@ -87,36 +87,36 @@ type intelRef struct {
 }
 
 type intelSource struct {
-	IP                string            `json:"ip"`
-	Aliases           []string          `json:"aliases"`
-	Scope             string            `json:"scope"`
-	Countries         []string          `json:"countries"`
-	ActiveNow         bool              `json:"active_now"`
-	ActiveConnections int               `json:"active_connections"`
-	RecentlyActive    bool              `json:"recently_active"`
-	New               bool              `json:"new"`
-	FirstSeen         string            `json:"first_seen"`
-	LastSeen          string            `json:"last_seen"`
-	Connections       int               `json:"connections"`
-	Failed            int               `json:"failed"`
-	FailureRate       float64           `json:"failure_rate"`
-	BytesSent         int64             `json:"bytes_sent"`
-	BytesReceived     int64             `json:"bytes_received"`
-	TotalBytes        int64             `json:"total_bytes"`
-	AvgSession        float64           `json:"avg_session_seconds"`
-	MaxSession        float64           `json:"max_session_seconds"`
-	UniqueDestinations int              `json:"unique_destinations"`
-	UniqueRoutes      int               `json:"unique_routes"`
-	UniqueListeners   int               `json:"unique_listeners"`
-	Destinations      []intelRef        `json:"destinations"`
-	Routes            []intelRef        `json:"routes"`
-	Listeners         []intelRef        `json:"listeners"`
-	Ports             []string          `json:"ports"`
-	Protocols         []string          `json:"protocols"`
-	Spark             []int             `json:"spark"`
-	SparkHours        []string          `json:"spark_hours"`
-	Signals           []string          `json:"signals"`
-	LastDestination   string            `json:"last_destination"`
+	IP                 string     `json:"ip"`
+	Aliases            []string   `json:"aliases"`
+	Scope              string     `json:"scope"`
+	Countries          []string   `json:"countries"`
+	ActiveNow          bool       `json:"active_now"`
+	ActiveConnections  int        `json:"active_connections"`
+	RecentlyActive     bool       `json:"recently_active"`
+	New                bool       `json:"new"`
+	FirstSeen          string     `json:"first_seen"`
+	LastSeen           string     `json:"last_seen"`
+	Connections        int        `json:"connections"`
+	Failed             int        `json:"failed"`
+	FailureRate        float64    `json:"failure_rate"`
+	BytesSent          int64      `json:"bytes_sent"`
+	BytesReceived      int64      `json:"bytes_received"`
+	TotalBytes         int64      `json:"total_bytes"`
+	AvgSession         float64    `json:"avg_session_seconds"`
+	MaxSession         float64    `json:"max_session_seconds"`
+	UniqueDestinations int        `json:"unique_destinations"`
+	UniqueRoutes       int        `json:"unique_routes"`
+	UniqueListeners    int        `json:"unique_listeners"`
+	Destinations       []intelRef `json:"destinations"`
+	Routes             []intelRef `json:"routes"`
+	Listeners          []intelRef `json:"listeners"`
+	Ports              []string   `json:"ports"`
+	Protocols          []string   `json:"protocols"`
+	Spark              []int      `json:"spark"`
+	SparkHours         []string   `json:"spark_hours"`
+	Signals            []string   `json:"signals"`
+	LastDestination    string     `json:"last_destination"`
 }
 
 type intelRoute struct {
@@ -144,44 +144,44 @@ type intelRoute struct {
 }
 
 type intelDestination struct {
-	Endpoint           analyticsEndpoint `json:"endpoint"`
-	ActiveNow          bool              `json:"active_now"`
-	ActiveConnections  int               `json:"active_connections"`
-	UniqueSources      int               `json:"unique_sources"`
-	TopSources         []intelRef        `json:"top_sources"`
-	Routes             []intelRef        `json:"routes"`
-	Protocols          []string          `json:"protocols"`
-	Countries          []string          `json:"countries"`
-	FirstSeen          string            `json:"first_seen"`
-	LastSeen           string            `json:"last_seen"`
-	Connections        int               `json:"connections"`
-	Failed             int               `json:"failed"`
-	FailureRate        float64           `json:"failure_rate"`
-	TotalBytes         int64             `json:"total_bytes"`
-	AvgSession         float64           `json:"avg_session_seconds"`
-	MaxSession         float64           `json:"max_session_seconds"`
-	Spark              []int             `json:"spark"`
-	SparkHours         []string          `json:"spark_hours"`
-	Signals            []string          `json:"signals"`
+	Endpoint          analyticsEndpoint `json:"endpoint"`
+	ActiveNow         bool              `json:"active_now"`
+	ActiveConnections int               `json:"active_connections"`
+	UniqueSources     int               `json:"unique_sources"`
+	TopSources        []intelRef        `json:"top_sources"`
+	Routes            []intelRef        `json:"routes"`
+	Protocols         []string          `json:"protocols"`
+	Countries         []string          `json:"countries"`
+	FirstSeen         string            `json:"first_seen"`
+	LastSeen          string            `json:"last_seen"`
+	Connections       int               `json:"connections"`
+	Failed            int               `json:"failed"`
+	FailureRate       float64           `json:"failure_rate"`
+	TotalBytes        int64             `json:"total_bytes"`
+	AvgSession        float64           `json:"avg_session_seconds"`
+	MaxSession        float64           `json:"max_session_seconds"`
+	Spark             []int             `json:"spark"`
+	SparkHours        []string          `json:"spark_hours"`
+	Signals           []string          `json:"signals"`
 }
 
 type intelSession struct {
-	Timestamp          string            `json:"timestamp"`
-	EndedAt            string            `json:"ended_at"`
-	Source             analyticsEndpoint `json:"source"`
-	ObservedListener   analyticsEndpoint `json:"observed_listener"`
-	Destination        analyticsEndpoint `json:"destination"`
-	Protocol           string            `json:"protocol"`
-	Country            string            `json:"country"`
-	RouteID            string            `json:"route_id"`
-	StreamMatchStatus  string            `json:"stream_match_status"`
-	Streams            []analyticsStream `json:"streams"`
-	Status             int               `json:"status"`
-	Outcome            string            `json:"outcome"`
-	BytesSent          int64             `json:"bytes_sent"`
-	BytesReceived      int64             `json:"bytes_received"`
-	TotalBytes         int64             `json:"total_bytes"`
-	SessionSeconds     float64           `json:"session_seconds"`
+	Timestamp         string            `json:"timestamp"`
+	EndedAt           string            `json:"ended_at"`
+	Source            analyticsEndpoint `json:"source"`
+	ObservedListener  analyticsEndpoint `json:"observed_listener"`
+	Destination       analyticsEndpoint `json:"destination"`
+	Protocol          string            `json:"protocol"`
+	Country           string            `json:"country"`
+	RouteID           string            `json:"route_id"`
+	StreamMatchStatus string            `json:"stream_match_status"`
+	Streams           []analyticsStream `json:"streams"`
+	Status            int               `json:"status"`
+	Outcome           string            `json:"outcome"`
+	BytesSent         int64             `json:"bytes_sent"`
+	BytesReceived     int64             `json:"bytes_received"`
+	TotalBytes        int64             `json:"total_bytes"`
+	SessionSeconds    float64           `json:"session_seconds"`
 }
 
 type intelLiveSummary struct {
@@ -248,19 +248,19 @@ type intelInsight struct {
 }
 
 type intelProfile struct {
-	Kind         string           `json:"kind"`
-	Source       *intelSource     `json:"source,omitempty"`
-	Route        *intelRoute      `json:"route,omitempty"`
+	Kind         string            `json:"kind"`
+	Source       *intelSource      `json:"source,omitempty"`
+	Route        *intelRoute       `json:"route,omitempty"`
 	Destination  *intelDestination `json:"destination,omitempty"`
-	Hourly       []intelHourPoint `json:"hourly"`
-	ActivityFrom string           `json:"activity_from"`
+	Hourly       []intelHourPoint  `json:"hourly"`
+	ActivityFrom string            `json:"activity_from"`
 }
 
 type intelHourPoint struct {
-	Timestamp   string  `json:"timestamp"`
-	Connections int     `json:"connections"`
-	Failed      int     `json:"failed"`
-	TotalBytes  int64   `json:"total_bytes"`
+	Timestamp   string `json:"timestamp"`
+	Connections int    `json:"connections"`
+	Failed      int    `json:"failed"`
+	TotalBytes  int64  `json:"total_bytes"`
 }
 
 type intelSearchMatches struct {
@@ -290,29 +290,29 @@ type intelQuery struct {
 }
 
 type intelResponse struct {
-	GeneratedAt     string              `json:"generated_at"`
-	Now             string              `json:"now"`
-	Query           intelQuery          `json:"query"`
-	Mode            string              `json:"mode"`
-	Live            intelLiveSummary    `json:"live"`
-	Overview        *intelOverview      `json:"overview,omitempty"`
-	Sources         []intelSource       `json:"sources"`
-	Routes          []intelRoute        `json:"routes"`
-	Destinations    []intelDestination  `json:"destinations"`
-	Sessions        []intelSession      `json:"sessions"`
-	SessionsTotal   int                 `json:"sessions_total"`
-	Insights        []intelInsight      `json:"insights"`
-	Profile         *intelProfile       `json:"profile,omitempty"`
-	SearchMatches   *intelSearchMatches `json:"search_matches,omitempty"`
-	TotalEntries    int                 `json:"total_available_entries"`
-	FilteredEntries int                 `json:"filtered_entries"`
+	GeneratedAt     string                `json:"generated_at"`
+	Now             string                `json:"now"`
+	Query           intelQuery            `json:"query"`
+	Mode            string                `json:"mode"`
+	Live            intelLiveSummary      `json:"live"`
+	Overview        *intelOverview        `json:"overview,omitempty"`
+	Sources         []intelSource         `json:"sources"`
+	Routes          []intelRoute          `json:"routes"`
+	Destinations    []intelDestination    `json:"destinations"`
+	Sessions        []intelSession        `json:"sessions"`
+	SessionsTotal   int                   `json:"sessions_total"`
+	Insights        []intelInsight        `json:"insights"`
+	Profile         *intelProfile         `json:"profile,omitempty"`
+	SearchMatches   *intelSearchMatches   `json:"search_matches,omitempty"`
+	TotalEntries    int                   `json:"total_available_entries"`
+	FilteredEntries int                   `json:"filtered_entries"`
 	Availability    analyticsAvailability `json:"availability"`
-	Warnings        []string            `json:"warnings"`
+	Warnings        []string              `json:"warnings"`
 }
 
 type intelSourceAgg struct {
-	ip          string
-	metrics     analyticsAccumulator
+	ip           string
+	metrics      analyticsAccumulator
 	destinations map[string]int
 	routes       map[string]int
 	listeners    map[string]int
@@ -1035,14 +1035,14 @@ func intelBuildSources(aggs map[string]*intelSourceAgg, aliases map[string][]str
 			IP: agg.ip, Aliases: endpoint.Aliases, Scope: analyticsIPScope(agg.ip),
 			Countries: sortedSet(agg.countries), ActiveNow: activeConnections > 0,
 			ActiveConnections: activeConnections, RecentlyActive: recent, New: isNew,
-			FirstSeen:         analyticsTime(agg.metrics.firstSeen), LastSeen: lastSeen,
-			Connections:       agg.metrics.connections, Failed: agg.metrics.failures,
+			FirstSeen: analyticsTime(agg.metrics.firstSeen), LastSeen: lastSeen,
+			Connections: agg.metrics.connections, Failed: agg.metrics.failures,
 			FailureRate: analyticsFailureRate(agg.metrics), BytesSent: agg.metrics.bytesSent,
 			BytesReceived: agg.metrics.bytesReceived, TotalBytes: agg.metrics.bytesSent + agg.metrics.bytesReceived,
 			AvgSession: analyticsAverageSession(agg.metrics), MaxSession: agg.metrics.maxSession,
 			UniqueDestinations: len(agg.destinations), UniqueRoutes: len(agg.routes),
-			UniqueListeners:    len(agg.listeners),
-			Destinations:       destinationRefs, Routes: routeRefs, Listeners: listenerRefs,
+			UniqueListeners: len(agg.listeners),
+			Destinations:    destinationRefs, Routes: routeRefs, Listeners: listenerRefs,
 			Ports: sortedSet(agg.ports), Protocols: sortedSet(agg.protocols),
 			Spark: spark, SparkHours: sparkLabels,
 			Signals: intelSourceSignals(agg, activeConnections > 0, now), LastDestination: lastDestination,
@@ -1212,7 +1212,7 @@ func intelBuildSessions(entries []streamLogEntry, aliases map[string][]string, s
 			Source:           enrichAnalyticsEndpoint(entry.ClientIP, aliases),
 			ObservedListener: listener, Destination: destination,
 			Protocol: strings.ToUpper(entry.Protocol), Country: analyticsCountry(entry.Country),
-			RouteID: intelRouteID(intelRouteKey(entry.ProxyAddr, entry.UpstreamAddr, entry.Protocol)),
+			RouteID:           intelRouteID(intelRouteKey(entry.ProxyAddr, entry.UpstreamAddr, entry.Protocol)),
 			StreamMatchStatus: matchStatus, Streams: matchedStreams,
 			Status: entry.Status, Outcome: analyticsOutcome(entry.Status),
 			BytesSent: entry.BytesSent, BytesReceived: entry.BytesReceived,
@@ -1480,9 +1480,9 @@ func intelBuildInsights(sourceAggs map[string]*intelSourceAgg, routeAggs map[str
 		}
 		insights = append(insights, intelInsight{
 			ID: "new-ip-" + agg.ip, Severity: "info", Category: "new_ip",
-			Title: "New source IP " + agg.ip,
+			Title:  "New source IP " + agg.ip,
 			Detail: strconv.Itoa(agg.metrics.connections) + " sessions since first seen " + analyticsTime(agg.metrics.firstSeen),
-			Link:  "#/ips/" + agg.ip, Timestamp: analyticsTime(agg.metrics.firstSeen),
+			Link:   "#/ips/" + agg.ip, Timestamp: analyticsTime(agg.metrics.firstSeen),
 		})
 	}
 
@@ -1518,9 +1518,9 @@ func intelBuildInsights(sourceAggs map[string]*intelSourceAgg, routeAggs map[str
 		hours := session.SessionSeconds / 3600
 		insights = append(insights, intelInsight{
 			ID: "long-session-" + session.RouteID + "-" + session.Timestamp, Severity: "warning", Category: "long_session",
-			Title: "Long-lived session (" + strconv.FormatFloat(hours, 'f', 1, 64) + "h)",
+			Title:  "Long-lived session (" + strconv.FormatFloat(hours, 'f', 1, 64) + "h)",
 			Detail: session.Source.IP + " → " + intelShortLabel(session.Destination) + " via " + intelShortLabel(session.ObservedListener),
-			Link:  "#/ips/" + session.Source.IP, Timestamp: session.Timestamp,
+			Link:   "#/ips/" + session.Source.IP, Timestamp: session.Timestamp,
 		})
 	}
 
@@ -1533,9 +1533,9 @@ func intelBuildInsights(sourceAggs map[string]*intelSourceAgg, routeAggs map[str
 			breadthCount++
 			insights = append(insights, intelInsight{
 				ID: "breadth-" + agg.ip, Severity: "warning", Category: "many_destinations",
-				Title: "Unusual destination breadth for " + agg.ip,
+				Title:  "Unusual destination breadth for " + agg.ip,
 				Detail: strconv.Itoa(len(agg.destinations)) + " distinct destinations reached",
-				Link:  "#/ips/" + agg.ip, Timestamp: analyticsTime(agg.metrics.lastSeen),
+				Link:   "#/ips/" + agg.ip, Timestamp: analyticsTime(agg.metrics.lastSeen),
 			})
 		}
 	}
@@ -1549,9 +1549,9 @@ func intelBuildInsights(sourceAggs map[string]*intelSourceAgg, routeAggs map[str
 			failureCount++
 			insights = append(insights, intelInsight{
 				ID: "failures-" + agg.ip, Severity: "warning", Category: "failure_burst",
-				Title: "High failure rate for " + agg.ip,
+				Title:  "High failure rate for " + agg.ip,
 				Detail: strconv.Itoa(agg.metrics.failures) + " of " + strconv.Itoa(agg.metrics.connections) + " sessions failed",
-				Link:  "#/ips/" + agg.ip, Timestamp: analyticsTime(agg.metrics.lastSeen),
+				Link:   "#/ips/" + agg.ip, Timestamp: analyticsTime(agg.metrics.lastSeen),
 			})
 		}
 	}
