@@ -2,12 +2,12 @@
 function renderOverview(d, nowMs) {
   const ov = d.overview;
   if (!ov) {
-    $('overviewMetrics').innerHTML = '';
-    ['ovLivePanel', 'ovTopSources', 'ovTopDestinations', 'ovLongest', 'ovRecent', 'ovSpikes', 'ovInsightsPagination', 'ovLongestPagination', 'ovRecentPagination', 'ovSpikesPagination'].forEach(id => { $(id).innerHTML = ''; });
-    $('ovTimelineCount').textContent = '';
-    $('ovSpikeCount').textContent = '';
-    $('ovInsightCount').textContent = '';
-    $('ovInsights').innerHTML = '<div class="empty"><h3>Overview is unavailable in scoped search</h3><p>Clear the search scope to restore the full operational picture, or keep exploring the matching IPs, routes and destinations tabs.</p></div>';
+    if ($('overviewMetrics')) $('overviewMetrics').innerHTML = '';
+    ['ovLivePanel', 'ovTopSources', 'ovTopDestinations', 'ovLongest', 'ovRecent', 'ovSpikes', 'ovInsightsPagination', 'ovLongestPagination', 'ovRecentPagination', 'ovSpikesPagination'].forEach(id => { const el = $(id); if (el) el.innerHTML = ''; });
+    if ($('ovTimelineCount')) $('ovTimelineCount').textContent = '';
+    if ($('ovSpikeCount')) $('ovSpikeCount').textContent = '';
+    if ($('ovInsightCount')) $('ovInsightCount').textContent = '';
+    if ($('ovInsights')) $('ovInsights').innerHTML = '<div class="empty"><h3>Overview is unavailable in scoped search</h3><p>Clear the search scope to restore the full operational picture, or keep exploring the matching IPs, routes and destinations tabs.</p></div>';
     renderOverviewChart([]);
     return;
   }
