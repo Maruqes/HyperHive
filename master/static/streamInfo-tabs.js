@@ -133,6 +133,9 @@ function renderRoutesTab(d, nowMs) {
     }
     return true;
   });
+  if (f.npmOnly) {
+    rows = rows.filter(r => r.streams && r.streams.length > 0);
+  }
   rows.sort((a, b) => {
     if (f.sort === 'recent') return new Date(b.last_seen || 0) - new Date(a.last_seen || 0);
     if (f.sort === 'duration') return b.max_session_seconds - a.max_session_seconds;
@@ -140,11 +143,12 @@ function renderRoutesTab(d, nowMs) {
     if (a.active_now !== b.active_now) return a.active_now ? -1 : 1;
     return b.connections - a.connections;
   });
-  const page = pageItems(rows, 'routes');
-  $('routesCount').textContent = rows.length + ' of ' + routes.length;
+  const pagination = (d.routes_pagination) || {};
+  const totalInPage = rows.length;
+  $('routesCount').textContent = (pagination.total != null ? pagination.total : rows.length) + ' total';
   $('routesEmpty').hidden = rows.length > 0;
   const maxSpark = Math.max(1, ...routes.map(r => Math.max(...(r.spark || [0]))));
-  $('routesTableBody').innerHTML = page.items.map(r => {
+  $('routesTableBody').innerHTML = rows.map(r => {
     const expanded = state.expanded.routes.has(r.id);
     return '<tr class="' + (expanded ? 'open' : '') + '" data-route="' + esc(r.id) + '">' +
       '<td>' + stateBadge(r, nowMs) + (r.active_now && r.active_connections > 1 ? ' <span class="faint mono" style="font-size:10px">×' + r.active_connections + '</span>' : '') + '</td>' +
@@ -158,7 +162,7 @@ function renderRoutesTab(d, nowMs) {
       '<td>' + sparkHTML(r.spark, maxSpark, r.spark_hours) + '</td></tr>' +
       (expanded ? '<tr class="expand-row"><td colspan="9"><div class="expand-box">' + routeExpandBox(r) + '</div></td></tr>' : '');
   }).join('');
-  renderPagination('routesPagination', 'routes', rows.length, page.totalPages);
+  renderServerPagination('routesPagination', 'routes', pagination);
 }
 
 function routeSourcesHTML(r) {
@@ -219,11 +223,11 @@ function renderIpsTab(d, nowMs) {
     if (a.active_now !== b.active_now) return a.active_now ? -1 : 1;
     return b.connections - a.connections;
   });
-  const page = pageItems(rows, 'ips');
-  $('ipsCount').textContent = rows.length + ' of ' + sources.length;
+  const pagination = (d.sources_pagination) || {};
+  $('ipsCount').textContent = (pagination.total != null ? pagination.total : rows.length) + ' total';
   $('ipsEmpty').hidden = rows.length > 0;
   const maxSpark = Math.max(1, ...sources.map(s => Math.max(...(s.spark || [0]))));
-  $('ipsTableBody').innerHTML = page.items.map(s => {
+  $('ipsTableBody').innerHTML = rows.map(s => {
     const expanded = state.expanded.ips.has(s.ip);
     return '<tr class="' + (expanded ? 'open' : '') + '" data-ip="' + esc(s.ip) + '">' +
       '<td>' + stateBadge(s, nowMs) + '</td>' +
@@ -240,7 +244,7 @@ function renderIpsTab(d, nowMs) {
       '<td>' + signalsHTML(s.signals) + '</td></tr>' +
       (expanded ? '<tr class="expand-row"><td colspan="11"><div class="expand-box">' + ipExpandBox(s) + '</div></td></tr>' : '');
   }).join('');
-  renderPagination('ipsPagination', 'ips', rows.length, page.totalPages);
+  renderServerPagination('ipsPagination', 'ips', pagination);
 }
 
 function ipExpandBox(s) {

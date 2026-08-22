@@ -57,6 +57,8 @@ const (
 	intelMaxLongestSessions    = 8
 	intelMaxRecentSessions     = 12
 	intelMaxSearchMatches      = 25
+	intelDefaultPageSize       = 50
+	intelMaxPageSize           = 500
 )
 
 type intelDependencies struct {
@@ -290,25 +292,36 @@ type intelQuery struct {
 	WindowEnd        string `json:"window_end,omitempty"`
 }
 
+type intelPagination struct {
+	Page       int  `json:"page"`
+	PageSize   int  `json:"page_size"`
+	Total      int  `json:"total"`
+	TotalPages int  `json:"total_pages"`
+	HasMore    bool `json:"has_more"`
+}
+
 type intelResponse struct {
-	GeneratedAt     string                `json:"generated_at"`
-	Now             string                `json:"now"`
-	Query           intelQuery            `json:"query"`
-	Mode            string                `json:"mode"`
-	Live            intelLiveSummary      `json:"live"`
-	Overview        *intelOverview        `json:"overview,omitempty"`
-	Sources         []intelSource         `json:"sources"`
-	Routes          []intelRoute          `json:"routes"`
-	Destinations    []intelDestination    `json:"destinations"`
-	Sessions        []intelSession        `json:"sessions"`
-	SessionsTotal   int                   `json:"sessions_total"`
-	Insights        []intelInsight        `json:"insights"`
-	Profile         *intelProfile         `json:"profile,omitempty"`
-	SearchMatches   *intelSearchMatches   `json:"search_matches,omitempty"`
-	TotalEntries    int                   `json:"total_available_entries"`
-	FilteredEntries int                   `json:"filtered_entries"`
-	Availability    analyticsAvailability `json:"availability"`
-	Warnings        []string              `json:"warnings"`
+	GeneratedAt          string                `json:"generated_at"`
+	Now                  string                `json:"now"`
+	Query                intelQuery            `json:"query"`
+	Mode                 string                `json:"mode"`
+	Live                 intelLiveSummary      `json:"live"`
+	Overview             *intelOverview        `json:"overview,omitempty"`
+	Sources              []intelSource         `json:"sources"`
+	Routes               []intelRoute          `json:"routes"`
+	Destinations         []intelDestination    `json:"destinations"`
+	Sessions             []intelSession        `json:"sessions"`
+	SessionsTotal        int                   `json:"sessions_total"`
+	Insights             []intelInsight        `json:"insights"`
+	Profile              *intelProfile         `json:"profile,omitempty"`
+	SearchMatches        *intelSearchMatches   `json:"search_matches,omitempty"`
+	TotalEntries         int                   `json:"total_available_entries"`
+	FilteredEntries      int                   `json:"filtered_entries"`
+	Availability         analyticsAvailability `json:"availability"`
+	Warnings             []string              `json:"warnings"`
+	SourcesPagination    intelPagination       `json:"sources_pagination"`
+	RoutesPagination     intelPagination       `json:"routes_pagination"`
+	DestinationsPagination intelPagination     `json:"destinations_pagination"`
 }
 
 type intelSourceAgg struct {
@@ -416,6 +429,46 @@ func serveStreamIntel(w http.ResponseWriter, r *http.Request, deps intelDependen
 	includeLive := true
 	if value := strings.ToLower(strings.TrimSpace(query.Get("live"))); value == "false" || value == "0" {
 		includeLive = false
+	}
+
+	pageSize := intelDefaultPageSize
+	if value := strings.TrimSpace(query.Get("page_size")); value != "" {
+		parsed, convErr := strconv.Atoi(value)
+		if convErr != nil || parsed < 1 {
+			respondJSONError(w, http.StatusBadRequest, "page_size must be a positive integer")
+			return
+		}
+		if parsed > intelMaxPageSize {
+			parsed = intelMaxPageSize
+		}
+		pageSize = parsed
+	}
+	sourcesPage := 1
+	if value := strings.TrimSpace(query.Get("sources_page")); value != "" {
+		parsed, convErr := strconv.Atoi(value)
+		if convErr != nil || parsed < 1 {
+			respondJSONError(w, http.StatusBadRequest, "sources_page must be a positive integer")
+			return
+		}
+		sourcesPage = parsed
+	}
+	routesPage := 1
+	if value := strings.TrimSpace(query.Get("routes_page")); value != "" {
+		parsed, convErr := strconv.Atoi(value)
+		if convErr != nil || parsed < 1 {
+			respondJSONError(w, http.StatusBadRequest, "routes_page must be a positive integer")
+			return
+		}
+		routesPage = parsed
+	}
+	destsPage := 1
+	if value := strings.TrimSpace(query.Get("destinations_page")); value != "" {
+		parsed, convErr := strconv.Atoi(value)
+		if convErr != nil || parsed < 1 {
+			respondJSONError(w, http.StatusBadRequest, "destinations_page must be a positive integer")
+			return
+		}
+		destsPage = parsed
 	}
 
 	response := intelResponse{
@@ -548,9 +601,17 @@ func serveStreamIntel(w http.ResponseWriter, r *http.Request, deps intelDependen
 	}
 	response.Mode = profileMode
 
-	response.Sources = intelBuildSources(sourceAggs, aliases, liveRemoteSources, now, sparkAxis, intelMaxSources)
-	response.Routes = intelBuildRoutes(routeAggs, aliases, streams, descriptions, streamsAvailable, liveDestSockets, now, sparkAxis, intelMaxRoutes)
-	response.Destinations = intelBuildDestinations(destAggs, aliases, liveDestSockets, now, sparkAxis, intelMaxDestinations)
+	allSources := intelBuildSources(sourceAggs, aliases, liveRemoteSources, now, sparkAxis, intelMaxSources)
+	allRoutes := intelBuildRoutes(routeAggs, aliases, streams, descriptions, streamsAvailable, liveDestSockets, now, sparkAxis, intelMaxRoutes)
+	allDestinations := intelBuildDestinations(destAggs, aliases, liveDestSockets, now, sparkAxis, intelMaxDestinations)
+
+	response.SourcesPagination = intelPageInfo(len(allSources), sourcesPage, pageSize)
+	response.RoutesPagination = intelPageInfo(len(allRoutes), routesPage, pageSize)
+	response.DestinationsPagination = intelPageInfo(len(allDestinations), destsPage, pageSize)
+
+	response.Sources = intelPageSlice(allSources, response.SourcesPagination)
+	response.Routes = intelPageSlice(allRoutes, response.RoutesPagination)
+	response.Destinations = intelPageSlice(allDestinations, response.DestinationsPagination)
 
 	sessionsAvailable := len(sessions)
 	if sessionsAvailable > sessionLimit {
@@ -579,7 +640,7 @@ func serveStreamIntel(w http.ResponseWriter, r *http.Request, deps intelDependen
 			return
 		}
 	case "search":
-		response.SearchMatches = intelSearchEntityMatches(search, response.Sources, response.Routes, response.Destinations)
+		response.SearchMatches = intelSearchEntityMatches(search, allSources, allRoutes, allDestinations)
 	}
 
 	if profileMode == "overview" {
@@ -1685,4 +1746,42 @@ func intelDestinationMatches(destination intelDestination, needle string) bool {
 		analyticsContains(strings.Join(destination.Protocols, " "), needle) ||
 		analyticsContains(strings.Join(destination.Countries, " "), needle) ||
 		analyticsContains(destination.Endpoint.Port, needle)
+}
+
+func intelPageInfo(total, page, pageSize int) intelPagination {
+	if pageSize < 1 {
+		pageSize = intelDefaultPageSize
+	}
+	totalPages := (total + pageSize - 1) / pageSize
+	if totalPages < 1 {
+		totalPages = 1
+	}
+	if page < 1 {
+		page = 1
+	}
+	if page > totalPages {
+		page = totalPages
+	}
+	return intelPagination{
+		Page:       page,
+		PageSize:   pageSize,
+		Total:      total,
+		TotalPages: totalPages,
+		HasMore:    page < totalPages,
+	}
+}
+
+func intelPageSlice[T any](items []T, p intelPagination) []T {
+	if len(items) == 0 {
+		return items
+	}
+	start := (p.Page - 1) * p.PageSize
+	if start >= len(items) {
+		return items[:0]
+	}
+	end := start + p.PageSize
+	if end > len(items) {
+		end = len(items)
+	}
+	return items[start:end]
 }

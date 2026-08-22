@@ -18,7 +18,10 @@ const state = {
   evidence: { kind: '', entity: '', start: '', end: '', outcome: '' },
   search: { query: '', seq: 0, dropResults: null },
   profile: null, evData: null,
-  pages: { live: 1, routes: 1, ips: 1, dests: 1, evidence: 1, profile: 1, insights: 1, longest: 1, recent: 1, spikes: 1 }
+  // server-side pages (sent to API):
+  serverPages: { ips: 1, routes: 1, dests: 1 },
+  // client-side pages (for in-memory lists):
+  pages: { live: 1, evidence: 1, profile: 1, insights: 1, longest: 1, recent: 1, spikes: 1 }
 };
 
 /* ================= helpers ================= */
@@ -96,6 +99,18 @@ function renderPagination(id, key, total, totalPages) {
   target.innerHTML = '<div class="pagination"><span>' + total.toLocaleString() + ' items</span><button type="button" data-page-key="' + key + '" data-page="prev" ' + (current === 1 ? 'disabled' : '') + '>Previous</button><strong>Page ' + current + ' of ' + totalPages + '</strong><button type="button" data-page-key="' + key + '" data-page="next" ' + (current === totalPages ? 'disabled' : '') + '>Next</button></div>';
 }
 
+// Server-side pagination: clicking prev/next triggers a new API call.
+function renderServerPagination(id, serverKey, pagination) {
+  const target = $(id);
+  if (!target) return;
+  const p = pagination || {};
+  const total = p.total || 0;
+  const totalPages = p.total_pages || 1;
+  const current = p.page || 1;
+  if (totalPages <= 1) { target.innerHTML = ''; return; }
+  target.innerHTML = '<div class="pagination"><span>' + total.toLocaleString() + ' items</span><button type="button" data-server-page-key="' + serverKey + '" data-page="prev" ' + (current === 1 ? 'disabled' : '') + '>Previous</button><strong>Page ' + current + ' of ' + totalPages + '</strong><button type="button" data-server-page-key="' + serverKey + '" data-page="next" ' + (current === totalPages ? 'disabled' : '') + '>Next</button></div>';
+}
+
 /* ================= time range ================= */
 function localInputToRFC3339(value) {
   if (!value) return '';
@@ -142,7 +157,7 @@ function reloadWithRange() {
 /* ================= data loading ================= */
 function buildQuery(extra = {}) {
   const params = new URLSearchParams();
-  const map = { source_ip: 'source_ip', listener_ip: 'listener_ip', destination_ip: 'destination_ip', route_id: 'route_id', destination_exact: 'destination_exact', q: 'q', start: 'start', end: 'end', outcome: 'outcome', protocol: 'protocol', country: 'country', session_limit: 'session_limit', live: 'live', npm_only: 'npm_only' };
+  const map = { source_ip: 'source_ip', listener_ip: 'listener_ip', destination_ip: 'destination_ip', route_id: 'route_id', destination_exact: 'destination_exact', q: 'q', start: 'start', end: 'end', outcome: 'outcome', protocol: 'protocol', country: 'country', session_limit: 'session_limit', live: 'live', npm_only: 'npm_only', sources_page: 'sources_page', routes_page: 'routes_page', destinations_page: 'destinations_page', page_size: 'page_size' };
   for (const [k, v] of Object.entries(extra)) {
     if (v !== undefined && v !== null && v !== '') params.set(map[k] || k, v);
   }
@@ -155,7 +170,14 @@ async function loadIntel(extra = {}) {
   $('loadbar').hidden = false;
   $('refreshBtn').disabled = true;
   try {
-    const query = { ...rangeParams(), npm_only: state.npmOnly ? 'true' : 'false', ...extra };
+    const query = {
+      ...rangeParams(),
+      npm_only: state.npmOnly ? 'true' : 'false',
+      sources_page: state.serverPages.ips,
+      routes_page: state.serverPages.routes,
+      destinations_page: state.serverPages.dests,
+      ...extra
+    };
     const qs = buildQuery(query);
     const res = await fetch(INTEL_ENDPOINT + (qs ? '?' + qs : ''), { headers: { 'Accept': 'application/json' } });
     if (!res.ok) {
