@@ -193,34 +193,43 @@ function wireEvents() {
 
   // global search
   let searchTimer = null;
-  $('searchInput').addEventListener('input', () => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(searchDropUpdate, 250);
-  });
-  $('searchInput').addEventListener('keydown', (e) => { if (e.key === 'Escape') $('searchDrop').hidden = true; });
-  document.addEventListener('click', (e) => { if (!e.target.closest('.search-drop')) $('searchDrop').hidden = true; });
-  $('searchForm').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const q = $('searchInput').value.trim();
-    $('searchDrop').hidden = true;
-    if (!q) return;
-    state.search.query = q;
-    loadIntel({ q }).then(() => {
-      if (state.data && state.data.search_matches) {
-        const m = state.data.search_matches;
-        if (m.sources.length === 1 && !m.destinations.length && !m.routes.length) { openProfile('ip', m.sources[0].ip); return; }
-        if (m.destinations.length === 1 && !m.sources.length && !m.routes.length) { openProfile('destination', m.destinations[0].endpoint.raw_address); return; }
-        if (m.routes.length === 1 && !m.sources.length && !m.destinations.length) { openProfile('route', m.routes[0].id); return; }
-        switchTab('ips');
-      }
+  const sInput = $('searchInput');
+  const sForm = $('searchForm');
+  const sDrop = $('searchDrop');
+  if (sInput) {
+    sInput.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(searchDropUpdate, 250);
     });
-  });
-  $('searchDrop').addEventListener('click', (e) => {
-    const item = e.target.closest('.drop-item');
-    if (!item) return;
-    $('searchDrop').hidden = true;
-    openProfile(item.dataset.kind, item.dataset.id);
-  });
+    sInput.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sDrop) sDrop.hidden = true; });
+  }
+  if (sDrop) {
+    document.addEventListener('click', (e) => { if (!e.target.closest('.search-drop')) sDrop.hidden = true; });
+    sDrop.addEventListener('click', (e) => {
+      const item = e.target.closest('.drop-item');
+      if (!item) return;
+      sDrop.hidden = true;
+      openProfile(item.dataset.kind, item.dataset.id);
+    });
+  }
+  if (sForm) {
+    sForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const q = sInput ? sInput.value.trim() : '';
+      if (sDrop) sDrop.hidden = true;
+      if (!q) return;
+      state.search.query = q;
+      loadIntel({ q }).then(() => {
+        if (state.data && state.data.search_matches) {
+          const m = state.data.search_matches;
+          if (m.sources.length === 1 && !m.destinations.length && !m.routes.length) { openProfile('ip', m.sources[0].ip); return; }
+          if (m.destinations.length === 1 && !m.sources.length && !m.routes.length) { openProfile('destination', m.destinations[0].endpoint.raw_address); return; }
+          if (m.routes.length === 1 && !m.sources.length && !m.destinations.length) { openProfile('route', m.routes[0].id); return; }
+          switchTab('ips');
+        }
+      });
+    });
+  }
 
   // live filters
   const liveInputs = [

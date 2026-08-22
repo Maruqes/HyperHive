@@ -209,15 +209,19 @@ async function loadIntel(extra = {}) {
 
 function renderScopeBar(q) {
   const bar = $('scopeBar');
+  if (!bar) return;
   if (!q) { bar.hidden = true; bar.innerHTML = ''; return; }
   bar.hidden = false;
   bar.innerHTML = '<span class="fchip">Scoped to: ' + esc(q) +
     '<button id="scopeClear" title="Clear search scope" aria-label="Clear search scope">✕</button></span>' +
     '<span class="faint" style="font-size:11px;margin-left:8px">All tabs now show only matching evidence.</span>';
-  $('scopeClear').addEventListener('click', () => {
-    $('searchInput').value = '';
-    loadIntel();
-  });
+  const clearBtn = $('scopeClear');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      if ($('searchInput')) $('searchInput').value = '';
+      loadIntel();
+    });
+  }
 }
 
 /* ================= rendering root ================= */
