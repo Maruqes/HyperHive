@@ -289,11 +289,11 @@ function renderDestsTab(d, nowMs) {
     if (a.active_now !== b.active_now) return a.active_now ? -1 : 1;
     return b.connections - a.connections;
   });
-  const page = pageItems(rows, 'dests');
-  $('destCount').textContent = rows.length + ' of ' + dests.length;
+  const pagination = (d.destinations_pagination) || {};
+  $('destCount').textContent = (pagination.total != null ? pagination.total : rows.length) + ' total';
   $('destEmpty').hidden = rows.length > 0;
   const maxSpark = Math.max(1, ...dests.map(x => Math.max(...(x.spark || [0]))));
-  $('destTableBody').innerHTML = page.items.map(x => {
+  $('destTableBody').innerHTML = rows.map(x => {
     const expanded = state.expanded.dests.has(x.endpoint.raw_address);
     return '<tr class="' + (expanded ? 'open' : '') + '" data-dest="' + esc(x.endpoint.raw_address) + '">' +
       '<td>' + stateBadge(x, nowMs) + '</td>' +
@@ -308,7 +308,7 @@ function renderDestsTab(d, nowMs) {
       '<td>' + signalsHTML(x.signals) + '</td></tr>' +
       (expanded ? '<tr class="expand-row"><td colspan="10"><div class="expand-box">' + destExpandBox(x) + '</div></td></tr>' : '');
   }).join('');
-  renderPagination('destPagination', 'dests', rows.length, page.totalPages);
+  renderServerPagination('destPagination', 'dests', pagination);
 }
 
 function destExpandBox(x) {

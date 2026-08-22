@@ -244,6 +244,7 @@ function wireEvents() {
     defs.forEach(([id, fkey, prop]) => {
       $(id).addEventListener('input', () => {
         state.filters[key][fkey] = $(id)[prop];
+        if (state.serverPages[key] !== undefined) state.serverPages[key] = 1;
         state.pages[key] = 1;
         const d = state.data;
         if (!d) return;
@@ -256,6 +257,7 @@ function wireEvents() {
   $('routeNpmOnly').addEventListener('change', () => {
     state.npmOnly = $('routeNpmOnly').checked;
     $('liveNpmOnly').checked = state.npmOnly;
+    state.serverPages.routes = 1;
     loadIntel();
   });
 
@@ -281,6 +283,18 @@ function wireEvents() {
 
   // table row expansion + profile links (delegated)
   document.addEventListener('click', (e) => {
+    const serverPageBtn = e.target.closest('[data-server-page-key]');
+    if (serverPageBtn && !serverPageBtn.disabled) {
+      const key = serverPageBtn.dataset.serverPageKey;
+      const totalPages = serverPageBtn.parentElement.querySelector('strong')?.textContent.match(/of (\d+)/)?.[1];
+      const maxPage = Number(totalPages) || 1;
+      const current = state.serverPages[key] || 1;
+      state.serverPages[key] = serverPageBtn.dataset.page === 'next'
+        ? Math.min(maxPage, current + 1)
+        : Math.max(1, current - 1);
+      loadIntel();
+      return;
+    }
     const pageButton = e.target.closest('[data-page-key]');
     if (pageButton && !pageButton.disabled) {
       const key = pageButton.dataset.pageKey;
@@ -291,9 +305,6 @@ function wireEvents() {
         : Math.max(1, state.pages[key] - 1);
       const d = state.data;
       if (key === 'live') renderLiveTab(d, Date.now());
-      else if (key === 'routes') renderRoutesTab(d, Date.now());
-      else if (key === 'ips') renderIpsTab(d, Date.now());
-      else if (key === 'dests') renderDestsTab(d, Date.now());
       else if (key === 'evidence') renderEvidenceResults();
       else if (key === 'profile') renderProfile(state.profile, Date.now());
       else if (['insights', 'longest', 'recent', 'spikes'].includes(key)) renderOverview(state.data, Date.now());

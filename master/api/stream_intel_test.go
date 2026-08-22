@@ -678,3 +678,51 @@ func TestIntelAllTimeDefaultLabel(t *testing.T) {
 		t.Fatalf("expected All time label by default, got %q", payload.Query.RangeLabel)
 	}
 }
+
+func TestIntelPagination(t *testing.T) {
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	var entries []streamLogEntry
+	for i := 1; i <= 15; i++ {
+		clientIP := "10.0.0." + string(rune('0'+i/10)) + string(rune('0'+i%10))
+		listener := "192.168.1.175:255" + string(rune('0'+i/10)) + string(rune('0'+i%10))
+		dest := "192.168.76." + string(rune('0'+i/10)) + string(rune('0'+i%10)) + ":25565"
+		at := now.Add(-time.Duration(i) * time.Hour)
+		entries = append(entries, intelEntryAt(clientIP, listener, dest, at, 60, 200))
+	}
+	harness := newIntelHarness(entries, nil)
+
+	// Test page 1 with page_size=5
+	_, p1 := harness.serve("range=7d&live=false&page_size=5&sources_page=1&routes_page=1&destinations_page=1")
+	if p1.SourcesPagination.Total != 15 || p1.SourcesPagination.TotalPages != 3 || p1.SourcesPagination.Page != 1 {
+		t.Fatalf("unexpected sources pagination page 1: %+v", p1.SourcesPagination)
+	}
+	if len(p1.Sources) != 5 {
+		t.Fatalf("expected 5 sources on page 1, got %d", len(p1.Sources))
+	}
+	if p1.RoutesPagination.Total != 15 || p1.RoutesPagination.TotalPages != 3 || p1.RoutesPagination.Page != 1 {
+		t.Fatalf("unexpected routes pagination page 1: %+v", p1.RoutesPagination)
+	}
+	if len(p1.Routes) != 5 {
+		t.Fatalf("expected 5 routes on page 1, got %d", len(p1.Routes))
+	}
+
+	// Test page 3 with page_size=5
+	_, p3 := harness.serve("range=7d&live=false&page_size=5&sources_page=3&routes_page=3&destinations_page=3")
+	if p3.SourcesPagination.Page != 3 || p3.SourcesPagination.HasMore != false {
+		t.Fatalf("unexpected sources pagination page 3: %+v", p3.SourcesPagination)
+	}
+	if len(p3.Sources) != 5 {
+		t.Fatalf("expected 5 sources on page 3, got %d", len(p3.Sources))
+	}
+
+	// Ensure items on page 1 and page 3 do not overlap
+	p1IPs := make(map[string]bool)
+	for _, s := range p1.Sources {
+		p1IPs[s.IP] = true
+	}
+	for _, s := range p3.Sources {
+		if p1IPs[s.IP] {
+			t.Fatalf("duplicate IP %s across page 1 and page 3", s.IP)
+		}
+	}
+}

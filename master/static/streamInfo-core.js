@@ -142,6 +142,7 @@ function refreshRangeUI() {
 
 function applyRange(token, start, end) {
   state.timeRange = { token, start: start || '', end: end || '' };
+  state.serverPages = { ips: 1, routes: 1, dests: 1 };
   refreshRangeUI();
   reloadWithRange();
 }
