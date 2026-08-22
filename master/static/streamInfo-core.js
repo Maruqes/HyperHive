@@ -10,7 +10,7 @@ const state = {
   profileTarget: null,
   expanded: { routes: new Set(), ips: new Set(), dests: new Set(), live: new Set() },
   filters: {
-    live: { search: '', scope: '', direction: '', sort: 'recent', npmOnly: false, hideLocal: true },
+    live: { search: '', scope: '', direction: '', sort: 'anomalies', npmOnly: false, hideLocal: true, anomaliesOnly: false },
     routes: { search: '', state: '', sort: 'activity', npmOnly: true },
     ips: { search: '', state: '', sort: 'activity' },
     dests: { search: '', state: '', sort: 'activity' }

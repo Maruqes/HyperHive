@@ -717,3 +717,39 @@ func serveLiveRequest(t *testing.T, target string, deps liveDependencies, cache 
 	}
 	return response
 }
+
+func TestLiveWithCombinedAliases(t *testing.T) {
+	now := time.Now()
+	deps := testLiveDependencies(&now)
+	deps.getAliases = func() ([]dnsmasq.AliasEntry, error) {
+		return []dnsmasq.AliasEntry{
+			{IP: "10.0.0.5", Alias: "my-custom-vm"},
+			{IP: "192.168.76.77", Alias: "target-db"},
+		}, nil
+	}
+	deps.collect = func(family uint8) ([]*netlink.InetDiagTCPInfoResp, error) {
+		if family == syscall.AF_INET {
+			return []*netlink.InetDiagTCPInfoResp{
+				testLiveSocket(family, net.ParseIP("192.168.76.77"), 25565, net.ParseIP("10.0.0.5"), 51000, netlink.TCP_ESTABLISHED, 100),
+			}, nil
+		}
+		return nil, nil
+	}
+	response := serveLiveRequest(t, "/api/streamInfo/active-connections?state=all", deps, newLiveSnapshotCache(4, 30*time.Second))
+	if len(response.Connections) != 1 {
+		t.Fatalf("expected 1 connection, got %d", len(response.Connections))
+	}
+	conn := response.Connections[0]
+	if len(conn.Local.Aliases) == 0 || conn.Local.Aliases[0] != "target-db" {
+		t.Errorf("expected local alias target-db, got %+v", conn.Local.Aliases)
+	}
+	if len(conn.Remote.Aliases) == 0 || conn.Remote.Aliases[0] != "my-custom-vm" {
+		t.Errorf("expected remote alias my-custom-vm, got %+v", conn.Remote.Aliases)
+	}
+	if !strings.Contains(conn.Local.Display, "target-db") {
+		t.Errorf("expected local display to contain target-db, got %q", conn.Local.Display)
+	}
+	if !strings.Contains(conn.Remote.Display, "my-custom-vm") {
+		t.Errorf("expected remote display to contain my-custom-vm, got %q", conn.Remote.Display)
+	}
+}

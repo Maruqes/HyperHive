@@ -1,12 +1,78 @@
 
 /* ================= LIVE NOW ================= */
+function hasLiveAnomaly(c) {
+  return num(c.retrans) > 0 || num(c.lost) > 0 || (c.rtt_ms != null && c.rtt_ms > 120) ||
+    (c.state_group === 'closing' && c.state !== 'time_wait') ||
+    c.state_group === 'handshake' ||
+    num((c.queues && c.queues.write) || 0) > 5000 ||
+    num((c.queues && c.queues.read) || 0) > 5000;
+}
+
+function liveAnomalyScore(c) {
+  let score = 0;
+  const retrans = num(c.retrans);
+  const lost = num(c.lost);
+  const unacked = num(c.unacked);
+  const rtt = num(c.rtt_ms);
+  const writeQ = num((c.queues && c.queues.write) || 0);
+  const readQ = num((c.queues && c.queues.read) || 0);
+
+  if (retrans > 0) score += 200 + Math.min(retrans * 15, 300);
+  if (lost > 0) score += 250 + Math.min(lost * 20, 300);
+  if (rtt > 200) score += 120;
+  else if (rtt > 80) score += 40;
+  if (c.state_group === 'closing' && c.state !== 'time_wait') score += 100;
+  if (c.state_group === 'handshake') score += 70;
+  if (writeQ > 5000 || readQ > 5000) score += 80;
+  if (unacked > 10) score += 50;
+
+  // Active NPM streams with actual traffic
+  if ((c.streams || []).length > 0) score += 10;
+  if (num(c.bytes_sent) + num(c.bytes_received) > 100000) score += 5;
+  return score;
+}
+
+function liveSignalsHTML(c) {
+  const sigs = [];
+  const retrans = num(c.retrans);
+  const lost = num(c.lost);
+  const rtt = num(c.rtt_ms);
+  const writeQ = num((c.queues && c.queues.write) || 0);
+  const readQ = num((c.queues && c.queues.read) || 0);
+
+  if (retrans > 0) sigs.push('<span class="sig sig-retrans" title="TCP Retransmissions: ' + retrans + '">⚠️ Retrans ×' + retrans + '</span>');
+  if (lost > 0) sigs.push('<span class="sig sig-lost" title="Lost TCP Segments: ' + lost + '">⚠️ Lost ×' + lost + '</span>');
+  if (rtt > 120) sigs.push('<span class="sig sig-rtt" title="High Latency: ' + rtt.toFixed(1) + ' ms">⚠️ RTT ' + rtt.toFixed(0) + 'ms</span>');
+  if (c.state === 'close_wait') sigs.push('<span class="sig sig-state" title="Close Wait: App has not closed socket">⚠️ CLOSE_WAIT</span>');
+  else if (c.state_group === 'closing' && c.state !== 'time_wait') sigs.push('<span class="sig sig-state">' + esc(c.state) + '</span>');
+  else if (c.state_group === 'handshake') sigs.push('<span class="sig sig-state">handshake</span>');
+  if (writeQ > 5000 || readQ > 5000) sigs.push('<span class="sig sig-queue" title="Queue Backlog">⚠️ Backlog</span>');
+
+  if (sigs.length) return sigs.join(' ');
+  if (c.state === 'established') return '<span class="sig sig-ok">✓ healthy</span>';
+  if (c.state === 'listen') return '<span class="faint">listening</span>';
+  return '<span class="faint">—</span>';
+}
+
+function liveEndpointHTML(ep) {
+  if (!ep || !ep.ip) return '<span class="faint">—</span>';
+  const alias = (ep.aliases && ep.aliases.length) ? ep.aliases[0] : '';
+  const port = ep.port ? ':' + ep.port : '';
+  if (alias) {
+    return '<a class="mono" href="#/ips/' + esc(ep.ip) + '" onclick="event.stopPropagation()"><span style="color:var(--cyan);font-weight:600">' + esc(alias) + '</span> <span class="faint">(' + esc(ep.ip + port) + ')</span></a>';
+  }
+  return '<a class="mono" href="#/ips/' + esc(ep.ip) + '" onclick="event.stopPropagation()">' + esc(ep.ip + port) + '</a>';
+}
+
 function renderLiveTab(d, nowMs) {
   const live = d.live || {};
+  const conns = collectLiveConnections(d);
+  const anomaliesCount = conns.filter(hasLiveAnomaly).length;
   const metrics = [
     { label: 'Established', value: live.established ?? 0, cls: (live.established ? 'green' : '') },
+    { label: 'Anomalies', value: anomaliesCount, cls: (anomaliesCount ? 'red' : '') },
     { label: 'Listening', value: live.listening ?? 0, cls: 'cyan' },
-    { label: 'Handshake', value: live.handshake ?? 0, cls: 'amber' },
-    { label: 'Closing', value: live.closing ?? 0 },
+    { label: 'Handshake / Closing', value: (live.handshake ?? 0) + (live.closing ?? 0), cls: ((live.handshake || live.closing) ? 'amber' : '') },
     { label: 'Total sockets', value: live.total ?? 0 }
   ];
   $('liveMetrics').innerHTML = metrics.map(m =>
@@ -14,7 +80,6 @@ function renderLiveTab(d, nowMs) {
   ).join('');
   $('liveCapMeta').textContent = live.captured_at ? 'captured ' + ago(live.captured_at, nowMs) : (live.available ? 'captured' : 'unavailable');
 
-  const conns = collectLiveConnections(d);
   const f = state.filters.live;
   let rows = conns.filter(c => {
     if (f.hideLocal && c.local.ip && /^(127\.|::1$)/.test(c.local.ip) && (!c.remote.ip || /^(127\.|::1$)/.test(c.remote.ip))) return false;
@@ -24,14 +89,25 @@ function renderLiveTab(d, nowMs) {
     if (f.direction === 'inbound' && c.direction !== 'inbound') return false;
     if (f.direction === 'outbound' && c.direction !== 'outbound') return false;
     if (f.npmOnly && !(c.streams || []).length) return false;
+    if (f.anomaliesOnly && !hasLiveAnomaly(c)) return false;
     if (f.search) {
-      const hay = [c.local.ip, c.local.port, c.remote.ip, c.remote.port, c.interface_name, c.state, (c.streams || []).map(s => s.description || '').join(' ')].join(' ').toLowerCase();
+      const hay = [
+        c.local.ip, c.local.port, (c.local.aliases || []).join(' '),
+        c.remote.ip, c.remote.port, (c.remote.aliases || []).join(' '),
+        c.interface_name, c.state,
+        (c.streams || []).map(s => s.description || '').join(' ')
+      ].join(' ').toLowerCase();
       if (!hay.includes(f.search.toLowerCase())) return false;
     }
     return true;
   });
   rows.sort((a, b) => {
-    if (f.sort === 'bytes') return (b.bytes_sent + b.bytes_received) - (a.bytes_sent + a.bytes_received);
+    if (f.sort === 'anomalies') {
+      const diff = liveAnomalyScore(b) - liveAnomalyScore(a);
+      if (diff !== 0) return diff;
+      return (num(b.bytes_sent) + num(b.bytes_received)) - (num(a.bytes_sent) + num(a.bytes_received));
+    }
+    if (f.sort === 'bytes') return (num(b.bytes_sent) + num(b.bytes_received)) - (num(a.bytes_sent) + num(a.bytes_received));
     if (f.sort === 'retrans') return num(b.retrans) - num(a.retrans);
     if (f.sort === 'rtt') return num(b.rtt_ms) - num(a.rtt_ms);
     return 0; // capture order
@@ -46,15 +122,14 @@ function renderLiveTab(d, nowMs) {
     const dirColor = c.direction === 'inbound' ? 'green' : c.direction === 'outbound' ? 'blue' : 'faint';
     return '<tr class="' + (expanded ? 'open' : '') + '" data-liveid="' + esc(c.id) + '">' +
       '<td><span class="state ' + (c.state === 'established' ? 'active' : c.state_group === 'listening' ? 'recent' : 'inactive') + '">' + esc(c.state) + '</span></td>' +
-      '<td class="mono">' + esc(ipPort(c.local.ip, c.local.port)) + ' <span class="arrow">↔</span> ' + esc(ipPort(c.remote.ip, c.remote.port)) + '</td>' +
+      '<td class="mono wrap">' + liveEndpointHTML(c.local) + ' <span class="arrow">↔</span> ' + liveEndpointHTML(c.remote) + '</td>' +
       '<td><span style="color:var(--' + dirColor + ')">' + dirLabel + '</span>' + (c.correlation_status && c.correlation_status !== 'unmatched' ? ' <span class="faint">· ' + esc(c.correlation_status) + '</span>' : '') + '</td>' +
       '<td class="wrap">' + ((c.streams || []).length ? c.streams.map(s => '<span class="chip">' + esc(s.description || ('stream #' + s.id)) + '</span>').join(' ') : '<span class="faint">—</span>') + '</td>' +
-      '<td class="num">' + (c.rtt_ms != null ? c.rtt_ms.toFixed(1) + ' ms' : '—') + '</td>' +
+      '<td class="num">' + (c.rtt_ms != null ? (c.rtt_ms > 120 ? '<span style="color:var(--amber);font-weight:600">' + c.rtt_ms.toFixed(1) + ' ms</span>' : c.rtt_ms.toFixed(1) + ' ms') : '—') + '</td>' +
       '<td class="num">' + fmtBytes(num(c.bytes_sent) + num(c.bytes_received)) + '</td>' +
-      '<td class="num">' + (num(c.retrans) > 0 ? '<span style="color:var(--amber)">' + c.retrans + '</span>' : '0') + '</td>' +
-      '<td class="mono dim">' + esc(c.interface_name || '—') + '</td>' +
-      '<td class="mono dim">' + esc(c.uid) + '</td></tr>' +
-      (expanded ? '<tr class="expand-row"><td colspan="9"><div class="expand-box">' + liveExpandBox(c) + '</div></td></tr>' : '');
+      '<td class="num">' + (num(c.retrans) > 0 ? '<span style="color:var(--red);font-weight:700">' + c.retrans + '</span>' : '<span class="faint">0</span>') + '</td>' +
+      '<td>' + liveSignalsHTML(c) + '</td></tr>' +
+      (expanded ? '<tr class="expand-row"><td colspan="8"><div class="expand-box">' + liveExpandBox(c) + '</div></td></tr>' : '');
   }).join('');
   renderPagination('livePagination', 'live', rows.length, page.totalPages);
 }
@@ -70,6 +145,11 @@ function liveExpandBox(c) {
   if (c.lost != null) diags.push(['Lost segments', c.lost]);
   if (c.unacked != null) diags.push(['Unacked', c.unacked]);
   if (c.cwnd != null) diags.push(['Congestion window', c.cwnd]);
+  if (c.queues && (c.queues.read || c.queues.write)) {
+    diags.push(['Queue R/W', (c.queues.read || 0) + ' / ' + (c.queues.write || 0) + ' B']);
+  }
+  if (c.interface_name) diags.push(['Interface', c.interface_name]);
+  if (c.uid != null) diags.push(['UID', c.uid]);
   if (c.inode) diags.push(['Inode', c.inode]);
   return '<div class="kv">' + diags.map(([k, v]) => kv(k, v)).join('') +
     '<div class="item"><div class="k">Socket ID</div><div class="v">' + esc(c.id) + '</div></div></div>' +
@@ -95,6 +175,7 @@ function normalizeSocket(c) {
     id: c.id, state: c.state, state_group: c.state_group,
     local: c.local || {}, remote: c.remote || {},
     interface_name: c.interface_name, uid: c.uid,
+    queues: c.queues || { read: 0, write: 0 },
     direction: (c.correlation || {}).role === 'inbound_listener' ? 'inbound' : (c.correlation || {}).role === 'outbound_upstream' ? 'outbound' : 'local',
     correlation_status: (c.correlation || {}).status || '',
     streams: (c.correlation || {}).streams || [],

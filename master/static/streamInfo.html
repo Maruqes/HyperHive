@@ -148,25 +148,26 @@
           <span class="section-count" id="liveCapMeta"></span>
         </div>
         <div class="filterbar">
-          <input type="search" id="liveSearch" placeholder="Search address, port, interface…">
+          <input type="search" id="liveSearch" placeholder="Search IP, alias, port, interface…">
           <select id="liveScope"><option value="">All scopes</option><option value="internal">Internal only</option><option value="external">External only</option></select>
           <select id="liveDirection"><option value="">Any direction</option><option value="inbound">Inbound (clients → host)</option><option value="outbound">Outbound (host → upstreams)</option></select>
-          <select id="liveSort"><option value="recent">Newest capture</option><option value="bytes">Most traffic</option><option value="retrans">Most retransmissions</option><option value="rtt">Highest RTT</option></select>
-           <label class="check"><input type="checkbox" id="liveNpmOnly" checked> NPM only</label>
+          <select id="liveSort"><option value="anomalies">Anomalies first</option><option value="recent">Newest capture</option><option value="bytes">Most traffic</option><option value="retrans">Most retransmissions</option><option value="rtt">Highest RTT</option></select>
+          <label class="check"><input type="checkbox" id="liveAnomaliesOnly"> ⚠️ Anomalies only</label>
+          <label class="check"><input type="checkbox" id="liveNpmOnly" checked> NPM only</label>
           <label class="check"><input type="checkbox" id="liveHideLocal" checked> Hide loopback</label>
           <span class="faint" id="liveShown"></span>
         </div>
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th class="nosort">State</th><th class="nosort">Local ↔ remote</th><th class="nosort">Direction / role</th>
-              <th class="nosort">Route</th><th data-sort="rtt">RTT</th><th data-sort="bytes">Traffic</th><th data-sort="retrans">Retrans</th><th class="nosort">Interface</th><th class="nosort" data-sort="uid">UID</th>
+              <th class="nosort">State</th><th class="nosort">Local ↔ Remote</th><th class="nosort">Direction / Role</th>
+              <th class="nosort">Route / Stream</th><th data-sort="rtt">RTT</th><th data-sort="bytes">Traffic</th><th data-sort="retrans">Retrans</th><th class="nosort">Signals</th>
             </tr></thead>
             <tbody id="liveTableBody"></tbody>
           </table>
         </div>
-         <div class="empty" id="liveEmpty" hidden><h3>No connections match</h3><p>Adjust filters, or the snapshot may be empty for this state.</p></div>
-         <div id="livePagination"></div>
+        <div class="empty" id="liveEmpty" hidden><h3>No connections match</h3><p>Adjust filters, or the snapshot may be empty for this state.</p></div>
+        <div id="livePagination"></div>
       </div>
     </section>
 

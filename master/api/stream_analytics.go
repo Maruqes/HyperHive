@@ -44,7 +44,7 @@ type analyticsDependencies struct {
 
 var productionAnalyticsDependencies = analyticsDependencies{
 	loadEntries:     loadEntriesWithGeoIP,
-	getAliases:      dnsmasq.GetAllAliases,
+	getAliases:      getCombinedAliases,
 	listStreams:     npm.ListStreams,
 	getDescriptions: db.GetResourceDescriptions,
 }

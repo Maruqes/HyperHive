@@ -223,13 +223,28 @@ function wireEvents() {
   });
 
   // live filters
-  const liveInputs = [['liveSearch', 'search', 'value'], ['liveScope', 'scope', 'value'], ['liveDirection', 'direction', 'value'], ['liveSort', 'sort', 'value'], ['liveHideLocal', 'hideLocal', 'checked']];
+  const liveInputs = [
+    ['liveSearch', 'search', 'value'],
+    ['liveScope', 'scope', 'value'],
+    ['liveDirection', 'direction', 'value'],
+    ['liveSort', 'sort', 'value'],
+    ['liveHideLocal', 'hideLocal', 'checked'],
+    ['liveAnomaliesOnly', 'anomaliesOnly', 'checked']
+  ];
   liveInputs.forEach(([id, key, prop]) => {
-    $(id).addEventListener('input', () => {
-      state.filters.live[key] = $(id)[prop];
-      state.pages.live = 1;
-      renderLiveTab(state.data, Date.now());
-    });
+    const el = $(id);
+    if (el) {
+      el.addEventListener('input', () => {
+        state.filters.live[key] = el[prop];
+        state.pages.live = 1;
+        renderLiveTab(state.data, Date.now());
+      });
+      el.addEventListener('change', () => {
+        state.filters.live[key] = el[prop];
+        state.pages.live = 1;
+        renderLiveTab(state.data, Date.now());
+      });
+    }
   });
   $('liveNpmOnly').addEventListener('change', () => {
     state.npmOnly = $('liveNpmOnly').checked;

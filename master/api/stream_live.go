@@ -48,7 +48,7 @@ type liveDependencies struct {
 var productionLiveDependencies = liveDependencies{
 	collect:         netlink.SocketDiagTCPInfo,
 	listStreams:     npm.ListStreams,
-	getAliases:      dnsmasq.GetAllAliases,
+	getAliases:      getCombinedAliases,
 	getDescriptions: db.GetResourceDescriptions,
 	interfaceName: func(index int) (string, error) {
 		iface, err := net.InterfaceByIndex(index)

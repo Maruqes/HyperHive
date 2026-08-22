@@ -96,6 +96,12 @@
   .state.recent { @apply border-hh-cyan/35 bg-hh-cyan/[.07] text-hh-cyan; } .state.inactive { @apply border-hh-line2 text-hh-faint; }
   .state.new { @apply border-hh-violet/35 bg-hh-violet/[.08] text-hh-violet; }
   .sig { @apply px-1.5 py-0.5 font-semibold text-hh-muted; } .sig.long_session { @apply border-hh-amber/35 text-hh-amber; } .sig.many_destinations { @apply border-hh-violet/35 text-hh-violet; } .sig.failure_burst { @apply border-hh-red/35 text-hh-red; } .sig.new_ip { @apply border-hh-blue/35 text-hh-blue; }
+  .sig.sig-retrans { @apply border-hh-red/40 bg-hh-red/[.08] text-hh-red font-bold; }
+  .sig.sig-lost { @apply border-hh-red bg-hh-red/[.16] text-hh-red font-bold; }
+  .sig.sig-rtt { @apply border-hh-amber/40 bg-hh-amber/[.08] text-hh-amber; }
+  .sig.sig-state { @apply border-hh-amber/40 bg-hh-amber/[.08] text-hh-amber; }
+  .sig.sig-queue { @apply border-hh-violet/40 bg-hh-violet/[.08] text-hh-violet; }
+  .sig.sig-ok { @apply border-hh-green/30 bg-hh-green/[.05] text-hh-green; }
   .kv { @apply mb-2.5 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-5 gap-y-2; } .kv .item .k { @apply font-mono text-[10px] font-semibold uppercase text-hh-faint; } .kv .item .v { @apply mt-px break-words font-mono text-xs; }
   .chiprow { @apply flex flex-wrap gap-1; } .chip { @apply border-hh-line2 px-2 py-0.5 font-medium text-hh-muted; } .chip a { @apply text-inherit; }
   .expand-box { @apply bg-hh-bg2 px-4 py-3; } tr.expand-row > td { @apply p-0; }
