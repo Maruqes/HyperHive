@@ -7,12 +7,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
+	texttemplate "text/template"
 	"time"
 
 	"github.com/Maruqes/512SvMan/logger"
@@ -84,6 +86,7 @@ const (
 	guestRateLimitAttempts = 5
 	guestRateLimitWindow   = 15 * time.Minute
 	guestAuthErrorMessage  = "invalid credentials"
+	maxGuestRequestBody    = 16 << 10
 )
 
 type guestRateLimiter struct {
@@ -157,20 +160,22 @@ func init() {
 }
 
 func getClientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		parts := strings.Split(xff, ",")
-		if ip := strings.TrimSpace(parts[0]); ip != "" {
-			return ip
-		}
-	}
-	if xri := r.Header.Get("X-Real-Ip"); xri != "" {
-		return strings.TrimSpace(xri)
-	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		return ""
 	}
-	return host
+	peerIP := net.ParseIP(host)
+	if peerIP == nil {
+		return ""
+	}
+
+	// Only the local reverse proxy is allowed to provide a client IP header.
+	if peerIP.IsLoopback() {
+		if forwardedIP := net.ParseIP(strings.TrimSpace(r.Header.Get("X-Real-IP"))); forwardedIP != nil {
+			return forwardedIP.String()
+		}
+	}
+	return peerIP.String()
 }
 
 // -----------------------------------------------------------------------------
@@ -179,6 +184,9 @@ func getClientIP(r *http.Request) string {
 
 func serveGuestPage(w http.ResponseWriter, r *http.Request) {
 	vmName := chi.URLParam(r, "vm_name")
+	vmNameHTML := html.EscapeString(vmName)
+	vmNameJS := texttemplate.JSEscapeString(vmName)
+	vmNameURL := url.QueryEscape(vmName)
 
 	html := fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">
@@ -280,7 +288,7 @@ func serveGuestPage(w http.ResponseWriter, r *http.Request) {
     });
   </script>
 </body>
-</html>`, vmName, vmName, vmName, vmName)
+</html>`, vmNameHTML, vmNameHTML, vmNameJS, vmNameURL)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -289,6 +297,10 @@ func serveGuestPage(w http.ResponseWriter, r *http.Request) {
 
 func guestPost(w http.ResponseWriter, r *http.Request) {
 	clientIP := getClientIP(r)
+	if clientIP == "" {
+		http.Error(w, "could not determine client IP", http.StatusBadRequest)
+		return
+	}
 	if allowed, retryAfter := guestRateLimiterInstance.allow(clientIP); !allowed {
 		w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())))
 		http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
@@ -299,6 +311,7 @@ func guestPost(w http.ResponseWriter, r *http.Request) {
 		VMName   string `json:"vm_name"`
 		Password string `json:"password"`
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxGuestRequestBody)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
@@ -440,28 +453,9 @@ func writeJSONWithStatus(w http.ResponseWriter, status int, payload any) {
 }
 
 func clientIP(r *http.Request) (string, error) {
-	// Prefer X-Forwarded-For, then X-Real-Ip, then remote addr.
-	if xf := r.Header.Get("X-Forwarded-For"); xf != "" {
-		for _, part := range strings.Split(xf, ",") {
-			trimmed := strings.TrimSpace(part)
-			if trimmed == "" {
-				continue
-			}
-			if ip := net.ParseIP(trimmed); ip != nil && ip.To4() != nil {
-				return ip.String(), nil
-			}
-		}
-	}
-	if xr := strings.TrimSpace(r.Header.Get("X-Real-IP")); xr != "" {
-		if ip := net.ParseIP(xr); ip != nil && ip.To4() != nil {
-			return ip.String(), nil
-		}
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err == nil {
-		if ip := net.ParseIP(host); ip != nil && ip.To4() != nil {
-			return ip.String(), nil
-		}
+	ip := net.ParseIP(getClientIP(r))
+	if ip != nil && ip.To4() != nil {
+		return ip.String(), nil
 	}
 	return "", fmt.Errorf("no valid client ip")
 }
@@ -543,6 +537,7 @@ func allowSPAHandler(w http.ResponseWriter, r *http.Request) {
 		Seconds  int    `json:"seconds"`
 		IP       string `json:"ip"`
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxGuestRequestBody)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
@@ -557,7 +552,7 @@ func allowSPAHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	manualIP := strings.TrimSpace(req.IP)
-	var ip string
+	ip := callerIP
 	if manualIP != "" {
 		parsed := net.ParseIP(manualIP)
 		if parsed == nil || parsed.To4() == nil {
@@ -653,10 +648,12 @@ func listSPAAllowsHandler(w http.ResponseWriter, r *http.Request) {
 
 func serveSPAPageAllow(w http.ResponseWriter, r *http.Request) {
 	portStr := chi.URLParam(r, "port")
-	if portStr == "" {
-		http.Error(w, "missing port", http.StatusBadRequest)
+	port, err := strconv.Atoi(portStr)
+	if err != nil || port < 1 || port > 65535 {
+		http.Error(w, "invalid port", http.StatusBadRequest)
 		return
 	}
+	portStr = strconv.Itoa(port)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	page := fmt.Sprintf(`<!DOCTYPE html>

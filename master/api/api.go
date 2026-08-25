@@ -345,9 +345,10 @@ func StartApi(exitAfterStart bool) {
 	extra.StartHeartbeat(5 * time.Second)
 
 	srv := &http.Server{
-		Addr:    ":9595",
-		Handler: r,
-		// ReadHeaderTimeout: 5 * time.Second,
+		Addr:              ":9595",
+		Handler:           r,
+		ReadHeaderTimeout: 5 * time.Second,
+		MaxHeaderBytes:    16 << 10,
 		// ReadTimeout:       15 * time.Second,
 		// WriteTimeout:      30 * time.Second,
 		// IdleTimeout:       60 * time.Second,

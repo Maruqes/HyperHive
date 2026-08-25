@@ -182,6 +182,10 @@ client_max_body_size 0;
 # --- SEM BUFFERING (STREAMS / LOGS / LONG POLLING) ---
 proxy_buffering off;
 proxy_request_buffering off;
+
+# Do not forward client-controlled IP headers to the API.
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $remote_addr;
 `,
 	}
 }
