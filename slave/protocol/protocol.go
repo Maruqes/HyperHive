@@ -143,8 +143,6 @@ func monitorConnection(conn *grpc.ClientConn) {
 		switch state {
 		case connectivity.Ready:
 		case connectivity.Connecting:
-			restartOnConnectionLoss(conn, "connection_state_connecting", nil)
-			return
 		case connectivity.Idle:
 			logger.Info("connection state idle; forcing connect", "state", state.String())
 			conn.Connect()

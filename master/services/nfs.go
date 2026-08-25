@@ -329,20 +329,24 @@ func (s *NFSService) DeleteSharePoint(ctx context.Context, force bool) error {
 		return fmt.Errorf("cannot delete NFS share, there are automatic backups using it: %v", vmNames)
 	}
 
-	if err := nfs.RemoveSharedFolder(conn.Connection, mount); err != nil {
-		return fmt.Errorf("failed to remove shared folder: %v", err)
-	}
-
 	conns := protocol.GetAllGRPCConnections()
 	// unmount on all provided connections
+	var unmountErrs []string
 	for _, c := range conns {
 		if c == nil {
 			continue
 		}
 		if err := nfs.UnmountSharedFolder(c, mount); err != nil {
 			logger.Errorf("UnmountSharedFolder failed: %v", err)
-			continue
+			unmountErrs = append(unmountErrs, err.Error())
 		}
+	}
+	if len(unmountErrs) > 0 {
+		return fmt.Errorf("failed to unmount shared folder on all slaves: %s", strings.Join(unmountErrs, "; "))
+	}
+
+	if err := nfs.RemoveSharedFolder(conn.Connection, mount); err != nil {
+		return fmt.Errorf("failed to remove shared folder: %v", err)
 	}
 
 	err = db.RemoveNFSShare(ctx, mount.MachineName, mount.FolderPath)

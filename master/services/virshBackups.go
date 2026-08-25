@@ -24,6 +24,7 @@ import (
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 	"github.com/Maruqes/512SvMan/logger"
 	"github.com/google/uuid"
+	protobuf "google.golang.org/protobuf/proto"
 )
 
 var copyFileSlots = make(chan struct{}, 1)
@@ -465,7 +466,7 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 	}
 
 	newDiskPath := newFolder + "/" + coldReq.VmName + ".qcow2"
-	reqCopy := *coldReq
+	reqCopy := protobuf.Clone(coldReq).(*grpcVirsh.ColdMigrationRequest)
 	reqCopy.DiskPath = newDiskPath
 
 	if _, err := v.prepareVMXMLTemplateForCreate(ctx, templateID, reqCopy.VmName, reqCopy.DiskPath); err != nil {
@@ -482,7 +483,7 @@ func (v *VirshService) UseBackup(ctx context.Context, bakID int, slaveName strin
 				return fmt.Errorf("failed to copy backup file: %w", err)
 			}
 
-			if err := v.ColdMigrateVm(taskCtx, slaveName, &reqCopy, templateID); err != nil {
+			if err := v.ColdMigrateVm(taskCtx, slaveName, reqCopy, templateID); err != nil {
 				return fmt.Errorf("ColdMigrateVm failed: %w", err)
 			}
 

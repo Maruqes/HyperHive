@@ -7,6 +7,8 @@ import (
 
 	dockerGRPC "github.com/Maruqes/512SvMan/api/proto/docker"
 	"github.com/Maruqes/512SvMan/logger"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type DockerService struct {
@@ -347,6 +349,9 @@ func (s *DockerService) VolumeList(ctx context.Context, req *dockerGRPC.Empty) (
 }
 
 func (s *DockerService) NetworkCreate(ctx context.Context, req *dockerGRPC.NetworkCreateRequest) (*dockerGRPC.Empty, error) {
+	if req == nil || req.Params == nil {
+		return nil, status.Error(codes.InvalidArgument, "network parameters are required")
+	}
 	return &dockerGRPC.Empty{}, our_network.Create(ctx, req.Name, NetworkCreateParams{Type: NetworkType(strings.ToLower(req.Params.Type.String())), Subnet: req.Params.Subnet, Gateway: req.Params.Gateway, Parent: req.Params.Parent})
 }
 
