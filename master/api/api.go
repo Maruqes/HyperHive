@@ -282,6 +282,7 @@ func StartApi(exitAfterStart bool) {
 	})
 
 	setupNoVNCAPI(r)
+	setupGuestNoVNCAPI(r)
 	guestNoVNCApi(r)
 	setupSPAOpenAPI(r)
 
