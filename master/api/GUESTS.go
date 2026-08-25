@@ -162,7 +162,8 @@ func init() {
 func getClientIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return ""
+		// Some reverse proxies provide RemoteAddr without a source port.
+		host = strings.TrimSpace(r.RemoteAddr)
 	}
 	peerIP := net.ParseIP(host)
 	if peerIP == nil {

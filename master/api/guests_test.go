@@ -30,6 +30,16 @@ func TestGetClientIPAcceptsProxyHeaderOnlyFromLoopback(t *testing.T) {
 	}
 }
 
+func TestGetClientIPAcceptsRemoteAddressWithoutPort(t *testing.T) {
+	r := httptest.NewRequest(http.MethodPost, "/guest_api/guest_vm", nil)
+	r.RemoteAddr = "127.0.0.1"
+	r.Header.Set("X-Real-IP", "198.51.100.8")
+
+	if got := getClientIP(r); got != "198.51.100.8" {
+		t.Fatalf("getClientIP() = %q, want proxy-provided client address", got)
+	}
+}
+
 func TestGuestPageEscapesVMName(t *testing.T) {
 	r := chi.NewRouter()
 	r.Get("/guest_page/{vm_name}", serveGuestPage)
