@@ -141,7 +141,7 @@ func setupFrontEnd(w http.ResponseWriter, r *http.Request) {
 			ForwardPort:   9595,
 		},
 		{
-			Path:          "/guest/novnc",
+			Path:          "/guest_api/novnc",
 			ForwardScheme: "http",
 			ForwardHost:   "127.0.0.1",
 			ForwardPort:   9595,

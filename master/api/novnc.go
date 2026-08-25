@@ -131,7 +131,7 @@ func serveNoVNC(w http.ResponseWriter, r *http.Request) {
 }
 
 func serveGuestNoVNC(w http.ResponseWriter, r *http.Request) {
-	http.StripPrefix("/guest/novnc", http.FileServer(http.Dir("./novnc"))).ServeHTTP(w, r)
+	http.StripPrefix("/guest_api/novnc", http.FileServer(http.Dir("./novnc"))).ServeHTTP(w, r)
 }
 
 func handleConnection(client net.Conn, ipPort string) {
@@ -337,7 +337,7 @@ func extractVMFromRequest(r *http.Request) string {
 		return vm
 	}
 
-	// Attempt to pull vm from encoded path query param e.g. path=/novnc/ws%3Fvm%3D<vm_name> or /guest/novnc/ws%3Fvm%3D<vm_name>
+	// Attempt to pull vm from encoded path query param e.g. path=/novnc/ws%3Fvm%3D<vm_name> or /guest_api/novnc/ws%3Fvm%3D<vm_name>
 	if rawPath := r.URL.Query().Get("path"); rawPath != "" {
 		if decoded, err := url.QueryUnescape(rawPath); err == nil {
 			if u, err := url.Parse(decoded); err == nil {
@@ -443,7 +443,7 @@ func serveGuestPage(w http.ResponseWriter, r *http.Request) {
           msg.textContent = 'Error ' + res.status + ': ' + text;
         } else {
           // Password OK -> redirecionar para noVNC
-		  window.location.href = '/guest/novnc/vnc.html?path=/guest/novnc/ws%%3Fvm%%3D%s';
+		  window.location.href = '/guest_api/novnc/vnc.html?path=/guest_api/novnc/ws%%3Fvm%%3D%s';
         }
       } catch (err) {
         msg.textContent = 'Request failed: ' + err;
@@ -488,7 +488,7 @@ func guestPost(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "guest_token",
 		Value:    token,
-		Path:     "/guest/novnc",
+		Path:     "/guest_api/novnc",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(guestTokenTTL.Seconds()),
@@ -507,7 +507,7 @@ func guestNoVNCApi(r chi.Router) chi.Router {
 }
 
 func setupGuestNoVNCAPI(r chi.Router) chi.Router {
-	return r.Route("/guest/novnc", func(r chi.Router) {
+	return r.Route("/guest_api/novnc", func(r chi.Router) {
 		r.Use(guestAuthMiddlewareNOVNC)
 
 		r.Get("/ws", serveNoVNCWebSocket)
