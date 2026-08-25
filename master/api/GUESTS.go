@@ -20,8 +20,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// GUESTS.go aggregates all public-facing endpoints served under /guest_api.
-// Currently this includes guest noVNC access and SPA (Single Packet Authorization) pages.
+// GUESTS.go aggregates public-facing endpoints served under /guest_api.
+// Currently this includes guest noVNC access and the public SPA (Single Packet
+// Authorization) allow/page endpoints. SPA management routes live in /spa.
 
 // -----------------------------------------------------------------------------
 // Guest token store
@@ -857,8 +858,8 @@ func setupGuestPublicAPI(r chi.Router) {
 	})
 }
 
-func setupGuestProtectedAPI(r chi.Router) {
-	r.Route("/guest_api/spa", func(r chi.Router) {
+func setupSPAAPI(r chi.Router) {
+	r.Route("/spa", func(r chi.Router) {
 		r.Post("/", createSPAHandler)
 		r.Get("/", listSPAHandler)
 		r.Get("/allow/{port}", listSPAAllowsHandler)

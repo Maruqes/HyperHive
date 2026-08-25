@@ -331,7 +331,7 @@ func StartApi(exitAfterStart bool) {
 		setupNotesAPI(r)
 		setupDockerAPI(r)
 		setupK8sAPI(r)
-		setupGuestProtectedAPI(r)
+		setupSPAAPI(r)
 	})
 
 	go func() {
