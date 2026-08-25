@@ -318,6 +318,12 @@ func setupFrontEndSecure(w http.ResponseWriter, r *http.Request) {
 	publicProxy := baseFrontendProxy()
 	publicProxy.DomainNames = []string{payload.PublicDomain}
 	publicProxy.Locations = publicLocations
+	publicProxy.AdvancedConfig += `
+# --- BLOQUEAR TUDO EXCETO /guest_api ---
+location / {
+    return 403;
+}
+`
 	applyCertificate(&publicProxy, payload.PublicCertificateId)
 
 	if err := saveFrontendProxy(baseURL, loginToken, privateProxy, existingPrivateID); err != nil {
