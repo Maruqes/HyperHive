@@ -4,12 +4,14 @@ import (
 	"512SvMan/env512"
 	"512SvMan/protocol"
 	"512SvMan/services"
+	"512SvMan/wireguard"
 	"context"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/Maruqes/512SvMan/logger"
@@ -161,7 +163,8 @@ func serveSprite(w http.ResponseWriter, r *http.Request) {
 	var ln net.Listener
 	found := false
 	for port := env512.SPRITE_MIN; port <= env512.SPRITE_MAX; port++ {
-		candidate, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		// Bind only to the WireGuard server address; never expose sprite on LAN/WAN.
+		candidate, err := net.Listen("tcp4", net.JoinHostPort(wireguard.ServerIP, strconv.Itoa(port)))
 		if err != nil {
 			continue
 		}
@@ -193,7 +196,7 @@ delete-this-file=1
 fullscreen=0
 title=HyperHive VM - %s
 secure-attention=0
-`, env512.MASTER_INTERNET_IP, listenPort, vmName)
+`, wireguard.ServerIP, listenPort, vmName)
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)

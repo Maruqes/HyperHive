@@ -54,7 +54,8 @@ Summary:
 */
 
 const iface = "wg0-hh512"
-const ServerCIDR = "10.128.0.1/24" // server address
+const ServerIP = "10.128.0.1"
+const ServerCIDR = ServerIP + "/24"
 const listenPort = 51512
 const dnsmasqWireguardConfPath = "/etc/hyperhive/dnsmasq-wireguard.conf"
 const dnsmasqWireguardPidPath = "/run/dnsmasq-hyperhive-wg.pid"
