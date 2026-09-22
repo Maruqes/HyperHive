@@ -331,6 +331,10 @@ func main() {
 	}
 	logger.SetType(env512.Mode)
 
+	if err := db.CleanupSQLiteBackups(ctx); err != nil {
+		logger.Errorf("sqlite backup startup cleanup failed: %v", err)
+	}
+
 	if err := installIpset(); err != nil {
 		log.Fatalf("install ipset: %v", err)
 	}
