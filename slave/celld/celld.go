@@ -245,13 +245,33 @@ func (m *Manager) ensureCommandLink() error {
 	err := os.Symlink(m.binary, m.commandLink)
 	if errors.Is(err, os.ErrExist) {
 		target, readErr := os.Readlink(m.commandLink)
-		if readErr == nil && target == m.binary {
-			return nil
+		if readErr != nil || target != m.binary {
+			return fmt.Errorf("refusing to replace existing celld command at %s", m.commandLink)
 		}
-		return fmt.Errorf("refusing to replace existing celld command at %s", m.commandLink)
-	}
-	if err != nil {
+	} else if err != nil {
 		return fmt.Errorf("expose celld on PATH: %w", err)
+	}
+	return m.ensureCommandPermissions()
+}
+
+func (m *Manager) ensureCommandPermissions() error {
+	// The upstream installer renames a mktemp directory (0700) into the
+	// release location. A world-executable binary inside it is still root-only.
+	root := filepath.Dir(filepath.Dir(m.binary))
+	releases := filepath.Join(root, "lib", "celld", "releases")
+	target, err := filepath.EvalSymlinks(m.binary)
+	if err != nil {
+		return fmt.Errorf("resolve installed celld: %w", err)
+	}
+	release := filepath.Dir(target)
+	if filepath.Dir(release) != releases || filepath.Base(target) != "celld" {
+		return fmt.Errorf("celld executable is outside the managed release directory: %s", target)
+	}
+	// Only public installation files; never touch DataDir or its credentials.
+	for _, path := range []string{filepath.Dir(releases), releases, release, target} {
+		if err := os.Chmod(path, 0755); err != nil {
+			return fmt.Errorf("make celld installation accessible: %w", err)
+		}
 	}
 	return nil
 }

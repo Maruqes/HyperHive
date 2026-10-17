@@ -23,6 +23,25 @@ profiles. Setup also creates a missing link when the correct release is already
 installed. An existing different file or symlink at `/usr/bin/celld` is preserved
 and reported as a setup error for the operator to resolve.
 
+The agent also sets the managed `lib/celld`, `releases`, active release directory,
+and executable to mode 0755. The upstream installer moves a `mktemp` directory
+(0700) into the release path; without this repair, root can execute celld while
+ordinary users receive `Permission denied` despite the PATH symlink. The repair
+runs for already installed releases too, without changing private data/config.
+
+To repair an existing default v0.6.2 installation immediately:
+
+```sh
+sudo chmod 755 /usr/local/lib/celld /usr/local/lib/celld/releases \
+  /usr/local/lib/celld/releases/v0.6.2 \
+  /usr/local/lib/celld/releases/v0.6.2/celld
+hash -r
+celld --version
+```
+
+For a different configured release, substitute its version. If it still fails,
+inspect directory permissions with `sudo namei -l /usr/bin/celld`.
+
 After deploying the updated slave agent on **every node, including the master**,
 restart its existing PM2 registration with the configured drain grace:
 

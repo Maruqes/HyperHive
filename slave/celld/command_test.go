@@ -11,8 +11,20 @@ import (
 
 func TestInstalledBinaryExposedOnPath(t *testing.T) {
 	dir := t.TempDir()
-	binary := filepath.Join(dir, "official-celld")
-	if err := os.WriteFile(binary, []byte("#!/bin/sh\necho 'celld 0.6.2'\n"), 0755); err != nil {
+	bin := filepath.Join(dir, "bin")
+	release := filepath.Join(dir, "lib", "celld", "releases", "v0.6.2")
+	if err := os.MkdirAll(bin, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(release, 0700); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(release, "celld")
+	if err := os.WriteFile(target, []byte("#!/bin/sh\necho 'celld 0.6.2'\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	binary := filepath.Join(bin, "celld")
+	if err := os.Symlink("../lib/celld/releases/v0.6.2/celld", binary); err != nil {
 		t.Fatal(err)
 	}
 	link := filepath.Join(dir, "celld")
@@ -21,6 +33,12 @@ func TestInstalledBinaryExposedOnPath(t *testing.T) {
 		// An already installed release must still create/repair its PATH entry.
 		if err := m.install(context.Background(), "v0.6.2"); err != nil {
 			t.Fatal(err)
+		}
+	}
+	for _, path := range []string{filepath.Join(dir, "lib", "celld"), filepath.Dir(release), release, target} {
+		info, err := os.Stat(path)
+		if err != nil || info.Mode().Perm() != 0755 {
+			t.Fatalf("installation path remains inaccessible: %s, %v, %v", path, info, err)
 		}
 	}
 	cmd := exec.Command("/bin/sh", "-c", "celld --version")
@@ -37,6 +55,22 @@ func TestInstalledBinaryExposedOnPath(t *testing.T) {
 	}
 	if target, err := os.Readlink(link); err != nil || target != binary {
 		t.Fatalf("repaired command: %q, %v", target, err)
+	}
+}
+
+func TestCommandPermissionsRejectUnmanagedTarget(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "other-celld")
+	if err := os.WriteFile(target, []byte("other installation"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	m := &Manager{binary: target, commandLink: filepath.Join(dir, "celld")}
+	if err := m.ensureCommandPermissions(); err == nil {
+		t.Fatal("accepted unmanaged executable")
+	}
+	info, err := os.Stat(target)
+	if err != nil || info.Mode().Perm() != 0700 {
+		t.Fatalf("changed unmanaged permissions: %v, %v", info, err)
 	}
 }
 
