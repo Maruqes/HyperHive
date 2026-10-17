@@ -56,7 +56,16 @@ func TestFleetIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Cleanup(m.Close)
+		t.Cleanup(func() {
+			m.Close()
+			if t.Failed() {
+				data, _ := os.ReadFile(filepath.Join(m.dir, "logs", "celld.log"))
+				if len(data) > 4096 {
+					data = data[len(data)-4096:]
+				}
+				t.Logf("celld %s log tail:\n%s", ip, data)
+			}
+		})
 		if err = m.Configure(context.Background(), cfg, true); err != nil {
 			t.Fatal(err)
 		}

@@ -35,7 +35,7 @@ func TestOwnedProcessLifecycle(t *testing.T) {
 	dir := t.TempDir()
 	starts := filepath.Join(dir, "starts")
 	binary := filepath.Join(dir, "celld")
-	script := fmt.Sprintf("#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'celld 0.6.2'; exit; fi\necho $$ >> %s\ntrap 'exit 0' TERM\nwhile :; do sleep 0.05; done\n", strconv.Quote(starts))
+	script := fmt.Sprintf("#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'celld 0.6.2'; exit; fi\necho $$ >> %s\necho child-stdout\necho child-stderr >&2\ntrap 'exit 0' TERM\nwhile :; do sleep 0.05; done\n", strconv.Quote(starts))
 	if err := os.WriteFile(binary, []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -55,6 +55,10 @@ func TestOwnedProcessLifecycle(t *testing.T) {
 	cancel()
 	pids := func() []string { data, _ := os.ReadFile(starts); return strings.Fields(string(data)) }
 	eventually(t, func() bool { return m.Status().Running && len(pids()) == 1 })
+	eventually(t, func() bool {
+		data, _ := os.ReadFile(filepath.Join(m.dir, "logs", "celld.log"))
+		return strings.Contains(string(data), "child-stdout") && strings.Contains(string(data), "child-stderr")
+	})
 	for i := 0; i < 3; i++ {
 		if err = m.Configure(context.Background(), testConfig(), true); err != nil {
 			t.Fatal(err)

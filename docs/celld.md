@@ -46,6 +46,35 @@ has extra release restrictions requiring operator review.
 Changing an existing fleet's storage address or credentials requires an explicit
 migration; automatic setup refuses to overwrite them.
 
+## Process logs
+
+Each agent writes celld stdout and stderr to its own private file:
+
+```sh
+sudo tail -F /var/lib/hyperhive/celld/logs/celld.log
+```
+
+The active file is limited to **10 MiB**, with **three rotated copies**
+(`celld.log.1` through `.3`, newest to oldest): at most **40 MiB of retained
+log files per node**. Rotation happens while writing, including large writes,
+and an agent restart appends to the existing file. The directory uses mode
+0700 and files use 0600. These limits are fixed defaults; no `.env` change is
+required.
+
+Before writing, the logger checks space on the log filesystem and preserves
+at least **256 MiB available**. Under disk pressure it removes the oldest
+rotated copies first. If space is still insufficient, or log storage fails,
+it drains and discards new output so logging cannot close the child's output
+pipe or restart celld. Capture resumes automatically on a successful later
+write. A warning is emitted to the agent log at most once per minute while
+capture fails, with one recovery summary for an announced outage. Brief
+space/error fluctuations do not reset the warning throttle.
+
+Normal celld process output is no longer copied to PM2/agent output. Process
+exit/restart messages and installation messages remain there. Existing PM2
+log history is not deleted. Application state under `celld/data` is separate
+from this text-log rotation and is never removed by the logger.
+
 ## Health
 
 `GET /celld/health` uses the existing API authentication. It returns the same JSON

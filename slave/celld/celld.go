@@ -33,6 +33,7 @@ type Manager struct {
 	mu                      sync.Mutex
 	dir, binary, ip         string
 	lock                    *os.File
+	logs                    *processLog
 	life                    context.Context
 	stopLife                context.CancelFunc
 	config                  *pb.Config
@@ -63,7 +64,7 @@ func New(dir, binary, ip string) (*Manager, error) {
 		return nil, fmt.Errorf("another agent owns celld: %w", err)
 	}
 	life, cancel := context.WithCancel(context.Background())
-	return &Manager{dir: dir, binary: binary, ip: ip, lock: f, life: life, stopLife: cancel, restartDelay: 10 * time.Second, stopGrace: 60 * time.Second}, nil
+	return &Manager{dir: dir, binary: binary, ip: ip, lock: f, logs: newProcessLog(dir), life: life, stopLife: cancel, restartDelay: 10 * time.Second, stopGrace: 60 * time.Second}, nil
 }
 
 func (m *Manager) Resume(ctx context.Context) error {
@@ -239,7 +240,8 @@ func (m *Manager) watch(ctx context.Context, c *pb.Config, done chan struct{}) {
 			"--listen", net.JoinHostPort(m.ip, "8080"), "--internal-listen", net.JoinHostPort(m.ip, "8081"), "--advertise", net.JoinHostPort(m.ip, "8081"))
 		cmd.Env = append(os.Environ(), "AWS_ACCESS_KEY_ID="+c.AccessKey, "AWS_SECRET_ACCESS_KEY="+c.SecretKey, "AWS_REGION="+c.Region,
 			"CELLD_WATCH="+filepath.Join(m.dir, "data"), "CELLD_TTL_MS=10000", "AWS_SESSION_TOKEN=")
-		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+		cmd.Stdout, cmd.Stderr = m.logs, m.logs
+		cmd.WaitDelay = time.Second
 		// The inherited lock covers the gap between an agent crash and child death.
 		cmd.ExtraFiles = []*os.File{m.lock}
 		cmd.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGKILL}
@@ -298,6 +300,7 @@ func (m *Manager) Close() {
 	}
 	m.closed = true
 	m.stop()
+	_ = m.logs.Close()
 	_ = m.lock.Close()
 }
 
