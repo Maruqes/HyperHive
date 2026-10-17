@@ -22,3 +22,5 @@ HyperHive focuses on predictable day-to-day ops rather than endless configuratio
 
 ## Security
 CrowdSec integration details are documented in `CROWDSEC.md`.
+
+The automatic celld fleet and its health endpoint are documented in [docs/celld.md](docs/celld.md).

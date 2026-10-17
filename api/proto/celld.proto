@@ -1,0 +1,28 @@
+syntax = "proto3";
+package celld;
+option go_package = "github.com/Maruqes/512SvMan/api/proto/celld;celld";
+
+message Empty {}
+message Config {
+  string version = 1;
+  string bucket = 2;
+  string endpoint = 3;
+  string region = 4;
+  string access_key = 5;
+  string secret_key = 6;
+}
+message ConfigureRequest {
+  Config config = 1;
+  bool start = 2;
+}
+message Status {
+  string node_ip = 1;
+  bool master = 2;
+  string version = 3;
+  bool running = 4;
+  string error = 5;
+}
+service CelldService {
+  rpc Configure(ConfigureRequest) returns (Status);
+  rpc GetStatus(Empty) returns (Status);
+}

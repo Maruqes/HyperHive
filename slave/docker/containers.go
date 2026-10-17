@@ -21,7 +21,7 @@ var our_container *Container
 
 var (
 	ErrProtectedContainer = errors.New("operation not allowed on protected container")
-	protectedContainers   = []string{"npm", "hyperhive-frontend"}
+	protectedContainers   = []string{"npm", "hyperhive-frontend", "hyperhive-silo"}
 )
 
 // isProtectedContainer checks if a container is protected by ID or name

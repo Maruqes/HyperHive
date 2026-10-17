@@ -123,7 +123,7 @@ if [ "$UPDATE_MODE" = "master" ]; then
     
     # Restart slave
     echo -e "  Restarting hyperhive-slave..."
-    if sudo pm2 restart hyperhive-slave; then
+    if sudo pm2 restart hyperhive-slave --kill-timeout 65000; then
         echo -e "${GREEN}  ✓ Slave service restarted successfully${NC}"
     else
         echo -e "${RED}  ✗ Failed to restart slave service${NC}"
@@ -132,7 +132,7 @@ if [ "$UPDATE_MODE" = "master" ]; then
 else
     # Restart only slave
     echo -e "${YELLOW}[3/3] Restarting PM2 service: hyperhive-slave...${NC}"
-    if sudo pm2 restart hyperhive-slave; then
+    if sudo pm2 restart hyperhive-slave --kill-timeout 65000; then
         echo -e "${GREEN}✓ Slave service restarted successfully${NC}"
     else
         echo -e "${RED}✗ Failed to restart slave service${NC}"
@@ -140,6 +140,12 @@ else
     fi
 fi
 echo ""
+
+# Persist the slave's stop grace so PM2 cannot interrupt celld's 60-second drain.
+if ! sudo pm2 save; then
+    echo -e "${RED}Failed to save PM2 process configuration${NC}"
+    exit 1
+fi
 
 echo -e "${GREEN}================================${NC}"
 echo -e "${GREEN}Update completed successfully!${NC}"

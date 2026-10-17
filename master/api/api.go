@@ -330,6 +330,7 @@ func StartApi(exitAfterStart bool) {
 		setupNotesAPI(r)
 		setupDockerAPI(r)
 		setupK8sAPI(r)
+		r.Get("/celld/health", getCelldHealth)
 		setupSPAAPI(r)
 	})
 

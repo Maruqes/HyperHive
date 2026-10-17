@@ -99,6 +99,7 @@ func scheduleDelayedSlaveStartup(machineName string) {
 }
 
 func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
+	services.CelldFleet.Wake()
 
 	if machineName == "" {
 		return fmt.Errorf("machineName cannot be empty")
@@ -317,7 +318,8 @@ func main() {
 	// Set the function in api package to access newSlaveCount
 	api.GetNewSlaveCountValue = getNewSlaveCount
 	askForSudo()
-	ctx := context.Background()
+	ctx, stopServices := context.WithCancel(context.Background())
+	defer stopServices()
 	exitAfterStart := false
 	for _, arg := range os.Args[1:] {
 		if arg == "--exit-after-start" {
@@ -491,6 +493,7 @@ func main() {
 	logger.SetCallBack(logs512.LoggerCallBack)
 	go protocol.PingAllSlavesLoop()
 	protocol.ListenGRPC(newSlave)
+	services.StartCelld(ctx)
 
 	virshService := services.VirshService{}
 	smartDiskService := services.SmartDiskService{}
@@ -522,6 +525,7 @@ func main() {
 	<-sigChan
 
 	logger.Info("Shutting down gracefully...")
+	stopServices()
 
 	// Stop GoAccess background process
 	api.StopGoAccess()
