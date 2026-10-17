@@ -14,6 +14,47 @@ Defaults:
 - Master credentials and persistent machine inventory: `/var/lib/hyperhive/celld-fleet.json`.
 - celld public/internal listeners: the node management IP on ports 8080/8081.
 
+## Command on server PATH
+
+Each agent installs the official executable at `/usr/local/bin/celld` and creates
+`/usr/bin/celld` as a symlink to it. This makes the command available in normal
+shells and the standard reduced `sudo` PATH, without changing `.env` or shell
+profiles. Setup also creates a missing link when the correct release is already
+installed. An existing different file or symlink at `/usr/bin/celld` is preserved
+and reported as a setup error for the operator to resolve.
+
+After deploying the updated slave agent on **every node, including the master**,
+restart its existing PM2 registration with the configured drain grace:
+
+```sh
+sudo pm2 restart hyperhive-slave --kill-timeout 65000
+sudo pm2 save
+# Once automatic fleet setup has completed:
+command -v celld
+celld --version
+sudo celld --version
+```
+
+This code change takes effect when those agents are updated; it does not itself
+deploy to physical servers. Continue using the agent to run the daemon. Operator
+commands such as `celld deploy` still need the existing bucket configuration and
+credentials; placing the executable on PATH does not load them into your shell.
+
+## Ports
+
+All ports below use TCP and are fixed in the current source, not `.env` options.
+
+| Port | Service | Where it listens / purpose |
+| --- | --- | --- |
+| 8080 | celld HTTP | Each node's management IP; application requests and `/.well-known/celld/health` |
+| 8081 | celld peers/operators | Each node's management IP; keep inside the trusted management network |
+| 9000 | SILO S3 | Master management IP; shared storage used by every node |
+| 9001 | SILO console | Inside the container only; **not published** on the host |
+| 9595 | HyperHive HTTP API | Master `:9595`; authenticated `GET /celld/health` (also through `/api/celld/health`) |
+| 8079 | HyperHive frontend | Existing frontend Docker host port; separate from celld application HTTP |
+| 50051 | HyperHive master gRPC | Master `:50051`; existing agent connections |
+| 50052 | HyperHive slave gRPC | Each agent `:50052`; includes celld Configure/GetStatus |
+
 The master is identified by its existing slave agent (`MASTER_IP == SLAVE_IP`).
 Management IPs must be private addresses reachable across the trusted network.
 Keep ports 9000 and 8081 inside that network. HyperHive's existing gRPC trust

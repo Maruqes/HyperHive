@@ -32,6 +32,7 @@ type Manager struct {
 	op                      sync.Mutex
 	mu                      sync.Mutex
 	dir, binary, ip         string
+	commandLink             string
 	lock                    *os.File
 	logs                    *processLog
 	life                    context.Context
@@ -64,7 +65,12 @@ func New(dir, binary, ip string) (*Manager, error) {
 		return nil, fmt.Errorf("another agent owns celld: %w", err)
 	}
 	life, cancel := context.WithCancel(context.Background())
-	return &Manager{dir: dir, binary: binary, ip: ip, lock: f, logs: newProcessLog(dir), life: life, stopLife: cancel, restartDelay: 10 * time.Second, stopGrace: 60 * time.Second}, nil
+	m := &Manager{dir: dir, binary: binary, ip: ip, lock: f, logs: newProcessLog(dir), life: life, stopLife: cancel, restartDelay: 10 * time.Second, stopGrace: 60 * time.Second}
+	if binary == Binary {
+		// /usr/bin also belongs to the reduced PATH used by sudo on our hosts.
+		m.commandLink = "/usr/bin/celld"
+	}
+	return m, nil
 }
 
 func (m *Manager) Resume(ctx context.Context) error {
@@ -194,7 +200,7 @@ func (m *Manager) install(ctx context.Context, version string) error {
 	if err == nil {
 		fields := strings.Fields(string(out))
 		if len(fields) >= 2 && "v"+strings.TrimPrefix(fields[1], "v") == version {
-			return nil
+			return m.ensureCommandLink()
 		}
 	}
 	var missing []string
@@ -226,6 +232,26 @@ func (m *Manager) install(ctx context.Context, version string) error {
 	fields := strings.Fields(string(out))
 	if err != nil || len(fields) < 2 || "v"+strings.TrimPrefix(fields[1], "v") != version {
 		return fmt.Errorf("installed celld does not report %s", version)
+	}
+	return m.ensureCommandLink()
+}
+
+// Keep the official install location; expose it without changing shell profiles
+// or replacing an executable owned by another installation.
+func (m *Manager) ensureCommandLink() error {
+	if m.commandLink == "" {
+		return nil
+	}
+	err := os.Symlink(m.binary, m.commandLink)
+	if errors.Is(err, os.ErrExist) {
+		target, readErr := os.Readlink(m.commandLink)
+		if readErr == nil && target == m.binary {
+			return nil
+		}
+		return fmt.Errorf("refusing to replace existing celld command at %s", m.commandLink)
+	}
+	if err != nil {
+		return fmt.Errorf("expose celld on PATH: %w", err)
 	}
 	return nil
 }
