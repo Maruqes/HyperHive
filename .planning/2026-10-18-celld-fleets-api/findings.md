@@ -34,11 +34,16 @@
 - All api/master/slave module suites, focused race tests, and the disposable SILO/celld script passed. Real tests verified two overlapping fleets, independent Durable Object counters, credential isolation and retryable deletion while retaining an unrelated bucket.
 - No physical server access, deployment or production reset occurred. Deploy synchronized agents before the new master. Enabling migration will purge legacy application data only after remembered agents acknowledge cleanup.
 
-## Proposed SilverBullet update (not saved; confirmation pending)
+## SilverBullet update (saved and verified after explicit user approval)
 - `knowledge/projetos/HyperHive/features/containers/celld/index`: replace singleton/automatic enrollment description with explicit fleets, state paths, membership synchronization and lifecycle persistence.
-- `knowledge/projetos/HyperHive/features/containers/celld/health-api-and-frontend`: authenticated CRUD/actions, secret-only credentials endpoint, cached health/counts and CLI handoff; frontend remains outside this change.
+- `knowledge/projetos/HyperHive/features/containers/celld/health-api-and-frontend`: authenticated CRUD/actions, secret-only credentials endpoint, cached health/counts and CLI handoff; frontend supports fleet management and CLI handoff.
 - `knowledge/projetos/HyperHive/operations/celld-startup-deploy-and-test`: agent-first rollout, destructive legacy reset boundary, new examples and disposable tests.
 - `knowledge/infraestrutura/HyperHive/memoria-operacional`: dated source-only implementation/validation entry linking those project pages; explicitly record no live rollout.
 
 - Frontend design retains Inter typography, existing dark navy/light surfaces, rounded cards and shared modals. New components live under components/celld; networking/types/polling stay in services/types/hooks. Credentials remain component memory only.
 - Initial frontend TypeScript and existing Jest suites pass. Browser validation uses a loopback-only synthetic API fixture; production infrastructure is not accessed.
+
+- Frontend follow-up completed: compact service/types/polling modules and focused components/celld forms/cards/modals; existing styles and unrelated changes preserved. No dependencies added.
+- TypeScript, all 29 Jest tests in 3 suites, and production web export passed. Exported index and JS bundle were verified on disk.
+- Browser checks passed with the local synthetic API: CRUD, actions, explicit secret fetch/copy/clear, conflicts, pending/offline deletion, storage/reset/API errors, empty state, 401 login recovery, keyboard controls, mobile 390x844 and themes. Actual coordinator/storage validation remains the separate backend integration boundary.
+- Updated and read back all three canonical pages plus the dated operational memory entry, preserving prior history. Screenshots are saved in the task visualization directory.

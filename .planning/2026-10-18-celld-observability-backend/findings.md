@@ -1,0 +1,12 @@
+# Findings
+- Current code has per-fleet managers, bounded process logs, authenticated master-initiated gRPC and async lifecycle reconciliation.
+- SilverBullet documents source-only fleet work and no rollout. No remote host access needed.
+- Existing worktree edits are confined to older fleet planning files and the requested untracked plan; preserve them.
+- Pinned v0.6.2 source archive inspected after bundled git HTTPS helper failed (missing libcurl-gnutls.so.4); used curl codeload instead.
+- Real disposable probe passed all combined fixture requests and deliberate 500; six OTLP batches. Detailed queue/workflow/cron fleet census unavailable; documented explicit limitations.
+- Services includes the primary pool, so adding stateless again would double-count isolates.
+- CELLD_NODE is configurable; inject unique child session IDs to scope Docker celld.node labels across overlapping fleets.
+- Managed S3-backed runtime exports some thrown Worker console errors with trace IDs but no matching request span. Confirmed by recorded batch diagnostics; completion/body handling did not restore missing spans. Normal completed HTTP 500 response errors correlate correctly in both overlapping fleets. Preserve/document the upstream gap rather than synthesizing spans.
+- Longer disposable probe captured cron execution: 16 app logs, 34 spans; app binding status confirmed waiting/errored Workflows. Read-only operator census still unavailable.
+- Added resident identities/generations and internal cell-type breakdown without adding to aggregate owned/resident counts. All counters on configured-only workload rows are nullable.
+- Focused races passed for master services/API and agent collectors; file/query/forwarding resources are bounded. Container collector tested against a Unix-socket engine fixture, not a privileged celld container execution/fence qualification.

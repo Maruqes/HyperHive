@@ -21,6 +21,11 @@ func setupCelldAPI(r chi.Router) {
 		r.Post("/celld/fleets/{id}/"+action, celldFleetAction(action))
 	}
 	r.Get("/celld/fleets/{id}/credentials", getCelldCredentials)
+	r.Get("/celld/fleets/{id}/observability", getCelldObservability)
+	r.Get("/celld/fleets/{id}/logs", getCelldObservations("log"))
+	r.Get("/celld/fleets/{id}/events", getCelldObservations("event"))
+	r.Get("/celld/fleets/{id}/traces/{trace_id}", getCelldObservations("span"))
+	r.Get("/celld/fleets/{id}/metrics", getCelldMetrics)
 }
 
 func getCelldHealth(w http.ResponseWriter, r *http.Request) {

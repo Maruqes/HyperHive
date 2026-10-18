@@ -196,6 +196,10 @@ func (s *CelldService) Update(id string, in CelldFleetInput) (CelldFleetInfo, er
 	return s.infoLocked(f), nil
 }
 func (s *CelldService) Action(id, action string) (CelldFleetInfo, error) {
+	if action == "delete" && s.observations != nil {
+		s.observations.ingest.Lock()
+		defer s.observations.ingest.Unlock()
+	}
 	if err := s.load(); err != nil {
 		return CelldFleetInfo{}, err
 	}

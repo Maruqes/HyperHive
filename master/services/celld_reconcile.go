@@ -14,6 +14,7 @@ import (
 )
 
 func StartCelld(ctx context.Context) {
+	go CelldFleet.observationLoop(ctx)
 	go func() {
 		tick := time.NewTicker(30 * time.Second)
 		defer tick.Stop()

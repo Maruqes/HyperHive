@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	pb "github.com/Maruqes/512SvMan/api/proto/celld"
+	"io"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -96,6 +98,65 @@ func TestOverlappingFleetsIntegration(t *testing.T) {
 	counter("127.0.0.2", b.HttpPort, "b", 1)
 	counter("127.0.0.3", a.HttpPort, "a", 2)
 	counter("127.0.0.3", b.HttpPort, "b", 2)
+	// Verify the real managed OTLP receiver, state collector and fleet boundary.
+	for _, cfg := range []*pb.Config{a, b} {
+		resp, err := client.Get("http://" + net.JoinHostPort(nodes[0].legacy.ip, fmt.Sprint(cfg.HttpPort)) + "/error")
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != 500 {
+			t.Fatal("deliberate error did not fail")
+		}
+	}
+	deadline := time.Now().Add(20 * time.Second)
+	observed := map[string]bool{}
+	for time.Now().Before(deadline) && len(observed) < 2 {
+		for _, id := range []string{"testa", "testb"} {
+			batch, err := nodes[0].Observations(ctx, &pb.ObservationsRequest{FleetId: id})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if batch.Snapshot.CollectedMs == 0 {
+				continue
+			}
+			if batch.Snapshot.FleetId != id || batch.Snapshot.NodeId != nodes[0].legacy.ip || batch.Snapshot.Resources == nil {
+				t.Fatal("untrusted or missing snapshot identity")
+			}
+			spanIDs := map[string]bool{}
+			for _, r := range batch.Records {
+				if r.Kind == "span" {
+					spanIDs[r.TraceId] = true
+				}
+			}
+			for _, r := range batch.Records {
+				if strings.Contains(r.Body, "probe error") {
+					fleet := strings.TrimPrefix(id, "test")
+					if !strings.Contains(r.Body, "fleet "+fleet+" probe error") {
+						t.Fatal("app log crossed fleet boundary")
+					}
+					if r.TraceId != "" && spanIDs[r.TraceId] {
+						observed[id] = true
+					}
+				}
+			}
+		}
+		if len(observed) < 2 {
+			time.Sleep(200 * time.Millisecond)
+		}
+	}
+	if len(observed) != 2 {
+		for _, id := range []string{"testa", "testb"} {
+			batch, _ := nodes[0].Observations(ctx, &pb.ObservationsRequest{FleetId: id})
+			t.Logf("%s snapshot=%v drops=%d records=%d", id, batch.Snapshot, batch.Dropped, len(batch.Records))
+			for _, record := range batch.Records {
+				t.Logf("kind=%s source=%s body=%q trace=%s", record.Kind, record.Source, record.Body, record.TraceId)
+			}
+		}
+		t.Fatal("managed OTLP console errors did not join their fleet request traces")
+	}
+	t.Log("verified fresh managed snapshots and correlated OTLP errors for two overlapping fleets")
 	if err := nodes[0].Stop("testa", false); err != nil {
 		t.Fatal(err)
 	}

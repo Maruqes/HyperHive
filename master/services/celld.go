@@ -131,6 +131,7 @@ type celldFleetState struct {
 	Fleets       map[string]*celldRecord `json:"fleets"`
 }
 type CelldService struct {
+	observations  *celldObservability
 	lastError     string
 	mu            sync.RWMutex
 	state         celldFleetState
@@ -146,7 +147,7 @@ type CelldService struct {
 }
 
 func NewCelldService(path string) *CelldService {
-	return &CelldService{path: path, wake: make(chan struct{}, 1)}
+	return &CelldService{path: path, wake: make(chan struct{}, 1), observations: newCelldObservability()}
 }
 
 var CelldFleet = NewCelldService(celldFleetPath)

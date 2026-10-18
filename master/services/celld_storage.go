@@ -235,6 +235,16 @@ type celldS3Response struct {
 	body   string
 }
 
+// Bound curl's complete response before parsing headers or JSON metadata.
+type celldResponseBuffer struct{ bytes.Buffer }
+
+func (b *celldResponseBuffer) Write(p []byte) (int, error) {
+	if len(p)+b.Len() > (2<<20)+(64<<10) {
+		return 0, fmt.Errorf("SILO response exceeds limit")
+	}
+	return b.Buffer.Write(p)
+}
+
 func celldS3(ctx context.Context, cfg *pb.Config, method, key string, headers map[string]string, body string) (*celldS3Response, error) {
 	// curl already supplies SigV4; credentials enter on stdin, never in process arguments.
 	var config strings.Builder
@@ -257,7 +267,10 @@ func celldS3(ctx context.Context, cfg *pb.Config, method, key string, headers ma
 	}
 	cmd := exec.CommandContext(ctx, "curl", "--silent", "--show-error", "--http1.1", "--raw", "--include", "--noproxy", "*", "--max-time", "10", "--config", "-")
 	cmd.Stdin = strings.NewReader(config.String())
-	out, err := cmd.Output()
+	var captured celldResponseBuffer
+	cmd.Stdout = &captured
+	err := cmd.Run()
+	out := captured.Bytes()
 	if err != nil {
 		return nil, fmt.Errorf("SILO request failed: %w", err)
 	}

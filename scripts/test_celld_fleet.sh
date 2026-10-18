@@ -57,11 +57,12 @@ export class Counter {
   constructor(state) { this.state = state; }
   async fetch() {
     const count = (await this.state.storage.get("count") || 0) + 1;
+    console.log("fleet $fleet counter", count);
     await this.state.storage.put("count", count);
     return Response.json({fleet: "$fleet", count});
   }
 }
-export default { fetch(request, env) { return env.COUNTER.getByName("shared").fetch(request); } };
+export default { fetch(request, env) { if (new URL(request.url).pathname === "/error") { console.error("fleet $fleet probe error"); return new Response("fleet $fleet deliberate failure", {status:500}); } return env.COUNTER.getByName("shared").fetch(request); } };
 JS
   AWS_ACCESS_KEY_ID="celld-test$fleet" AWS_SECRET_ACCESS_KEY="celld-test$fleet-secret" \
     "$CELLD_TEST_BINARY" deploy "$project" --bucket "s3://hyperhive-celld-test$fleet" --endpoint "$endpoint" --region us-east-1

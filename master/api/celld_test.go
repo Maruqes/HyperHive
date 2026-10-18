@@ -127,3 +127,55 @@ func TestCelldFleetAuthenticatedAPI(t *testing.T) {
 		}
 	}
 }
+
+func TestCelldObservationRoutesAreAuthenticatedCachedAndBounded(t *testing.T) {
+	old, oldURL := services.CelldFleet, baseURL
+	defer func() { services.CelldFleet = old; baseURL = oldURL }()
+	auth := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer valid" {
+			w.WriteHeader(401)
+			return
+		}
+		fmt.Fprint(w, "[]")
+	}))
+	defer auth.Close()
+	baseURL = auth.URL
+	path := filepath.Join(t.TempDir(), "fleets.json")
+	if err := os.WriteFile(path, []byte(`{"schema":2,"root_user":"admin","root_password":"private","fleets":{"f":{"id":"f","name":"a","servers":[{"name":"offline","ip":"127.0.0.2"}]}}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	services.CelldFleet = services.NewCelldService(path)
+	router := chi.NewRouter()
+	router.Use(authMiddleware)
+	setupCelldAPI(router)
+	for _, suffix := range []string{"observability", "logs", "metrics", "events", "traces/" + strings.Repeat("a", 32)} {
+		url := "/celld/fleets/f/" + suffix
+		for _, authorized := range []bool{false, true} {
+			req := httptest.NewRequest("GET", url, nil)
+			if authorized {
+				req.Header.Set("Authorization", "Bearer valid")
+			}
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			want := 401
+			if authorized {
+				want = 200
+			}
+			if w.Code != want {
+				t.Fatalf("%s: %d %s", url, w.Code, w.Body)
+			}
+			if authorized && w.Header().Get("Cache-Control") != "no-store" {
+				t.Fatal("history response cached")
+			}
+		}
+	}
+	for _, suffix := range []string{"logs?limit=2001&download=true", "logs?from=invalid", "metrics?limit=-1", "logs?text=" + strings.Repeat("x", 257), "traces/invalid"} {
+		req := httptest.NewRequest("GET", "/celld/fleets/f/"+suffix, nil)
+		req.Header.Set("Authorization", "Bearer valid")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		if w.Code != 400 {
+			t.Fatalf("invalid %s: %d", suffix, w.Code)
+		}
+	}
+}

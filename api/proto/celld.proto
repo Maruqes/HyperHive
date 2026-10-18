@@ -33,7 +33,85 @@ message SyncRequest {
   repeated string assigned_fleet_ids = 2;
 }
 message PrepareRequest { string version = 1; }
+// Every observation is scoped by the requested fleet and authenticated node.
+message Capability { string name = 1; string state = 2; string detail = 3; }
+message ResourceSample {
+  int64 sampled_ms = 1;
+  optional uint64 owned_cells = 2;
+  optional uint64 resident_cells = 3;
+  optional uint64 rss_bytes = 4;
+  optional uint64 in_use_bytes = 5;
+  optional uint64 cpu_percent_x100 = 6;
+  optional uint64 open_fds = 7;
+  optional uint64 fd_limit = 8;
+  optional uint64 host_websockets = 9;
+  optional bool pressured = 10;
+  optional bool memory_headroom = 11;
+  optional uint64 shed_cells = 12;
+  optional uint64 restoring = 13;
+  optional uint64 capacity_waiting = 14;
+  optional uint64 activation_waiting = 15;
+  optional uint64 handoff_failed = 16;
+  map<string, uint64> phases = 17;
+  map<string, uint64> container_instances = 18;
+}
+message WorkloadSample {
+  string kind = 1;
+  string id = 2;
+  string parent = 3;
+  string version = 4;
+  string state = 5;
+  optional uint64 live = 6;
+  optional uint64 retiring = 7;
+  optional uint64 heap_bytes = 8;
+  optional uint64 cells = 9;
+  optional uint64 requests = 10;
+  optional uint64 memory_bytes = 11;
+  optional double cpu_percent = 12;
+  optional uint64 limit = 13;
+}
+message ObservationSnapshot {
+  string fleet_id = 1;
+  string node_id = 2;
+  string version = 3;
+  string process_generation = 4;
+  int64 collected_ms = 5;
+  int64 attempted_ms = 6;
+  string state = 7;
+  string error = 8;
+  ResourceSample resources = 9;
+  repeated WorkloadSample workloads = 10;
+  repeated Capability capabilities = 11;
+  uint64 dropped = 12;
+}
+message ObservationRecord {
+  uint64 sequence = 1;
+  int64 time_ms = 2;
+  string kind = 3;
+  string source = 4;
+  string workload = 5;
+  string severity = 6;
+  string body = 7;
+  string trace_id = 8;
+  string span_id = 9;
+  string parent_span_id = 10;
+  uint64 duration_us = 11;
+  bool failed = 12;
+  map<string, string> attributes = 13;
+}
+message ObservationsRequest {
+  string fleet_id = 1;
+  string generation = 2;
+  uint64 acknowledge = 3;
+}
+message ObservationBatch {
+  ObservationSnapshot snapshot = 1;
+  string generation = 2;
+  repeated ObservationRecord records = 3;
+  uint64 dropped = 4;
+}
 service CelldService {
+  rpc Observations(ObservationsRequest) returns (ObservationBatch);
   rpc Configure(ConfigureRequest) returns (Status);
   rpc GetStatus(Empty) returns (Status);
   rpc Sync(SyncRequest) returns (Empty);

@@ -421,6 +421,787 @@ func (x *PrepareRequest) GetVersion() string {
 	return ""
 }
 
+// Every observation is scoped by the requested fleet and authenticated node.
+type Capability struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	State         string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	Detail        string                 `protobuf:"bytes,3,opt,name=detail,proto3" json:"detail,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Capability) Reset() {
+	*x = Capability{}
+	mi := &file_celld_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Capability) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Capability) ProtoMessage() {}
+
+func (x *Capability) ProtoReflect() protoreflect.Message {
+	mi := &file_celld_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Capability.ProtoReflect.Descriptor instead.
+func (*Capability) Descriptor() ([]byte, []int) {
+	return file_celld_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *Capability) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Capability) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *Capability) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+type ResourceSample struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	SampledMs          int64                  `protobuf:"varint,1,opt,name=sampled_ms,json=sampledMs,proto3" json:"sampled_ms,omitempty"`
+	OwnedCells         *uint64                `protobuf:"varint,2,opt,name=owned_cells,json=ownedCells,proto3,oneof" json:"owned_cells,omitempty"`
+	ResidentCells      *uint64                `protobuf:"varint,3,opt,name=resident_cells,json=residentCells,proto3,oneof" json:"resident_cells,omitempty"`
+	RssBytes           *uint64                `protobuf:"varint,4,opt,name=rss_bytes,json=rssBytes,proto3,oneof" json:"rss_bytes,omitempty"`
+	InUseBytes         *uint64                `protobuf:"varint,5,opt,name=in_use_bytes,json=inUseBytes,proto3,oneof" json:"in_use_bytes,omitempty"`
+	CpuPercentX100     *uint64                `protobuf:"varint,6,opt,name=cpu_percent_x100,json=cpuPercentX100,proto3,oneof" json:"cpu_percent_x100,omitempty"`
+	OpenFds            *uint64                `protobuf:"varint,7,opt,name=open_fds,json=openFds,proto3,oneof" json:"open_fds,omitempty"`
+	FdLimit            *uint64                `protobuf:"varint,8,opt,name=fd_limit,json=fdLimit,proto3,oneof" json:"fd_limit,omitempty"`
+	HostWebsockets     *uint64                `protobuf:"varint,9,opt,name=host_websockets,json=hostWebsockets,proto3,oneof" json:"host_websockets,omitempty"`
+	Pressured          *bool                  `protobuf:"varint,10,opt,name=pressured,proto3,oneof" json:"pressured,omitempty"`
+	MemoryHeadroom     *bool                  `protobuf:"varint,11,opt,name=memory_headroom,json=memoryHeadroom,proto3,oneof" json:"memory_headroom,omitempty"`
+	ShedCells          *uint64                `protobuf:"varint,12,opt,name=shed_cells,json=shedCells,proto3,oneof" json:"shed_cells,omitempty"`
+	Restoring          *uint64                `protobuf:"varint,13,opt,name=restoring,proto3,oneof" json:"restoring,omitempty"`
+	CapacityWaiting    *uint64                `protobuf:"varint,14,opt,name=capacity_waiting,json=capacityWaiting,proto3,oneof" json:"capacity_waiting,omitempty"`
+	ActivationWaiting  *uint64                `protobuf:"varint,15,opt,name=activation_waiting,json=activationWaiting,proto3,oneof" json:"activation_waiting,omitempty"`
+	HandoffFailed      *uint64                `protobuf:"varint,16,opt,name=handoff_failed,json=handoffFailed,proto3,oneof" json:"handoff_failed,omitempty"`
+	Phases             map[string]uint64      `protobuf:"bytes,17,rep,name=phases,proto3" json:"phases,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	ContainerInstances map[string]uint64      `protobuf:"bytes,18,rep,name=container_instances,json=containerInstances,proto3" json:"container_instances,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ResourceSample) Reset() {
+	*x = ResourceSample{}
+	mi := &file_celld_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceSample) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceSample) ProtoMessage() {}
+
+func (x *ResourceSample) ProtoReflect() protoreflect.Message {
+	mi := &file_celld_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceSample.ProtoReflect.Descriptor instead.
+func (*ResourceSample) Descriptor() ([]byte, []int) {
+	return file_celld_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ResourceSample) GetSampledMs() int64 {
+	if x != nil {
+		return x.SampledMs
+	}
+	return 0
+}
+
+func (x *ResourceSample) GetOwnedCells() uint64 {
+	if x != nil && x.OwnedCells != nil {
+		return *x.OwnedCells
+	}
+	return 0
+}
+
+func (x *ResourceSample) GetResidentCells() uint64 {
+	if x != nil && x.ResidentCells != nil {
+		return *x.ResidentCells
+	}
+	return 0
+}
+
+func (x *ResourceSample) GetRssBytes() uint64 {
+	if x != nil && x.RssBytes != nil {
+		return *x.RssBytes
+	}
+	return 0
+}
+
+func (x *ResourceSample) GetInUseBytes() uint64 {
+	if x != nil && x.InUseBytes != nil {
+		return *x.InUseBytes
+	}
+	return 0
+}
+
+func (x *ResourceSample) GetCpuPercentX100() uint64 {
+	if x != nil && x.CpuPercentX100 != nil {
+		return *x.CpuPercentX100
+	}
+	return 0
+}
+
+func (x *ResourceSample) GetOpenFds() uint64 {
+	if x != nil && x.OpenFds != nil {
+		return *x.OpenFds
+	}
+	return 0
+}
+
+func (x *ResourceSample) GetFdLimit() uint64 {
+	if x != nil && x.FdLimit != nil {
+		return *x.FdLimit
+	}
+	return 0
+}
+
+func (x *ResourceSample) GetHostWebsockets() uint64 {
+	if x != nil && x.HostWebsockets != nil {
+		return *x.HostWebsockets
+	}
+	return 0
+}
+
+func (x *ResourceSample) GetPressured() bool {
+	if x != nil && x.Pressured != nil {
+		return *x.Pressured
+	}
+	return false
+}
+
+func (x *ResourceSample) GetMemoryHeadroom() bool {
+	if x != nil && x.MemoryHeadroom != nil {
+		return *x.MemoryHeadroom
+	}
+	return false
+}
+
+func (x *ResourceSample) GetShedCells() uint64 {
+	if x != nil && x.ShedCells != nil {
+		return *x.ShedCells
+	}
+	return 0
+}
+
+func (x *ResourceSample) GetRestoring() uint64 {
+	if x != nil && x.Restoring != nil {
+		return *x.Restoring
+	}
+	return 0
+}
+
+func (x *ResourceSample) GetCapacityWaiting() uint64 {
+	if x != nil && x.CapacityWaiting != nil {
+		return *x.CapacityWaiting
+	}
+	return 0
+}
+
+func (x *ResourceSample) GetActivationWaiting() uint64 {
+	if x != nil && x.ActivationWaiting != nil {
+		return *x.ActivationWaiting
+	}
+	return 0
+}
+
+func (x *ResourceSample) GetHandoffFailed() uint64 {
+	if x != nil && x.HandoffFailed != nil {
+		return *x.HandoffFailed
+	}
+	return 0
+}
+
+func (x *ResourceSample) GetPhases() map[string]uint64 {
+	if x != nil {
+		return x.Phases
+	}
+	return nil
+}
+
+func (x *ResourceSample) GetContainerInstances() map[string]uint64 {
+	if x != nil {
+		return x.ContainerInstances
+	}
+	return nil
+}
+
+type WorkloadSample struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Parent        string                 `protobuf:"bytes,3,opt,name=parent,proto3" json:"parent,omitempty"`
+	Version       string                 `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	State         string                 `protobuf:"bytes,5,opt,name=state,proto3" json:"state,omitempty"`
+	Live          *uint64                `protobuf:"varint,6,opt,name=live,proto3,oneof" json:"live,omitempty"`
+	Retiring      *uint64                `protobuf:"varint,7,opt,name=retiring,proto3,oneof" json:"retiring,omitempty"`
+	HeapBytes     *uint64                `protobuf:"varint,8,opt,name=heap_bytes,json=heapBytes,proto3,oneof" json:"heap_bytes,omitempty"`
+	Cells         *uint64                `protobuf:"varint,9,opt,name=cells,proto3,oneof" json:"cells,omitempty"`
+	Requests      *uint64                `protobuf:"varint,10,opt,name=requests,proto3,oneof" json:"requests,omitempty"`
+	MemoryBytes   *uint64                `protobuf:"varint,11,opt,name=memory_bytes,json=memoryBytes,proto3,oneof" json:"memory_bytes,omitempty"`
+	CpuPercent    *float64               `protobuf:"fixed64,12,opt,name=cpu_percent,json=cpuPercent,proto3,oneof" json:"cpu_percent,omitempty"`
+	Limit         *uint64                `protobuf:"varint,13,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkloadSample) Reset() {
+	*x = WorkloadSample{}
+	mi := &file_celld_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkloadSample) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkloadSample) ProtoMessage() {}
+
+func (x *WorkloadSample) ProtoReflect() protoreflect.Message {
+	mi := &file_celld_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkloadSample.ProtoReflect.Descriptor instead.
+func (*WorkloadSample) Descriptor() ([]byte, []int) {
+	return file_celld_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *WorkloadSample) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *WorkloadSample) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *WorkloadSample) GetParent() string {
+	if x != nil {
+		return x.Parent
+	}
+	return ""
+}
+
+func (x *WorkloadSample) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *WorkloadSample) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *WorkloadSample) GetLive() uint64 {
+	if x != nil && x.Live != nil {
+		return *x.Live
+	}
+	return 0
+}
+
+func (x *WorkloadSample) GetRetiring() uint64 {
+	if x != nil && x.Retiring != nil {
+		return *x.Retiring
+	}
+	return 0
+}
+
+func (x *WorkloadSample) GetHeapBytes() uint64 {
+	if x != nil && x.HeapBytes != nil {
+		return *x.HeapBytes
+	}
+	return 0
+}
+
+func (x *WorkloadSample) GetCells() uint64 {
+	if x != nil && x.Cells != nil {
+		return *x.Cells
+	}
+	return 0
+}
+
+func (x *WorkloadSample) GetRequests() uint64 {
+	if x != nil && x.Requests != nil {
+		return *x.Requests
+	}
+	return 0
+}
+
+func (x *WorkloadSample) GetMemoryBytes() uint64 {
+	if x != nil && x.MemoryBytes != nil {
+		return *x.MemoryBytes
+	}
+	return 0
+}
+
+func (x *WorkloadSample) GetCpuPercent() float64 {
+	if x != nil && x.CpuPercent != nil {
+		return *x.CpuPercent
+	}
+	return 0
+}
+
+func (x *WorkloadSample) GetLimit() uint64 {
+	if x != nil && x.Limit != nil {
+		return *x.Limit
+	}
+	return 0
+}
+
+type ObservationSnapshot struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	FleetId           string                 `protobuf:"bytes,1,opt,name=fleet_id,json=fleetId,proto3" json:"fleet_id,omitempty"`
+	NodeId            string                 `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Version           string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	ProcessGeneration string                 `protobuf:"bytes,4,opt,name=process_generation,json=processGeneration,proto3" json:"process_generation,omitempty"`
+	CollectedMs       int64                  `protobuf:"varint,5,opt,name=collected_ms,json=collectedMs,proto3" json:"collected_ms,omitempty"`
+	AttemptedMs       int64                  `protobuf:"varint,6,opt,name=attempted_ms,json=attemptedMs,proto3" json:"attempted_ms,omitempty"`
+	State             string                 `protobuf:"bytes,7,opt,name=state,proto3" json:"state,omitempty"`
+	Error             string                 `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
+	Resources         *ResourceSample        `protobuf:"bytes,9,opt,name=resources,proto3" json:"resources,omitempty"`
+	Workloads         []*WorkloadSample      `protobuf:"bytes,10,rep,name=workloads,proto3" json:"workloads,omitempty"`
+	Capabilities      []*Capability          `protobuf:"bytes,11,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	Dropped           uint64                 `protobuf:"varint,12,opt,name=dropped,proto3" json:"dropped,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ObservationSnapshot) Reset() {
+	*x = ObservationSnapshot{}
+	mi := &file_celld_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ObservationSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ObservationSnapshot) ProtoMessage() {}
+
+func (x *ObservationSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_celld_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ObservationSnapshot.ProtoReflect.Descriptor instead.
+func (*ObservationSnapshot) Descriptor() ([]byte, []int) {
+	return file_celld_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ObservationSnapshot) GetFleetId() string {
+	if x != nil {
+		return x.FleetId
+	}
+	return ""
+}
+
+func (x *ObservationSnapshot) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *ObservationSnapshot) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *ObservationSnapshot) GetProcessGeneration() string {
+	if x != nil {
+		return x.ProcessGeneration
+	}
+	return ""
+}
+
+func (x *ObservationSnapshot) GetCollectedMs() int64 {
+	if x != nil {
+		return x.CollectedMs
+	}
+	return 0
+}
+
+func (x *ObservationSnapshot) GetAttemptedMs() int64 {
+	if x != nil {
+		return x.AttemptedMs
+	}
+	return 0
+}
+
+func (x *ObservationSnapshot) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *ObservationSnapshot) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *ObservationSnapshot) GetResources() *ResourceSample {
+	if x != nil {
+		return x.Resources
+	}
+	return nil
+}
+
+func (x *ObservationSnapshot) GetWorkloads() []*WorkloadSample {
+	if x != nil {
+		return x.Workloads
+	}
+	return nil
+}
+
+func (x *ObservationSnapshot) GetCapabilities() []*Capability {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
+}
+
+func (x *ObservationSnapshot) GetDropped() uint64 {
+	if x != nil {
+		return x.Dropped
+	}
+	return 0
+}
+
+type ObservationRecord struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Sequence      uint64                 `protobuf:"varint,1,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	TimeMs        int64                  `protobuf:"varint,2,opt,name=time_ms,json=timeMs,proto3" json:"time_ms,omitempty"`
+	Kind          string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	Source        string                 `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
+	Workload      string                 `protobuf:"bytes,5,opt,name=workload,proto3" json:"workload,omitempty"`
+	Severity      string                 `protobuf:"bytes,6,opt,name=severity,proto3" json:"severity,omitempty"`
+	Body          string                 `protobuf:"bytes,7,opt,name=body,proto3" json:"body,omitempty"`
+	TraceId       string                 `protobuf:"bytes,8,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
+	SpanId        string                 `protobuf:"bytes,9,opt,name=span_id,json=spanId,proto3" json:"span_id,omitempty"`
+	ParentSpanId  string                 `protobuf:"bytes,10,opt,name=parent_span_id,json=parentSpanId,proto3" json:"parent_span_id,omitempty"`
+	DurationUs    uint64                 `protobuf:"varint,11,opt,name=duration_us,json=durationUs,proto3" json:"duration_us,omitempty"`
+	Failed        bool                   `protobuf:"varint,12,opt,name=failed,proto3" json:"failed,omitempty"`
+	Attributes    map[string]string      `protobuf:"bytes,13,rep,name=attributes,proto3" json:"attributes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ObservationRecord) Reset() {
+	*x = ObservationRecord{}
+	mi := &file_celld_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ObservationRecord) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ObservationRecord) ProtoMessage() {}
+
+func (x *ObservationRecord) ProtoReflect() protoreflect.Message {
+	mi := &file_celld_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ObservationRecord.ProtoReflect.Descriptor instead.
+func (*ObservationRecord) Descriptor() ([]byte, []int) {
+	return file_celld_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ObservationRecord) GetSequence() uint64 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *ObservationRecord) GetTimeMs() int64 {
+	if x != nil {
+		return x.TimeMs
+	}
+	return 0
+}
+
+func (x *ObservationRecord) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ObservationRecord) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *ObservationRecord) GetWorkload() string {
+	if x != nil {
+		return x.Workload
+	}
+	return ""
+}
+
+func (x *ObservationRecord) GetSeverity() string {
+	if x != nil {
+		return x.Severity
+	}
+	return ""
+}
+
+func (x *ObservationRecord) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *ObservationRecord) GetTraceId() string {
+	if x != nil {
+		return x.TraceId
+	}
+	return ""
+}
+
+func (x *ObservationRecord) GetSpanId() string {
+	if x != nil {
+		return x.SpanId
+	}
+	return ""
+}
+
+func (x *ObservationRecord) GetParentSpanId() string {
+	if x != nil {
+		return x.ParentSpanId
+	}
+	return ""
+}
+
+func (x *ObservationRecord) GetDurationUs() uint64 {
+	if x != nil {
+		return x.DurationUs
+	}
+	return 0
+}
+
+func (x *ObservationRecord) GetFailed() bool {
+	if x != nil {
+		return x.Failed
+	}
+	return false
+}
+
+func (x *ObservationRecord) GetAttributes() map[string]string {
+	if x != nil {
+		return x.Attributes
+	}
+	return nil
+}
+
+type ObservationsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FleetId       string                 `protobuf:"bytes,1,opt,name=fleet_id,json=fleetId,proto3" json:"fleet_id,omitempty"`
+	Generation    string                 `protobuf:"bytes,2,opt,name=generation,proto3" json:"generation,omitempty"`
+	Acknowledge   uint64                 `protobuf:"varint,3,opt,name=acknowledge,proto3" json:"acknowledge,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ObservationsRequest) Reset() {
+	*x = ObservationsRequest{}
+	mi := &file_celld_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ObservationsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ObservationsRequest) ProtoMessage() {}
+
+func (x *ObservationsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_celld_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ObservationsRequest.ProtoReflect.Descriptor instead.
+func (*ObservationsRequest) Descriptor() ([]byte, []int) {
+	return file_celld_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ObservationsRequest) GetFleetId() string {
+	if x != nil {
+		return x.FleetId
+	}
+	return ""
+}
+
+func (x *ObservationsRequest) GetGeneration() string {
+	if x != nil {
+		return x.Generation
+	}
+	return ""
+}
+
+func (x *ObservationsRequest) GetAcknowledge() uint64 {
+	if x != nil {
+		return x.Acknowledge
+	}
+	return 0
+}
+
+type ObservationBatch struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Snapshot      *ObservationSnapshot   `protobuf:"bytes,1,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	Generation    string                 `protobuf:"bytes,2,opt,name=generation,proto3" json:"generation,omitempty"`
+	Records       []*ObservationRecord   `protobuf:"bytes,3,rep,name=records,proto3" json:"records,omitempty"`
+	Dropped       uint64                 `protobuf:"varint,4,opt,name=dropped,proto3" json:"dropped,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ObservationBatch) Reset() {
+	*x = ObservationBatch{}
+	mi := &file_celld_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ObservationBatch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ObservationBatch) ProtoMessage() {}
+
+func (x *ObservationBatch) ProtoReflect() protoreflect.Message {
+	mi := &file_celld_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ObservationBatch.ProtoReflect.Descriptor instead.
+func (*ObservationBatch) Descriptor() ([]byte, []int) {
+	return file_celld_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ObservationBatch) GetSnapshot() *ObservationSnapshot {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
+}
+
+func (x *ObservationBatch) GetGeneration() string {
+	if x != nil {
+		return x.Generation
+	}
+	return ""
+}
+
+func (x *ObservationBatch) GetRecords() []*ObservationRecord {
+	if x != nil {
+		return x.Records
+	}
+	return nil
+}
+
+func (x *ObservationBatch) GetDropped() uint64 {
+	if x != nil {
+		return x.Dropped
+	}
+	return 0
+}
+
 var File_celld_proto protoreflect.FileDescriptor
 
 const file_celld_proto_rawDesc = "" +
@@ -456,8 +1237,136 @@ const file_celld_proto_rawDesc = "" +
 	"\x11running_fleet_ids\x18\x01 \x03(\tR\x0frunningFleetIds\x12,\n" +
 	"\x12assigned_fleet_ids\x18\x02 \x03(\tR\x10assignedFleetIds\"*\n" +
 	"\x0ePrepareRequest\x12\x18\n" +
-	"\aversion\x18\x01 \x01(\tR\aversion2\x93\x02\n" +
-	"\fCelldService\x123\n" +
+	"\aversion\x18\x01 \x01(\tR\aversion\"N\n" +
+	"\n" +
+	"Capability\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\x12\x16\n" +
+	"\x06detail\x18\x03 \x01(\tR\x06detail\"\xaf\t\n" +
+	"\x0eResourceSample\x12\x1d\n" +
+	"\n" +
+	"sampled_ms\x18\x01 \x01(\x03R\tsampledMs\x12$\n" +
+	"\vowned_cells\x18\x02 \x01(\x04H\x00R\n" +
+	"ownedCells\x88\x01\x01\x12*\n" +
+	"\x0eresident_cells\x18\x03 \x01(\x04H\x01R\rresidentCells\x88\x01\x01\x12 \n" +
+	"\trss_bytes\x18\x04 \x01(\x04H\x02R\brssBytes\x88\x01\x01\x12%\n" +
+	"\fin_use_bytes\x18\x05 \x01(\x04H\x03R\n" +
+	"inUseBytes\x88\x01\x01\x12-\n" +
+	"\x10cpu_percent_x100\x18\x06 \x01(\x04H\x04R\x0ecpuPercentX100\x88\x01\x01\x12\x1e\n" +
+	"\bopen_fds\x18\a \x01(\x04H\x05R\aopenFds\x88\x01\x01\x12\x1e\n" +
+	"\bfd_limit\x18\b \x01(\x04H\x06R\afdLimit\x88\x01\x01\x12,\n" +
+	"\x0fhost_websockets\x18\t \x01(\x04H\aR\x0ehostWebsockets\x88\x01\x01\x12!\n" +
+	"\tpressured\x18\n" +
+	" \x01(\bH\bR\tpressured\x88\x01\x01\x12,\n" +
+	"\x0fmemory_headroom\x18\v \x01(\bH\tR\x0ememoryHeadroom\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"shed_cells\x18\f \x01(\x04H\n" +
+	"R\tshedCells\x88\x01\x01\x12!\n" +
+	"\trestoring\x18\r \x01(\x04H\vR\trestoring\x88\x01\x01\x12.\n" +
+	"\x10capacity_waiting\x18\x0e \x01(\x04H\fR\x0fcapacityWaiting\x88\x01\x01\x122\n" +
+	"\x12activation_waiting\x18\x0f \x01(\x04H\rR\x11activationWaiting\x88\x01\x01\x12*\n" +
+	"\x0ehandoff_failed\x18\x10 \x01(\x04H\x0eR\rhandoffFailed\x88\x01\x01\x129\n" +
+	"\x06phases\x18\x11 \x03(\v2!.celld.ResourceSample.PhasesEntryR\x06phases\x12^\n" +
+	"\x13container_instances\x18\x12 \x03(\v2-.celld.ResourceSample.ContainerInstancesEntryR\x12containerInstances\x1a9\n" +
+	"\vPhasesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x04R\x05value:\x028\x01\x1aE\n" +
+	"\x17ContainerInstancesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x04R\x05value:\x028\x01B\x0e\n" +
+	"\f_owned_cellsB\x11\n" +
+	"\x0f_resident_cellsB\f\n" +
+	"\n" +
+	"_rss_bytesB\x0f\n" +
+	"\r_in_use_bytesB\x13\n" +
+	"\x11_cpu_percent_x100B\v\n" +
+	"\t_open_fdsB\v\n" +
+	"\t_fd_limitB\x12\n" +
+	"\x10_host_websocketsB\f\n" +
+	"\n" +
+	"_pressuredB\x12\n" +
+	"\x10_memory_headroomB\r\n" +
+	"\v_shed_cellsB\f\n" +
+	"\n" +
+	"_restoringB\x13\n" +
+	"\x11_capacity_waitingB\x15\n" +
+	"\x13_activation_waitingB\x11\n" +
+	"\x0f_handoff_failed\"\xe6\x03\n" +
+	"\x0eWorkloadSample\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x16\n" +
+	"\x06parent\x18\x03 \x01(\tR\x06parent\x12\x18\n" +
+	"\aversion\x18\x04 \x01(\tR\aversion\x12\x14\n" +
+	"\x05state\x18\x05 \x01(\tR\x05state\x12\x17\n" +
+	"\x04live\x18\x06 \x01(\x04H\x00R\x04live\x88\x01\x01\x12\x1f\n" +
+	"\bretiring\x18\a \x01(\x04H\x01R\bretiring\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"heap_bytes\x18\b \x01(\x04H\x02R\theapBytes\x88\x01\x01\x12\x19\n" +
+	"\x05cells\x18\t \x01(\x04H\x03R\x05cells\x88\x01\x01\x12\x1f\n" +
+	"\brequests\x18\n" +
+	" \x01(\x04H\x04R\brequests\x88\x01\x01\x12&\n" +
+	"\fmemory_bytes\x18\v \x01(\x04H\x05R\vmemoryBytes\x88\x01\x01\x12$\n" +
+	"\vcpu_percent\x18\f \x01(\x01H\x06R\n" +
+	"cpuPercent\x88\x01\x01\x12\x19\n" +
+	"\x05limit\x18\r \x01(\x04H\aR\x05limit\x88\x01\x01B\a\n" +
+	"\x05_liveB\v\n" +
+	"\t_retiringB\r\n" +
+	"\v_heap_bytesB\b\n" +
+	"\x06_cellsB\v\n" +
+	"\t_requestsB\x0f\n" +
+	"\r_memory_bytesB\x0e\n" +
+	"\f_cpu_percentB\b\n" +
+	"\x06_limit\"\xbf\x03\n" +
+	"\x13ObservationSnapshot\x12\x19\n" +
+	"\bfleet_id\x18\x01 \x01(\tR\afleetId\x12\x17\n" +
+	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\x12-\n" +
+	"\x12process_generation\x18\x04 \x01(\tR\x11processGeneration\x12!\n" +
+	"\fcollected_ms\x18\x05 \x01(\x03R\vcollectedMs\x12!\n" +
+	"\fattempted_ms\x18\x06 \x01(\x03R\vattemptedMs\x12\x14\n" +
+	"\x05state\x18\a \x01(\tR\x05state\x12\x14\n" +
+	"\x05error\x18\b \x01(\tR\x05error\x123\n" +
+	"\tresources\x18\t \x01(\v2\x15.celld.ResourceSampleR\tresources\x123\n" +
+	"\tworkloads\x18\n" +
+	" \x03(\v2\x15.celld.WorkloadSampleR\tworkloads\x125\n" +
+	"\fcapabilities\x18\v \x03(\v2\x11.celld.CapabilityR\fcapabilities\x12\x18\n" +
+	"\adropped\x18\f \x01(\x04R\adropped\"\xdc\x03\n" +
+	"\x11ObservationRecord\x12\x1a\n" +
+	"\bsequence\x18\x01 \x01(\x04R\bsequence\x12\x17\n" +
+	"\atime_ms\x18\x02 \x01(\x03R\x06timeMs\x12\x12\n" +
+	"\x04kind\x18\x03 \x01(\tR\x04kind\x12\x16\n" +
+	"\x06source\x18\x04 \x01(\tR\x06source\x12\x1a\n" +
+	"\bworkload\x18\x05 \x01(\tR\bworkload\x12\x1a\n" +
+	"\bseverity\x18\x06 \x01(\tR\bseverity\x12\x12\n" +
+	"\x04body\x18\a \x01(\tR\x04body\x12\x19\n" +
+	"\btrace_id\x18\b \x01(\tR\atraceId\x12\x17\n" +
+	"\aspan_id\x18\t \x01(\tR\x06spanId\x12$\n" +
+	"\x0eparent_span_id\x18\n" +
+	" \x01(\tR\fparentSpanId\x12\x1f\n" +
+	"\vduration_us\x18\v \x01(\x04R\n" +
+	"durationUs\x12\x16\n" +
+	"\x06failed\x18\f \x01(\bR\x06failed\x12H\n" +
+	"\n" +
+	"attributes\x18\r \x03(\v2(.celld.ObservationRecord.AttributesEntryR\n" +
+	"attributes\x1a=\n" +
+	"\x0fAttributesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"r\n" +
+	"\x13ObservationsRequest\x12\x19\n" +
+	"\bfleet_id\x18\x01 \x01(\tR\afleetId\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x02 \x01(\tR\n" +
+	"generation\x12 \n" +
+	"\vacknowledge\x18\x03 \x01(\x04R\vacknowledge\"\xb8\x01\n" +
+	"\x10ObservationBatch\x126\n" +
+	"\bsnapshot\x18\x01 \x01(\v2\x1a.celld.ObservationSnapshotR\bsnapshot\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x02 \x01(\tR\n" +
+	"generation\x122\n" +
+	"\arecords\x18\x03 \x03(\v2\x18.celld.ObservationRecordR\arecords\x12\x18\n" +
+	"\adropped\x18\x04 \x01(\x04R\adropped2\xd8\x02\n" +
+	"\fCelldService\x12C\n" +
+	"\fObservations\x12\x1a.celld.ObservationsRequest\x1a\x17.celld.ObservationBatch\x123\n" +
 	"\tConfigure\x12\x17.celld.ConfigureRequest\x1a\r.celld.Status\x12(\n" +
 	"\tGetStatus\x12\f.celld.Empty\x1a\r.celld.Status\x12(\n" +
 	"\x04Sync\x12\x12.celld.SyncRequest\x1a\f.celld.Empty\x12#\n" +
@@ -477,34 +1386,54 @@ func file_celld_proto_rawDescGZIP() []byte {
 	return file_celld_proto_rawDescData
 }
 
-var file_celld_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_celld_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_celld_proto_goTypes = []any{
-	(*Empty)(nil),            // 0: celld.Empty
-	(*Config)(nil),           // 1: celld.Config
-	(*ConfigureRequest)(nil), // 2: celld.ConfigureRequest
-	(*Status)(nil),           // 3: celld.Status
-	(*SyncRequest)(nil),      // 4: celld.SyncRequest
-	(*PrepareRequest)(nil),   // 5: celld.PrepareRequest
+	(*Empty)(nil),               // 0: celld.Empty
+	(*Config)(nil),              // 1: celld.Config
+	(*ConfigureRequest)(nil),    // 2: celld.ConfigureRequest
+	(*Status)(nil),              // 3: celld.Status
+	(*SyncRequest)(nil),         // 4: celld.SyncRequest
+	(*PrepareRequest)(nil),      // 5: celld.PrepareRequest
+	(*Capability)(nil),          // 6: celld.Capability
+	(*ResourceSample)(nil),      // 7: celld.ResourceSample
+	(*WorkloadSample)(nil),      // 8: celld.WorkloadSample
+	(*ObservationSnapshot)(nil), // 9: celld.ObservationSnapshot
+	(*ObservationRecord)(nil),   // 10: celld.ObservationRecord
+	(*ObservationsRequest)(nil), // 11: celld.ObservationsRequest
+	(*ObservationBatch)(nil),    // 12: celld.ObservationBatch
+	nil,                         // 13: celld.ResourceSample.PhasesEntry
+	nil,                         // 14: celld.ResourceSample.ContainerInstancesEntry
+	nil,                         // 15: celld.ObservationRecord.AttributesEntry
 }
 var file_celld_proto_depIdxs = []int32{
-	1, // 0: celld.ConfigureRequest.config:type_name -> celld.Config
-	2, // 1: celld.CelldService.Configure:input_type -> celld.ConfigureRequest
-	0, // 2: celld.CelldService.GetStatus:input_type -> celld.Empty
-	4, // 3: celld.CelldService.Sync:input_type -> celld.SyncRequest
-	0, // 4: celld.CelldService.Stop:input_type -> celld.Empty
-	0, // 5: celld.CelldService.Remove:input_type -> celld.Empty
-	5, // 6: celld.CelldService.Prepare:input_type -> celld.PrepareRequest
-	3, // 7: celld.CelldService.Configure:output_type -> celld.Status
-	3, // 8: celld.CelldService.GetStatus:output_type -> celld.Status
-	0, // 9: celld.CelldService.Sync:output_type -> celld.Empty
-	3, // 10: celld.CelldService.Stop:output_type -> celld.Status
-	0, // 11: celld.CelldService.Remove:output_type -> celld.Empty
-	3, // 12: celld.CelldService.Prepare:output_type -> celld.Status
-	7, // [7:13] is the sub-list for method output_type
-	1, // [1:7] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	1,  // 0: celld.ConfigureRequest.config:type_name -> celld.Config
+	13, // 1: celld.ResourceSample.phases:type_name -> celld.ResourceSample.PhasesEntry
+	14, // 2: celld.ResourceSample.container_instances:type_name -> celld.ResourceSample.ContainerInstancesEntry
+	7,  // 3: celld.ObservationSnapshot.resources:type_name -> celld.ResourceSample
+	8,  // 4: celld.ObservationSnapshot.workloads:type_name -> celld.WorkloadSample
+	6,  // 5: celld.ObservationSnapshot.capabilities:type_name -> celld.Capability
+	15, // 6: celld.ObservationRecord.attributes:type_name -> celld.ObservationRecord.AttributesEntry
+	9,  // 7: celld.ObservationBatch.snapshot:type_name -> celld.ObservationSnapshot
+	10, // 8: celld.ObservationBatch.records:type_name -> celld.ObservationRecord
+	11, // 9: celld.CelldService.Observations:input_type -> celld.ObservationsRequest
+	2,  // 10: celld.CelldService.Configure:input_type -> celld.ConfigureRequest
+	0,  // 11: celld.CelldService.GetStatus:input_type -> celld.Empty
+	4,  // 12: celld.CelldService.Sync:input_type -> celld.SyncRequest
+	0,  // 13: celld.CelldService.Stop:input_type -> celld.Empty
+	0,  // 14: celld.CelldService.Remove:input_type -> celld.Empty
+	5,  // 15: celld.CelldService.Prepare:input_type -> celld.PrepareRequest
+	12, // 16: celld.CelldService.Observations:output_type -> celld.ObservationBatch
+	3,  // 17: celld.CelldService.Configure:output_type -> celld.Status
+	3,  // 18: celld.CelldService.GetStatus:output_type -> celld.Status
+	0,  // 19: celld.CelldService.Sync:output_type -> celld.Empty
+	3,  // 20: celld.CelldService.Stop:output_type -> celld.Status
+	0,  // 21: celld.CelldService.Remove:output_type -> celld.Empty
+	3,  // 22: celld.CelldService.Prepare:output_type -> celld.Status
+	16, // [16:23] is the sub-list for method output_type
+	9,  // [9:16] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_celld_proto_init() }
@@ -512,13 +1441,15 @@ func file_celld_proto_init() {
 	if File_celld_proto != nil {
 		return
 	}
+	file_celld_proto_msgTypes[7].OneofWrappers = []any{}
+	file_celld_proto_msgTypes[8].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_celld_proto_rawDesc), len(file_celld_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -29,3 +29,10 @@
 ## Frontend and SilverBullet follow-up — 2026-10-18
 - User explicitly approved updating SilverBullet and requested the celld frontend support new endpoints, with browser validation before completion.
 - Retrieved current canonical celld notes; they still describe the legacy singleton. Frontend has an existing untracked health-only page and unrelated working changes to preserve.
+
+- Built the new frontend fleet list, management forms, lifecycle confirmations, deployment detail and explicitly fetched scoped credentials; split under existing folder conventions. Polling avoids overlap, bounds timeouts, and rejects stale pre-mutation responses.
+- Browser exercised all fleet flows, validation/conflicts, degraded and pending states, actual/managed storage counts, reset/storage/API failures, empty list, session expiry/re-login, clipboard, keyboard, desktop and mobile. Synthetic loopback fixture only; no live infrastructure.
+- Final validation: TypeScript clean; 29/29 tests across 3 Jest suites passed; production Expo web export emitted index, assets and JS bundle; whitespace checks clean. Final header spacing verified at desktop/mobile breakpoints.
+- User-approved SilverBullet writes completed and read-back verified for celld index, API/frontend reference, deployment/test runbook and operational memory; old history preserved. No rollout performed.
+
+- Port-selection follow-up: reproduced HTTP-only 8080 rejection. Form now derives internal HTTP+1, trims outer spaces, gives precise validation, and retains manual pairs/automatic allocation. TypeScript and 40 tests passed; browser fixture accepted 8080/8081, explicit 8082/9090 and automatic allocation. Canonical API/frontend reference and operational memory updated under prior explicit authorization.

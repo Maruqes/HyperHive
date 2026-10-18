@@ -76,3 +76,14 @@ func (*Service) Prepare(ctx context.Context, req *pb.PrepareRequest) (*pb.Status
 	}
 	return (&Service{}).GetStatus(ctx, &pb.Empty{})
 }
+
+func (*Service) Observations(ctx context.Context, req *pb.ObservationsRequest) (*pb.ObservationBatch, error) {
+	if Local == nil {
+		return nil, status.Error(codes.Unavailable, "celld manager is not ready")
+	}
+	batch, err := Local.Observations(ctx, req)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+	return batch, nil
+}

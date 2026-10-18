@@ -16,7 +16,7 @@ import (
 )
 
 func testConfig() *pb.Config {
-	return &pb.Config{Version: "v0.6.2", Bucket: "s3://hyperhive-celld", Endpoint: "http://127.0.0.1:9000", Region: "us-east-1", AccessKey: "fleet-key", SecretKey: "fleet-secret"}
+	return &pb.Config{Version: "v0.6.2", InternalPort: 18079, Bucket: "s3://hyperhive-celld", Endpoint: "http://127.0.0.1:9000", Region: "us-east-1", AccessKey: "fleet-key", SecretKey: "fleet-secret"}
 }
 
 func eventually(t *testing.T, check func() bool) {

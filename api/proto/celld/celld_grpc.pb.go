@@ -19,18 +19,20 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	CelldService_Configure_FullMethodName = "/celld.CelldService/Configure"
-	CelldService_GetStatus_FullMethodName = "/celld.CelldService/GetStatus"
-	CelldService_Sync_FullMethodName      = "/celld.CelldService/Sync"
-	CelldService_Stop_FullMethodName      = "/celld.CelldService/Stop"
-	CelldService_Remove_FullMethodName    = "/celld.CelldService/Remove"
-	CelldService_Prepare_FullMethodName   = "/celld.CelldService/Prepare"
+	CelldService_Observations_FullMethodName = "/celld.CelldService/Observations"
+	CelldService_Configure_FullMethodName    = "/celld.CelldService/Configure"
+	CelldService_GetStatus_FullMethodName    = "/celld.CelldService/GetStatus"
+	CelldService_Sync_FullMethodName         = "/celld.CelldService/Sync"
+	CelldService_Stop_FullMethodName         = "/celld.CelldService/Stop"
+	CelldService_Remove_FullMethodName       = "/celld.CelldService/Remove"
+	CelldService_Prepare_FullMethodName      = "/celld.CelldService/Prepare"
 )
 
 // CelldServiceClient is the client API for CelldService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type CelldServiceClient interface {
+	Observations(ctx context.Context, in *ObservationsRequest, opts ...grpc.CallOption) (*ObservationBatch, error)
 	Configure(ctx context.Context, in *ConfigureRequest, opts ...grpc.CallOption) (*Status, error)
 	GetStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Status, error)
 	Sync(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (*Empty, error)
@@ -45,6 +47,16 @@ type celldServiceClient struct {
 
 func NewCelldServiceClient(cc grpc.ClientConnInterface) CelldServiceClient {
 	return &celldServiceClient{cc}
+}
+
+func (c *celldServiceClient) Observations(ctx context.Context, in *ObservationsRequest, opts ...grpc.CallOption) (*ObservationBatch, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ObservationBatch)
+	err := c.cc.Invoke(ctx, CelldService_Observations_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *celldServiceClient) Configure(ctx context.Context, in *ConfigureRequest, opts ...grpc.CallOption) (*Status, error) {
@@ -111,6 +123,7 @@ func (c *celldServiceClient) Prepare(ctx context.Context, in *PrepareRequest, op
 // All implementations must embed UnimplementedCelldServiceServer
 // for forward compatibility.
 type CelldServiceServer interface {
+	Observations(context.Context, *ObservationsRequest) (*ObservationBatch, error)
 	Configure(context.Context, *ConfigureRequest) (*Status, error)
 	GetStatus(context.Context, *Empty) (*Status, error)
 	Sync(context.Context, *SyncRequest) (*Empty, error)
@@ -127,6 +140,9 @@ type CelldServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedCelldServiceServer struct{}
 
+func (UnimplementedCelldServiceServer) Observations(context.Context, *ObservationsRequest) (*ObservationBatch, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Observations not implemented")
+}
 func (UnimplementedCelldServiceServer) Configure(context.Context, *ConfigureRequest) (*Status, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Configure not implemented")
 }
@@ -164,6 +180,24 @@ func RegisterCelldServiceServer(s grpc.ServiceRegistrar, srv CelldServiceServer)
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&CelldService_ServiceDesc, srv)
+}
+
+func _CelldService_Observations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ObservationsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CelldServiceServer).Observations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CelldService_Observations_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CelldServiceServer).Observations(ctx, req.(*ObservationsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _CelldService_Configure_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -281,6 +315,10 @@ var CelldService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "celld.CelldService",
 	HandlerType: (*CelldServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Observations",
+			Handler:    _CelldService_Observations_Handler,
+		},
 		{
 			MethodName: "Configure",
 			Handler:    _CelldService_Configure_Handler,

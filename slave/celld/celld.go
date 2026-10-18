@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/url"
@@ -37,6 +38,7 @@ type Manager struct {
 	dir, binary, ip         string
 	commandLink             string
 	lock                    *os.File
+	observations            *observationBuffer
 	logs                    *processLog
 	life                    context.Context
 	stopLife                context.CancelFunc
@@ -69,6 +71,8 @@ func New(dir, binary, ip string) (*Manager, error) {
 	}
 	life, cancel := context.WithCancel(context.Background())
 	m := &Manager{dir: dir, binary: binary, ip: ip, lock: f, logs: newProcessLog(dir), life: life, stopLife: cancel, restartDelay: 10 * time.Second, stopGrace: 60 * time.Second}
+	m.observations = newObservations()
+	go m.observeLoop()
 	if binary == Binary {
 		// /usr/bin also belongs to the reduced PATH used by sudo on our hosts.
 		m.commandLink = "/usr/bin/celld"
@@ -206,6 +210,9 @@ func (m *Manager) Configure(ctx context.Context, c *pb.Config, start bool) error
 		if err := os.WriteFile(filepath.Join(m.dir, "enabled"), []byte("enabled\n"), 0600); err != nil {
 			return err
 		}
+		if err := m.ensureTelemetry(c); err != nil {
+			log.Printf("celld telemetry receiver unavailable: %v", err)
+		}
 		// The child lifetime is deliberately independent of the Configure RPC.
 		life, cancel := context.WithCancel(m.life)
 		m.cancel, m.done = cancel, make(chan struct{})
@@ -307,11 +314,22 @@ func (m *Manager) watch(ctx context.Context, c *pb.Config, done chan struct{}) {
 			"--listen", net.JoinHostPort(m.ip, strconv.Itoa(int(httpPort(c)))), "--internal-listen", net.JoinHostPort(m.ip, strconv.Itoa(int(internalPort(c)))), "--advertise", net.JoinHostPort(m.ip, strconv.Itoa(int(internalPort(c)))))
 		cmd.Env = append(os.Environ(), "AWS_ACCESS_KEY_ID="+c.AccessKey, "AWS_SECRET_ACCESS_KEY="+c.SecretKey, "AWS_REGION="+c.Region,
 			"CELLD_WATCH="+filepath.Join(m.dir, "data"), "CELLD_TTL_MS=10000", "AWS_SESSION_TOKEN=")
-		cmd.Stdout, cmd.Stderr = m.logs, m.logs
+		session := observationID()
+		m.observations.mu.Lock()
+		m.observations.session = session
+		endpoint, token := m.observations.endpoint, m.observations.token
+		m.observations.mu.Unlock()
+		cmd.Env = append(cmd.Env, "CELLD_NODE="+session, "CELLD_OTEL=0")
+		if endpoint != "" {
+			cmd.Env = append(cmd.Env, "CELLD_OTEL="+endpoint, "CELLD_OTEL_FLUSH_MS=5000", "CELLD_OTEL_FLUSH_BYTES=262144", "OTEL_TRACES_SAMPLER=always_on", "OTEL_EXPORTER_OTLP_TIMEOUT=2000", "OTEL_EXPORTER_OTLP_HEADERS=x-hyperhive-token="+token)
+		}
+		cmd.Stdout = io.MultiWriter(processTap{m.observations, "stdout"}, m.logs)
+		cmd.Stderr = io.MultiWriter(processTap{m.observations, "stderr"}, m.logs)
 		cmd.WaitDelay = time.Second
 		// The inherited lock covers the gap between an agent crash and child death.
 		cmd.ExtraFiles = []*os.File{m.lock}
 		cmd.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGKILL}
+		m.observations.add(&pb.ObservationRecord{Kind: "event", Source: "lifecycle", Severity: "INFO", Body: "celld starting", Attributes: map[string]string{"process_generation": session}})
 		err := cmd.Start()
 		if err == nil {
 			m.mu.Lock()
@@ -340,6 +358,12 @@ func (m *Manager) watch(ctx context.Context, c *pb.Config, done chan struct{}) {
 			log.Print(m.lastError)
 		}
 		m.mu.Unlock()
+		severity := "INFO"
+		failed := err != nil && ctx.Err() == nil
+		if failed {
+			severity = "ERROR"
+		}
+		m.observations.add(&pb.ObservationRecord{Kind: "event", Source: "lifecycle", Severity: severity, Failed: failed, Body: fmt.Sprintf("celld exited: %v", err), Attributes: map[string]string{"process_generation": session}})
 		timer := time.NewTimer(m.restartDelay)
 		select {
 		case <-ctx.Done():
