@@ -1,13 +1,18 @@
 package api
 
 import (
+	"512SvMan/npm"
 	"512SvMan/services"
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
+
+	hyperhivemcp "github.com/Maruqes/HyperHive/mcp"
 )
 
 type LoginResponse struct {
@@ -92,6 +97,18 @@ func tokenFromRequest(r *http.Request) string {
 }
 
 func isAuthorized(r *http.Request) (bool, string) {
+	token, err := authenticateRequest(r)
+	return err == nil, token
+}
+
+var errUnauthorized = errors.New("unauthorized")
+
+func authenticateRequest(r *http.Request) (string, error) {
+	if hyperhivemcp.MatchesMCPToken(r, os.Getenv("MCP_TOKEN")) {
+		// Downstream NPM handlers still receive an NPM-compatible credential,
+		// never the fixed MCP key. No manual API session is needed in the .env.
+		return npm.ServiceToken(r.Context(), "npm-data")
+	}
 	token := tokenFromRequest(r)
 
 	// Also check query parameters for token
@@ -100,19 +117,31 @@ func isAuthorized(r *http.Request) (bool, string) {
 	}
 
 	if token == "" {
-		return false, ""
+		return "", errUnauthorized
+	}
+	if hyperhivemcp.MatchesMCPKey(token, os.Getenv("MCP_TOKEN")) {
+		// A fixed key in a cookie/query/raw header must not leak to NPM via the
+		// legacy session validator. Only the explicit Bearer branch accepts it.
+		return "", errUnauthorized
 	}
 
 	loginService := services.LoginService{}
-	return loginService.IsLoginValid(baseURL, token), token
+	if !loginService.IsLoginValid(baseURL, token) {
+		return "", errUnauthorized
+	}
+	return token, nil
 }
 
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authorized, token := isAuthorized(r)
-		if !authorized {
+		token, err := authenticateRequest(r)
+		if err != nil {
 			applyCORSHeaders(w, r)
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			if errors.Is(err, errUnauthorized) {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+			} else {
+				http.Error(w, "MCP backend authentication is unavailable; check the local NPM installation", http.StatusServiceUnavailable)
+			}
 			return
 		}
 

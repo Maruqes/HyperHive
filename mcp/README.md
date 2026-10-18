@@ -1,5 +1,7 @@
 # HyperHive MCP server
 
+For client commands, see the short [Codex and Claude Code connection guide](CONNECTING.md).
+
 Go server using the official MCP Go SDK v1.8.0. HyperHive master automatically
 serves MCP over Streamable HTTP; a standalone stdio command is also available.
 The only registered tool is **`list_proxies`**, a read-only call to HyperHive's
@@ -21,7 +23,7 @@ For example:
 
 ```dotenv
 API_PORT=9595
-HYPERHIVE_API_TOKEN=<existing-token-returned-by-POST-/login>
+MCP_TOKEN=<your-fixed-random-key>
 ```
 
 With `API_PORT=10595`, connect to `http://<hyperhive-host>:10595/mcp`. The loopback
@@ -30,27 +32,34 @@ When changing an existing installation's port, update its client URLs, existing
 reverse-proxy targets and `MAIN_LINK` if it points directly to that listener.
 An empty/unset port uses 9595; an invalid port stops startup with a clear error.
 
-The listener binds on all interfaces; no separate MCP process, binary,
-port or enable flag is required. Configure your MCP client with this URL using
-Streamable HTTP. **MCP callers need no token, cookie or login.** The only tool is
-`list_proxies`. Anyone able to reach this endpoint can invoke it using the
-master's configured backend account.
+The listener binds on all interfaces; no separate MCP process, binary or port is
+required. HTTP MCP requires `Authorization: Bearer <MCP_TOKEN>` on every request.
+Missing/incorrect credentials return 401; an unset/invalid server key disables
+MCP with 503. Query parameters and cookies do not authenticate MCP.
 
-Set `HYPERHIVE_API_TOKEN` to an existing HyperHive login token in the master's
-environment or local `master/.env` before startup. The master uses that token for
-the protected loopback API at `http://127.0.0.1:<API_PORT>/proxy/list`; it never accepts
-backend credentials from MCP callers. `HYPERHIVE_API_URL` is not used by the
-embedded endpoint. Existing REST routes retain their authentication.
+Generate your fixed key with `openssl rand -hex 32`, put it in the master's `.env`
+and configure the same key in your MCP client. The key remains valid until you
+change it and restart the master. No HyperHive login session, email or password
+needs to be stored for MCP.
 
-Without a backend token, HyperHive and MCP still start and tool discovery works;
-`list_proxies` returns a configuration error naming `HYPERHIVE_API_TOKEN`.
-An invalid/expired token produces an HTTP 401 tool error. Update the token and
-restart the master when needed. There is no automatic login or token refresh.
+The normal REST API accepts either its existing login session or the fixed
+`MCP_TOKEN` in a Bearer header. The fixed key therefore grants administrator-level
+API access, while MCP exposes only `list_proxies`. Normal cookie/query session
+authentication remains unchanged; the fixed MCP key is header-only.
+
+The tool calls `http://127.0.0.1:<API_PORT>/proxy/list` with that fixed key. After
+validating it, the master creates an NPM-compatible RS256 JWT lasting two minutes
+for the first active administrator in the locally managed NPM installation.
+It reads `npm-data/keys.json` and `npm-data/database.sqlite` in read-only mode;
+no users, passwords or NPM state are changed. The fixed key is never forwarded to
+NPM. This bridge follows the pinned NPM 2.13.5 token/SQLite contract; an unavailable
+key/database or no active administrator fails with HTTP 503. NPM still applies
+its authorization rules when handling the short-lived credential.
 
 This is stateless Streamable HTTP with JSON responses and SDK request-size and
-localhost protections. MCP uses POST requests; opening `/mcp` as an ordinary
-browser page (GET) returns 405. There is no legacy SSE endpoint. The existing
-API `/api` prefix handling also accepts `/api/mcp`.
+localhost protections. Authenticated GET `/mcp` returns 405 because calls use
+POST; without the key it returns 401. There is no legacy SSE endpoint or OAuth
+login flow. The existing optional API prefix also accepts `/api/mcp`.
 
 ## Standalone stdio alternative
 
@@ -65,7 +74,7 @@ Set these environment variables in your MCP client's server configuration:
 | Variable | Meaning |
 | --- | --- |
 | `HYPERHIVE_API_URL` | HyperHive API origin, optionally including `/api` or a reverse-proxy prefix. A trailing slash is accepted. |
-| `HYPERHIVE_API_TOKEN` | Existing HyperHive login token. Bare tokens and `Bearer <token>` are accepted. |
+| `MCP_TOKEN` | Fixed MCP key, matching the master configuration. |
 
 Point the MCP client at the **absolute path** to `bin/hyperhive-mcp`, optionally
 with the argument `serve`. Both no arguments and `serve` start the same server.
@@ -81,7 +90,7 @@ Generic MCP client configuration (replace the path and environment values):
       "args": ["serve"],
       "env": {
         "HYPERHIVE_API_URL": "https://hyperhive.example.test/api",
-        "HYPERHIVE_API_TOKEN": "<existing-token>"
+        "MCP_TOKEN": "<your-fixed-random-key>"
       }
     }
   }
@@ -129,7 +138,7 @@ API URL. API failures become MCP tool errors retaining the HTTP status; raw erro
 bodies and transport URLs are omitted to avoid exposing tokens or backend
 configuration. Stdout is reserved for MCP protocol traffic; startup diagnostics
 go to stderr in standalone mode. The embedded HTTP handler shares the master's
-listener and logging. There is no login or token refresh.
+listener and logging. The master creates short-lived downstream credentials automatically.
 
 ## Verify and extend
 
@@ -143,9 +152,9 @@ Tests use disposable HTTP fixtures and an SDK client launching the actual server
 binary over stdio. They cover initialization, exactly one advertised tool,
 schemas, invocation, unknown arguments, API authentication, URL prefixes,
 response fields, empty lists, errors, redirect refusal, cancellation and timeout.
-HTTP tests also verify unauthenticated discovery and calls, server-side backend
-credentials and missing-configuration tool errors. A master route test verifies
-the public MCP route while the proxy REST route remains protected, including a
+HTTP tests verify Bearer authentication, refusal of missing/wrong keys, sole-tool
+discovery and calls, and the static-key-to-NPM credential bridge. A master route test verifies
+MCP and REST authentication, including normal sessions, the fixed key, and a
 successful tool invocation through the loopback API on a nondefault port. No production
 API access is required or claimed.
 

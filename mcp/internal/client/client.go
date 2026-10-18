@@ -36,7 +36,7 @@ func New(cfg Config) (*Client, error) {
 		token = strings.TrimSpace(token[7:])
 	}
 	if token == "" || strings.EqualFold(token, "Bearer") || strings.ContainsAny(token, "\r\n") {
-		return nil, errors.New("HYPERHIVE_API_TOKEN must contain an existing API token")
+		return nil, errors.New("MCP_TOKEN must contain a fixed MCP key")
 	}
 	return &Client{
 		baseURL: strings.TrimRight(u.String(), "/"),

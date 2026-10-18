@@ -45,7 +45,7 @@ func TestStdioContract(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binary, "serve")
-	cmd.Env = append(os.Environ(), "HYPERHIVE_API_URL="+api.URL+"/api", "HYPERHIVE_API_TOKEN=integration-token")
+	cmd.Env = append(os.Environ(), "HYPERHIVE_API_URL="+api.URL+"/api", "MCP_TOKEN=integration-token")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	client := mcp.NewClient(&mcp.Implementation{Name: "contract-test", Version: "1.0.0"}, nil)
@@ -110,7 +110,7 @@ func TestStdioContract(t *testing.T) {
 func TestCLIValidation(t *testing.T) {
 	var output bytes.Buffer
 	emptyEnv := func(string) string { return "" }
-	if err := run(context.Background(), []string{"--help"}, emptyEnv, &output); err != nil || !strings.Contains(output.String(), "HYPERHIVE_API_TOKEN") {
+	if err := run(context.Background(), []string{"--help"}, emptyEnv, &output); err != nil || !strings.Contains(output.String(), "MCP_TOKEN") {
 		t.Fatalf("help: %v, %s", err, output.String())
 	}
 	for _, args := range [][]string{nil, {"serve"}, {"unknown"}, {"--unknown"}} {

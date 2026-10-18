@@ -368,7 +368,7 @@ func StartApi(exitAfterStart bool) {
 		os.Exit(0)
 	}
 
-	logger.Info("MCP endpoint: http://<hyperhive-host>:" + port + "/mcp (unauthenticated)")
+	logger.Info("MCP endpoint: http://<hyperhive-host>:" + port + "/mcp (MCP_TOKEN required)")
 	if err := srv.ListenAndServe(); err != nil {
 		logger.Errorf("api server error: %v", err)
 	}

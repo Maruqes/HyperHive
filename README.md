@@ -25,6 +25,7 @@ CrowdSec integration details are documented in `CROWDSEC.md`.
 
 The automatic celld fleet and its health endpoint are documented in [docs/celld.md](docs/celld.md).
 
-The master also exposes an unauthenticated MCP endpoint at `http://<host>:9595/mcp`
-with the `list_proxies` tool. Set `API_PORT` in the master's `.env` to change the
+The master also exposes a Bearer-authenticated MCP endpoint at `http://<host>:9595/mcp`
+with the `list_proxies` tool. Set a fixed `MCP_TOKEN` in the master's `.env`. Set `API_PORT` in the master's `.env` to change the
 shared port (default 9595). See [MCP setup](mcp/README.md) for configuration.
+For client commands, see [connect with Codex or Claude Code](mcp/CONNECTING.md).

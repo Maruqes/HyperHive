@@ -12,8 +12,8 @@ import (
 )
 
 type Config struct {
-	BaseURL string
-	Token   string
+	BaseURL  string
+	MCPToken string
 }
 
 func newServer(api tools.ProxyLister) *mcp.Server {
@@ -24,29 +24,29 @@ func newServer(api tools.ProxyLister) *mcp.Server {
 
 // NewServer validates the backend configuration for a standalone stdio server.
 func NewServer(cfg Config) (*mcp.Server, error) {
-	api, err := client.New(client.Config{BaseURL: cfg.BaseURL, Token: cfg.Token})
+	api, err := client.New(client.Config{BaseURL: cfg.BaseURL, Token: cfg.MCPToken})
 	if err != nil {
 		return nil, err
 	}
 	return newServer(api), nil
 }
 
-// NewHTTPHandler exposes MCP without caller authentication. Configuration is
-// validated on tool invocation so missing backend credentials do not prevent
-// master startup, protocol discovery or tool enumeration.
+// NewHTTPHandler requires a fixed MCP Bearer token. Backend configuration is
+// validated on tool invocation; a missing MCP key disables HTTP access.
 func NewHTTPHandler(cfg Config) http.Handler {
 	server := newServer(configuredAPI{cfg})
-	return mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
+	handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
 		return server
 	}, &mcp.StreamableHTTPOptions{
 		Stateless: true, JSONResponse: true, PropagateRequestCancellation: true,
 	})
+	return requireMCPToken(handler, cfg.MCPToken)
 }
 
 type configuredAPI struct{ cfg Config }
 
 func (api configuredAPI) ListProxies(ctx context.Context) ([]map[string]any, error) {
-	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.Token})
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
 	if err != nil {
 		return nil, err
 	}

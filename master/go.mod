@@ -11,6 +11,7 @@ require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/evangwt/go-vncproxy v1.1.0
 	github.com/go-chi/chi/v5 v5.3.2
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/joho/godotenv v1.5.1
@@ -29,7 +30,6 @@ require (
 
 require (
 	github.com/evangwt/go-bufcopy v0.1.1 // indirect
-	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/josharian/native v1.1.0 // indirect

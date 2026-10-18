@@ -12,11 +12,18 @@ Follow-up (2026-10-18): the user requested automatic startup on an exposed port
 without MCP authentication. HyperHive master now embeds the shared MCP server at
 `http://<hyperhive-host>:9595/mcp` using stateless Streamable HTTP, outside API
 login middleware. The tool still calls the protected loopback HyperHive API with
-server-side `HYPERHIVE_API_TOKEN`; missing credentials become invocation errors,
+server-side credentials (historical behavior, superseded below); missing credentials become invocation errors,
 not startup failures. Standalone stdio remains available. This supersedes the
 initial stdio-only/remote-transport deferral; multi-user auth is still deferred.
 The shared listener port is configured with `API_PORT` in the master's `.env`
 (default 9595), including loopback calls and newly generated frontend proxy targets.
+
+Authentication update (2026-10-18): the user replaced the initial public-MCP
+and manually configured API-session design. HTTP MCP now requires a fixed
+`MCP_TOKEN` Bearer key. REST authentication accepts normal sessions or this key;
+the master creates two-minute NPM credentials from its existing local signing key
+and active administrator record. No additional login-session environment variable
+is used. All code, scripts, documentation and knowledge entries must be English.
 
 ## Outcome and scope
 
@@ -196,7 +203,7 @@ Goal: a local MCP client lists and calls `list_proxies` through the existing Hyp
 
 ### 2.1 Add the shared API client
 - Files: `mcp/internal/client/` and tests; `mcp/README.md` configuration section.
-- Work: configure `HYPERHIVE_API_URL` and `HYPERHIVE_API_TOKEN`, define whether the configured base includes `/api`, and attach auth headers centrally. Support context cancellation, bounded timeouts, empty success bodies and JSON/plain-text errors. Reject cross-origin redirects that could forward credentials. Never print credentials.
+- Work: configure `HYPERHIVE_API_URL` and `MCP_TOKEN`, define whether the configured base includes `/api`, and attach auth headers centrally. Support context cancellation, bounded timeouts, empty success bodies and JSON/plain-text errors. Reject cross-origin redirects that could forward credentials. Never print credentials.
 - Dependencies: 1.3 module structure.
 - Acceptance/validation: `httptest` verifies base-path composition, Authorization, method/body forwarding, cancellation, 401/403, plain-text failures and empty responses. Do not retry mutations automatically.
 

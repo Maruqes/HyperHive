@@ -6,11 +6,18 @@ This folder contains a reusable Go MCP server and standalone stdio command with 
 `list_proxies`, calling the authenticated HyperHive `GET /proxy/list` endpoint.
 See `README.md` for configuration, output and verification. The official SDK is
 pinned in `go.mod`; the module does not import master services. HyperHive master
-embeds `NewHTTPHandler` at unauthenticated `/mcp` on its existing exposed :9595
-listener, outside API login middleware. The user explicitly requested automatic
-HTTP startup without MCP authentication. Backend calls still use the existing
-authenticated API with server-side `HYPERHIVE_API_TOKEN`. Missing credentials
-produce tool errors, without blocking master startup or MCP discovery.
+embeds `NewHTTPHandler` at `/mcp` on its shared :9595 listener. All HTTP MCP
+requests require the fixed `MCP_TOKEN` Bearer key. REST API authentication accepts
+normal login sessions or the same fixed key in an explicit Bearer header. The
+master translates valid fixed-key requests to two-minute NPM JWTs using its local
+NPM signing key and an active administrator read from the local SQLite database.
+This bridge belongs to master; the MCP module still calls only the HyperHive API.
+Do not require a manually configured HyperHive session token for MCP. Missing
+MCP configuration disables HTTP access; missing NPM state fails closed.
+
+All code, scripts, documentation and persistent knowledge must be written in
+English, even when the user communicates in Portuguese.
+
 `API_PORT` in the master's environment/.env changes this shared API/MCP port;
 unset/empty defaults to 9595. Keep the listener, loopback URL and generated
 frontend proxy targets consistent. Existing proxy configuration is not rewritten.
@@ -164,7 +171,7 @@ directly. Do not claim generated commands or reports are available yet.
 ## Implementation and verification conventions
 
 - Configure the HyperHive API base URL and token outside tool arguments; keep
-  credentials out of source, reports and logs. Start with an existing token.
+  credentials out of source, reports and logs. Use the configured fixed MCP key.
 - Keep stdout reserved for MCP protocol traffic; use stderr for diagnostics.
 - Handle empty successful responses and both JSON and plain-text errors.
   Preserve useful backend status information without leaking secrets.

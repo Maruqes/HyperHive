@@ -37,3 +37,10 @@
 - API_PORT (master environment/.env) defaults to 9595 and is validated in 1..65535 before API startup. The shared API/MCP listener, MCP loopback URL and new frontend reverse-proxy locations follow the resolved port.
 - Added API_PORT=9595 to .env.example and appended only that default to local ignored master/.env when absent, without displaying credentials or changing existing settings.
 - Actual SDK HTTP integration on an ephemeral custom port discovers exactly list_proxies and successfully invokes it through the authenticated loopback REST route. Existing proxy/client URLs and MAIN_LINK must be updated by the operator if switching an established deployment's port.
+
+## Static-key API authentication and NPM bridge
+- User explicitly chose requiring MCP_TOKEN on MCP and later required normal API sessions OR the fixed key, with the old manual session variable removed. This supersedes the pending automatic-login/service-account question.
+- The pinned NPM 2.13.5 upstream verifies RS256 against /data/keys.json; user-scoped JWTs require attrs.id of an enabled, non-deleted account and roles are loaded from NPM's DB. Confirmed upstream models/token.js, lib/access.js, lib/config.js and internal/token.js.
+- Implemented in master: constant-time fixed-key validation, read-only local npm-data keys/database access, deterministic selection of first active admin, two-minute user-scoped JWT with random nonce. NPM still receives its expected JWT, never the fixed key. MCP module continues to call HyperHive API only. No NPM data/users are modified and no configured login session/password is required.
+- Added disposable signing/database fixtures and integration that invokes the real proxy handler, validates the generated JWT upstream and verifies normal sessions continue to work.
+- An initial missing-state integration test still pointed to hardcoded 9595, yielding a connectivity error instead of backend 503; fixed it to use its actual disposable listener port.

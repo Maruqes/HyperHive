@@ -53,3 +53,17 @@ User confirmed the final outcome: connectable HTTP MCP with exactly list_proxies
 - Add configuration to .env.example and local .env without reading/exposing credentials: complete.
 - Verify actual HTTP MCP invocation on a nondefault port; finish docs/notes: complete.
 Next action: user can rebuild/restart master with API_PORT and backend HYPERHIVE_API_TOKEN configured, then connect via Streamable HTTP. Source work and local verification complete; no production deploy performed.
+
+## Static MCP authentication — 2026-10-18
+User requires all code/scripts/knowledge in English. Replace client-facing configuration with a user-generated static MCP_TOKEN and require it on HTTP MCP requests (confirmed explicitly).
+- Add fail-closed static Bearer authentication, isolated from REST API login: complete.
+- Resolve backend session configuration: complete; user's later instruction superseded the earlier options with fixed-key API auth and automatic local NPM credential translation.
+- Update client commands, .env.example, tests and knowledge in English: complete.
+Static-key increment complete; no pending backend configuration decision remains.
+
+### Static-key implementation decision and progress
+User explicitly requires normal API sessions OR fixed MCP_TOKEN; no manual session env variable. The earlier automatic-login choice is superseded.
+- Implement shared fixed-key boundary and read-only local NPM service-token bridge: complete.
+- Update environment/configuration/client commands in English: complete.
+- Verify existing sessions, static-key calls, failure boundaries and downstream credentials: complete.
+Next action: user generates/configures MCP_TOKEN and rebuilds/restarts the master, then configures the matching Bearer key in the MCP client. Source implementation, local validation and English knowledge capture complete; no deployment performed.
