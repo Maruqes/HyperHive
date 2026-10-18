@@ -9,13 +9,15 @@ Last checked: **2026-10-18**. Coverage means API endpoints supported by MCP tool
 
 | Scope | Supported / total | Coverage |
 | --- | ---: | ---: |
-| HyperHive API | 1 / 314 | **0.32%** |
-| NGINX (all features) | 1 / 37 | **2.70%** |
-| Proxy management | 1 / 8 | **12.50%** |
+| HyperHive API | 7 / 314 | **2.23%** |
+| NGINX (all features) | 7 / 37 | **18.92%** |
+| Proxy management (raw) | 7 / 8 | **87.50%** |
+| Proxy management (eligible) | 7 / 7 | **100.00%** |
 
-NGINX and proxy rows are subsets of the API total. Only `list_proxies` is
-available: it calls `GET /proxy/list` with `{}` and returns `{"proxies":[...]}`.
-Create, update, delete, enable and disable operations are not available yet.
+NGINX and proxy rows are subsets of the API total. Available tools:
+`list_proxies`, `create_proxy`, `update_proxy`, `enable_proxy`, `disable_proxy`, `setup_frontend_proxy`, `setup_secure_frontend_proxy`.
+Deletion is forbidden and excluded from eligible coverage; it remains in raw totals.
+See [proxy contracts](docs/areas/nginx-proxies.md) for complete inputs and setup side effects.
 
 See [UPDATE_STATE.md](UPDATE_STATE.md) for the full report and refresh procedure.
 
@@ -52,3 +54,4 @@ The binary reads environment variables directly, without loading `.env`.
 
 Run `go test ./...` from `mcp/`. Follow [AGENTS.md](AGENTS.md) when adding tools,
 then refresh [UPDATE_STATE.md](UPDATE_STATE.md) and this coverage summary.
+For a batch of new tools, point the agent to [IMPLEMENT_TOOLS.md](IMPLEMENT_TOOLS.md).

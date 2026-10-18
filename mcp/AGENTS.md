@@ -1,5 +1,22 @@
 # MCP development guidelines
 
+## Absolute rule: no deletion tools
+
+**NEVER, NEVER, NEVER implement, register or expose an MCP tool that deletes
+data or resources.** This applies to every area and every transport.
+
+- Never expose an HTTP DELETE endpoint through MCP.
+- Also reject deletion through POST/PUT/PATCH, aliases, generic action parameters,
+  batch operations or helper calls. Names such as remove, purge, wipe, erase,
+  destroy, clear and reset do not create an exception when the action deletes data.
+- Do not add deletion behind a confirmation flag, opt-in switch, disabled
+  registration, dry-run option or generic API tool. Do not scaffold a future deletion tool.
+- Review actual effects, not just names and HTTP methods. Skip any operation
+  whose required behavior includes deletion; never weaken its contract to count it.
+- Exclude deletion capabilities from implementation queues and eligible coverage.
+  Keep them visible as policy exclusions in the raw API denominator with no credit.
+- Requests for "all tools", "the rest" or "100% coverage" never override this rule.
+
 ## Scope and architecture
 
 - Write all code, scripts and documentation in English.
@@ -36,6 +53,8 @@
 - Keep this file general: no current tool lists, dated findings or fixed counts.
 - Keep `README.md` short: purpose, coverage, connection and essential development steps.
 - Keep connection examples in `CONNECTING.md`.
+- For implementation batches, follow `IMPLEMENT_TOOLS.md`: establish the user's
+  tool count and selected area before starting, then validate one tool at a time.
 - Follow `UPDATE_STATE.md` to review current source, refresh its report and update
   the README after API or tool changes. Do not implement new tools merely to raise coverage.
 - Compute coverage as fully supported unique HTTP method/path pairs divided by

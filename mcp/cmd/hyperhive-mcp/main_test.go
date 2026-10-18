@@ -58,10 +58,18 @@ func TestStdioContract(t *testing.T) {
 		t.Fatal("incorrect server identity")
 	}
 	list, err := session.ListTools(ctx, nil)
-	if err != nil || len(list.Tools) != 1 || list.Tools[0].Name != "list_proxies" {
-		t.Fatalf("want exactly list_proxies, got %#v, %v", list, err)
+	if err != nil || len(list.Tools) != 7 {
+		t.Fatalf("want seven non-delete proxy tools, got %#v, %v", list, err)
 	}
-	tool := list.Tools[0]
+	var tool *mcp.Tool
+	for _, candidate := range list.Tools {
+		if candidate.Name == "list_proxies" {
+			tool = candidate
+		}
+	}
+	if tool == nil {
+		t.Fatal("list_proxies missing")
+	}
 	if tool.Annotations == nil || !tool.Annotations.ReadOnlyHint || tool.InputSchema == nil || tool.OutputSchema == nil {
 		t.Fatal("missing schemas or read-only annotation")
 	}

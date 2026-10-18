@@ -1,4 +1,4 @@
-// Package hyperhivemcp provides HyperHive's single-tool MCP server for embedding
+// Package hyperhivemcp provides HyperHive's MCP server for embedding
 // in the master HTTP API as well as running with the standalone stdio command.
 package hyperhivemcp
 
@@ -16,7 +16,7 @@ type Config struct {
 	MCPToken string
 }
 
-func newServer(api tools.ProxyLister) *mcp.Server {
+func newServer(api tools.ProxyAPI) *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{Name: "hyperhive-mcp", Version: "0.1.0"}, nil)
 	tools.Register(server, api)
 	return server
@@ -51,4 +51,52 @@ func (api configuredAPI) ListProxies(ctx context.Context) ([]map[string]any, err
 		return nil, err
 	}
 	return c.ListProxies(ctx)
+}
+
+func (api configuredAPI) CreateProxy(ctx context.Context, input client.ProxyConfig) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.CreateProxy(ctx, input)
+}
+
+func (api configuredAPI) UpdateProxy(ctx context.Context, input client.UpdateProxyInput) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.UpdateProxy(ctx, input)
+}
+
+func (api configuredAPI) EnableProxy(ctx context.Context, input client.ProxyIDInput) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.EnableProxy(ctx, input)
+}
+
+func (api configuredAPI) DisableProxy(ctx context.Context, input client.ProxyIDInput) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.DisableProxy(ctx, input)
+}
+
+func (api configuredAPI) SetupFrontendProxy(ctx context.Context, input client.FrontendProxyInput) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.SetupFrontendProxy(ctx, input)
+}
+
+func (api configuredAPI) SetupSecureFrontendProxy(ctx context.Context, input client.SecureFrontendProxyInput) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.SetupSecureFrontendProxy(ctx, input)
 }

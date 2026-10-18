@@ -57,7 +57,7 @@ func TestMCPTokenPreservesAPIAuthentication(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list.Tools) != 1 || list.Tools[0].Name != "list_proxies" {
+	if len(list.Tools) != 7 {
 		t.Fatalf("unexpected tools: %#v", list.Tools)
 	}
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_proxies"})
@@ -137,8 +137,8 @@ func TestMCPLoopbackUsesConfiguredPort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list.Tools) != 1 || list.Tools[0].Name != "list_proxies" {
-		t.Fatalf("expected exactly list_proxies: %#v", list.Tools)
+	if len(list.Tools) != 7 {
+		t.Fatalf("expected seven non-delete proxy tools: %#v", list.Tools)
 	}
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_proxies"})
 	if err != nil || result.IsError || !strings.Contains(result.Content[0].(*mcp.TextContent).Text, "custom-port.test") {

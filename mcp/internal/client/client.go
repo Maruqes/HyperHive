@@ -2,6 +2,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -53,7 +54,7 @@ func New(cfg Config) (*Client, error) {
 // locations. HyperHive may encode a nil proxy slice as null; expose it as [].
 func (c *Client) ListProxies(ctx context.Context) ([]map[string]any, error) {
 	var proxies []map[string]any
-	if err := c.getJSON(ctx, "/proxy/list", &proxies); err != nil {
+	if err := c.getJSON(ctx, ListProxiesPath, &proxies); err != nil {
 		return nil, err
 	}
 	if proxies == nil {
@@ -68,12 +69,29 @@ func (c *Client) ListProxies(ctx context.Context) ([]map[string]any, error) {
 }
 
 func (c *Client) getJSON(ctx context.Context, path string, dst any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	return c.request(ctx, http.MethodGet, path, nil, dst)
+}
+
+// request shares authentication, limits and safe error handling. A nil dst
+// explicitly selects the empty-success contract used by proxy mutations.
+func (c *Client) request(ctx context.Context, method, path string, body, dst any) error {
+	var reader io.Reader
+	if body != nil {
+		data, err := json.Marshal(body)
+		if err != nil {
+			return errors.New("could not encode HyperHive API request")
+		}
+		reader = bytes.NewReader(data)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, reader)
 	if err != nil {
 		return errors.New("could not construct HyperHive API request")
 	}
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Accept", "application/json")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	resp, err := c.http.Do(req)
 	if err != nil {
 		if ctx.Err() != nil {
@@ -97,6 +115,9 @@ func (c *Client) getJSON(ctx context.Context, path string, dst any) error {
 	}
 	if len(data) > maxResponseBytes {
 		return errors.New("HyperHive API response exceeds the 16 MiB limit")
+	}
+	if dst == nil {
+		return nil
 	}
 	if len(strings.TrimSpace(string(data))) == 0 {
 		return errors.New("HyperHive API returned an empty response; expected JSON")

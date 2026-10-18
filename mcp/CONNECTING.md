@@ -1,7 +1,10 @@
 # Connect to HyperHive MCP
 
 HyperHive starts MCP with the master at `http://<host>:9595/mcp` using
-**Streamable HTTP**. There is exactly one tool: **`list_proxies`**.
+**Streamable HTTP**. Seven proxy-host tools are available: list, create, update,
+enable, disable, frontend setup and public/private frontend setup. Deletion
+is excluded. See [proxy contracts](docs/areas/nginx-proxies.md) for tool names
+and complete inputs.
 Connections require your fixed **`MCP_TOKEN`** in an Authorization Bearer header.
 
 The examples use `vm.tools` as an example HyperHive hostname. Replace it with your
