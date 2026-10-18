@@ -14,15 +14,19 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	pb "github.com/Maruqes/512SvMan/api/proto/celld"
 )
 
 const siloImage = "docker.io/pgsty/silo:RELEASE.2026-09-03T13-18-01Z"
-const siloName = "hyperhive-silo"
+
+var siloName = "hyperhive-silo"
+
 const siloData = "/var/lib/hyperhive/silo"
 
 //go:embed celld_bootstrap/*
@@ -120,42 +124,109 @@ func ensureSiloContainer(ctx context.Context, st celldFleetState) error {
 	}
 }
 
-func ensureCelldStorage(ctx context.Context, st celldFleetState) error {
-	if err := ensureSiloContainer(ctx, st); err != nil {
-		return err
+func siloCLI(ctx context.Context, st celldFleetState, bucket, access, secret, input string, args ...string) error {
+	_, err := celldCommand(ctx, input, "docker", append([]string{"exec", "-i", siloName, "mcli", "--config-dir", "/tmp/hyperhive-mcli-" + bucket}, args...)...)
+	if err == nil {
+		return nil
 	}
+	message := err.Error()
+	for _, value := range []string{st.RootUser, st.RootPassword, access, secret} {
+		if value != "" {
+			message = strings.ReplaceAll(message, value, "[redacted]")
+		}
+	}
+	return fmt.Errorf("SILO provisioning: %s", message)
+}
+
+func ensureCelldStorage(ctx context.Context, st celldFleetState, f *celldRecord) error {
 	setup, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	mcli := func(input string, args ...string) error {
-		_, err := celldCommand(setup, input, "docker", append([]string{"exec", "-i", siloName, "mcli", "--config-dir", "/tmp/hyperhive-mcli"}, args...)...)
-		if err != nil {
-			message := err.Error()
-			for _, secret := range []string{st.RootUser, st.RootPassword, st.AccessKey, st.SecretKey} {
-				if secret != "" {
-					message = strings.ReplaceAll(message, secret, "[redacted]")
-				}
-			}
-			return fmt.Errorf("SILO provisioning: %s", message)
-		}
-		return err
+		return siloCLI(setup, st, f.Storage.Bucket, f.AccessKey, f.SecretKey, input, args...)
 	}
 	if err := mcli("", "alias", "set", "local", "http://127.0.0.1:9000", st.RootUser, st.RootPassword); err != nil {
 		return err
 	}
-	if err := mcli("", "mb", "--ignore-existing", "local/hyperhive-celld"); err != nil {
+	if err := mcli("", "mb", "--ignore-existing", "local/"+f.Storage.Bucket); err != nil {
 		return err
 	}
-	if st.Provisioned {
-		return nil
-	}
-	policy := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:*"],"Resource":["arn:aws:s3:::hyperhive-celld","arn:aws:s3:::hyperhive-celld/*"]}]}`
-	if err := mcli(policy, "admin", "policy", "create", "local", "hyperhive-celld", "/dev/stdin"); err != nil {
+	policy := fmt.Sprintf(`{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:*"],"Resource":["arn:aws:s3:::%s","arn:aws:s3:::%s/*"]}]}`, f.Storage.Bucket, f.Storage.Bucket)
+	if err := mcli(policy, "admin", "policy", "create", "local", f.Storage.Bucket, "/dev/stdin"); err != nil {
 		return err
 	}
-	if err := mcli("", "admin", "user", "add", "local", st.AccessKey, st.SecretKey); err != nil {
+	if err := mcli("", "admin", "user", "add", "local", f.AccessKey, f.SecretKey); err != nil {
 		return err
 	}
-	return mcli("", "admin", "policy", "attach", "local", "hyperhive-celld", "--user", st.AccessKey)
+	return mcli("", "admin", "policy", "attach", "local", f.Storage.Bucket, "--user", f.AccessKey)
+}
+
+func removeCelldStorage(ctx context.Context, st celldFleetState, bucket, access string) error {
+	setup, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	mcli := func(args ...string) error { return siloCLI(setup, st, bucket, access, "", "", args...) }
+	if err := mcli("alias", "set", "local", "http://127.0.0.1:9000", st.RootUser, st.RootPassword); err != nil {
+		return err
+	}
+	// A retry may find either resource already removed by an earlier attempt.
+	absent := func(err error) error {
+		if err == nil {
+			return nil
+		}
+		message := strings.ToLower(err.Error())
+		if strings.Contains(message, "does not exist") || strings.Contains(message, "nosuchbucket") || strings.Contains(message, "nosuchuser") || strings.Contains(message, "nosuchpolicy") {
+			return nil
+		}
+		return err
+	}
+	if err := absent(mcli("rm", "--recursive", "--force", "local/"+bucket)); err != nil {
+		return err
+	}
+	if err := absent(mcli("rb", "local/"+bucket)); err != nil {
+		return err
+	}
+	if access != "" {
+		if err := absent(mcli("admin", "user", "remove", "local", access)); err != nil {
+			return err
+		}
+	}
+	return absent(mcli("admin", "policy", "remove", "local", bucket))
+}
+
+func observeCelldStorage(ctx context.Context, cfg *pb.Config) CelldStorage {
+	result := CelldStorage{CheckedAt: time.Now().UTC()}
+	r, err := celldS3(ctx, cfg, "GET", "", nil, "")
+	if err != nil {
+		result.Error = err.Error()
+		return result
+	}
+	if r.code != 200 {
+		result.Error = fmt.Sprintf("list SILO buckets: HTTP %d", r.code)
+		return result
+	}
+	var listing struct {
+		XMLName               xml.Name                `xml:"ListAllMyBucketsResult"`
+		Buckets               []struct{ Name string } `xml:"Buckets>Bucket"`
+		IsTruncated           bool
+		ContinuationToken     string
+		NextContinuationToken string
+	}
+	if err = xml.Unmarshal([]byte(r.body), &listing); err != nil {
+		result.Error = err.Error()
+		return result
+	}
+	if listing.IsTruncated || listing.ContinuationToken != "" || listing.NextContinuationToken != "" {
+		result.Error = "SILO bucket listing is incomplete"
+		return result
+	}
+	result.Buckets = []string{}
+	for _, b := range listing.Buckets {
+		result.Buckets = append(result.Buckets, b.Name)
+	}
+	sort.Strings(result.Buckets)
+	count := len(result.Buckets)
+	result.BucketCount = &count
+	result.Healthy = true
+	return result
 }
 
 type celldS3Response struct {
@@ -168,7 +239,12 @@ func celldS3(ctx context.Context, cfg *pb.Config, method, key string, headers ma
 	// curl already supplies SigV4; credentials enter on stdin, never in process arguments.
 	var config strings.Builder
 	line := func(k, v string) { fmt.Fprintf(&config, "%s = %s\n", k, strconv.Quote(v)) }
-	line("url", cfg.Endpoint+"/hyperhive-celld/"+key)
+	bucket := strings.TrimPrefix(cfg.Bucket, "s3://")
+	target := cfg.Endpoint + "/"
+	if bucket != "" {
+		target += bucket + "/"
+	}
+	line("url", target+key)
 	line("aws-sigv4", "aws:amz:"+cfg.Region+":s3")
 	line("user", cfg.AccessKey+":"+cfg.SecretKey)
 	line("request", method)
@@ -194,9 +270,12 @@ func celldS3(ctx context.Context, cfg *pb.Config, method, key string, headers ma
 		return nil, err
 	}
 	defer resp.Body.Close()
-	data, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	data, err := io.ReadAll(io.LimitReader(resp.Body, (2<<20)+1))
 	if err != nil {
 		return nil, err
+	}
+	if len(data) > 2<<20 {
+		return nil, fmt.Errorf("SILO response exceeds limit")
 	}
 	return &celldS3Response{code: resp.StatusCode, header: resp.Header, body: string(data)}, nil
 }
@@ -252,7 +331,11 @@ func validateCelldStorage(ctx context.Context, cfg *pb.Config) error {
 	return nil
 }
 
+var celldToolsMu sync.Mutex
+
 func bootstrapCelld(ctx context.Context, cfg *pb.Config) error {
+	celldToolsMu.Lock()
+	defer celldToolsMu.Unlock()
 	r, err := celldS3(ctx, cfg, "GET", "deploy/current.json", nil, "")
 	if err != nil {
 		return err

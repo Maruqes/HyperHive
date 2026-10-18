@@ -7,12 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"log"
 	"net"
-	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -26,72 +22,134 @@ import (
 const celldFleetPath = "/var/lib/hyperhive/celld-fleet.json"
 const celldBinary = "/usr/local/bin/celld"
 
-type CelldMachine struct {
-	Name      string `json:"name"`
-	IP        string `json:"ip"`
-	Connected bool   `json:"connected"`
-	Healthy   bool   `json:"healthy"`
-	Error     string `json:"error,omitempty"`
-}
+var ErrCelldNotFound = errors.New("fleet not found")
+var ErrCelldConflict = errors.New("fleet conflict")
+var ErrCelldInvalid = errors.New("invalid fleet request")
 
+type CelldPorts struct {
+	HTTP     uint32 `json:"http"`
+	Internal uint32 `json:"internal"`
+}
+type CelldMachine struct {
+	Name      string     `json:"name"`
+	IP        string     `json:"ip,omitempty"`
+	Connected bool       `json:"connected"`
+	Running   bool       `json:"running"`
+	Healthy   bool       `json:"healthy"`
+	Ports     CelldPorts `json:"ports"`
+	URL       string     `json:"url,omitempty"`
+	Error     string     `json:"error,omitempty"`
+}
 type CelldCheck struct {
 	Healthy bool   `json:"healthy"`
 	Error   string `json:"error,omitempty"`
 }
-
+type CelldStorage struct {
+	CelldCheck
+	BucketCount        *int      `json:"bucket_count"`
+	Buckets            []string  `json:"buckets"`
+	ManagedBucketCount int       `json:"managed_bucket_count"`
+	CheckedAt          time.Time `json:"checked_at"`
+}
+type CelldFleetHealth struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Healthy   bool      `json:"healthy"`
+	Status    string    `json:"status"`
+	CheckedAt time.Time `json:"checked_at"`
+	Error     string    `json:"error,omitempty"`
+}
 type CelldHealth struct {
-	Healthy  bool           `json:"healthy"`
-	Storage  CelldCheck     `json:"storage"`
-	Machines []CelldMachine `json:"machines"`
+	Fleets    []CelldFleetHealth `json:"fleets"`
+	Healthy   bool               `json:"healthy"`
+	Storage   CelldCheck         `json:"storage"`
+	Machines  []CelldMachine     `json:"machines"`
+	CheckedAt time.Time          `json:"checked_at"`
+}
+type CelldLocation struct {
+	Bucket   string `json:"bucket"`
+	Endpoint string `json:"endpoint"`
+	Region   string `json:"region"`
+}
+type CelldDeployment struct {
+	Command        string   `json:"command"`
+	CredentialsURL string   `json:"credentials_url"`
+	Environment    []string `json:"environment"`
+}
+type CelldFleetInfo struct {
+	ID           string          `json:"id"`
+	Name         string          `json:"name"`
+	DesiredState string          `json:"desired_state"`
+	Status       string          `json:"status"`
+	Servers      []CelldMachine  `json:"servers"`
+	Ports        CelldPorts      `json:"ports"`
+	Storage      CelldLocation   `json:"storage"`
+	URLs         []string        `json:"urls"`
+	Deploy       CelldDeployment `json:"deploy"`
+	CheckedAt    time.Time       `json:"checked_at"`
+	Error        string          `json:"error,omitempty"`
+}
+type CelldFleetInput struct {
+	Name    *string     `json:"name"`
+	Servers *[]string   `json:"servers"`
+	Ports   *CelldPorts `json:"ports"`
+}
+type CelldCredentials struct {
+	AccessKey string `json:"aws_access_key_id"`
+	SecretKey string `json:"aws_secret_access_key"`
+}
+type CelldList struct {
+	Fleets       []CelldFleetInfo `json:"fleets"`
+	Storage      CelldStorage     `json:"storage"`
+	ResetPending bool             `json:"reset_pending"`
+	Error        string           `json:"error,omitempty"`
 }
 
+type celldRecord struct {
+	CelldFleetInfo
+	AccessKey      string          `json:"access_key"`
+	SecretKey      string          `json:"secret_key"`
+	Provisioned    bool            `json:"provisioned"`
+	Operation      string          `json:"operation,omitempty"`
+	Removed        []CelldMachine  `json:"removed,omitempty"`
+	Cleaned        map[string]bool `json:"cleaned,omitempty"`
+	RestartIndex   int             `json:"restart_index,omitempty"`
+	RestartStopped bool            `json:"restart_stopped,omitempty"`
+}
 type celldFleetState struct {
-	MasterIP     string         `json:"master_ip"`
-	RootUser     string         `json:"root_user"`
-	RootPassword string         `json:"root_password"`
-	AccessKey    string         `json:"access_key"`
-	SecretKey    string         `json:"secret_key"`
-	Provisioned  bool           `json:"provisioned"`
-	Machines     []CelldMachine `json:"machines"`
+	Schema       int    `json:"schema"`
+	MasterIP     string `json:"master_ip"`
+	RootUser     string `json:"root_user"`
+	RootPassword string `json:"root_password"`
+	// Legacy singleton credentials/inventory are retained only until reset completes.
+	AccessKey    string                  `json:"access_key,omitempty"`
+	SecretKey    string                  `json:"secret_key,omitempty"`
+	Provisioned  bool                    `json:"provisioned,omitempty"`
+	Machines     []CelldMachine          `json:"machines,omitempty"`
+	ResetPending bool                    `json:"reset_pending"`
+	ResetCleaned map[string]bool         `json:"reset_cleaned,omitempty"`
+	Fleets       map[string]*celldRecord `json:"fleets"`
 }
-
 type CelldService struct {
-	mu               sync.RWMutex
-	state            celldFleetState
-	loaded, prepared bool
-	wake             chan struct{}
-	lastError        string
+	lastError     string
+	mu            sync.RWMutex
+	state         celldFleetState
+	loaded        bool
+	path          string
+	wake          chan struct{}
+	storage       CelldStorage
+	busy          map[string]bool
+	connections   func() []protocol.ConnectionsStruct
+	ready         func(context.Context, *pb.Config, string) error
+	agentBusy     map[string]bool
+	removeStorage func(context.Context, celldFleetState, string, string) error
 }
 
-var CelldFleet = &CelldService{wake: make(chan struct{}, 1)}
-
-func StartCelld(ctx context.Context) {
-	go func() {
-		tick := time.NewTicker(30 * time.Second)
-		defer tick.Stop()
-		for {
-			if ctx.Err() != nil {
-				return
-			}
-			if err := CelldFleet.reconcile(ctx); err != nil {
-				CelldFleet.mu.Lock()
-				CelldFleet.lastError = err.Error()
-				CelldFleet.mu.Unlock()
-				log.Printf("celld fleet setup pending: %v", err)
-			} else {
-				CelldFleet.mu.Lock()
-				CelldFleet.lastError = ""
-				CelldFleet.mu.Unlock()
-			}
-			select {
-			case <-ctx.Done():
-				return
-			case <-tick.C:
-			case <-CelldFleet.wake:
-			}
-		}
-	}()
+func NewCelldService(path string) *CelldService {
+	return &CelldService{path: path, wake: make(chan struct{}, 1)}
 }
+
+var CelldFleet = NewCelldService(celldFleetPath)
 
 func (s *CelldService) Wake() {
 	select {
@@ -99,7 +157,6 @@ func (s *CelldService) Wake() {
 	default:
 	}
 }
-
 func celldSecret() (string, error) {
 	b := make([]byte, 24)
 	if _, err := rand.Read(b); err != nil {
@@ -107,351 +164,196 @@ func celldSecret() (string, error) {
 	}
 	return hex.EncodeToString(b), nil
 }
-
+func celldVersion() string {
+	if v := strings.TrimSpace(os.Getenv("CELLD_VERSION")); v != "" {
+		return v
+	}
+	return "v0.6.2"
+}
+func (s *CelldService) snapshotConnections() []protocol.ConnectionsStruct {
+	if s.connections != nil {
+		return s.connections()
+	}
+	return protocol.GetConnectionsSnapshot()
+}
 func (s *CelldService) load() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.loaded {
 		return nil
 	}
-	data, err := os.ReadFile(celldFleetPath)
+	if s.path == "" {
+		s.path = celldFleetPath
+	}
+	data, err := os.ReadFile(s.path)
 	if err == nil {
 		if err = json.Unmarshal(data, &s.state); err != nil {
 			return err
 		}
-		if s.state.RootUser == "" || s.state.RootPassword == "" || s.state.AccessKey == "" || s.state.SecretKey == "" {
-			return fmt.Errorf("incomplete persisted celld credentials")
+		if s.state.RootUser == "" || s.state.RootPassword == "" {
+			return fmt.Errorf("incomplete persisted SILO credentials")
+		}
+		if s.state.Schema == 0 {
+			if s.state.AccessKey == "" || s.state.SecretKey == "" {
+				return fmt.Errorf("incomplete persisted legacy credentials")
+			}
+			s.state.ResetPending = true
+			s.state.Schema = 2
+		}
+		if s.state.Schema != 2 {
+			return fmt.Errorf("unsupported celld state schema")
 		}
 	} else if errors.Is(err, os.ErrNotExist) {
-		s.state.RootUser = "hyperhive-admin"
-		if s.state.RootPassword, err = celldSecret(); err != nil {
-			return err
-		}
-		key, err := celldSecret()
+		password, err := celldSecret()
 		if err != nil {
 			return err
 		}
-		s.state.AccessKey = "celld-" + key[:16]
-		if s.state.SecretKey, err = celldSecret(); err != nil {
-			return err
-		}
-		if err = s.saveLocked(); err != nil {
-			return err
-		}
+		s.state = celldFleetState{Schema: 2, RootUser: "hyperhive-admin", RootPassword: password}
 	} else {
+		return err
+	}
+	if s.state.Fleets == nil {
+		s.state.Fleets = make(map[string]*celldRecord)
+	}
+	if s.state.ResetCleaned == nil {
+		s.state.ResetCleaned = make(map[string]bool)
+	}
+	if err = s.saveLocked(); err != nil {
 		return err
 	}
 	s.loaded = true
 	return nil
 }
 
+// Publish only after syncing both the file and its directory.
 func (s *CelldService) saveLocked() error {
-	if err := os.MkdirAll(filepath.Dir(celldFleetPath), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.path), 0700); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(s.state, "", "  ")
 	if err != nil {
 		return err
 	}
-	if err = os.WriteFile(celldFleetPath+".tmp", data, 0600); err != nil {
+	f, err := os.OpenFile(s.path+".tmp", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+	if err != nil {
 		return err
 	}
-	return os.Rename(celldFleetPath+".tmp", celldFleetPath)
-}
-
-func fleetConfig(st celldFleetState) *pb.Config {
-	v := strings.TrimSpace(os.Getenv("CELLD_VERSION"))
-	if v == "" {
-		v = "v0.6.2"
+	if err = f.Chmod(0600); err == nil {
+		_, err = f.Write(data)
 	}
-	return &pb.Config{Version: v, Bucket: "s3://hyperhive-celld", Endpoint: "http://" + net.JoinHostPort(st.MasterIP, "9000"), Region: "us-east-1", AccessKey: st.AccessKey, SecretKey: st.SecretKey}
+	if err == nil {
+		err = f.Sync()
+	}
+	err = errors.Join(err, f.Close())
+	if err != nil {
+		return err
+	}
+	if err = os.Rename(s.path+".tmp", s.path); err != nil {
+		return err
+	}
+	dir, err := os.Open(filepath.Dir(s.path))
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+	return dir.Sync()
 }
-
-func (s *CelldService) reconcile(ctx context.Context) error {
+func (s *CelldService) copyLocked() celldFleetState {
+	data, _ := json.Marshal(s.state)
+	var st celldFleetState
+	_ = json.Unmarshal(data, &st)
+	return st
+}
+func (s *CelldService) commitLocked(previous celldFleetState) error {
+	if err := s.saveLocked(); err != nil {
+		s.state = previous
+		return err
+	}
+	s.Wake()
+	return nil
+}
+func recordConfig(st celldFleetState, f *celldRecord) *pb.Config {
+	return &pb.Config{Version: celldVersion(), FleetId: f.ID, Bucket: "s3://" + f.Storage.Bucket, Endpoint: "http://" + net.JoinHostPort(st.MasterIP, "9000"), Region: "us-east-1", AccessKey: f.AccessKey, SecretKey: f.SecretKey, HttpPort: f.Ports.HTTP, InternalPort: f.Ports.Internal}
+}
+func (s *CelldService) infoLocked(f *celldRecord) CelldFleetInfo {
+	info := f.CelldFleetInfo
+	info.Servers = append([]CelldMachine{}, f.Servers...)
+	info.URLs = append([]string{}, f.URLs...)
+	if s.state.MasterIP != "" {
+		info.Storage.Endpoint = "http://" + net.JoinHostPort(s.state.MasterIP, "9000")
+	}
+	info.Deploy = CelldDeployment{Command: fmt.Sprintf("celld deploy . --bucket s3://%s --endpoint %s --region %s", info.Storage.Bucket, info.Storage.Endpoint, info.Storage.Region), CredentialsURL: "/celld/fleets/" + f.ID + "/credentials", Environment: []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION=us-east-1"}}
+	return info
+}
+func (s *CelldService) List() (CelldList, error) {
 	if err := s.load(); err != nil {
-		return err
+		return CelldList{}, err
 	}
-	connections := protocol.GetConnectionsSnapshot()
-	s.mu.Lock()
-	for _, c := range connections {
-		found := false
-		for i := range s.state.Machines {
-			if s.state.Machines[i].Name == c.MachineName {
-				s.state.Machines[i].IP = c.Addr
-				found = true
-				break
-			}
-		}
-		if !found {
-			s.state.Machines = append(s.state.Machines, CelldMachine{Name: c.MachineName, IP: c.Addr})
-		}
-	}
-	sort.Slice(s.state.Machines, func(i, j int) bool { return s.state.Machines[i].Name < s.state.Machines[j].Name })
-	err := s.saveLocked()
-	s.mu.Unlock()
-	if err != nil {
-		return err
-	}
-
-	var master *protocol.ConnectionsStruct
-	for i := range connections {
-		c := &connections[i]
-		if c.Connection == nil {
-			continue
-		}
-		call, cancel := context.WithTimeout(ctx, 5*time.Second)
-		status, err := pb.NewCelldServiceClient(c.Connection).GetStatus(call, &pb.Empty{})
-		cancel()
-		if err == nil && status.Master && status.NodeIp == c.Addr {
-			master = c
-			break
-		}
-	}
-	if master == nil {
-		return fmt.Errorf("waiting for the master slave agent")
-	}
-	ip := net.ParseIP(master.Addr)
-	if ip == nil || !ip.IsPrivate() {
-		return fmt.Errorf("master celld storage requires a private management IP")
-	}
-	s.mu.Lock()
-	if s.state.MasterIP != "" && s.state.MasterIP != master.Addr {
-		s.mu.Unlock()
-		return fmt.Errorf("refusing to move existing SILO storage to another master IP")
-	}
-	s.state.MasterIP = master.Addr
-	err = s.saveLocked()
-	st := s.state
-	s.mu.Unlock()
-	if err != nil {
-		return err
-	}
-	cfg := fleetConfig(st)
-	// Prepare the master's binary before using its deploy/diagnostic commands.
-	if !s.prepared {
-		if _, err = configureCelld(ctx, *master, cfg, false); err != nil {
-			return err
-		}
-		if err = ensureCelldStorage(ctx, st); err != nil {
-			return err
-		}
-		if err = validateCelldStorage(ctx, cfg); err != nil {
-			return fmt.Errorf("SILO storage compatibility: %w", err)
-		}
-		if err = bootstrapCelld(ctx, cfg); err != nil {
-			return err
-		}
-		s.mu.Lock()
-		s.state.Provisioned = true
-		err = s.saveLocked()
-		s.mu.Unlock()
-		if err != nil {
-			return err
-		}
-		s.mu.Lock()
-		s.prepared = true
-		s.mu.Unlock()
-	} else if err = ensureSiloContainer(ctx, st); err != nil {
-		return err
-	}
-
-	// Finish each replacement before moving to the next machine.
-	ordered := []protocol.ConnectionsStruct{*master}
-	for _, c := range connections {
-		if c.MachineName != master.MachineName {
-			ordered = append(ordered, c)
-		}
-	}
-	for _, c := range ordered {
-		if c.Connection == nil {
-			continue
-		}
-		if _, err = configureCelld(ctx, c, cfg, true); err != nil {
-			return fmt.Errorf("%s: %w", c.MachineName, err)
-		}
-		if err = waitCelldReady(ctx, cfg, c.Addr); err != nil {
-			return fmt.Errorf("waiting for %s before continuing rollout: %w", c.MachineName, err)
-		}
-	}
-	return nil
-}
-
-func configureCelld(ctx context.Context, c protocol.ConnectionsStruct, cfg *pb.Config, start bool) (*pb.Status, error) {
-	call, cancel := context.WithTimeout(ctx, 5*time.Minute)
-	defer cancel()
-	return pb.NewCelldServiceClient(c.Connection).Configure(call, &pb.ConfigureRequest{Config: cfg, Start: start})
-}
-
-type celldDiagnostic struct {
-	Verdict string `json:"verdict"`
-	Check   string `json:"check"`
-	Detail  string `json:"detail"`
-}
-
-func diagnoseCelld(ctx context.Context, cfg *pb.Config) (map[string]celldDiagnostic, error) {
-	cmd := exec.CommandContext(ctx, celldBinary, "diagnose", "--read-only", "--json", "--bucket", cfg.Bucket, "--endpoint", cfg.Endpoint, "--region", cfg.Region,
-		"--listen", "127.0.0.1:0", "--internal-listen", "127.0.0.1:0")
-	cmd.Env = append(os.Environ(), "AWS_ACCESS_KEY_ID="+cfg.AccessKey, "AWS_SECRET_ACCESS_KEY="+cfg.SecretKey, "AWS_REGION="+cfg.Region, "AWS_SESSION_TOKEN=")
-	out, runErr := cmd.Output()
-	peers, parseErr := parseCelldPeers(strings.NewReader(string(out)))
-	return peers, errors.Join(runErr, parseErr)
-}
-
-func parseCelldPeers(reader io.Reader) (map[string]celldDiagnostic, error) {
-	peers := make(map[string]celldDiagnostic)
-	d := json.NewDecoder(reader)
-	for {
-		var row celldDiagnostic
-		if err := d.Decode(&row); err != nil {
-			if errors.Is(err, io.EOF) {
-				return peers, nil
-			}
-			return peers, err
-		}
-		if strings.HasPrefix(row.Check, "peer ") {
-			_, addr, ok := strings.Cut(row.Check, " at ")
-			if ok {
-				// A restarted node can share an address with its previous, unexpired lease.
-				if prior, exists := peers[addr]; !exists || prior.Verdict != "ok" || row.Verdict == "ok" {
-					peers[addr] = row
-				}
-			}
-		}
-	}
-}
-
-var celldHTTP = &http.Client{Timeout: 3 * time.Second, Transport: &http.Transport{Proxy: nil}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-
-func celldReady(ctx context.Context, ip string) error {
-	req, err := http.NewRequestWithContext(ctx, "GET", "http://"+net.JoinHostPort(ip, "8080")+"/.well-known/celld/health", nil)
-	if err != nil {
-		return err
-	}
-	resp, err := celldHTTP.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("readiness returned HTTP %d", resp.StatusCode)
-	}
-	return nil
-}
-
-func waitCelldReady(ctx context.Context, cfg *pb.Config, ip string) error {
-	wait, cancel := context.WithTimeout(ctx, 3*time.Minute)
-	defer cancel()
-	for {
-		if err := celldReady(wait, ip); err == nil {
-			probe, stop := context.WithTimeout(wait, 20*time.Second)
-			peers, _ := diagnoseCelld(probe, cfg)
-			stop()
-			settled := true
-			for _, peer := range peers {
-				if peer.Verdict == "ok" && !strings.Contains(" "+peer.Detail+" ", " restoring=0 ") {
-					settled = false
-				}
-			}
-			if peer, ok := peers[net.JoinHostPort(ip, "8081")]; ok && peer.Verdict == "ok" && settled {
-				return nil
-			}
-		}
-		timer := time.NewTimer(3 * time.Second)
-		select {
-		case <-wait.Done():
-			timer.Stop()
-			return wait.Err()
-		case <-timer.C:
-		}
-	}
-}
-
-func (s *CelldService) Health(ctx context.Context) CelldHealth {
 	s.mu.RLock()
-	st := s.state
-	machines := append([]CelldMachine{}, st.Machines...)
-	setupError := s.lastError
-	prepared := s.prepared
-	s.mu.RUnlock()
-	// Include connections received since the most recent reconciliation, without writing.
-	for _, c := range protocol.GetConnectionsSnapshot() {
-		found := false
-		for i := range machines {
-			if machines[i].Name == c.MachineName {
-				machines[i].IP = c.Addr
-				found = true
-				break
-			}
-		}
-		if !found {
-			machines = append(machines, CelldMachine{Name: c.MachineName, IP: c.Addr})
-		}
+	defer s.mu.RUnlock()
+	result := CelldList{Fleets: []CelldFleetInfo{}, Storage: s.storage, ResetPending: s.state.ResetPending, Error: s.lastError}
+	result.Storage.Buckets = append([]string(nil), s.storage.Buckets...)
+	if result.Storage.CheckedAt.IsZero() {
+		result.Storage.Error = "storage has not been checked"
 	}
-	result := CelldHealth{Machines: machines}
-	if st.MasterIP == "" {
-		result.Storage.Error = "fleet storage is not configured"
-		if setupError != "" {
-			result.Storage.Error = setupError
-		}
-		for i := range result.Machines {
-			result.Machines[i].Error = "fleet is not configured"
-		}
-		return result
+	result.Storage.ManagedBucketCount = len(s.state.Fleets)
+	for _, f := range s.state.Fleets {
+		result.Fleets = append(result.Fleets, s.infoLocked(f))
 	}
-	check, cancel := context.WithTimeout(ctx, 20*time.Second)
-	defer cancel()
-	cfg := fleetConfig(st)
-	resp, err := celldS3(check, cfg, "GET", "?list-type=2&max-keys=0", nil, "")
-	if err != nil {
-		result.Storage.Error = err.Error()
-	} else if resp.code != 200 {
-		result.Storage.Error = fmt.Sprintf("SILO returned HTTP %d", resp.code)
-	} else {
-		result.Storage.Healthy = true
-	}
-	if !prepared {
-		result.Storage.Healthy = false
-		result.Storage.Error = "fleet storage has not passed initialization"
-		if setupError != "" {
-			result.Storage.Error = setupError
-		}
-	}
-	peers, peerErr := diagnoseCelld(check, cfg)
-	return finishCelldHealth(check, result, peers, peerErr)
+	sort.Slice(result.Fleets, func(i, j int) bool { return result.Fleets[i].Name < result.Fleets[j].Name })
+	return result, nil
 }
-
-func finishCelldHealth(ctx context.Context, result CelldHealth, peers map[string]celldDiagnostic, peerErr error) CelldHealth {
-	result.Healthy = result.Storage.Healthy && len(result.Machines) > 0
-	var wg sync.WaitGroup
-	for i := range result.Machines {
-		wg.Add(1)
-		go func(node *CelldMachine) {
-			defer wg.Done()
-			node.Connected, node.Healthy, node.Error = false, false, ""
-			peer, ok := peers[net.JoinHostPort(node.IP, "8081")]
-			if !ok || peer.Verdict != "ok" {
-				node.Error = "no live reachable celld peer"
-				if ok {
-					node.Error = peer.Detail
-				} else if peerErr != nil {
-					node.Error += ": " + peerErr.Error()
-				}
-				return
-			}
-			node.Connected = true
-			if err := celldReady(ctx, node.IP); err != nil {
-				node.Error = err.Error()
-				return
-			}
-			node.Healthy = true
-		}(&result.Machines[i])
+func (s *CelldService) Get(id string) (CelldFleetInfo, error) {
+	if err := s.load(); err != nil {
+		return CelldFleetInfo{}, err
 	}
-	wg.Wait()
-	for _, node := range result.Machines {
-		if !node.Connected || !node.Healthy {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	f := s.state.Fleets[id]
+	if f == nil {
+		return CelldFleetInfo{}, ErrCelldNotFound
+	}
+	return s.infoLocked(f), nil
+}
+func (s *CelldService) Credentials(id string) (CelldCredentials, error) {
+	if err := s.load(); err != nil {
+		return CelldCredentials{}, err
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	f := s.state.Fleets[id]
+	if f == nil {
+		return CelldCredentials{}, ErrCelldNotFound
+	}
+	if f.DesiredState == "deleting" {
+		return CelldCredentials{}, ErrCelldConflict
+	}
+	return CelldCredentials{f.AccessKey, f.SecretKey}, nil
+}
+func (s *CelldService) Health(context.Context) CelldHealth {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	result := CelldHealth{Storage: s.storage.CelldCheck, Machines: []CelldMachine{}, Fleets: []CelldFleetHealth{}, CheckedAt: s.storage.CheckedAt}
+	if result.CheckedAt.IsZero() {
+		result.Storage.Error = "storage has not been checked"
+	}
+	result.Healthy = result.Storage.Healthy && !s.state.ResetPending
+	for _, f := range s.state.Fleets {
+		if f.DesiredState != "running" {
+			continue
+		}
+		health := CelldFleetHealth{ID: f.ID, Name: f.Name, Healthy: f.Status == "running", Status: f.Status, CheckedAt: f.CheckedAt, Error: f.Error}
+		for _, n := range f.Servers {
+			if !n.Running || !n.Healthy {
+				health.Healthy = false
+			}
+		}
+		result.Machines = append(result.Machines, f.Servers...)
+		result.Fleets = append(result.Fleets, health)
+		if !health.Healthy {
 			result.Healthy = false
 		}
 	}
-	sort.Slice(result.Machines, func(i, j int) bool { return result.Machines[i].Name < result.Machines[j].Name })
+	sort.Slice(result.Fleets, func(i, j int) bool { return result.Fleets[i].Name < result.Fleets[j].Name })
 	return result
 }

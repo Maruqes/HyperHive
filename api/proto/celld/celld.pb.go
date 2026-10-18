@@ -23,6 +23,7 @@ const (
 
 type Empty struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	FleetId       string                 `protobuf:"bytes,1,opt,name=fleet_id,json=fleetId,proto3" json:"fleet_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -57,6 +58,13 @@ func (*Empty) Descriptor() ([]byte, []int) {
 	return file_celld_proto_rawDescGZIP(), []int{0}
 }
 
+func (x *Empty) GetFleetId() string {
+	if x != nil {
+		return x.FleetId
+	}
+	return ""
+}
+
 type Config struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Version       string                 `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
@@ -65,6 +73,9 @@ type Config struct {
 	Region        string                 `protobuf:"bytes,4,opt,name=region,proto3" json:"region,omitempty"`
 	AccessKey     string                 `protobuf:"bytes,5,opt,name=access_key,json=accessKey,proto3" json:"access_key,omitempty"`
 	SecretKey     string                 `protobuf:"bytes,6,opt,name=secret_key,json=secretKey,proto3" json:"secret_key,omitempty"`
+	FleetId       string                 `protobuf:"bytes,7,opt,name=fleet_id,json=fleetId,proto3" json:"fleet_id,omitempty"`
+	HttpPort      uint32                 `protobuf:"varint,8,opt,name=http_port,json=httpPort,proto3" json:"http_port,omitempty"`
+	InternalPort  uint32                 `protobuf:"varint,9,opt,name=internal_port,json=internalPort,proto3" json:"internal_port,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -141,6 +152,27 @@ func (x *Config) GetSecretKey() string {
 	return ""
 }
 
+func (x *Config) GetFleetId() string {
+	if x != nil {
+		return x.FleetId
+	}
+	return ""
+}
+
+func (x *Config) GetHttpPort() uint32 {
+	if x != nil {
+		return x.HttpPort
+	}
+	return 0
+}
+
+func (x *Config) GetInternalPort() uint32 {
+	if x != nil {
+		return x.InternalPort
+	}
+	return 0
+}
+
 type ConfigureRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Config        *Config                `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
@@ -200,6 +232,9 @@ type Status struct {
 	Version       string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
 	Running       bool                   `protobuf:"varint,4,opt,name=running,proto3" json:"running,omitempty"`
 	Error         string                 `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
+	FleetId       string                 `protobuf:"bytes,6,opt,name=fleet_id,json=fleetId,proto3" json:"fleet_id,omitempty"`
+	HttpPort      uint32                 `protobuf:"varint,7,opt,name=http_port,json=httpPort,proto3" json:"http_port,omitempty"`
+	InternalPort  uint32                 `protobuf:"varint,8,opt,name=internal_port,json=internalPort,proto3" json:"internal_port,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -269,12 +304,130 @@ func (x *Status) GetError() string {
 	return ""
 }
 
+func (x *Status) GetFleetId() string {
+	if x != nil {
+		return x.FleetId
+	}
+	return ""
+}
+
+func (x *Status) GetHttpPort() uint32 {
+	if x != nil {
+		return x.HttpPort
+	}
+	return 0
+}
+
+func (x *Status) GetInternalPort() uint32 {
+	if x != nil {
+		return x.InternalPort
+	}
+	return 0
+}
+
+type SyncRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	RunningFleetIds  []string               `protobuf:"bytes,1,rep,name=running_fleet_ids,json=runningFleetIds,proto3" json:"running_fleet_ids,omitempty"`
+	AssignedFleetIds []string               `protobuf:"bytes,2,rep,name=assigned_fleet_ids,json=assignedFleetIds,proto3" json:"assigned_fleet_ids,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *SyncRequest) Reset() {
+	*x = SyncRequest{}
+	mi := &file_celld_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncRequest) ProtoMessage() {}
+
+func (x *SyncRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_celld_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncRequest.ProtoReflect.Descriptor instead.
+func (*SyncRequest) Descriptor() ([]byte, []int) {
+	return file_celld_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SyncRequest) GetRunningFleetIds() []string {
+	if x != nil {
+		return x.RunningFleetIds
+	}
+	return nil
+}
+
+func (x *SyncRequest) GetAssignedFleetIds() []string {
+	if x != nil {
+		return x.AssignedFleetIds
+	}
+	return nil
+}
+
+type PrepareRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Version       string                 `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PrepareRequest) Reset() {
+	*x = PrepareRequest{}
+	mi := &file_celld_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PrepareRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PrepareRequest) ProtoMessage() {}
+
+func (x *PrepareRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_celld_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PrepareRequest.ProtoReflect.Descriptor instead.
+func (*PrepareRequest) Descriptor() ([]byte, []int) {
+	return file_celld_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *PrepareRequest) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
 var File_celld_proto protoreflect.FileDescriptor
 
 const file_celld_proto_rawDesc = "" +
 	"\n" +
-	"\vcelld.proto\x12\x05celld\"\a\n" +
-	"\x05Empty\"\xac\x01\n" +
+	"\vcelld.proto\x12\x05celld\"\"\n" +
+	"\x05Empty\x12\x19\n" +
+	"\bfleet_id\x18\x01 \x01(\tR\afleetId\"\x89\x02\n" +
 	"\x06Config\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12\x16\n" +
 	"\x06bucket\x18\x02 \x01(\tR\x06bucket\x12\x1a\n" +
@@ -283,19 +436,34 @@ const file_celld_proto_rawDesc = "" +
 	"\n" +
 	"access_key\x18\x05 \x01(\tR\taccessKey\x12\x1d\n" +
 	"\n" +
-	"secret_key\x18\x06 \x01(\tR\tsecretKey\"O\n" +
+	"secret_key\x18\x06 \x01(\tR\tsecretKey\x12\x19\n" +
+	"\bfleet_id\x18\a \x01(\tR\afleetId\x12\x1b\n" +
+	"\thttp_port\x18\b \x01(\rR\bhttpPort\x12#\n" +
+	"\rinternal_port\x18\t \x01(\rR\finternalPort\"O\n" +
 	"\x10ConfigureRequest\x12%\n" +
 	"\x06config\x18\x01 \x01(\v2\r.celld.ConfigR\x06config\x12\x14\n" +
-	"\x05start\x18\x02 \x01(\bR\x05start\"\x83\x01\n" +
+	"\x05start\x18\x02 \x01(\bR\x05start\"\xe0\x01\n" +
 	"\x06Status\x12\x17\n" +
 	"\anode_ip\x18\x01 \x01(\tR\x06nodeIp\x12\x16\n" +
 	"\x06master\x18\x02 \x01(\bR\x06master\x12\x18\n" +
 	"\aversion\x18\x03 \x01(\tR\aversion\x12\x18\n" +
 	"\arunning\x18\x04 \x01(\bR\arunning\x12\x14\n" +
-	"\x05error\x18\x05 \x01(\tR\x05error2m\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\x12\x19\n" +
+	"\bfleet_id\x18\x06 \x01(\tR\afleetId\x12\x1b\n" +
+	"\thttp_port\x18\a \x01(\rR\bhttpPort\x12#\n" +
+	"\rinternal_port\x18\b \x01(\rR\finternalPort\"g\n" +
+	"\vSyncRequest\x12*\n" +
+	"\x11running_fleet_ids\x18\x01 \x03(\tR\x0frunningFleetIds\x12,\n" +
+	"\x12assigned_fleet_ids\x18\x02 \x03(\tR\x10assignedFleetIds\"*\n" +
+	"\x0ePrepareRequest\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\tR\aversion2\x93\x02\n" +
 	"\fCelldService\x123\n" +
 	"\tConfigure\x12\x17.celld.ConfigureRequest\x1a\r.celld.Status\x12(\n" +
-	"\tGetStatus\x12\f.celld.Empty\x1a\r.celld.StatusB3Z1github.com/Maruqes/512SvMan/api/proto/celld;celldb\x06proto3"
+	"\tGetStatus\x12\f.celld.Empty\x1a\r.celld.Status\x12(\n" +
+	"\x04Sync\x12\x12.celld.SyncRequest\x1a\f.celld.Empty\x12#\n" +
+	"\x04Stop\x12\f.celld.Empty\x1a\r.celld.Status\x12$\n" +
+	"\x06Remove\x12\f.celld.Empty\x1a\f.celld.Empty\x12/\n" +
+	"\aPrepare\x12\x15.celld.PrepareRequest\x1a\r.celld.StatusB3Z1github.com/Maruqes/512SvMan/api/proto/celld;celldb\x06proto3"
 
 var (
 	file_celld_proto_rawDescOnce sync.Once
@@ -309,21 +477,31 @@ func file_celld_proto_rawDescGZIP() []byte {
 	return file_celld_proto_rawDescData
 }
 
-var file_celld_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_celld_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_celld_proto_goTypes = []any{
 	(*Empty)(nil),            // 0: celld.Empty
 	(*Config)(nil),           // 1: celld.Config
 	(*ConfigureRequest)(nil), // 2: celld.ConfigureRequest
 	(*Status)(nil),           // 3: celld.Status
+	(*SyncRequest)(nil),      // 4: celld.SyncRequest
+	(*PrepareRequest)(nil),   // 5: celld.PrepareRequest
 }
 var file_celld_proto_depIdxs = []int32{
 	1, // 0: celld.ConfigureRequest.config:type_name -> celld.Config
 	2, // 1: celld.CelldService.Configure:input_type -> celld.ConfigureRequest
 	0, // 2: celld.CelldService.GetStatus:input_type -> celld.Empty
-	3, // 3: celld.CelldService.Configure:output_type -> celld.Status
-	3, // 4: celld.CelldService.GetStatus:output_type -> celld.Status
-	3, // [3:5] is the sub-list for method output_type
-	1, // [1:3] is the sub-list for method input_type
+	4, // 3: celld.CelldService.Sync:input_type -> celld.SyncRequest
+	0, // 4: celld.CelldService.Stop:input_type -> celld.Empty
+	0, // 5: celld.CelldService.Remove:input_type -> celld.Empty
+	5, // 6: celld.CelldService.Prepare:input_type -> celld.PrepareRequest
+	3, // 7: celld.CelldService.Configure:output_type -> celld.Status
+	3, // 8: celld.CelldService.GetStatus:output_type -> celld.Status
+	0, // 9: celld.CelldService.Sync:output_type -> celld.Empty
+	3, // 10: celld.CelldService.Stop:output_type -> celld.Status
+	0, // 11: celld.CelldService.Remove:output_type -> celld.Empty
+	3, // 12: celld.CelldService.Prepare:output_type -> celld.Status
+	7, // [7:13] is the sub-list for method output_type
+	1, // [1:7] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -340,7 +518,7 @@ func file_celld_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_celld_proto_rawDesc), len(file_celld_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -21,6 +21,10 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	CelldService_Configure_FullMethodName = "/celld.CelldService/Configure"
 	CelldService_GetStatus_FullMethodName = "/celld.CelldService/GetStatus"
+	CelldService_Sync_FullMethodName      = "/celld.CelldService/Sync"
+	CelldService_Stop_FullMethodName      = "/celld.CelldService/Stop"
+	CelldService_Remove_FullMethodName    = "/celld.CelldService/Remove"
+	CelldService_Prepare_FullMethodName   = "/celld.CelldService/Prepare"
 )
 
 // CelldServiceClient is the client API for CelldService service.
@@ -29,6 +33,10 @@ const (
 type CelldServiceClient interface {
 	Configure(ctx context.Context, in *ConfigureRequest, opts ...grpc.CallOption) (*Status, error)
 	GetStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Status, error)
+	Sync(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (*Empty, error)
+	Stop(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Status, error)
+	Remove(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	Prepare(ctx context.Context, in *PrepareRequest, opts ...grpc.CallOption) (*Status, error)
 }
 
 type celldServiceClient struct {
@@ -59,12 +67,56 @@ func (c *celldServiceClient) GetStatus(ctx context.Context, in *Empty, opts ...g
 	return out, nil
 }
 
+func (c *celldServiceClient) Sync(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, CelldService_Sync_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *celldServiceClient) Stop(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Status, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Status)
+	err := c.cc.Invoke(ctx, CelldService_Stop_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *celldServiceClient) Remove(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, CelldService_Remove_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *celldServiceClient) Prepare(ctx context.Context, in *PrepareRequest, opts ...grpc.CallOption) (*Status, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Status)
+	err := c.cc.Invoke(ctx, CelldService_Prepare_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CelldServiceServer is the server API for CelldService service.
 // All implementations must embed UnimplementedCelldServiceServer
 // for forward compatibility.
 type CelldServiceServer interface {
 	Configure(context.Context, *ConfigureRequest) (*Status, error)
 	GetStatus(context.Context, *Empty) (*Status, error)
+	Sync(context.Context, *SyncRequest) (*Empty, error)
+	Stop(context.Context, *Empty) (*Status, error)
+	Remove(context.Context, *Empty) (*Empty, error)
+	Prepare(context.Context, *PrepareRequest) (*Status, error)
 	mustEmbedUnimplementedCelldServiceServer()
 }
 
@@ -80,6 +132,18 @@ func (UnimplementedCelldServiceServer) Configure(context.Context, *ConfigureRequ
 }
 func (UnimplementedCelldServiceServer) GetStatus(context.Context, *Empty) (*Status, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStatus not implemented")
+}
+func (UnimplementedCelldServiceServer) Sync(context.Context, *SyncRequest) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Sync not implemented")
+}
+func (UnimplementedCelldServiceServer) Stop(context.Context, *Empty) (*Status, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Stop not implemented")
+}
+func (UnimplementedCelldServiceServer) Remove(context.Context, *Empty) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Remove not implemented")
+}
+func (UnimplementedCelldServiceServer) Prepare(context.Context, *PrepareRequest) (*Status, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Prepare not implemented")
 }
 func (UnimplementedCelldServiceServer) mustEmbedUnimplementedCelldServiceServer() {}
 func (UnimplementedCelldServiceServer) testEmbeddedByValue()                      {}
@@ -138,6 +202,78 @@ func _CelldService_GetStatus_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CelldService_Sync_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SyncRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CelldServiceServer).Sync(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CelldService_Sync_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CelldServiceServer).Sync(ctx, req.(*SyncRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CelldService_Stop_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CelldServiceServer).Stop(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CelldService_Stop_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CelldServiceServer).Stop(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CelldService_Remove_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CelldServiceServer).Remove(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CelldService_Remove_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CelldServiceServer).Remove(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CelldService_Prepare_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PrepareRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CelldServiceServer).Prepare(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CelldService_Prepare_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CelldServiceServer).Prepare(ctx, req.(*PrepareRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CelldService_ServiceDesc is the grpc.ServiceDesc for CelldService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -152,6 +288,22 @@ var CelldService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetStatus",
 			Handler:    _CelldService_GetStatus_Handler,
+		},
+		{
+			MethodName: "Sync",
+			Handler:    _CelldService_Sync_Handler,
+		},
+		{
+			MethodName: "Stop",
+			Handler:    _CelldService_Stop_Handler,
+		},
+		{
+			MethodName: "Remove",
+			Handler:    _CelldService_Remove_Handler,
+		},
+		{
+			MethodName: "Prepare",
+			Handler:    _CelldService_Prepare_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

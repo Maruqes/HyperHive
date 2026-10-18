@@ -33,6 +33,7 @@ mcli admin user add local celld-test celld-test-secret
 mcli admin policy attach local hyperhive-celld --user celld-test
 
 export CELLD_TEST_ENDPOINT="$endpoint"
+export CELLD_TEST_CONTAINER="$container"
 export CELLD_TEST_BINARY="$work/runtime/bin/celld"
 export AWS_ACCESS_KEY_ID=celld-test AWS_SECRET_ACCESS_KEY=celld-test-secret
 export PATH="$work/tools/node_modules/.bin:$PATH"
@@ -42,3 +43,28 @@ export PATH="$work/tools/node_modules/.bin:$PATH"
   --bucket s3://hyperhive-celld --endpoint "$endpoint" --region us-east-1
 (cd "$repo/master" && go test ./services -run TestSiloCompatibilityIntegration -count=1 -v)
 (cd "$repo/slave" && go test ./celld -run TestFleetIntegration -count=1 -v -timeout 8m)
+
+# Provision two isolated buckets/users through the production storage helper.
+(cd "$repo/master" && go test ./services -run '^TestFleetStorageIntegration$' -count=1 -v)
+for fleet in a b; do
+  project="$work/project-$fleet"
+  mkdir -p "$project"
+  cat > "$project/wrangler.jsonc" <<'JSON'
+{"name":"fleet-test","main":"index.js","compatibility_date":"2026-01-01","durable_objects":{"bindings":[{"name":"COUNTER","class_name":"Counter"}]},"migrations":[{"tag":"v1","new_sqlite_classes":["Counter"]}]}
+JSON
+  cat > "$project/index.js" <<JS
+export class Counter {
+  constructor(state) { this.state = state; }
+  async fetch() {
+    const count = (await this.state.storage.get("count") || 0) + 1;
+    await this.state.storage.put("count", count);
+    return Response.json({fleet: "$fleet", count});
+  }
+}
+export default { fetch(request, env) { return env.COUNTER.getByName("shared").fetch(request); } };
+JS
+  AWS_ACCESS_KEY_ID="celld-test$fleet" AWS_SECRET_ACCESS_KEY="celld-test$fleet-secret" \
+    "$CELLD_TEST_BINARY" deploy "$project" --bucket "s3://hyperhive-celld-test$fleet" --endpoint "$endpoint" --region us-east-1
+done
+(cd "$repo/slave" && go test ./celld -run '^TestOverlappingFleetsIntegration$' -count=1 -v -timeout 8m)
+CELLD_TEST_CLEANUP=1 bash -c 'cd "$1/master" && go test ./services -run "^TestFleetStorageIntegration$" -count=1 -v' _ "$repo"

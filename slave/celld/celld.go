@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -26,7 +27,9 @@ const DataDir = "/var/lib/hyperhive/celld"
 const Binary = "/usr/local/bin/celld"
 
 // Local belongs to the slave agent, including the agent running on the master.
-var Local *Manager
+var Local *Registry
+
+var installMu sync.Mutex
 
 type Manager struct {
 	op                      sync.Mutex
@@ -117,7 +120,14 @@ func validate(c *pb.Config) error {
 	if ip == nil || (!ip.IsPrivate() && !ip.IsLoopback()) || u.Port() == "" {
 		return fmt.Errorf("storage must use the management network")
 	}
-	if c.Bucket != "s3://hyperhive-celld" || c.Region != "us-east-1" || c.AccessKey == "" || c.SecretKey == "" {
+	bucket := "s3://hyperhive-celld"
+	if c.FleetId != "" {
+		if !fleetIDPattern.MatchString(c.FleetId) || c.HttpPort == 0 || c.HttpPort > 65535 || c.InternalPort == 0 || c.InternalPort > 65535 || c.HttpPort == c.InternalPort {
+			return fmt.Errorf("invalid fleet ID or ports")
+		}
+		bucket += "-" + c.FleetId
+	}
+	if c.Bucket != bucket || c.Region != "us-east-1" || c.AccessKey == "" || c.SecretKey == "" {
 		return fmt.Errorf("incomplete fleet configuration")
 	}
 	return nil
@@ -139,7 +149,7 @@ func (m *Manager) Configure(ctx context.Context, c *pb.Config, start bool) error
 	defer cancelSetup()
 	m.op.Lock()
 	defer m.op.Unlock()
-	if m.closed || m.life.Err() != nil {
+	if m.closed || m.life.Err() != nil || ctx.Err() != nil {
 		return fmt.Errorf("celld manager is shutting down")
 	}
 	if err := validate(c); err != nil {
@@ -165,6 +175,15 @@ func (m *Manager) Configure(ctx context.Context, c *pb.Config, start bool) error
 	m.mu.Unlock()
 	if !same {
 		m.stop()
+	}
+	if start && (!same || m.cancel == nil) {
+		for _, port := range []uint32{httpPort(c), internalPort(c)} {
+			listener, err := net.Listen("tcp", net.JoinHostPort(m.ip, strconv.Itoa(int(port))))
+			if err != nil {
+				return fmt.Errorf("celld port %d is unavailable: %w", port, err)
+			}
+			listener.Close()
+		}
 	}
 	if err := m.install(ctx, c.Version); err != nil {
 		return err
@@ -196,6 +215,8 @@ func (m *Manager) Configure(ctx context.Context, c *pb.Config, start bool) error
 }
 
 func (m *Manager) install(ctx context.Context, version string) error {
+	installMu.Lock()
+	defer installMu.Unlock()
 	out, err := exec.CommandContext(ctx, m.binary, "--version").Output()
 	if err == nil {
 		fields := strings.Fields(string(out))
@@ -283,7 +304,7 @@ func (m *Manager) watch(ctx context.Context, c *pb.Config, done chan struct{}) {
 	defer close(done)
 	for ctx.Err() == nil {
 		cmd := exec.Command(m.binary, "--bucket", c.Bucket, "--endpoint", c.Endpoint, "--region", c.Region,
-			"--listen", net.JoinHostPort(m.ip, "8080"), "--internal-listen", net.JoinHostPort(m.ip, "8081"), "--advertise", net.JoinHostPort(m.ip, "8081"))
+			"--listen", net.JoinHostPort(m.ip, strconv.Itoa(int(httpPort(c)))), "--internal-listen", net.JoinHostPort(m.ip, strconv.Itoa(int(internalPort(c)))), "--advertise", net.JoinHostPort(m.ip, strconv.Itoa(int(internalPort(c)))))
 		cmd.Env = append(os.Environ(), "AWS_ACCESS_KEY_ID="+c.AccessKey, "AWS_SECRET_ACCESS_KEY="+c.SecretKey, "AWS_REGION="+c.Region,
 			"CELLD_WATCH="+filepath.Join(m.dir, "data"), "CELLD_TTL_MS=10000", "AWS_SESSION_TOKEN=")
 		cmd.Stdout, cmd.Stderr = m.logs, m.logs
@@ -337,6 +358,31 @@ func (m *Manager) stop() {
 	}
 }
 
+func httpPort(c *pb.Config) uint32 {
+	if c.HttpPort != 0 {
+		return c.HttpPort
+	}
+	return 8080
+}
+
+func internalPort(c *pb.Config) uint32 {
+	if c.InternalPort != 0 {
+		return c.InternalPort
+	}
+	return 8081
+}
+
+// Persist disable before draining so a crash cannot turn a stop into a resume.
+func (m *Manager) Stop() error {
+	m.op.Lock()
+	defer m.op.Unlock()
+	if err := os.Remove(filepath.Join(m.dir, "enabled")); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	m.stop()
+	return nil
+}
+
 func (m *Manager) Close() {
 	m.stopLife()
 	m.op.Lock()
@@ -356,6 +402,7 @@ func (m *Manager) Status() *pb.Status {
 	s := &pb.Status{NodeIp: m.ip, Running: m.running, Error: m.lastError}
 	if m.config != nil {
 		s.Version = m.config.Version
+		s.FleetId, s.HttpPort, s.InternalPort = m.config.FleetId, httpPort(m.config), internalPort(m.config)
 	}
 	return s
 }

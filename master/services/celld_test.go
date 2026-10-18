@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	pb "github.com/Maruqes/512SvMan/api/proto/celld"
 )
@@ -28,55 +29,35 @@ func TestParseCelldLivePeers(t *testing.T) {
 	}
 }
 
-type celldTestTransport func(*http.Request) (*http.Response, error)
-
-func (f celldTestTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
-
 func TestFleetHealthRetainsMissingMachines(t *testing.T) {
-	previous := celldHTTP
-	t.Cleanup(func() { celldHTTP = previous })
-	celldHTTP = &http.Client{Transport: celldTestTransport(func(r *http.Request) (*http.Response, error) {
-		if r.Method != "GET" || r.URL.Path != "/.well-known/celld/health" {
-			t.Errorf("health performed an unexpected request: %s %s", r.Method, r.URL)
-		}
-		code := 200
-		if r.URL.Hostname() == "192.168.76.2" {
-			code = 503
-		}
-		return &http.Response{StatusCode: code, Body: io.NopCloser(strings.NewReader("true")), Header: make(http.Header)}, nil
-	})}
-	peers := map[string]celldDiagnostic{
-		"192.168.76.1:8081": {Verdict: "ok"},
-		"192.168.76.2:8081": {Verdict: "ok"},
+	s := newTestFleets(t)
+	a, err := s.Create(fleetInput("a", "one", "two"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	nodes := []CelldMachine{{Name: "master", IP: "192.168.76.1"}, {Name: "unready", IP: "192.168.76.2"}, {Name: "missing", IP: "192.168.76.3", Connected: true, Healthy: true}}
-	health := finishCelldHealth(context.Background(), CelldHealth{Storage: CelldCheck{Healthy: true}, Machines: nodes}, peers, nil)
-	if health.Healthy || len(health.Machines) != 3 {
-		t.Fatalf("missing node was dropped: %+v", health)
+	settled(s, a.ID)
+	f := s.state.Fleets[a.ID]
+	f.Status = "running"
+	f.Servers[0].Running = true
+	f.Servers[0].Healthy = true
+	s.storage = CelldStorage{CelldCheck: CelldCheck{Healthy: true}, CheckedAt: time.Now().UTC()}
+	health := s.Health(context.Background())
+	if health.Healthy || len(health.Machines) != 2 || len(health.Fleets) != 1 || health.Fleets[0].Healthy {
+		t.Fatalf("missing node was dropped from cached health: %+v", health)
 	}
-	for _, n := range health.Machines {
-		switch n.Name {
-		case "master":
-			if !n.Connected || !n.Healthy {
-				t.Errorf("master is not healthy: %+v", n)
-			}
-		case "unready":
-			if !n.Connected || n.Healthy || n.Error == "" {
-				t.Errorf("unready peer: %+v", n)
-			}
-		case "missing":
-			if n.Connected || n.Healthy || n.Error == "" {
-				t.Errorf("missing peer: %+v", n)
-			}
-		}
+	f.Servers[1].Running = true
+	f.Servers[1].Healthy = true
+	if !s.Health(context.Background()).Healthy {
+		t.Fatal("healthy running fleet failed")
 	}
-	health = finishCelldHealth(context.Background(), CelldHealth{Storage: CelldCheck{Healthy: true}, Machines: []CelldMachine{nodes[0]}}, peers, nil)
-	if !health.Healthy {
-		t.Fatalf("healthy fleet failed: %+v", health)
+	f.DesiredState = "stopped"
+	f.Servers[1].Healthy = false
+	if !s.Health(context.Background()).Healthy {
+		t.Fatal("stopped fleet affected health")
 	}
-	health.Storage.Healthy = false
-	if finishCelldHealth(context.Background(), health, peers, nil).Healthy {
-		t.Fatal("storage outage did not fail fleet health")
+	s.storage.Healthy = false
+	if s.Health(context.Background()).Healthy {
+		t.Fatal("storage outage did not fail health")
 	}
 }
 
@@ -119,7 +100,7 @@ func TestStorageCompatibility(t *testing.T) {
 				}
 			}))
 			defer server.Close()
-			cfg := &pb.Config{Endpoint: server.URL, Region: "us-east-1", AccessKey: "test", SecretKey: "secret"}
+			cfg := &pb.Config{Bucket: "s3://hyperhive-celld", Endpoint: server.URL, Region: "us-east-1", AccessKey: "test", SecretKey: "secret"}
 			err := validateCelldStorage(context.Background(), cfg)
 			if (err != nil) != (broken != "") {
 				t.Fatalf("compatibility check for %q: %v", broken, err)
@@ -139,7 +120,7 @@ func TestBootstrapPreservesDeployment(t *testing.T) {
 		fmt.Fprint(w, `{"version":"existing"}`)
 	}))
 	defer server.Close()
-	cfg := &pb.Config{Endpoint: server.URL, Region: "us-east-1", AccessKey: "test", SecretKey: "secret"}
+	cfg := &pb.Config{Bucket: "s3://hyperhive-celld", Endpoint: server.URL, Region: "us-east-1", AccessKey: "test", SecretKey: "secret"}
 	if err := bootstrapCelld(context.Background(), cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +131,7 @@ func TestSiloCompatibilityIntegration(t *testing.T) {
 	if endpoint == "" {
 		t.Skip("set CELLD_TEST_ENDPOINT for a disposable SILO bucket")
 	}
-	cfg := &pb.Config{Endpoint: endpoint, Region: "us-east-1", AccessKey: "celld-test", SecretKey: "celld-test-secret"}
+	cfg := &pb.Config{Bucket: "s3://hyperhive-celld", Endpoint: endpoint, Region: "us-east-1", AccessKey: "celld-test", SecretKey: "celld-test-secret"}
 	if err := validateCelldStorage(context.Background(), cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -168,5 +149,51 @@ func TestSiloCompatibilityIntegration(t *testing.T) {
 		}
 	} else if pointer.code != 404 {
 		t.Fatalf("read deployment pointer: HTTP %d", pointer.code)
+	}
+}
+
+func TestFleetStorageIntegration(t *testing.T) {
+	endpoint, container := os.Getenv("CELLD_TEST_ENDPOINT"), os.Getenv("CELLD_TEST_CONTAINER")
+	if endpoint == "" || container == "" {
+		t.Skip("run scripts/test_celld_fleet.sh")
+	}
+	previous := siloName
+	siloName = container
+	t.Cleanup(func() { siloName = previous })
+	st := celldFleetState{RootUser: "hyperhive-test-admin", RootPassword: "hyperhive-test-admin-password"}
+	ctx := context.Background()
+	admin := &pb.Config{Endpoint: endpoint, Region: "us-east-1", AccessKey: st.RootUser, SecretKey: st.RootPassword}
+	for _, id := range []string{"testa", "testb"} {
+		f := &celldRecord{CelldFleetInfo: CelldFleetInfo{ID: id, Storage: CelldLocation{Bucket: "hyperhive-celld-" + id}}, AccessKey: "celld-" + id, SecretKey: "celld-" + id + "-secret"}
+		if os.Getenv("CELLD_TEST_CLEANUP") == "1" {
+			for i := 0; i < 2; i++ {
+				if err := removeCelldStorage(ctx, st, f.Storage.Bucket, f.AccessKey); err != nil {
+					t.Fatal(err)
+				}
+			}
+			continue
+		}
+		for i := 0; i < 2; i++ {
+			if err := ensureCelldStorage(ctx, st, f); err != nil {
+				t.Fatal(err)
+			}
+		}
+		cfg := &pb.Config{Bucket: "s3://" + f.Storage.Bucket, Endpoint: endpoint, Region: "us-east-1", AccessKey: f.AccessKey, SecretKey: f.SecretKey}
+		if err := validateCelldStorage(ctx, cfg); err != nil {
+			t.Fatal(err)
+		}
+		cfg.Bucket = "s3://hyperhive-celld"
+		response, err := celldS3(ctx, cfg, "GET", "?list-type=2&max-keys=0", nil, "")
+		if err != nil || response.code != 403 {
+			t.Fatalf("fleet credentials escaped bucket scope: %+v %v", response, err)
+		}
+	}
+	storage := observeCelldStorage(ctx, admin)
+	expected := 3
+	if os.Getenv("CELLD_TEST_CLEANUP") == "1" {
+		expected = 1
+	}
+	if !storage.Healthy || storage.BucketCount == nil || *storage.BucketCount != expected {
+		t.Fatalf("incorrect actual bucket counts: %+v", storage)
 	}
 }

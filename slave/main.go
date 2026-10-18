@@ -900,17 +900,12 @@ func main() {
 	// Connect to gRPC server
 	agentCtx, stopAgent := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stopAgent()
-	celld.Local, err = celld.New(celld.DataDir, celld.Binary, env512.SlaveIP)
+	celld.Local, err = celld.NewRegistry(celld.DataDir, celld.Binary, env512.SlaveIP)
 	if err != nil {
 		log.Fatalf("celld process ownership: %v", err)
 	}
 	defer celld.Local.Close()
 	go func() { <-agentCtx.Done(); celld.Local.Close(); os.Exit(0) }()
-	resumeCtx, cancelResume := context.WithTimeout(agentCtx, 5*time.Minute)
-	if err := celld.Local.Resume(resumeCtx); err != nil {
-		logger.Errorf("celld resume: %v", err)
-	}
-	cancelResume()
 	conn := protocol.ConnectGRPC()
 	env512.SetConn(conn)
 	logger.Info("[16/18] Connect to gRPC server: success")

@@ -2,7 +2,7 @@ syntax = "proto3";
 package celld;
 option go_package = "github.com/Maruqes/512SvMan/api/proto/celld;celld";
 
-message Empty {}
+message Empty { string fleet_id = 1; }
 message Config {
   string version = 1;
   string bucket = 2;
@@ -10,6 +10,9 @@ message Config {
   string region = 4;
   string access_key = 5;
   string secret_key = 6;
+  string fleet_id = 7;
+  uint32 http_port = 8;
+  uint32 internal_port = 9;
 }
 message ConfigureRequest {
   Config config = 1;
@@ -21,8 +24,20 @@ message Status {
   string version = 3;
   bool running = 4;
   string error = 5;
+  string fleet_id = 6;
+  uint32 http_port = 7;
+  uint32 internal_port = 8;
 }
+message SyncRequest {
+  repeated string running_fleet_ids = 1;
+  repeated string assigned_fleet_ids = 2;
+}
+message PrepareRequest { string version = 1; }
 service CelldService {
   rpc Configure(ConfigureRequest) returns (Status);
   rpc GetStatus(Empty) returns (Status);
+  rpc Sync(SyncRequest) returns (Empty);
+  rpc Stop(Empty) returns (Status);
+  rpc Remove(Empty) returns (Empty);
+  rpc Prepare(PrepareRequest) returns (Status);
 }
