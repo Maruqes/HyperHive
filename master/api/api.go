@@ -14,6 +14,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -69,6 +70,8 @@ type statusRecorder struct {
 	http.ResponseWriter
 	status int
 }
+
+func (r *statusRecorder) Unwrap() http.ResponseWriter { return r.ResponseWriter }
 
 func (r *statusRecorder) WriteHeader(code int) {
 	r.status = code
@@ -219,16 +222,22 @@ func test_nots(w http.ResponseWriter, r *http.Request) {
 
 // as the world caves in
 func StartApi(exitAfterStart bool) {
+	port, err := configuredAPIPort(os.Getenv("API_PORT"))
+	if err != nil {
+		panic(err)
+	}
 	hostAdmin := "127.0.0.1:81"
 	baseURL = "http://" + hostAdmin
 	initNoVNC()
-	err := npm.SetupNPM(baseURL)
+	err = npm.SetupNPM(baseURL)
 
 	if err != nil {
 		panic(err)
 	}
 
 	npmapi.SetBaseURL(baseURL)
+	portNumber, _ := strconv.Atoi(port) // already validated by configuredAPIPort
+	npmapi.SetAPIPort(portNumber)
 
 	r := chi.NewRouter()
 
@@ -267,6 +276,7 @@ func StartApi(exitAfterStart bool) {
 	})
 
 	r.Post("/login", loginHandler)
+	setupMCPAPI(r, port)
 
 	//tem de estar fora a autenticacao esta dentro da rota
 	//é das notifications hehe :D:D:D:D:D::D:D:D:D q funfaoummm
@@ -345,7 +355,7 @@ func StartApi(exitAfterStart bool) {
 	extra.StartHeartbeat(5 * time.Second)
 
 	srv := &http.Server{
-		Addr:              ":9595",
+		Addr:              ":" + port,
 		Handler:           r,
 		ReadHeaderTimeout: 5 * time.Second,
 		MaxHeaderBytes:    16 << 10,
@@ -358,6 +368,7 @@ func StartApi(exitAfterStart bool) {
 		os.Exit(0)
 	}
 
+	logger.Info("MCP endpoint: http://<hyperhive-host>:" + port + "/mcp (unauthenticated)")
 	if err := srv.ListenAndServe(); err != nil {
 		logger.Errorf("api server error: %v", err)
 	}

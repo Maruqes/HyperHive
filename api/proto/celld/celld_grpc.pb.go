@@ -19,19 +19,21 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	CelldService_Observations_FullMethodName = "/celld.CelldService/Observations"
-	CelldService_Configure_FullMethodName    = "/celld.CelldService/Configure"
-	CelldService_GetStatus_FullMethodName    = "/celld.CelldService/GetStatus"
-	CelldService_Sync_FullMethodName         = "/celld.CelldService/Sync"
-	CelldService_Stop_FullMethodName         = "/celld.CelldService/Stop"
-	CelldService_Remove_FullMethodName       = "/celld.CelldService/Remove"
-	CelldService_Prepare_FullMethodName      = "/celld.CelldService/Prepare"
+	CelldService_TailObservations_FullMethodName = "/celld.CelldService/TailObservations"
+	CelldService_Observations_FullMethodName     = "/celld.CelldService/Observations"
+	CelldService_Configure_FullMethodName        = "/celld.CelldService/Configure"
+	CelldService_GetStatus_FullMethodName        = "/celld.CelldService/GetStatus"
+	CelldService_Sync_FullMethodName             = "/celld.CelldService/Sync"
+	CelldService_Stop_FullMethodName             = "/celld.CelldService/Stop"
+	CelldService_Remove_FullMethodName           = "/celld.CelldService/Remove"
+	CelldService_Prepare_FullMethodName          = "/celld.CelldService/Prepare"
 )
 
 // CelldServiceClient is the client API for CelldService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type CelldServiceClient interface {
+	TailObservations(ctx context.Context, in *ObservationsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ObservationBatch], error)
 	Observations(ctx context.Context, in *ObservationsRequest, opts ...grpc.CallOption) (*ObservationBatch, error)
 	Configure(ctx context.Context, in *ConfigureRequest, opts ...grpc.CallOption) (*Status, error)
 	GetStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Status, error)
@@ -48,6 +50,25 @@ type celldServiceClient struct {
 func NewCelldServiceClient(cc grpc.ClientConnInterface) CelldServiceClient {
 	return &celldServiceClient{cc}
 }
+
+func (c *celldServiceClient) TailObservations(ctx context.Context, in *ObservationsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ObservationBatch], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &CelldService_ServiceDesc.Streams[0], CelldService_TailObservations_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[ObservationsRequest, ObservationBatch]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type CelldService_TailObservationsClient = grpc.ServerStreamingClient[ObservationBatch]
 
 func (c *celldServiceClient) Observations(ctx context.Context, in *ObservationsRequest, opts ...grpc.CallOption) (*ObservationBatch, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -123,6 +144,7 @@ func (c *celldServiceClient) Prepare(ctx context.Context, in *PrepareRequest, op
 // All implementations must embed UnimplementedCelldServiceServer
 // for forward compatibility.
 type CelldServiceServer interface {
+	TailObservations(*ObservationsRequest, grpc.ServerStreamingServer[ObservationBatch]) error
 	Observations(context.Context, *ObservationsRequest) (*ObservationBatch, error)
 	Configure(context.Context, *ConfigureRequest) (*Status, error)
 	GetStatus(context.Context, *Empty) (*Status, error)
@@ -140,6 +162,9 @@ type CelldServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedCelldServiceServer struct{}
 
+func (UnimplementedCelldServiceServer) TailObservations(*ObservationsRequest, grpc.ServerStreamingServer[ObservationBatch]) error {
+	return status.Errorf(codes.Unimplemented, "method TailObservations not implemented")
+}
 func (UnimplementedCelldServiceServer) Observations(context.Context, *ObservationsRequest) (*ObservationBatch, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Observations not implemented")
 }
@@ -181,6 +206,17 @@ func RegisterCelldServiceServer(s grpc.ServiceRegistrar, srv CelldServiceServer)
 	}
 	s.RegisterService(&CelldService_ServiceDesc, srv)
 }
+
+func _CelldService_TailObservations_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ObservationsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(CelldServiceServer).TailObservations(m, &grpc.GenericServerStream[ObservationsRequest, ObservationBatch]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type CelldService_TailObservationsServer = grpc.ServerStreamingServer[ObservationBatch]
 
 func _CelldService_Observations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ObservationsRequest)
@@ -344,6 +380,12 @@ var CelldService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _CelldService_Prepare_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "TailObservations",
+			Handler:       _CelldService_TailObservations_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "celld.proto",
 }

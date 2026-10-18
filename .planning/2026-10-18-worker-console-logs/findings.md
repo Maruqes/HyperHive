@@ -1,0 +1,18 @@
+# Findings
+- User reports worker console.log output missing in frontend celld logs.
+- Local code captures Worker console over OTLP; process stdout/stderr is separate. Frontend has no default source/severity filter, but defaults to a fixed last-hour window with follow disabled.
+- Existing chat pane %0 is an SSH shell in celld-mini-chat on marques512sv; verifying identity before read-only inspection.
+- Live verified on marques512sv: celld PID 426125 has CELLD_OTEL pointed at local per-fleet collector, 5000 ms flush, always_on sampler, authentication header present (value not printed).
+- Read-only central SQLite query found all three worker strings as INFO/source=otlp at 2026-10-18 16:52–16:53 UTC (17:52–17:53 Lisbon). Workload is empty.
+- Recent segment contains 9 application OTLP logs and 5447 stdout records. API ascending pagination and frontend fixed window/follow off can bury application logs; exact workload filtering excludes these empty-workload records.
+- Final read-only query at 17:59 Lisbon: last hour has 19407 log records, 9 OTLP logs, zero OTLP in first 200. User console strings occur around positions 17114–17314. Confirms pagination explanation directly.
+- Implemented source=process as a query-only alias for stdout/stderr. No stored records or agent changes required.
+- Application is the default for a fresh Logs view; deliberate saved searches remain unchanged. Source switch resets workload scope; clear filters retains source selection.
+- Validated 87 frontend tests, TypeScript, production web build and Go observation tests. Backend fixture split into valid <=128-record batches after initial validation rejection.
+- Browser fixture verified Application (1 row), celld (2 stdout/stderr rows), All logs (4 origins), and return to Application. Screenshot saved in task visualizations directory. Synthetic local API only, no server rollout.
+- Compact terminal implemented with 12px monospace rows, 20px line height, 2px vertical padding, per-row detail disclosure and independent scroll viewport.
+- Browser verification: initial 120 rows scrollTop=2536, clientHeight=360, scrollHeight=2896 (at bottom). Scrolled up to 1816; after 125 rows arrived scrollTop stayed 1816 while scrollHeight grew to3016. Jump-to-latest set scrollTop=2656 (new bottom).
+- All 88 frontend tests pass; TypeScript and production web export passed. Final screenshot terminal-logs.png saved in task visualization directory.
+- Streaming implementation: notification-driven gRPC tail (20ms burst coalescing), durable master append/fanout, authenticated SSE, inclusive receipt-time replay with a separate caught_up checkpoint, 128 global/16 per-fleet subscribers, bounded queues and reconnect overflow handling.
+- celld OTLP loopback flush reduced from5000 to250ms. Resource snapshots and old-agent recovery remain on existing5s unary collection. Tail acknowledgements use the existing unary RPC after persistence to promptly free agent queue space.
+- Tests cover chunked UTF-8/SSE, header authentication/expiry, unsupported fallback, no browser interval reads when streaming, safe replay checkpoints, pause cancellation, notification delivery, persistence-before-publish, reconnect ack, assignment validation and slow-reader source isolation.

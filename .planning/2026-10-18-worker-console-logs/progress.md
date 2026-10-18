@@ -1,0 +1,25 @@
+# Progress
+- Started source diagnosis. Existing separate deploy-diagnosis plan left untouched.
+- User completed sudo authentication directly in chat pane; confirmed done before further input.
+- Verified live telemetry settings, deployed generation 5, and read-only central history.
+- Root cause of visibility verified: ascending 200-record default page buried behind stdout; empty application workload also excludes logs when filtered by application name.
+- No source/server configuration changes. Session chat/%0 left at idle authenticated SSH prompt.
+- Proposed SilverBullet update: celld health-api-and-frontend page plus operational memory, documenting source=otlp, blank workload, fixed-window/follow behavior and verified pagination diagnosis. Not saved pending user preference.
+- Follow-up request: implement visible source separation. Added application default, source choices, row origin labels, workload-scope reset on switch and source-preserving clear action.
+- Master source=process filters stdout/stderr before pagination/export; raw sources preserved.
+- First Go test attempt hit readonly default GOCACHE; rerun with writable cache in /tmp.
+- Frontend TypeScript and all 87 Jest tests passed, including 3 new interaction regressions.
+- Initial patch context mismatch applied no changes; corrected using exact replacements.
+- Backend tests pass after granting loopback access for existing gRPC test. One invocation had wrong module directory; rerun from master completed successfully.
+- Local preview first returned SPA route 404; replaced with a fallback server on loopback and validated the final UI.
+- API/UI docs updated locally. SilverBullet write remains unapproved; no persistent note write or server deployment performed.
+- User requested a compact terminal with tail-follow and scrollback. Implemented monospace inline rows, expandable metadata/copy/trace, bounded independent scroll viewport, and pin-to-bottom that detaches on upward scroll.
+- Fresh Logs view starts live following; saved windows preserve explicit paused behavior. Entire bounded buffer is scrollable instead of showing only 100 rows.
+- Validated live terminal and scrollback against synthetic API. Preview moved to8089 after stale8088 listener returned an empty response; no real server changes.
+- Full frontend regression suite:88 passed. Final focusable keyboard viewport included in rebuild and TypeScript recheck.
+- Stream implementation complete across agent protobuf/gRPC, master durable fanout/SSE and frontend authenticated fetch reader/hook.
+- Master/agent targeted/full celld suites passed; focused race checks passed; shared API module compiles/tests. Frontend94 tests, TypeScript and production export pass.
+- Browser synthetic API confirmed one logs JSON read plus one SSE connection, immediate injected row rendering, reconnect with receipt watermark, and preservation of existing rows. No log polling while streamed.
+- Preview reload exposed deleted working directory after Expo replaced export folder; fixed the local preview to resolve its document root per request. Recovered using a fresh browser tab after the old error page blocked navigation.
+- Verified upstream pinned telemetry configuration accepts positive millisecond flush intervals. Configured250ms flush is source-based; production latency has not been measured.
+- Documentation prepared locally; SilverBullet write remains unapproved. No agents/master/frontend were deployed or restarted.

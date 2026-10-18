@@ -24,6 +24,9 @@ type observationAck struct {
 	sequence   uint64
 }
 type celldObservability struct {
+	streaming   bool
+	tails       map[string]*observationTail
+	subscribers map[*observationSubscriber]bool
 	mu          sync.Mutex
 	ingest      sync.RWMutex
 	store       *observationStore
@@ -50,7 +53,7 @@ type FleetObservability struct {
 }
 
 func newCelldObservability() *celldObservability {
-	return &celldObservability{cache: map[string]map[string]*pb.ObservationSnapshot{}, acks: map[string]observationAck{}, deployments: map[string]ObservationDeployment{}}
+	return &celldObservability{tails: map[string]*observationTail{}, subscribers: map[*observationSubscriber]bool{}, cache: map[string]map[string]*pb.ObservationSnapshot{}, acks: map[string]observationAck{}, deployments: map[string]ObservationDeployment{}}
 }
 func (s *CelldService) observationLoop(ctx context.Context) {
 	o := s.observations
@@ -61,6 +64,10 @@ func (s *CelldService) observationLoop(ctx context.Context) {
 	store, err := newObservationStore(root)
 	o.mu.Lock()
 	o.store = store
+	o.streaming = true
+	if store != nil {
+		store.onAppend = o.publish
+	}
 	if err != nil {
 		o.error = "observability storage unavailable"
 	}
@@ -76,6 +83,9 @@ func (s *CelldService) observationLoop(ctx context.Context) {
 			store, err = newObservationStore(root)
 			o.mu.Lock()
 			o.store = store
+			if store != nil {
+				store.onAppend = o.publish
+			}
 			if err != nil {
 				o.error = "observability storage unavailable"
 			}
@@ -123,7 +133,7 @@ func (s *CelldService) pollObservations(ctx context.Context) {
 				key := task.f.ID + "/" + task.n.Name
 				o.mu.Lock()
 				ack := o.acks[key]
-				store := o.store
+				streaming := o.streaming
 				o.mu.Unlock()
 				var batch *pb.ObservationBatch
 				var err error
@@ -131,6 +141,9 @@ func (s *CelldService) pollObservations(ctx context.Context) {
 				for _, conn := range connections {
 					if conn.MachineName == task.n.Name && conn.Addr == task.n.IP && conn.Connection != nil {
 						found = true
+						if streaming {
+							s.ensureObservationTail(ctx, task.f, task.n, st.RootPassword, conn.Connection)
+						}
 						call, cancel := context.WithTimeout(ctx, 3*time.Second)
 						batch, err = pb.NewCelldServiceClient(conn.Connection).Observations(call, &pb.ObservationsRequest{FleetId: task.f.ID, Generation: ack.generation, Acknowledge: ack.sequence})
 						cancel()
@@ -140,86 +153,7 @@ func (s *CelldService) pollObservations(ctx context.Context) {
 				if !found {
 					err = fmt.Errorf("node is offline")
 				}
-				if err == nil {
-					err = validateObservationBatch(batch, task.f.ID, task.n.IP, task.f.AccessKey, task.f.SecretKey, st.RootPassword)
-				}
-				if err != nil {
-					o.mu.Lock()
-					nodes := o.cache[task.f.ID]
-					if nodes == nil {
-						nodes = map[string]*pb.ObservationSnapshot{}
-						o.cache[task.f.ID] = nodes
-					}
-					sn := nodes[task.n.Name]
-					if sn == nil {
-						sn = &pb.ObservationSnapshot{FleetId: task.f.ID, NodeId: task.n.IP, State: "offline"}
-					} else {
-						sn = proto.Clone(sn).(*pb.ObservationSnapshot)
-						sn.State = "stale"
-					}
-					sn.AttemptedMs = time.Now().UnixMilli()
-					sn.Error = "node observations unavailable"
-					if status.Code(err) == codes.Unimplemented {
-						sn.State = "unsupported"
-						sn.Error = "agent does not support observations; update the agent"
-						sn.Capabilities = []*pb.Capability{{Name: "agent_observability", State: "unsupported", Detail: sn.Error}}
-					}
-					nodes[task.n.Name] = sn
-					o.mu.Unlock()
-					continue
-				}
-				o.ingest.RLock()
-				s.mu.RLock()
-				current := s.state.Fleets[task.f.ID]
-				allowed := current != nil && current.DesiredState != "deleting"
-				if allowed {
-					allowed = false
-					for _, n := range current.Servers {
-						if n.Name == task.n.Name && n.IP == task.n.IP {
-							allowed = true
-							break
-						}
-					}
-				}
-				s.mu.RUnlock()
-				if !allowed {
-					o.ingest.RUnlock()
-					continue
-				}
-				if store != nil {
-					err = store.append(task.f.ID, task.n.IP, batch)
-				} else {
-					err = fmt.Errorf("observability storage unavailable")
-				}
-				o.mu.Lock()
-				if o.cache[task.f.ID] == nil {
-					o.cache[task.f.ID] = map[string]*pb.ObservationSnapshot{}
-				}
-				sn := batch.Snapshot
-				if sn.CollectedMs == 0 {
-					if previous := o.cache[task.f.ID][task.n.Name]; previous != nil && previous.CollectedMs > 0 {
-						sn = proto.Clone(previous).(*pb.ObservationSnapshot)
-						sn.State = "stale"
-						sn.Error = batch.Snapshot.Error
-					}
-				}
-				o.cache[task.f.ID][task.n.Name] = sn
-				if err == nil {
-					o.error = ""
-					next := observationAck{generation: batch.Generation}
-					for _, r := range batch.Records {
-						next.sequence = observationMax(next.sequence, r.Sequence)
-					}
-					if next.generation == ack.generation {
-						next.sequence = observationMax(next.sequence, ack.sequence)
-					}
-					o.acks[key] = next
-				} else {
-					sn.Error = "central history ingestion unavailable; bounded agent queue retains pending records"
-					o.error = sn.Error
-				}
-				o.mu.Unlock()
-				o.ingest.RUnlock()
+				s.acceptObservation(task.f, task.n, st.RootPassword, batch, err)
 			}
 		}()
 	}
@@ -245,6 +179,22 @@ outer:
 	wg.Wait()
 
 	o.mu.Lock()
+	for key, tail := range o.tails {
+		f := st.Fleets[tail.fleet]
+		valid := false
+		if f != nil && f.DesiredState != "deleting" {
+			for _, n := range f.Servers {
+				if n.Name == tail.node && n.IP == tail.ip {
+					valid = true
+					break
+				}
+			}
+		}
+		if !valid {
+			tail.cancel()
+			delete(o.tails, key)
+		}
+	}
 	for id := range o.cache {
 		if st.Fleets[id] == nil {
 			delete(o.cache, id)
@@ -558,4 +508,94 @@ func (s *CelldService) deploymentObservationLoop(ctx context.Context) {
 		case <-tick.C:
 		}
 	}
+}
+
+// Both live delivery and unary recovery use the same validation and durable ack.
+func (s *CelldService) acceptObservation(f *celldRecord, n CelldMachine, password string, batch *pb.ObservationBatch, err error) bool {
+	o := s.observations
+	key := f.ID + "/" + n.Name
+	o.mu.Lock()
+	store := o.store
+	o.mu.Unlock()
+	if err == nil {
+		err = validateObservationBatch(batch, f.ID, n.IP, f.AccessKey, f.SecretKey, password)
+	}
+	if err != nil {
+		o.mu.Lock()
+		nodes := o.cache[f.ID]
+		if nodes == nil {
+			nodes = map[string]*pb.ObservationSnapshot{}
+			o.cache[f.ID] = nodes
+		}
+		sn := nodes[n.Name]
+		if sn == nil {
+			sn = &pb.ObservationSnapshot{FleetId: f.ID, NodeId: n.IP, State: "offline"}
+		} else {
+			sn = proto.Clone(sn).(*pb.ObservationSnapshot)
+			sn.State = "stale"
+		}
+		sn.AttemptedMs = time.Now().UnixMilli()
+		sn.Error = "node observations unavailable"
+		if status.Code(err) == codes.Unimplemented {
+			sn.State = "unsupported"
+			sn.Error = "agent does not support observations; update the agent"
+			sn.Capabilities = []*pb.Capability{{Name: "agent_observability", State: "unsupported", Detail: sn.Error}}
+		}
+		nodes[n.Name] = sn
+		o.mu.Unlock()
+		return false
+	}
+	o.ingest.RLock()
+	s.mu.RLock()
+	current := s.state.Fleets[f.ID]
+	allowed := current != nil && current.DesiredState != "deleting"
+	if allowed {
+		allowed = false
+		for _, member := range current.Servers {
+			if member.Name == n.Name && member.IP == n.IP {
+				allowed = true
+				break
+			}
+		}
+	}
+	s.mu.RUnlock()
+	if !allowed {
+		o.ingest.RUnlock()
+		return false
+	}
+	if store != nil {
+		err = store.append(f.ID, n.IP, batch)
+	} else {
+		err = fmt.Errorf("observability storage unavailable")
+	}
+	o.mu.Lock()
+	if o.cache[f.ID] == nil {
+		o.cache[f.ID] = map[string]*pb.ObservationSnapshot{}
+	}
+	sn := batch.Snapshot
+	if sn.CollectedMs == 0 {
+		if previous := o.cache[f.ID][n.Name]; previous != nil && previous.CollectedMs > 0 {
+			sn = proto.Clone(previous).(*pb.ObservationSnapshot)
+			sn.State = "stale"
+			sn.Error = batch.Snapshot.Error
+		}
+	}
+	o.cache[f.ID][n.Name] = sn
+	if err == nil {
+		o.error = ""
+		next := observationAck{generation: batch.Generation}
+		for _, r := range batch.Records {
+			next.sequence = observationMax(next.sequence, r.Sequence)
+		}
+		if currentAck := o.acks[key]; next.generation == currentAck.generation {
+			next.sequence = observationMax(next.sequence, currentAck.sequence)
+		}
+		o.acks[key] = next
+	} else {
+		sn.Error = "central history ingestion unavailable; bounded agent queue retains pending records"
+		o.error = sn.Error
+	}
+	o.mu.Unlock()
+	o.ingest.RUnlock()
+	return err == nil
 }

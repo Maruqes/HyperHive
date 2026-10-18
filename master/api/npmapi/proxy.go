@@ -262,9 +262,9 @@ func setupFrontEnd(w http.ResponseWriter, r *http.Request) {
 
 	loginToken := GetTokenFromContext(r)
 	locations := []npm.Location{
-		{Path: "/api", ForwardScheme: "http", ForwardHost: "127.0.0.1", ForwardPort: 9595},
-		{Path: "/novnc", ForwardScheme: "http", ForwardHost: "127.0.0.1", ForwardPort: 9595},
-		{Path: "/guest_api", ForwardScheme: "http", ForwardHost: "127.0.0.1", ForwardPort: 9595},
+		{Path: "/api", ForwardScheme: "http", ForwardHost: "127.0.0.1", ForwardPort: apiPort},
+		{Path: "/novnc", ForwardScheme: "http", ForwardHost: "127.0.0.1", ForwardPort: apiPort},
+		{Path: "/guest_api", ForwardScheme: "http", ForwardHost: "127.0.0.1", ForwardPort: apiPort},
 	}
 
 	proxy := baseFrontendProxy()
@@ -306,12 +306,12 @@ func setupFrontEndSecure(w http.ResponseWriter, r *http.Request) {
 	}
 
 	privateLocations := []npm.Location{
-		{Path: "/api", ForwardScheme: "http", ForwardHost: "127.0.0.1", ForwardPort: 9595},
-		{Path: "/novnc", ForwardScheme: "http", ForwardHost: "127.0.0.1", ForwardPort: 9595},
-		{Path: "/guest_api", ForwardScheme: "http", ForwardHost: "127.0.0.1", ForwardPort: 9595},
+		{Path: "/api", ForwardScheme: "http", ForwardHost: "127.0.0.1", ForwardPort: apiPort},
+		{Path: "/novnc", ForwardScheme: "http", ForwardHost: "127.0.0.1", ForwardPort: apiPort},
+		{Path: "/guest_api", ForwardScheme: "http", ForwardHost: "127.0.0.1", ForwardPort: apiPort},
 	}
 	publicLocations := []npm.Location{
-		{Path: "/guest_api", ForwardScheme: "http", ForwardHost: "127.0.0.1", ForwardPort: 9595},
+		{Path: "/guest_api", ForwardScheme: "http", ForwardHost: "127.0.0.1", ForwardPort: apiPort},
 	}
 
 	privateProxy := baseFrontendProxy()

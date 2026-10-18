@@ -4,6 +4,13 @@ import "net/http"
 
 var baseURL string
 
+var apiPort = 9595
+
+// SetAPIPort keeps newly generated frontend proxy targets on the API listener.
+func SetAPIPort(port int) {
+	apiPort = port
+}
+
 func SetBaseURL(url string) {
 	baseURL = url
 }

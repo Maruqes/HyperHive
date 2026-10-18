@@ -22,6 +22,7 @@ import (
 )
 
 type observationBuffer struct {
+	changed         chan struct{}
 	disabled        bool
 	mu              sync.Mutex
 	generation      string
@@ -46,7 +47,7 @@ func observationID() string {
 	return hex.EncodeToString(b)
 }
 func newObservations() *observationBuffer {
-	return &observationBuffer{disabled: os.Getenv("CELLD_OBSERVABILITY") == "0", generation: observationID(), containerSeen: map[string]map[string]bool{}, containerSince: map[string]string{}}
+	return &observationBuffer{changed: make(chan struct{}), disabled: os.Getenv("CELLD_OBSERVABILITY") == "0", generation: observationID(), containerSeen: map[string]map[string]bool{}, containerSince: map[string]string{}}
 }
 func (o *observationBuffer) add(r *pb.ObservationRecord) {
 	if o.disabled {
@@ -75,6 +76,10 @@ func (o *observationBuffer) add(r *pb.ObservationRecord) {
 	r.Sequence = o.next
 	o.records = append(o.records, r)
 	o.bytes += proto.Size(r)
+	if o.changed != nil {
+		close(o.changed)
+	}
+	o.changed = make(chan struct{})
 }
 func (o *observationBuffer) batch(req *pb.ObservationsRequest) *pb.ObservationBatch {
 	o.mu.Lock()

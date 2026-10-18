@@ -1364,8 +1364,9 @@ const file_celld_proto_rawDesc = "" +
 	"generation\x18\x02 \x01(\tR\n" +
 	"generation\x122\n" +
 	"\arecords\x18\x03 \x03(\v2\x18.celld.ObservationRecordR\arecords\x12\x18\n" +
-	"\adropped\x18\x04 \x01(\x04R\adropped2\xd8\x02\n" +
-	"\fCelldService\x12C\n" +
+	"\adropped\x18\x04 \x01(\x04R\adropped2\xa3\x03\n" +
+	"\fCelldService\x12I\n" +
+	"\x10TailObservations\x12\x1a.celld.ObservationsRequest\x1a\x17.celld.ObservationBatch0\x01\x12C\n" +
 	"\fObservations\x12\x1a.celld.ObservationsRequest\x1a\x17.celld.ObservationBatch\x123\n" +
 	"\tConfigure\x12\x17.celld.ConfigureRequest\x1a\r.celld.Status\x12(\n" +
 	"\tGetStatus\x12\f.celld.Empty\x1a\r.celld.Status\x12(\n" +
@@ -1415,22 +1416,24 @@ var file_celld_proto_depIdxs = []int32{
 	15, // 6: celld.ObservationRecord.attributes:type_name -> celld.ObservationRecord.AttributesEntry
 	9,  // 7: celld.ObservationBatch.snapshot:type_name -> celld.ObservationSnapshot
 	10, // 8: celld.ObservationBatch.records:type_name -> celld.ObservationRecord
-	11, // 9: celld.CelldService.Observations:input_type -> celld.ObservationsRequest
-	2,  // 10: celld.CelldService.Configure:input_type -> celld.ConfigureRequest
-	0,  // 11: celld.CelldService.GetStatus:input_type -> celld.Empty
-	4,  // 12: celld.CelldService.Sync:input_type -> celld.SyncRequest
-	0,  // 13: celld.CelldService.Stop:input_type -> celld.Empty
-	0,  // 14: celld.CelldService.Remove:input_type -> celld.Empty
-	5,  // 15: celld.CelldService.Prepare:input_type -> celld.PrepareRequest
-	12, // 16: celld.CelldService.Observations:output_type -> celld.ObservationBatch
-	3,  // 17: celld.CelldService.Configure:output_type -> celld.Status
-	3,  // 18: celld.CelldService.GetStatus:output_type -> celld.Status
-	0,  // 19: celld.CelldService.Sync:output_type -> celld.Empty
-	3,  // 20: celld.CelldService.Stop:output_type -> celld.Status
-	0,  // 21: celld.CelldService.Remove:output_type -> celld.Empty
-	3,  // 22: celld.CelldService.Prepare:output_type -> celld.Status
-	16, // [16:23] is the sub-list for method output_type
-	9,  // [9:16] is the sub-list for method input_type
+	11, // 9: celld.CelldService.TailObservations:input_type -> celld.ObservationsRequest
+	11, // 10: celld.CelldService.Observations:input_type -> celld.ObservationsRequest
+	2,  // 11: celld.CelldService.Configure:input_type -> celld.ConfigureRequest
+	0,  // 12: celld.CelldService.GetStatus:input_type -> celld.Empty
+	4,  // 13: celld.CelldService.Sync:input_type -> celld.SyncRequest
+	0,  // 14: celld.CelldService.Stop:input_type -> celld.Empty
+	0,  // 15: celld.CelldService.Remove:input_type -> celld.Empty
+	5,  // 16: celld.CelldService.Prepare:input_type -> celld.PrepareRequest
+	12, // 17: celld.CelldService.TailObservations:output_type -> celld.ObservationBatch
+	12, // 18: celld.CelldService.Observations:output_type -> celld.ObservationBatch
+	3,  // 19: celld.CelldService.Configure:output_type -> celld.Status
+	3,  // 20: celld.CelldService.GetStatus:output_type -> celld.Status
+	0,  // 21: celld.CelldService.Sync:output_type -> celld.Empty
+	3,  // 22: celld.CelldService.Stop:output_type -> celld.Status
+	0,  // 23: celld.CelldService.Remove:output_type -> celld.Empty
+	3,  // 24: celld.CelldService.Prepare:output_type -> celld.Status
+	17, // [17:25] is the sub-list for method output_type
+	9,  // [9:17] is the sub-list for method input_type
 	9,  // [9:9] is the sub-list for extension type_name
 	9,  // [9:9] is the sub-list for extension extendee
 	0,  // [0:9] is the sub-list for field type_name

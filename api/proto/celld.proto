@@ -111,6 +111,7 @@ message ObservationBatch {
   uint64 dropped = 4;
 }
 service CelldService {
+  rpc TailObservations(ObservationsRequest) returns (stream ObservationBatch);
   rpc Observations(ObservationsRequest) returns (ObservationBatch);
   rpc Configure(ConfigureRequest) returns (Status);
   rpc GetStatus(Empty) returns (Status);

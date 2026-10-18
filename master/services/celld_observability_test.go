@@ -358,3 +358,54 @@ func TestObservationLateSampleExpiresByEventTime(t *testing.T) {
 		t.Fatal("late event retained past seven days because it arrived recently")
 	}
 }
+
+func TestObservationLogOriginsFilterBeforePagination(t *testing.T) {
+	s := testObservationStore(t)
+	now := time.Now()
+	s.now = func() time.Time { return now }
+	b := observationBatch(now, 1, "runtime noise")
+	b.Records = nil
+	for i := 0; i < 205; i++ {
+		b.Records = append(b.Records, &pb.ObservationRecord{Sequence: uint64(i + 1), TimeMs: now.Add(-time.Minute).UnixMilli() + int64(i), Kind: "log", Source: "stdout", Body: "runtime noise"})
+	}
+	b.Records = append(b.Records,
+		&pb.ObservationRecord{Sequence: 206, TimeMs: now.Add(-time.Second).UnixMilli(), Kind: "log", Source: "stderr", Body: "runtime error"},
+		&pb.ObservationRecord{Sequence: 207, TimeMs: now.UnixMilli(), Kind: "log", Source: "otlp", Body: "application console"},
+		&pb.ObservationRecord{Sequence: 208, TimeMs: now.UnixMilli(), Kind: "log", Source: "container", Body: "container output"},
+	)
+	for start := 0; start < len(b.Records); start += 128 {
+		batch := proto.Clone(b).(*pb.ObservationBatch)
+		batch.Records = b.Records[start:min(start+128, len(b.Records))]
+		if err := s.append("a", "node-a", batch); err != nil {
+			t.Fatal(err)
+		}
+	}
+	q := ObservationQuery{Kind: "log", Source: "otlp", Limit: 200}
+	page, err := s.query(context.Background(), "a", q)
+	if err != nil || len(page.Records) != 1 || page.Records[0].Record.Body != "application console" {
+		t.Fatalf("application hidden by process output: %+v %v", page, err)
+	}
+	q.Source = "process"
+	page, err = s.query(context.Background(), "a", q)
+	if err != nil || len(page.Records) != 200 || page.NextCursor == "" {
+		t.Fatalf("process first page: %+v %v", page, err)
+	}
+	q.Cursor = page.NextCursor
+	page, err = s.query(context.Background(), "a", q)
+	if err != nil || len(page.Records) != 6 || page.NextCursor != "" {
+		t.Fatalf("process continuation: %+v %v", page, err)
+	}
+	if page.Records[5].Record.Source != "stderr" {
+		t.Fatal("stderr missing from process output")
+	}
+	q.Cursor, q.Download, q.Limit = "", true, 2000
+	page, err = s.query(context.Background(), "a", q)
+	if err != nil || len(page.Records) != 206 {
+		t.Fatalf("process export: %+v %v", page, err)
+	}
+	q.Source = "stderr"
+	page, err = s.query(context.Background(), "a", q)
+	if err != nil || len(page.Records) != 1 || page.Records[0].Record.Body != "runtime error" {
+		t.Fatalf("exact source compatibility: %+v %v", page, err)
+	}
+}

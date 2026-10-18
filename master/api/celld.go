@@ -22,6 +22,8 @@ func setupCelldAPI(r chi.Router) {
 	}
 	r.Get("/celld/fleets/{id}/credentials", getCelldCredentials)
 	r.Get("/celld/fleets/{id}/observability", getCelldObservability)
+	r.Get("/celld/fleets/{id}/logs/stream", streamCelldObservations("log"))
+	r.Get("/celld/fleets/{id}/events/stream", streamCelldObservations("event"))
 	r.Get("/celld/fleets/{id}/logs", getCelldObservations("log"))
 	r.Get("/celld/fleets/{id}/events", getCelldObservations("event"))
 	r.Get("/celld/fleets/{id}/traces/{trace_id}", getCelldObservations("span"))

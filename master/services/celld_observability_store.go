@@ -29,6 +29,7 @@ var observationTraceID = regexp.MustCompile(`^[a-f0-9]{32}$`)
 const observationRetention = 7 * 24 * time.Hour
 
 type observationStore struct {
+	onAppend                                func(string, []StoredObservation)
 	rejected                                uint64
 	mu                                      sync.Mutex
 	root                                    string
@@ -56,6 +57,7 @@ type ObservationStorage struct {
 	Error           string `json:"error,omitempty"`
 }
 type ObservationQuery struct {
+	ReceivedAfter                                                 int64
 	From, To                                                      int64
 	Cursor, Node, Workload, Source, Severity, Text, TraceID, Kind string
 	Limit                                                         int
@@ -279,7 +281,7 @@ func openObservationDB(path string, maxBytes int64, readonly bool) (*sql.DB, err
 	if !readonly {
 		_, err = db.Exec(fmt.Sprintf("PRAGMA max_page_count=%d", maxBytes/4096))
 		if err == nil {
-			_, err = db.Exec(`CREATE TABLE IF NOT EXISTS observations (id TEXT PRIMARY KEY, time_ms INTEGER NOT NULL, received_ms INTEGER NOT NULL, node TEXT NOT NULL, generation TEXT NOT NULL, sequence INTEGER NOT NULL, kind TEXT NOT NULL, source TEXT NOT NULL, workload TEXT NOT NULL, severity TEXT NOT NULL, trace_id TEXT NOT NULL, body TEXT NOT NULL, payload BLOB NOT NULL); CREATE INDEX IF NOT EXISTS observation_time ON observations(time_ms,id); CREATE INDEX IF NOT EXISTS observation_trace ON observations(trace_id,time_ms); CREATE INDEX IF NOT EXISTS observation_source ON observations(source,time_ms);`)
+			_, err = db.Exec(`CREATE TABLE IF NOT EXISTS observations (id TEXT PRIMARY KEY, time_ms INTEGER NOT NULL, received_ms INTEGER NOT NULL, node TEXT NOT NULL, generation TEXT NOT NULL, sequence INTEGER NOT NULL, kind TEXT NOT NULL, source TEXT NOT NULL, workload TEXT NOT NULL, severity TEXT NOT NULL, trace_id TEXT NOT NULL, body TEXT NOT NULL, payload BLOB NOT NULL); CREATE INDEX IF NOT EXISTS observation_time ON observations(time_ms,id); CREATE INDEX IF NOT EXISTS observation_trace ON observations(trace_id,time_ms); CREATE INDEX IF NOT EXISTS observation_source ON observations(source,time_ms); CREATE INDEX IF NOT EXISTS observation_received ON observations(received_ms,id);`)
 		}
 	}
 	if err != nil {
@@ -336,8 +338,17 @@ func (s *observationStore) append(fleet, node string, batch *pb.ObservationBatch
 		return err
 	}
 	defer tx.Rollback()
+	var committed []StoredObservation
 	put := func(id string, stamp int64, sequence uint64, kind, source, workload, severity, trace, body string, payload []byte) error {
-		_, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO observations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`, id, stamp, now.UnixMilli(), node, batch.Generation, sequence, kind, source, workload, severity, trace, body, payload)
+		res, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO observations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`, id, stamp, now.UnixMilli(), node, batch.Generation, sequence, kind, source, workload, severity, trace, body, payload)
+		if err == nil && kind != "metric" {
+			if count, _ := res.RowsAffected(); count > 0 {
+				var r pb.ObservationRecord
+				if json.Unmarshal(payload, &r) == nil {
+					committed = append(committed, StoredObservation{ID: id, Node: node, Generation: batch.Generation, ReceivedMS: now.UnixMilli(), Record: &r})
+				}
+			}
+		}
 		return err
 	}
 	// Retry deduplication spans segment rotation and survives master restart.
@@ -439,6 +450,9 @@ func (s *observationStore) append(fleet, node string, batch *pb.ObservationBatch
 		return err
 	}
 	s.lastError = ""
+	if s.onAppend != nil && len(committed) > 0 {
+		s.onAppend(fleet, committed)
+	}
 	return nil
 }
 func (s *observationStore) storage(fleet string) ObservationStorage {
@@ -546,10 +560,19 @@ func (s *observationStore) query(parent context.Context, fleet string, q Observa
 		where := `time_ms>=? AND time_ms<=? AND (time_ms>? OR (time_ms=? AND id>?))`
 		args := []any{q.From, q.To, cursor.Time, cursor.Time, cursor.ID}
 		for _, filter := range []struct{ col, value string }{{"kind", q.Kind}, {"node", q.Node}, {"workload", q.Workload}, {"source", q.Source}, {"severity", q.Severity}, {"trace_id", q.TraceID}} {
+			// Filter both process streams before pagination and export limits.
+			if filter.col == "source" && filter.value == "process" {
+				where += " AND source IN ('stdout','stderr')"
+				continue
+			}
 			if filter.value != "" {
 				where += " AND " + filter.col + "=?"
 				args = append(args, filter.value)
 			}
+		}
+		if q.ReceivedAfter > 0 {
+			where += " AND received_ms>=?"
+			args = append(args, q.ReceivedAfter)
 		}
 		if q.Text != "" {
 			where += " AND instr(body,?)>0"

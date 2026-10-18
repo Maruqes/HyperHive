@@ -134,7 +134,7 @@ Recursos também podem incluir `in_use_bytes`, `open_fds`, `fd_limit`,
 | `cursor` | Opaco; continuar com `next_cursor` e manter os mesmos filtros/intervalo |
 | `node` | IP de gestão; igualdade exata |
 | `workload` | Identificador observado; igualdade exata; pode não existir em todos os logs |
-| `source` | Fonte exata |
+| `source` | Fonte exata; `process` agrupa `stdout` e `stderr` |
 | `severity` | Igualdade exata, por exemplo `ERROR`; não significa “ERROR ou superior” |
 | `text` | Substring literal, sensível a maiúsculas/minúsculas; máximo 256 caracteres |
 
@@ -243,13 +243,13 @@ arrays opcionais normalizados com `?? []`. O backend usa números JSON e nomes
 
 ## Regras essenciais de UI
 
-- Polling do detalhe a cada 2 s, sem sobreposição; cancelar ao fechar o detalhe.
-  Recursos recolhidos a cada 5 s; logs normalmente demoram até cerca de 10 s.
-  Deployment metadata pode demorar 30 s ou mais. Não há SSE/WebSocket de logs.
-- Para follow, iniciar novas janelas temporais sobrepostas (por exemplo últimos
-  30 s), deduplicar por `id` e manter um buffer limitado. Um cursor antigo mantém
-  `to` fixo e não acompanha eventos novos. Após uma interrupção, alargar a janela
-  para recuperar histórico. Eventos muito atrasados podem chegar fora da janela.
+- Logs/eventos em follow usam SSE autenticado; cancelar ao pausar/fechar o detalhe.
+  Recursos continuam recolhidos a cada 5 s; deployment metadata pode demorar 30 s.
+  Em agentes atualizados, o caminho de logs é OTLP (flush 250 ms) → tail gRPC →
+  histórico central → SSE. O tempo real inclui execução, persistência e rede.
+- Deduplicar por `id` e manter o buffer de 2.000 registos. O histórico mantém
+  paginação com intervalo fixo; o stream usa receipt timestamps para recuperar
+  registos após uma quebra. APIs/clientes antigos usam polling identificado na UI.
 - Estado do nó: `pending`, `fresh`, `partial`, `stale`, `offline`, `unsupported`.
   Deployment: `pending`, `fresh`, `stale`, `unavailable`.
   Capacidades: `supported`, `partial`, `unsupported`, `unavailable`; aceitar
@@ -283,3 +283,66 @@ Erros HTTP: **400** query inválida; **401** sessão inválida; **404** fleet/ID
 histórico inexistente ou expirado; **503** serviço indisponível. Erros JSON de
 rotas têm `{ "error": "..." }`; 401 pode ser texto simples. Um trace sem registos
 num intervalo válido devolve uma página vazia, não necessariamente 404.
+
+## Application and celld log views
+
+The Logs view opens with **Application** selected (`source=otlp`). Console output
+from application handlers is collected separately from the celld process streams.
+The visible source choices are Application, celld, Containers and All logs.
+**celld** sends `source=process`, which groups `stdout` and `stderr` in the master
+query before pagination and NDJSON export limits. Existing exact source filters
+continue to work. Stored record sources remain unchanged.
+
+Each message shows its origin (Application, celld stdout/stderr, or Container),
+and expanded details retain the raw source. Source selection survives clear-filter
+and time-range actions. Switching origins clears the workload filter because
+application console records can lack workload metadata and process logs do not
+identify an application. Saved explicit searches are restored unchanged.
+
+The grouped `source=process` filter requires the updated master. Application
+selection uses the existing `source=otlp` contract. These are local source changes;
+a successful build/test does not establish that a deployed UI/master was updated.
+
+## Authenticated live streams
+
+`GET /celld/fleets/{id}/logs/stream` and `/events/stream` return SSE with the
+same bearer-header authentication as the JSON endpoints. The frontend consumes
+streaming `fetch`, avoiding bearer tokens in URLs. Existing node, workload,
+source (including `process`), severity and literal text filters apply before live
+fanout. `from` is the lower event-time boundary; `to` validates the initial
+window, while live delivery continues beyond it. `cursor`/`download` are rejected.
+
+Optional `since` is an inclusive central receipt timestamp in milliseconds,
+limited to the retained seven days. Subscribe precedes replay so commits during
+recovery are also queued. Event types:
+
+- `ready`: subscription opened, `received_ms` identifies its server-time boundary.
+- `history`: replayed ObservationPage; merge by opaque ID but do **not** advance
+  the reconnect checkpoint until replay has completed.
+- `caught_up`: `{received_ms, from, to}`; the complete-replay checkpoint.
+- `observations`: newly committed ObservationPage. Advance the checkpoint only
+  after accepting the complete frame, using its records' `received_ms` values.
+- `heartbeat`: keepalive every 15 seconds.
+- `reconnect`: slow reader or temporarily busy history; reconnect with the last
+  safe checkpoint. `gap`: replay exceeded 2,000 records / 2 MiB; report it and let
+  the operator inspect history instead of silently claiming complete recovery.
+
+Replay and subscription can overlap; deduplicate IDs. Receipt-time recovery
+includes delayed records whose event timestamps precede the last displayed log.
+Each subscriber holds eight bounded batches. Limits are 128 concurrent streams
+and 16 per fleet. Slow subscribers are disconnected without blocking ingestion.
+Connections rotate every five minutes to revalidate authentication. Responses
+set `X-Accel-Buffering: no`, flush each event and bound individual writes to ten
+seconds. The existing HTTP logger unwraps its writer for flushing/deadlines.
+
+The client reconnects with backoff, cancels on pause/filter/token/close changes,
+and keeps messages already shown. Unsupported endpoints or clients without a
+readable response body use a labelled two-second polling fallback. Native
+streaming support depends on the fetch implementation; the web path is verified.
+
+Deploy updated agents, master and frontend for the full low-latency path. The
+agent tail never discards unacknowledged records; the master acknowledges only
+after successful persistence. Existing unary collection remains for snapshots,
+recovery and old agents; their records still stream from the master but retain
+the upstream collection delay. Restart fleet processes to apply the new 250ms
+OTLP environment setting. These changes do not perform a rollout.

@@ -61,7 +61,7 @@ func TestCelldFleetAuthenticatedAPI(t *testing.T) {
 		router.ServeHTTP(w, req)
 		return w
 	}
-	for _, row := range [][2]string{{"GET", "/celld/health"}, {"GET", "/celld/fleets"}, {"POST", "/celld/fleets"}, {"GET", "/celld/fleets/f/credentials"}, {"PATCH", "/celld/fleets/f"}, {"DELETE", "/celld/fleets/f"}, {"POST", "/celld/fleets/f/start"}, {"POST", "/celld/fleets/f/stop"}, {"POST", "/celld/fleets/f/restart"}} {
+	for _, row := range [][2]string{{"GET", "/celld/fleets/f/logs/stream"}, {"GET", "/celld/fleets/f/events/stream"}, {"GET", "/celld/health"}, {"GET", "/celld/fleets"}, {"POST", "/celld/fleets"}, {"GET", "/celld/fleets/f/credentials"}, {"PATCH", "/celld/fleets/f"}, {"DELETE", "/celld/fleets/f"}, {"POST", "/celld/fleets/f/start"}, {"POST", "/celld/fleets/f/stop"}, {"POST", "/celld/fleets/f/restart"}} {
 		if w := call(row[0], row[1], "", false); w.Code != 401 {
 			t.Fatalf("unprotected route %v: %d", row, w.Code)
 		}
@@ -169,7 +169,7 @@ func TestCelldObservationRoutesAreAuthenticatedCachedAndBounded(t *testing.T) {
 			}
 		}
 	}
-	for _, suffix := range []string{"logs?limit=2001&download=true", "logs?from=invalid", "metrics?limit=-1", "logs?text=" + strings.Repeat("x", 257), "traces/invalid"} {
+	for _, suffix := range []string{"logs/stream?since=invalid", "logs/stream?cursor=old", "events/stream?download=true", "logs?limit=2001&download=true", "logs?from=invalid", "metrics?limit=-1", "logs?text=" + strings.Repeat("x", 257), "traces/invalid"} {
 		req := httptest.NewRequest("GET", "/celld/fleets/f/"+suffix, nil)
 		req.Header.Set("Authorization", "Bearer valid")
 		w := httptest.NewRecorder()
@@ -177,5 +177,16 @@ func TestCelldObservationRoutesAreAuthenticatedCachedAndBounded(t *testing.T) {
 		if w.Code != 400 {
 			t.Fatalf("invalid %s: %d", suffix, w.Code)
 		}
+	}
+}
+
+func TestCelldSSEFlushesThroughRequestLogger(t *testing.T) {
+	raw := httptest.NewRecorder()
+	wrapped := &statusRecorder{ResponseWriter: raw, status: 200}
+	if err := writeCelldStreamEvent(wrapped, "observations", map[string]string{"body": "first\nsecond"}); err != nil {
+		t.Fatal(err)
+	}
+	if !raw.Flushed || raw.Body.String() != "event: observations\ndata: {\"body\":\"first\\nsecond\"}\n\n" {
+		t.Fatalf("unflushed or invalid SSE frame: %q", raw.Body.String())
 	}
 }

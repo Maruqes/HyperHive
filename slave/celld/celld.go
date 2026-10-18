@@ -321,7 +321,7 @@ func (m *Manager) watch(ctx context.Context, c *pb.Config, done chan struct{}) {
 		m.observations.mu.Unlock()
 		cmd.Env = append(cmd.Env, "CELLD_NODE="+session, "CELLD_OTEL=0")
 		if endpoint != "" {
-			cmd.Env = append(cmd.Env, "CELLD_OTEL="+endpoint, "CELLD_OTEL_FLUSH_MS=5000", "CELLD_OTEL_FLUSH_BYTES=262144", "OTEL_TRACES_SAMPLER=always_on", "OTEL_EXPORTER_OTLP_TIMEOUT=2000", "OTEL_EXPORTER_OTLP_HEADERS=x-hyperhive-token="+token)
+			cmd.Env = append(cmd.Env, "CELLD_OTEL="+endpoint, "CELLD_OTEL_FLUSH_MS=250", "CELLD_OTEL_FLUSH_BYTES=262144", "OTEL_TRACES_SAMPLER=always_on", "OTEL_EXPORTER_OTLP_TIMEOUT=2000", "OTEL_EXPORTER_OTLP_HEADERS=x-hyperhive-token="+token)
 		}
 		cmd.Stdout = io.MultiWriter(processTap{m.observations, "stdout"}, m.logs)
 		cmd.Stderr = io.MultiWriter(processTap{m.observations, "stderr"}, m.logs)
