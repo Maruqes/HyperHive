@@ -1,0 +1,12 @@
+{
+  "scope": "Existing endpoint inventory consistency plus focused DNS source contract review; not a fresh full API route audit",
+  "total": 316,
+  "status_counts": {
+    "implemented": 105,
+    "missing": 158,
+    "excluded": 53
+  },
+  "dns_raw": "3/4",
+  "dns_permitted": "3/3",
+  "overall_percent": 33.23
+}

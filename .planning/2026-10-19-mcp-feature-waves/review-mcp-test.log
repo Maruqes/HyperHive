@@ -1,0 +1,5 @@
+ok  	github.com/Maruqes/HyperHive/mcp	28.078s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.150s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.234s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/tools	0.018s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/vmsafety	0.085s

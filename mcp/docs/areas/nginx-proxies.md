@@ -96,3 +96,12 @@ restrictions, certificate/port settings, existing proxy reuse and partial setup
 failure. The full affected master API/NPM package suites, focused authentication/port
 race checks and vet also pass.
 See the [batch checkpoint](../../runs/2026-10-18-proxies-01.md) for evidence.
+
+## Integer precision review — 2026-10-19
+
+Proxy list IDs and numeric metadata are decoded without float conversion and
+emitted as exact raw structured/text JSON. Shared tool registration also decodes
+original request numbers after SDK schema validation, preserving target IDs and
+metadata; numeric access-list IDs retain their documented safe-integer bounds.
+SDK clients that decode arbitrary structured objects as floats may need the
+exact text fallback. Regression: `TestReviewProxyListRetainsExactIntegerIDs`.

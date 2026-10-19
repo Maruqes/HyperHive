@@ -19,6 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	SlaveVirshService_GetHostBootSnapshot_FullMethodName     = "/virsh.SlaveVirshService/GetHostBootSnapshot"
+	SlaveVirshService_GetVMSnapshot_FullMethodName           = "/virsh.SlaveVirshService/GetVMSnapshot"
 	SlaveVirshService_GetCpuFeatures_FullMethodName          = "/virsh.SlaveVirshService/GetCpuFeatures"
 	SlaveVirshService_GetCPUXML_FullMethodName               = "/virsh.SlaveVirshService/GetCPUXML"
 	SlaveVirshService_GetVMCPUXml_FullMethodName             = "/virsh.SlaveVirshService/GetVMCPUXml"
@@ -79,9 +81,9 @@ const (
 // SlaveVirshServiceClient is the client API for SlaveVirshService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-//
-// defines on slave
 type SlaveVirshServiceClient interface {
+	GetHostBootSnapshot(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*HostBootSnapshotResponse, error)
+	GetVMSnapshot(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*VMSnapshotResponse, error)
 	GetCpuFeatures(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GetCpuFeaturesResponse, error)
 	GetCPUXML(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*CPUXMLResponse, error)
 	GetVMCPUXml(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*CPUXMLResponse, error)
@@ -151,6 +153,26 @@ type slaveVirshServiceClient struct {
 
 func NewSlaveVirshServiceClient(cc grpc.ClientConnInterface) SlaveVirshServiceClient {
 	return &slaveVirshServiceClient{cc}
+}
+
+func (c *slaveVirshServiceClient) GetHostBootSnapshot(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*HostBootSnapshotResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HostBootSnapshotResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_GetHostBootSnapshot_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveVirshServiceClient) GetVMSnapshot(ctx context.Context, in *GetVmByNameRequest, opts ...grpc.CallOption) (*VMSnapshotResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VMSnapshotResponse)
+	err := c.cc.Invoke(ctx, SlaveVirshService_GetVMSnapshot_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *slaveVirshServiceClient) GetCpuFeatures(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GetCpuFeaturesResponse, error) {
@@ -706,9 +728,9 @@ func (c *slaveVirshServiceClient) RemoveHostHugePages(ctx context.Context, in *E
 // SlaveVirshServiceServer is the server API for SlaveVirshService service.
 // All implementations must embed UnimplementedSlaveVirshServiceServer
 // for forward compatibility.
-//
-// defines on slave
 type SlaveVirshServiceServer interface {
+	GetHostBootSnapshot(context.Context, *Empty) (*HostBootSnapshotResponse, error)
+	GetVMSnapshot(context.Context, *GetVmByNameRequest) (*VMSnapshotResponse, error)
 	GetCpuFeatures(context.Context, *Empty) (*GetCpuFeaturesResponse, error)
 	GetCPUXML(context.Context, *Empty) (*CPUXMLResponse, error)
 	GetVMCPUXml(context.Context, *GetVmByNameRequest) (*CPUXMLResponse, error)
@@ -780,6 +802,12 @@ type SlaveVirshServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedSlaveVirshServiceServer struct{}
 
+func (UnimplementedSlaveVirshServiceServer) GetHostBootSnapshot(context.Context, *Empty) (*HostBootSnapshotResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetHostBootSnapshot not implemented")
+}
+func (UnimplementedSlaveVirshServiceServer) GetVMSnapshot(context.Context, *GetVmByNameRequest) (*VMSnapshotResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetVMSnapshot not implemented")
+}
 func (UnimplementedSlaveVirshServiceServer) GetCpuFeatures(context.Context, *Empty) (*GetCpuFeaturesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCpuFeatures not implemented")
 }
@@ -964,6 +992,42 @@ func RegisterSlaveVirshServiceServer(s grpc.ServiceRegistrar, srv SlaveVirshServ
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&SlaveVirshService_ServiceDesc, srv)
+}
+
+func _SlaveVirshService_GetHostBootSnapshot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).GetHostBootSnapshot(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_GetHostBootSnapshot_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).GetHostBootSnapshot(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveVirshService_GetVMSnapshot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVmByNameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveVirshServiceServer).GetVMSnapshot(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SlaveVirshService_GetVMSnapshot_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveVirshServiceServer).GetVMSnapshot(ctx, req.(*GetVmByNameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _SlaveVirshService_GetCpuFeatures_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -1963,6 +2027,14 @@ var SlaveVirshService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "virsh.SlaveVirshService",
 	HandlerType: (*SlaveVirshServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetHostBootSnapshot",
+			Handler:    _SlaveVirshService_GetHostBootSnapshot_Handler,
+		},
+		{
+			MethodName: "GetVMSnapshot",
+			Handler:    _SlaveVirshService_GetVMSnapshot_Handler,
+		},
 		{
 			MethodName: "GetCpuFeatures",
 			Handler:    _SlaveVirshService_GetCpuFeatures_Handler,

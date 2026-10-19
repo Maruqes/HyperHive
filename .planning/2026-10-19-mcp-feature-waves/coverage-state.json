@@ -1,0 +1,3119 @@
+{
+  "inventory": [
+    {
+      "area": "Guest access and SPA",
+      "method": "GET",
+      "path": "/guest_api/guest_page/{vm_name}",
+      "status": "missing",
+      "source": "[GUESTS.go:839](../master/api/GUESTS.go#L839)"
+    },
+    {
+      "area": "Guest access and SPA",
+      "method": "POST",
+      "path": "/guest_api/guest_vm",
+      "status": "missing",
+      "source": "[GUESTS.go:840](../master/api/GUESTS.go#L840)"
+    },
+    {
+      "area": "Guest access and SPA",
+      "method": "GET",
+      "path": "/guest_api/novnc/ws",
+      "status": "missing",
+      "source": "[GUESTS.go:846](../master/api/GUESTS.go#L846)"
+    },
+    {
+      "area": "Guest access and SPA",
+      "method": "GET",
+      "path": "/guest_api/novnc/sprite/{vm_name}",
+      "status": "missing",
+      "source": "[GUESTS.go:847](../master/api/GUESTS.go#L847)"
+    },
+    {
+      "area": "Guest access and SPA",
+      "method": "GET",
+      "path": "/guest_api/novnc/*",
+      "status": "missing",
+      "source": "[GUESTS.go:848](../master/api/GUESTS.go#L848)"
+    },
+    {
+      "area": "Guest access and SPA",
+      "method": "POST",
+      "path": "/guest_api/spa/allow-ip",
+      "status": "missing",
+      "source": "[GUESTS.go:852](../master/api/GUESTS.go#L852)"
+    },
+    {
+      "area": "Guest access and SPA",
+      "method": "POST",
+      "path": "/guest_api/spa/allow",
+      "status": "missing",
+      "source": "[GUESTS.go:853](../master/api/GUESTS.go#L853)"
+    },
+    {
+      "area": "Guest access and SPA",
+      "method": "GET",
+      "path": "/guest_api/spa/pageallow/{port}",
+      "status": "missing",
+      "source": "[GUESTS.go:854](../master/api/GUESTS.go#L854)"
+    },
+    {
+      "area": "Guest access and SPA",
+      "method": "POST",
+      "path": "/spa/",
+      "status": "excluded (deletion policy: creation deletes firewall rules and can destroy allow set)",
+      "source": "[GUESTS.go:861](../master/api/GUESTS.go#L861)"
+    },
+    {
+      "area": "Guest access and SPA",
+      "method": "GET",
+      "path": "/spa/",
+      "status": "implemented",
+      "source": "[GUESTS.go:862](../master/api/GUESTS.go#L862)",
+      "tool": "list_spa_ports"
+    },
+    {
+      "area": "Guest access and SPA",
+      "method": "GET",
+      "path": "/spa/allow/{port}",
+      "status": "implemented",
+      "source": "[GUESTS.go:863](../master/api/GUESTS.go#L863)",
+      "tool": "list_spa_allows"
+    },
+    {
+      "area": "Guest access and SPA",
+      "method": "DELETE",
+      "path": "/spa/{port}",
+      "status": "excluded (deletion policy)",
+      "source": "[GUESTS.go:864](../master/api/GUESTS.go#L864)"
+    },
+    {
+      "area": "Core, login and notifications",
+      "method": "POST",
+      "path": "/login",
+      "status": "missing",
+      "source": "[api.go:278](../master/api/api.go#L278)"
+    },
+    {
+      "area": "Core, login and notifications",
+      "method": "GET",
+      "path": "/nots/register",
+      "status": "missing",
+      "source": "[api.go:283](../master/api/api.go#L283)"
+    },
+    {
+      "area": "Core, login and notifications",
+      "method": "GET",
+      "path": "/static/notification-icon.png",
+      "status": "missing",
+      "source": "[api.go:284](../master/api/api.go#L284)"
+    },
+    {
+      "area": "Core, login and notifications",
+      "method": "GET",
+      "path": "/icon.png",
+      "status": "missing",
+      "source": "[api.go:288](../master/api/api.go#L288)"
+    },
+    {
+      "area": "Core, login and notifications",
+      "method": "GET",
+      "path": "/new-slave-count",
+      "status": "missing",
+      "source": "[api.go:300](../master/api/api.go#L300)"
+    },
+    {
+      "area": "Core, login and notifications",
+      "method": "GET",
+      "path": "/notification/public-key",
+      "status": "missing",
+      "source": "[api.go:304](../master/api/api.go#L304)"
+    },
+    {
+      "area": "Core, login and notifications",
+      "method": "POST",
+      "path": "/notification/subscribe",
+      "status": "missing",
+      "source": "[api.go:305](../master/api/api.go#L305)"
+    },
+    {
+      "area": "Core, login and notifications",
+      "method": "GET",
+      "path": "/notification/test",
+      "status": "missing",
+      "source": "[api.go:306](../master/api/api.go#L306)"
+    },
+    {
+      "area": "Core, login and notifications",
+      "method": "DELETE",
+      "path": "/notification/subscriptions",
+      "status": "excluded (deletion policy)",
+      "source": "[api.go:307](../master/api/api.go#L307)"
+    },
+    {
+      "area": "Core, login and notifications",
+      "method": "GET",
+      "path": "/sw.js",
+      "status": "missing",
+      "source": "[api.go:309](../master/api/api.go#L309)"
+    },
+    {
+      "area": "Core, login and notifications",
+      "method": "GET",
+      "path": "/protected",
+      "status": "missing",
+      "source": "[api.go:313](../master/api/api.go#L313)"
+    },
+    {
+      "area": "Core, login and notifications",
+      "method": "GET",
+      "path": "/ws",
+      "status": "missing",
+      "source": "[api.go:315](../master/api/api.go#L315)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "GET",
+      "path": "/btrfs/getFreeDisks/{machine_name}",
+      "status": "missing",
+      "source": "[btrfs.go:654](../master/api/btrfs.go#L654)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "GET",
+      "path": "/btrfs/getAllDuckingDisks/{machine_name}",
+      "status": "missing",
+      "source": "[btrfs.go:655](../master/api/btrfs.go#L655)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "GET",
+      "path": "/btrfs/getraids/{machine_name}",
+      "status": "missing",
+      "source": "[btrfs.go:656](../master/api/btrfs.go#L656)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "POST",
+      "path": "/btrfs/createraid/{machine_name}",
+      "status": "missing",
+      "source": "[btrfs.go:657](../master/api/btrfs.go#L657)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "DELETE",
+      "path": "/btrfs/removeraid/{machine_name}",
+      "status": "excluded (deletion policy)",
+      "source": "[btrfs.go:658](../master/api/btrfs.go#L658)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "POST",
+      "path": "/btrfs/mount_raid/{machine_name}",
+      "status": "missing",
+      "source": "[btrfs.go:660](../master/api/btrfs.go#L660)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "POST",
+      "path": "/btrfs/umount_raid/{machine_name}",
+      "status": "missing",
+      "source": "[btrfs.go:661](../master/api/btrfs.go#L661)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "GET",
+      "path": "/btrfs/automatic_mount/{machine_name}",
+      "status": "missing",
+      "source": "[btrfs.go:664](../master/api/btrfs.go#L664)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "POST",
+      "path": "/btrfs/automatic_mount",
+      "status": "missing",
+      "source": "[btrfs.go:665](../master/api/btrfs.go#L665)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "DELETE",
+      "path": "/btrfs/automatic_mount",
+      "status": "excluded (deletion policy)",
+      "source": "[btrfs.go:666](../master/api/btrfs.go#L666)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "POST",
+      "path": "/btrfs/add_diskraid/{machine_name}",
+      "status": "missing",
+      "source": "[btrfs.go:668](../master/api/btrfs.go#L668)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "POST",
+      "path": "/btrfs/remove_diskraid/{machine_name}",
+      "status": "excluded (deletion policy)",
+      "source": "[btrfs.go:669](../master/api/btrfs.go#L669)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "POST",
+      "path": "/btrfs/replace_diskraid/{machine_name}",
+      "status": "missing",
+      "source": "[btrfs.go:670](../master/api/btrfs.go#L670)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "POST",
+      "path": "/btrfs/change_raid_level/{machine_name}",
+      "status": "missing",
+      "source": "[btrfs.go:672](../master/api/btrfs.go#L672)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "POST",
+      "path": "/btrfs/balance_raid/{machine_name}",
+      "status": "missing",
+      "source": "[btrfs.go:673](../master/api/btrfs.go#L673)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "POST",
+      "path": "/btrfs/pause_balance/{machine_name}",
+      "status": "missing",
+      "source": "[btrfs.go:674](../master/api/btrfs.go#L674)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "POST",
+      "path": "/btrfs/resume_balance/{machine_name}",
+      "status": "missing",
+      "source": "[btrfs.go:675](../master/api/btrfs.go#L675)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "POST",
+      "path": "/btrfs/cancel_balance/{machine_name}",
+      "status": "missing",
+      "source": "[btrfs.go:676](../master/api/btrfs.go#L676)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "POST",
+      "path": "/btrfs/defragment_raid/{machine_name}",
+      "status": "missing",
+      "source": "[btrfs.go:677](../master/api/btrfs.go#L677)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "POST",
+      "path": "/btrfs/scrub_raid/{machine_name}",
+      "status": "missing",
+      "source": "[btrfs.go:678](../master/api/btrfs.go#L678)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "GET",
+      "path": "/btrfs/scrub_stats/{machine_name}",
+      "status": "missing",
+      "source": "[btrfs.go:679](../master/api/btrfs.go#L679)"
+    },
+    {
+      "area": "BTRFS",
+      "method": "GET",
+      "path": "/btrfs/raid_status/{machine_name}",
+      "status": "missing",
+      "source": "[btrfs.go:682](../master/api/btrfs.go#L682)"
+    },
+    {
+      "area": "Celld",
+      "method": "GET",
+      "path": "/celld/health",
+      "status": "implemented",
+      "source": "[celld.go:14](../master/api/celld.go#L14)",
+      "tool": "get_celld_health"
+    },
+    {
+      "area": "Celld",
+      "method": "GET",
+      "path": "/celld/fleets",
+      "status": "implemented",
+      "source": "[celld.go:15](../master/api/celld.go#L15)",
+      "tool": "list_celld_fleets"
+    },
+    {
+      "area": "Celld",
+      "method": "POST",
+      "path": "/celld/fleets",
+      "status": "implemented",
+      "source": "[celld.go:16](../master/api/celld.go#L16)",
+      "tool": "create_celld_fleet"
+    },
+    {
+      "area": "Celld",
+      "method": "GET",
+      "path": "/celld/fleets/{id}",
+      "status": "missing",
+      "source": "[celld.go:17](../master/api/celld.go#L17)"
+    },
+    {
+      "area": "Celld",
+      "method": "PATCH",
+      "path": "/celld/fleets/{id}",
+      "status": "excluded (deletion policy: removes node data)",
+      "source": "[celld.go:18](../master/api/celld.go#L18)"
+    },
+    {
+      "area": "Celld",
+      "method": "DELETE",
+      "path": "/celld/fleets/{id}",
+      "status": "implemented",
+      "source": "[celld.go:19](../master/api/celld.go#L19)",
+      "tool": "delete_celld_fleet"
+    },
+    {
+      "area": "Celld",
+      "method": "POST",
+      "path": "/celld/fleets/{id}/start",
+      "status": "implemented",
+      "source": "[celld.go:21](../master/api/celld.go#L21)",
+      "tool": "start_celld_fleet"
+    },
+    {
+      "area": "Celld",
+      "method": "POST",
+      "path": "/celld/fleets/{id}/stop",
+      "status": "implemented",
+      "source": "[celld.go:21](../master/api/celld.go#L21)",
+      "tool": "stop_celld_fleet"
+    },
+    {
+      "area": "Celld",
+      "method": "POST",
+      "path": "/celld/fleets/{id}/restart",
+      "status": "missing",
+      "source": "[celld.go:21](../master/api/celld.go#L21)"
+    },
+    {
+      "area": "Celld",
+      "method": "GET",
+      "path": "/celld/fleets/{id}/credentials",
+      "status": "implemented",
+      "source": "[celld.go:23](../master/api/celld.go#L23)",
+      "tool": "get_celld_credentials"
+    },
+    {
+      "area": "Celld",
+      "method": "GET",
+      "path": "/celld/fleets/{id}/observability",
+      "status": "missing",
+      "source": "[celld.go:24](../master/api/celld.go#L24)"
+    },
+    {
+      "area": "Celld",
+      "method": "GET",
+      "path": "/celld/fleets/{id}/logs/stream",
+      "status": "missing",
+      "source": "[celld.go:25](../master/api/celld.go#L25)"
+    },
+    {
+      "area": "Celld",
+      "method": "GET",
+      "path": "/celld/fleets/{id}/events/stream",
+      "status": "missing",
+      "source": "[celld.go:26](../master/api/celld.go#L26)"
+    },
+    {
+      "area": "Celld",
+      "method": "GET",
+      "path": "/celld/fleets/{id}/logs",
+      "status": "implemented",
+      "source": "[celld.go:27](../master/api/celld.go#L27)",
+      "tool": "get_celld_logs"
+    },
+    {
+      "area": "Celld",
+      "method": "GET",
+      "path": "/celld/fleets/{id}/events",
+      "status": "implemented",
+      "source": "[celld.go:28](../master/api/celld.go#L28)",
+      "tool": "get_celld_events"
+    },
+    {
+      "area": "Celld",
+      "method": "GET",
+      "path": "/celld/fleets/{id}/traces/{trace_id}",
+      "status": "missing",
+      "source": "[celld.go:29](../master/api/celld.go#L29)"
+    },
+    {
+      "area": "Celld",
+      "method": "GET",
+      "path": "/celld/fleets/{id}/metrics",
+      "status": "missing",
+      "source": "[celld.go:30](../master/api/celld.go#L30)"
+    },
+    {
+      "area": "DNS aliases",
+      "method": "GET",
+      "path": "/dnsmasq/alias/all",
+      "status": "implemented",
+      "source": "[dnsmasq.go:96](../master/api/dnsmasq.go#L96)",
+      "tool": "dns_aliases_list"
+    },
+    {
+      "area": "DNS aliases",
+      "method": "GET",
+      "path": "/dnsmasq/alias/get",
+      "status": "implemented",
+      "source": "[dnsmasq.go:97](../master/api/dnsmasq.go#L97)",
+      "tool": "dns_alias_get"
+    },
+    {
+      "area": "DNS aliases",
+      "method": "POST",
+      "path": "/dnsmasq/alias/add",
+      "status": "implemented",
+      "source": "[dnsmasq.go:98](../master/api/dnsmasq.go#L98)",
+      "tool": "dns_alias_add"
+    },
+    {
+      "area": "DNS aliases",
+      "method": "DELETE",
+      "path": "/dnsmasq/alias/remove",
+      "status": "excluded (deletion policy)",
+      "source": "[dnsmasq.go:99](../master/api/dnsmasq.go#L99)"
+    },
+    {
+      "area": "Docker",
+      "method": "GET",
+      "path": "/docker/images/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:716](../master/api/docker.go#L716)"
+    },
+    {
+      "area": "Docker",
+      "method": "POST",
+      "path": "/docker/images/download/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:717](../master/api/docker.go#L717)"
+    },
+    {
+      "area": "Docker",
+      "method": "DELETE",
+      "path": "/docker/images/remove/{machineName}",
+      "status": "excluded (deletion policy)",
+      "source": "[docker.go:718](../master/api/docker.go#L718)"
+    },
+    {
+      "area": "Docker",
+      "method": "GET",
+      "path": "/docker/containers/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:722](../master/api/docker.go#L722)"
+    },
+    {
+      "area": "Docker",
+      "method": "POST",
+      "path": "/docker/containers/create/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:723](../master/api/docker.go#L723)"
+    },
+    {
+      "area": "Docker",
+      "method": "DELETE",
+      "path": "/docker/containers/remove/{machineName}",
+      "status": "excluded (deletion policy)",
+      "source": "[docker.go:724](../master/api/docker.go#L724)"
+    },
+    {
+      "area": "Docker",
+      "method": "POST",
+      "path": "/docker/containers/stop/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:725](../master/api/docker.go#L725)"
+    },
+    {
+      "area": "Docker",
+      "method": "POST",
+      "path": "/docker/containers/start/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:726](../master/api/docker.go#L726)"
+    },
+    {
+      "area": "Docker",
+      "method": "POST",
+      "path": "/docker/containers/restart/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:727](../master/api/docker.go#L727)"
+    },
+    {
+      "area": "Docker",
+      "method": "POST",
+      "path": "/docker/containers/pause/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:728](../master/api/docker.go#L728)"
+    },
+    {
+      "area": "Docker",
+      "method": "POST",
+      "path": "/docker/containers/unpause/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:729](../master/api/docker.go#L729)"
+    },
+    {
+      "area": "Docker",
+      "method": "POST",
+      "path": "/docker/containers/kill/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:730](../master/api/docker.go#L730)"
+    },
+    {
+      "area": "Docker",
+      "method": "POST",
+      "path": "/docker/containers/logs/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:731](../master/api/docker.go#L731)"
+    },
+    {
+      "area": "Docker",
+      "method": "POST",
+      "path": "/docker/containers/update/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:732](../master/api/docker.go#L732)"
+    },
+    {
+      "area": "Docker",
+      "method": "POST",
+      "path": "/docker/containers/rename/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:733](../master/api/docker.go#L733)"
+    },
+    {
+      "area": "Docker",
+      "method": "POST",
+      "path": "/docker/containers/exec/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:734](../master/api/docker.go#L734)"
+    },
+    {
+      "area": "Docker",
+      "method": "GET",
+      "path": "/docker/volumes/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:738](../master/api/docker.go#L738)"
+    },
+    {
+      "area": "Docker",
+      "method": "POST",
+      "path": "/docker/volumes/create/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:739](../master/api/docker.go#L739)"
+    },
+    {
+      "area": "Docker",
+      "method": "DELETE",
+      "path": "/docker/volumes/remove/{machineName}",
+      "status": "excluded (deletion policy)",
+      "source": "[docker.go:740](../master/api/docker.go#L740)"
+    },
+    {
+      "area": "Docker",
+      "method": "GET",
+      "path": "/docker/networks/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:744](../master/api/docker.go#L744)"
+    },
+    {
+      "area": "Docker",
+      "method": "POST",
+      "path": "/docker/networks/create/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:745](../master/api/docker.go#L745)"
+    },
+    {
+      "area": "Docker",
+      "method": "DELETE",
+      "path": "/docker/networks/remove/{machineName}",
+      "status": "excluded (deletion policy)",
+      "source": "[docker.go:746](../master/api/docker.go#L746)"
+    },
+    {
+      "area": "Docker",
+      "method": "GET",
+      "path": "/docker/git/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:750](../master/api/docker.go#L750)"
+    },
+    {
+      "area": "Docker",
+      "method": "POST",
+      "path": "/docker/git/clone/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:751](../master/api/docker.go#L751)"
+    },
+    {
+      "area": "Docker",
+      "method": "DELETE",
+      "path": "/docker/git/remove/{machineName}",
+      "status": "excluded (deletion policy)",
+      "source": "[docker.go:752](../master/api/docker.go#L752)"
+    },
+    {
+      "area": "Docker",
+      "method": "POST",
+      "path": "/docker/git/update/{machineName}",
+      "status": "missing",
+      "source": "[docker.go:753](../master/api/docker.go#L753)"
+    },
+    {
+      "area": "Host maintenance",
+      "method": "GET",
+      "path": "/extra/getUpdates/{machineName}",
+      "status": "missing",
+      "source": "[extra.go:81](../master/api/extra.go#L81)"
+    },
+    {
+      "area": "Host maintenance",
+      "method": "POST",
+      "path": "/extra/performUpdate/{machineName}",
+      "status": "missing",
+      "source": "[extra.go:82](../master/api/extra.go#L82)"
+    },
+    {
+      "area": "Host maintenance",
+      "method": "POST",
+      "path": "/extra/shutdown/{machineName}",
+      "status": "missing",
+      "source": "[extra.go:83](../master/api/extra.go#L83)"
+    },
+    {
+      "area": "Host maintenance",
+      "method": "POST",
+      "path": "/extra/restart/{machineName}",
+      "status": "missing",
+      "source": "[extra.go:84](../master/api/extra.go#L84)"
+    },
+    {
+      "area": "GoAccess",
+      "method": "GET",
+      "path": "/goaccess",
+      "status": "missing",
+      "source": "[goaccess.go:623](../master/api/goaccess.go#L623)"
+    },
+    {
+      "area": "GoAccess",
+      "method": "GET",
+      "path": "/ws_goaccess",
+      "status": "missing",
+      "source": "[goaccess.go:624](../master/api/goaccess.go#L624)"
+    },
+    {
+      "area": "GoAccess",
+      "method": "GET",
+      "path": "/goaccess/status",
+      "status": "missing",
+      "source": "[goaccess.go:625](../master/api/goaccess.go#L625)"
+    },
+    {
+      "area": "Host information",
+      "method": "GET",
+      "path": "/info/cpu/{machine_name}",
+      "status": "missing",
+      "source": "[info.go:773](../master/api/info.go#L773)"
+    },
+    {
+      "area": "Host information",
+      "method": "GET",
+      "path": "/info/mem/{machine_name}",
+      "status": "missing",
+      "source": "[info.go:774](../master/api/info.go#L774)"
+    },
+    {
+      "area": "Host information",
+      "method": "GET",
+      "path": "/info/disk/{machine_name}",
+      "status": "missing",
+      "source": "[info.go:775](../master/api/info.go#L775)"
+    },
+    {
+      "area": "Host information",
+      "method": "GET",
+      "path": "/info/network/{machine_name}",
+      "status": "missing",
+      "source": "[info.go:776](../master/api/info.go#L776)"
+    },
+    {
+      "area": "Host information",
+      "method": "GET",
+      "path": "/info/processes/{machine_name}",
+      "status": "missing",
+      "source": "[info.go:777](../master/api/info.go#L777)"
+    },
+    {
+      "area": "Host information",
+      "method": "GET",
+      "path": "/info/processes/{machine_name}/{pid}",
+      "status": "missing",
+      "source": "[info.go:778](../master/api/info.go#L778)"
+    },
+    {
+      "area": "Host information",
+      "method": "POST",
+      "path": "/info/processes/{machine_name}/{pid}/kill",
+      "status": "missing",
+      "source": "[info.go:779](../master/api/info.go#L779)"
+    },
+    {
+      "area": "Host information",
+      "method": "POST",
+      "path": "/info/processes/{machine_name}/{pid}/terminate",
+      "status": "missing",
+      "source": "[info.go:780](../master/api/info.go#L780)"
+    },
+    {
+      "area": "Host information",
+      "method": "GET",
+      "path": "/info/history/cpu/{machine_name}",
+      "status": "missing",
+      "source": "[info.go:781](../master/api/info.go#L781)"
+    },
+    {
+      "area": "Host information",
+      "method": "GET",
+      "path": "/info/history/mem/{machine_name}",
+      "status": "missing",
+      "source": "[info.go:782](../master/api/info.go#L782)"
+    },
+    {
+      "area": "Host information",
+      "method": "GET",
+      "path": "/info/history/disk/{machine_name}",
+      "status": "missing",
+      "source": "[info.go:783](../master/api/info.go#L783)"
+    },
+    {
+      "area": "Host information",
+      "method": "GET",
+      "path": "/info/history/network/{machine_name}",
+      "status": "missing",
+      "source": "[info.go:784](../master/api/info.go#L784)"
+    },
+    {
+      "area": "Host information",
+      "method": "POST",
+      "path": "/info/stress-cpu/{machine_name}",
+      "status": "missing",
+      "source": "[info.go:785](../master/api/info.go#L785)"
+    },
+    {
+      "area": "Host information",
+      "method": "POST",
+      "path": "/info/test-ram/{machine_name}",
+      "status": "missing",
+      "source": "[info.go:786](../master/api/info.go#L786)"
+    },
+    {
+      "area": "Host information",
+      "method": "GET",
+      "path": "/info/time-since/{machine_name}",
+      "status": "missing",
+      "source": "[info.go:788](../master/api/info.go#L788)"
+    },
+    {
+      "area": "ISOs",
+      "method": "POST",
+      "path": "/isos/download",
+      "status": "implemented",
+      "source": "[isos.go:144](../master/api/isos.go#L144)",
+      "tool": "start_iso_download"
+    },
+    {
+      "area": "ISOs",
+      "method": "GET",
+      "path": "/isos/",
+      "status": "implemented",
+      "source": "[isos.go:145](../master/api/isos.go#L145)",
+      "tool": "list_isos"
+    },
+    {
+      "area": "ISOs",
+      "method": "DELETE",
+      "path": "/isos/{id}",
+      "status": "excluded (deletion policy)",
+      "source": "[isos.go:146](../master/api/isos.go#L146)"
+    },
+    {
+      "area": "Kubernetes",
+      "method": "GET",
+      "path": "/k8s/tls-sans",
+      "status": "missing",
+      "source": "[k8s.go:67](../master/api/k8s.go#L67)"
+    },
+    {
+      "area": "Kubernetes",
+      "method": "GET",
+      "path": "/k8s/cluster/status",
+      "status": "missing",
+      "source": "[k8s.go:68](../master/api/k8s.go#L68)"
+    },
+    {
+      "area": "Kubernetes",
+      "method": "POST",
+      "path": "/k8s/connection-file",
+      "status": "missing",
+      "source": "[k8s.go:69](../master/api/k8s.go#L69)"
+    },
+    {
+      "area": "Logs",
+      "method": "GET",
+      "path": "/logs/list",
+      "status": "missing",
+      "source": "[logs.go:53](../master/api/logs.go#L53)"
+    },
+    {
+      "area": "NFS",
+      "method": "GET",
+      "path": "/nfs/list",
+      "status": "missing",
+      "source": "[nfs.go:166](../master/api/nfs.go#L166)"
+    },
+    {
+      "area": "NFS",
+      "method": "POST",
+      "path": "/nfs/create",
+      "status": "missing",
+      "source": "[nfs.go:167](../master/api/nfs.go#L167)"
+    },
+    {
+      "area": "NFS",
+      "method": "DELETE",
+      "path": "/nfs/delete",
+      "status": "excluded (deletion policy)",
+      "source": "[nfs.go:168](../master/api/nfs.go#L168)"
+    },
+    {
+      "area": "NFS",
+      "method": "POST",
+      "path": "/nfs/remount/{id}",
+      "status": "missing",
+      "source": "[nfs.go:169](../master/api/nfs.go#L169)"
+    },
+    {
+      "area": "NFS",
+      "method": "POST",
+      "path": "/nfs/contents/{machine}",
+      "status": "missing",
+      "source": "[nfs.go:170](../master/api/nfs.go#L170)"
+    },
+    {
+      "area": "Notes",
+      "method": "GET",
+      "path": "/notes/",
+      "status": "implemented",
+      "source": "[notes.go:140](../master/api/notes.go#L140)",
+      "tool": "list_notes"
+    },
+    {
+      "area": "Notes",
+      "method": "GET",
+      "path": "/notes/{id}",
+      "status": "implemented",
+      "source": "[notes.go:141](../master/api/notes.go#L141)",
+      "tool": "get_note"
+    },
+    {
+      "area": "Notes",
+      "method": "POST",
+      "path": "/notes/",
+      "status": "implemented",
+      "source": "[notes.go:142](../master/api/notes.go#L142)",
+      "tool": "create_note"
+    },
+    {
+      "area": "Notes",
+      "method": "PUT",
+      "path": "/notes/{id}",
+      "status": "implemented",
+      "source": "[notes.go:143](../master/api/notes.go#L143)",
+      "tool": "replace_note"
+    },
+    {
+      "area": "Notes",
+      "method": "PATCH",
+      "path": "/notes/{id}",
+      "status": "implemented",
+      "source": "[notes.go:144](../master/api/notes.go#L144)",
+      "tool": "patch_note"
+    },
+    {
+      "area": "Notes",
+      "method": "DELETE",
+      "path": "/notes/{id}",
+      "status": "excluded (deletion policy)",
+      "source": "[notes.go:145](../master/api/notes.go#L145)"
+    },
+    {
+      "area": "Notification history",
+      "method": "GET",
+      "path": "/nots/",
+      "status": "missing",
+      "source": "[nots.go:45](../master/api/nots.go#L45)"
+    },
+    {
+      "area": "noVNC",
+      "method": "GET",
+      "path": "/novnc/ws",
+      "status": "missing",
+      "source": "[novnc.go:225](../master/api/novnc.go#L225)"
+    },
+    {
+      "area": "noVNC",
+      "method": "GET",
+      "path": "/novnc/sprite/{vm_name}",
+      "status": "missing",
+      "source": "[novnc.go:226](../master/api/novnc.go#L226)"
+    },
+    {
+      "area": "noVNC",
+      "method": "GET",
+      "path": "/novnc/*",
+      "status": "missing",
+      "source": "[novnc.go:227](../master/api/novnc.go#L227)"
+    },
+    {
+      "area": "NGINX / 404 hosts",
+      "method": "GET",
+      "path": "/404/list",
+      "status": "implemented",
+      "source": "[404hosts.go:126](../master/api/npmapi/404hosts.go#L126)",
+      "tool": "list_404_hosts"
+    },
+    {
+      "area": "NGINX / 404 hosts",
+      "method": "POST",
+      "path": "/404/create",
+      "status": "implemented",
+      "source": "[404hosts.go:127](../master/api/npmapi/404hosts.go#L127)",
+      "tool": "create_404_host"
+    },
+    {
+      "area": "NGINX / 404 hosts",
+      "method": "PUT",
+      "path": "/404/edit",
+      "status": "implemented",
+      "source": "[404hosts.go:128](../master/api/npmapi/404hosts.go#L128)",
+      "tool": "update_404_host"
+    },
+    {
+      "area": "NGINX / 404 hosts",
+      "method": "DELETE",
+      "path": "/404/delete",
+      "status": "excluded (deletion policy)",
+      "source": "[404hosts.go:129](../master/api/npmapi/404hosts.go#L129)"
+    },
+    {
+      "area": "NGINX / 404 hosts",
+      "method": "POST",
+      "path": "/404/disable",
+      "status": "implemented",
+      "source": "[404hosts.go:130](../master/api/npmapi/404hosts.go#L130)",
+      "tool": "disable_404_host"
+    },
+    {
+      "area": "NGINX / 404 hosts",
+      "method": "POST",
+      "path": "/404/enable",
+      "status": "implemented",
+      "source": "[404hosts.go:131](../master/api/npmapi/404hosts.go#L131)",
+      "tool": "enable_404_host"
+    },
+    {
+      "area": "NGINX / Access lists",
+      "method": "GET",
+      "path": "/access-lists/list",
+      "status": "implemented",
+      "source": "[access_list.go:82](../master/api/npmapi/access_list.go#L82)",
+      "tool": "list_access_lists"
+    },
+    {
+      "area": "NGINX / Access lists",
+      "method": "POST",
+      "path": "/access-lists/create",
+      "status": "implemented",
+      "source": "[access_list.go:83](../master/api/npmapi/access_list.go#L83)",
+      "tool": "create_access_list"
+    },
+    {
+      "area": "NGINX / Access lists",
+      "method": "PUT",
+      "path": "/access-lists/edit",
+      "status": "excluded (deletion policy: replacement deletes authentication/client entries)",
+      "source": "[access_list.go:84](../master/api/npmapi/access_list.go#L84)"
+    },
+    {
+      "area": "NGINX / Access lists",
+      "method": "DELETE",
+      "path": "/access-lists/delete",
+      "status": "excluded (deletion policy)",
+      "source": "[access_list.go:85](../master/api/npmapi/access_list.go#L85)"
+    },
+    {
+      "area": "NGINX / Certificates",
+      "method": "GET",
+      "path": "/certs/dns-providers",
+      "status": "implemented",
+      "source": "[certs.go:265](../master/api/npmapi/certs.go#L265)",
+      "tool": "list_dns_providers"
+    },
+    {
+      "area": "NGINX / Certificates",
+      "method": "GET",
+      "path": "/certs/list",
+      "status": "implemented",
+      "source": "[certs.go:266](../master/api/npmapi/certs.go#L266)",
+      "tool": "list_certificates"
+    },
+    {
+      "area": "NGINX / Certificates",
+      "method": "POST",
+      "path": "/certs/create",
+      "status": "excluded (deletion policy: certificate rollback deletes resource)",
+      "source": "[certs.go:267](../master/api/npmapi/certs.go#L267)"
+    },
+    {
+      "area": "NGINX / Certificates",
+      "method": "POST",
+      "path": "/certs/create-lets-encrypt",
+      "status": "excluded (deletion policy: upstream rollback deletes certificate)",
+      "source": "[certs.go:268](../master/api/npmapi/certs.go#L268)"
+    },
+    {
+      "area": "NGINX / Certificates",
+      "method": "POST",
+      "path": "/certs/download",
+      "status": "implemented",
+      "source": "[certs.go:269](../master/api/npmapi/certs.go#L269)",
+      "tool": "download_certificate"
+    },
+    {
+      "area": "NGINX / Certificates",
+      "method": "POST",
+      "path": "/certs/renew",
+      "status": "implemented",
+      "source": "[certs.go:270](../master/api/npmapi/certs.go#L270)",
+      "tool": "renew_certificate"
+    },
+    {
+      "area": "NGINX / Certificates",
+      "method": "DELETE",
+      "path": "/certs/delete",
+      "status": "excluded (deletion policy)",
+      "source": "[certs.go:271](../master/api/npmapi/certs.go#L271)"
+    },
+    {
+      "area": "NGINX / Proxies",
+      "method": "GET",
+      "path": "/proxy/list",
+      "status": "implemented",
+      "source": "[proxy.go:364](../master/api/npmapi/proxy.go#L364)",
+      "tool": "list_proxies"
+    },
+    {
+      "area": "NGINX / Proxies",
+      "method": "POST",
+      "path": "/proxy/create",
+      "status": "implemented",
+      "source": "[proxy.go:365](../master/api/npmapi/proxy.go#L365)",
+      "tool": "create_proxy"
+    },
+    {
+      "area": "NGINX / Proxies",
+      "method": "PUT",
+      "path": "/proxy/edit",
+      "status": "implemented",
+      "source": "[proxy.go:366](../master/api/npmapi/proxy.go#L366)",
+      "tool": "update_proxy"
+    },
+    {
+      "area": "NGINX / Proxies",
+      "method": "DELETE",
+      "path": "/proxy/delete",
+      "status": "excluded (deletion policy)",
+      "source": "[proxy.go:367](../master/api/npmapi/proxy.go#L367)"
+    },
+    {
+      "area": "NGINX / Proxies",
+      "method": "POST",
+      "path": "/proxy/disable",
+      "status": "implemented",
+      "source": "[proxy.go:368](../master/api/npmapi/proxy.go#L368)",
+      "tool": "disable_proxy"
+    },
+    {
+      "area": "NGINX / Proxies",
+      "method": "POST",
+      "path": "/proxy/enable",
+      "status": "implemented",
+      "source": "[proxy.go:369](../master/api/npmapi/proxy.go#L369)",
+      "tool": "enable_proxy"
+    },
+    {
+      "area": "NGINX / Proxies",
+      "method": "POST",
+      "path": "/proxy/setupFrontEnd",
+      "status": "implemented",
+      "source": "[proxy.go:371](../master/api/npmapi/proxy.go#L371)",
+      "tool": "setup_frontend_proxy"
+    },
+    {
+      "area": "NGINX / Proxies",
+      "method": "POST",
+      "path": "/proxy/setupFrontEndSecure",
+      "status": "implemented",
+      "source": "[proxy.go:372](../master/api/npmapi/proxy.go#L372)",
+      "tool": "setup_secure_frontend_proxy"
+    },
+    {
+      "area": "NGINX / Redirects",
+      "method": "GET",
+      "path": "/redirection/list",
+      "status": "implemented",
+      "source": "[redirection.go:126](../master/api/npmapi/redirection.go#L126)",
+      "tool": "list_redirects"
+    },
+    {
+      "area": "NGINX / Redirects",
+      "method": "POST",
+      "path": "/redirection/create",
+      "status": "implemented",
+      "source": "[redirection.go:127](../master/api/npmapi/redirection.go#L127)",
+      "tool": "create_redirect"
+    },
+    {
+      "area": "NGINX / Redirects",
+      "method": "PUT",
+      "path": "/redirection/edit",
+      "status": "implemented",
+      "source": "[redirection.go:128](../master/api/npmapi/redirection.go#L128)",
+      "tool": "update_redirect"
+    },
+    {
+      "area": "NGINX / Redirects",
+      "method": "DELETE",
+      "path": "/redirection/delete",
+      "status": "excluded (deletion policy)",
+      "source": "[redirection.go:129](../master/api/npmapi/redirection.go#L129)"
+    },
+    {
+      "area": "NGINX / Redirects",
+      "method": "POST",
+      "path": "/redirection/disable",
+      "status": "implemented",
+      "source": "[redirection.go:130](../master/api/npmapi/redirection.go#L130)",
+      "tool": "disable_redirect"
+    },
+    {
+      "area": "NGINX / Redirects",
+      "method": "POST",
+      "path": "/redirection/enable",
+      "status": "implemented",
+      "source": "[redirection.go:131](../master/api/npmapi/redirection.go#L131)",
+      "tool": "enable_redirect"
+    },
+    {
+      "area": "NGINX / Streams",
+      "method": "GET",
+      "path": "/stream/list",
+      "status": "implemented",
+      "source": "[streams.go:153](../master/api/npmapi/streams.go#L153)",
+      "tool": "list_streams"
+    },
+    {
+      "area": "NGINX / Streams",
+      "method": "POST",
+      "path": "/stream/create",
+      "status": "implemented",
+      "source": "[streams.go:154](../master/api/npmapi/streams.go#L154)",
+      "tool": "create_stream"
+    },
+    {
+      "area": "NGINX / Streams",
+      "method": "PUT",
+      "path": "/stream/edit",
+      "status": "implemented",
+      "source": "[streams.go:155](../master/api/npmapi/streams.go#L155)",
+      "tool": "update_stream"
+    },
+    {
+      "area": "NGINX / Streams",
+      "method": "DELETE",
+      "path": "/stream/delete",
+      "status": "excluded (deletion policy)",
+      "source": "[streams.go:156](../master/api/npmapi/streams.go#L156)"
+    },
+    {
+      "area": "NGINX / Streams",
+      "method": "POST",
+      "path": "/stream/disable",
+      "status": "implemented",
+      "source": "[streams.go:157](../master/api/npmapi/streams.go#L157)",
+      "tool": "disable_stream"
+    },
+    {
+      "area": "NGINX / Streams",
+      "method": "POST",
+      "path": "/stream/enable",
+      "status": "implemented",
+      "source": "[streams.go:158](../master/api/npmapi/streams.go#L158)",
+      "tool": "enable_stream"
+    },
+    {
+      "area": "PCI / GPU",
+      "method": "GET",
+      "path": "/pci/host/{machine_name}",
+      "status": "missing",
+      "source": "[pci.go:177](../master/api/pci.go#L177)"
+    },
+    {
+      "area": "PCI / GPU",
+      "method": "GET",
+      "path": "/pci/host/iommu/{machine_name}",
+      "status": "missing",
+      "source": "[pci.go:178](../master/api/pci.go#L178)"
+    },
+    {
+      "area": "PCI / GPU",
+      "method": "GET",
+      "path": "/pci/vm/{machine_name}/{vm_name}",
+      "status": "missing",
+      "source": "[pci.go:179](../master/api/pci.go#L179)"
+    },
+    {
+      "area": "PCI / GPU",
+      "method": "POST",
+      "path": "/pci/attach/{machine_name}",
+      "status": "missing",
+      "source": "[pci.go:180](../master/api/pci.go#L180)"
+    },
+    {
+      "area": "PCI / GPU",
+      "method": "POST",
+      "path": "/pci/detach/{machine_name}",
+      "status": "missing",
+      "source": "[pci.go:181](../master/api/pci.go#L181)"
+    },
+    {
+      "area": "PCI / GPU",
+      "method": "POST",
+      "path": "/pci/return/{machine_name}",
+      "status": "missing",
+      "source": "[pci.go:182](../master/api/pci.go#L182)"
+    },
+    {
+      "area": "Protocol connections",
+      "method": "GET",
+      "path": "/protocol/list",
+      "status": "missing",
+      "source": "[protocol.go:22](../master/api/protocol.go#L22)"
+    },
+    {
+      "area": "SMART disks",
+      "method": "GET",
+      "path": "/smartdisk/{machine_name}",
+      "status": "missing",
+      "source": "[smartdisk.go:455](../master/api/smartdisk.go#L455)"
+    },
+    {
+      "area": "SMART disks",
+      "method": "POST",
+      "path": "/smartdisk/{machine_name}/self-test",
+      "status": "missing",
+      "source": "[smartdisk.go:456](../master/api/smartdisk.go#L456)"
+    },
+    {
+      "area": "SMART disks",
+      "method": "GET",
+      "path": "/smartdisk/{machine_name}/self-test/progress",
+      "status": "missing",
+      "source": "[smartdisk.go:457](../master/api/smartdisk.go#L457)"
+    },
+    {
+      "area": "SMART disks",
+      "method": "POST",
+      "path": "/smartdisk/{machine_name}/self-test/cancel",
+      "status": "missing",
+      "source": "[smartdisk.go:458](../master/api/smartdisk.go#L458)"
+    },
+    {
+      "area": "SMART disks",
+      "method": "POST",
+      "path": "/smartdisk/{machine_name}/schedules/",
+      "status": "missing",
+      "source": "[smartdisk.go:461](../master/api/smartdisk.go#L461)"
+    },
+    {
+      "area": "SMART disks",
+      "method": "GET",
+      "path": "/smartdisk/{machine_name}/schedules/",
+      "status": "missing",
+      "source": "[smartdisk.go:462](../master/api/smartdisk.go#L462)"
+    },
+    {
+      "area": "SMART disks",
+      "method": "PUT",
+      "path": "/smartdisk/{machine_name}/schedules/{id}/",
+      "status": "missing",
+      "source": "[smartdisk.go:464](../master/api/smartdisk.go#L464)"
+    },
+    {
+      "area": "SMART disks",
+      "method": "DELETE",
+      "path": "/smartdisk/{machine_name}/schedules/{id}/",
+      "status": "excluded (deletion policy)",
+      "source": "[smartdisk.go:465](../master/api/smartdisk.go#L465)"
+    },
+    {
+      "area": "SMART disks",
+      "method": "PUT",
+      "path": "/smartdisk/{machine_name}/schedules/{id}/enable",
+      "status": "missing",
+      "source": "[smartdisk.go:466](../master/api/smartdisk.go#L466)"
+    },
+    {
+      "area": "SMART disks",
+      "method": "POST",
+      "path": "/smartdisk/{machine_name}/realloc/full-wipe",
+      "status": "excluded (deletion policy)",
+      "source": "[smartdisk.go:470](../master/api/smartdisk.go#L470)"
+    },
+    {
+      "area": "SMART disks",
+      "method": "POST",
+      "path": "/smartdisk/{machine_name}/realloc/non-destructive",
+      "status": "missing",
+      "source": "[smartdisk.go:471](../master/api/smartdisk.go#L471)"
+    },
+    {
+      "area": "SMART disks",
+      "method": "GET",
+      "path": "/smartdisk/{machine_name}/realloc/status",
+      "status": "missing",
+      "source": "[smartdisk.go:472](../master/api/smartdisk.go#L472)"
+    },
+    {
+      "area": "SMART disks",
+      "method": "GET",
+      "path": "/smartdisk/{machine_name}/realloc/",
+      "status": "missing",
+      "source": "[smartdisk.go:473](../master/api/smartdisk.go#L473)"
+    },
+    {
+      "area": "SMART disks",
+      "method": "POST",
+      "path": "/smartdisk/{machine_name}/realloc/cancel",
+      "status": "missing",
+      "source": "[smartdisk.go:474](../master/api/smartdisk.go#L474)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/",
+      "status": "missing",
+      "source": "[streamInfo.go:2204](../master/api/streamInfo.go#L2204)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "DELETE",
+      "path": "/streamInfo/logs",
+      "status": "excluded (deletion policy)",
+      "source": "[streamInfo.go:2208](../master/api/streamInfo.go#L2208)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/ip-aliases",
+      "status": "missing",
+      "source": "[streamInfo.go:2209](../master/api/streamInfo.go#L2209)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "POST",
+      "path": "/streamInfo/ip-aliases",
+      "status": "missing",
+      "source": "[streamInfo.go:2210](../master/api/streamInfo.go#L2210)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "DELETE",
+      "path": "/streamInfo/ip-aliases",
+      "status": "excluded (deletion policy)",
+      "source": "[streamInfo.go:2211](../master/api/streamInfo.go#L2211)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/streamInfo.css",
+      "status": "missing",
+      "source": "[streamInfo.go:2218](../master/api/streamInfo.go#L2218)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/streamInfo-core.js",
+      "status": "missing",
+      "source": "[streamInfo.go:2219](../master/api/streamInfo.go#L2219)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/streamInfo-overview.js",
+      "status": "missing",
+      "source": "[streamInfo.go:2220](../master/api/streamInfo.go#L2220)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/streamInfo-tabs.js",
+      "status": "missing",
+      "source": "[streamInfo.go:2221](../master/api/streamInfo.go#L2221)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/streamInfo-profiles.js",
+      "status": "missing",
+      "source": "[streamInfo.go:2222](../master/api/streamInfo.go#L2222)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/streamInfo-interactions.js",
+      "status": "missing",
+      "source": "[streamInfo.go:2223](../master/api/streamInfo.go#L2223)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/data",
+      "status": "missing",
+      "source": "[streamInfo.go:2226](../master/api/streamInfo.go#L2226)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/analytics",
+      "status": "missing",
+      "source": "[streamInfo.go:2229](../master/api/streamInfo.go#L2229)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/intel",
+      "status": "missing",
+      "source": "[streamInfo.go:2230](../master/api/streamInfo.go#L2230)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/active-connections",
+      "status": "missing",
+      "source": "[streamInfo.go:2231](../master/api/streamInfo.go#L2231)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/summary",
+      "status": "missing",
+      "source": "[streamInfo.go:2232](../master/api/streamInfo.go#L2232)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/traffic/by-ip",
+      "status": "missing",
+      "source": "[streamInfo.go:2235](../master/api/streamInfo.go#L2235)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/traffic/by-country",
+      "status": "missing",
+      "source": "[streamInfo.go:2236](../master/api/streamInfo.go#L2236)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/traffic/by-port",
+      "status": "missing",
+      "source": "[streamInfo.go:2237](../master/api/streamInfo.go#L2237)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/traffic/by-protocol",
+      "status": "missing",
+      "source": "[streamInfo.go:2238](../master/api/streamInfo.go#L2238)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/traffic/by-ip-port",
+      "status": "missing",
+      "source": "[streamInfo.go:2239](../master/api/streamInfo.go#L2239)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/traffic/by-country-port",
+      "status": "missing",
+      "source": "[streamInfo.go:2240](../master/api/streamInfo.go#L2240)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/country/{country}",
+      "status": "missing",
+      "source": "[streamInfo.go:2241](../master/api/streamInfo.go#L2241)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/server/{upstream}/activity",
+      "status": "missing",
+      "source": "[streamInfo.go:2242](../master/api/streamInfo.go#L2242)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/stats/daily",
+      "status": "missing",
+      "source": "[streamInfo.go:2245](../master/api/streamInfo.go#L2245)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/stats/hourly",
+      "status": "missing",
+      "source": "[streamInfo.go:2246](../master/api/streamInfo.go#L2246)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/timeline",
+      "status": "missing",
+      "source": "[streamInfo.go:2247](../master/api/streamInfo.go#L2247)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/top/talkers",
+      "status": "missing",
+      "source": "[streamInfo.go:2250](../master/api/streamInfo.go#L2250)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/top/countries",
+      "status": "missing",
+      "source": "[streamInfo.go:2251](../master/api/streamInfo.go#L2251)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/top/ports",
+      "status": "missing",
+      "source": "[streamInfo.go:2252](../master/api/streamInfo.go#L2252)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/upstream",
+      "status": "missing",
+      "source": "[streamInfo.go:2255](../master/api/streamInfo.go#L2255)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/failed",
+      "status": "missing",
+      "source": "[streamInfo.go:2256](../master/api/streamInfo.go#L2256)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/flow",
+      "status": "missing",
+      "source": "[streamInfo.go:2259](../master/api/streamInfo.go#L2259)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/daterange",
+      "status": "missing",
+      "source": "[streamInfo.go:2260](../master/api/streamInfo.go#L2260)"
+    },
+    {
+      "area": "Stream observability",
+      "method": "GET",
+      "path": "/streamInfo/anomalies",
+      "status": "missing",
+      "source": "[streamInfo.go:2261](../master/api/streamInfo.go#L2261)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/getcpudisablefeatures",
+      "status": "implemented",
+      "source": "[virsh.go:2507](../master/api/virsh.go#L2507)",
+      "tool": "get_vm_cpu_disable_features"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/getallvms",
+      "status": "implemented",
+      "source": "[virsh.go:2508](../master/api/virsh.go#L2508)",
+      "tool": "list_vms"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/createvm",
+      "status": "excluded (deletion policy: autostart false branch deletes saved state)",
+      "source": "[virsh.go:2509](../master/api/virsh.go#L2509)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/migratevm/{vm_name}",
+      "status": "excluded (deletion policy: migration undefines source domain)",
+      "source": "[virsh.go:2511](../master/api/virsh.go#L2511)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/updatecpuxml/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2512](../master/api/virsh.go#L2512)",
+      "tool": "update_vm_cpu_xml"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/cpuxml/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2513](../master/api/virsh.go#L2513)",
+      "tool": "get_vm_cpu_xml"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/updatevmxml/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2514](../master/api/virsh.go#L2514)",
+      "tool": "update_vm_xml"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/vmxml/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2515](../master/api/virsh.go#L2515)",
+      "tool": "get_vm_xml"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "DELETE",
+      "path": "/virsh/deletevm/{vm_name}",
+      "status": "excluded (deletion policy)",
+      "source": "[virsh.go:2519](../master/api/virsh.go#L2519)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/startvm/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2520](../master/api/virsh.go#L2520)",
+      "tool": "start_vm"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/shutdownvm/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2521](../master/api/virsh.go#L2521)",
+      "tool": "shutdown_vm"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/forceshutdownvm/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2522](../master/api/virsh.go#L2522)",
+      "tool": "force_shutdown_vm"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/restartvm/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2523](../master/api/virsh.go#L2523)",
+      "tool": "restart_vm"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/editvm/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2524](../master/api/virsh.go#L2524)",
+      "tool": "edit_vm"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/pausevm/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2525](../master/api/virsh.go#L2525)",
+      "tool": "pause_vm"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/resumevm/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2526](../master/api/virsh.go#L2526)",
+      "tool": "resume_vm"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/getvmbyname/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2527](../master/api/virsh.go#L2527)",
+      "tool": "get_vm"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/removeiso/{vm_name}",
+      "status": "excluded (deletion policy)",
+      "source": "[virsh.go:2528](../master/api/virsh.go#L2528)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/vm_disk/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2529](../master/api/virsh.go#L2529)",
+      "tool": "attach_vm_disk"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/vm_disk/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2530](../master/api/virsh.go#L2530)",
+      "tool": "list_vm_attached_disks"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "DELETE",
+      "path": "/virsh/vm_disk/{vm_name}/{vm_disk_id}",
+      "status": "excluded (deletion policy)",
+      "source": "[virsh.go:2531](../master/api/virsh.go#L2531)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/change_vm_network/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2533](../master/api/virsh.go#L2533)",
+      "tool": "set_vm_network"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/change_vnc_password/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2534](../master/api/virsh.go#L2534)",
+      "tool": "set_vm_vnc_password"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/add_ssh_key/{vm_name}",
+      "status": "missing (blocked: prior guest file contents and ownership unavailable)",
+      "source": "[virsh.go:2535](../master/api/virsh.go#L2535)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/novncvideo/add/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2536](../master/api/virsh.go#L2536)",
+      "tool": "add_vm_video"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/novncvideo/remove/{vm_name}",
+      "status": "excluded (deletion policy)",
+      "source": "[virsh.go:2537](../master/api/virsh.go#L2537)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/novncvideo/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2538](../master/api/virsh.go#L2538)",
+      "tool": "get_vm_video"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/ballooning/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2539](../master/api/virsh.go#L2539)",
+      "tool": "get_vm_ballooning"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/ballooning/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2540](../master/api/virsh.go#L2540)",
+      "tool": "set_vm_ballooning"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/hugepages/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2541](../master/api/virsh.go#L2541)",
+      "tool": "get_vm_hugepages"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/hugepages/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2542](../master/api/virsh.go#L2542)",
+      "tool": "set_vm_hugepages"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/machine_types/{machine_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2543](../master/api/virsh.go#L2543)",
+      "tool": "list_vm_machine_types"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/machine_type/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2544](../master/api/virsh.go#L2544)",
+      "tool": "set_vm_machine_type"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/kvm/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2545](../master/api/virsh.go#L2545)",
+      "tool": "get_vm_kvm"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/kvm/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2546](../master/api/virsh.go#L2546)",
+      "tool": "set_vm_kvm"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/hyperv/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2547](../master/api/virsh.go#L2547)",
+      "tool": "get_vm_hyperv"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/hyperv/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2548](../master/api/virsh.go#L2548)",
+      "tool": "set_vm_hyperv"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/cpupinning/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2551](../master/api/virsh.go#L2551)",
+      "tool": "set_vm_cpu_pinning"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "DELETE",
+      "path": "/virsh/cpupinning/{vm_name}",
+      "status": "excluded (deletion policy)",
+      "source": "[virsh.go:2552](../master/api/virsh.go#L2552)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/cpupinning/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2553](../master/api/virsh.go#L2553)",
+      "tool": "get_vm_cpu_pinning"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/cputopology/{machine_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2554](../master/api/virsh.go#L2554)",
+      "tool": "get_vm_cpu_topology"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/tunedadm/{machine_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2555](../master/api/virsh.go#L2555)",
+      "tool": "get_vm_tuned_profiles"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/tunedadm/{machine_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2556](../master/api/virsh.go#L2556)",
+      "tool": "set_vm_tuned_profile"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/irqbalance/{machine_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2557](../master/api/virsh.go#L2557)",
+      "tool": "get_vm_irqbalance"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/irqbalance/{machine_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2558](../master/api/virsh.go#L2558)",
+      "tool": "set_vm_irqbalance"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/coreisolation/{machine_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2559](../master/api/virsh.go#L2559)",
+      "tool": "get_vm_core_isolation"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/coreisolation/{machine_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2560](../master/api/virsh.go#L2560)",
+      "tool": "set_vm_host_core_isolation"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "PUT",
+      "path": "/virsh/coreisolation/{machine_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2561](../master/api/virsh.go#L2561)",
+      "tool": "replace_vm_host_core_isolation"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "DELETE",
+      "path": "/virsh/coreisolation/{machine_name}",
+      "status": "excluded (deletion policy)",
+      "source": "[virsh.go:2562](../master/api/virsh.go#L2562)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/hosthugepages/{machine_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2563](../master/api/virsh.go#L2563)",
+      "tool": "get_vm_host_hugepages"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/hosthugepages/{machine_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2565](../master/api/virsh.go#L2565)",
+      "tool": "set_vm_host_hugepages"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "PUT",
+      "path": "/virsh/hosthugepages/{machine_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2566](../master/api/virsh.go#L2566)",
+      "tool": "replace_vm_host_hugepages"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "DELETE",
+      "path": "/virsh/hosthugepages/{machine_name}",
+      "status": "excluded (deletion policy)",
+      "source": "[virsh.go:2567](../master/api/virsh.go#L2567)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/moveDisk/{vm_name}/{dest_nfs}",
+      "status": "excluded (deletion policy: deletes source VM)",
+      "source": "[virsh.go:2570](../master/api/virsh.go#L2570)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/coldMigrate/{vm_name}/{dest_machine_name}",
+      "status": "excluded (deletion policy: undefines source domain)",
+      "source": "[virsh.go:2571](../master/api/virsh.go#L2571)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/cloneVM/{vm_name}/{dest_nfs}/{dest_machine_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2572](../master/api/virsh.go#L2572)",
+      "tool": "clone_vm"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/export/{vm_name}",
+      "status": "implemented",
+      "source": "[virsh.go:2575](../master/api/virsh.go#L2575)",
+      "tool": "export_vm"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "PUT",
+      "path": "/virsh/import",
+      "status": "excluded (deletion policy: rollback can delete destination business disk)",
+      "source": "[virsh.go:2576](../master/api/virsh.go#L2576)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/backup/{vm_name}/{nfs_id}",
+      "status": "implemented",
+      "source": "[virsh.go:2579](../master/api/virsh.go#L2579)",
+      "tool": "backup_vm"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/backups",
+      "status": "implemented",
+      "source": "[virsh.go:2580](../master/api/virsh.go#L2580)",
+      "tool": "list_vm_backups"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/downloadbackup/{backup_id}",
+      "status": "implemented",
+      "source": "[virsh.go:2581](../master/api/virsh.go#L2581)",
+      "tool": "download_vm_backup"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/useBackup/{backup_id}",
+      "status": "excluded (deletion policy: rollback deletes destination business disk)",
+      "source": "[virsh.go:2582](../master/api/virsh.go#L2582)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "DELETE",
+      "path": "/virsh/deleteBackup/{backup_id}",
+      "status": "excluded (deletion policy)",
+      "source": "[virsh.go:2583](../master/api/virsh.go#L2583)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/autostart/{vm_name}",
+      "status": "excluded (deletion policy: false branch deletes saved state)",
+      "source": "[virsh.go:2585](../master/api/virsh.go#L2585)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/vmlive/{vm_name}",
+      "status": "excluded (deletion policy: false branch deletes saved state)",
+      "source": "[virsh.go:2586](../master/api/virsh.go#L2586)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "POST",
+      "path": "/virsh/autobak",
+      "status": "excluded (deletion policy: enables retention deletion)",
+      "source": "[virsh.go:2589](../master/api/virsh.go#L2589)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/autobak",
+      "status": "implemented",
+      "source": "[virsh.go:2590](../master/api/virsh.go#L2590)",
+      "tool": "list_vm_automatic_backups"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "PUT",
+      "path": "/virsh/autobak/{id}",
+      "status": "excluded (deletion policy: enables retention deletion)",
+      "source": "[virsh.go:2591](../master/api/virsh.go#L2591)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "DELETE",
+      "path": "/virsh/autobak/{id}",
+      "status": "excluded (deletion policy)",
+      "source": "[virsh.go:2592](../master/api/virsh.go#L2592)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "PATCH",
+      "path": "/virsh/autopak/enable/{id}",
+      "status": "excluded (deletion policy: enables retention deletion)",
+      "source": "[virsh.go:2593](../master/api/virsh.go#L2593)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "PATCH",
+      "path": "/virsh/autopak/disable/{id}",
+      "status": "implemented",
+      "source": "[virsh.go:2594](../master/api/virsh.go#L2594)",
+      "tool": "disable_vm_automatic_backup"
+    },
+    {
+      "area": "VM XML templates",
+      "method": "GET",
+      "path": "/virsh/xmltemplates/",
+      "status": "implemented",
+      "source": "[virsh_xml_templates.go:22](../master/api/virsh_xml_templates.go#L22)",
+      "tool": "list_vm_xml_templates"
+    },
+    {
+      "area": "VM XML templates",
+      "method": "GET",
+      "path": "/virsh/xmltemplates/{id}",
+      "status": "implemented",
+      "source": "[virsh_xml_templates.go:23](../master/api/virsh_xml_templates.go#L23)",
+      "tool": "get_vm_xml_template"
+    },
+    {
+      "area": "VM XML templates",
+      "method": "POST",
+      "path": "/virsh/xmltemplates/",
+      "status": "implemented",
+      "source": "[virsh_xml_templates.go:24](../master/api/virsh_xml_templates.go#L24)",
+      "tool": "create_vm_xml_template"
+    },
+    {
+      "area": "VM XML templates",
+      "method": "PUT",
+      "path": "/virsh/xmltemplates/{id}",
+      "status": "implemented",
+      "source": "[virsh_xml_templates.go:25](../master/api/virsh_xml_templates.go#L25)",
+      "tool": "update_vm_xml_template"
+    },
+    {
+      "area": "VM XML templates",
+      "method": "DELETE",
+      "path": "/virsh/xmltemplates/{id}",
+      "status": "excluded (deletion policy)",
+      "source": "[virsh_xml_templates.go:26](../master/api/virsh_xml_templates.go#L26)"
+    },
+    {
+      "area": "VM disks",
+      "method": "GET",
+      "path": "/vm-disk/list",
+      "status": "implemented",
+      "source": "[vm_disk.go:103](../master/api/vm_disk.go#L103)",
+      "tool": "list_vm_disks"
+    },
+    {
+      "area": "VM disks",
+      "method": "POST",
+      "path": "/vm-disk/create",
+      "status": "excluded (deletion policy: rollback deletes disk resource)",
+      "source": "[vm_disk.go:104](../master/api/vm_disk.go#L104)"
+    },
+    {
+      "area": "VM disks",
+      "method": "DELETE",
+      "path": "/vm-disk/{id}",
+      "status": "excluded (deletion policy)",
+      "source": "[vm_disk.go:105](../master/api/vm_disk.go#L105)"
+    },
+    {
+      "area": "VM disks",
+      "method": "POST",
+      "path": "/vm-disk/{id}/grow",
+      "status": "implemented",
+      "source": "[vm_disk.go:106](../master/api/vm_disk.go#L106)",
+      "tool": "grow_vm_disk"
+    },
+    {
+      "area": "WireGuard",
+      "method": "POST",
+      "path": "/wireguard/createvpn",
+      "status": "missing",
+      "source": "[wireguard.go:203](../master/api/wireguard.go#L203)"
+    },
+    {
+      "area": "WireGuard",
+      "method": "POST",
+      "path": "/wireguard/newPeer",
+      "status": "missing",
+      "source": "[wireguard.go:204](../master/api/wireguard.go#L204)"
+    },
+    {
+      "area": "WireGuard",
+      "method": "GET",
+      "path": "/wireguard/",
+      "status": "missing",
+      "source": "[wireguard.go:205](../master/api/wireguard.go#L205)"
+    },
+    {
+      "area": "WireGuard",
+      "method": "DELETE",
+      "path": "/wireguard/{id}",
+      "status": "excluded (deletion policy)",
+      "source": "[wireguard.go:206](../master/api/wireguard.go#L206)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/snapshot/{vm_name}",
+      "status": "missing (internal recovery helper; no direct tool credit)",
+      "source": "[virsh.go:2516](../master/api/virsh.go#L2516)"
+    },
+    {
+      "area": "VMs and host tuning",
+      "method": "GET",
+      "path": "/virsh/hostsnapshot/{machine_name}",
+      "status": "missing (internal recovery helper; no direct tool credit)",
+      "source": "[virsh.go:2564](../master/api/virsh.go#L2564)"
+    }
+  ],
+  "counts": {
+    "implemented": 105,
+    "missing": 158,
+    "excluded": 53
+  },
+  "tools": [
+    {
+      "name": "add_vm_video",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/novncvideo/add/{vm_name}"
+      },
+      "hyperhive/risk": "high"
+    },
+    {
+      "name": "attach_vm_disk",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/vm_disk/{vm_name}"
+      },
+      "hyperhive/risk": "high"
+    },
+    {
+      "name": "backup_vm",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/backup/{vm_name}/{nfs_id}"
+      },
+      "hyperhive/risk": "high"
+    },
+    {
+      "name": "clone_vm",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/cloneVM/{vm_name}/{dest_nfs}/{dest_machine_name}"
+      },
+      "hyperhive/risk": "high"
+    },
+    {
+      "name": "create_404_host",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/404/create"
+      }
+    },
+    {
+      "name": "create_access_list",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/access-lists/create"
+      }
+    },
+    {
+      "name": "create_celld_fleet",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/celld/fleets"
+      }
+    },
+    {
+      "name": "create_note",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/notes/"
+      }
+    },
+    {
+      "name": "create_proxy",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/proxy/create"
+      }
+    },
+    {
+      "name": "create_redirect",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/redirection/create"
+      }
+    },
+    {
+      "name": "create_stream",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/stream/create"
+      }
+    },
+    {
+      "name": "create_vm_xml_template",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/xmltemplates/"
+      },
+      "hyperhive/risk": "medium"
+    },
+    {
+      "name": "delete_celld_fleet",
+      "hyperhive/endpoint": {
+        "method": "DELETE",
+        "path": "/celld/fleets/{id}"
+      }
+    },
+    {
+      "name": "disable_404_host",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/404/disable"
+      }
+    },
+    {
+      "name": "disable_proxy",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/proxy/disable"
+      }
+    },
+    {
+      "name": "disable_redirect",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/redirection/disable"
+      }
+    },
+    {
+      "name": "disable_stream",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/stream/disable"
+      }
+    },
+    {
+      "name": "disable_vm_automatic_backup",
+      "hyperhive/endpoint": {
+        "method": "PATCH",
+        "path": "/virsh/autopak/disable/{id}"
+      },
+      "hyperhive/risk": "medium"
+    },
+    {
+      "name": "dns_alias_add",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/dnsmasq/alias/add"
+      }
+    },
+    {
+      "name": "dns_alias_get",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/dnsmasq/alias/get"
+      }
+    },
+    {
+      "name": "dns_aliases_list",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/dnsmasq/alias/all"
+      }
+    },
+    {
+      "name": "download_certificate",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/certs/download"
+      }
+    },
+    {
+      "name": "download_vm_backup",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/downloadbackup/{backup_id}"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "edit_vm",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/editvm/{vm_name}"
+      },
+      "hyperhive/risk": "high"
+    },
+    {
+      "name": "enable_404_host",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/404/enable"
+      }
+    },
+    {
+      "name": "enable_proxy",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/proxy/enable"
+      }
+    },
+    {
+      "name": "enable_redirect",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/redirection/enable"
+      }
+    },
+    {
+      "name": "enable_stream",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/stream/enable"
+      }
+    },
+    {
+      "name": "export_vm",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/export/{vm_name}"
+      },
+      "hyperhive/risk": "medium"
+    },
+    {
+      "name": "force_shutdown_vm",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/forceshutdownvm/{vm_name}"
+      },
+      "hyperhive/risk": "very high"
+    },
+    {
+      "name": "get_celld_credentials",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/celld/fleets/{id}/credentials"
+      }
+    },
+    {
+      "name": "get_celld_events",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/celld/fleets/{id}/events"
+      }
+    },
+    {
+      "name": "get_celld_health",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/celld/health"
+      }
+    },
+    {
+      "name": "get_celld_logs",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/celld/fleets/{id}/logs"
+      }
+    },
+    {
+      "name": "get_note",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/notes/{id}"
+      }
+    },
+    {
+      "name": "get_vm",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/getvmbyname/{vm_name}"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "get_vm_ballooning",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/ballooning/{vm_name}"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "get_vm_core_isolation",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/coreisolation/{machine_name}"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "get_vm_cpu_disable_features",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/getcpudisablefeatures"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "get_vm_cpu_pinning",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/cpupinning/{vm_name}"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "get_vm_cpu_topology",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/cputopology/{machine_name}"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "get_vm_cpu_xml",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/cpuxml/{vm_name}"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "get_vm_host_hugepages",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/hosthugepages/{machine_name}"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "get_vm_hugepages",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/hugepages/{vm_name}"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "get_vm_hyperv",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/hyperv/{vm_name}"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "get_vm_irqbalance",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/irqbalance/{machine_name}"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "get_vm_kvm",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/kvm/{vm_name}"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "get_vm_tuned_profiles",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/tunedadm/{machine_name}"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "get_vm_video",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/novncvideo/{vm_name}"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "get_vm_xml",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/vmxml/{vm_name}"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "get_vm_xml_template",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/xmltemplates/{id}"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "grow_vm_disk",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/vm-disk/{id}/grow"
+      },
+      "hyperhive/risk": "high"
+    },
+    {
+      "name": "list_404_hosts",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/404/list"
+      }
+    },
+    {
+      "name": "list_access_lists",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/access-lists/list"
+      }
+    },
+    {
+      "name": "list_celld_fleets",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/celld/fleets"
+      }
+    },
+    {
+      "name": "list_certificates",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/certs/list"
+      }
+    },
+    {
+      "name": "list_dns_providers",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/certs/dns-providers"
+      }
+    },
+    {
+      "name": "list_isos",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/isos/"
+      }
+    },
+    {
+      "name": "list_notes",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/notes/"
+      }
+    },
+    {
+      "name": "list_proxies",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/proxy/list"
+      }
+    },
+    {
+      "name": "list_redirects",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/redirection/list"
+      }
+    },
+    {
+      "name": "list_spa_allows",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/spa/allow/{port}"
+      }
+    },
+    {
+      "name": "list_spa_ports",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/spa/"
+      }
+    },
+    {
+      "name": "list_streams",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/stream/list"
+      }
+    },
+    {
+      "name": "list_vm_attached_disks",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/vm_disk/{vm_name}"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "list_vm_automatic_backups",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/autobak"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "list_vm_backups",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/backups"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "list_vm_disks",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/vm-disk/list"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "list_vm_machine_types",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/machine_types/{machine_name}"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "list_vm_xml_templates",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/xmltemplates/"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "list_vms",
+      "hyperhive/endpoint": {
+        "method": "GET",
+        "path": "/virsh/getallvms"
+      },
+      "hyperhive/risk": "low"
+    },
+    {
+      "name": "patch_note",
+      "hyperhive/endpoint": {
+        "method": "PATCH",
+        "path": "/notes/{id}"
+      }
+    },
+    {
+      "name": "pause_vm",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/pausevm/{vm_name}"
+      },
+      "hyperhive/risk": "high"
+    },
+    {
+      "name": "renew_certificate",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/certs/renew"
+      }
+    },
+    {
+      "name": "replace_note",
+      "hyperhive/endpoint": {
+        "method": "PUT",
+        "path": "/notes/{id}"
+      }
+    },
+    {
+      "name": "replace_vm_host_core_isolation",
+      "hyperhive/endpoint": {
+        "method": "PUT",
+        "path": "/virsh/coreisolation/{machine_name}"
+      },
+      "hyperhive/risk": "very high"
+    },
+    {
+      "name": "replace_vm_host_hugepages",
+      "hyperhive/endpoint": {
+        "method": "PUT",
+        "path": "/virsh/hosthugepages/{machine_name}"
+      },
+      "hyperhive/risk": "very high"
+    },
+    {
+      "name": "restart_vm",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/restartvm/{vm_name}"
+      },
+      "hyperhive/risk": "very high"
+    },
+    {
+      "name": "resume_vm",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/resumevm/{vm_name}"
+      },
+      "hyperhive/risk": "medium"
+    },
+    {
+      "name": "set_vm_ballooning",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/ballooning/{vm_name}"
+      },
+      "hyperhive/risk": "high"
+    },
+    {
+      "name": "set_vm_cpu_pinning",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/cpupinning/{vm_name}"
+      },
+      "hyperhive/risk": "high"
+    },
+    {
+      "name": "set_vm_host_core_isolation",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/coreisolation/{machine_name}"
+      },
+      "hyperhive/risk": "very high"
+    },
+    {
+      "name": "set_vm_host_hugepages",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/hosthugepages/{machine_name}"
+      },
+      "hyperhive/risk": "very high"
+    },
+    {
+      "name": "set_vm_hugepages",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/hugepages/{vm_name}"
+      },
+      "hyperhive/risk": "high"
+    },
+    {
+      "name": "set_vm_hyperv",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/hyperv/{vm_name}"
+      },
+      "hyperhive/risk": "high"
+    },
+    {
+      "name": "set_vm_irqbalance",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/irqbalance/{machine_name}"
+      },
+      "hyperhive/risk": "high"
+    },
+    {
+      "name": "set_vm_kvm",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/kvm/{vm_name}"
+      },
+      "hyperhive/risk": "high"
+    },
+    {
+      "name": "set_vm_machine_type",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/machine_type/{vm_name}"
+      },
+      "hyperhive/risk": "high"
+    },
+    {
+      "name": "set_vm_network",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/change_vm_network/{vm_name}"
+      },
+      "hyperhive/risk": "high"
+    },
+    {
+      "name": "set_vm_tuned_profile",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/tunedadm/{machine_name}"
+      },
+      "hyperhive/risk": "high"
+    },
+    {
+      "name": "set_vm_vnc_password",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/change_vnc_password/{vm_name}"
+      },
+      "hyperhive/risk": "high"
+    },
+    {
+      "name": "setup_frontend_proxy",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/proxy/setupFrontEnd"
+      }
+    },
+    {
+      "name": "setup_secure_frontend_proxy",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/proxy/setupFrontEndSecure"
+      }
+    },
+    {
+      "name": "shutdown_vm",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/shutdownvm/{vm_name}"
+      },
+      "hyperhive/risk": "high"
+    },
+    {
+      "name": "start_celld_fleet",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/celld/fleets/{id}/start"
+      }
+    },
+    {
+      "name": "start_iso_download",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/isos/download"
+      }
+    },
+    {
+      "name": "start_vm",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/startvm/{vm_name}"
+      },
+      "hyperhive/risk": "medium"
+    },
+    {
+      "name": "stop_celld_fleet",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/celld/fleets/{id}/stop"
+      }
+    },
+    {
+      "name": "update_404_host",
+      "hyperhive/endpoint": {
+        "method": "PUT",
+        "path": "/404/edit"
+      }
+    },
+    {
+      "name": "update_proxy",
+      "hyperhive/endpoint": {
+        "method": "PUT",
+        "path": "/proxy/edit"
+      }
+    },
+    {
+      "name": "update_redirect",
+      "hyperhive/endpoint": {
+        "method": "PUT",
+        "path": "/redirection/edit"
+      }
+    },
+    {
+      "name": "update_stream",
+      "hyperhive/endpoint": {
+        "method": "PUT",
+        "path": "/stream/edit"
+      }
+    },
+    {
+      "name": "update_vm_cpu_xml",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/updatecpuxml/{vm_name}"
+      },
+      "hyperhive/risk": "high"
+    },
+    {
+      "name": "update_vm_xml",
+      "hyperhive/endpoint": {
+        "method": "POST",
+        "path": "/virsh/updatevmxml/{vm_name}"
+      },
+      "hyperhive/risk": "very high"
+    },
+    {
+      "name": "update_vm_xml_template",
+      "hyperhive/endpoint": {
+        "method": "PUT",
+        "path": "/virsh/xmltemplates/{id}"
+      },
+      "hyperhive/risk": "high"
+    }
+  ]
+}

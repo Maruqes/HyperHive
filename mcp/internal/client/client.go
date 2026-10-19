@@ -53,9 +53,15 @@ func New(cfg Config) (*Client, error) {
 // ListProxies preserves the API object's fields, including metadata and nested
 // locations. HyperHive may encode a nil proxy slice as null; expose it as [].
 func (c *Client) ListProxies(ctx context.Context) ([]map[string]any, error) {
-	var proxies []map[string]any
-	if err := c.getJSON(ctx, ListProxiesPath, &proxies); err != nil {
+	var raw json.RawMessage
+	if err := c.getJSON(ctx, ListProxiesPath, &raw); err != nil {
 		return nil, err
+	}
+	var proxies []map[string]any
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	if decoder.Decode(&proxies) != nil {
+		return nil, errors.New("HyperHive API returned invalid JSON or an unexpected response shape")
 	}
 	if proxies == nil {
 		proxies = make([]map[string]any, 0)
@@ -73,7 +79,7 @@ func (c *Client) getJSON(ctx context.Context, path string, dst any) error {
 }
 
 // request shares authentication, limits and safe error handling. A nil dst
-// explicitly selects the empty-success contract used by proxy mutations.
+// explicitly selects the empty-success contract used by reviewed API mutations.
 func (c *Client) request(ctx context.Context, method, path string, body, dst any) error {
 	var reader io.Reader
 	if body != nil {
@@ -104,7 +110,8 @@ func (c *Client) request(ctx context.Context, method, path string, body, dst any
 		return errors.New("HyperHive API request failed; check connectivity and TLS configuration")
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	decoder, special := dst.(apiResponseDecoder)
+	if (resp.StatusCode < 200 || resp.StatusCode >= 300) && !(special && decoder.acceptStatus(resp.StatusCode)) {
 		// JSON and plain-text error bodies can contain credentials or backend
 		// configuration. Return the HTTP status without echoing those bodies.
 		return fmt.Errorf("HyperHive API returned HTTP %d (%s)", resp.StatusCode, http.StatusText(resp.StatusCode))
@@ -116,6 +123,9 @@ func (c *Client) request(ctx context.Context, method, path string, body, dst any
 	if len(data) > maxResponseBytes {
 		return errors.New("HyperHive API response exceeds the 16 MiB limit")
 	}
+	if special {
+		return decoder.decodeResponse(data, resp.Header, resp.StatusCode)
+	}
 	if dst == nil {
 		return nil
 	}
@@ -126,4 +136,11 @@ func (c *Client) request(ctx context.Context, method, path string, body, dst any
 		return errors.New("HyperHive API returned invalid JSON or an unexpected response shape")
 	}
 	return nil
+}
+
+// apiResponseDecoder handles the few reviewed nonstandard API response contracts.
+// It is private to this package and is never a generic MCP dispatch capability.
+type apiResponseDecoder interface {
+	acceptStatus(int) bool
+	decodeResponse([]byte, http.Header, int) error
 }

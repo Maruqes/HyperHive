@@ -2513,6 +2513,7 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Get("/cpuxml/{vm_name}", getCpuXML)
 		r.Post("/updatevmxml/{vm_name}", updateVmXML)
 		r.Get("/vmxml/{vm_name}", getVmXML)
+		r.Get("/snapshot/{vm_name}", getVMSnapshot)
 
 		//controll
 		r.Delete("/deletevm/{vm_name}", deleteVM)
@@ -2560,6 +2561,7 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Put("/coreisolation/{machine_name}", setHostCoreIsolation)
 		r.Delete("/coreisolation/{machine_name}", removeHostCoreIsolation)
 		r.Get("/hosthugepages/{machine_name}", getHostHugePages)
+		r.Get("/hostsnapshot/{machine_name}", getHostBootSnapshot)
 		r.Post("/hosthugepages/{machine_name}", setHostHugePages)
 		r.Put("/hosthugepages/{machine_name}", setHostHugePages)
 		r.Delete("/hosthugepages/{machine_name}", removeHostHugePages)

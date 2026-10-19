@@ -40,7 +40,29 @@ data or resources.** This applies to every area and every transport.
 - Match API contracts exactly. Preserve omitted versus explicit false/zero values
   in updates, and never invent response fields or IDs.
 
-## Verification
+## VM risk, approval and recovery
+
+- Give every VM, VM disk/template and host-tuning tool an explicit risk level:
+  low, medium, high or very high. Publish the level in discovery and its contract.
+- Medium and higher operations require an explicit per-invocation user choice
+  through the MCP client's approval picker. A tool argument, prior blanket
+  permission or assistant-authored confirmation is not approval. Fail closed
+  when the client cannot provide the picker or the user declines/cancels.
+- Bind approval to the exact operation and arguments; reject replayed, expired,
+  forged or altered approval continuations. Never automatically retry writes.
+- Before changing existing VM XML or settings, save actual old domain XML and
+  the relevant old settings, including the prior CPU pinning when changing it.
+  Save corresponding prior state for host tuning, disks, templates and schedules.
+- Persist the recovery record privately on the MCP server before the write:
+  private directories/files, unique retained records and no secrets in logs.
+  Backup read, validation or persistence failure must block the mutation.
+- Return the backup location on success and on subsequent backend failure.
+  Do not promise disk snapshots, automatic rollback, live-state completeness or
+  atomicity against external changes when the API does not provide them.
+- Verify approvals, denied/unavailable picker, backup failures and retained
+  pre-change state through both MCP transports using disposable fixtures.
+
+## Verification checks
 
 - Test tool discovery and invocation through an SDK client.
 - Use mock HTTP servers to verify method, path, authentication, body, response

@@ -1,0 +1,6 @@
+ok  	512SvMan/api	1.439s
+ok  	512SvMan/services	1.854s
+?   	512SvMan/virsh	[no test files]
+?   	512SvMan/protocol	[no test files]
+ok  	512SvMan/api/npmapi	0.499s
+ok  	512SvMan/npm	3.436s

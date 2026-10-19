@@ -1,10 +1,9 @@
 # Connect to HyperHive MCP
 
 HyperHive starts MCP with the master at `http://<host>:9595/mcp` using
-**Streamable HTTP**. Seven proxy-host tools are available: list, create, update,
-enable, disable, frontend setup and public/private frontend setup. Deletion
-is excluded. See [proxy contracts](docs/areas/nginx-proxies.md) for tool names
-and complete inputs.
+**Streamable HTTP**. HTTP and standalone stdio expose the same named tools.
+See [current coverage](README.md) and the linked feature contracts for available
+operations, exclusions and complete inputs.
 Connections require your fixed **`MCP_TOKEN`** in an Authorization Bearer header.
 
 The examples use `vm.tools` as an example HyperHive hostname. Replace it with your
@@ -65,6 +64,42 @@ claude mcp remove hyperhive --scope user
 ```
 
 ## How it works and common errors
+
+### VM approval and recovery records
+
+Every VM, disk, template and host-tuning tool publishes `hyperhive/risk` as
+`low`, `medium`, `high` or `very high`. Medium and higher require an explicit
+`approve` choice in the client's MCP form picker for each invocation. Tool
+arguments cannot supply approval. Decline, cancellation, unsupported picker,
+expired continuation or changed arguments block the operation.
+
+Protocol 2026-07-28 clients use the input-required/multi-round-trip form flow on
+both transports. Older clients use legacy form elicitation; HTTP retains a
+session for these clients, with a 20-minute idle timeout. The fixed Bearer key
+is required on every HTTP request, including picker replies. Clients without
+form support cannot execute protected operations. Client UI support must be
+verified with the actual harness; server tests use SDK clients with disposable
+backends. Modern HTTP remains stateless. GET without a legacy session returns
+405 as before.
+
+Before settings changes, MCP saves the old domain XML and relevant prior state
+on the filesystem of the MCP process. Configure an absolute private directory:
+
+```dotenv
+MCP_VM_BACKUP_DIR=/var/lib/hyperhive/mcp-vm-backups
+```
+
+Apply this environment variable to the master for embedded HTTP, or to the
+standalone process for stdio. It is never a tool argument. The default is the
+process user's cache directory under `hyperhive/mcp/vm-backups`. Directories
+must be private (0700); records are unique 0600 `before.json` files. MCP retains
+them without automatic cleanup and returns their location. Snapshot read,
+validation or persistence failure blocks the write. Records may contain secrets;
+keep them private. They preserve configuration, not disk contents, and do not
+provide automatic rollback or atomicity against changes made outside this MCP
+registry. See [VM contracts](docs/areas/vms.md) for operation-specific limits.
+
+### Authentication and transport
 
 The client authenticates to `/mcp`, discovers `list_proxies` and calls it with
 `{}`. The tool calls HyperHive's `/proxy/list` with the same fixed key. The master

@@ -2,6 +2,10 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+
+	"github.com/google/jsonschema-go/jsonschema"
 
 	"github.com/Maruqes/HyperHive/mcp/internal/client"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -25,19 +29,34 @@ type ProxyAPI interface {
 }
 
 // Register shares explicit feature registration between HTTP and stdio.
-func Register(server *mcp.Server, api ProxyAPI) {
-	mcp.AddTool(server, &mcp.Tool{
-		Meta:        mcp.Meta{"hyperhive/endpoint": map[string]any{"method": "GET", "path": client.ListProxiesPath}},
-		Name:        "list_proxies",
-		Description: "List all proxy hosts visible to the configured HyperHive account, including domains, forwarding targets, TLS settings, enabled state, metadata and locations. Calls GET /proxy/list. Takes no arguments.",
-		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true},
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ listProxiesInput) (*mcp.CallToolResult, listProxiesOutput, error) {
+func Register(server *mcp.Server, api interface {
+	ProxyAPI
+	CelldAPI
+	NginxAPI
+}) {
+	proxyListSchema, err := jsonschema.For[listProxiesOutput](nil)
+	if err != nil {
+		panic(err)
+	}
+	addExactTool(server, &mcp.Tool{
+		Meta:         mcp.Meta{"hyperhive/endpoint": map[string]any{"method": "GET", "path": client.ListProxiesPath}},
+		Name:         "list_proxies",
+		OutputSchema: proxyListSchema,
+		Description:  "List all proxy hosts visible to the configured HyperHive account, including domains, forwarding targets, TLS settings, enabled state, metadata and locations. Calls GET /proxy/list. Takes no arguments.",
+		Annotations:  &mcp.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true},
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ listProxiesInput) (*mcp.CallToolResult, any, error) {
 		proxies, err := api.ListProxies(ctx)
 		if err != nil {
-			return nil, listProxiesOutput{}, err
+			return nil, nil, err
 		}
-		return nil, listProxiesOutput{Proxies: proxies}, nil
+		data, err := json.Marshal(listProxiesOutput{Proxies: proxies})
+		if err != nil {
+			return nil, nil, errors.New("could not encode proxy list")
+		}
+		return &mcp.CallToolResult{StructuredContent: json.RawMessage(data), Content: []mcp.Content{&mcp.TextContent{Text: string(data)}}}, nil, nil
 	})
+	registerNginx(server, api)
+	registerCelld(server, api)
 	registerCreateProxy(server, api)
 	registerUpdateProxy(server, api)
 	registerEnableProxy(server, api)

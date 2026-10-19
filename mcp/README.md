@@ -1,57 +1,72 @@
 # HyperHive MCP
 
-Use HyperHive from an AI client through named MCP tools. MCP starts with the
-master over **Streamable HTTP**; standalone stdio is also available.
+Use HyperHive through named MCP tools. The master serves **Streamable HTTP** on
+its API listener; standalone stdio shares the same 105-tool registry.
 
 ## API coverage
 
-Last checked: **2026-10-18**. Coverage means API endpoints supported by MCP tools.
+Last checked: **2026-10-19**, locally. Counts measure supported API endpoints.
 
 | Scope | Supported / total | Coverage |
 | --- | ---: | ---: |
-| HyperHive API | 7 / 314 | **2.23%** |
-| NGINX (all features) | 7 / 37 | **18.92%** |
-| Proxy management (raw) | 7 / 8 | **87.50%** |
-| Proxy management (eligible) | 7 / 7 | **100.00%** |
+| HyperHive API | 105 / 316 | **33.23%** |
+| NGINX | 28 / 37 | 75.68% |
+| Celld | 9 / 17 | 52.94% |
+| DNS aliases | 3 / 4 | 75.00% |
+| Notes | 5 / 6 | 83.33% |
+| SPA management | 2 / 4 | 50.00% |
+| ISOs | 2 / 3 | 66.67% |
+| VMs, templates and disks | 56 / 82 | 68.29% |
 
-NGINX and proxy rows are subsets of the API total. Available tools:
-`list_proxies`, `create_proxy`, `update_proxy`, `enable_proxy`, `disable_proxy`, `setup_frontend_proxy`, `setup_secure_frontend_proxy`.
-Deletion is forbidden and excluded from eligible coverage; it remains in raw totals.
-See [proxy contracts](docs/areas/nginx-proxies.md) for complete inputs and setup side effects.
+Area rows are subsets, not additional endpoints. DNS, Notes and ISOs cover all
+permitted operations. SPA creation is excluded for deletion effects. VM SSH
+injection is blocked by unavailable prior guest-file state; other deletion
+capabilities remain excluded. The prior explicit Celld fleet-delete exception
+remains scoped to Celld. Two new recovery helpers increase raw inventory by two
+and earn no extra tool credit. See [full state](UPDATE_STATE.md) for all mappings,
+exclusions, validation and missing endpoints.
 
-See [UPDATE_STATE.md](UPDATE_STATE.md) for the full report and refresh procedure.
+VM tools publish low/medium/high/very high risk. Medium+ requires explicit
+per-invocation user approval in the harness picker. Before settings changes,
+private retained records save actual old XML/settings; failed snapshots or
+persistence block the operation. Configure MCP_VM_BACKUP_DIR or use the process
+user's cache default. No automatic rollback or disk-content backup is implied.
+Both updated master and slave snapshot support are required for protected VM
+changes. See [VM contracts](docs/areas/vms.md) and [connection setup](CONNECTING.md).
+
+Feature contracts: [NGINX](docs/areas/nginx.md), [Celld](docs/areas/celld.md),
+[DNS](docs/areas/dns.md), [Notes](docs/areas/notes.md), [SPA](docs/areas/spa.md),
+[ISOs](docs/areas/isos.md), [VMs](docs/areas/vms.md).
+
+DNS listing now includes optional `ssh_username` and `related_vm` metadata.
+`dns_alias_add` accepts both fields and still returns `{success:true}`; omitted
+or empty metadata clears stored values. See the [DNS contract](docs/areas/dns.md)
+for examples and backend compatibility.
 
 ## Connect
 
-Generate a key with `openssl rand -hex 32`, add it to `master/.env`, then restart
-the master:
+Generate a key with `openssl rand -hex 32`, add it to master/.env, then restart
+the updated master:
 
 ```dotenv
 API_PORT=9595
 MCP_TOKEN=<your-generated-key>
 ```
 
-Connect to `http://<host>:9595/mcp` using
-`Authorization: Bearer <MCP_TOKEN>`. Use your configured port if different.
-The key also grants administrator access to the REST API; keep it private.
-No HyperHive login session is needed.
+Connect to `http://<host>:9595/mcp` using `Authorization: Bearer <MCP_TOKEN>`.
+The key also grants administrator REST access. No login session is needed.
+See [CONNECTING.md](CONNECTING.md) for transport, picker and backup configuration.
 
-See [CONNECTING.md](CONNECTING.md) for Codex and Claude Code setup and troubleshooting.
+## Standalone and development
 
-## Standalone stdio
-
-Requires Go 1.25+. From `mcp/`:
+Requires Go 1.25+. From mcp/:
 
 ```sh
 go build -o bin/hyperhive-mcp ./cmd/hyperhive-mcp
+go test ./...
 ```
 
-Configure the client to launch the binary by its absolute path, with
-`HYPERHIVE_API_URL` pointing to HyperHive and `MCP_TOKEN` matching the master.
-The binary reads environment variables directly, without loading `.env`.
-
-## Development
-
-Run `go test ./...` from `mcp/`. Follow [AGENTS.md](AGENTS.md) when adding tools,
-then refresh [UPDATE_STATE.md](UPDATE_STATE.md) and this coverage summary.
-For a batch of new tools, point the agent to [IMPLEMENT_TOOLS.md](IMPLEMENT_TOOLS.md).
+Launch the binary by absolute path with HYPERHIVE_API_URL and MCP_TOKEN in its
+environment; it does not load .env. Follow [AGENTS.md](AGENTS.md) and
+[IMPLEMENT_TOOLS.md](IMPLEMENT_TOOLS.md) for selected implementation batches.
+No production deployment or live VM qualification is claimed by these checks.

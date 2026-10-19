@@ -1,11 +1,14 @@
 package dnsmasq
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
+	"sync"
 )
 
 const (
@@ -15,14 +18,26 @@ const (
 	serviceName    = "dnsmasq"
 	managedComment = "# Managed by HyperHive"
 	includeLine    = "conf-file=" + AliasConfPath
+	metadataPrefix = "# HyperHive alias metadata: "
+)
+
+var (
+	aliasMu            sync.Mutex
+	aliasConfPath      = AliasConfPath
+	ensureAliasInclude = ensureIncludeInRedeConf
+	reloadAliases      = reloadDnsmasq
 )
 
 type AliasEntry struct {
-	Alias string
-	IP    string
+	Alias       string `json:"alias"`
+	IP          string `json:"ip"`
+	SSHUsername string `json:"ssh_username"`
+	RelatedVM   string `json:"related_vm"`
 }
 
 func GetAllAliases() ([]AliasEntry, error) {
+	aliasMu.Lock()
+	defer aliasMu.Unlock()
 	entries, err := readAliasEntries()
 	if err != nil {
 		return nil, err
@@ -48,6 +63,8 @@ func Install() error {
 }
 
 func GetAlias(alias, ip string) (bool, error) {
+	aliasMu.Lock()
+	defer aliasMu.Unlock()
 	if err := validateAliasIP(alias, ip); err != nil {
 		return false, err
 	}
@@ -66,7 +83,9 @@ func GetAlias(alias, ip string) (bool, error) {
 	return false, nil
 }
 
-func AddAlias(alias, ip string) error {
+func AddAlias(alias, ip, sshUsername, relatedVM string) error {
+	aliasMu.Lock()
+	defer aliasMu.Unlock()
 	if err := validateAliasIP(alias, ip); err != nil {
 		return err
 	}
@@ -76,33 +95,33 @@ func AddAlias(alias, ip string) error {
 		return err
 	}
 
+	entry := AliasEntry{Alias: alias, IP: ip, SSHUsername: sshUsername, RelatedVM: relatedVM}
 	updated := false
 	for i := range entries {
 		if entries[i].Alias == alias {
-			if entries[i].IP == ip {
+			if entries[i] == entry {
 				return nil
 			}
-			entries[i].IP = ip
+			entries[i] = entry
 			updated = true
 			break
 		}
 	}
 
 	if !updated {
-		entries = append(entries, AliasEntry{
-			Alias: alias,
-			IP:    ip,
-		})
+		entries = append(entries, entry)
 	}
 
 	if err := writeAliasEntries(entries); err != nil {
 		return err
 	}
 
-	return reloadDnsmasq()
+	return reloadAliases()
 }
 
 func RemoveAlias(alias, ip string) error {
+	aliasMu.Lock()
+	defer aliasMu.Unlock()
 	if err := validateAliasIP(alias, ip); err != nil {
 		return err
 	}
@@ -130,20 +149,43 @@ func RemoveAlias(alias, ip string) error {
 		return err
 	}
 
-	return reloadDnsmasq()
+	return reloadAliases()
+}
+
+// RemoveAliasesForVM deletes only aliases explicitly linked to this VM.
+func RemoveAliasesForVM(vmName string) error {
+	if vmName == "" {
+		return nil
+	}
+	aliasMu.Lock()
+	defer aliasMu.Unlock()
+	entries, err := readAliasEntries()
+	if err != nil {
+		return err
+	}
+	filtered := make([]AliasEntry, 0, len(entries))
+	for _, entry := range entries {
+		if entry.RelatedVM != vmName {
+			filtered = append(filtered, entry)
+		}
+	}
+	if len(filtered) == len(entries) {
+		return nil
+	}
+	if err := writeAliasEntries(filtered); err != nil {
+		return err
+	}
+	return reloadAliases()
 }
 
 func validateAliasIP(alias, ip string) error {
-	alias = strings.TrimSpace(alias)
-	ip = strings.TrimSpace(ip)
-
-	if alias == "" {
+	if strings.TrimSpace(alias) == "" {
 		return fmt.Errorf("alias is required")
 	}
-	if ip == "" {
+	if strings.TrimSpace(ip) == "" {
 		return fmt.Errorf("ip is required")
 	}
-	if strings.ContainsAny(alias, " \t\r\n,") {
+	if strings.ContainsAny(alias, " \t\r\n,#") || strings.TrimSpace(alias) != alias {
 		return fmt.Errorf("alias contains invalid characters")
 	}
 	if net.ParseIP(ip) == nil {
@@ -154,7 +196,7 @@ func validateAliasIP(alias, ip string) error {
 }
 
 func readAliasEntries() ([]AliasEntry, error) {
-	data, err := os.ReadFile(AliasConfPath)
+	data, err := os.ReadFile(aliasConfPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -163,8 +205,16 @@ func readAliasEntries() ([]AliasEntry, error) {
 	}
 
 	var entries []AliasEntry
+	var metadata AliasEntry
 	for _, line := range strings.Split(string(data), "\n") {
 		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, metadataPrefix) {
+			metadata = AliasEntry{}
+			if err := json.Unmarshal([]byte(strings.TrimPrefix(line, metadataPrefix)), &metadata); err != nil {
+				return nil, fmt.Errorf("invalid alias metadata: %w", err)
+			}
+			continue
+		}
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
@@ -180,30 +230,42 @@ func readAliasEntries() ([]AliasEntry, error) {
 		alias := payload[:slash]
 		ip := payload[slash+1:]
 		if alias != "" && ip != "" {
-			entries = append(entries, AliasEntry{Alias: alias, IP: ip})
+			entry := AliasEntry{Alias: alias, IP: ip}
+			if metadata.Alias == alias && metadata.IP == ip {
+				entry = metadata
+			}
+			entries = append(entries, entry)
 		}
+		metadata = AliasEntry{}
 	}
 
 	return entries, nil
 }
 
 func writeAliasEntries(entries []AliasEntry) error {
-	if err := os.MkdirAll("/etc/hyperhive", 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(aliasConfPath), 0755); err != nil {
 		return fmt.Errorf("create config dir: %w", err)
 	}
 
 	var sb strings.Builder
 	sb.WriteString(managedComment + "\n")
 	for _, e := range entries {
+		if e.SSHUsername != "" || e.RelatedVM != "" {
+			metadata, err := json.Marshal(e)
+			if err != nil {
+				return fmt.Errorf("encode alias metadata: %w", err)
+			}
+			fmt.Fprintf(&sb, "%s%s\n", metadataPrefix, metadata)
+		}
 		// address=/domain/ip — matches domain and all *.domain subdomains
 		fmt.Fprintf(&sb, "address=/%s/%s\n", e.Alias, e.IP)
 	}
 
-	if err := os.WriteFile(AliasConfPath, []byte(sb.String()), 0644); err != nil {
+	if err := os.WriteFile(aliasConfPath, []byte(sb.String()), 0644); err != nil {
 		return fmt.Errorf("write alias config: %w", err)
 	}
 
-	if err := ensureIncludeInRedeConf(); err != nil {
+	if err := ensureAliasInclude(); err != nil {
 		return err
 	}
 

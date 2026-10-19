@@ -2,6 +2,7 @@ package api
 
 import (
 	"512SvMan/dnsmasq"
+	"512SvMan/services"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -10,12 +11,20 @@ import (
 )
 
 type dnsAliasRequest struct {
-	Alias string `json:"alias"`
-	IP    string `json:"ip"`
+	Alias       string `json:"alias"`
+	IP          string `json:"ip"`
+	SSHUsername string `json:"ssh_username"`
+	RelatedVM   string `json:"related_vm"`
 }
 
+var (
+	dnsAliasList = dnsmasq.GetAllAliases
+	dnsAliasAdd  = dnsmasq.AddAlias
+	dnsAliasVMs  = (&services.VirshService{}).GetAllVms
+)
+
 func getAllDNSAliases(w http.ResponseWriter, r *http.Request) {
-	entries, err := dnsmasq.GetAllAliases()
+	entries, err := dnsAliasList()
 	if err != nil {
 		http.Error(w, "failed to get aliases: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -24,8 +33,10 @@ func getAllDNSAliases(w http.ResponseWriter, r *http.Request) {
 	aliases := make([]dnsAliasRequest, len(entries))
 	for i, entry := range entries {
 		aliases[i] = dnsAliasRequest{
-			Alias: entry.Alias,
-			IP:    entry.IP,
+			Alias:       entry.Alias,
+			IP:          entry.IP,
+			SSHUsername: entry.SSHUsername,
+			RelatedVM:   entry.RelatedVM,
 		}
 	}
 
@@ -63,7 +74,26 @@ func addDNSAlias(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	if err := dnsmasq.AddAlias(req.Alias, req.IP); err != nil {
+	if req.RelatedVM != "" {
+		vms, _, err := dnsAliasVMs(r.Context())
+		if err != nil {
+			http.Error(w, "failed to validate related VM: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		found := false
+		for _, vm := range vms {
+			if vm.Vm != nil && vm.Name == req.RelatedVM {
+				found = true
+				break
+			}
+		}
+		if !found {
+			http.Error(w, "related_vm must name an existing VM", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if err := dnsAliasAdd(req.Alias, req.IP, req.SSHUsername, req.RelatedVM); err != nil {
 		http.Error(w, "failed to add alias: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

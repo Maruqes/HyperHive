@@ -1,0 +1,14 @@
+{
+  "mcp_full_tests": true,
+  "mcp_full_race": true,
+  "mcp_vet": true,
+  "master_api_services_virsh_protocol_tests": true,
+  "master_nginx_regressions": true,
+  "master_api_services_race": true,
+  "master_vet": true,
+  "slave_snapshot_tests": true,
+  "slave_snapshot_race": true,
+  "slave_virsh_vet": true,
+  "generated_rpc_compile": true,
+  "diff_whitespace": true
+}

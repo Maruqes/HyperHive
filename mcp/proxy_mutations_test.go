@@ -111,7 +111,9 @@ func runMutationContract(t *testing.T, tc mutationCase) {
 			wantNames := []string{"create_proxy", "disable_proxy", "enable_proxy", "list_proxies", "setup_frontend_proxy", "setup_secure_frontend_proxy", "update_proxy"}
 			var gotNames []string
 			for _, tool := range listed.Tools {
-				gotNames = append(gotNames, tool.Name)
+				if strings.Contains(tool.Name, "proxy") || tool.Name == "list_proxies" {
+					gotNames = append(gotNames, tool.Name)
+				}
 			}
 			sort.Strings(gotNames)
 			if !reflect.DeepEqual(gotNames, wantNames) {

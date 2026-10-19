@@ -17,10 +17,12 @@ Use this file when asked to refresh MCP compatibility:
 3. Mark endpoints implemented, missing, partial, stale, disabled or excluded.
    Only implemented endpoints with enabled tools and passing contract tests count.
    Keep exclusions in the stated denominator; explain scope changes explicitly.
-   NEVER implement or recommend a deletion tool. On refresh, classify all HTTP
-   DELETE endpoints and other operations with deletion behavior as excluded by
-   user policy. Keep them in raw totals with zero credit, exclude them from
-   eligible tool queues, and never treat "all tools" or "100%" as an exception.
+   Apply the repository deletion policy, subject to explicit user overrides.
+   Preserve the prior narrow exception for `delete_celld_fleet`; the current
+   DNS/Notes/SPA/ISO/VM batch grants no new deletion exception. Classify HTTP
+   DELETE endpoints and other operations with deletion behavior as excluded,
+   unless explicitly authorized. Keep them in raw totals with zero credit and
+   out of eligible tool queues. "All tools" or "100%" never grants an exception.
 4. Calculate `implemented / total * 100` for every leaf area and the overall API.
    Sum counts for NGINX and other parent areas. Use N/A for zero endpoints.
 5. Run `go test ./...` from `mcp/`; run additional checks only when relevant.
@@ -37,96 +39,184 @@ Git revision alone do not prove freshness. There is no committed coverage CLI ye
 
 ## Latest report
 
-Checked: **2026-10-18**, from local source. No live deployment check.
+Checked: **2026-10-19**, from local source and SDK discovery. No live deployment check.
 
-- Source revision: `ee9fb23a4d298056e3ec0a354d63b9bf8180155f` plus working-tree changes.
-- Source content SHA-256: `747af02f9727d7c3db39548e2178c7a5ae82babb0e69c68049e4df8c466bc81c`.
-- Digest input: non-test `master/api/**/*.go`, `master/npm/proxy.go`, all
-  `mcp/**/*.go`, `mcp/go.mod` and `mcp/go.sum`; sort repository-relative paths,
-  then hash `path + NUL + file bytes + NUL` for each file.
-- Inventory: 314 unique explicit HTTP method/path pairs in the master API setup.
-  Includes UI/static routes, WebSocket upgrades and aliases as unsupported routes.
-  The `/api` middleware prefix is an alias, not a second copy of every endpoint.
-- Outside this API scope: the `/mcp` transport multiplexer and the separate pprof
-  debug listener. Neither is a HyperHive capability endpoint mapped to a tool.
-- Independent task-local AST enumeration matched all 314 report routes (zero differences); this was source inspection, not a committed CLI or runtime route walk.
-- Special registrations checked: Celld's start/stop/restart loop, GoAccess's
-  `/ws_goaccess` constant and nested `/virsh/xmltemplates` routes.
-- Status: 7 implemented, 270 missing, 37 excluded by deletion policy; no partial, stale or disabled endpoints. Exclusions retain zero raw coverage credit. All DELETE routes and four explicit non-DELETE removal/wipe routes are excluded; other missing endpoints require effect/eligibility review before implementation.
-- Validation: `go test ./...`, `go test -race ./...` and `go vet ./...` passed from `mcp/`, including each enabled mutation through authenticated HTTP and the real stdio executable with disposable API fixtures. The full affected master API/NPM package suites, focused race checks and vet also passed, including actual HyperHive handlers and disposable NPM fixtures. No production behavior is claimed.
+- Source revision: `5df87ec9923e330a6e25cc0cdb3110113fc28741` plus working-tree changes, preserving the preceding NGINX/Celld implementation.
+- Source content SHA-256: `5bc832a475da4c43d6ba2a43f7cc78504983bf46db9c1226decc9ac86b31abd1`.
+- Digest input: sorted repository-relative paths; non-test Go and protobuf sources under master/slave/api, all MCP Go sources, and those four modules' go.mod/go.sum. Hash `path + NUL + file bytes + NUL` for each. Expanded to include the VM/ISO/DNS/SPA/Notes service, slave and RPC contracts; the DNS metadata refresh retains its current path manifest in `.planning/2026-10-19-dns-optional-ssh-username-and-related-vm/mcp-source-digest.json`.
+- Inventory: **316** unique explicit API method/path pairs, including UI/static/WebSocket/alias routes. Previous inventory 314 is unchanged except two additive authenticated recovery helpers: `GET /virsh/snapshot/{vm_name}` and `GET /virsh/hostsnapshot/{machine_name}`. Existing route registrations and API-source changes were reviewed; no runtime router walker or general coverage CLI is claimed.
+- `/api` remains a prefix alias, not duplicate coverage. `/mcp` transport/session lifecycle and the separate pprof listener remain outside capability scope. Special Celld action-loop, GoAccess constant and nested XML-template registrations remain included.
+- Status: **105 implemented, 158 missing, 53 excluded**; no enabled partial, stale or disabled endpoint is counted as implemented. Missing includes one blocked selected SSH operation and two internal recovery helpers; helper calls earn no extra tool credit.
+- Scope: DNS, Notes and ISOs all permitted operations; SPA management reads S1/S2 (S3 excluded after effect review); all safely supportable selected VM operations. No new deletion permission was granted. The previous narrow Celld fleet-delete exception remains unchanged.
+- Validation: full MCP tests, race checks and vet passed after final review fixes. Affected master API/services/virsh/protocol suites, API/NPM regression suites, master race/vet, generated RPC compilation and focused slave snapshot tests/race/vet passed. Three new stdio fixtures initially read stderr before the child writer stopped; the original feature agents fixed ordering without removing assertions, then the full gates passed. Exact 105-tool discovery expectations passed.
+- Additional correctness review: two fresh VM reviewers and coordinator inspection found and fixed SDK input integer rounding that could mutate a different ID, incomplete pre-growth VM disk metadata, unsafe DNS whitespace/control writes, and older proxy-list numeric precision. Exact original input decoding retains schemas and full int64 IDs; invalid fractions/overflow/non-object roots fail before execution. New both-transport regressions and complete repeated normal/race/vet gates passed; tool count and coverage are unchanged.
+- DNS metadata compatibility refresh: existing `dns_alias_add` now accepts optional `ssh_username` and `related_vm`, preserving omitted versus explicit empty values. `dns_aliases_list` discovery describes both returned fields, validates present metadata types and preserves all response fields. Add remains acknowledgement-only and get remains existence-only. Backend VM deletion removes linked DNS entries; deletion is still not exposed by MCP. Metadata-only edits and legacy blank records are covered. Counts and endpoint mappings are unchanged; see [DNS contracts](docs/areas/dns.md).
+- Limits: SDK HTTP and actual stdio use disposable HTTP backends. Notes/SPA/ISO actual handlers use temporary SQLite; VM actual auth/HTTP/service/RPC backup-before-write is tested in an isolated subprocess with disposable gRPC. Slave readers/commands are injected. No real DNS restart, successful ipset read, ISO completion, VM/hypervisor action, host boot change, NFS transfer qualification or deployment was performed.
 
 | Scope | Implemented / total | Missing | Coverage |
 | --- | ---: | ---: | ---: |
-| **HyperHive API** | 7 / 314 | 270 | 2.23% |
-| NGINX subtotal | 7 / 37 | 24 | 18.92% |
+| **HyperHive API** | 105 / 316 | 158 | 33.23% |
+| NGINX subtotal | 28 / 37 | 0 | 75.68% |
+| VM subtotal, including templates/disks/helpers | 56 / 82 | 3 | 68.29% |
 
-NGINX is a subset of the overall API. The following leaf areas partition the total. Missing counts omit policy exclusions; the inventory below identifies each exclusion:
+Subtotals are subsets of the API. Leaf areas partition the total. Missing omits policy exclusions; both new internal helper routes remain missing for direct tool coverage. Eligible-only percentages are meaningful only for reviewed selected scopes, not the entire API's still-unclassified browser/stream routes.
 
 | Area | Implemented / total | Missing | Coverage | Route source |
 | --- | ---: | ---: | ---: | --- |
-| Guest access and SPA | 0 / 12 | 11 | 0.00% | [GUESTS.go](../master/api/GUESTS.go) |
+| Guest access and SPA | 2 / 12 | 8 | 16.67% | [GUESTS.go](../master/api/GUESTS.go) |
 | Core, login and notifications | 0 / 12 | 11 | 0.00% | [api.go](../master/api/api.go) |
 | BTRFS | 0 / 22 | 19 | 0.00% | [btrfs.go](../master/api/btrfs.go) |
-| Celld | 0 / 17 | 16 | 0.00% | [celld.go](../master/api/celld.go) |
-| DNS aliases | 0 / 4 | 3 | 0.00% | [dnsmasq.go](../master/api/dnsmasq.go) |
+| Celld | 9 / 17 | 7 | 52.94% | [celld.go](../master/api/celld.go) |
+| DNS aliases | 3 / 4 | 0 | 75.00% | [dnsmasq.go](../master/api/dnsmasq.go) |
 | Docker | 0 / 26 | 21 | 0.00% | [docker.go](../master/api/docker.go) |
 | Host maintenance | 0 / 4 | 4 | 0.00% | [extra.go](../master/api/extra.go) |
 | GoAccess | 0 / 3 | 3 | 0.00% | [goaccess.go](../master/api/goaccess.go) |
 | Host information | 0 / 15 | 15 | 0.00% | [info.go](../master/api/info.go) |
-| ISOs | 0 / 3 | 2 | 0.00% | [isos.go](../master/api/isos.go) |
+| ISOs | 2 / 3 | 0 | 66.67% | [isos.go](../master/api/isos.go) |
 | Kubernetes | 0 / 3 | 3 | 0.00% | [k8s.go](../master/api/k8s.go) |
 | Logs | 0 / 1 | 1 | 0.00% | [logs.go](../master/api/logs.go) |
 | NFS | 0 / 5 | 4 | 0.00% | [nfs.go](../master/api/nfs.go) |
-| Notes | 0 / 6 | 5 | 0.00% | [notes.go](../master/api/notes.go) |
+| Notes | 5 / 6 | 0 | 83.33% | [notes.go](../master/api/notes.go) |
 | Notification history | 0 / 1 | 1 | 0.00% | [nots.go](../master/api/nots.go) |
 | noVNC | 0 / 3 | 3 | 0.00% | [novnc.go](../master/api/novnc.go) |
-| NGINX / 404 hosts | 0 / 6 | 5 | 0.00% | [404hosts.go](../master/api/npmapi/404hosts.go) |
-| NGINX / Access lists | 0 / 4 | 3 | 0.00% | [access_list.go](../master/api/npmapi/access_list.go) |
-| NGINX / Certificates | 0 / 7 | 6 | 0.00% | [certs.go](../master/api/npmapi/certs.go) |
+| NGINX / 404 hosts | 5 / 6 | 0 | 83.33% | [404hosts.go](../master/api/npmapi/404hosts.go) |
+| NGINX / Access lists | 2 / 4 | 0 | 50.00% | [access_list.go](../master/api/npmapi/access_list.go) |
+| NGINX / Certificates | 4 / 7 | 0 | 57.14% | [certs.go](../master/api/npmapi/certs.go) |
 | NGINX / Proxies | 7 / 8 | 0 | 87.50% | [proxy.go](../master/api/npmapi/proxy.go) |
-| NGINX / Redirects | 0 / 6 | 5 | 0.00% | [redirection.go](../master/api/npmapi/redirection.go) |
-| NGINX / Streams | 0 / 6 | 5 | 0.00% | [streams.go](../master/api/npmapi/streams.go) |
+| NGINX / Redirects | 5 / 6 | 0 | 83.33% | [redirection.go](../master/api/npmapi/redirection.go) |
+| NGINX / Streams | 5 / 6 | 0 | 83.33% | [streams.go](../master/api/npmapi/streams.go) |
 | PCI / GPU | 0 / 6 | 6 | 0.00% | [pci.go](../master/api/pci.go) |
 | Protocol connections | 0 / 1 | 1 | 0.00% | [protocol.go](../master/api/protocol.go) |
 | SMART disks | 0 / 14 | 12 | 0.00% | [smartdisk.go](../master/api/smartdisk.go) |
 | Stream observability | 0 / 35 | 33 | 0.00% | [streamInfo.go](../master/api/streamInfo.go) |
-| VMs and host tuning | 0 / 71 | 62 | 0.00% | [virsh.go](../master/api/virsh.go) |
-| VM XML templates | 0 / 5 | 4 | 0.00% | [virsh_xml_templates.go](../master/api/virsh_xml_templates.go) |
-| VM disks | 0 / 4 | 3 | 0.00% | [vm_disk.go](../master/api/vm_disk.go) |
+| VMs and host tuning | 50 / 73 | 3 | 68.49% | [virsh.go](../master/api/virsh.go) |
+| VM XML templates | 4 / 5 | 0 | 80.00% | [virsh_xml_templates.go](../master/api/virsh_xml_templates.go) |
+| VM disks | 2 / 4 | 0 | 50.00% | [vm_disk.go](../master/api/vm_disk.go) |
 | WireGuard | 0 / 4 | 3 | 0.00% | [wireguard.go](../master/api/wireguard.go) |
 
-### Available capabilities
+### Available capabilities and safety
 
-Both authenticated HTTP and stdio share the same registrations. `list_proxies`
-returns `{"proxies":[...]}`; mutations return `{"success":true}` after an empty
-successful API response. Complete replacement input is required for create/edit.
-See [proxy contracts](docs/areas/nginx-proxies.md) for inputs and limitations.
+Both transports share 105 registrations: 28 NGINX, nine Celld, three DNS, five Notes, two SPA, two ISO and 56 VM tools. Feature contracts: [NGINX](docs/areas/nginx.md), [proxies](docs/areas/nginx-proxies.md), [Celld](docs/areas/celld.md), [DNS](docs/areas/dns.md), [Notes](docs/areas/notes.md), [SPA](docs/areas/spa.md), [ISOs](docs/areas/isos.md), [VMs](docs/areas/vms.md).
 
-| Tool | Endpoint |
-| --- | --- |
-| `list_proxies` | `GET /proxy/list` |
-| `create_proxy` | `POST /proxy/create` |
-| `update_proxy` | `PUT /proxy/edit` |
-| `enable_proxy` | `POST /proxy/enable` |
-| `disable_proxy` | `POST /proxy/disable` |
-| `setup_frontend_proxy` | `POST /proxy/setupFrontEnd` |
-| `setup_secure_frontend_proxy` | `POST /proxy/setupFrontEndSecure` |
+Every VM tool publishes low/medium/high/very high risk. Medium+ requires per-call explicit user form approval bound to complete arguments; stale/replayed/forged/changed continuations or unsupported/declined/canceled pickers cannot execute writes. Modern HTTP remains stateless; legacy HTTP retains authenticated sessions for form elicitation. Stdio supports both protocol generations.
 
-Evidence: [registration](internal/tools/proxies.go), [mutations](internal/tools/proxy_mutations.go),
-[client](internal/client/proxies.go), [API](../master/api/npmapi/proxy.go),
-[HTTP/stdio contracts](proxy_mutations_test.go), and existing list/client tests.
-Deletion is excluded by user policy. Raw proxies retain all eight endpoints;
-eligible proxies exclude only DELETE /proxy/delete (seven endpoints).
+VM writes capture actual previous settings and secure inactive/current XML; CPU pinning includes the exact prior pinning getter. Host boot setters additionally capture every grubby entry, default kernel and current command line. Persistence must succeed before dispatch. Private 0700 directories and 0600 retained before.json files live in MCP_VM_BACKUP_DIR, or the process user's cache under hyperhive/mcp/vm-backups. Paths are returned even after subsequent backend failure. Configuration records do not contain disk snapshots or automatic rollback; disk growth/guest RAM loss cannot be undone by them. Locking covers this registry, not external API/hypervisor changes or independent server processes. Updated master/slave snapshot support is required; older backends fail closed.
+
+VM export and backup download stream full binary responses to private artifacts on the MCP server filesystem, with size/hash and a six-hour bound honoring earlier cancellation. Clients do not automatically download these files. ISO download, manual VM backup and clone return initiation/acceptance, never fabricated completion/job IDs. Ordinary JSON calls retain shared timeout, cancellation, response-size, redirect and safe-error protections; mutations are never automatically retried.
+
+DNS/Notes/ISO permitted endpoint coverage is 3/3, 5/5 and 2/2. SPA has the two selected reads; POST creation is excluded because firewall replacement/rollback deletes rules and can destroy an existing allow set. VM original selection is 56/57 permitted (98.25%): SSH injection remains absent because actual previous guest files/ownership cannot be backed up. All 23 VM deletion exclusions and both internal helpers are visible below. No arbitrary API dispatcher or confirmation argument was added.
+
+| Tool | Endpoint | VM risk |
+| --- | --- | --- |
+| `add_vm_video` | `POST /virsh/novncvideo/add/{vm_name}` | high |
+| `attach_vm_disk` | `POST /virsh/vm_disk/{vm_name}` | high |
+| `backup_vm` | `POST /virsh/backup/{vm_name}/{nfs_id}` | high |
+| `clone_vm` | `POST /virsh/cloneVM/{vm_name}/{dest_nfs}/{dest_machine_name}` | high |
+| `create_404_host` | `POST /404/create` | — |
+| `create_access_list` | `POST /access-lists/create` | — |
+| `create_celld_fleet` | `POST /celld/fleets` | — |
+| `create_note` | `POST /notes/` | — |
+| `create_proxy` | `POST /proxy/create` | — |
+| `create_redirect` | `POST /redirection/create` | — |
+| `create_stream` | `POST /stream/create` | — |
+| `create_vm_xml_template` | `POST /virsh/xmltemplates/` | medium |
+| `delete_celld_fleet` | `DELETE /celld/fleets/{id}` | — |
+| `disable_404_host` | `POST /404/disable` | — |
+| `disable_proxy` | `POST /proxy/disable` | — |
+| `disable_redirect` | `POST /redirection/disable` | — |
+| `disable_stream` | `POST /stream/disable` | — |
+| `disable_vm_automatic_backup` | `PATCH /virsh/autopak/disable/{id}` | medium |
+| `dns_alias_add` | `POST /dnsmasq/alias/add` | — |
+| `dns_alias_get` | `GET /dnsmasq/alias/get` | — |
+| `dns_aliases_list` | `GET /dnsmasq/alias/all` | — |
+| `download_certificate` | `POST /certs/download` | — |
+| `download_vm_backup` | `GET /virsh/downloadbackup/{backup_id}` | low |
+| `edit_vm` | `POST /virsh/editvm/{vm_name}` | high |
+| `enable_404_host` | `POST /404/enable` | — |
+| `enable_proxy` | `POST /proxy/enable` | — |
+| `enable_redirect` | `POST /redirection/enable` | — |
+| `enable_stream` | `POST /stream/enable` | — |
+| `export_vm` | `GET /virsh/export/{vm_name}` | medium |
+| `force_shutdown_vm` | `POST /virsh/forceshutdownvm/{vm_name}` | very high |
+| `get_celld_credentials` | `GET /celld/fleets/{id}/credentials` | — |
+| `get_celld_events` | `GET /celld/fleets/{id}/events` | — |
+| `get_celld_health` | `GET /celld/health` | — |
+| `get_celld_logs` | `GET /celld/fleets/{id}/logs` | — |
+| `get_note` | `GET /notes/{id}` | — |
+| `get_vm` | `GET /virsh/getvmbyname/{vm_name}` | low |
+| `get_vm_ballooning` | `GET /virsh/ballooning/{vm_name}` | low |
+| `get_vm_core_isolation` | `GET /virsh/coreisolation/{machine_name}` | low |
+| `get_vm_cpu_disable_features` | `GET /virsh/getcpudisablefeatures` | low |
+| `get_vm_cpu_pinning` | `GET /virsh/cpupinning/{vm_name}` | low |
+| `get_vm_cpu_topology` | `GET /virsh/cputopology/{machine_name}` | low |
+| `get_vm_cpu_xml` | `GET /virsh/cpuxml/{vm_name}` | low |
+| `get_vm_host_hugepages` | `GET /virsh/hosthugepages/{machine_name}` | low |
+| `get_vm_hugepages` | `GET /virsh/hugepages/{vm_name}` | low |
+| `get_vm_hyperv` | `GET /virsh/hyperv/{vm_name}` | low |
+| `get_vm_irqbalance` | `GET /virsh/irqbalance/{machine_name}` | low |
+| `get_vm_kvm` | `GET /virsh/kvm/{vm_name}` | low |
+| `get_vm_tuned_profiles` | `GET /virsh/tunedadm/{machine_name}` | low |
+| `get_vm_video` | `GET /virsh/novncvideo/{vm_name}` | low |
+| `get_vm_xml` | `GET /virsh/vmxml/{vm_name}` | low |
+| `get_vm_xml_template` | `GET /virsh/xmltemplates/{id}` | low |
+| `grow_vm_disk` | `POST /vm-disk/{id}/grow` | high |
+| `list_404_hosts` | `GET /404/list` | — |
+| `list_access_lists` | `GET /access-lists/list` | — |
+| `list_celld_fleets` | `GET /celld/fleets` | — |
+| `list_certificates` | `GET /certs/list` | — |
+| `list_dns_providers` | `GET /certs/dns-providers` | — |
+| `list_isos` | `GET /isos/` | — |
+| `list_notes` | `GET /notes/` | — |
+| `list_proxies` | `GET /proxy/list` | — |
+| `list_redirects` | `GET /redirection/list` | — |
+| `list_spa_allows` | `GET /spa/allow/{port}` | — |
+| `list_spa_ports` | `GET /spa/` | — |
+| `list_streams` | `GET /stream/list` | — |
+| `list_vm_attached_disks` | `GET /virsh/vm_disk/{vm_name}` | low |
+| `list_vm_automatic_backups` | `GET /virsh/autobak` | low |
+| `list_vm_backups` | `GET /virsh/backups` | low |
+| `list_vm_disks` | `GET /vm-disk/list` | low |
+| `list_vm_machine_types` | `GET /virsh/machine_types/{machine_name}` | low |
+| `list_vm_xml_templates` | `GET /virsh/xmltemplates/` | low |
+| `list_vms` | `GET /virsh/getallvms` | low |
+| `patch_note` | `PATCH /notes/{id}` | — |
+| `pause_vm` | `POST /virsh/pausevm/{vm_name}` | high |
+| `renew_certificate` | `POST /certs/renew` | — |
+| `replace_note` | `PUT /notes/{id}` | — |
+| `replace_vm_host_core_isolation` | `PUT /virsh/coreisolation/{machine_name}` | very high |
+| `replace_vm_host_hugepages` | `PUT /virsh/hosthugepages/{machine_name}` | very high |
+| `restart_vm` | `POST /virsh/restartvm/{vm_name}` | very high |
+| `resume_vm` | `POST /virsh/resumevm/{vm_name}` | medium |
+| `set_vm_ballooning` | `POST /virsh/ballooning/{vm_name}` | high |
+| `set_vm_cpu_pinning` | `POST /virsh/cpupinning/{vm_name}` | high |
+| `set_vm_host_core_isolation` | `POST /virsh/coreisolation/{machine_name}` | very high |
+| `set_vm_host_hugepages` | `POST /virsh/hosthugepages/{machine_name}` | very high |
+| `set_vm_hugepages` | `POST /virsh/hugepages/{vm_name}` | high |
+| `set_vm_hyperv` | `POST /virsh/hyperv/{vm_name}` | high |
+| `set_vm_irqbalance` | `POST /virsh/irqbalance/{machine_name}` | high |
+| `set_vm_kvm` | `POST /virsh/kvm/{vm_name}` | high |
+| `set_vm_machine_type` | `POST /virsh/machine_type/{vm_name}` | high |
+| `set_vm_network` | `POST /virsh/change_vm_network/{vm_name}` | high |
+| `set_vm_tuned_profile` | `POST /virsh/tunedadm/{machine_name}` | high |
+| `set_vm_vnc_password` | `POST /virsh/change_vnc_password/{vm_name}` | high |
+| `setup_frontend_proxy` | `POST /proxy/setupFrontEnd` | — |
+| `setup_secure_frontend_proxy` | `POST /proxy/setupFrontEndSecure` | — |
+| `shutdown_vm` | `POST /virsh/shutdownvm/{vm_name}` | high |
+| `start_celld_fleet` | `POST /celld/fleets/{id}/start` | — |
+| `start_iso_download` | `POST /isos/download` | — |
+| `start_vm` | `POST /virsh/startvm/{vm_name}` | medium |
+| `stop_celld_fleet` | `POST /celld/fleets/{id}/stop` | — |
+| `update_404_host` | `PUT /404/edit` | — |
+| `update_proxy` | `PUT /proxy/edit` | — |
+| `update_redirect` | `PUT /redirection/edit` | — |
+| `update_stream` | `PUT /stream/edit` | — |
+| `update_vm_cpu_xml` | `POST /virsh/updatecpuxml/{vm_name}` | high |
+| `update_vm_xml` | `POST /virsh/updatevmxml/{vm_name}` | very high |
+| `update_vm_xml_template` | `PUT /virsh/xmltemplates/{id}` | high |
 
 ### Endpoint inventory and remaining work
 
-Each row is one method/path pair. Source links point to route registrations and
-handlers. `implemented` maps to the tools above; every `missing` row has no mapped
-MCP tool. Only permitted operations may receive a named tool, reviewed contract,
-implementation and tests. Inventory visibility is not authorization to implement
-deletion: deletion tools are forbidden by user policy regardless of row status.
-UI/static and streaming routes may need a documented alternative or intentional
-exclusion after review; they remain in the denominator until then.
+One row is one method/path pair. Only registered, enabled, contract-reviewed and validated tools count as implemented. Exclusions remain in raw coverage with zero credit; all/all-remaining/100% does not authorize deletion. The existing Celld exception does not authorize deletion elsewhere. Selected SSH injection is blocked and unregistered; the two snapshot routes are internal prerequisites with zero direct coverage. Unselected browser/stream routes remain visible for later disposition.
 
 #### Guest access and SPA
 
@@ -140,9 +230,9 @@ exclusion after review; they remain in the denominator until then.
 | `POST /guest_api/spa/allow-ip` | missing | [GUESTS.go:852](../master/api/GUESTS.go#L852) |
 | `POST /guest_api/spa/allow` | missing | [GUESTS.go:853](../master/api/GUESTS.go#L853) |
 | `GET /guest_api/spa/pageallow/{port}` | missing | [GUESTS.go:854](../master/api/GUESTS.go#L854) |
-| `POST /spa/` | missing | [GUESTS.go:861](../master/api/GUESTS.go#L861) |
-| `GET /spa/` | missing | [GUESTS.go:862](../master/api/GUESTS.go#L862) |
-| `GET /spa/allow/{port}` | missing | [GUESTS.go:863](../master/api/GUESTS.go#L863) |
+| `POST /spa/` | excluded (deletion policy: creation deletes firewall rules and can destroy allow set) | [GUESTS.go:861](../master/api/GUESTS.go#L861) |
+| `GET /spa/` | implemented | [GUESTS.go:862](../master/api/GUESTS.go#L862) |
+| `GET /spa/allow/{port}` | implemented | [GUESTS.go:863](../master/api/GUESTS.go#L863) |
 | `DELETE /spa/{port}` | excluded (deletion policy) | [GUESTS.go:864](../master/api/GUESTS.go#L864) |
 
 #### Core, login and notifications
@@ -193,21 +283,21 @@ exclusion after review; they remain in the denominator until then.
 
 | Endpoint | Status | Route source |
 | --- | --- | --- |
-| `GET /celld/health` | missing | [celld.go:14](../master/api/celld.go#L14) |
-| `GET /celld/fleets` | missing | [celld.go:15](../master/api/celld.go#L15) |
-| `POST /celld/fleets` | missing | [celld.go:16](../master/api/celld.go#L16) |
+| `GET /celld/health` | implemented | [celld.go:14](../master/api/celld.go#L14) |
+| `GET /celld/fleets` | implemented | [celld.go:15](../master/api/celld.go#L15) |
+| `POST /celld/fleets` | implemented | [celld.go:16](../master/api/celld.go#L16) |
 | `GET /celld/fleets/{id}` | missing | [celld.go:17](../master/api/celld.go#L17) |
-| `PATCH /celld/fleets/{id}` | missing | [celld.go:18](../master/api/celld.go#L18) |
-| `DELETE /celld/fleets/{id}` | excluded (deletion policy) | [celld.go:19](../master/api/celld.go#L19) |
-| `POST /celld/fleets/{id}/start` | missing | [celld.go:21](../master/api/celld.go#L21) |
-| `POST /celld/fleets/{id}/stop` | missing | [celld.go:21](../master/api/celld.go#L21) |
+| `PATCH /celld/fleets/{id}` | excluded (deletion policy: removes node data) | [celld.go:18](../master/api/celld.go#L18) |
+| `DELETE /celld/fleets/{id}` | implemented | [celld.go:19](../master/api/celld.go#L19) |
+| `POST /celld/fleets/{id}/start` | implemented | [celld.go:21](../master/api/celld.go#L21) |
+| `POST /celld/fleets/{id}/stop` | implemented | [celld.go:21](../master/api/celld.go#L21) |
 | `POST /celld/fleets/{id}/restart` | missing | [celld.go:21](../master/api/celld.go#L21) |
-| `GET /celld/fleets/{id}/credentials` | missing | [celld.go:23](../master/api/celld.go#L23) |
+| `GET /celld/fleets/{id}/credentials` | implemented | [celld.go:23](../master/api/celld.go#L23) |
 | `GET /celld/fleets/{id}/observability` | missing | [celld.go:24](../master/api/celld.go#L24) |
 | `GET /celld/fleets/{id}/logs/stream` | missing | [celld.go:25](../master/api/celld.go#L25) |
 | `GET /celld/fleets/{id}/events/stream` | missing | [celld.go:26](../master/api/celld.go#L26) |
-| `GET /celld/fleets/{id}/logs` | missing | [celld.go:27](../master/api/celld.go#L27) |
-| `GET /celld/fleets/{id}/events` | missing | [celld.go:28](../master/api/celld.go#L28) |
+| `GET /celld/fleets/{id}/logs` | implemented | [celld.go:27](../master/api/celld.go#L27) |
+| `GET /celld/fleets/{id}/events` | implemented | [celld.go:28](../master/api/celld.go#L28) |
 | `GET /celld/fleets/{id}/traces/{trace_id}` | missing | [celld.go:29](../master/api/celld.go#L29) |
 | `GET /celld/fleets/{id}/metrics` | missing | [celld.go:30](../master/api/celld.go#L30) |
 
@@ -215,10 +305,10 @@ exclusion after review; they remain in the denominator until then.
 
 | Endpoint | Status | Route source |
 | --- | --- | --- |
-| `GET /dnsmasq/alias/all` | missing | [dnsmasq.go:96](../master/api/dnsmasq.go#L96) |
-| `GET /dnsmasq/alias/get` | missing | [dnsmasq.go:97](../master/api/dnsmasq.go#L97) |
-| `POST /dnsmasq/alias/add` | missing | [dnsmasq.go:98](../master/api/dnsmasq.go#L98) |
-| `DELETE /dnsmasq/alias/remove` | excluded (deletion policy) | [dnsmasq.go:99](../master/api/dnsmasq.go#L99) |
+| `GET /dnsmasq/alias/all` | implemented | [dnsmasq.go:126](../master/api/dnsmasq.go#L126) |
+| `GET /dnsmasq/alias/get` | implemented | [dnsmasq.go:127](../master/api/dnsmasq.go#L127) |
+| `POST /dnsmasq/alias/add` | implemented | [dnsmasq.go:128](../master/api/dnsmasq.go#L128) |
+| `DELETE /dnsmasq/alias/remove` | excluded (deletion policy) | [dnsmasq.go:129](../master/api/dnsmasq.go#L129) |
 
 #### Docker
 
@@ -292,8 +382,8 @@ exclusion after review; they remain in the denominator until then.
 
 | Endpoint | Status | Route source |
 | --- | --- | --- |
-| `POST /isos/download` | missing | [isos.go:144](../master/api/isos.go#L144) |
-| `GET /isos/` | missing | [isos.go:145](../master/api/isos.go#L145) |
+| `POST /isos/download` | implemented | [isos.go:144](../master/api/isos.go#L144) |
+| `GET /isos/` | implemented | [isos.go:145](../master/api/isos.go#L145) |
 | `DELETE /isos/{id}` | excluded (deletion policy) | [isos.go:146](../master/api/isos.go#L146) |
 
 #### Kubernetes
@@ -324,11 +414,11 @@ exclusion after review; they remain in the denominator until then.
 
 | Endpoint | Status | Route source |
 | --- | --- | --- |
-| `GET /notes/` | missing | [notes.go:140](../master/api/notes.go#L140) |
-| `GET /notes/{id}` | missing | [notes.go:141](../master/api/notes.go#L141) |
-| `POST /notes/` | missing | [notes.go:142](../master/api/notes.go#L142) |
-| `PUT /notes/{id}` | missing | [notes.go:143](../master/api/notes.go#L143) |
-| `PATCH /notes/{id}` | missing | [notes.go:144](../master/api/notes.go#L144) |
+| `GET /notes/` | implemented | [notes.go:140](../master/api/notes.go#L140) |
+| `GET /notes/{id}` | implemented | [notes.go:141](../master/api/notes.go#L141) |
+| `POST /notes/` | implemented | [notes.go:142](../master/api/notes.go#L142) |
+| `PUT /notes/{id}` | implemented | [notes.go:143](../master/api/notes.go#L143) |
+| `PATCH /notes/{id}` | implemented | [notes.go:144](../master/api/notes.go#L144) |
 | `DELETE /notes/{id}` | excluded (deletion policy) | [notes.go:145](../master/api/notes.go#L145) |
 
 #### Notification history
@@ -349,32 +439,32 @@ exclusion after review; they remain in the denominator until then.
 
 | Endpoint | Status | Route source |
 | --- | --- | --- |
-| `GET /404/list` | missing | [404hosts.go:126](../master/api/npmapi/404hosts.go#L126) |
-| `POST /404/create` | missing | [404hosts.go:127](../master/api/npmapi/404hosts.go#L127) |
-| `PUT /404/edit` | missing | [404hosts.go:128](../master/api/npmapi/404hosts.go#L128) |
+| `GET /404/list` | implemented | [404hosts.go:126](../master/api/npmapi/404hosts.go#L126) |
+| `POST /404/create` | implemented | [404hosts.go:127](../master/api/npmapi/404hosts.go#L127) |
+| `PUT /404/edit` | implemented | [404hosts.go:128](../master/api/npmapi/404hosts.go#L128) |
 | `DELETE /404/delete` | excluded (deletion policy) | [404hosts.go:129](../master/api/npmapi/404hosts.go#L129) |
-| `POST /404/disable` | missing | [404hosts.go:130](../master/api/npmapi/404hosts.go#L130) |
-| `POST /404/enable` | missing | [404hosts.go:131](../master/api/npmapi/404hosts.go#L131) |
+| `POST /404/disable` | implemented | [404hosts.go:130](../master/api/npmapi/404hosts.go#L130) |
+| `POST /404/enable` | implemented | [404hosts.go:131](../master/api/npmapi/404hosts.go#L131) |
 
 #### NGINX / Access lists
 
 | Endpoint | Status | Route source |
 | --- | --- | --- |
-| `GET /access-lists/list` | missing | [access_list.go:82](../master/api/npmapi/access_list.go#L82) |
-| `POST /access-lists/create` | missing | [access_list.go:83](../master/api/npmapi/access_list.go#L83) |
-| `PUT /access-lists/edit` | missing | [access_list.go:84](../master/api/npmapi/access_list.go#L84) |
+| `GET /access-lists/list` | implemented | [access_list.go:82](../master/api/npmapi/access_list.go#L82) |
+| `POST /access-lists/create` | implemented | [access_list.go:83](../master/api/npmapi/access_list.go#L83) |
+| `PUT /access-lists/edit` | excluded (deletion policy: replacement deletes authentication/client entries) | [access_list.go:84](../master/api/npmapi/access_list.go#L84) |
 | `DELETE /access-lists/delete` | excluded (deletion policy) | [access_list.go:85](../master/api/npmapi/access_list.go#L85) |
 
 #### NGINX / Certificates
 
 | Endpoint | Status | Route source |
 | --- | --- | --- |
-| `GET /certs/dns-providers` | missing | [certs.go:265](../master/api/npmapi/certs.go#L265) |
-| `GET /certs/list` | missing | [certs.go:266](../master/api/npmapi/certs.go#L266) |
-| `POST /certs/create` | missing | [certs.go:267](../master/api/npmapi/certs.go#L267) |
-| `POST /certs/create-lets-encrypt` | missing | [certs.go:268](../master/api/npmapi/certs.go#L268) |
-| `POST /certs/download` | missing | [certs.go:269](../master/api/npmapi/certs.go#L269) |
-| `POST /certs/renew` | missing | [certs.go:270](../master/api/npmapi/certs.go#L270) |
+| `GET /certs/dns-providers` | implemented | [certs.go:265](../master/api/npmapi/certs.go#L265) |
+| `GET /certs/list` | implemented | [certs.go:266](../master/api/npmapi/certs.go#L266) |
+| `POST /certs/create` | excluded (deletion policy: certificate rollback deletes resource) | [certs.go:267](../master/api/npmapi/certs.go#L267) |
+| `POST /certs/create-lets-encrypt` | excluded (deletion policy: upstream rollback deletes certificate) | [certs.go:268](../master/api/npmapi/certs.go#L268) |
+| `POST /certs/download` | implemented | [certs.go:269](../master/api/npmapi/certs.go#L269) |
+| `POST /certs/renew` | implemented | [certs.go:270](../master/api/npmapi/certs.go#L270) |
 | `DELETE /certs/delete` | excluded (deletion policy) | [certs.go:271](../master/api/npmapi/certs.go#L271) |
 
 #### NGINX / Proxies
@@ -394,23 +484,23 @@ exclusion after review; they remain in the denominator until then.
 
 | Endpoint | Status | Route source |
 | --- | --- | --- |
-| `GET /redirection/list` | missing | [redirection.go:126](../master/api/npmapi/redirection.go#L126) |
-| `POST /redirection/create` | missing | [redirection.go:127](../master/api/npmapi/redirection.go#L127) |
-| `PUT /redirection/edit` | missing | [redirection.go:128](../master/api/npmapi/redirection.go#L128) |
+| `GET /redirection/list` | implemented | [redirection.go:126](../master/api/npmapi/redirection.go#L126) |
+| `POST /redirection/create` | implemented | [redirection.go:127](../master/api/npmapi/redirection.go#L127) |
+| `PUT /redirection/edit` | implemented | [redirection.go:128](../master/api/npmapi/redirection.go#L128) |
 | `DELETE /redirection/delete` | excluded (deletion policy) | [redirection.go:129](../master/api/npmapi/redirection.go#L129) |
-| `POST /redirection/disable` | missing | [redirection.go:130](../master/api/npmapi/redirection.go#L130) |
-| `POST /redirection/enable` | missing | [redirection.go:131](../master/api/npmapi/redirection.go#L131) |
+| `POST /redirection/disable` | implemented | [redirection.go:130](../master/api/npmapi/redirection.go#L130) |
+| `POST /redirection/enable` | implemented | [redirection.go:131](../master/api/npmapi/redirection.go#L131) |
 
 #### NGINX / Streams
 
 | Endpoint | Status | Route source |
 | --- | --- | --- |
-| `GET /stream/list` | missing | [streams.go:153](../master/api/npmapi/streams.go#L153) |
-| `POST /stream/create` | missing | [streams.go:154](../master/api/npmapi/streams.go#L154) |
-| `PUT /stream/edit` | missing | [streams.go:155](../master/api/npmapi/streams.go#L155) |
+| `GET /stream/list` | implemented | [streams.go:153](../master/api/npmapi/streams.go#L153) |
+| `POST /stream/create` | implemented | [streams.go:154](../master/api/npmapi/streams.go#L154) |
+| `PUT /stream/edit` | implemented | [streams.go:155](../master/api/npmapi/streams.go#L155) |
 | `DELETE /stream/delete` | excluded (deletion policy) | [streams.go:156](../master/api/npmapi/streams.go#L156) |
-| `POST /stream/disable` | missing | [streams.go:157](../master/api/npmapi/streams.go#L157) |
-| `POST /stream/enable` | missing | [streams.go:158](../master/api/npmapi/streams.go#L158) |
+| `POST /stream/disable` | implemented | [streams.go:157](../master/api/npmapi/streams.go#L157) |
+| `POST /stream/enable` | implemented | [streams.go:158](../master/api/npmapi/streams.go#L158) |
 
 #### PCI / GPU
 
@@ -492,96 +582,98 @@ exclusion after review; they remain in the denominator until then.
 
 | Endpoint | Status | Route source |
 | --- | --- | --- |
-| `GET /virsh/getcpudisablefeatures` | missing | [virsh.go:2507](../master/api/virsh.go#L2507) |
-| `GET /virsh/getallvms` | missing | [virsh.go:2508](../master/api/virsh.go#L2508) |
-| `POST /virsh/createvm` | missing | [virsh.go:2509](../master/api/virsh.go#L2509) |
-| `POST /virsh/migratevm/{vm_name}` | missing | [virsh.go:2511](../master/api/virsh.go#L2511) |
-| `POST /virsh/updatecpuxml/{vm_name}` | missing | [virsh.go:2512](../master/api/virsh.go#L2512) |
-| `GET /virsh/cpuxml/{vm_name}` | missing | [virsh.go:2513](../master/api/virsh.go#L2513) |
-| `POST /virsh/updatevmxml/{vm_name}` | missing | [virsh.go:2514](../master/api/virsh.go#L2514) |
-| `GET /virsh/vmxml/{vm_name}` | missing | [virsh.go:2515](../master/api/virsh.go#L2515) |
-| `DELETE /virsh/deletevm/{vm_name}` | excluded (deletion policy) | [virsh.go:2518](../master/api/virsh.go#L2518) |
-| `POST /virsh/startvm/{vm_name}` | missing | [virsh.go:2519](../master/api/virsh.go#L2519) |
-| `POST /virsh/shutdownvm/{vm_name}` | missing | [virsh.go:2520](../master/api/virsh.go#L2520) |
-| `POST /virsh/forceshutdownvm/{vm_name}` | missing | [virsh.go:2521](../master/api/virsh.go#L2521) |
-| `POST /virsh/restartvm/{vm_name}` | missing | [virsh.go:2522](../master/api/virsh.go#L2522) |
-| `POST /virsh/editvm/{vm_name}` | missing | [virsh.go:2523](../master/api/virsh.go#L2523) |
-| `POST /virsh/pausevm/{vm_name}` | missing | [virsh.go:2524](../master/api/virsh.go#L2524) |
-| `POST /virsh/resumevm/{vm_name}` | missing | [virsh.go:2525](../master/api/virsh.go#L2525) |
-| `GET /virsh/getvmbyname/{vm_name}` | missing | [virsh.go:2526](../master/api/virsh.go#L2526) |
-| `POST /virsh/removeiso/{vm_name}` | excluded (deletion policy) | [virsh.go:2527](../master/api/virsh.go#L2527) |
-| `POST /virsh/vm_disk/{vm_name}` | missing | [virsh.go:2528](../master/api/virsh.go#L2528) |
-| `GET /virsh/vm_disk/{vm_name}` | missing | [virsh.go:2529](../master/api/virsh.go#L2529) |
-| `DELETE /virsh/vm_disk/{vm_name}/{vm_disk_id}` | excluded (deletion policy) | [virsh.go:2530](../master/api/virsh.go#L2530) |
-| `POST /virsh/change_vm_network/{vm_name}` | missing | [virsh.go:2532](../master/api/virsh.go#L2532) |
-| `POST /virsh/change_vnc_password/{vm_name}` | missing | [virsh.go:2533](../master/api/virsh.go#L2533) |
-| `POST /virsh/add_ssh_key/{vm_name}` | missing | [virsh.go:2534](../master/api/virsh.go#L2534) |
-| `POST /virsh/novncvideo/add/{vm_name}` | missing | [virsh.go:2535](../master/api/virsh.go#L2535) |
-| `POST /virsh/novncvideo/remove/{vm_name}` | excluded (deletion policy) | [virsh.go:2536](../master/api/virsh.go#L2536) |
-| `GET /virsh/novncvideo/{vm_name}` | missing | [virsh.go:2537](../master/api/virsh.go#L2537) |
-| `GET /virsh/ballooning/{vm_name}` | missing | [virsh.go:2538](../master/api/virsh.go#L2538) |
-| `POST /virsh/ballooning/{vm_name}` | missing | [virsh.go:2539](../master/api/virsh.go#L2539) |
-| `GET /virsh/hugepages/{vm_name}` | missing | [virsh.go:2540](../master/api/virsh.go#L2540) |
-| `POST /virsh/hugepages/{vm_name}` | missing | [virsh.go:2541](../master/api/virsh.go#L2541) |
-| `GET /virsh/machine_types/{machine_name}` | missing | [virsh.go:2542](../master/api/virsh.go#L2542) |
-| `POST /virsh/machine_type/{vm_name}` | missing | [virsh.go:2543](../master/api/virsh.go#L2543) |
-| `GET /virsh/kvm/{vm_name}` | missing | [virsh.go:2544](../master/api/virsh.go#L2544) |
-| `POST /virsh/kvm/{vm_name}` | missing | [virsh.go:2545](../master/api/virsh.go#L2545) |
-| `GET /virsh/hyperv/{vm_name}` | missing | [virsh.go:2546](../master/api/virsh.go#L2546) |
-| `POST /virsh/hyperv/{vm_name}` | missing | [virsh.go:2547](../master/api/virsh.go#L2547) |
-| `POST /virsh/cpupinning/{vm_name}` | missing | [virsh.go:2550](../master/api/virsh.go#L2550) |
-| `DELETE /virsh/cpupinning/{vm_name}` | excluded (deletion policy) | [virsh.go:2551](../master/api/virsh.go#L2551) |
-| `GET /virsh/cpupinning/{vm_name}` | missing | [virsh.go:2552](../master/api/virsh.go#L2552) |
-| `GET /virsh/cputopology/{machine_name}` | missing | [virsh.go:2553](../master/api/virsh.go#L2553) |
-| `GET /virsh/tunedadm/{machine_name}` | missing | [virsh.go:2554](../master/api/virsh.go#L2554) |
-| `POST /virsh/tunedadm/{machine_name}` | missing | [virsh.go:2555](../master/api/virsh.go#L2555) |
-| `GET /virsh/irqbalance/{machine_name}` | missing | [virsh.go:2556](../master/api/virsh.go#L2556) |
-| `POST /virsh/irqbalance/{machine_name}` | missing | [virsh.go:2557](../master/api/virsh.go#L2557) |
-| `GET /virsh/coreisolation/{machine_name}` | missing | [virsh.go:2558](../master/api/virsh.go#L2558) |
-| `POST /virsh/coreisolation/{machine_name}` | missing | [virsh.go:2559](../master/api/virsh.go#L2559) |
-| `PUT /virsh/coreisolation/{machine_name}` | missing | [virsh.go:2560](../master/api/virsh.go#L2560) |
-| `DELETE /virsh/coreisolation/{machine_name}` | excluded (deletion policy) | [virsh.go:2561](../master/api/virsh.go#L2561) |
-| `GET /virsh/hosthugepages/{machine_name}` | missing | [virsh.go:2562](../master/api/virsh.go#L2562) |
-| `POST /virsh/hosthugepages/{machine_name}` | missing | [virsh.go:2563](../master/api/virsh.go#L2563) |
-| `PUT /virsh/hosthugepages/{machine_name}` | missing | [virsh.go:2564](../master/api/virsh.go#L2564) |
-| `DELETE /virsh/hosthugepages/{machine_name}` | excluded (deletion policy) | [virsh.go:2565](../master/api/virsh.go#L2565) |
-| `POST /virsh/moveDisk/{vm_name}/{dest_nfs}` | missing | [virsh.go:2568](../master/api/virsh.go#L2568) |
-| `POST /virsh/coldMigrate/{vm_name}/{dest_machine_name}` | missing | [virsh.go:2569](../master/api/virsh.go#L2569) |
-| `POST /virsh/cloneVM/{vm_name}/{dest_nfs}/{dest_machine_name}` | missing | [virsh.go:2570](../master/api/virsh.go#L2570) |
-| `GET /virsh/export/{vm_name}` | missing | [virsh.go:2573](../master/api/virsh.go#L2573) |
-| `PUT /virsh/import` | missing | [virsh.go:2574](../master/api/virsh.go#L2574) |
-| `POST /virsh/backup/{vm_name}/{nfs_id}` | missing | [virsh.go:2577](../master/api/virsh.go#L2577) |
-| `GET /virsh/backups` | missing | [virsh.go:2578](../master/api/virsh.go#L2578) |
-| `GET /virsh/downloadbackup/{backup_id}` | missing | [virsh.go:2579](../master/api/virsh.go#L2579) |
-| `POST /virsh/useBackup/{backup_id}` | missing | [virsh.go:2580](../master/api/virsh.go#L2580) |
-| `DELETE /virsh/deleteBackup/{backup_id}` | excluded (deletion policy) | [virsh.go:2581](../master/api/virsh.go#L2581) |
-| `POST /virsh/autostart/{vm_name}` | missing | [virsh.go:2583](../master/api/virsh.go#L2583) |
-| `POST /virsh/vmlive/{vm_name}` | missing | [virsh.go:2584](../master/api/virsh.go#L2584) |
-| `POST /virsh/autobak` | missing | [virsh.go:2587](../master/api/virsh.go#L2587) |
-| `GET /virsh/autobak` | missing | [virsh.go:2588](../master/api/virsh.go#L2588) |
-| `PUT /virsh/autobak/{id}` | missing | [virsh.go:2589](../master/api/virsh.go#L2589) |
-| `DELETE /virsh/autobak/{id}` | excluded (deletion policy) | [virsh.go:2590](../master/api/virsh.go#L2590) |
-| `PATCH /virsh/autopak/enable/{id}` | missing | [virsh.go:2591](../master/api/virsh.go#L2591) |
-| `PATCH /virsh/autopak/disable/{id}` | missing | [virsh.go:2592](../master/api/virsh.go#L2592) |
+| `GET /virsh/getcpudisablefeatures` | implemented | [virsh.go:2507](../master/api/virsh.go#L2507) |
+| `GET /virsh/getallvms` | implemented | [virsh.go:2508](../master/api/virsh.go#L2508) |
+| `POST /virsh/createvm` | excluded (deletion policy: autostart false branch deletes saved state) | [virsh.go:2509](../master/api/virsh.go#L2509) |
+| `POST /virsh/migratevm/{vm_name}` | excluded (deletion policy: migration undefines source domain) | [virsh.go:2511](../master/api/virsh.go#L2511) |
+| `POST /virsh/updatecpuxml/{vm_name}` | implemented | [virsh.go:2512](../master/api/virsh.go#L2512) |
+| `GET /virsh/cpuxml/{vm_name}` | implemented | [virsh.go:2513](../master/api/virsh.go#L2513) |
+| `POST /virsh/updatevmxml/{vm_name}` | implemented | [virsh.go:2514](../master/api/virsh.go#L2514) |
+| `GET /virsh/vmxml/{vm_name}` | implemented | [virsh.go:2515](../master/api/virsh.go#L2515) |
+| `DELETE /virsh/deletevm/{vm_name}` | excluded (deletion policy) | [virsh.go:2519](../master/api/virsh.go#L2519) |
+| `POST /virsh/startvm/{vm_name}` | implemented | [virsh.go:2520](../master/api/virsh.go#L2520) |
+| `POST /virsh/shutdownvm/{vm_name}` | implemented | [virsh.go:2521](../master/api/virsh.go#L2521) |
+| `POST /virsh/forceshutdownvm/{vm_name}` | implemented | [virsh.go:2522](../master/api/virsh.go#L2522) |
+| `POST /virsh/restartvm/{vm_name}` | implemented | [virsh.go:2523](../master/api/virsh.go#L2523) |
+| `POST /virsh/editvm/{vm_name}` | implemented | [virsh.go:2524](../master/api/virsh.go#L2524) |
+| `POST /virsh/pausevm/{vm_name}` | implemented | [virsh.go:2525](../master/api/virsh.go#L2525) |
+| `POST /virsh/resumevm/{vm_name}` | implemented | [virsh.go:2526](../master/api/virsh.go#L2526) |
+| `GET /virsh/getvmbyname/{vm_name}` | implemented | [virsh.go:2527](../master/api/virsh.go#L2527) |
+| `POST /virsh/removeiso/{vm_name}` | excluded (deletion policy) | [virsh.go:2528](../master/api/virsh.go#L2528) |
+| `POST /virsh/vm_disk/{vm_name}` | implemented | [virsh.go:2529](../master/api/virsh.go#L2529) |
+| `GET /virsh/vm_disk/{vm_name}` | implemented | [virsh.go:2530](../master/api/virsh.go#L2530) |
+| `DELETE /virsh/vm_disk/{vm_name}/{vm_disk_id}` | excluded (deletion policy) | [virsh.go:2531](../master/api/virsh.go#L2531) |
+| `POST /virsh/change_vm_network/{vm_name}` | implemented | [virsh.go:2533](../master/api/virsh.go#L2533) |
+| `POST /virsh/change_vnc_password/{vm_name}` | implemented | [virsh.go:2534](../master/api/virsh.go#L2534) |
+| `POST /virsh/add_ssh_key/{vm_name}` | missing (blocked: prior guest file contents and ownership unavailable) | [virsh.go:2535](../master/api/virsh.go#L2535) |
+| `POST /virsh/novncvideo/add/{vm_name}` | implemented | [virsh.go:2536](../master/api/virsh.go#L2536) |
+| `POST /virsh/novncvideo/remove/{vm_name}` | excluded (deletion policy) | [virsh.go:2537](../master/api/virsh.go#L2537) |
+| `GET /virsh/novncvideo/{vm_name}` | implemented | [virsh.go:2538](../master/api/virsh.go#L2538) |
+| `GET /virsh/ballooning/{vm_name}` | implemented | [virsh.go:2539](../master/api/virsh.go#L2539) |
+| `POST /virsh/ballooning/{vm_name}` | implemented | [virsh.go:2540](../master/api/virsh.go#L2540) |
+| `GET /virsh/hugepages/{vm_name}` | implemented | [virsh.go:2541](../master/api/virsh.go#L2541) |
+| `POST /virsh/hugepages/{vm_name}` | implemented | [virsh.go:2542](../master/api/virsh.go#L2542) |
+| `GET /virsh/machine_types/{machine_name}` | implemented | [virsh.go:2543](../master/api/virsh.go#L2543) |
+| `POST /virsh/machine_type/{vm_name}` | implemented | [virsh.go:2544](../master/api/virsh.go#L2544) |
+| `GET /virsh/kvm/{vm_name}` | implemented | [virsh.go:2545](../master/api/virsh.go#L2545) |
+| `POST /virsh/kvm/{vm_name}` | implemented | [virsh.go:2546](../master/api/virsh.go#L2546) |
+| `GET /virsh/hyperv/{vm_name}` | implemented | [virsh.go:2547](../master/api/virsh.go#L2547) |
+| `POST /virsh/hyperv/{vm_name}` | implemented | [virsh.go:2548](../master/api/virsh.go#L2548) |
+| `POST /virsh/cpupinning/{vm_name}` | implemented | [virsh.go:2551](../master/api/virsh.go#L2551) |
+| `DELETE /virsh/cpupinning/{vm_name}` | excluded (deletion policy) | [virsh.go:2552](../master/api/virsh.go#L2552) |
+| `GET /virsh/cpupinning/{vm_name}` | implemented | [virsh.go:2553](../master/api/virsh.go#L2553) |
+| `GET /virsh/cputopology/{machine_name}` | implemented | [virsh.go:2554](../master/api/virsh.go#L2554) |
+| `GET /virsh/tunedadm/{machine_name}` | implemented | [virsh.go:2555](../master/api/virsh.go#L2555) |
+| `POST /virsh/tunedadm/{machine_name}` | implemented | [virsh.go:2556](../master/api/virsh.go#L2556) |
+| `GET /virsh/irqbalance/{machine_name}` | implemented | [virsh.go:2557](../master/api/virsh.go#L2557) |
+| `POST /virsh/irqbalance/{machine_name}` | implemented | [virsh.go:2558](../master/api/virsh.go#L2558) |
+| `GET /virsh/coreisolation/{machine_name}` | implemented | [virsh.go:2559](../master/api/virsh.go#L2559) |
+| `POST /virsh/coreisolation/{machine_name}` | implemented | [virsh.go:2560](../master/api/virsh.go#L2560) |
+| `PUT /virsh/coreisolation/{machine_name}` | implemented | [virsh.go:2561](../master/api/virsh.go#L2561) |
+| `DELETE /virsh/coreisolation/{machine_name}` | excluded (deletion policy) | [virsh.go:2562](../master/api/virsh.go#L2562) |
+| `GET /virsh/hosthugepages/{machine_name}` | implemented | [virsh.go:2563](../master/api/virsh.go#L2563) |
+| `POST /virsh/hosthugepages/{machine_name}` | implemented | [virsh.go:2565](../master/api/virsh.go#L2565) |
+| `PUT /virsh/hosthugepages/{machine_name}` | implemented | [virsh.go:2566](../master/api/virsh.go#L2566) |
+| `DELETE /virsh/hosthugepages/{machine_name}` | excluded (deletion policy) | [virsh.go:2567](../master/api/virsh.go#L2567) |
+| `POST /virsh/moveDisk/{vm_name}/{dest_nfs}` | excluded (deletion policy: deletes source VM) | [virsh.go:2570](../master/api/virsh.go#L2570) |
+| `POST /virsh/coldMigrate/{vm_name}/{dest_machine_name}` | excluded (deletion policy: undefines source domain) | [virsh.go:2571](../master/api/virsh.go#L2571) |
+| `POST /virsh/cloneVM/{vm_name}/{dest_nfs}/{dest_machine_name}` | implemented | [virsh.go:2572](../master/api/virsh.go#L2572) |
+| `GET /virsh/export/{vm_name}` | implemented | [virsh.go:2575](../master/api/virsh.go#L2575) |
+| `PUT /virsh/import` | excluded (deletion policy: rollback can delete destination business disk) | [virsh.go:2576](../master/api/virsh.go#L2576) |
+| `POST /virsh/backup/{vm_name}/{nfs_id}` | implemented | [virsh.go:2579](../master/api/virsh.go#L2579) |
+| `GET /virsh/backups` | implemented | [virsh.go:2580](../master/api/virsh.go#L2580) |
+| `GET /virsh/downloadbackup/{backup_id}` | implemented | [virsh.go:2581](../master/api/virsh.go#L2581) |
+| `POST /virsh/useBackup/{backup_id}` | excluded (deletion policy: rollback deletes destination business disk) | [virsh.go:2582](../master/api/virsh.go#L2582) |
+| `DELETE /virsh/deleteBackup/{backup_id}` | excluded (deletion policy) | [virsh.go:2583](../master/api/virsh.go#L2583) |
+| `POST /virsh/autostart/{vm_name}` | excluded (deletion policy: false branch deletes saved state) | [virsh.go:2585](../master/api/virsh.go#L2585) |
+| `POST /virsh/vmlive/{vm_name}` | excluded (deletion policy: false branch deletes saved state) | [virsh.go:2586](../master/api/virsh.go#L2586) |
+| `POST /virsh/autobak` | excluded (deletion policy: enables retention deletion) | [virsh.go:2589](../master/api/virsh.go#L2589) |
+| `GET /virsh/autobak` | implemented | [virsh.go:2590](../master/api/virsh.go#L2590) |
+| `PUT /virsh/autobak/{id}` | excluded (deletion policy: enables retention deletion) | [virsh.go:2591](../master/api/virsh.go#L2591) |
+| `DELETE /virsh/autobak/{id}` | excluded (deletion policy) | [virsh.go:2592](../master/api/virsh.go#L2592) |
+| `PATCH /virsh/autopak/enable/{id}` | excluded (deletion policy: enables retention deletion) | [virsh.go:2593](../master/api/virsh.go#L2593) |
+| `PATCH /virsh/autopak/disable/{id}` | implemented | [virsh.go:2594](../master/api/virsh.go#L2594) |
+| `GET /virsh/snapshot/{vm_name}` | missing (internal recovery helper; no direct tool credit) | [virsh.go:2516](../master/api/virsh.go#L2516) |
+| `GET /virsh/hostsnapshot/{machine_name}` | missing (internal recovery helper; no direct tool credit) | [virsh.go:2564](../master/api/virsh.go#L2564) |
 
 #### VM XML templates
 
 | Endpoint | Status | Route source |
 | --- | --- | --- |
-| `GET /virsh/xmltemplates/` | missing | [virsh_xml_templates.go:22](../master/api/virsh_xml_templates.go#L22) |
-| `GET /virsh/xmltemplates/{id}` | missing | [virsh_xml_templates.go:23](../master/api/virsh_xml_templates.go#L23) |
-| `POST /virsh/xmltemplates/` | missing | [virsh_xml_templates.go:24](../master/api/virsh_xml_templates.go#L24) |
-| `PUT /virsh/xmltemplates/{id}` | missing | [virsh_xml_templates.go:25](../master/api/virsh_xml_templates.go#L25) |
+| `GET /virsh/xmltemplates/` | implemented | [virsh_xml_templates.go:22](../master/api/virsh_xml_templates.go#L22) |
+| `GET /virsh/xmltemplates/{id}` | implemented | [virsh_xml_templates.go:23](../master/api/virsh_xml_templates.go#L23) |
+| `POST /virsh/xmltemplates/` | implemented | [virsh_xml_templates.go:24](../master/api/virsh_xml_templates.go#L24) |
+| `PUT /virsh/xmltemplates/{id}` | implemented | [virsh_xml_templates.go:25](../master/api/virsh_xml_templates.go#L25) |
 | `DELETE /virsh/xmltemplates/{id}` | excluded (deletion policy) | [virsh_xml_templates.go:26](../master/api/virsh_xml_templates.go#L26) |
 
 #### VM disks
 
 | Endpoint | Status | Route source |
 | --- | --- | --- |
-| `GET /vm-disk/list` | missing | [vm_disk.go:103](../master/api/vm_disk.go#L103) |
-| `POST /vm-disk/create` | missing | [vm_disk.go:104](../master/api/vm_disk.go#L104) |
+| `GET /vm-disk/list` | implemented | [vm_disk.go:103](../master/api/vm_disk.go#L103) |
+| `POST /vm-disk/create` | excluded (deletion policy: rollback deletes disk resource) | [vm_disk.go:104](../master/api/vm_disk.go#L104) |
 | `DELETE /vm-disk/{id}` | excluded (deletion policy) | [vm_disk.go:105](../master/api/vm_disk.go#L105) |
-| `POST /vm-disk/{id}/grow` | missing | [vm_disk.go:106](../master/api/vm_disk.go#L106) |
+| `POST /vm-disk/{id}/grow` | implemented | [vm_disk.go:106](../master/api/vm_disk.go#L106) |
 
 #### WireGuard
 
@@ -591,4 +683,3 @@ exclusion after review; they remain in the denominator until then.
 | `POST /wireguard/newPeer` | missing | [wireguard.go:204](../master/api/wireguard.go#L204) |
 | `GET /wireguard/` | missing | [wireguard.go:205](../master/api/wireguard.go#L205) |
 | `DELETE /wireguard/{id}` | excluded (deletion policy) | [wireguard.go:206](../master/api/wireguard.go#L206) |
-

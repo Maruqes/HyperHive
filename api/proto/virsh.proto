@@ -196,7 +196,20 @@ message ExternalDiskResponse {
 }
 
 // defines on slave
+message VMSnapshotResponse {
+ string name = 1;
+ string uuid = 2;
+ bool active = 3;
+ string inactive_xml = 4;
+ string current_xml = 5;
+}
+
+message HostBootEntry { int32 index = 1; string kernel = 2; string args = 3; }
+message HostBootSnapshotResponse { string grubby_info = 1; string current_cmdline = 2; string default_kernel = 3; repeated HostBootEntry entries = 4; }
+
 service SlaveVirshService {
+ rpc GetHostBootSnapshot(Empty) returns (HostBootSnapshotResponse);
+ rpc GetVMSnapshot(GetVmByNameRequest) returns (VMSnapshotResponse);
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
   rpc GetCPUXML(Empty) returns (CPUXMLResponse);
 

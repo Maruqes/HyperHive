@@ -1,0 +1,5406 @@
+{
+  "resultType": "complete",
+  "_meta": {
+    "io.modelcontextprotocol/serverInfo": {
+      "name": "hyperhive-mcp",
+      "version": "0.1.0"
+    }
+  },
+  "ttlMs": 0,
+  "cacheScope": "public",
+  "tools": [
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/novncvideo/add/{vm_name}"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Add managed noVNC graphics/video/audio devices; guest must be shut off. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/novncvideo/add/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "vm_name": {
+            "description": "Existing VM name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name"
+        ],
+        "type": "object"
+      },
+      "name": "add_vm_video",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/vm_disk/{vm_name}"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Attach an existing registered disk to a VM; backend validates ownership/readability. Saves actual old disk metadata, VM settings, secure inactive/current XML and attachment inventory. No automatic rollback. Calls POST /virsh/vm_disk/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "vm_disk_id": {
+            "type": "integer"
+          },
+          "vm_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name",
+          "vm_disk_id"
+        ],
+        "type": "object"
+      },
+      "name": "attach_vm_disk",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/backup/{vm_name}/{nfs_id}"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Request a manual VM disk backup to NFS. A running guest needs qemu-guest-agent; backend freezes and thaws its filesystems. Returns acceptance only: background completion can fail later and no job ID is supplied. Saves source state, destination share and prior backup inventory. No automatic rollback. Calls POST /virsh/backup/{vm_name}/{nfs_id}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "nfs_id": {
+            "type": "integer"
+          },
+          "vm_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name",
+          "nfs_id"
+        ],
+        "type": "object"
+      },
+      "name": "backup_vm",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/cloneVM/{vm_name}/{dest_nfs}/{dest_machine_name}"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Request a full VM disk clone to a new name/host/NFS; may freeze and thaw a running source guest. Returns acceptance only: detached background completion can fail later; no job ID supplied. Saves actual source state, destination share, target VM inventory and optional selected template. No automatic rollback. Calls POST /virsh/cloneVM/{vm_name}/{dest_nfs}/{dest_machine_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "dest_machine_name": {
+            "type": "string"
+          },
+          "dest_nfs": {
+            "type": "integer"
+          },
+          "new_name": {
+            "type": "string"
+          },
+          "template_id": {
+            "type": "integer"
+          },
+          "vm_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name",
+          "dest_nfs",
+          "dest_machine_name",
+          "new_name"
+        ],
+        "type": "object"
+      },
+      "name": "clone_vm",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/404/create"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Create a 404 host. Supply complete writable configuration, including explicit false/zero settings. Enabled state uses dedicated actions; server-owned IDs are not create fields.  Returns acceptance only; never fabricates IDs/state and never automatically retries. Calls POST /404/create.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "advanced_config": {
+            "type": "string"
+          },
+          "certificate_id": {
+            "type": "integer"
+          },
+          "domain_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "hsts_enabled": {
+            "type": "boolean"
+          },
+          "hsts_subdomains": {
+            "type": "boolean"
+          },
+          "http2_support": {
+            "type": "boolean"
+          },
+          "meta": {
+            "additionalProperties": false,
+            "properties": {
+              "dns_challenge": {
+                "type": "boolean"
+              },
+              "letsencrypt_agree": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "letsencrypt_agree",
+              "dns_challenge"
+            ],
+            "type": "object"
+          },
+          "ssl_forced": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "domain_names",
+          "certificate_id",
+          "meta",
+          "advanced_config",
+          "http2_support",
+          "hsts_enabled",
+          "hsts_subdomains",
+          "ssl_forced"
+        ],
+        "type": "object"
+      },
+      "name": "create_404_host",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/access-lists/create"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Create an access list with explicit name, satisfy_any, pass_auth, authentication items and client rules. Empty arrays are supported. Passwords are sensitive; the API may mask them on listing. No existing entries are edited. Returns acceptance only; no created ID is returned and no automatic retry occurs. Calls POST /access-lists/create.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "clients": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "address": {
+                  "type": "string"
+                },
+                "directive": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "directive",
+                "address"
+              ],
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "password": {
+                  "description": "Sensitive basic-auth password; forwarded only to the configured API",
+                  "type": "string"
+                },
+                "username": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "username",
+                "password"
+              ],
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "pass_auth": {
+            "type": "boolean"
+          },
+          "satisfy_any": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "satisfy_any",
+          "pass_auth",
+          "items",
+          "clients"
+        ],
+        "type": "object"
+      },
+      "name": "create_access_list",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/celld/fleets"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Create a Celld fleet using inventory server names. Calls POST /celld/fleets. Omit ports for automatic allocation or supply distinct HTTP/internal ports. Returns the API's queued fleet state (202), not completed provisioning. Name uniqueness, server inventory, port reservations and pending legacy reset are checked by HyperHive. No automatic retry.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "Unique fleet name, 1 to 128 bytes without surrounding whitespace",
+            "type": "string"
+          },
+          "ports": {
+            "additionalProperties": false,
+            "description": "Optional explicit port pair; omit for automatic allocation",
+            "properties": {
+              "http": {
+                "description": "HTTP port from 1 to 65535",
+                "type": "integer"
+              },
+              "internal": {
+                "description": "Distinct internal port from 1 to 65535",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "http",
+              "internal"
+            ],
+            "type": [
+              "null",
+              "object"
+            ]
+          },
+          "servers": {
+            "description": "Nonempty unique server names from HyperHive inventory",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "servers"
+        ],
+        "type": "object"
+      },
+      "name": "create_celld_fleet",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "description": "Complete HyperHive API response, preserving all fields including partial-state diagnostics",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/notes/"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Create a note with required nonblank titulo and nota. Calls POST /notes/; returns the created note. Values are preserved unchanged. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "nota": {
+            "description": "Required nonblank note body, preserved unchanged",
+            "type": "string"
+          },
+          "titulo": {
+            "description": "Required nonblank note title, preserved unchanged",
+            "type": "string"
+          }
+        },
+        "required": [
+          "titulo",
+          "nota"
+        ],
+        "type": "object"
+      },
+      "name": "create_note",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/proxy/create"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Create a proxy host with complete configuration. Calls POST /proxy/create. Supply every setting, using false, zero, empty metadata/config and empty locations where appropriate. Enabled state is controlled by enable_proxy/disable_proxy; the API does not return the created ID. No automatic retry.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "access_list_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]+$",
+                "type": "string"
+              },
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            ],
+            "description": "Nonnegative access-list ID; zero means no access list"
+          },
+          "advanced_config": {
+            "type": "string"
+          },
+          "allow_websocket_upgrade": {
+            "type": "boolean"
+          },
+          "block_exploits": {
+            "type": "boolean"
+          },
+          "caching_enabled": {
+            "type": "boolean"
+          },
+          "certificate_id": {
+            "type": "integer"
+          },
+          "domain_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "forward_host": {
+            "type": "string"
+          },
+          "forward_port": {
+            "type": "integer"
+          },
+          "forward_scheme": {
+            "type": "string"
+          },
+          "hsts_enabled": {
+            "type": "boolean"
+          },
+          "hsts_subdomains": {
+            "type": "boolean"
+          },
+          "http2_support": {
+            "type": "boolean"
+          },
+          "locations": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "forward_host": {
+                  "type": "string"
+                },
+                "forward_port": {
+                  "type": "integer"
+                },
+                "forward_scheme": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "forward_scheme",
+                "forward_host",
+                "forward_port"
+              ],
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "ssl_forced": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "domain_names",
+          "forward_scheme",
+          "forward_host",
+          "forward_port",
+          "caching_enabled",
+          "block_exploits",
+          "allow_websocket_upgrade",
+          "access_list_id",
+          "certificate_id",
+          "meta",
+          "advanced_config",
+          "locations",
+          "http2_support",
+          "hsts_enabled",
+          "hsts_subdomains",
+          "ssl_forced"
+        ],
+        "type": "object"
+      },
+      "name": "create_proxy",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/redirection/create"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Create a redirect. Supply complete writable configuration, including explicit false/zero settings. Enabled state uses dedicated actions; server-owned IDs are not create fields.  Returns acceptance only; never fabricates IDs/state and never automatically retries. Calls POST /redirection/create.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "advanced_config": {
+            "type": "string"
+          },
+          "block_exploits": {
+            "type": "boolean"
+          },
+          "certificate_id": {
+            "type": "integer"
+          },
+          "domain_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "forward_domain_name": {
+            "type": "string"
+          },
+          "forward_http_code": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]+$",
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "forward_scheme": {
+            "type": "string"
+          },
+          "hsts_enabled": {
+            "type": "boolean"
+          },
+          "hsts_subdomains": {
+            "type": "boolean"
+          },
+          "http2_support": {
+            "type": "boolean"
+          },
+          "meta": {
+            "additionalProperties": false,
+            "properties": {
+              "dns_challenge": {
+                "type": "boolean"
+              },
+              "letsencrypt_agree": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "letsencrypt_agree",
+              "dns_challenge"
+            ],
+            "type": "object"
+          },
+          "preserve_path": {
+            "type": "boolean"
+          },
+          "ssl_forced": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "domain_names",
+          "forward_scheme",
+          "forward_domain_name",
+          "forward_http_code",
+          "preserve_path",
+          "block_exploits",
+          "certificate_id",
+          "meta",
+          "advanced_config",
+          "http2_support",
+          "hsts_enabled",
+          "hsts_subdomains",
+          "ssl_forced"
+        ],
+        "type": "object"
+      },
+      "name": "create_redirect",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/stream/create"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Create a stream. Supply complete writable configuration, including explicit false/zero settings. Enabled state uses dedicated actions; server-owned IDs are not create fields.  Stream changes persist NPM first and the description second; a description failure can leave NPM changed. Empty description explicitly overwrites existing text. Returns acceptance only; never fabricates IDs/state and never automatically retries. Calls POST /stream/create.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "certificate_id": {
+            "type": "integer"
+          },
+          "description": {
+            "description": "Explicit description; empty string removes the description text; NPM changes can remain applied if saving this text fails",
+            "type": "string"
+          },
+          "forwarding_host": {
+            "type": "string"
+          },
+          "forwarding_port": {
+            "type": "integer"
+          },
+          "incoming_port": {
+            "type": "integer"
+          },
+          "meta": {
+            "additionalProperties": false,
+            "properties": {
+              "dns_challenge": {
+                "type": "boolean"
+              },
+              "dns_provider_credentials": {
+                "type": "string"
+              },
+              "letsencrypt_agree": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "dns_provider_credentials",
+              "letsencrypt_agree",
+              "dns_challenge"
+            ],
+            "type": "object"
+          },
+          "tcp_forwarding": {
+            "type": "boolean"
+          },
+          "udp_forwarding": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "incoming_port",
+          "forwarding_host",
+          "forwarding_port",
+          "tcp_forwarding",
+          "udp_forwarding",
+          "certificate_id",
+          "meta",
+          "description"
+        ],
+        "type": "object"
+      },
+      "name": "create_stream",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/xmltemplates/"
+        },
+        "hyperhive/risk": "medium"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: medium. Create a reusable VM XML template. XML omitted from picker; size and SHA-256 shown. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/xmltemplates/. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "xml": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "xml"
+        ],
+        "type": "object"
+      },
+      "name": "create_vm_xml_template",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "DELETE",
+          "path": "/celld/fleets/{id}"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Permanently delete a Celld fleet, its node data and logs, bucket and scoped storage credentials. Calls DELETE /celld/fleets/{id}. Returns queued desired_state=deleting (HTTP 202), not completed deletion; offline nodes can delay cleanup. Explicitly user-authorized deletion capability. No automatic retry.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Fleet ID returned by list_celld_fleets or create_celld_fleet",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "delete_celld_fleet",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "description": "Complete HyperHive API response, preserving all fields including partial-state diagnostics",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/404/disable"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Disable a 404 host.  Returns acceptance only; never fabricates IDs/state and never automatically retries. Calls POST /404/disable.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Positive existing resource ID from the corresponding list tool",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "disable_404_host",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/proxy/disable"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Disable a proxy host by positive id. Calls POST /proxy/disable with JSON. Managed frontend proxies cannot be disabled (403). Returns acceptance only; no automatic retry.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "disable_proxy",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/redirection/disable"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Disable a redirect.  Returns acceptance only; never fabricates IDs/state and never automatically retries. Calls POST /redirection/disable.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Positive existing resource ID from the corresponding list tool",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "disable_redirect",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/stream/disable"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Disable a stream.  Returns acceptance only; never fabricates IDs/state and never automatically retries. Calls POST /stream/disable.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Positive existing resource ID from the corresponding list tool",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "disable_stream",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "PATCH",
+          "path": "/virsh/autopak/disable/{id}"
+        },
+        "hyperhive/risk": "medium"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: medium. Disable an existing automatic backup schedule by setting Enabled=false. Saves the exact actual prior schedule. Does not create backups or enable retention deletion. A running background backup may still finish. No automatic rollback. Calls PATCH /virsh/autopak/disable/{id}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Positive database ID",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "disable_vm_automatic_backup",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/dnsmasq/alias/add"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Add a DNS alias or replace its existing IP, then restart DNS instances. Values must contain no whitespace or control characters. The same pair is a no-op. Configuration may remain changed if writing includes or restarting fails; do not automatically retry. Calls POST /dnsmasq/alias/add.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "alias": {
+            "description": "DNS alias; nonblank and no internal whitespace or comma",
+            "type": "string"
+          },
+          "ip": {
+            "description": "IPv4 or IPv6 address",
+            "type": "string"
+          }
+        },
+        "required": [
+          "alias",
+          "ip"
+        ],
+        "type": "object"
+      },
+      "name": "dns_alias_add",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/dnsmasq/alias/get"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Check whether the exact DNS alias/address pair exists; false is a successful missing result. Calls GET /dnsmasq/alias/get.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "alias": {
+            "description": "DNS alias; nonblank and no internal whitespace or comma",
+            "type": "string"
+          },
+          "ip": {
+            "description": "IPv4 or IPv6 address",
+            "type": "string"
+          }
+        },
+        "required": [
+          "alias",
+          "ip"
+        ],
+        "type": "object"
+      },
+      "name": "dns_alias_get",
+      "outputSchema": {
+        "properties": {
+          "exists": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "exists"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/dnsmasq/alias/all"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List all managed DNS aliases, preserving API response fields. Calls GET /dnsmasq/alias/all.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "dns_aliases_list",
+      "outputSchema": {
+        "properties": {
+          "aliases": {
+            "items": {
+              "properties": {
+                "alias": {
+                  "type": "string"
+                },
+                "ip": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "alias",
+                "ip"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "aliases"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/certs/download"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Download a certificate archive. The returned base64 data can contain private keys: treat it as secret. Preserves content type and disposition; never writes files. Maximum API response 16 MiB. Timeout three minutes, honoring cancellation. Read-only despite POST. Calls POST /certs/download.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Positive existing resource ID from the corresponding list tool",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "download_certificate",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "content_disposition": {
+            "type": "string"
+          },
+          "content_type": {
+            "type": "string"
+          },
+          "data_base64": {
+            "description": "Base64-encoded archive bytes; may include private keys",
+            "type": "string"
+          }
+        },
+        "required": [
+          "data_base64",
+          "content_type",
+          "content_disposition"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/downloadbackup/{backup_id}"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: low. Download an existing VM backup disk to a new private artifact on the MCP server filesystem. Returns only after the full file is saved, with byte count and SHA-256. Does not restore or modify any guest. Calls GET /virsh/downloadbackup/{backup_id}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Positive database ID",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "download_vm_backup",
+      "outputSchema": {
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/editvm/{vm_name}"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Replace VM resource settings; zero or omitted fields preserve existing values; positive disk size grows only. Guest must be shut off. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/editvm/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "disk_sizeGB": {
+            "maximum": 2147483647,
+            "minimum": -2147483648,
+            "type": "integer"
+          },
+          "memory": {
+            "maximum": 2147483647,
+            "minimum": -2147483648,
+            "type": "integer"
+          },
+          "vcpu": {
+            "maximum": 2147483647,
+            "minimum": -2147483648,
+            "type": "integer"
+          },
+          "vm_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name"
+        ],
+        "type": "object"
+      },
+      "name": "edit_vm",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/404/enable"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Enable a 404 host.  Returns acceptance only; never fabricates IDs/state and never automatically retries. Calls POST /404/enable.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Positive existing resource ID from the corresponding list tool",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "enable_404_host",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/proxy/enable"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Enable a proxy host by positive id. Calls POST /proxy/enable with JSON. Managed frontend proxies may be enabled. Returns acceptance only; no automatic retry.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "enable_proxy",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/redirection/enable"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Enable a redirect.  Returns acceptance only; never fabricates IDs/state and never automatically retries. Calls POST /redirection/enable.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Positive existing resource ID from the corresponding list tool",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "enable_redirect",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/stream/enable"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Enable a stream.  Returns acceptance only; never fabricates IDs/state and never automatically retries. Calls POST /stream/enable.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Positive existing resource ID from the corresponding list tool",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "enable_stream",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/export/{vm_name}"
+        },
+        "hyperhive/risk": "medium"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: medium. Export a shut-off VM disk to a new private artifact on the MCP server filesystem. Backend synchronizes NFS mounts. Returns only after the full file is saved, with byte count and SHA-256; requires secure prior VM state and per-invocation approval. No automatic rollback. Calls GET /virsh/export/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "vm_name": {
+            "description": "Existing VM name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name"
+        ],
+        "type": "object"
+      },
+      "name": "export_vm",
+      "outputSchema": {
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/forceshutdownvm/{vm_name}"
+        },
+        "hyperhive/risk": "very high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: very high. Force stop the VM; unsaved guest data may be lost. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/forceshutdownvm/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "vm_name": {
+            "description": "Existing VM name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name"
+        ],
+        "type": "object"
+      },
+      "name": "force_shutdown_vm",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/celld/fleets/{id}/credentials"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Explicitly retrieve sensitive fleet-scoped AWS storage credentials. Calls GET /celld/fleets/{id}/credentials. Returns aws_access_key_id and aws_secret_access_key; treat the result as secret. Deleting fleets may reject this request with HTTP 409. Other tools do not fetch these credentials.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Fleet ID returned by list_celld_fleets or create_celld_fleet",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "get_celld_credentials",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "description": "Complete HyperHive API response, preserving all fields including partial-state diagnostics",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/celld/fleets/{id}/events"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Read Celld events with time, node, workload, source, severity and text filters and opaque cursor pagination. Calls GET /celld/fleets/{id}/events. Preserves incomplete, error, truncated and next_cursor. Omit times for the API's last-hour default within seven-day retention. download=true returns parsed NDJSON records and header-derived truncated/next_cursor; export does not provide from/to or completeness metadata. Not a live stream.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "description": "Opaque next_cursor returned by the API; maximum 1024 bytes",
+            "type": "string"
+          },
+          "download": {
+            "description": "Request bounded NDJSON export; false or omission selects a JSON page",
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "from": {
+            "description": "Start Unix milliseconds; zero defaults to one hour before to; API clamps to seven-day retention",
+            "type": [
+              "null",
+              "integer"
+            ]
+          },
+          "id": {
+            "description": "Fleet ID returned by list_celld_fleets or create_celld_fleet",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Page size, 0 for default 200, maximum 500 or 2000 with download",
+            "type": [
+              "null",
+              "integer"
+            ]
+          },
+          "node": {
+            "description": "Exact node filter, maximum 128 bytes",
+            "type": "string"
+          },
+          "severity": {
+            "description": "Severity filter, normalized to uppercase by API, maximum 16 bytes",
+            "type": "string"
+          },
+          "source": {
+            "description": "Exact source filter, maximum 32 bytes",
+            "type": "string"
+          },
+          "text": {
+            "description": "Text search, maximum 256 bytes",
+            "type": "string"
+          },
+          "to": {
+            "description": "End Unix milliseconds; zero defaults to now or the cursor end time",
+            "type": [
+              "null",
+              "integer"
+            ]
+          },
+          "workload": {
+            "description": "Exact workload filter, maximum 256 bytes",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "get_celld_events",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "description": "Complete HyperHive API response, preserving all fields including partial-state diagnostics",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/celld/health"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Get Celld storage, fleets and machines health. Calls GET /celld/health. Unhealthy HTTP 503 diagnostics are returned as a normal result with healthy=false, not discarded. Takes no arguments.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "get_celld_health",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "description": "Complete HyperHive API response, preserving all fields including partial-state diagnostics",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/celld/fleets/{id}/logs"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Read Celld logs with time, node, workload, source, severity and text filters and opaque cursor pagination. Calls GET /celld/fleets/{id}/logs. Preserves incomplete, error, truncated and next_cursor. Omit times for the API's last-hour default within seven-day retention. download=true returns parsed NDJSON records and header-derived truncated/next_cursor; export does not provide from/to or completeness metadata. Not a live stream.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "description": "Opaque next_cursor returned by the API; maximum 1024 bytes",
+            "type": "string"
+          },
+          "download": {
+            "description": "Request bounded NDJSON export; false or omission selects a JSON page",
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "from": {
+            "description": "Start Unix milliseconds; zero defaults to one hour before to; API clamps to seven-day retention",
+            "type": [
+              "null",
+              "integer"
+            ]
+          },
+          "id": {
+            "description": "Fleet ID returned by list_celld_fleets or create_celld_fleet",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Page size, 0 for default 200, maximum 500 or 2000 with download",
+            "type": [
+              "null",
+              "integer"
+            ]
+          },
+          "node": {
+            "description": "Exact node filter, maximum 128 bytes",
+            "type": "string"
+          },
+          "severity": {
+            "description": "Severity filter, normalized to uppercase by API, maximum 16 bytes",
+            "type": "string"
+          },
+          "source": {
+            "description": "Exact source filter, maximum 32 bytes",
+            "type": "string"
+          },
+          "text": {
+            "description": "Text search, maximum 256 bytes",
+            "type": "string"
+          },
+          "to": {
+            "description": "End Unix milliseconds; zero defaults to now or the cursor end time",
+            "type": [
+              "null",
+              "integer"
+            ]
+          },
+          "workload": {
+            "description": "Exact workload filter, maximum 256 bytes",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "get_celld_logs",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "description": "Complete HyperHive API response, preserving all fields including partial-state diagnostics",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/notes/{id}"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Get a note by positive integer ID. Calls GET /notes/{id}; missing notes return HTTP 404.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Positive note ID",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "get_note",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/getvmbyname/{vm_name}"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/getvmbyname/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "vm_name": {
+            "description": "Existing VM name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name"
+        ],
+        "type": "object"
+      },
+      "name": "get_vm",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/ballooning/{vm_name}"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/ballooning/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "vm_name": {
+            "description": "Existing VM name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name"
+        ],
+        "type": "object"
+      },
+      "name": "get_vm_ballooning",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/coreisolation/{machine_name}"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/coreisolation/{machine_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "machine_name": {
+            "description": "Existing HyperHive machine name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "machine_name"
+        ],
+        "type": "object"
+      },
+      "name": "get_vm_core_isolation",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/getcpudisablefeatures"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/getcpudisablefeatures. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "slavesnames": {
+            "description": "Optional host list; omitted includes all connected hosts",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "name": "get_vm_cpu_disable_features",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/cpupinning/{vm_name}"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/cpupinning/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "vm_name": {
+            "description": "Existing VM name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name"
+        ],
+        "type": "object"
+      },
+      "name": "get_vm_cpu_pinning",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/cputopology/{machine_name}"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/cputopology/{machine_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "machine_name": {
+            "description": "Existing HyperHive machine name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "machine_name"
+        ],
+        "type": "object"
+      },
+      "name": "get_vm_cpu_topology",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/cpuxml/{vm_name}"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. The backend requires machine_name in a GET JSON body. Calls GET /virsh/cpuxml/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "machine_name": {
+            "type": "string"
+          },
+          "vm_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name",
+          "machine_name"
+        ],
+        "type": "object"
+      },
+      "name": "get_vm_cpu_xml",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/hosthugepages/{machine_name}"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/hosthugepages/{machine_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "machine_name": {
+            "description": "Existing HyperHive machine name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "machine_name"
+        ],
+        "type": "object"
+      },
+      "name": "get_vm_host_hugepages",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/hugepages/{vm_name}"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/hugepages/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "vm_name": {
+            "description": "Existing VM name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name"
+        ],
+        "type": "object"
+      },
+      "name": "get_vm_hugepages",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/hyperv/{vm_name}"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/hyperv/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "vm_name": {
+            "description": "Existing VM name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name"
+        ],
+        "type": "object"
+      },
+      "name": "get_vm_hyperv",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/irqbalance/{machine_name}"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/irqbalance/{machine_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "machine_name": {
+            "description": "Existing HyperHive machine name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "machine_name"
+        ],
+        "type": "object"
+      },
+      "name": "get_vm_irqbalance",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/kvm/{vm_name}"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/kvm/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "vm_name": {
+            "description": "Existing VM name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name"
+        ],
+        "type": "object"
+      },
+      "name": "get_vm_kvm",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/tunedadm/{machine_name}"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/tunedadm/{machine_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "machine_name": {
+            "description": "Existing HyperHive machine name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "machine_name"
+        ],
+        "type": "object"
+      },
+      "name": "get_vm_tuned_profiles",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/novncvideo/{vm_name}"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/novncvideo/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "vm_name": {
+            "description": "Existing VM name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name"
+        ],
+        "type": "object"
+      },
+      "name": "get_vm_video",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/vmxml/{vm_name}"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/vmxml/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "machine_name": {
+            "description": "Optional machine override; omitted resolves current VM host",
+            "type": "string"
+          },
+          "vm_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name"
+        ],
+        "type": "object"
+      },
+      "name": "get_vm_xml",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/xmltemplates/{id}"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/xmltemplates/{id}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Positive database ID",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "get_vm_xml_template",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/vm-disk/{id}/grow"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Grow a VM disk to size_gb; cannot shrink. This cannot be undone by the saved metadata record. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /vm-disk/{id}/grow. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "size_gb": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "size_gb"
+        ],
+        "type": "object"
+      },
+      "name": "grow_vm_disk",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/404/list"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List 404 hosts, preserving every field returned by HyperHive. Takes no arguments. Calls GET /404/list.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "list_404_hosts",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "Complete API objects, preserving all fields; null root list is normalized to an empty array",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/access-lists/list"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List expanded access lists, including owner, authentication items and network clients. Preserve API masking and all returned fields. Takes no arguments. Calls GET /access-lists/list.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "list_access_lists",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "Complete API objects, preserving all fields; null root list is normalized to an empty array",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/celld/fleets"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List Celld fleets and shared storage status. Calls GET /celld/fleets. Preserves reset_pending, storage errors and partial-state diagnostics. Takes no arguments.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "list_celld_fleets",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "description": "Complete HyperHive API response, preserving all fields including partial-state diagnostics",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/certs/list"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List certificate metadata visible to the configured account, preserving the complete HyperHive response objects. Takes no arguments. Calls GET /certs/list.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "list_certificates",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "Complete API objects, preserving all fields; null root list is normalized to an empty array",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/certs/dns-providers"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List supported DNS providers, names and credential-format templates. Templates are not configured credentials. Takes no arguments. Calls GET /certs/dns-providers.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "list_dns_providers",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "Complete API objects, preserving all fields; null root list is normalized to an empty array",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/isos/"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List registered ISO images and best-effort availability on connected slaves. Calls GET /isos/. False availability can mean a missing file or a failed probe; this is not a download completion guarantee. Takes no arguments.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "list_isos",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/notes/"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List all notes ordered by descending ID. Calls GET /notes/. Takes no arguments.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "list_notes",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/proxy/list"
+        }
+      },
+      "annotations": {
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List all proxy hosts visible to the configured HyperHive account, including domains, forwarding targets, TLS settings, enabled state, metadata and locations. Calls GET /proxy/list. Takes no arguments.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "list_proxies",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "proxies": {
+            "description": "Proxy hosts returned by HyperHive, preserving all API fields",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "proxies"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/redirection/list"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List redirects, preserving every field returned by HyperHive. Takes no arguments. Calls GET /redirection/list.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "list_redirects",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "Complete API objects, preserving all fields; null root list is normalized to an empty array",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/spa/allow/{port}"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List IP permissions and their remaining seconds for a configured SPA port. Zero remaining_seconds is preserved. Requires management authentication, no password. Calls GET /spa/allow/{port}.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "port": {
+            "description": "Configured SPA port from 1 to 65535",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "port"
+        ],
+        "type": "object"
+      },
+      "name": "list_spa_allows",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "description": "Complete safe SPA API response; passwords and hashes are never returned",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/spa/"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List SPA-protected ports, descriptions and creation timestamps. Returns spa_ports, including an empty array when no ports exist. Does not retrieve passwords or password hashes. Calls GET /spa/.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "list_spa_ports",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "description": "Complete safe SPA API response; passwords and hashes are never returned",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/stream/list"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List streams, preserving every field returned by HyperHive. Takes no arguments. Calls GET /stream/list.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "list_streams",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "Complete API objects, preserving all fields; null root list is normalized to an empty array",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/vm_disk/{vm_name}"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/vm_disk/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "vm_name": {
+            "description": "Existing VM name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name"
+        ],
+        "type": "object"
+      },
+      "name": "list_vm_attached_disks",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/autobak"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/autobak. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "list_vm_automatic_backups",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/backups"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/backups. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "list_vm_backups",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/vm-disk/list"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /vm-disk/list. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "list_vm_disks",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/machine_types/{machine_name}"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/machine_types/{machine_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "machine_name": {
+            "description": "Existing HyperHive machine name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "machine_name"
+        ],
+        "type": "object"
+      },
+      "name": "list_vm_machine_types",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/xmltemplates/"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/xmltemplates/. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "list_vm_xml_templates",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "GET",
+          "path": "/virsh/getallvms"
+        },
+        "hyperhive/risk": "low"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Risk: low. Return the complete API JSON, preserving exact integers and backend fields. Calls GET /virsh/getallvms. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "list_vms",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "PATCH",
+          "path": "/notes/{id}"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Replace both title and body using the API PATCH alias. Calls PATCH /notes/{id}. This is a full replacement, not a partial merge: positive id, nonblank titulo and nota are all required. Overwrites both fields; returns the updated note or HTTP 404. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Positive note ID",
+            "type": "integer"
+          },
+          "nota": {
+            "description": "Required nonblank replacement body",
+            "type": "string"
+          },
+          "titulo": {
+            "description": "Required nonblank replacement title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "titulo",
+          "nota"
+        ],
+        "type": "object"
+      },
+      "name": "patch_note",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/pausevm/{vm_name}"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Pause guest execution. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/pausevm/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "vm_name": {
+            "description": "Existing VM name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name"
+        ],
+        "type": "object"
+      },
+      "name": "pause_vm",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/certs/renew"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Renew a Let's Encrypt certificate. Only the API decides provider eligibility. Waits for the API response, with an eleven-minute timeout covering its ten-minute downstream operation. Cancellation or timeout can leave work running in HyperHive: inspect certificate state before retrying. Returns acceptance only, not certificate data. No automatic retry. Calls POST /certs/renew.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Positive existing resource ID from the corresponding list tool",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "renew_certificate",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "PUT",
+          "path": "/notes/{id}"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Replace both title and body of an existing note. Calls PUT /notes/{id}. Positive id, nonblank titulo and nota are all required; this overwrites both fields. Returns the updated note, or HTTP 404 if missing. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Positive note ID",
+            "type": "integer"
+          },
+          "nota": {
+            "description": "Required nonblank replacement body",
+            "type": "string"
+          },
+          "titulo": {
+            "description": "Required nonblank replacement title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "titulo",
+          "nota"
+        ],
+        "type": "object"
+      },
+      "name": "replace_note",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "PUT",
+          "path": "/virsh/coreisolation/{machine_name}"
+        },
+        "hyperhive/risk": "very high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: very high. Replace host CPU isolation boot arguments for ALL kernels; affects all host workloads and can require a reboot. Saves exact grubby info for every kernel, current cmdline, default kernel and previous isolation state. No automatic rollback or reboot. Calls PUT /virsh/coreisolation/{machine_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "machine_name": {
+            "type": "string"
+          },
+          "sockets": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "core_indices": {
+                  "items": {
+                    "maximum": 2147483647,
+                    "minimum": -2147483648,
+                    "type": "integer"
+                  },
+                  "type": [
+                    "null",
+                    "array"
+                  ]
+                },
+                "socket_id": {
+                  "maximum": 2147483647,
+                  "minimum": -2147483648,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "socket_id",
+                "core_indices"
+              ],
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "machine_name",
+          "sockets"
+        ],
+        "type": "object"
+      },
+      "name": "replace_vm_host_core_isolation",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "PUT",
+          "path": "/virsh/hosthugepages/{machine_name}"
+        },
+        "hyperhive/risk": "very high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: very high. Replace host hugepage boot arguments for ALL kernels; affects host memory availability and all workloads and can require a reboot. Saves exact grubby info for every kernel, current cmdline, default kernel and previous hugepage state. No automatic rollback or reboot. Calls PUT /virsh/hosthugepages/{machine_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "machine_name": {
+            "type": "string"
+          },
+          "page_count": {
+            "maximum": 2147483647,
+            "minimum": -2147483648,
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "machine_name",
+          "page_size",
+          "page_count"
+        ],
+        "type": "object"
+      },
+      "name": "replace_vm_host_hugepages",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/restartvm/{vm_name}"
+        },
+        "hyperhive/risk": "very high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: very high. Force stop then start the VM; unsaved guest data may be lost. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/restartvm/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "vm_name": {
+            "description": "Existing VM name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name"
+        ],
+        "type": "object"
+      },
+      "name": "restart_vm",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/resumevm/{vm_name}"
+        },
+        "hyperhive/risk": "medium"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: medium. Resume guest execution. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/resumevm/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "vm_name": {
+            "description": "Existing VM name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name"
+        ],
+        "type": "object"
+      },
+      "name": "resume_vm",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/ballooning/{vm_name}"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Replace memory ballooning settings; guest must be shut off. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/ballooning/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "enable": {
+            "type": "boolean"
+          },
+          "vm_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name",
+          "enable"
+        ],
+        "type": "object"
+      },
+      "name": "set_vm_ballooning",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/cpupinning/{vm_name}"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Replace CPU pinning and topology; physical core ranges and hyper-threading are specified below. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/cpupinning/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "hyper_threading": {
+            "type": "boolean"
+          },
+          "range_end": {
+            "maximum": 2147483647,
+            "minimum": -2147483648,
+            "type": "integer"
+          },
+          "range_start": {
+            "maximum": 2147483647,
+            "minimum": -2147483648,
+            "type": "integer"
+          },
+          "socket_id": {
+            "maximum": 2147483647,
+            "minimum": -2147483648,
+            "type": "integer"
+          },
+          "vm_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name",
+          "range_start",
+          "range_end",
+          "hyper_threading",
+          "socket_id"
+        ],
+        "type": "object"
+      },
+      "name": "set_vm_cpu_pinning",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/coreisolation/{machine_name}"
+        },
+        "hyperhive/risk": "very high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: very high. Replace host CPU isolation boot arguments for ALL kernels; affects all host workloads and can require a reboot. Saves exact grubby info for every kernel, current cmdline, default kernel and previous isolation state. No automatic rollback or reboot. Calls POST /virsh/coreisolation/{machine_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "machine_name": {
+            "type": "string"
+          },
+          "sockets": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "core_indices": {
+                  "items": {
+                    "maximum": 2147483647,
+                    "minimum": -2147483648,
+                    "type": "integer"
+                  },
+                  "type": [
+                    "null",
+                    "array"
+                  ]
+                },
+                "socket_id": {
+                  "maximum": 2147483647,
+                  "minimum": -2147483648,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "socket_id",
+                "core_indices"
+              ],
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "machine_name",
+          "sockets"
+        ],
+        "type": "object"
+      },
+      "name": "set_vm_host_core_isolation",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/hosthugepages/{machine_name}"
+        },
+        "hyperhive/risk": "very high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: very high. Replace host hugepage boot arguments for ALL kernels; affects host memory availability and all workloads and can require a reboot. Saves exact grubby info for every kernel, current cmdline, default kernel and previous hugepage state. No automatic rollback or reboot. Calls POST /virsh/hosthugepages/{machine_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "machine_name": {
+            "type": "string"
+          },
+          "page_count": {
+            "maximum": 2147483647,
+            "minimum": -2147483648,
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "machine_name",
+          "page_size",
+          "page_count"
+        ],
+        "type": "object"
+      },
+      "name": "set_vm_host_hugepages",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/hugepages/{vm_name}"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Replace guest hugepage settings; guest must be shut off. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/hugepages/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "enable": {
+            "type": "boolean"
+          },
+          "vm_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name",
+          "enable"
+        ],
+        "type": "object"
+      },
+      "name": "set_vm_hugepages",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/hyperv/{vm_name}"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Replace Hyper-V feature setting; guest must be shut off. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/hyperv/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "hyperv": {
+            "type": "boolean"
+          },
+          "vm_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name",
+          "hyperv"
+        ],
+        "type": "object"
+      },
+      "name": "set_vm_hyperv",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/irqbalance/{machine_name}"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Enable/start or disable/stop host irqbalance service; affects all workloads. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/irqbalance/{machine_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "machine_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "machine_name",
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "name": "set_vm_irqbalance",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/kvm/{vm_name}"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Replace KVM hidden setting; guest must be shut off. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/kvm/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "hidden": {
+            "type": "boolean"
+          },
+          "vm_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name",
+          "hidden"
+        ],
+        "type": "object"
+      },
+      "name": "set_vm_kvm",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/machine_type/{vm_name}"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Replace guest machine type; guest must be shut off. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/machine_type/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "machine_type": {
+            "type": "string"
+          },
+          "vm_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name",
+          "machine_type"
+        ],
+        "type": "object"
+      },
+      "name": "set_vm_machine_type",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/change_vm_network/{vm_name}"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Replace guest network with default or 512rede; may interrupt connectivity. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/change_vm_network/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "new_network": {
+            "type": "string"
+          },
+          "vm_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name",
+          "new_network"
+        ],
+        "type": "object"
+      },
+      "name": "set_vm_network",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/tunedadm/{machine_name}"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Change host tuned profile; affects all workloads on this machine. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/tunedadm/{machine_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "machine_name": {
+            "type": "string"
+          },
+          "profile": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "machine_name",
+          "profile"
+        ],
+        "type": "object"
+      },
+      "name": "set_vm_tuned_profile",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/change_vnc_password/{vm_name}"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Replace VNC password; guest must be shut off. Password omitted from picker. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/change_vnc_password/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "new_password": {
+            "type": "string"
+          },
+          "vm_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name",
+          "new_password"
+        ],
+        "type": "object"
+      },
+      "name": "set_vm_vnc_password",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/proxy/setupFrontEnd"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Create or replace the managed frontend proxy matched by domain. Calls POST /proxy/setupFrontEnd. id is a certificate ID (zero means no TLS), not a proxy ID. The server configures frontend port 8079 and API_PORT locations /api, /novnc and /guest_api, with streaming/timeouts/IP-header settings. This replaces matching configuration. Returns acceptance only; no automatic retry.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "domain": {
+            "type": "string"
+          },
+          "id": {
+            "description": "Certificate ID; zero means no TLS certificate",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "domain",
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "setup_frontend_proxy",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/proxy/setupFrontEndSecure"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Create or replace managed public/private frontend proxies. Calls POST /proxy/setupFrontEndSecure with publicDomain, publicCertificateId, privateDomain, privateCertificateId. Zero certificate ID means no TLS. Private exposes /api, /novnc and /guest_api; public exposes /guest_api and blocks root. Writes private then public, with NO rollback: an error can leave the private change applied. Inspect list_proxies before recovery. Returns acceptance only; no automatic retry.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "privateCertificateId": {
+            "type": "integer"
+          },
+          "privateDomain": {
+            "type": "string"
+          },
+          "publicCertificateId": {
+            "type": "integer"
+          },
+          "publicDomain": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "publicDomain",
+          "publicCertificateId",
+          "privateDomain",
+          "privateCertificateId"
+        ],
+        "type": "object"
+      },
+      "name": "setup_secure_frontend_proxy",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/shutdownvm/{vm_name}"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Request guest shutdown; services will stop. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/shutdownvm/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "vm_name": {
+            "description": "Existing VM name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name"
+        ],
+        "type": "object"
+      },
+      "name": "shutdown_vm",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/celld/fleets/{id}/start"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Start a Celld fleet. Returns queued desired_state=running (HTTP 202), not proof that nodes are ready. Busy or conflicting operations are reported by HyperHive. No automatic retry.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Fleet ID returned by list_celld_fleets or create_celld_fleet",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "start_celld_fleet",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "description": "Complete HyperHive API response, preserving all fields including partial-state diagnostics",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/isos/download"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Start an asynchronous ISO download on an existing NFS share on a connected slave. Calls POST /isos/download. Requires an absolute http(s) url without credentials or fragment, a leaf iso_name without path separators or NUL, both ending exactly with .iso, and a positive nfs_share_id. HTTP 202 status started means accepted only, never downloaded or registered: download, sync or registration can fail later and report notifications. There is no job ID or completion endpoint. Partial files can remain after failure. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "iso_name": {
+            "description": "New leaf ISO filename without path separators or NUL ending exactly with lowercase .iso",
+            "type": "string"
+          },
+          "nfs_share_id": {
+            "description": "Positive existing NFS share ID on a connected slave",
+            "type": "integer"
+          },
+          "url": {
+            "description": "Absolute http(s) URL without credentials or fragment ending exactly with lowercase .iso",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "iso_name",
+          "nfs_share_id"
+        ],
+        "type": "object"
+      },
+      "name": "start_iso_download",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/startvm/{vm_name}"
+        },
+        "hyperhive/risk": "medium"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: medium. Start the VM. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/startvm/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "vm_name": {
+            "description": "Existing VM name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name"
+        ],
+        "type": "object"
+      },
+      "name": "start_vm",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/celld/fleets/{id}/stop"
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Stop a Celld fleet while retaining its configuration and data. Returns queued desired_state=stopped (HTTP 202), not completed shutdown. Busy/conflicting operations are reported by HyperHive. No automatic retry.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Fleet ID returned by list_celld_fleets or create_celld_fleet",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "stop_celld_fleet",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "description": "Complete HyperHive API response, preserving all fields including partial-state diagnostics",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "PUT",
+          "path": "/404/edit"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Update a 404 host. Supply complete writable configuration, including explicit false/zero settings. Enabled state uses dedicated actions; server-owned IDs are not create fields.  Returns acceptance only; never fabricates IDs/state and never automatically retries. Calls PUT /404/edit.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "advanced_config": {
+            "type": "string"
+          },
+          "certificate_id": {
+            "type": "integer"
+          },
+          "domain_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "hsts_enabled": {
+            "type": "boolean"
+          },
+          "hsts_subdomains": {
+            "type": "boolean"
+          },
+          "http2_support": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "meta": {
+            "additionalProperties": false,
+            "properties": {
+              "dns_challenge": {
+                "type": "boolean"
+              },
+              "letsencrypt_agree": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "letsencrypt_agree",
+              "dns_challenge"
+            ],
+            "type": "object"
+          },
+          "ssl_forced": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "domain_names",
+          "certificate_id",
+          "meta",
+          "advanced_config",
+          "http2_support",
+          "hsts_enabled",
+          "hsts_subdomains",
+          "ssl_forced",
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "update_404_host",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "PUT",
+          "path": "/proxy/edit"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Replace a proxy host's complete configuration. Calls PUT /proxy/edit. All settings and a positive id are required; omitted settings are rejected, false/zero settings are sent unchanged. Managed frontend proxies cannot be edited (403). The API checks the first domain for management restrictions. Enabled state uses separate actions. No automatic retry.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "access_list_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]+$",
+                "type": "string"
+              },
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            ],
+            "description": "Nonnegative access-list ID; zero means no access list"
+          },
+          "advanced_config": {
+            "type": "string"
+          },
+          "allow_websocket_upgrade": {
+            "type": "boolean"
+          },
+          "block_exploits": {
+            "type": "boolean"
+          },
+          "caching_enabled": {
+            "type": "boolean"
+          },
+          "certificate_id": {
+            "type": "integer"
+          },
+          "domain_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "forward_host": {
+            "type": "string"
+          },
+          "forward_port": {
+            "type": "integer"
+          },
+          "forward_scheme": {
+            "type": "string"
+          },
+          "hsts_enabled": {
+            "type": "boolean"
+          },
+          "hsts_subdomains": {
+            "type": "boolean"
+          },
+          "http2_support": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "locations": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "forward_host": {
+                  "type": "string"
+                },
+                "forward_port": {
+                  "type": "integer"
+                },
+                "forward_scheme": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "forward_scheme",
+                "forward_host",
+                "forward_port"
+              ],
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "ssl_forced": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "domain_names",
+          "forward_scheme",
+          "forward_host",
+          "forward_port",
+          "caching_enabled",
+          "block_exploits",
+          "allow_websocket_upgrade",
+          "access_list_id",
+          "certificate_id",
+          "meta",
+          "advanced_config",
+          "locations",
+          "http2_support",
+          "hsts_enabled",
+          "hsts_subdomains",
+          "ssl_forced",
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "update_proxy",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "PUT",
+          "path": "/redirection/edit"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Update a redirect. Supply complete writable configuration, including explicit false/zero settings. Enabled state uses dedicated actions; server-owned IDs are not create fields.  Returns acceptance only; never fabricates IDs/state and never automatically retries. Calls PUT /redirection/edit.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "advanced_config": {
+            "type": "string"
+          },
+          "block_exploits": {
+            "type": "boolean"
+          },
+          "certificate_id": {
+            "type": "integer"
+          },
+          "domain_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "forward_domain_name": {
+            "type": "string"
+          },
+          "forward_http_code": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]+$",
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "forward_scheme": {
+            "type": "string"
+          },
+          "hsts_enabled": {
+            "type": "boolean"
+          },
+          "hsts_subdomains": {
+            "type": "boolean"
+          },
+          "http2_support": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "meta": {
+            "additionalProperties": false,
+            "properties": {
+              "dns_challenge": {
+                "type": "boolean"
+              },
+              "letsencrypt_agree": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "letsencrypt_agree",
+              "dns_challenge"
+            ],
+            "type": "object"
+          },
+          "preserve_path": {
+            "type": "boolean"
+          },
+          "ssl_forced": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "domain_names",
+          "forward_scheme",
+          "forward_domain_name",
+          "forward_http_code",
+          "preserve_path",
+          "block_exploits",
+          "certificate_id",
+          "meta",
+          "advanced_config",
+          "http2_support",
+          "hsts_enabled",
+          "hsts_subdomains",
+          "ssl_forced",
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "update_redirect",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "PUT",
+          "path": "/stream/edit"
+        }
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Update a stream. Supply complete writable configuration, including explicit false/zero settings. Enabled state uses dedicated actions; server-owned IDs are not create fields.  Stream changes persist NPM first and the description second; a description failure can leave NPM changed. Empty description explicitly overwrites existing text. Returns acceptance only; never fabricates IDs/state and never automatically retries. Calls PUT /stream/edit.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "certificate_id": {
+            "type": "integer"
+          },
+          "description": {
+            "description": "Explicit description; empty string removes the description text; NPM changes can remain applied if saving this text fails",
+            "type": "string"
+          },
+          "forwarding_host": {
+            "type": "string"
+          },
+          "forwarding_port": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "incoming_port": {
+            "type": "integer"
+          },
+          "meta": {
+            "additionalProperties": false,
+            "properties": {
+              "dns_challenge": {
+                "type": "boolean"
+              },
+              "dns_provider_credentials": {
+                "type": "string"
+              },
+              "letsencrypt_agree": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "dns_provider_credentials",
+              "letsencrypt_agree",
+              "dns_challenge"
+            ],
+            "type": "object"
+          },
+          "tcp_forwarding": {
+            "type": "boolean"
+          },
+          "udp_forwarding": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "incoming_port",
+          "forwarding_host",
+          "forwarding_port",
+          "tcp_forwarding",
+          "udp_forwarding",
+          "certificate_id",
+          "meta",
+          "description",
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "update_stream",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "description": "The HyperHive API accepted the operation; no resource ID or resulting state is returned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/updatecpuxml/{vm_name}"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Replace the CPU XML definition on the named host; CPU content is omitted from picker; SHA-256 and size shown. A private prior-state record is saved before mutation. No automatic rollback. Calls POST /virsh/updatecpuxml/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cpu_xml": {
+            "type": "string"
+          },
+          "machine_name": {
+            "type": "string"
+          },
+          "vm_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name",
+          "machine_name",
+          "cpu_xml"
+        ],
+        "type": "object"
+      },
+      "name": "update_vm_cpu_xml",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "POST",
+          "path": "/virsh/updatevmxml/{vm_name}"
+        },
+        "hyperhive/risk": "very high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: very high. Replace the full domain definition; guest must be shut off. Domain name and actual UUID must match. A secure inactive/current XML snapshot is saved before mutation. No automatic rollback. Calls POST /virsh/updatevmxml/{vm_name}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "machine_name": {
+            "type": "string"
+          },
+          "vm_name": {
+            "type": "string"
+          },
+          "vm_xml": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "vm_name",
+          "vm_xml"
+        ],
+        "type": "object"
+      },
+      "name": "update_vm_xml",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "_meta": {
+        "hyperhive/endpoint": {
+          "method": "PUT",
+          "path": "/virsh/xmltemplates/{id}"
+        },
+        "hyperhive/risk": "high"
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Risk: high. Replace name, description and XML of the template. XML omitted from picker; size and SHA-256 shown. A private prior-state record is saved before mutation. No automatic rollback. Calls PUT /virsh/xmltemplates/{id}. No automatic retries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "xml": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "xml"
+        ],
+        "type": "object"
+      },
+      "name": "update_vm_xml_template",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automatic_rollback": {
+            "type": "boolean"
+          },
+          "backup_path": {
+            "type": "string"
+          },
+          "result": {}
+        },
+        "required": [
+          "result",
+          "backup_path",
+          "automatic_rollback"
+        ],
+        "type": "object"
+      }
+    }
+  ]
+}

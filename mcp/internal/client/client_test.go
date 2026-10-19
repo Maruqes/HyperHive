@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -36,7 +37,7 @@ func TestListProxiesContract(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(proxies) != 1 || proxies[0]["id"] != float64(7) || proxies[0]["enabled"] != false || proxies[0]["future_field"] != true || proxies[0]["access_list_id"] != "0" {
+			if len(proxies) != 1 || proxies[0]["id"] != json.Number("7") || proxies[0]["enabled"] != false || proxies[0]["future_field"] != true || proxies[0]["access_list_id"] != "0" {
 				t.Fatalf("proxy fields not preserved: %#v", proxies)
 			}
 			if proxies[0]["meta"].(map[string]any)["managed_by"] != "setup_frontend" || len(proxies[0]["locations"].([]any)) != 1 {

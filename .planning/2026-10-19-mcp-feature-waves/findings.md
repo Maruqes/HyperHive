@@ -1,0 +1,21 @@
+# Findings
+
+- Baseline `go test ./...` passed in mcp on 2026-10-19.
+- Starting local implementation: 37 tools, report 37/314 endpoints, 237 missing, 40 excluded. Preexisting uncommitted NGINX/Celld work must be preserved.
+- SilverBullet MCP canonical page and latest NGINX operational entry match that checkpoint; no production verification.
+- Notes PUT and PATCH use identical replacement handler; expose explicit named methods if both are supported, never claim an unused alias.
+- User corrected the initial scope: selection is mandatory, no coverage target. Current explicit scope supersedes that waiting state.
+- DNS three tools, Notes five tools and SPA two reads passed focused SDK HTTP/executable stdio contracts. Notes/SPA additionally passed disposable real authenticated handler checks. No real DNS restarts or successful ipset read qualification.
+- SPA create is excluded: EnableSPA deletes matching firewall rules; failed DB upsert calls DisableSPA which destroys the ipset and existing allow entries. No create stub/tool/client added.
+- SDK v1.8.0 supports protocol 2026-07-28 multi-round-trip inputRequests over stateless HTTP. Earlier stateless HTTP cannot send elicitation; it must fail closed. Earlier stdio can use Elicit.
+- Coordinator prepared vmsafety Gate with explicit enum picker, per-invocation random one-use argument-bound approval, and serialized post-approval backup/mutation lock. Store writes unique retained 0600 before.json files in private 0700 directories (default per-user cache), fsyncs before return; no automatic cleanup/rollback.
+- Focused vmsafety tests pass: approved/denied/canceled/invalid picker responses, changed args/replay/forgery, stored state/privacy/unique paths/cancellation/symlink and insecure-directory rejection.
+- Actual HTTP transport now supports modern stateless inputRequests and retained legacy sessions (20-minute idle timeout) for old clients' form elicitation. Both share one registry/Bearer check; no-session GET stays405. Independent compatibility approval/denial/no-picker tests passed for protocol 2025-11-25 and 2026-07-28. This supersedes the earlier old-HTTP deployment limitation; the component's purely-stateless old-protocol test still verifies fail-closed behavior.
+- VM agent found standard XML reader is not secure/inactive-only. Coordinator authorized additive GetVMSnapshot RPC + authenticated GET /virsh/snapshot/{vm_name}, preserving existing reader; secure inactive and current-if-active views required, exact identity and state stability checked. One new helper route raises raw inventory to315; no coverage credit for helper calls alone. Requires matching updated master/slave when deployed; no deployment performed.
+
+- Final accepted batch adds 68 tools: DNS3, Notes5, SPA2, ISO2, VM56; registry105. Raw inventory316 includes two zero-credit recovery helpers. Totals105 implemented,158 missing,53 excluded; raw coverage33.23%. DNS/Notes/ISO permitted scopes complete. VM original permitted selection56/57; SSH injection remains absent because prior guest file contents/ownership are unavailable.
+- Added host boot recovery helper captures every grubby entry, default kernel and current command line before ALL-kernel setters; previous single/default getter was insufficient. Both updated master and slaves are required when deploying.
+- Full local acceptance passed, including MCP normal/race/vet, affected master normal/race/vet and NGINX regressions, focused slave snapshot normal/race/vet and generated RPC compilation. No live infrastructure action occurred.
+- Private recovery records preserve configuration, not guest disk contents; no automatic rollback, independent-process locking or live deployment guarantee. Streaming artifacts reside on the MCP server filesystem. Async ISO/VM operations acknowledge initiation only.
+
+Additional review confirmed/fixed four defects: SDK input float normalization could choose another resource ID; VM edit growth accepted incomplete old disk metadata; DNS writes forwarded whitespace/control into unescaped configuration; older proxy-list client/output lost exact integer precision. Added meaningful both-transport regressions, full-int64 input support and schema parity. Full repeated normal/race/vet and affected backend gates passed. No further known finding remains within this review.

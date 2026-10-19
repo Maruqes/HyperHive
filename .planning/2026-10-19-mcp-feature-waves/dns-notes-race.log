@@ -1,0 +1,131 @@
+==================
+WARNING: DATA RACE
+Read at 0x00c0006351a0 by goroutine 948:
+  bytes.(*Buffer).Len()
+      /home/marques/.gvm/gos/go1.26.2/src/bytes/buffer.go:97 +0x55e4
+  github.com/Maruqes/HyperHive/mcp.TestNotesContracts.func1.1()
+      /home/marques/projects/HyperHive/mcp/notes_test.go:236 +0x5606
+  testing.tRunner()
+      /home/marques/.gvm/gos/go1.26.2/src/testing/testing.go:2036 +0x21c
+  testing.(*T).Run.gowrap1()
+      /home/marques/.gvm/gos/go1.26.2/src/testing/testing.go:2101 +0x38
+
+Previous write at 0x00c0006351a0 by goroutine 950:
+  bytes.(*Buffer).grow()
+      /home/marques/.gvm/gos/go1.26.2/src/bytes/buffer.go:169 +0x2cc
+  bytes.(*Buffer).ReadFrom()
+      /home/marques/.gvm/gos/go1.26.2/src/bytes/buffer.go:227 +0x5e
+  io.copyBuffer()
+      /home/marques/.gvm/gos/go1.26.2/src/io/io.go:415 +0x20e
+  io.Copy()
+      /home/marques/.gvm/gos/go1.26.2/src/io/io.go:388 +0x49
+  os.genericWriteTo()
+      /home/marques/.gvm/gos/go1.26.2/src/os/file.go:295 +0xe
+  os.(*File).WriteTo()
+      /home/marques/.gvm/gos/go1.26.2/src/os/file.go:273 +0xd4
+  io.copyBuffer()
+      /home/marques/.gvm/gos/go1.26.2/src/io/io.go:411 +0xd3
+  io.Copy()
+      /home/marques/.gvm/gos/go1.26.2/src/io/io.go:388 +0x5a
+  os/exec.(*Cmd).writerDescriptor.func1()
+      /home/marques/.gvm/gos/go1.26.2/src/os/exec/exec.go:602 +0x37
+  os/exec.(*Cmd).Start.func2()
+      /home/marques/.gvm/gos/go1.26.2/src/os/exec/exec.go:757 +0x3c
+  os/exec.(*Cmd).Start.gowrap1()
+      /home/marques/.gvm/gos/go1.26.2/src/os/exec/exec.go:769 +0x38
+
+Goroutine 948 (running) created at:
+  testing.(*T).Run()
+      /home/marques/.gvm/gos/go1.26.2/src/testing/testing.go:2101 +0xb12
+  github.com/Maruqes/HyperHive/mcp.TestNotesContracts.func1()
+      /home/marques/projects/HyperHive/mcp/notes_test.go:39 +0xa4
+  testing.tRunner()
+      /home/marques/.gvm/gos/go1.26.2/src/testing/testing.go:2036 +0x21c
+  testing.(*T).Run.gowrap1()
+      /home/marques/.gvm/gos/go1.26.2/src/testing/testing.go:2101 +0x38
+
+Goroutine 950 (running) created at:
+  os/exec.(*Cmd).Start()
+      /home/marques/.gvm/gos/go1.26.2/src/os/exec/exec.go:756 +0x10f1
+  github.com/modelcontextprotocol/go-sdk/mcp.(*CommandTransport).Connect()
+      /home/marques/.gvm/pkgsets/go1.26.2/global/pkg/mod/github.com/modelcontextprotocol/go-sdk@v1.8.0/mcp/cmd.go:39 +0x174
+  github.com/modelcontextprotocol/go-sdk/mcp.connect[go.shape.*uint8,go.shape.*uint8]()
+      /home/marques/.gvm/pkgsets/go1.26.2/global/pkg/mod/github.com/modelcontextprotocol/go-sdk@v1.8.0/mcp/transport.go:202 +0x9a
+  github.com/modelcontextprotocol/go-sdk/mcp.(*Client).Connect()
+      /home/marques/.gvm/pkgsets/go1.26.2/global/pkg/mod/github.com/modelcontextprotocol/go-sdk@v1.8.0/mcp/client.go:309 +0xb5
+  github.com/Maruqes/HyperHive/mcp.TestNotesContracts.func1.1()
+      /home/marques/projects/HyperHive/mcp/notes_test.go:91 +0x10ea
+  testing.tRunner()
+      /home/marques/.gvm/gos/go1.26.2/src/testing/testing.go:2036 +0x21c
+  testing.(*T).Run.gowrap1()
+      /home/marques/.gvm/gos/go1.26.2/src/testing/testing.go:2101 +0x38
+==================
+==================
+WARNING: DATA RACE
+Read at 0x00c0006351b8 by goroutine 948:
+  bytes.(*Buffer).Len()
+      /home/marques/.gvm/gos/go1.26.2/src/bytes/buffer.go:97 +0x5605
+  github.com/Maruqes/HyperHive/mcp.TestNotesContracts.func1.1()
+      /home/marques/projects/HyperHive/mcp/notes_test.go:236 +0x5606
+  testing.tRunner()
+      /home/marques/.gvm/gos/go1.26.2/src/testing/testing.go:2036 +0x21c
+  testing.(*T).Run.gowrap1()
+      /home/marques/.gvm/gos/go1.26.2/src/testing/testing.go:2101 +0x38
+
+Previous write at 0x00c0006351b8 by goroutine 950:
+  bytes.(*Buffer).grow()
+      /home/marques/.gvm/gos/go1.26.2/src/bytes/buffer.go:172 +0x3b1
+  bytes.(*Buffer).ReadFrom()
+      /home/marques/.gvm/gos/go1.26.2/src/bytes/buffer.go:227 +0x5e
+  io.copyBuffer()
+      /home/marques/.gvm/gos/go1.26.2/src/io/io.go:415 +0x20e
+  io.Copy()
+      /home/marques/.gvm/gos/go1.26.2/src/io/io.go:388 +0x49
+  os.genericWriteTo()
+      /home/marques/.gvm/gos/go1.26.2/src/os/file.go:295 +0xe
+  os.(*File).WriteTo()
+      /home/marques/.gvm/gos/go1.26.2/src/os/file.go:273 +0xd4
+  io.copyBuffer()
+      /home/marques/.gvm/gos/go1.26.2/src/io/io.go:411 +0xd3
+  io.Copy()
+      /home/marques/.gvm/gos/go1.26.2/src/io/io.go:388 +0x5a
+  os/exec.(*Cmd).writerDescriptor.func1()
+      /home/marques/.gvm/gos/go1.26.2/src/os/exec/exec.go:602 +0x37
+  os/exec.(*Cmd).Start.func2()
+      /home/marques/.gvm/gos/go1.26.2/src/os/exec/exec.go:757 +0x3c
+  os/exec.(*Cmd).Start.gowrap1()
+      /home/marques/.gvm/gos/go1.26.2/src/os/exec/exec.go:769 +0x38
+
+Goroutine 948 (running) created at:
+  testing.(*T).Run()
+      /home/marques/.gvm/gos/go1.26.2/src/testing/testing.go:2101 +0xb12
+  github.com/Maruqes/HyperHive/mcp.TestNotesContracts.func1()
+      /home/marques/projects/HyperHive/mcp/notes_test.go:39 +0xa4
+  testing.tRunner()
+      /home/marques/.gvm/gos/go1.26.2/src/testing/testing.go:2036 +0x21c
+  testing.(*T).Run.gowrap1()
+      /home/marques/.gvm/gos/go1.26.2/src/testing/testing.go:2101 +0x38
+
+Goroutine 950 (running) created at:
+  os/exec.(*Cmd).Start()
+      /home/marques/.gvm/gos/go1.26.2/src/os/exec/exec.go:756 +0x10f1
+  github.com/modelcontextprotocol/go-sdk/mcp.(*CommandTransport).Connect()
+      /home/marques/.gvm/pkgsets/go1.26.2/global/pkg/mod/github.com/modelcontextprotocol/go-sdk@v1.8.0/mcp/cmd.go:39 +0x174
+  github.com/modelcontextprotocol/go-sdk/mcp.connect[go.shape.*uint8,go.shape.*uint8]()
+      /home/marques/.gvm/pkgsets/go1.26.2/global/pkg/mod/github.com/modelcontextprotocol/go-sdk@v1.8.0/mcp/transport.go:202 +0x9a
+  github.com/modelcontextprotocol/go-sdk/mcp.(*Client).Connect()
+      /home/marques/.gvm/pkgsets/go1.26.2/global/pkg/mod/github.com/modelcontextprotocol/go-sdk@v1.8.0/mcp/client.go:309 +0xb5
+  github.com/Maruqes/HyperHive/mcp.TestNotesContracts.func1.1()
+      /home/marques/projects/HyperHive/mcp/notes_test.go:91 +0x10ea
+  testing.tRunner()
+      /home/marques/.gvm/gos/go1.26.2/src/testing/testing.go:2036 +0x21c
+  testing.(*T).Run.gowrap1()
+      /home/marques/.gvm/gos/go1.26.2/src/testing/testing.go:2101 +0x38
+==================
+--- FAIL: TestNotesContracts (2.32s)
+    --- FAIL: TestNotesContracts/list_notes (0.42s)
+        --- FAIL: TestNotesContracts/list_notes/stdio (0.10s)
+            testing.go:1712: race detected during execution of test
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	4.315s
+FAIL

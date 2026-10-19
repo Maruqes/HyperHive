@@ -58,8 +58,8 @@ func TestStdioContract(t *testing.T) {
 		t.Fatal("incorrect server identity")
 	}
 	list, err := session.ListTools(ctx, nil)
-	if err != nil || len(list.Tools) != 7 {
-		t.Fatalf("want seven non-delete proxy tools, got %#v, %v", list, err)
+	if err != nil || len(list.Tools) != 105 {
+		t.Fatalf("want 105 HyperHive tools, got %#v, %v", list, err)
 	}
 	var tool *mcp.Tool
 	for _, candidate := range list.Tools {

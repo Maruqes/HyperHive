@@ -30,7 +30,7 @@ func run(ctx context.Context, args []string, getenv func(string) string, stderr 
 	flags := flag.NewFlagSet("hyperhive-mcp", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	flags.Usage = func() {
-		fmt.Fprintln(stderr, "Usage: hyperhive-mcp [serve]\n\nRuns a stdio MCP server with seven non-delete proxy tools.\nRequired environment: HYPERHIVE_API_URL, MCP_TOKEN.")
+		fmt.Fprintln(stderr, "Usage: hyperhive-mcp [serve]\n\nRuns the HyperHive stdio MCP server.\nRequired environment: HYPERHIVE_API_URL, MCP_TOKEN.\nOptional: MCP_VM_BACKUP_DIR (absolute private directory for retained VM recovery records).")
 	}
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -41,7 +41,7 @@ func run(ctx context.Context, args []string, getenv func(string) string, stderr 
 	if flags.NArg() != 0 {
 		return errors.New("unexpected arguments; use hyperhive-mcp --help")
 	}
-	server, err := hyperhivemcp.NewServer(hyperhivemcp.Config{BaseURL: getenv("HYPERHIVE_API_URL"), MCPToken: getenv("MCP_TOKEN")})
+	server, err := hyperhivemcp.NewServer(hyperhivemcp.Config{BaseURL: getenv("HYPERHIVE_API_URL"), MCPToken: getenv("MCP_TOKEN"), VMBackupDir: getenv("MCP_VM_BACKUP_DIR")})
 	if err != nil {
 		return err
 	}

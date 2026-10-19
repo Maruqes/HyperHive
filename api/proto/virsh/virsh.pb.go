@@ -1945,6 +1945,211 @@ func (x *ExternalDiskResponse) GetTargetDev() string {
 	return ""
 }
 
+// defines on slave
+type VMSnapshotResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Uuid          string                 `protobuf:"bytes,2,opt,name=uuid,proto3" json:"uuid,omitempty"`
+	Active        bool                   `protobuf:"varint,3,opt,name=active,proto3" json:"active,omitempty"`
+	InactiveXml   string                 `protobuf:"bytes,4,opt,name=inactive_xml,json=inactiveXml,proto3" json:"inactive_xml,omitempty"`
+	CurrentXml    string                 `protobuf:"bytes,5,opt,name=current_xml,json=currentXml,proto3" json:"current_xml,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VMSnapshotResponse) Reset() {
+	*x = VMSnapshotResponse{}
+	mi := &file_virsh_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VMSnapshotResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VMSnapshotResponse) ProtoMessage() {}
+
+func (x *VMSnapshotResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_virsh_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VMSnapshotResponse.ProtoReflect.Descriptor instead.
+func (*VMSnapshotResponse) Descriptor() ([]byte, []int) {
+	return file_virsh_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *VMSnapshotResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *VMSnapshotResponse) GetUuid() string {
+	if x != nil {
+		return x.Uuid
+	}
+	return ""
+}
+
+func (x *VMSnapshotResponse) GetActive() bool {
+	if x != nil {
+		return x.Active
+	}
+	return false
+}
+
+func (x *VMSnapshotResponse) GetInactiveXml() string {
+	if x != nil {
+		return x.InactiveXml
+	}
+	return ""
+}
+
+func (x *VMSnapshotResponse) GetCurrentXml() string {
+	if x != nil {
+		return x.CurrentXml
+	}
+	return ""
+}
+
+type HostBootEntry struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Index         int32                  `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
+	Kernel        string                 `protobuf:"bytes,2,opt,name=kernel,proto3" json:"kernel,omitempty"`
+	Args          string                 `protobuf:"bytes,3,opt,name=args,proto3" json:"args,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HostBootEntry) Reset() {
+	*x = HostBootEntry{}
+	mi := &file_virsh_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HostBootEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HostBootEntry) ProtoMessage() {}
+
+func (x *HostBootEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_virsh_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HostBootEntry.ProtoReflect.Descriptor instead.
+func (*HostBootEntry) Descriptor() ([]byte, []int) {
+	return file_virsh_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *HostBootEntry) GetIndex() int32 {
+	if x != nil {
+		return x.Index
+	}
+	return 0
+}
+
+func (x *HostBootEntry) GetKernel() string {
+	if x != nil {
+		return x.Kernel
+	}
+	return ""
+}
+
+func (x *HostBootEntry) GetArgs() string {
+	if x != nil {
+		return x.Args
+	}
+	return ""
+}
+
+type HostBootSnapshotResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	GrubbyInfo     string                 `protobuf:"bytes,1,opt,name=grubby_info,json=grubbyInfo,proto3" json:"grubby_info,omitempty"`
+	CurrentCmdline string                 `protobuf:"bytes,2,opt,name=current_cmdline,json=currentCmdline,proto3" json:"current_cmdline,omitempty"`
+	DefaultKernel  string                 `protobuf:"bytes,3,opt,name=default_kernel,json=defaultKernel,proto3" json:"default_kernel,omitempty"`
+	Entries        []*HostBootEntry       `protobuf:"bytes,4,rep,name=entries,proto3" json:"entries,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *HostBootSnapshotResponse) Reset() {
+	*x = HostBootSnapshotResponse{}
+	mi := &file_virsh_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HostBootSnapshotResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HostBootSnapshotResponse) ProtoMessage() {}
+
+func (x *HostBootSnapshotResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_virsh_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HostBootSnapshotResponse.ProtoReflect.Descriptor instead.
+func (*HostBootSnapshotResponse) Descriptor() ([]byte, []int) {
+	return file_virsh_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *HostBootSnapshotResponse) GetGrubbyInfo() string {
+	if x != nil {
+		return x.GrubbyInfo
+	}
+	return ""
+}
+
+func (x *HostBootSnapshotResponse) GetCurrentCmdline() string {
+	if x != nil {
+		return x.CurrentCmdline
+	}
+	return ""
+}
+
+func (x *HostBootSnapshotResponse) GetDefaultKernel() string {
+	if x != nil {
+		return x.DefaultKernel
+	}
+	return ""
+}
+
+func (x *HostBootSnapshotResponse) GetEntries() []*HostBootEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
 // CPU Pinning messages
 type CPUPinningRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
@@ -1959,7 +2164,7 @@ type CPUPinningRequest struct {
 
 func (x *CPUPinningRequest) Reset() {
 	*x = CPUPinningRequest{}
-	mi := &file_virsh_proto_msgTypes[30]
+	mi := &file_virsh_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1971,7 +2176,7 @@ func (x *CPUPinningRequest) String() string {
 func (*CPUPinningRequest) ProtoMessage() {}
 
 func (x *CPUPinningRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_virsh_proto_msgTypes[30]
+	mi := &file_virsh_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1984,7 +2189,7 @@ func (x *CPUPinningRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CPUPinningRequest.ProtoReflect.Descriptor instead.
 func (*CPUPinningRequest) Descriptor() ([]byte, []int) {
-	return file_virsh_proto_rawDescGZIP(), []int{30}
+	return file_virsh_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *CPUPinningRequest) GetVmName() string {
@@ -2033,7 +2238,7 @@ type CPUPinningInfo struct {
 
 func (x *CPUPinningInfo) Reset() {
 	*x = CPUPinningInfo{}
-	mi := &file_virsh_proto_msgTypes[31]
+	mi := &file_virsh_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2045,7 +2250,7 @@ func (x *CPUPinningInfo) String() string {
 func (*CPUPinningInfo) ProtoMessage() {}
 
 func (x *CPUPinningInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_virsh_proto_msgTypes[31]
+	mi := &file_virsh_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2058,7 +2263,7 @@ func (x *CPUPinningInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CPUPinningInfo.ProtoReflect.Descriptor instead.
 func (*CPUPinningInfo) Descriptor() ([]byte, []int) {
-	return file_virsh_proto_rawDescGZIP(), []int{31}
+	return file_virsh_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *CPUPinningInfo) GetVcpu() int32 {
@@ -2097,7 +2302,7 @@ type CPUPinningResponse struct {
 
 func (x *CPUPinningResponse) Reset() {
 	*x = CPUPinningResponse{}
-	mi := &file_virsh_proto_msgTypes[32]
+	mi := &file_virsh_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2109,7 +2314,7 @@ func (x *CPUPinningResponse) String() string {
 func (*CPUPinningResponse) ProtoMessage() {}
 
 func (x *CPUPinningResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_virsh_proto_msgTypes[32]
+	mi := &file_virsh_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2122,7 +2327,7 @@ func (x *CPUPinningResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CPUPinningResponse.ProtoReflect.Descriptor instead.
 func (*CPUPinningResponse) Descriptor() ([]byte, []int) {
-	return file_virsh_proto_rawDescGZIP(), []int{32}
+	return file_virsh_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *CPUPinningResponse) GetHasPinning() bool {
@@ -2185,7 +2390,7 @@ type CPUCoreInfo struct {
 
 func (x *CPUCoreInfo) Reset() {
 	*x = CPUCoreInfo{}
-	mi := &file_virsh_proto_msgTypes[33]
+	mi := &file_virsh_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2197,7 +2402,7 @@ func (x *CPUCoreInfo) String() string {
 func (*CPUCoreInfo) ProtoMessage() {}
 
 func (x *CPUCoreInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_virsh_proto_msgTypes[33]
+	mi := &file_virsh_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2210,7 +2415,7 @@ func (x *CPUCoreInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CPUCoreInfo.ProtoReflect.Descriptor instead.
 func (*CPUCoreInfo) Descriptor() ([]byte, []int) {
-	return file_virsh_proto_rawDescGZIP(), []int{33}
+	return file_virsh_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *CPUCoreInfo) GetCoreIndex() int32 {
@@ -2244,7 +2449,7 @@ type CPUSocketInfo struct {
 
 func (x *CPUSocketInfo) Reset() {
 	*x = CPUSocketInfo{}
-	mi := &file_virsh_proto_msgTypes[34]
+	mi := &file_virsh_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2256,7 +2461,7 @@ func (x *CPUSocketInfo) String() string {
 func (*CPUSocketInfo) ProtoMessage() {}
 
 func (x *CPUSocketInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_virsh_proto_msgTypes[34]
+	mi := &file_virsh_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2269,7 +2474,7 @@ func (x *CPUSocketInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CPUSocketInfo.ProtoReflect.Descriptor instead.
 func (*CPUSocketInfo) Descriptor() ([]byte, []int) {
-	return file_virsh_proto_rawDescGZIP(), []int{34}
+	return file_virsh_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *CPUSocketInfo) GetSocketId() int32 {
@@ -2295,7 +2500,7 @@ type CPUTopologyResponse struct {
 
 func (x *CPUTopologyResponse) Reset() {
 	*x = CPUTopologyResponse{}
-	mi := &file_virsh_proto_msgTypes[35]
+	mi := &file_virsh_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2307,7 +2512,7 @@ func (x *CPUTopologyResponse) String() string {
 func (*CPUTopologyResponse) ProtoMessage() {}
 
 func (x *CPUTopologyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_virsh_proto_msgTypes[35]
+	mi := &file_virsh_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2320,7 +2525,7 @@ func (x *CPUTopologyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CPUTopologyResponse.ProtoReflect.Descriptor instead.
 func (*CPUTopologyResponse) Descriptor() ([]byte, []int) {
-	return file_virsh_proto_rawDescGZIP(), []int{35}
+	return file_virsh_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *CPUTopologyResponse) GetSockets() []*CPUSocketInfo {
@@ -2341,7 +2546,7 @@ type TunedAdmProfileInfo struct {
 
 func (x *TunedAdmProfileInfo) Reset() {
 	*x = TunedAdmProfileInfo{}
-	mi := &file_virsh_proto_msgTypes[36]
+	mi := &file_virsh_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2353,7 +2558,7 @@ func (x *TunedAdmProfileInfo) String() string {
 func (*TunedAdmProfileInfo) ProtoMessage() {}
 
 func (x *TunedAdmProfileInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_virsh_proto_msgTypes[36]
+	mi := &file_virsh_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2366,7 +2571,7 @@ func (x *TunedAdmProfileInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TunedAdmProfileInfo.ProtoReflect.Descriptor instead.
 func (*TunedAdmProfileInfo) Descriptor() ([]byte, []int) {
-	return file_virsh_proto_rawDescGZIP(), []int{36}
+	return file_virsh_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *TunedAdmProfileInfo) GetName() string {
@@ -2400,7 +2605,7 @@ type TunedAdmProfilesResponse struct {
 
 func (x *TunedAdmProfilesResponse) Reset() {
 	*x = TunedAdmProfilesResponse{}
-	mi := &file_virsh_proto_msgTypes[37]
+	mi := &file_virsh_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2412,7 +2617,7 @@ func (x *TunedAdmProfilesResponse) String() string {
 func (*TunedAdmProfilesResponse) ProtoMessage() {}
 
 func (x *TunedAdmProfilesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_virsh_proto_msgTypes[37]
+	mi := &file_virsh_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2425,7 +2630,7 @@ func (x *TunedAdmProfilesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TunedAdmProfilesResponse.ProtoReflect.Descriptor instead.
 func (*TunedAdmProfilesResponse) Descriptor() ([]byte, []int) {
-	return file_virsh_proto_rawDescGZIP(), []int{37}
+	return file_virsh_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *TunedAdmProfilesResponse) GetProfiles() []*TunedAdmProfileInfo {
@@ -2451,7 +2656,7 @@ type SetTunedAdmProfileRequest struct {
 
 func (x *SetTunedAdmProfileRequest) Reset() {
 	*x = SetTunedAdmProfileRequest{}
-	mi := &file_virsh_proto_msgTypes[38]
+	mi := &file_virsh_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2463,7 +2668,7 @@ func (x *SetTunedAdmProfileRequest) String() string {
 func (*SetTunedAdmProfileRequest) ProtoMessage() {}
 
 func (x *SetTunedAdmProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_virsh_proto_msgTypes[38]
+	mi := &file_virsh_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2476,7 +2681,7 @@ func (x *SetTunedAdmProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetTunedAdmProfileRequest.ProtoReflect.Descriptor instead.
 func (*SetTunedAdmProfileRequest) Descriptor() ([]byte, []int) {
-	return file_virsh_proto_rawDescGZIP(), []int{38}
+	return file_virsh_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *SetTunedAdmProfileRequest) GetProfile() string {
@@ -2497,7 +2702,7 @@ type SetTunedAdmProfileResponse struct {
 
 func (x *SetTunedAdmProfileResponse) Reset() {
 	*x = SetTunedAdmProfileResponse{}
-	mi := &file_virsh_proto_msgTypes[39]
+	mi := &file_virsh_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2509,7 +2714,7 @@ func (x *SetTunedAdmProfileResponse) String() string {
 func (*SetTunedAdmProfileResponse) ProtoMessage() {}
 
 func (x *SetTunedAdmProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_virsh_proto_msgTypes[39]
+	mi := &file_virsh_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2522,7 +2727,7 @@ func (x *SetTunedAdmProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetTunedAdmProfileResponse.ProtoReflect.Descriptor instead.
 func (*SetTunedAdmProfileResponse) Descriptor() ([]byte, []int) {
-	return file_virsh_proto_rawDescGZIP(), []int{39}
+	return file_virsh_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *SetTunedAdmProfileResponse) GetOk() bool {
@@ -2557,7 +2762,7 @@ type IrqBalanceStateResponse struct {
 
 func (x *IrqBalanceStateResponse) Reset() {
 	*x = IrqBalanceStateResponse{}
-	mi := &file_virsh_proto_msgTypes[40]
+	mi := &file_virsh_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2569,7 +2774,7 @@ func (x *IrqBalanceStateResponse) String() string {
 func (*IrqBalanceStateResponse) ProtoMessage() {}
 
 func (x *IrqBalanceStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_virsh_proto_msgTypes[40]
+	mi := &file_virsh_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2582,7 +2787,7 @@ func (x *IrqBalanceStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IrqBalanceStateResponse.ProtoReflect.Descriptor instead.
 func (*IrqBalanceStateResponse) Descriptor() ([]byte, []int) {
-	return file_virsh_proto_rawDescGZIP(), []int{40}
+	return file_virsh_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *IrqBalanceStateResponse) GetEnabled() bool {
@@ -2615,7 +2820,7 @@ type SetIrqBalanceStateRequest struct {
 
 func (x *SetIrqBalanceStateRequest) Reset() {
 	*x = SetIrqBalanceStateRequest{}
-	mi := &file_virsh_proto_msgTypes[41]
+	mi := &file_virsh_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2627,7 +2832,7 @@ func (x *SetIrqBalanceStateRequest) String() string {
 func (*SetIrqBalanceStateRequest) ProtoMessage() {}
 
 func (x *SetIrqBalanceStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_virsh_proto_msgTypes[41]
+	mi := &file_virsh_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2640,7 +2845,7 @@ func (x *SetIrqBalanceStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetIrqBalanceStateRequest.ProtoReflect.Descriptor instead.
 func (*SetIrqBalanceStateRequest) Descriptor() ([]byte, []int) {
-	return file_virsh_proto_rawDescGZIP(), []int{41}
+	return file_virsh_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *SetIrqBalanceStateRequest) GetEnabled() bool {
@@ -2663,7 +2868,7 @@ type SetIrqBalanceStateResponse struct {
 
 func (x *SetIrqBalanceStateResponse) Reset() {
 	*x = SetIrqBalanceStateResponse{}
-	mi := &file_virsh_proto_msgTypes[42]
+	mi := &file_virsh_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2675,7 +2880,7 @@ func (x *SetIrqBalanceStateResponse) String() string {
 func (*SetIrqBalanceStateResponse) ProtoMessage() {}
 
 func (x *SetIrqBalanceStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_virsh_proto_msgTypes[42]
+	mi := &file_virsh_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2688,7 +2893,7 @@ func (x *SetIrqBalanceStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetIrqBalanceStateResponse.ProtoReflect.Descriptor instead.
 func (*SetIrqBalanceStateResponse) Descriptor() ([]byte, []int) {
-	return file_virsh_proto_rawDescGZIP(), []int{42}
+	return file_virsh_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *SetIrqBalanceStateResponse) GetOk() bool {
@@ -2736,7 +2941,7 @@ type HostCoreIsolationSocketSelection struct {
 
 func (x *HostCoreIsolationSocketSelection) Reset() {
 	*x = HostCoreIsolationSocketSelection{}
-	mi := &file_virsh_proto_msgTypes[43]
+	mi := &file_virsh_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2748,7 +2953,7 @@ func (x *HostCoreIsolationSocketSelection) String() string {
 func (*HostCoreIsolationSocketSelection) ProtoMessage() {}
 
 func (x *HostCoreIsolationSocketSelection) ProtoReflect() protoreflect.Message {
-	mi := &file_virsh_proto_msgTypes[43]
+	mi := &file_virsh_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2761,7 +2966,7 @@ func (x *HostCoreIsolationSocketSelection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostCoreIsolationSocketSelection.ProtoReflect.Descriptor instead.
 func (*HostCoreIsolationSocketSelection) Descriptor() ([]byte, []int) {
-	return file_virsh_proto_rawDescGZIP(), []int{43}
+	return file_virsh_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *HostCoreIsolationSocketSelection) GetSocketId() int32 {
@@ -2787,7 +2992,7 @@ type SetHostCoreIsolationRequest struct {
 
 func (x *SetHostCoreIsolationRequest) Reset() {
 	*x = SetHostCoreIsolationRequest{}
-	mi := &file_virsh_proto_msgTypes[44]
+	mi := &file_virsh_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2799,7 +3004,7 @@ func (x *SetHostCoreIsolationRequest) String() string {
 func (*SetHostCoreIsolationRequest) ProtoMessage() {}
 
 func (x *SetHostCoreIsolationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_virsh_proto_msgTypes[44]
+	mi := &file_virsh_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2812,7 +3017,7 @@ func (x *SetHostCoreIsolationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetHostCoreIsolationRequest.ProtoReflect.Descriptor instead.
 func (*SetHostCoreIsolationRequest) Descriptor() ([]byte, []int) {
-	return file_virsh_proto_rawDescGZIP(), []int{44}
+	return file_virsh_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *SetHostCoreIsolationRequest) GetSockets() []*HostCoreIsolationSocketSelection {
@@ -2834,7 +3039,7 @@ type HostCoreIsolationSocketState struct {
 
 func (x *HostCoreIsolationSocketState) Reset() {
 	*x = HostCoreIsolationSocketState{}
-	mi := &file_virsh_proto_msgTypes[45]
+	mi := &file_virsh_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2846,7 +3051,7 @@ func (x *HostCoreIsolationSocketState) String() string {
 func (*HostCoreIsolationSocketState) ProtoMessage() {}
 
 func (x *HostCoreIsolationSocketState) ProtoReflect() protoreflect.Message {
-	mi := &file_virsh_proto_msgTypes[45]
+	mi := &file_virsh_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2859,7 +3064,7 @@ func (x *HostCoreIsolationSocketState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostCoreIsolationSocketState.ProtoReflect.Descriptor instead.
 func (*HostCoreIsolationSocketState) Descriptor() ([]byte, []int) {
-	return file_virsh_proto_rawDescGZIP(), []int{45}
+	return file_virsh_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *HostCoreIsolationSocketState) GetSocketId() int32 {
@@ -2908,7 +3113,7 @@ type HostCoreIsolationStateResponse struct {
 
 func (x *HostCoreIsolationStateResponse) Reset() {
 	*x = HostCoreIsolationStateResponse{}
-	mi := &file_virsh_proto_msgTypes[46]
+	mi := &file_virsh_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2920,7 +3125,7 @@ func (x *HostCoreIsolationStateResponse) String() string {
 func (*HostCoreIsolationStateResponse) ProtoMessage() {}
 
 func (x *HostCoreIsolationStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_virsh_proto_msgTypes[46]
+	mi := &file_virsh_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2933,7 +3138,7 @@ func (x *HostCoreIsolationStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostCoreIsolationStateResponse.ProtoReflect.Descriptor instead.
 func (*HostCoreIsolationStateResponse) Descriptor() ([]byte, []int) {
-	return file_virsh_proto_rawDescGZIP(), []int{46}
+	return file_virsh_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *HostCoreIsolationStateResponse) GetEnabled() bool {
@@ -3016,7 +3221,7 @@ type SetHostHugePagesRequest struct {
 
 func (x *SetHostHugePagesRequest) Reset() {
 	*x = SetHostHugePagesRequest{}
-	mi := &file_virsh_proto_msgTypes[47]
+	mi := &file_virsh_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3028,7 +3233,7 @@ func (x *SetHostHugePagesRequest) String() string {
 func (*SetHostHugePagesRequest) ProtoMessage() {}
 
 func (x *SetHostHugePagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_virsh_proto_msgTypes[47]
+	mi := &file_virsh_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3041,7 +3246,7 @@ func (x *SetHostHugePagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetHostHugePagesRequest.ProtoReflect.Descriptor instead.
 func (*SetHostHugePagesRequest) Descriptor() ([]byte, []int) {
-	return file_virsh_proto_rawDescGZIP(), []int{47}
+	return file_virsh_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *SetHostHugePagesRequest) GetPageSize() string {
@@ -3079,7 +3284,7 @@ type HostHugePagesStateResponse struct {
 
 func (x *HostHugePagesStateResponse) Reset() {
 	*x = HostHugePagesStateResponse{}
-	mi := &file_virsh_proto_msgTypes[48]
+	mi := &file_virsh_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3091,7 +3296,7 @@ func (x *HostHugePagesStateResponse) String() string {
 func (*HostHugePagesStateResponse) ProtoMessage() {}
 
 func (x *HostHugePagesStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_virsh_proto_msgTypes[48]
+	mi := &file_virsh_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3104,7 +3309,7 @@ func (x *HostHugePagesStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostHugePagesStateResponse.ProtoReflect.Descriptor instead.
 func (*HostHugePagesStateResponse) Descriptor() ([]byte, []int) {
-	return file_virsh_proto_rawDescGZIP(), []int{48}
+	return file_virsh_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *HostHugePagesStateResponse) GetEnabled() bool {
@@ -3345,7 +3550,24 @@ const file_virsh_proto_rawDesc = "" +
 	"\x14ExternalDiskResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x1d\n" +
 	"\n" +
-	"target_dev\x18\x02 \x01(\tR\ttargetDev\"\xb0\x01\n" +
+	"target_dev\x18\x02 \x01(\tR\ttargetDev\"\x98\x01\n" +
+	"\x12VMSnapshotResponse\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04uuid\x18\x02 \x01(\tR\x04uuid\x12\x16\n" +
+	"\x06active\x18\x03 \x01(\bR\x06active\x12!\n" +
+	"\finactive_xml\x18\x04 \x01(\tR\vinactiveXml\x12\x1f\n" +
+	"\vcurrent_xml\x18\x05 \x01(\tR\n" +
+	"currentXml\"Q\n" +
+	"\rHostBootEntry\x12\x14\n" +
+	"\x05index\x18\x01 \x01(\x05R\x05index\x12\x16\n" +
+	"\x06kernel\x18\x02 \x01(\tR\x06kernel\x12\x12\n" +
+	"\x04args\x18\x03 \x01(\tR\x04args\"\xbb\x01\n" +
+	"\x18HostBootSnapshotResponse\x12\x1f\n" +
+	"\vgrubby_info\x18\x01 \x01(\tR\n" +
+	"grubbyInfo\x12'\n" +
+	"\x0fcurrent_cmdline\x18\x02 \x01(\tR\x0ecurrentCmdline\x12%\n" +
+	"\x0edefault_kernel\x18\x03 \x01(\tR\rdefaultKernel\x12.\n" +
+	"\aentries\x18\x04 \x03(\v2\x14.virsh.HostBootEntryR\aentries\"\xb0\x01\n" +
 	"\x11CPUPinningRequest\x12\x17\n" +
 	"\avm_name\x18\x01 \x01(\tR\x06vmName\x12\x1f\n" +
 	"\vrange_start\x18\x02 \x01(\x05R\n" +
@@ -3458,8 +3680,10 @@ const file_virsh_proto_rawDesc = "" +
 	"\aSHUTOFF\x10\x05\x12\v\n" +
 	"\aCRASHED\x10\x06\x12\x0f\n" +
 	"\vPMSUSPENDED\x10\a\x12\v\n" +
-	"\aNOSTATE\x10\b2\xae\x1b\n" +
-	"\x11SlaveVirshService\x12=\n" +
+	"\aNOSTATE\x10\b2\xbb\x1c\n" +
+	"\x11SlaveVirshService\x12D\n" +
+	"\x13GetHostBootSnapshot\x12\f.virsh.Empty\x1a\x1f.virsh.HostBootSnapshotResponse\x12E\n" +
+	"\rGetVMSnapshot\x12\x19.virsh.GetVmByNameRequest\x1a\x19.virsh.VMSnapshotResponse\x12=\n" +
 	"\x0eGetCpuFeatures\x12\f.virsh.Empty\x1a\x1d.virsh.GetCpuFeaturesResponse\x120\n" +
 	"\tGetCPUXML\x12\f.virsh.Empty\x1a\x15.virsh.CPUXMLResponse\x12?\n" +
 	"\vGetVMCPUXml\x12\x19.virsh.GetVmByNameRequest\x1a\x15.virsh.CPUXMLResponse\x12A\n" +
@@ -3532,7 +3756,7 @@ func file_virsh_proto_rawDescGZIP() []byte {
 }
 
 var file_virsh_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_virsh_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
+var file_virsh_proto_msgTypes = make([]protoimpl.MessageInfo, 52)
 var file_virsh_proto_goTypes = []any{
 	(VmState)(0),                             // 0: virsh.VmState
 	(*Empty)(nil),                            // 1: virsh.Empty
@@ -3565,150 +3789,158 @@ var file_virsh_proto_goTypes = []any{
 	(*HyperVResponse)(nil),                   // 28: virsh.HyperVResponse
 	(*ExternalDiskRequest)(nil),              // 29: virsh.ExternalDiskRequest
 	(*ExternalDiskResponse)(nil),             // 30: virsh.ExternalDiskResponse
-	(*CPUPinningRequest)(nil),                // 31: virsh.CPUPinningRequest
-	(*CPUPinningInfo)(nil),                   // 32: virsh.CPUPinningInfo
-	(*CPUPinningResponse)(nil),               // 33: virsh.CPUPinningResponse
-	(*CPUCoreInfo)(nil),                      // 34: virsh.CPUCoreInfo
-	(*CPUSocketInfo)(nil),                    // 35: virsh.CPUSocketInfo
-	(*CPUTopologyResponse)(nil),              // 36: virsh.CPUTopologyResponse
-	(*TunedAdmProfileInfo)(nil),              // 37: virsh.TunedAdmProfileInfo
-	(*TunedAdmProfilesResponse)(nil),         // 38: virsh.TunedAdmProfilesResponse
-	(*SetTunedAdmProfileRequest)(nil),        // 39: virsh.SetTunedAdmProfileRequest
-	(*SetTunedAdmProfileResponse)(nil),       // 40: virsh.SetTunedAdmProfileResponse
-	(*IrqBalanceStateResponse)(nil),          // 41: virsh.IrqBalanceStateResponse
-	(*SetIrqBalanceStateRequest)(nil),        // 42: virsh.SetIrqBalanceStateRequest
-	(*SetIrqBalanceStateResponse)(nil),       // 43: virsh.SetIrqBalanceStateResponse
-	(*HostCoreIsolationSocketSelection)(nil), // 44: virsh.HostCoreIsolationSocketSelection
-	(*SetHostCoreIsolationRequest)(nil),      // 45: virsh.SetHostCoreIsolationRequest
-	(*HostCoreIsolationSocketState)(nil),     // 46: virsh.HostCoreIsolationSocketState
-	(*HostCoreIsolationStateResponse)(nil),   // 47: virsh.HostCoreIsolationStateResponse
-	(*SetHostHugePagesRequest)(nil),          // 48: virsh.SetHostHugePagesRequest
-	(*HostHugePagesStateResponse)(nil),       // 49: virsh.HostHugePagesStateResponse
+	(*VMSnapshotResponse)(nil),               // 31: virsh.VMSnapshotResponse
+	(*HostBootEntry)(nil),                    // 32: virsh.HostBootEntry
+	(*HostBootSnapshotResponse)(nil),         // 33: virsh.HostBootSnapshotResponse
+	(*CPUPinningRequest)(nil),                // 34: virsh.CPUPinningRequest
+	(*CPUPinningInfo)(nil),                   // 35: virsh.CPUPinningInfo
+	(*CPUPinningResponse)(nil),               // 36: virsh.CPUPinningResponse
+	(*CPUCoreInfo)(nil),                      // 37: virsh.CPUCoreInfo
+	(*CPUSocketInfo)(nil),                    // 38: virsh.CPUSocketInfo
+	(*CPUTopologyResponse)(nil),              // 39: virsh.CPUTopologyResponse
+	(*TunedAdmProfileInfo)(nil),              // 40: virsh.TunedAdmProfileInfo
+	(*TunedAdmProfilesResponse)(nil),         // 41: virsh.TunedAdmProfilesResponse
+	(*SetTunedAdmProfileRequest)(nil),        // 42: virsh.SetTunedAdmProfileRequest
+	(*SetTunedAdmProfileResponse)(nil),       // 43: virsh.SetTunedAdmProfileResponse
+	(*IrqBalanceStateResponse)(nil),          // 44: virsh.IrqBalanceStateResponse
+	(*SetIrqBalanceStateRequest)(nil),        // 45: virsh.SetIrqBalanceStateRequest
+	(*SetIrqBalanceStateResponse)(nil),       // 46: virsh.SetIrqBalanceStateResponse
+	(*HostCoreIsolationSocketSelection)(nil), // 47: virsh.HostCoreIsolationSocketSelection
+	(*SetHostCoreIsolationRequest)(nil),      // 48: virsh.SetHostCoreIsolationRequest
+	(*HostCoreIsolationSocketState)(nil),     // 49: virsh.HostCoreIsolationSocketState
+	(*HostCoreIsolationStateResponse)(nil),   // 50: virsh.HostCoreIsolationStateResponse
+	(*SetHostHugePagesRequest)(nil),          // 51: virsh.SetHostHugePagesRequest
+	(*HostHugePagesStateResponse)(nil),       // 52: virsh.HostHugePagesStateResponse
 }
 var file_virsh_proto_depIdxs = []int32{
 	0,  // 0: virsh.Vm.state:type_name -> virsh.VmState
 	5,  // 1: virsh.GetAllVmsResponse.vms:type_name -> virsh.Vm
-	32, // 2: virsh.CPUPinningResponse.pins:type_name -> virsh.CPUPinningInfo
-	34, // 3: virsh.CPUSocketInfo.cores:type_name -> virsh.CPUCoreInfo
-	35, // 4: virsh.CPUTopologyResponse.sockets:type_name -> virsh.CPUSocketInfo
-	37, // 5: virsh.TunedAdmProfilesResponse.profiles:type_name -> virsh.TunedAdmProfileInfo
-	44, // 6: virsh.SetHostCoreIsolationRequest.sockets:type_name -> virsh.HostCoreIsolationSocketSelection
-	46, // 7: virsh.HostCoreIsolationStateResponse.sockets:type_name -> virsh.HostCoreIsolationSocketState
-	1,  // 8: virsh.SlaveVirshService.GetCpuFeatures:input_type -> virsh.Empty
-	1,  // 9: virsh.SlaveVirshService.GetCPUXML:input_type -> virsh.Empty
-	6,  // 10: virsh.SlaveVirshService.GetVMCPUXml:input_type -> virsh.GetVmByNameRequest
-	11, // 11: virsh.SlaveVirshService.UpdateVMCPUXml:input_type -> virsh.UpdateVMCPUXmlRequest
-	6,  // 12: virsh.SlaveVirshService.GetVMXml:input_type -> virsh.GetVmByNameRequest
-	12, // 13: virsh.SlaveVirshService.UpdateVMXml:input_type -> virsh.UpdateVMXmlRequest
-	3,  // 14: virsh.SlaveVirshService.CreateVm:input_type -> virsh.CreateVmRequest
-	8,  // 15: virsh.SlaveVirshService.MigrateVM:input_type -> virsh.MigrateVmRequest
-	5,  // 16: virsh.SlaveVirshService.ShutdownVM:input_type -> virsh.Vm
-	5,  // 17: virsh.SlaveVirshService.ForceShutdownVM:input_type -> virsh.Vm
-	5,  // 18: virsh.SlaveVirshService.StartVM:input_type -> virsh.Vm
-	5,  // 19: virsh.SlaveVirshService.RemoveVM:input_type -> virsh.Vm
-	5,  // 20: virsh.SlaveVirshService.RestartVM:input_type -> virsh.Vm
-	5,  // 21: virsh.SlaveVirshService.PauseVM:input_type -> virsh.Vm
-	5,  // 22: virsh.SlaveVirshService.ResumeVM:input_type -> virsh.Vm
-	5,  // 23: virsh.SlaveVirshService.UndefineVM:input_type -> virsh.Vm
-	1,  // 24: virsh.SlaveVirshService.GetAllVms:input_type -> virsh.Empty
-	6,  // 25: virsh.SlaveVirshService.GetVmByName:input_type -> virsh.GetVmByNameRequest
-	5,  // 26: virsh.SlaveVirshService.RemoveIsoFromVm:input_type -> virsh.Vm
-	14, // 27: virsh.SlaveVirshService.ChangeNetwork:input_type -> virsh.ChangeNetworkReq
-	6,  // 28: virsh.SlaveVirshService.AddNoVNCVideo:input_type -> virsh.GetVmByNameRequest
-	6,  // 29: virsh.SlaveVirshService.RemoveNoVNCVideo:input_type -> virsh.GetVmByNameRequest
-	6,  // 30: virsh.SlaveVirshService.GetNoVNCVideo:input_type -> virsh.GetVmByNameRequest
-	6,  // 31: virsh.SlaveVirshService.GetMemoryBallooning:input_type -> virsh.GetVmByNameRequest
-	18, // 32: virsh.SlaveVirshService.SetMemoryBallooning:input_type -> virsh.SetMemoryBallooningRequest
-	6,  // 33: virsh.SlaveVirshService.GetHugePages:input_type -> virsh.GetVmByNameRequest
-	20, // 34: virsh.SlaveVirshService.SetHugePages:input_type -> virsh.SetHugePagesRequest
-	1,  // 35: virsh.SlaveVirshService.ListMachineTypes:input_type -> virsh.Empty
-	23, // 36: virsh.SlaveVirshService.SetMachineType:input_type -> virsh.SetMachineTypeRequest
-	6,  // 37: virsh.SlaveVirshService.GetKVMHidden:input_type -> virsh.GetVmByNameRequest
-	25, // 38: virsh.SlaveVirshService.SetKVMHidden:input_type -> virsh.SetKVMHiddenRequest
-	6,  // 39: virsh.SlaveVirshService.GetHyperV:input_type -> virsh.GetVmByNameRequest
-	27, // 40: virsh.SlaveVirshService.SetHyperV:input_type -> virsh.SetHyperVRequest
-	29, // 41: virsh.SlaveVirshService.AttachExternalDisk:input_type -> virsh.ExternalDiskRequest
-	29, // 42: virsh.SlaveVirshService.DetachExternalDisk:input_type -> virsh.ExternalDiskRequest
-	5,  // 43: virsh.SlaveVirshService.EditVmResources:input_type -> virsh.Vm
-	13, // 44: virsh.SlaveVirshService.ColdMigrateVm:input_type -> virsh.ColdMigrationRequest
-	5,  // 45: virsh.SlaveVirshService.FreezeDisk:input_type -> virsh.Vm
-	5,  // 46: virsh.SlaveVirshService.UnFreezeDisk:input_type -> virsh.Vm
-	15, // 47: virsh.SlaveVirshService.ChangeVmPassword:input_type -> virsh.ChangeVncPassword
-	16, // 48: virsh.SlaveVirshService.AddSSHKey:input_type -> virsh.AddSSHKeyRequest
-	31, // 49: virsh.SlaveVirshService.ApplyCPUPinning:input_type -> virsh.CPUPinningRequest
-	6,  // 50: virsh.SlaveVirshService.RemoveCPUPinning:input_type -> virsh.GetVmByNameRequest
-	6,  // 51: virsh.SlaveVirshService.GetCPUPinning:input_type -> virsh.GetVmByNameRequest
-	1,  // 52: virsh.SlaveVirshService.GetCPUTopology:input_type -> virsh.Empty
-	1,  // 53: virsh.SlaveVirshService.GetTunedAdmProfiles:input_type -> virsh.Empty
-	39, // 54: virsh.SlaveVirshService.SetTunedAdmProfile:input_type -> virsh.SetTunedAdmProfileRequest
-	1,  // 55: virsh.SlaveVirshService.GetIrqBalanceState:input_type -> virsh.Empty
-	42, // 56: virsh.SlaveVirshService.SetIrqBalanceState:input_type -> virsh.SetIrqBalanceStateRequest
-	1,  // 57: virsh.SlaveVirshService.GetHostCoreIsolation:input_type -> virsh.Empty
-	45, // 58: virsh.SlaveVirshService.SetHostCoreIsolation:input_type -> virsh.SetHostCoreIsolationRequest
-	1,  // 59: virsh.SlaveVirshService.RemoveHostCoreIsolation:input_type -> virsh.Empty
-	1,  // 60: virsh.SlaveVirshService.GetHostHugePages:input_type -> virsh.Empty
-	48, // 61: virsh.SlaveVirshService.SetHostHugePages:input_type -> virsh.SetHostHugePagesRequest
-	1,  // 62: virsh.SlaveVirshService.RemoveHostHugePages:input_type -> virsh.Empty
-	2,  // 63: virsh.SlaveVirshService.GetCpuFeatures:output_type -> virsh.GetCpuFeaturesResponse
-	9,  // 64: virsh.SlaveVirshService.GetCPUXML:output_type -> virsh.CPUXMLResponse
-	9,  // 65: virsh.SlaveVirshService.GetVMCPUXml:output_type -> virsh.CPUXMLResponse
-	4,  // 66: virsh.SlaveVirshService.UpdateVMCPUXml:output_type -> virsh.OkResponse
-	10, // 67: virsh.SlaveVirshService.GetVMXml:output_type -> virsh.VMXMLResponse
-	4,  // 68: virsh.SlaveVirshService.UpdateVMXml:output_type -> virsh.OkResponse
-	4,  // 69: virsh.SlaveVirshService.CreateVm:output_type -> virsh.OkResponse
-	4,  // 70: virsh.SlaveVirshService.MigrateVM:output_type -> virsh.OkResponse
-	4,  // 71: virsh.SlaveVirshService.ShutdownVM:output_type -> virsh.OkResponse
-	4,  // 72: virsh.SlaveVirshService.ForceShutdownVM:output_type -> virsh.OkResponse
-	4,  // 73: virsh.SlaveVirshService.StartVM:output_type -> virsh.OkResponse
-	4,  // 74: virsh.SlaveVirshService.RemoveVM:output_type -> virsh.OkResponse
-	4,  // 75: virsh.SlaveVirshService.RestartVM:output_type -> virsh.OkResponse
-	4,  // 76: virsh.SlaveVirshService.PauseVM:output_type -> virsh.OkResponse
-	4,  // 77: virsh.SlaveVirshService.ResumeVM:output_type -> virsh.OkResponse
-	4,  // 78: virsh.SlaveVirshService.UndefineVM:output_type -> virsh.OkResponse
-	7,  // 79: virsh.SlaveVirshService.GetAllVms:output_type -> virsh.GetAllVmsResponse
-	5,  // 80: virsh.SlaveVirshService.GetVmByName:output_type -> virsh.Vm
-	4,  // 81: virsh.SlaveVirshService.RemoveIsoFromVm:output_type -> virsh.OkResponse
-	1,  // 82: virsh.SlaveVirshService.ChangeNetwork:output_type -> virsh.Empty
-	4,  // 83: virsh.SlaveVirshService.AddNoVNCVideo:output_type -> virsh.OkResponse
-	4,  // 84: virsh.SlaveVirshService.RemoveNoVNCVideo:output_type -> virsh.OkResponse
-	17, // 85: virsh.SlaveVirshService.GetNoVNCVideo:output_type -> virsh.GetNoVNCVideoResponse
-	19, // 86: virsh.SlaveVirshService.GetMemoryBallooning:output_type -> virsh.GetMemoryBallooningResponse
-	4,  // 87: virsh.SlaveVirshService.SetMemoryBallooning:output_type -> virsh.OkResponse
-	21, // 88: virsh.SlaveVirshService.GetHugePages:output_type -> virsh.GetHugePagesResponse
-	4,  // 89: virsh.SlaveVirshService.SetHugePages:output_type -> virsh.OkResponse
-	22, // 90: virsh.SlaveVirshService.ListMachineTypes:output_type -> virsh.MachineTypesResponse
-	24, // 91: virsh.SlaveVirshService.SetMachineType:output_type -> virsh.MachineTypeResponse
-	26, // 92: virsh.SlaveVirshService.GetKVMHidden:output_type -> virsh.KVMHiddenResponse
-	26, // 93: virsh.SlaveVirshService.SetKVMHidden:output_type -> virsh.KVMHiddenResponse
-	28, // 94: virsh.SlaveVirshService.GetHyperV:output_type -> virsh.HyperVResponse
-	28, // 95: virsh.SlaveVirshService.SetHyperV:output_type -> virsh.HyperVResponse
-	30, // 96: virsh.SlaveVirshService.AttachExternalDisk:output_type -> virsh.ExternalDiskResponse
-	30, // 97: virsh.SlaveVirshService.DetachExternalDisk:output_type -> virsh.ExternalDiskResponse
-	4,  // 98: virsh.SlaveVirshService.EditVmResources:output_type -> virsh.OkResponse
-	4,  // 99: virsh.SlaveVirshService.ColdMigrateVm:output_type -> virsh.OkResponse
-	4,  // 100: virsh.SlaveVirshService.FreezeDisk:output_type -> virsh.OkResponse
-	4,  // 101: virsh.SlaveVirshService.UnFreezeDisk:output_type -> virsh.OkResponse
-	1,  // 102: virsh.SlaveVirshService.ChangeVmPassword:output_type -> virsh.Empty
-	4,  // 103: virsh.SlaveVirshService.AddSSHKey:output_type -> virsh.OkResponse
-	4,  // 104: virsh.SlaveVirshService.ApplyCPUPinning:output_type -> virsh.OkResponse
-	4,  // 105: virsh.SlaveVirshService.RemoveCPUPinning:output_type -> virsh.OkResponse
-	33, // 106: virsh.SlaveVirshService.GetCPUPinning:output_type -> virsh.CPUPinningResponse
-	36, // 107: virsh.SlaveVirshService.GetCPUTopology:output_type -> virsh.CPUTopologyResponse
-	38, // 108: virsh.SlaveVirshService.GetTunedAdmProfiles:output_type -> virsh.TunedAdmProfilesResponse
-	40, // 109: virsh.SlaveVirshService.SetTunedAdmProfile:output_type -> virsh.SetTunedAdmProfileResponse
-	41, // 110: virsh.SlaveVirshService.GetIrqBalanceState:output_type -> virsh.IrqBalanceStateResponse
-	43, // 111: virsh.SlaveVirshService.SetIrqBalanceState:output_type -> virsh.SetIrqBalanceStateResponse
-	47, // 112: virsh.SlaveVirshService.GetHostCoreIsolation:output_type -> virsh.HostCoreIsolationStateResponse
-	47, // 113: virsh.SlaveVirshService.SetHostCoreIsolation:output_type -> virsh.HostCoreIsolationStateResponse
-	47, // 114: virsh.SlaveVirshService.RemoveHostCoreIsolation:output_type -> virsh.HostCoreIsolationStateResponse
-	49, // 115: virsh.SlaveVirshService.GetHostHugePages:output_type -> virsh.HostHugePagesStateResponse
-	49, // 116: virsh.SlaveVirshService.SetHostHugePages:output_type -> virsh.HostHugePagesStateResponse
-	49, // 117: virsh.SlaveVirshService.RemoveHostHugePages:output_type -> virsh.HostHugePagesStateResponse
-	63, // [63:118] is the sub-list for method output_type
-	8,  // [8:63] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	32, // 2: virsh.HostBootSnapshotResponse.entries:type_name -> virsh.HostBootEntry
+	35, // 3: virsh.CPUPinningResponse.pins:type_name -> virsh.CPUPinningInfo
+	37, // 4: virsh.CPUSocketInfo.cores:type_name -> virsh.CPUCoreInfo
+	38, // 5: virsh.CPUTopologyResponse.sockets:type_name -> virsh.CPUSocketInfo
+	40, // 6: virsh.TunedAdmProfilesResponse.profiles:type_name -> virsh.TunedAdmProfileInfo
+	47, // 7: virsh.SetHostCoreIsolationRequest.sockets:type_name -> virsh.HostCoreIsolationSocketSelection
+	49, // 8: virsh.HostCoreIsolationStateResponse.sockets:type_name -> virsh.HostCoreIsolationSocketState
+	1,  // 9: virsh.SlaveVirshService.GetHostBootSnapshot:input_type -> virsh.Empty
+	6,  // 10: virsh.SlaveVirshService.GetVMSnapshot:input_type -> virsh.GetVmByNameRequest
+	1,  // 11: virsh.SlaveVirshService.GetCpuFeatures:input_type -> virsh.Empty
+	1,  // 12: virsh.SlaveVirshService.GetCPUXML:input_type -> virsh.Empty
+	6,  // 13: virsh.SlaveVirshService.GetVMCPUXml:input_type -> virsh.GetVmByNameRequest
+	11, // 14: virsh.SlaveVirshService.UpdateVMCPUXml:input_type -> virsh.UpdateVMCPUXmlRequest
+	6,  // 15: virsh.SlaveVirshService.GetVMXml:input_type -> virsh.GetVmByNameRequest
+	12, // 16: virsh.SlaveVirshService.UpdateVMXml:input_type -> virsh.UpdateVMXmlRequest
+	3,  // 17: virsh.SlaveVirshService.CreateVm:input_type -> virsh.CreateVmRequest
+	8,  // 18: virsh.SlaveVirshService.MigrateVM:input_type -> virsh.MigrateVmRequest
+	5,  // 19: virsh.SlaveVirshService.ShutdownVM:input_type -> virsh.Vm
+	5,  // 20: virsh.SlaveVirshService.ForceShutdownVM:input_type -> virsh.Vm
+	5,  // 21: virsh.SlaveVirshService.StartVM:input_type -> virsh.Vm
+	5,  // 22: virsh.SlaveVirshService.RemoveVM:input_type -> virsh.Vm
+	5,  // 23: virsh.SlaveVirshService.RestartVM:input_type -> virsh.Vm
+	5,  // 24: virsh.SlaveVirshService.PauseVM:input_type -> virsh.Vm
+	5,  // 25: virsh.SlaveVirshService.ResumeVM:input_type -> virsh.Vm
+	5,  // 26: virsh.SlaveVirshService.UndefineVM:input_type -> virsh.Vm
+	1,  // 27: virsh.SlaveVirshService.GetAllVms:input_type -> virsh.Empty
+	6,  // 28: virsh.SlaveVirshService.GetVmByName:input_type -> virsh.GetVmByNameRequest
+	5,  // 29: virsh.SlaveVirshService.RemoveIsoFromVm:input_type -> virsh.Vm
+	14, // 30: virsh.SlaveVirshService.ChangeNetwork:input_type -> virsh.ChangeNetworkReq
+	6,  // 31: virsh.SlaveVirshService.AddNoVNCVideo:input_type -> virsh.GetVmByNameRequest
+	6,  // 32: virsh.SlaveVirshService.RemoveNoVNCVideo:input_type -> virsh.GetVmByNameRequest
+	6,  // 33: virsh.SlaveVirshService.GetNoVNCVideo:input_type -> virsh.GetVmByNameRequest
+	6,  // 34: virsh.SlaveVirshService.GetMemoryBallooning:input_type -> virsh.GetVmByNameRequest
+	18, // 35: virsh.SlaveVirshService.SetMemoryBallooning:input_type -> virsh.SetMemoryBallooningRequest
+	6,  // 36: virsh.SlaveVirshService.GetHugePages:input_type -> virsh.GetVmByNameRequest
+	20, // 37: virsh.SlaveVirshService.SetHugePages:input_type -> virsh.SetHugePagesRequest
+	1,  // 38: virsh.SlaveVirshService.ListMachineTypes:input_type -> virsh.Empty
+	23, // 39: virsh.SlaveVirshService.SetMachineType:input_type -> virsh.SetMachineTypeRequest
+	6,  // 40: virsh.SlaveVirshService.GetKVMHidden:input_type -> virsh.GetVmByNameRequest
+	25, // 41: virsh.SlaveVirshService.SetKVMHidden:input_type -> virsh.SetKVMHiddenRequest
+	6,  // 42: virsh.SlaveVirshService.GetHyperV:input_type -> virsh.GetVmByNameRequest
+	27, // 43: virsh.SlaveVirshService.SetHyperV:input_type -> virsh.SetHyperVRequest
+	29, // 44: virsh.SlaveVirshService.AttachExternalDisk:input_type -> virsh.ExternalDiskRequest
+	29, // 45: virsh.SlaveVirshService.DetachExternalDisk:input_type -> virsh.ExternalDiskRequest
+	5,  // 46: virsh.SlaveVirshService.EditVmResources:input_type -> virsh.Vm
+	13, // 47: virsh.SlaveVirshService.ColdMigrateVm:input_type -> virsh.ColdMigrationRequest
+	5,  // 48: virsh.SlaveVirshService.FreezeDisk:input_type -> virsh.Vm
+	5,  // 49: virsh.SlaveVirshService.UnFreezeDisk:input_type -> virsh.Vm
+	15, // 50: virsh.SlaveVirshService.ChangeVmPassword:input_type -> virsh.ChangeVncPassword
+	16, // 51: virsh.SlaveVirshService.AddSSHKey:input_type -> virsh.AddSSHKeyRequest
+	34, // 52: virsh.SlaveVirshService.ApplyCPUPinning:input_type -> virsh.CPUPinningRequest
+	6,  // 53: virsh.SlaveVirshService.RemoveCPUPinning:input_type -> virsh.GetVmByNameRequest
+	6,  // 54: virsh.SlaveVirshService.GetCPUPinning:input_type -> virsh.GetVmByNameRequest
+	1,  // 55: virsh.SlaveVirshService.GetCPUTopology:input_type -> virsh.Empty
+	1,  // 56: virsh.SlaveVirshService.GetTunedAdmProfiles:input_type -> virsh.Empty
+	42, // 57: virsh.SlaveVirshService.SetTunedAdmProfile:input_type -> virsh.SetTunedAdmProfileRequest
+	1,  // 58: virsh.SlaveVirshService.GetIrqBalanceState:input_type -> virsh.Empty
+	45, // 59: virsh.SlaveVirshService.SetIrqBalanceState:input_type -> virsh.SetIrqBalanceStateRequest
+	1,  // 60: virsh.SlaveVirshService.GetHostCoreIsolation:input_type -> virsh.Empty
+	48, // 61: virsh.SlaveVirshService.SetHostCoreIsolation:input_type -> virsh.SetHostCoreIsolationRequest
+	1,  // 62: virsh.SlaveVirshService.RemoveHostCoreIsolation:input_type -> virsh.Empty
+	1,  // 63: virsh.SlaveVirshService.GetHostHugePages:input_type -> virsh.Empty
+	51, // 64: virsh.SlaveVirshService.SetHostHugePages:input_type -> virsh.SetHostHugePagesRequest
+	1,  // 65: virsh.SlaveVirshService.RemoveHostHugePages:input_type -> virsh.Empty
+	33, // 66: virsh.SlaveVirshService.GetHostBootSnapshot:output_type -> virsh.HostBootSnapshotResponse
+	31, // 67: virsh.SlaveVirshService.GetVMSnapshot:output_type -> virsh.VMSnapshotResponse
+	2,  // 68: virsh.SlaveVirshService.GetCpuFeatures:output_type -> virsh.GetCpuFeaturesResponse
+	9,  // 69: virsh.SlaveVirshService.GetCPUXML:output_type -> virsh.CPUXMLResponse
+	9,  // 70: virsh.SlaveVirshService.GetVMCPUXml:output_type -> virsh.CPUXMLResponse
+	4,  // 71: virsh.SlaveVirshService.UpdateVMCPUXml:output_type -> virsh.OkResponse
+	10, // 72: virsh.SlaveVirshService.GetVMXml:output_type -> virsh.VMXMLResponse
+	4,  // 73: virsh.SlaveVirshService.UpdateVMXml:output_type -> virsh.OkResponse
+	4,  // 74: virsh.SlaveVirshService.CreateVm:output_type -> virsh.OkResponse
+	4,  // 75: virsh.SlaveVirshService.MigrateVM:output_type -> virsh.OkResponse
+	4,  // 76: virsh.SlaveVirshService.ShutdownVM:output_type -> virsh.OkResponse
+	4,  // 77: virsh.SlaveVirshService.ForceShutdownVM:output_type -> virsh.OkResponse
+	4,  // 78: virsh.SlaveVirshService.StartVM:output_type -> virsh.OkResponse
+	4,  // 79: virsh.SlaveVirshService.RemoveVM:output_type -> virsh.OkResponse
+	4,  // 80: virsh.SlaveVirshService.RestartVM:output_type -> virsh.OkResponse
+	4,  // 81: virsh.SlaveVirshService.PauseVM:output_type -> virsh.OkResponse
+	4,  // 82: virsh.SlaveVirshService.ResumeVM:output_type -> virsh.OkResponse
+	4,  // 83: virsh.SlaveVirshService.UndefineVM:output_type -> virsh.OkResponse
+	7,  // 84: virsh.SlaveVirshService.GetAllVms:output_type -> virsh.GetAllVmsResponse
+	5,  // 85: virsh.SlaveVirshService.GetVmByName:output_type -> virsh.Vm
+	4,  // 86: virsh.SlaveVirshService.RemoveIsoFromVm:output_type -> virsh.OkResponse
+	1,  // 87: virsh.SlaveVirshService.ChangeNetwork:output_type -> virsh.Empty
+	4,  // 88: virsh.SlaveVirshService.AddNoVNCVideo:output_type -> virsh.OkResponse
+	4,  // 89: virsh.SlaveVirshService.RemoveNoVNCVideo:output_type -> virsh.OkResponse
+	17, // 90: virsh.SlaveVirshService.GetNoVNCVideo:output_type -> virsh.GetNoVNCVideoResponse
+	19, // 91: virsh.SlaveVirshService.GetMemoryBallooning:output_type -> virsh.GetMemoryBallooningResponse
+	4,  // 92: virsh.SlaveVirshService.SetMemoryBallooning:output_type -> virsh.OkResponse
+	21, // 93: virsh.SlaveVirshService.GetHugePages:output_type -> virsh.GetHugePagesResponse
+	4,  // 94: virsh.SlaveVirshService.SetHugePages:output_type -> virsh.OkResponse
+	22, // 95: virsh.SlaveVirshService.ListMachineTypes:output_type -> virsh.MachineTypesResponse
+	24, // 96: virsh.SlaveVirshService.SetMachineType:output_type -> virsh.MachineTypeResponse
+	26, // 97: virsh.SlaveVirshService.GetKVMHidden:output_type -> virsh.KVMHiddenResponse
+	26, // 98: virsh.SlaveVirshService.SetKVMHidden:output_type -> virsh.KVMHiddenResponse
+	28, // 99: virsh.SlaveVirshService.GetHyperV:output_type -> virsh.HyperVResponse
+	28, // 100: virsh.SlaveVirshService.SetHyperV:output_type -> virsh.HyperVResponse
+	30, // 101: virsh.SlaveVirshService.AttachExternalDisk:output_type -> virsh.ExternalDiskResponse
+	30, // 102: virsh.SlaveVirshService.DetachExternalDisk:output_type -> virsh.ExternalDiskResponse
+	4,  // 103: virsh.SlaveVirshService.EditVmResources:output_type -> virsh.OkResponse
+	4,  // 104: virsh.SlaveVirshService.ColdMigrateVm:output_type -> virsh.OkResponse
+	4,  // 105: virsh.SlaveVirshService.FreezeDisk:output_type -> virsh.OkResponse
+	4,  // 106: virsh.SlaveVirshService.UnFreezeDisk:output_type -> virsh.OkResponse
+	1,  // 107: virsh.SlaveVirshService.ChangeVmPassword:output_type -> virsh.Empty
+	4,  // 108: virsh.SlaveVirshService.AddSSHKey:output_type -> virsh.OkResponse
+	4,  // 109: virsh.SlaveVirshService.ApplyCPUPinning:output_type -> virsh.OkResponse
+	4,  // 110: virsh.SlaveVirshService.RemoveCPUPinning:output_type -> virsh.OkResponse
+	36, // 111: virsh.SlaveVirshService.GetCPUPinning:output_type -> virsh.CPUPinningResponse
+	39, // 112: virsh.SlaveVirshService.GetCPUTopology:output_type -> virsh.CPUTopologyResponse
+	41, // 113: virsh.SlaveVirshService.GetTunedAdmProfiles:output_type -> virsh.TunedAdmProfilesResponse
+	43, // 114: virsh.SlaveVirshService.SetTunedAdmProfile:output_type -> virsh.SetTunedAdmProfileResponse
+	44, // 115: virsh.SlaveVirshService.GetIrqBalanceState:output_type -> virsh.IrqBalanceStateResponse
+	46, // 116: virsh.SlaveVirshService.SetIrqBalanceState:output_type -> virsh.SetIrqBalanceStateResponse
+	50, // 117: virsh.SlaveVirshService.GetHostCoreIsolation:output_type -> virsh.HostCoreIsolationStateResponse
+	50, // 118: virsh.SlaveVirshService.SetHostCoreIsolation:output_type -> virsh.HostCoreIsolationStateResponse
+	50, // 119: virsh.SlaveVirshService.RemoveHostCoreIsolation:output_type -> virsh.HostCoreIsolationStateResponse
+	52, // 120: virsh.SlaveVirshService.GetHostHugePages:output_type -> virsh.HostHugePagesStateResponse
+	52, // 121: virsh.SlaveVirshService.SetHostHugePages:output_type -> virsh.HostHugePagesStateResponse
+	52, // 122: virsh.SlaveVirshService.RemoveHostHugePages:output_type -> virsh.HostHugePagesStateResponse
+	66, // [66:123] is the sub-list for method output_type
+	9,  // [9:66] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_virsh_proto_init() }
@@ -3722,7 +3954,7 @@ func file_virsh_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_virsh_proto_rawDesc), len(file_virsh_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   49,
+			NumMessages:   52,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

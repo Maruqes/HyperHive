@@ -2,6 +2,7 @@ package services
 
 import (
 	"512SvMan/db"
+	"512SvMan/dnsmasq"
 	"512SvMan/env512"
 	"512SvMan/extra"
 	"512SvMan/nfs"
@@ -35,6 +36,8 @@ type VirshService struct {
 
 const longTaskTimeout = 7 * 24 * time.Hour
 const coldMigrateSyncTimeout = 6 * time.Hour
+
+var removeDNSAliasesForVM = dnsmasq.RemoveAliasesForVM
 
 func ClusterSafeFeatures(all [][]string) []string {
 	if len(all) == 0 {
@@ -526,6 +529,10 @@ func (v *VirshService) DeleteVM(ctx context.Context, name string) error {
 			err = virsh.RemoveVM(conn, vm)
 			if err != nil {
 				return fmt.Errorf("failed to delete VM %s: %v", name, err)
+			}
+
+			if err := removeDNSAliasesForVM(name); err != nil {
+				return fmt.Errorf("VM %s was deleted but related DNS cleanup failed: %w", name, err)
 			}
 
 			//remove from db if live vm
@@ -1102,7 +1109,6 @@ type AddSSHKeyBatchResult struct {
 	Failed    int               `json:"failed"`
 	Results   []AddSSHKeyResult `json:"results"`
 }
-
 
 func (v *VirshService) AddNoVNCVideo(vmName string) error {
 	vm, err := v.GetVmByName(vmName)
@@ -2009,13 +2015,7 @@ func (v *VirshService) CloneVM(ctx context.Context, vmName string, newName strin
 		return logErr(err)
 	}
 
-	marshaler := protojson.MarshalOptions{EmitUnpopulated: true, Indent: "  "}
-	data, err := marshaler.Marshal(&coldMigr)
-	if err != nil {
-		logger.Debug("failed to marshal coldMigr: " + err.Error())
-	} else {
-		logger.Debug(string(data))
-	}
+	logger.Debug("Clone request prepared for source VM " + vmName + " and destination VM " + newName)
 
 	go func() {
 		taskCtx, cancel := context.WithTimeout(context.Background(), longTaskTimeout)

@@ -1,0 +1,609 @@
+
+$ go test -run ^TestNginxBatchContracts/list_certificates$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.02s)
+    --- FAIL: TestNginxBatchContracts/list_certificates (0.02s)
+        --- FAIL: TestNginxBatchContracts/list_certificates/http (0.01s)
+            nginx_test.go:132: tool list_certificates not registered
+        --- FAIL: TestNginxBatchContracts/list_certificates/stdio (0.01s)
+            nginx_test.go:132: tool list_certificates not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.880s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	11.245s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.794s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.132s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	15.053s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.744s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.471s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/list_dns_providers$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.02s)
+    --- FAIL: TestNginxBatchContracts/list_dns_providers (0.02s)
+        --- FAIL: TestNginxBatchContracts/list_dns_providers/http (0.01s)
+            nginx_test.go:132: tool list_dns_providers not registered
+        --- FAIL: TestNginxBatchContracts/list_dns_providers/stdio (0.01s)
+            nginx_test.go:132: tool list_dns_providers not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.549s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	11.502s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.830s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.177s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	15.841s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.692s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.434s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/download_certificate$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.03s)
+    --- FAIL: TestNginxBatchContracts/download_certificate (0.03s)
+        --- FAIL: TestNginxBatchContracts/download_certificate/http (0.01s)
+            nginx_test.go:132: tool download_certificate not registered
+        --- FAIL: TestNginxBatchContracts/download_certificate/stdio (0.02s)
+            nginx_test.go:132: tool download_certificate not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.554s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	11.530s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.781s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.131s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	15.604s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.692s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.464s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/renew_certificate$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.03s)
+    --- FAIL: TestNginxBatchContracts/renew_certificate (0.03s)
+        --- FAIL: TestNginxBatchContracts/renew_certificate/http (0.01s)
+            nginx_test.go:132: tool renew_certificate not registered
+        --- FAIL: TestNginxBatchContracts/renew_certificate/stdio (0.01s)
+            nginx_test.go:132: tool renew_certificate not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.546s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	11.671s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.812s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.144s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	15.779s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.674s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.442s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/list_access_lists$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.03s)
+    --- FAIL: TestNginxBatchContracts/list_access_lists (0.03s)
+        --- FAIL: TestNginxBatchContracts/list_access_lists/http (0.01s)
+            nginx_test.go:132: tool list_access_lists not registered
+        --- FAIL: TestNginxBatchContracts/list_access_lists/stdio (0.02s)
+            nginx_test.go:132: tool list_access_lists not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.552s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	11.545s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.777s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.141s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	15.989s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.670s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.454s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/create_access_list$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.02s)
+    --- FAIL: TestNginxBatchContracts/create_access_list (0.02s)
+        --- FAIL: TestNginxBatchContracts/create_access_list/http (0.01s)
+            nginx_test.go:132: tool create_access_list not registered
+        --- FAIL: TestNginxBatchContracts/create_access_list/stdio (0.01s)
+            nginx_test.go:132: tool create_access_list not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.535s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	11.724s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.831s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.131s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	16.437s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.709s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.421s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/list_streams$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.03s)
+    --- FAIL: TestNginxBatchContracts/list_streams (0.03s)
+        --- FAIL: TestNginxBatchContracts/list_streams/http (0.01s)
+            nginx_test.go:132: tool list_streams not registered
+        --- FAIL: TestNginxBatchContracts/list_streams/stdio (0.01s)
+            nginx_test.go:132: tool list_streams not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.541s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	11.812s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.804s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.138s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	16.459s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.665s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.453s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/create_stream$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.03s)
+    --- FAIL: TestNginxBatchContracts/create_stream (0.03s)
+        --- FAIL: TestNginxBatchContracts/create_stream/http (0.01s)
+            nginx_test.go:132: tool create_stream not registered
+        --- FAIL: TestNginxBatchContracts/create_stream/stdio (0.01s)
+            nginx_test.go:132: tool create_stream not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.563s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	12.109s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.803s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.149s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	17.217s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.685s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.450s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/update_stream$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.03s)
+    --- FAIL: TestNginxBatchContracts/update_stream (0.03s)
+        --- FAIL: TestNginxBatchContracts/update_stream/http (0.01s)
+            nginx_test.go:132: tool update_stream not registered
+        --- FAIL: TestNginxBatchContracts/update_stream/stdio (0.01s)
+            nginx_test.go:132: tool update_stream not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.554s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	12.022s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.826s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.156s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	17.450s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.655s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.427s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/enable_stream$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.03s)
+    --- FAIL: TestNginxBatchContracts/enable_stream (0.03s)
+        --- FAIL: TestNginxBatchContracts/enable_stream/http (0.01s)
+            nginx_test.go:132: tool enable_stream not registered
+        --- FAIL: TestNginxBatchContracts/enable_stream/stdio (0.02s)
+            nginx_test.go:132: tool enable_stream not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.565s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	12.154s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.797s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.133s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	17.647s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.714s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.451s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/disable_stream$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.03s)
+    --- FAIL: TestNginxBatchContracts/disable_stream (0.03s)
+        --- FAIL: TestNginxBatchContracts/disable_stream/http (0.01s)
+            nginx_test.go:132: tool disable_stream not registered
+        --- FAIL: TestNginxBatchContracts/disable_stream/stdio (0.02s)
+            nginx_test.go:132: tool disable_stream not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.542s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	13.014s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.776s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.152s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	17.921s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.667s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.420s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/list_redirects$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.03s)
+    --- FAIL: TestNginxBatchContracts/list_redirects (0.03s)
+        --- FAIL: TestNginxBatchContracts/list_redirects/http (0.01s)
+            nginx_test.go:132: tool list_redirects not registered
+        --- FAIL: TestNginxBatchContracts/list_redirects/stdio (0.02s)
+            nginx_test.go:132: tool list_redirects not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.541s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	12.313s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.844s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.136s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	18.304s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.746s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.455s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/create_redirect$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.03s)
+    --- FAIL: TestNginxBatchContracts/create_redirect (0.03s)
+        --- FAIL: TestNginxBatchContracts/create_redirect/http (0.01s)
+            nginx_test.go:132: tool create_redirect not registered
+        --- FAIL: TestNginxBatchContracts/create_redirect/stdio (0.02s)
+            nginx_test.go:132: tool create_redirect not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.562s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	12.476s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.801s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.146s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	18.837s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.678s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.434s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/update_redirect$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.03s)
+    --- FAIL: TestNginxBatchContracts/update_redirect (0.03s)
+        --- FAIL: TestNginxBatchContracts/update_redirect/http (0.01s)
+            nginx_test.go:132: tool update_redirect not registered
+        --- FAIL: TestNginxBatchContracts/update_redirect/stdio (0.02s)
+            nginx_test.go:132: tool update_redirect not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.571s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	12.772s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.813s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.136s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	19.673s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.699s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.432s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/enable_redirect$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.03s)
+    --- FAIL: TestNginxBatchContracts/enable_redirect (0.03s)
+        --- FAIL: TestNginxBatchContracts/enable_redirect/http (0.02s)
+            nginx_test.go:132: tool enable_redirect not registered
+        --- FAIL: TestNginxBatchContracts/enable_redirect/stdio (0.02s)
+            nginx_test.go:132: tool enable_redirect not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.583s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	12.685s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.798s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.139s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	19.898s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.701s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.414s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/disable_redirect$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.04s)
+    --- FAIL: TestNginxBatchContracts/disable_redirect (0.04s)
+        --- FAIL: TestNginxBatchContracts/disable_redirect/http (0.02s)
+            nginx_test.go:132: tool disable_redirect not registered
+        --- FAIL: TestNginxBatchContracts/disable_redirect/stdio (0.02s)
+            nginx_test.go:132: tool disable_redirect not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.556s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	12.820s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.850s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.140s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	20.136s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.709s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.448s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/list_404_hosts$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.03s)
+    --- FAIL: TestNginxBatchContracts/list_404_hosts (0.03s)
+        --- FAIL: TestNginxBatchContracts/list_404_hosts/http (0.02s)
+            nginx_test.go:132: tool list_404_hosts not registered
+        --- FAIL: TestNginxBatchContracts/list_404_hosts/stdio (0.02s)
+            nginx_test.go:132: tool list_404_hosts not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.546s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	12.910s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.813s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.143s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	21.107s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.798s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.469s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/create_404_host$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.03s)
+    --- FAIL: TestNginxBatchContracts/create_404_host (0.03s)
+        --- FAIL: TestNginxBatchContracts/create_404_host/http (0.02s)
+            nginx_test.go:132: tool create_404_host not registered
+        --- FAIL: TestNginxBatchContracts/create_404_host/stdio (0.02s)
+            nginx_test.go:132: tool create_404_host not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.553s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	12.915s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.843s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.127s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	20.900s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.682s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.474s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/update_404_host$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.04s)
+    --- FAIL: TestNginxBatchContracts/update_404_host (0.04s)
+        --- FAIL: TestNginxBatchContracts/update_404_host/http (0.02s)
+            nginx_test.go:132: tool update_404_host not registered
+        --- FAIL: TestNginxBatchContracts/update_404_host/stdio (0.02s)
+            nginx_test.go:132: tool update_404_host not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.569s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	12.969s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.788s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.138s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	21.601s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.731s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.458s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/enable_404_host$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.04s)
+    --- FAIL: TestNginxBatchContracts/enable_404_host (0.04s)
+        --- FAIL: TestNginxBatchContracts/enable_404_host/http (0.02s)
+            nginx_test.go:132: tool enable_404_host not registered
+        --- FAIL: TestNginxBatchContracts/enable_404_host/stdio (0.02s)
+            nginx_test.go:132: tool enable_404_host not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.565s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	13.111s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.800s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.153s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	21.946s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.748s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.472s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py
+
+$ go test -run ^TestNginxBatchContracts/disable_404_host$ -count=1 .
+--- FAIL: TestNginxBatchContracts (0.04s)
+    --- FAIL: TestNginxBatchContracts/disable_404_host (0.04s)
+        --- FAIL: TestNginxBatchContracts/disable_404_host/http (0.02s)
+            nginx_test.go:132: tool disable_404_host not registered
+        --- FAIL: TestNginxBatchContracts/disable_404_host/stdio (0.02s)
+            nginx_test.go:132: tool disable_404_host not registered
+FAIL
+FAIL	github.com/Maruqes/HyperHive/mcp	0.571s
+FAIL
+
+$ gofmt -w internal/client/nginx.go internal/tools/nginx.go server.go nginx_cases_test.go server_test.go cmd/hyperhive-mcp/main_test.go /home/marques/projects/HyperHive/master/api/mcp_test.go
+
+$ go test ./...
+ok  	github.com/Maruqes/HyperHive/mcp	13.104s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	0.836s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	0.145s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go test -race ./...
+ok  	github.com/Maruqes/HyperHive/mcp	22.043s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	1.714s
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	1.459s
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+
+$ go vet ./...
+
+$ python3 /tmp/hh-nginx-report.py

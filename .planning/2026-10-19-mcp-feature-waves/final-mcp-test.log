@@ -1,0 +1,5 @@
+ok  	github.com/Maruqes/HyperHive/mcp	29.083s
+ok  	github.com/Maruqes/HyperHive/mcp/cmd/hyperhive-mcp	(cached)
+ok  	github.com/Maruqes/HyperHive/mcp/internal/client	(cached)
+?   	github.com/Maruqes/HyperHive/mcp/internal/tools	[no test files]
+ok  	github.com/Maruqes/HyperHive/mcp/internal/vmsafety	(cached)

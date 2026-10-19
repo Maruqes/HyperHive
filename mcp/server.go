@@ -14,11 +14,28 @@ import (
 type Config struct {
 	BaseURL  string
 	MCPToken string
+	// VMBackupDir is a private operator-controlled directory for retained
+	// pre-change records. Empty uses the MCP process user's cache directory.
+	VMBackupDir string
 }
 
-func newServer(api tools.ProxyAPI) *mcp.Server {
+func newServer(api interface {
+	tools.ProxyAPI
+	tools.CelldAPI
+	tools.NginxAPI
+	tools.DNSAPI
+	tools.NotesAPI
+	tools.SPAAPI
+	tools.ISOsAPI
+	tools.VMsAPI
+}, backupDir string) *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{Name: "hyperhive-mcp", Version: "0.1.0"}, nil)
 	tools.Register(server, api)
+	tools.RegisterDNS(server, api)
+	tools.RegisterNotes(server, api)
+	tools.RegisterSPA(server, api)
+	tools.RegisterISOs(server, api)
+	tools.RegisterVMs(server, api, backupDir)
 	return server
 }
 
@@ -28,18 +45,14 @@ func NewServer(cfg Config) (*mcp.Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newServer(api), nil
+	return newServer(api, cfg.VMBackupDir), nil
 }
 
 // NewHTTPHandler requires a fixed MCP Bearer token. Backend configuration is
 // validated on tool invocation; a missing MCP key disables HTTP access.
 func NewHTTPHandler(cfg Config) http.Handler {
-	server := newServer(configuredAPI{cfg})
-	handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
-		return server
-	}, &mcp.StreamableHTTPOptions{
-		Stateless: true, JSONResponse: true, PropagateRequestCancellation: true,
-	})
+	server := newServer(configuredAPI{cfg}, cfg.VMBackupDir)
+	handler := newMCPTransport(server)
 	return requireMCPToken(handler, cfg.MCPToken)
 }
 
@@ -99,4 +112,244 @@ func (api configuredAPI) SetupSecureFrontendProxy(ctx context.Context, input cli
 		return err
 	}
 	return c.SetupSecureFrontendProxy(ctx, input)
+}
+
+func (api configuredAPI) ListCelldFleets(ctx context.Context) (client.CelldObject, error) {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return nil, err
+	}
+	return c.ListCelldFleets(ctx)
+}
+
+func (api configuredAPI) GetCelldHealth(ctx context.Context) (client.CelldObject, error) {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return nil, err
+	}
+	return c.GetCelldHealth(ctx)
+}
+
+func (api configuredAPI) CreateCelldFleet(ctx context.Context, input client.CreateCelldFleetInput) (client.CelldObject, error) {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return nil, err
+	}
+	return c.CreateCelldFleet(ctx, input)
+}
+
+func (api configuredAPI) StartCelldFleet(ctx context.Context, input client.CelldFleetIDInput) (client.CelldObject, error) {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return nil, err
+	}
+	return c.StartCelldFleet(ctx, input)
+}
+
+func (api configuredAPI) StopCelldFleet(ctx context.Context, input client.CelldFleetIDInput) (client.CelldObject, error) {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return nil, err
+	}
+	return c.StopCelldFleet(ctx, input)
+}
+
+func (api configuredAPI) DeleteCelldFleet(ctx context.Context, input client.CelldFleetIDInput) (client.CelldObject, error) {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return nil, err
+	}
+	return c.DeleteCelldFleet(ctx, input)
+}
+
+func (api configuredAPI) GetCelldCredentials(ctx context.Context, input client.CelldFleetIDInput) (client.CelldObject, error) {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return nil, err
+	}
+	return c.GetCelldCredentials(ctx, input)
+}
+
+func (api configuredAPI) GetCelldLogs(ctx context.Context, input client.CelldObservationInput) (client.CelldObject, error) {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return nil, err
+	}
+	return c.GetCelldLogs(ctx, input)
+}
+
+func (api configuredAPI) GetCelldEvents(ctx context.Context, input client.CelldObservationInput) (client.CelldObject, error) {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return nil, err
+	}
+	return c.GetCelldEvents(ctx, input)
+}
+
+func (api configuredAPI) ListCertificates(ctx context.Context) ([]map[string]any, error) {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return nil, err
+	}
+	return c.ListCertificates(ctx)
+}
+
+func (api configuredAPI) ListDNSProviders(ctx context.Context) ([]map[string]any, error) {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return nil, err
+	}
+	return c.ListDNSProviders(ctx)
+}
+
+func (api configuredAPI) DownloadCertificate(ctx context.Context, input client.NginxIDInput) (client.CertificateDownload, error) {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return client.CertificateDownload{}, err
+	}
+	return c.DownloadCertificate(ctx, input)
+}
+
+func (api configuredAPI) RenewCertificate(ctx context.Context, input client.NginxIDInput) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.RenewCertificate(ctx, input)
+}
+
+func (api configuredAPI) ListAccessLists(ctx context.Context) ([]map[string]any, error) {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return nil, err
+	}
+	return c.ListAccessLists(ctx)
+}
+
+func (api configuredAPI) CreateAccessList(ctx context.Context, input client.AccessListConfig) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.CreateAccessList(ctx, input)
+}
+
+func (api configuredAPI) ListStreams(ctx context.Context) ([]map[string]any, error) {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return nil, err
+	}
+	return c.ListStreams(ctx)
+}
+
+func (api configuredAPI) CreateStream(ctx context.Context, input client.StreamConfig) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.CreateStream(ctx, input)
+}
+
+func (api configuredAPI) UpdateStream(ctx context.Context, input client.UpdateStreamConfig) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.UpdateStream(ctx, input)
+}
+
+func (api configuredAPI) EnableStream(ctx context.Context, input client.NginxIDInput) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.EnableStream(ctx, input)
+}
+
+func (api configuredAPI) DisableStream(ctx context.Context, input client.NginxIDInput) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.DisableStream(ctx, input)
+}
+
+func (api configuredAPI) ListRedirects(ctx context.Context) ([]map[string]any, error) {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return nil, err
+	}
+	return c.ListRedirects(ctx)
+}
+
+func (api configuredAPI) CreateRedirect(ctx context.Context, input client.RedirectConfig) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.CreateRedirect(ctx, input)
+}
+
+func (api configuredAPI) UpdateRedirect(ctx context.Context, input client.UpdateRedirectConfig) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.UpdateRedirect(ctx, input)
+}
+
+func (api configuredAPI) EnableRedirect(ctx context.Context, input client.NginxIDInput) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.EnableRedirect(ctx, input)
+}
+
+func (api configuredAPI) DisableRedirect(ctx context.Context, input client.NginxIDInput) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.DisableRedirect(ctx, input)
+}
+
+func (api configuredAPI) ListHosts404(ctx context.Context) ([]map[string]any, error) {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return nil, err
+	}
+	return c.ListHosts404(ctx)
+}
+
+func (api configuredAPI) CreateHost404(ctx context.Context, input client.Host404Config) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.CreateHost404(ctx, input)
+}
+
+func (api configuredAPI) UpdateHost404(ctx context.Context, input client.UpdateHost404Config) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.UpdateHost404(ctx, input)
+}
+
+func (api configuredAPI) EnableHost404(ctx context.Context, input client.NginxIDInput) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.EnableHost404(ctx, input)
+}
+
+func (api configuredAPI) DisableHost404(ctx context.Context, input client.NginxIDInput) error {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return err
+	}
+	return c.DisableHost404(ctx, input)
 }
