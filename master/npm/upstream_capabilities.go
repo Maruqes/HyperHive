@@ -24,7 +24,11 @@ type UpstreamCapabilityResponse struct {
 }
 
 func UpstreamCapabilities(ctx context.Context) (UpstreamCapabilityResponse, error) {
-	upstreamCoordinator.Lock()
+	ctx, cancel := context.WithTimeout(ctx, upstreamReadTimeout)
+	defer cancel()
+	if err := lockUpstreamRead(ctx); err != nil {
+		return UpstreamCapabilityResponse{}, err
+	}
 	defer upstreamCoordinator.Unlock()
 	status := "verified"
 	if err := upstreamCoordinator.runtime.Verify(ctx); err != nil {

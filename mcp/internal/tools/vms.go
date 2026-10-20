@@ -11,6 +11,15 @@ import (
 )
 
 type VMsAPI interface {
+	CreateVM(context.Context, client.VMCreateInput) (json.RawMessage, error)
+	SetVMAutostart(context.Context, client.VMAutostartInput) (json.RawMessage, error)
+	SetVMLive(context.Context, client.VMEnableInput) (json.RawMessage, error)
+	CreateVMAutomaticBackup(context.Context, client.VMScheduleSettings) (json.RawMessage, error)
+	UpdateVMAutomaticBackup(context.Context, client.VMUpdateScheduleInput) (json.RawMessage, error)
+	EnableVMAutomaticBackup(context.Context, client.VMIDInput) (json.RawMessage, error)
+	AddVMSSHKey(context.Context, client.VMSSHInput) (json.RawMessage, error)
+	ListISOs(context.Context) ([]client.ISOObject, error)
+
 	GetVMHostBootSnapshot(context.Context, client.VMHostInput) (json.RawMessage, error)
 	SetVMHostCoreIsolationPost(context.Context, client.VMCoreIsolationInput) (json.RawMessage, error)
 	SetVMHostCoreIsolationPut(context.Context, client.VMCoreIsolationInput) (json.RawMessage, error)
@@ -122,6 +131,7 @@ func RegisterVMs(server *mcp.Server, api VMsAPI, backupDir string) {
 	registerVMWrites(server, api, gate, store)
 	registerVMTransfers(server, api, gate, store)
 	registerVMMore(server, api, gate, store)
+	registerVMIncrement(server, api, gate, store)
 	registerVMHostWrites(server, api, gate, store)
 	addVMRead(server, vmTool("list_vms", "GET", "/virsh/getallvms", "Return the complete API JSON, preserving exact integers and backend fields.", vmsafety.Low), api.ListVMs)
 	addVMRead(server, vmTool("get_vm", "GET", "/virsh/getvmbyname/{vm_name}", "Return the complete API JSON, preserving exact integers and backend fields.", vmsafety.Low), api.GetVM)

@@ -91,6 +91,15 @@ func vmExtraSnapshot(ctx context.Context, snapshots map[string]json.RawMessage, 
 func vmSafeSummary(input any) string {
 	data, _ := json.Marshal(input)
 	switch in := input.(type) {
+	case client.VMCreateInput:
+		in.VNCPassword = "[hidden]"
+		cpu := in.CPUXML
+		in.CPUXML = fmt.Sprintf("[bytes=%d SHA-256=%x]", len(cpu), sha256.Sum256([]byte(cpu)))
+		safe, _ := json.Marshal(in)
+		return "Exact requested creation: " + string(safe)
+	case client.VMSSHInput:
+		return fmt.Sprintf("Target VM: %s; public key SHA-256: %x; guest must be shut off; primary disk copied privately before injection", in.VMName, sha256.Sum256([]byte(in.SSHKey)))
+
 	case client.VMUpdateXMLInput:
 		return fmt.Sprintf("Target VM: %s; host: %s; XML bytes: %d; SHA-256: %x", in.VMName, in.MachineName, len(in.VMXML), sha256.Sum256([]byte(in.VMXML)))
 	case client.VMUpdateCPUXMLInput:

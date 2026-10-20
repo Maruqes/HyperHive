@@ -1,0 +1,7 @@
+# Progress
+- Reviewed source contracts, policies and memory. No production writes.
+- Baseline full MCP tests passed (41.7s). New six-tool contract tests failed with unknown-tool discovery before implementation, as expected. Initial implementation compile identified missing configuredAPI forwarding methods; added.
+- Six new write contracts pass all four transport/protocol modes. SSH success tests exposed a raw JSON formatting comparison (recovery records escape HTML/indent); changed to decoded comparison preserving exact integers. Negative SSH gates already passed.
+- All SSH recovery scenarios and snapshot guards pass. Full MCP/master runs found stale standalone/master registry expectations of 110; updated to 117. Vet passed. No functional failures reported in initial full normal run.
+- Full normal MCP suite passed (622 tests); master API/services/virsh tests and vet passed (58 tests). Additional live/template creation and true-flag variants pass across both transports/protocols. Full race run remains running.
+- Full MCP race suite and vet passed (622 tests in five packages). Updated README/report/VM contract/run checkpoint, reconciled 322 unique endpoints and 63 VM tool mappings, verified documentation links and diff whitespace. Canonical SilverBullet VM recovery and registry pages updated and read back; index routes now point to these current facts. No production mutation or deployment.

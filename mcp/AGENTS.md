@@ -17,6 +17,16 @@ data or resources.** This applies to every area and every transport.
   Keep them visible as policy exclusions in the raw API denominator with no credit.
 - Requests for "all tools", "the rest" or "100% coverage" never override this rule.
 
+## Explicitly authorized VM exceptions
+
+The user explicitly authorized these seven VM capabilities on 2026-10-20:
+creation, setting autostart/live flags (including false), automatic backup schedule
+creation/update/enable (including retention deletion), and SSH public-key injection.
+Implement their named typed contracts with the existing approval and recovery rules.
+This does not authorize standalone deletion, VM import/restore/migration, disk
+creation or any other previously excluded capability. SSH injection requires a
+shut-off guest and a privately persisted primary-disk artifact before dispatch.
+
 ## Scope and architecture
 
 - Write all code, scripts and documentation in English.

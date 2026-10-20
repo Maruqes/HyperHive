@@ -51,6 +51,8 @@ func vmSnapshotFixture(path string, tc vmWriteCase) (string, bool) {
 	switch path {
 	case "/virsh/hostsnapshot/host":
 		return vmBootSnapshotFixture, true
+	case "/isos/":
+		return `[{"Id":8,"MachineName":"host","FilePath":"/fixture/os.iso","Name":"os.iso","available_on_slaves":{"host":true}}]`, true
 	case "/nfs/list":
 		return `[{"NfsShare":{"Id":2,"MachineName":"host","FolderPath":"/fixture","Source":"fixture:/data","Target":"/fixture","Name":"share","HostNormalMount":false},"Status":{"working":true}}]`, true
 	case "/virsh/getallvms":
@@ -58,6 +60,9 @@ func vmSnapshotFixture(path string, tc vmWriteCase) (string, bool) {
 	case "/virsh/backups":
 		return `null`, true
 	case "/virsh/autobak":
+		if tc.Snapshots["schedules"] != "" {
+			return `[{"Id":7,"VmName":"guest","FrequencyDays":2,"MinTime":"01:00","MaxTime":"03:00","NfsMountId":2,"MaxBackupsRetain":3,"Enabled":false,"LastBackupTime":null}]`, true
+		}
 		return "[" + tc.Snapshots["schedule"] + "]", true
 	case "/virsh/vm_disk/guest":
 		return tc.Snapshots["attached_disks"], true
@@ -70,6 +75,9 @@ func vmSnapshotFixture(path string, tc vmWriteCase) (string, bool) {
 	case "/virsh/xmltemplates/":
 		return tc.Snapshots["templates"], true
 	case "/virsh/xmltemplates/7":
+		if raw := tc.Snapshots["template"]; raw != "" {
+			return raw, true
+		}
 		return tc.Snapshots["templates"], true
 	case "/vm-disk/list":
 		return "[" + tc.Snapshots["disk"] + "]", true
@@ -167,6 +175,9 @@ func TestVMWriteContracts(t *testing.T) {
 						if mode == "write-fail" {
 							http.Error(w, "PRIVATE backend", 500)
 							return
+						}
+						if tc.Name == "create_vm" {
+							w.WriteHeader(http.StatusCreated)
 						}
 						fmt.Fprint(w, tc.Response)
 					}))

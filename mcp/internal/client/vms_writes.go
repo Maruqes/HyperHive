@@ -127,6 +127,8 @@ func ValidateVMWrite(input any) error {
 		return nil
 	}
 	switch in := input.(type) {
+	case VMCreateInput, VMAutostartInput, VMScheduleSettings, VMUpdateScheduleInput, VMSSHInput:
+		return validateVMIncrement(in)
 	case VMCoreIsolationInput:
 		if err := ValidateVMName(in.MachineName); err != nil {
 			return err

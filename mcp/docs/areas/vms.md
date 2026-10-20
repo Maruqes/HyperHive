@@ -1,6 +1,6 @@
 # Virtual machines
 
-Local implementation dated 2026-10-19. The registry has **56 VM tools**. No production server, hypervisor, disk or deployment was accessed. New secure snapshot prerequisites must be deployed together with the matching API/RPC implementations before VM writes work; older backends fail closed.
+Local implementation updated 2026-10-20. The registry has **63 VM tools**. This batch used disposable API fixtures; no production mutation, real hypervisor/disk operation or deployment was performed. New secure snapshot prerequisites must be deployed together with the matching API/RPC implementations before VM writes work; older backends fail closed.
 
 ## Coverage and disposition
 
@@ -8,12 +8,12 @@ The original selected area contained 80 HTTP method/path pairs across `master/ap
 
 | Measure | Supported / denominator | Coverage |
 | --- | --- | --- |
-| Original selected raw routes | 56 / 80 | 70.00% |
-| Current raw routes, including snapshot helpers | 56 / 82 | 68.29% |
-| Original policy-permitted selection, excluding 23 resource-deletion capabilities | 56 / 57 | 98.25% |
-| Current non-excluded routes, including internal-only helpers | 56 / 59 | 94.92% |
+| Original selected raw routes | 63 / 80 | 78.75% |
+| Current raw routes, including snapshot helpers | 63 / 82 | 76.83% |
+| Current policy-permitted original routes, excluding 17 remaining exclusions | 63 / 63 | 100.00% |
+| Current non-excluded routes, including internal-only helpers | 63 / 65 | 96.92% |
 
-One original permitted operation remains blocked: SSH key addition cannot save the actual prior guest files/ownership through the available API. It is absent from discovery. The selected area is not claimed to have 100% permitted coverage.
+The user explicitly authorized VM creation, autostart/live flag changes, automatic schedule creation/update/enable and SSH key injection on 2026-10-20. Six prior exclusions are now implemented; SSH injection uses a retained primary-disk artifact for guest recovery. Both snapshot helpers remain internal-only, so raw coverage is below 100%.
 
 ## Registered endpoint mapping
 
@@ -21,6 +21,13 @@ Every tool has explicit `hyperhive/risk` metadata and a matching risk descriptio
 
 | Tool | Method | Path | Risk |
 | --- | --- | --- | --- |
+| `create_vm` | POST | `/virsh/createvm` | high |
+| `set_vm_autostart` | POST | `/virsh/autostart/{vm_name}` | medium |
+| `set_vm_live` | POST | `/virsh/vmlive/{vm_name}` | high |
+| `create_vm_automatic_backup` | POST | `/virsh/autobak` | very high |
+| `update_vm_automatic_backup` | PUT | `/virsh/autobak/{id}` | very high |
+| `enable_vm_automatic_backup` | PATCH | `/virsh/autopak/enable/{id}` | very high |
+| `add_vm_ssh_key` | POST | `/virsh/add_ssh_key/{vm_name}` | very high |
 | `add_vm_video` | POST | `/virsh/novncvideo/add/{vm_name}` | high |
 | `attach_vm_disk` | POST | `/virsh/vm_disk/{vm_name}` | high |
 | `backup_vm` | POST | `/virsh/backup/{vm_name}/{nfs_id}` | high |
@@ -80,7 +87,7 @@ Every tool has explicit `hyperhive/risk` metadata and a matching risk descriptio
 
 ## Policy exclusions
 
-These 23 routes are excluded from eligible coverage and have no registered tool. The no-deletion rule also applies to indirect deletion and rollback of business resources. Entire endpoint contracts are excluded when only a subset of argument values would avoid deletion.
+These 17 routes remain excluded from eligible coverage and have no registered tool. The no-deletion rule also applies to indirect deletion and rollback of business resources. Entire endpoint contracts are excluded when only a subset of argument values would avoid deletion.
 
 | Method/path | Reviewed reason |
 | --- | --- |
@@ -95,28 +102,70 @@ These 23 routes are excluded from eligible coverage and have no registered tool.
 | DELETE `/vm-disk/{id}` | Detaches and deletes disk data/record. |
 | POST `/virsh/removeiso/{vm_name}` | Explicit ISO device removal capability. |
 | POST `/virsh/novncvideo/remove/{vm_name}` | Explicit graphics/video/audio device removal capability. |
-| POST `/virsh/createvm` | Calls AutoStart with caller-controlled false branch that removes the database record; no true-only partial contract exposed. |
 | POST `/virsh/migratevm/{vm_name}` | Slave migration uses `MIGRATE_UNDEFINE_SOURCE`, removing source definition. |
 | POST `/virsh/moveDisk/{vm_name}/{dest_nfs}` | Calls `DeleteVM` after copying. |
 | POST `/virsh/coldMigrate/{vm_name}/{dest_machine_name}` | Undefines source VM. |
 | PUT `/virsh/import` | Failure cleanup removes final destination disk/folder, including after a late domain-create failure. |
 | POST `/virsh/useBackup/{backup_id}` | Copy-failure rollback removes destination business disk/folder. |
-| POST `/virsh/autostart/{vm_name}` | False branch removes autostart database record; no partial branch exposed. |
-| POST `/virsh/vmlive/{vm_name}` | False branch removes live VM database record; no partial branch exposed. |
-| POST `/virsh/autobak` | Enables future automatic backup retention deletion. |
-| PUT `/virsh/autobak/{id}` | Replaces/enables schedule that performs retention deletion. |
-| PATCH `/virsh/autopak/enable/{id}` | Enables future retention deletion. |
 | POST `/vm-disk/create` | Database-registration failure calls `DeleteVMDisk` rollback. |
 
 Normal replacement of settings is permitted with an actual prior-state record. Forced VM power-off and restart call libvirt Destroy to stop execution; they preserve definition/storage but can lose unsaved guest data, so both are very high risk.
 
-## Blocked and internal-only routes
+## Internal-only routes
 
 | Method/path | Status and concrete reason |
 | --- | --- |
-| POST `/virsh/add_ssh_key/{vm_name}` | Blocked. The guest customization modifies authorized_keys for guest users and `/etc/skel`, with ownership changes. No API returns actual old guest files/ownership; domain XML is insufficient. Temporary script cleanup alone is not the blocker. No generic guest-file execution tool was added. |
 | GET `/virsh/snapshot/{vm_name}` | Internal prerequisite only; no standalone MCP tool or coverage credit. Returns secure inactive XML and, for an active domain, secure current XML with name/UUID/host/active identity. |
 | GET `/virsh/hostsnapshot/{machine_name}` | Internal prerequisite only; no standalone MCP tool or coverage credit. Returns exact all-kernel grubby output, parsed entries, current cmdline and default kernel identity. |
+
+## Creation, flags, schedules and SSH injection
+
+`create_vm` requires every writable API field: machine_name, name, memory (MiB),
+vcpu, disk_sizeGB, template_id, iso_id, nfs_share_id, network, VNC_password,
+cpu_xml, live, auto_start and is_windows. Names use backend-supported letters,
+numbers and hyphens. Without a template, positive memory/vcpu/ISO and a network
+are required; templates permit zero/default bootstrap values. Disk size and NFS
+ID are positive. Zero template/ISO selectors, empty CPU XML/password and false
+flags are preserved. Selected template/ISO and destination NFS plus the VM
+inventory are retained; duplicate VM names fail before creation. Live creation
+requires a confirmed shared NFS mount. HTTP 201 text is acknowledged as
+accepted:true, with no invented ID. Errors may leave partially created resources.
+
+`set_vm_autostart` accepts vm_name and required auto_start; `set_vm_live` accepts
+vm_name and required enable. Actual previous autoStart/isLive must be available
+as booleans. These update master-managed flags; the live flag does not start or
+migrate a guest. False removes the corresponding flag record only.
+
+Schedule create/update take vm_name, frequency_days, min_time, max_time,
+nfs_mount_id and max_backups_retain; update additionally takes id. Counts/IDs are
+positive; clocks are HH:MM in the backend server timezone, crossing midnight is
+supported, equal clocks mean 24 hours, and windows must be at least 45 minutes.
+**Create and update always enable the schedule.** Enable takes only id and
+rejects an already-enabled schedule. All three are very high risk because future
+retention can permanently delete old backups. Approval states that effect.
+Recovery retains actual schedule inventory, the old selected schedule for
+update/enable, and target VM/NFS state. Returns accepted:true and enabled:true;
+there is no created ID, immediate backup job or fabricated completion.
+
+`add_vm_ssh_key` accepts vm_name and one supported OpenSSH public key. A parser
+rejects malformed keys, private keys and authorized_keys options. Comments are
+accepted; backend customization drops them. The picker displays a fingerprint.
+The guest must already be shut off; separately use shutdown_vm if needed. The
+export path must match the primary file-backed disk in secure inactive XML.
+Before injection, the tool persists before.json, streams the complete primary
+disk to a private server artifact, and fsyncs ssh-disk.json with path/size/SHA-256.
+It rechecks identity, XML and shut-off state before its single injection request.
+Failed export/persistence/recheck blocks injection. The result includes the disk
+manifest; subsequent failures retain the record, manifest and completed disk.
+Backing files remain external dependencies; this is not a flattened multi-disk
+snapshot. Concurrent external starts/writes can still race. The copy needs the
+full disk-file size and can take time. Guest customization affects eligible
+users and /etc/skel, including recursive .ssh ownership. No automatic rollback.
+
+Creation and injection JSON requests have a 15-minute timeout; export retains
+its six-hour bound and earlier caller deadlines. The legacy backend SSH worker
+may continue after client cancellation; a timeout does not establish failure or
+rollback. Never retry automatically.
 
 ## Approval and retained prior state
 
@@ -149,3 +198,9 @@ transports (including approval and retained schedule identity), rejection of raw
 fractional/overflow IDs, and fail-closed incomplete primary-disk recovery. Shared
 registration decodes original JSON after SDK schema validation so SDK float
 normalization cannot select another target.
+
+The 2026-10-20 increment adds both-transport/protocol fixtures for the seven new
+tools, flags with explicit false, schedule windows, malformed keys, duplicate
+names, missing metadata, retained prior state, and fail-closed SSH export and
+manifest handling. Full checks and limits are recorded in
+[runs/2026-10-20-vm-increment-01.md](../../runs/2026-10-20-vm-increment-01.md).

@@ -39,22 +39,22 @@ Git revision alone do not prove freshness. There is no committed coverage CLI ye
 
 ## Latest report
 
-Checked: **2026-10-20**, from current local source, SDK HTTP/stdio discovery and disposable NPM validation. No production deployment check.
+Checked: **2026-10-20**, from current local source and SDK HTTP/stdio fixtures. The seven-tool VM increment is locally verified; earlier NPM validation remains historical evidence. No production deployment check.
 
-- Source revision: `0472a8bee5d182fb5df677503773465a3b187e36` plus the NPM upstream working-tree implementation.
-- Source content SHA-256: `54ea66e60b26af0b1cb2eda2d4c74dbf3ac14bf12e329cca5e96545aa71ef7c3`.
-- Digest input: sorted repository-relative paths; non-test Go/protobuf sources under master/slave/api, all MCP Go sources, those modules' go.mod/go.sum, and the four pinned master/npm/upstream_templates/*.conf inputs. Hash path + NUL + file bytes + NUL. The task's manifest is `.planning/2026-10-20-npm-upstreams/mcp-source-digest.json`.
+- Source revision: `e8813e4be4fb416190f91f7922b42e61d660b099` plus the existing NPM working changes and VM MCP increment.
+- Source content SHA-256: `67a37753f30fa41d49c1159d4fbcd5513d6c903ac3f48fa46491db0f643508c6`.
+- Digest input: sorted repository-relative paths; non-test Go/protobuf sources under master/slave/api, all MCP Go sources, those modules' go.mod/go.sum, and the four pinned master/npm/upstream_templates/*.conf inputs. Hash path + NUL + file bytes + NUL. The task's manifest is `.planning/2026-10-20-mcp-vm-creation-flags-schedules-ssh/mcp-source-digest.json`.
 - Inventory: **322** unique explicit method/path pairs. Existing inventory 316 is unchanged except the six authenticated /upstream registrations in master/api/npmapi/upstreams.go, mounted in master/api/api.go. /api remains an alias; /mcp transport lifecycle and the separate pprof listener remain outside capability coverage. This is a task-local source review, not a shipped coverage generator.
-- Status: **110 implemented, 158 missing, 54 excluded**. The upstream increment adds five supported endpoints and one deletion exclusion; helper calls earn no credit. No partial/stale/disabled endpoint is counted as implemented.
-- Scope: list/get/capabilities/create/update upstream tools and optional proxy/location/stream bindings. No upstream deletion tool or alias. Confirmed creates complete through journal reconciliation instead of deleting newly created resources as rollback; failed/unknown creates are not retried.
-- Validation: full MCP normal/race/vet checks and master normal/affected race/vet checks; SDK discovery expects 110 tools. New SDK HTTP/stdio fixtures check upstream method/path/auth/body, nullable bindings, complete existing consumer inputs, safe failures, no retries and exact response integer text. Actual-handler fixtures retain direct-client behavior. The disposable exact-image suite separately covers all advertised methods, HTTP/location/TCP/UDP traffic, IPv4/IPv6, affinity/weights/held connections, TLS SNI, WebSockets, lifecycle, drift, failure recovery and container recreation. See the task checkpoint and release guide for current run evidence.
-- Limits: these local checks do not establish production deployment, real ACME issuance or distributed atomicity. Existing DNS/Notes/SPA/ISO/VM contracts and policy exclusions retain their reviewed boundaries in their feature documents. Prior Celld deletion authorization remains limited to that existing tool; no new deletion permission is inferred.
+- Status: **117 implemented, 157 missing, 48 excluded**. The VM increment adds seven supported endpoints: six specifically authorized prior exclusions and blocked SSH injection. Helper calls earn no credit. No partial/stale/disabled endpoint is counted as implemented.
+- Scope: the seven named VM capabilities in [the VM run](runs/2026-10-20-vm-increment-01.md), plus previously implemented list/get/capabilities/create/update upstream tools and optional proxy/location/stream bindings. No upstream deletion tool or alias. Confirmed creates complete through journal reconciliation instead of deleting newly created resources as rollback; failed/unknown creates are not retried.
+- Validation: this VM increment passed full MCP normal/race/vet checks (622 tests), master API/services/virsh normal tests (58 tests) and vet, plus focused normal/race checks for additional live/template/true-flag variants. SDK discovery expects 117 tools. Authenticated HTTP and actual executable stdio fixtures exercise modern/legacy approval, exact wire contracts, prior-state persistence, safe failures, no retries and fail-closed SSH disk export/manifest checks. Previous NPM handler/exact-image validation remains documented in its upstream checkpoint; it was not rerun as part of this VM increment. See [the VM run](runs/2026-10-20-vm-increment-01.md) for current checks and limits.
+- Limits: these local checks do not establish production deployment, real ACME issuance or distributed atomicity. Existing DNS/Notes/SPA/ISO/VM contracts and policy exclusions retain their reviewed boundaries in their feature documents. Prior Celld deletion authorization remains limited to that tool. The 2026-10-20 user request additionally authorizes only VM creation, autostart/live flag changes, schedule create/update/enable and SSH injection; all other exclusions remain.
 
 | Scope | Implemented / total | Missing | Coverage |
 | --- | ---: | ---: | ---: |
-| **HyperHive API** | 110 / 322 | 158 | 34.16% |
+| **HyperHive API** | 117 / 322 | 157 | 36.34% |
 | NGINX subtotal | 33 / 43 | 0 | 76.74% |
-| VM subtotal, including templates/disks/helpers | 56 / 82 | 3 | 68.29% |
+| VM subtotal, including templates/disks/helpers | 63 / 82 | 2 | 76.83% |
 
 Subtotals are subsets of the API. Leaf areas partition the total. Missing omits policy exclusions; both new internal helper routes remain missing for direct tool coverage. Eligible-only percentages are meaningful only for reviewed selected scopes, not the entire API's still-unclassified browser/stream routes.
 
@@ -87,25 +87,32 @@ Subtotals are subsets of the API. Leaf areas partition the total. Missing omits 
 | Protocol connections | 0 / 1 | 1 | 0.00% | [protocol.go](../master/api/protocol.go) |
 | SMART disks | 0 / 14 | 12 | 0.00% | [smartdisk.go](../master/api/smartdisk.go) |
 | Stream observability | 0 / 35 | 33 | 0.00% | [streamInfo.go](../master/api/streamInfo.go) |
-| VMs and host tuning | 50 / 73 | 3 | 68.49% | [virsh.go](../master/api/virsh.go) |
+| VMs and host tuning | 57 / 73 | 2 | 78.08% | [virsh.go](../master/api/virsh.go) |
 | VM XML templates | 4 / 5 | 0 | 80.00% | [virsh_xml_templates.go](../master/api/virsh_xml_templates.go) |
 | VM disks | 2 / 4 | 0 | 50.00% | [vm_disk.go](../master/api/vm_disk.go) |
 | WireGuard | 0 / 4 | 3 | 0.00% | [wireguard.go](../master/api/wireguard.go) |
 
 ### Available capabilities and safety
 
-Both transports share 110 registrations: 33 NGINX, nine Celld, three DNS, five Notes, two SPA, two ISO and 56 VM tools. Feature contracts: [upstreams](docs/areas/upstreams.md), [NGINX](docs/areas/nginx.md), [proxies](docs/areas/nginx-proxies.md), [Celld](docs/areas/celld.md), [DNS](docs/areas/dns.md), [Notes](docs/areas/notes.md), [SPA](docs/areas/spa.md), [ISOs](docs/areas/isos.md), [VMs](docs/areas/vms.md).
+Both transports share 117 registrations: 33 NGINX, nine Celld, three DNS, five Notes, two SPA, two ISO and 63 VM tools. Feature contracts: [upstreams](docs/areas/upstreams.md), [NGINX](docs/areas/nginx.md), [proxies](docs/areas/nginx-proxies.md), [Celld](docs/areas/celld.md), [DNS](docs/areas/dns.md), [Notes](docs/areas/notes.md), [SPA](docs/areas/spa.md), [ISOs](docs/areas/isos.md), [VMs](docs/areas/vms.md).
 
 Every VM tool publishes low/medium/high/very high risk. Medium+ requires per-call explicit user form approval bound to complete arguments; stale/replayed/forged/changed continuations or unsupported/declined/canceled pickers cannot execute writes. Modern HTTP remains stateless; legacy HTTP retains authenticated sessions for form elicitation. Stdio supports both protocol generations.
 
-VM writes capture actual previous settings and secure inactive/current XML; CPU pinning includes the exact prior pinning getter. Host boot setters additionally capture every grubby entry, default kernel and current command line. Persistence must succeed before dispatch. Private 0700 directories and 0600 retained before.json files live in MCP_VM_BACKUP_DIR, or the process user's cache under hyperhive/mcp/vm-backups. Paths are returned even after subsequent backend failure. Configuration records do not contain disk snapshots or automatic rollback; disk growth/guest RAM loss cannot be undone by them. Locking covers this registry, not external API/hypervisor changes or independent server processes. Updated master/slave snapshot support is required; older backends fail closed.
+VM writes capture actual previous settings and secure inactive/current XML; CPU pinning includes the exact prior pinning getter. Host boot setters additionally capture every grubby entry, default kernel and current command line. Persistence must succeed before dispatch. Private 0700 directories and 0600 retained before.json files live in MCP_VM_BACKUP_DIR, or the process user's cache under hyperhive/mcp/vm-backups. Paths are returned even after subsequent backend failure. Configuration records do not contain disk snapshots or automatic rollback; SSH injection additionally retains the complete primary disk file before dispatch. Disk growth/guest RAM loss cannot be undone by them. Locking covers this registry, not external API/hypervisor changes or independent server processes. Updated master/slave snapshot support is required; older backends fail closed.
 
 VM export and backup download stream full binary responses to private artifacts on the MCP server filesystem, with size/hash and a six-hour bound honoring earlier cancellation. Clients do not automatically download these files. ISO download, manual VM backup and clone return initiation/acceptance, never fabricated completion/job IDs. Ordinary JSON calls retain shared timeout, cancellation, response-size, redirect and safe-error protections; mutations are never automatically retried.
 
-DNS/Notes/ISO permitted endpoint coverage is 3/3, 5/5 and 2/2. SPA has the two selected reads; POST creation is excluded because firewall replacement/rollback deletes rules and can destroy an existing allow set. VM original selection is 56/57 permitted (98.25%): SSH injection remains absent because actual previous guest files/ownership cannot be backed up. All 23 VM deletion exclusions and both internal helpers are visible below. No arbitrary API dispatcher or confirmation argument was added.
+DNS/Notes/ISO permitted endpoint coverage is 3/3, 5/5 and 2/2. SPA has the two selected reads; POST creation is excluded because firewall replacement/rollback deletes rules and can destroy an existing allow set. VM policy-permitted original selection is now 63/63 (100.00%) after the explicit seven-capability request. SSH injection requires a shut-off guest and a persisted primary-disk artifact. The remaining 17 exclusions and two internal helpers remain visible below. No arbitrary API dispatcher or confirmation argument was added.
 
 | Tool | Endpoint | VM risk |
 | --- | --- | --- |
+| `create_vm` | `POST /virsh/createvm` | high |
+| `set_vm_autostart` | `POST /virsh/autostart/{vm_name}` | medium |
+| `set_vm_live` | `POST /virsh/vmlive/{vm_name}` | high |
+| `create_vm_automatic_backup` | `POST /virsh/autobak` | very high |
+| `update_vm_automatic_backup` | `PUT /virsh/autobak/{id}` | very high |
+| `enable_vm_automatic_backup` | `PATCH /virsh/autopak/enable/{id}` | very high |
+| `add_vm_ssh_key` | `POST /virsh/add_ssh_key/{vm_name}` | very high |
 | `list_upstreams` | `GET /upstream/list` | — |
 | `get_upstream` | `GET /upstream/{id}` | — |
 | `get_upstream_capabilities` | `GET /upstream/capabilities` | — |
@@ -598,7 +605,7 @@ One row is one method/path pair. Only registered, enabled, contract-reviewed and
 | --- | --- | --- |
 | `GET /virsh/getcpudisablefeatures` | implemented | [virsh.go:2507](../master/api/virsh.go#L2507) |
 | `GET /virsh/getallvms` | implemented | [virsh.go:2508](../master/api/virsh.go#L2508) |
-| `POST /virsh/createvm` | excluded (deletion policy: autostart false branch deletes saved state) | [virsh.go:2509](../master/api/virsh.go#L2509) |
+| `POST /virsh/createvm` | implemented | [virsh.go:2509](../master/api/virsh.go#L2509) |
 | `POST /virsh/migratevm/{vm_name}` | excluded (deletion policy: migration undefines source domain) | [virsh.go:2511](../master/api/virsh.go#L2511) |
 | `POST /virsh/updatecpuxml/{vm_name}` | implemented | [virsh.go:2512](../master/api/virsh.go#L2512) |
 | `GET /virsh/cpuxml/{vm_name}` | implemented | [virsh.go:2513](../master/api/virsh.go#L2513) |
@@ -619,7 +626,7 @@ One row is one method/path pair. Only registered, enabled, contract-reviewed and
 | `DELETE /virsh/vm_disk/{vm_name}/{vm_disk_id}` | excluded (deletion policy) | [virsh.go:2531](../master/api/virsh.go#L2531) |
 | `POST /virsh/change_vm_network/{vm_name}` | implemented | [virsh.go:2533](../master/api/virsh.go#L2533) |
 | `POST /virsh/change_vnc_password/{vm_name}` | implemented | [virsh.go:2534](../master/api/virsh.go#L2534) |
-| `POST /virsh/add_ssh_key/{vm_name}` | missing (blocked: prior guest file contents and ownership unavailable) | [virsh.go:2535](../master/api/virsh.go#L2535) |
+| `POST /virsh/add_ssh_key/{vm_name}` | implemented | [virsh.go:2535](../master/api/virsh.go#L2535) |
 | `POST /virsh/novncvideo/add/{vm_name}` | implemented | [virsh.go:2536](../master/api/virsh.go#L2536) |
 | `POST /virsh/novncvideo/remove/{vm_name}` | excluded (deletion policy) | [virsh.go:2537](../master/api/virsh.go#L2537) |
 | `GET /virsh/novncvideo/{vm_name}` | implemented | [virsh.go:2538](../master/api/virsh.go#L2538) |
@@ -659,13 +666,13 @@ One row is one method/path pair. Only registered, enabled, contract-reviewed and
 | `GET /virsh/downloadbackup/{backup_id}` | implemented | [virsh.go:2581](../master/api/virsh.go#L2581) |
 | `POST /virsh/useBackup/{backup_id}` | excluded (deletion policy: rollback deletes destination business disk) | [virsh.go:2582](../master/api/virsh.go#L2582) |
 | `DELETE /virsh/deleteBackup/{backup_id}` | excluded (deletion policy) | [virsh.go:2583](../master/api/virsh.go#L2583) |
-| `POST /virsh/autostart/{vm_name}` | excluded (deletion policy: false branch deletes saved state) | [virsh.go:2585](../master/api/virsh.go#L2585) |
-| `POST /virsh/vmlive/{vm_name}` | excluded (deletion policy: false branch deletes saved state) | [virsh.go:2586](../master/api/virsh.go#L2586) |
-| `POST /virsh/autobak` | excluded (deletion policy: enables retention deletion) | [virsh.go:2589](../master/api/virsh.go#L2589) |
+| `POST /virsh/autostart/{vm_name}` | implemented | [virsh.go:2585](../master/api/virsh.go#L2585) |
+| `POST /virsh/vmlive/{vm_name}` | implemented | [virsh.go:2586](../master/api/virsh.go#L2586) |
+| `POST /virsh/autobak` | implemented | [virsh.go:2589](../master/api/virsh.go#L2589) |
 | `GET /virsh/autobak` | implemented | [virsh.go:2590](../master/api/virsh.go#L2590) |
-| `PUT /virsh/autobak/{id}` | excluded (deletion policy: enables retention deletion) | [virsh.go:2591](../master/api/virsh.go#L2591) |
+| `PUT /virsh/autobak/{id}` | implemented | [virsh.go:2591](../master/api/virsh.go#L2591) |
 | `DELETE /virsh/autobak/{id}` | excluded (deletion policy) | [virsh.go:2592](../master/api/virsh.go#L2592) |
-| `PATCH /virsh/autopak/enable/{id}` | excluded (deletion policy: enables retention deletion) | [virsh.go:2593](../master/api/virsh.go#L2593) |
+| `PATCH /virsh/autopak/enable/{id}` | implemented | [virsh.go:2593](../master/api/virsh.go#L2593) |
 | `PATCH /virsh/autopak/disable/{id}` | implemented | [virsh.go:2594](../master/api/virsh.go#L2594) |
 | `GET /virsh/snapshot/{vm_name}` | missing (internal recovery helper; no direct tool credit) | [virsh.go:2516](../master/api/virsh.go#L2516) |
 | `GET /virsh/hostsnapshot/{machine_name}` | missing (internal recovery helper; no direct tool credit) | [virsh.go:2564](../master/api/virsh.go#L2564) |

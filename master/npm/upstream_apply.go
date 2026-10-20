@@ -124,8 +124,34 @@ func InitializeUpstreams(ctx context.Context) error {
 	return err
 }
 
+// Read requests must not wait indefinitely behind a configuration apply.
+// Keep mutation serialization intact while allowing readers to honor cancellation.
+func lockUpstreamRead(ctx context.Context) error {
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if ctx.Err() != nil {
+			return upstreamError(503, "upstream_read_timeout")
+		}
+		if upstreamCoordinator.TryLock() {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return upstreamError(503, "upstream_read_timeout")
+		case <-ticker.C:
+		}
+	}
+}
+
+const upstreamReadTimeout = 15 * time.Second
+
 func ListUpstreams(ctx context.Context) ([]Upstream, error) {
-	upstreamCoordinator.Lock()
+	ctx, cancel := context.WithTimeout(ctx, upstreamReadTimeout)
+	defer cancel()
+	if err := lockUpstreamRead(ctx); err != nil {
+		return nil, err
+	}
 	defer upstreamCoordinator.Unlock()
 	if db.DB == nil {
 		return nil, upstreamError(503, "upstream_storage_unavailable")

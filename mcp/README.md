@@ -1,7 +1,7 @@
 # HyperHive MCP
 
 Use HyperHive through named MCP tools. The master serves **Streamable HTTP** on
-its API listener; standalone stdio shares the same 110-tool registry.
+its API listener; standalone stdio shares the same 117-tool registry.
 
 ## API coverage
 
@@ -9,20 +9,21 @@ Last checked: **2026-10-20**, locally. Counts measure supported API endpoints.
 
 | Scope | Supported / total | Coverage |
 | --- | ---: | ---: |
-| HyperHive API | 110 / 322 | **34.16%** |
+| HyperHive API | 117 / 322 | **36.34%** |
 | NGINX | 33 / 43 | 76.74% |
 | Celld | 9 / 17 | 52.94% |
 | DNS aliases | 3 / 4 | 75.00% |
 | Notes | 5 / 6 | 83.33% |
 | SPA management | 2 / 4 | 50.00% |
 | ISOs | 2 / 3 | 66.67% |
-| VMs, templates and disks | 56 / 82 | 68.29% |
+| VMs, templates and disks | 63 / 82 | 76.83% |
 
 Area rows are subsets, not additional endpoints. DNS, Notes and ISOs cover all
-permitted operations. SPA creation is excluded for deletion effects. VM SSH
-injection is blocked by unavailable prior guest-file state; other deletion
-capabilities remain excluded. The prior explicit Celld fleet-delete exception
-remains scoped to Celld. The inventory includes six upstream endpoints and two internal recovery
+permitted operations. SPA creation is excluded for deletion effects. The explicitly
+authorized VM increment adds creation, autostart/live flag changes,
+automatic backup schedule create/update/enable, and SSH key injection. Schedules
+can delete old backups under retention. Other deletion capabilities remain
+excluded. The inventory includes six upstream endpoints and two internal recovery
 helpers; the recovery helpers earn no direct tool credit. See [full state](UPDATE_STATE.md) for all mappings,
 exclusions, validation and missing endpoints.
 
@@ -30,7 +31,9 @@ VM tools publish low/medium/high/very high risk. Medium+ requires explicit
 per-invocation user approval in the harness picker. Before settings changes,
 private retained records save actual old XML/settings; failed snapshots or
 persistence block the operation. Configure MCP_VM_BACKUP_DIR or use the process
-user's cache default. No automatic rollback or disk-content backup is implied.
+user's cache default. No automatic rollback is provided. SSH injection requires a
+shut-off VM and additionally saves the primary disk file with a private size/hash
+manifest before customization; other settings records are not disk backups.
 Both updated master and slave snapshot support are required for protected VM
 changes. See [VM contracts](docs/areas/vms.md) and [connection setup](CONNECTING.md).
 
