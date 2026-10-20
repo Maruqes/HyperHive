@@ -212,3 +212,14 @@ func (c *Client) withVMProvisioningTimeout() *Client {
 	copyClient.http = &transport
 	return &copyClient
 }
+
+// RemoveVMISOs removes every CD-ROM device; ISO files remain in storage.
+func (c *Client) RemoveVMISOs(ctx context.Context, in VMNameInput) (json.RawMessage, error) {
+	if err := ValidateVMWrite(in); err != nil {
+		return nil, err
+	}
+	if err := c.request(ctx, "POST", "/virsh/removeiso/"+url.PathEscape(in.VMName), nil, nil); err != nil {
+		return nil, err
+	}
+	return json.RawMessage(`{"accepted":true}`), nil
+}

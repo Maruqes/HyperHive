@@ -1,7 +1,7 @@
 # HyperHive MCP
 
 Use HyperHive through named MCP tools. The master serves **Streamable HTTP** on
-its API listener; standalone stdio shares the same 117-tool registry.
+its API listener; standalone stdio shares the same 118-tool registry.
 
 ## API coverage
 
@@ -9,19 +9,20 @@ Last checked: **2026-10-20**, locally. Counts measure supported API endpoints.
 
 | Scope | Supported / total | Coverage |
 | --- | ---: | ---: |
-| HyperHive API | 117 / 322 | **36.34%** |
+| HyperHive API | 118 / 322 | **36.65%** |
 | NGINX | 33 / 43 | 76.74% |
 | Celld | 9 / 17 | 52.94% |
 | DNS aliases | 3 / 4 | 75.00% |
 | Notes | 5 / 6 | 83.33% |
 | SPA management | 2 / 4 | 50.00% |
 | ISOs | 2 / 3 | 66.67% |
-| VMs, templates and disks | 63 / 82 | 76.83% |
+| VMs, templates and disks | 64 / 82 | 78.05% |
 
 Area rows are subsets, not additional endpoints. DNS, Notes and ISOs cover all
 permitted operations. SPA creation is excluded for deletion effects. The explicitly
 authorized VM increment adds creation, autostart/live flag changes,
-automatic backup schedule create/update/enable, and SSH key injection. Schedules
+automatic backup schedule create/update/enable, SSH key injection, and
+`remove_vm_isos` (all CD-ROM devices, retaining ISO files). Schedules
 can delete old backups under retention. Other deletion capabilities remain
 excluded. The inventory includes six upstream endpoints and two internal recovery
 helpers; the recovery helpers earn no direct tool credit. See [full state](UPDATE_STATE.md) for all mappings,

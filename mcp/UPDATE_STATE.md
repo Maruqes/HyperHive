@@ -37,24 +37,38 @@ This is an agent workflow and source-reviewed report, not an executable command
 or background updater. Reinspect the working tree on each refresh; the date and
 Git revision alone do not prove freshness. There is no committed coverage CLI yet.
 
+## ISO removal increment — 2026-10-20
+
+One explicitly requested tool: `remove_vm_isos`, high risk, required `vm_name`.
+Maps POST `/virsh/removeiso/{vm_name}` with no body, saves prior secure XML and
+settings, retains ISO files and requires per-call approval. Partial live detach
+can precede failure; no retry or automatic rollback. Current registry: 118 tools,
+118/322 endpoints (36.65%); VM 64/82 (78.05%), 16 VM exclusions, two internal
+helpers. Missing remains 157; overall exclusions decrease from 48 to 47.
+Prior full-inventory review is retained below; this increment reinspected the
+selected API/service/slave contract and reconciled the existing 322-row inventory.
+Validation includes both protocol generations over authenticated HTTP and actual executable stdio; guard, prior-state and safe failure fixtures passed.
+See [run checkpoint](runs/2026-10-20-vm-isos-01.md) and
+[VM contract](docs/areas/vms.md#remove-all-vm-isos). No deployment performed.
+
 ## Latest report
 
-Checked: **2026-10-20**, from current local source and SDK HTTP/stdio fixtures. The seven-tool VM increment is locally verified; earlier NPM validation remains historical evidence. No production deployment check.
+Checked: **2026-10-20**, from current local source and SDK HTTP/stdio fixtures. The ISO removal contract is locally fixture-verified; full normal/race suites (654 tests each) and vet passed. Earlier VM/NPM validation remains historical evidence. No production deployment check.
 
-- Source revision: current working tree after the VM increment; approval diagnostic follow-up at `d7081d7` plus working changes.
-- Source content SHA-256: `ae9dd3527a57a93ff96bfa27037664fe25f74be602b0745c8a6e96b464e4a081`.
-- Digest input: sorted repository-relative paths; non-test Go/protobuf sources under master/slave/api, all MCP Go sources, those modules' go.mod/go.sum, and the four pinned master/npm/upstream_templates/*.conf inputs. Hash path + NUL + file bytes + NUL. The task's manifest is `.planning/2026-10-20-mcp-vm-creation-flags-schedules-ssh/mcp-source-digest.json`.
+- Source revision: `4355281ba49b8e0ab6fabb508fd96e26a43acf43` plus local ISO-tool changes.
+- Source content SHA-256: `01afbf738f67140ae39b8815d70a2ae9be47b162c356eb203ff9b3225b178dfa`.
+- Digest input: sorted repository-relative paths; non-test Go/protobuf sources under master/slave/api, all MCP Go sources, those modules' go.mod/go.sum, and the four pinned master/npm/upstream_templates/*.conf inputs. Hash path + NUL + file bytes + NUL. The task's manifest is `.planning/2026-10-20-mcp-remove-vm-isos/mcp-source-digest.json`.
 - Inventory: **322** unique explicit method/path pairs. Existing inventory 316 is unchanged except the six authenticated /upstream registrations in master/api/npmapi/upstreams.go, mounted in master/api/api.go. /api remains an alias; /mcp transport lifecycle and the separate pprof listener remain outside capability coverage. This is a task-local source review, not a shipped coverage generator.
-- Status: **117 implemented, 157 missing, 48 excluded**. The VM increment adds seven supported endpoints: six specifically authorized prior exclusions and blocked SSH injection. Helper calls earn no credit. No partial/stale/disabled endpoint is counted as implemented.
+- Status: **118 implemented, 157 missing, 47 excluded**. The VM increment adds seven supported endpoints: six specifically authorized prior exclusions and blocked SSH injection. Helper calls earn no credit. No partial/stale/disabled endpoint is counted as implemented.
 - Scope: the seven named VM capabilities in [the VM run](runs/2026-10-20-vm-increment-01.md), plus previously implemented list/get/capabilities/create/update upstream tools and optional proxy/location/stream bindings. No upstream deletion tool or alias. Confirmed creates complete through journal reconciliation instead of deleting newly created resources as rollback; failed/unknown creates are not retried.
-- Validation: this VM increment passed full MCP normal/race/vet checks (622 tests), master API/services/virsh normal tests (58 tests) and vet, plus focused normal/race checks for additional live/template/true-flag variants. SDK discovery expects 117 tools. Authenticated HTTP and actual executable stdio fixtures exercise modern/legacy approval, exact wire contracts, prior-state persistence, safe failures, no retries and fail-closed SSH disk export/manifest checks. Previous NPM handler/exact-image validation remains documented in its upstream checkpoint; it was not rerun as part of this VM increment. See [the VM run](runs/2026-10-20-vm-increment-01.md) for current checks and limits.
-- Limits: these local checks do not establish production deployment, real ACME issuance or distributed atomicity. Existing DNS/Notes/SPA/ISO/VM contracts and policy exclusions retain their reviewed boundaries in their feature documents. Prior Celld deletion authorization remains limited to that tool. The 2026-10-20 user request additionally authorizes only VM creation, autostart/live flag changes, schedule create/update/enable and SSH injection; all other exclusions remain.
+- Validation: this VM increment passed full MCP normal/race/vet checks (622 tests), master API/services/virsh normal tests (58 tests) and vet, plus focused normal/race checks for additional live/template/true-flag variants. The prior increment expected 117 tools; current discovery expects 118. Authenticated HTTP and actual executable stdio fixtures exercise modern/legacy approval, exact wire contracts, prior-state persistence, safe failures, no retries and fail-closed SSH disk export/manifest checks. Previous NPM handler/exact-image validation remains documented in its upstream checkpoint; it was not rerun as part of this VM increment. See [the VM run](runs/2026-10-20-vm-increment-01.md) for current checks and limits.
+- Limits: these local checks do not establish production deployment, real ACME issuance or distributed atomicity. Existing DNS/Notes/SPA/ISO/VM contracts and policy exclusions retain their reviewed boundaries in their feature documents. Prior Celld deletion authorization remains limited to that tool. The 2026-10-20 user request additionally authorizes only VM creation, autostart/live flag changes, schedule create/update/enable SSH injection and all VM ISO/CD-ROM removal; all other exclusions remain.
 
 | Scope | Implemented / total | Missing | Coverage |
 | --- | ---: | ---: | ---: |
-| **HyperHive API** | 117 / 322 | 157 | 36.34% |
+| **HyperHive API** | 118 / 322 | 157 | 36.65% |
 | NGINX subtotal | 33 / 43 | 0 | 76.74% |
-| VM subtotal, including templates/disks/helpers | 63 / 82 | 2 | 76.83% |
+| VM subtotal, including templates/disks/helpers | 64 / 82 | 2 | 78.05% |
 
 Subtotals are subsets of the API. Leaf areas partition the total. Missing omits policy exclusions; both new internal helper routes remain missing for direct tool coverage. Eligible-only percentages are meaningful only for reviewed selected scopes, not the entire API's still-unclassified browser/stream routes.
 
@@ -87,14 +101,14 @@ Subtotals are subsets of the API. Leaf areas partition the total. Missing omits 
 | Protocol connections | 0 / 1 | 1 | 0.00% | [protocol.go](../master/api/protocol.go) |
 | SMART disks | 0 / 14 | 12 | 0.00% | [smartdisk.go](../master/api/smartdisk.go) |
 | Stream observability | 0 / 35 | 33 | 0.00% | [streamInfo.go](../master/api/streamInfo.go) |
-| VMs and host tuning | 57 / 73 | 2 | 78.08% | [virsh.go](../master/api/virsh.go) |
+| VMs and host tuning | 58 / 73 | 2 | 79.45% | [virsh.go](../master/api/virsh.go) |
 | VM XML templates | 4 / 5 | 0 | 80.00% | [virsh_xml_templates.go](../master/api/virsh_xml_templates.go) |
 | VM disks | 2 / 4 | 0 | 50.00% | [vm_disk.go](../master/api/vm_disk.go) |
 | WireGuard | 0 / 4 | 3 | 0.00% | [wireguard.go](../master/api/wireguard.go) |
 
 ### Available capabilities and safety
 
-Both transports share 117 registrations: 33 NGINX, nine Celld, three DNS, five Notes, two SPA, two ISO and 63 VM tools. Feature contracts: [upstreams](docs/areas/upstreams.md), [NGINX](docs/areas/nginx.md), [proxies](docs/areas/nginx-proxies.md), [Celld](docs/areas/celld.md), [DNS](docs/areas/dns.md), [Notes](docs/areas/notes.md), [SPA](docs/areas/spa.md), [ISOs](docs/areas/isos.md), [VMs](docs/areas/vms.md).
+Both transports share 118 registrations: 33 NGINX, nine Celld, three DNS, five Notes, two SPA, two ISO and 64 VM tools. Feature contracts: [upstreams](docs/areas/upstreams.md), [NGINX](docs/areas/nginx.md), [proxies](docs/areas/nginx-proxies.md), [Celld](docs/areas/celld.md), [DNS](docs/areas/dns.md), [Notes](docs/areas/notes.md), [SPA](docs/areas/spa.md), [ISOs](docs/areas/isos.md), [VMs](docs/areas/vms.md).
 
 Every VM tool publishes low/medium/high/very high risk. Medium+ requires per-call explicit user form approval bound to complete arguments; stale/replayed/forged/changed continuations or unsupported/declined/canceled pickers cannot execute writes. Modern HTTP remains stateless; legacy HTTP retains authenticated sessions for form elicitation. Stdio supports both protocol generations.
 
@@ -102,7 +116,7 @@ VM writes capture actual previous settings and secure inactive/current XML; CPU 
 
 VM export and backup download stream full binary responses to private artifacts on the MCP server filesystem, with size/hash and a six-hour bound honoring earlier cancellation. Clients do not automatically download these files. ISO download, manual VM backup and clone return initiation/acceptance, never fabricated completion/job IDs. Ordinary JSON calls retain shared timeout, cancellation, response-size, redirect and safe-error protections; mutations are never automatically retried.
 
-DNS/Notes/ISO permitted endpoint coverage is 3/3, 5/5 and 2/2. SPA has the two selected reads; POST creation is excluded because firewall replacement/rollback deletes rules and can destroy an existing allow set. VM policy-permitted original selection is now 63/63 (100.00%) after the explicit seven-capability request. SSH injection requires a shut-off guest and a persisted primary-disk artifact. The remaining 17 exclusions and two internal helpers remain visible below. No arbitrary API dispatcher or confirmation argument was added.
+DNS/Notes/ISO permitted endpoint coverage is 3/3, 5/5 and 2/2. SPA has the two selected reads; POST creation is excluded because firewall replacement/rollback deletes rules and can destroy an existing allow set. VM policy-permitted original selection is now 64/64 (100.00%) after the explicit seven-capability request. SSH injection requires a shut-off guest and a persisted primary-disk artifact. The remaining 16 exclusions and two internal helpers remain visible below. No arbitrary API dispatcher or confirmation argument was added.
 
 | Tool | Endpoint | VM risk |
 | --- | --- | --- |
@@ -620,7 +634,7 @@ One row is one method/path pair. Only registered, enabled, contract-reviewed and
 | `POST /virsh/pausevm/{vm_name}` | implemented | [virsh.go:2525](../master/api/virsh.go#L2525) |
 | `POST /virsh/resumevm/{vm_name}` | implemented | [virsh.go:2526](../master/api/virsh.go#L2526) |
 | `GET /virsh/getvmbyname/{vm_name}` | implemented | [virsh.go:2527](../master/api/virsh.go#L2527) |
-| `POST /virsh/removeiso/{vm_name}` | excluded (deletion policy) | [virsh.go:2528](../master/api/virsh.go#L2528) |
+| `POST /virsh/removeiso/{vm_name}` | implemented: `remove_vm_isos` (explicit user exception; high risk) | [virsh.go:2528](../master/api/virsh.go#L2528) |
 | `POST /virsh/vm_disk/{vm_name}` | implemented | [virsh.go:2529](../master/api/virsh.go#L2529) |
 | `GET /virsh/vm_disk/{vm_name}` | implemented | [virsh.go:2530](../master/api/virsh.go#L2530) |
 | `DELETE /virsh/vm_disk/{vm_name}/{vm_disk_id}` | excluded (deletion policy) | [virsh.go:2531](../master/api/virsh.go#L2531) |

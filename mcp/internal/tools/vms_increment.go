@@ -77,6 +77,10 @@ func vmSnapshotScheduleSettings(ctx context.Context, api VMsAPI, in client.VMSch
 	return snapshots, nil
 }
 func registerVMIncrement(server *mcp.Server, api VMsAPI, gate *vmsafety.Gate, store vmsafety.Store) {
+	addVMWrite(server, api, gate, store, vmTool("remove_vm_isos", "POST", "/virsh/removeiso/{vm_name}", "Remove all CD-ROM devices and CD-ROM boot entries from a VM, retaining ISO files in storage. Attempts live detach for running, blocked or paused guests before updating persistent XML; failure can leave a partial change. Saves prior VM settings and secure inactive/current domain XML privately before mutation. No automatic rollback.", vmsafety.High), vmsafety.High, api.RemoveVMISOs, func(ctx context.Context, in client.VMNameInput) (string, map[string]json.RawMessage, error) {
+		snapshots, err := vmSnapshotDomain(ctx, api, in.VMName, "")
+		return in.VMName, snapshots, err
+	})
 	addVMWrite(server, api, gate, store, vmTool("create_vm", "POST", "/virsh/createvm", "Create a VM with explicit settings, optional XML template and live/autostart flags. Saves target inventory, destination NFS and selected template/ISO before creation. Backend can leave partially created resources on failure; no automatic rollback or fabricated resource ID.", vmsafety.High), vmsafety.High, api.CreateVM, func(ctx context.Context, in client.VMCreateInput) (string, map[string]json.RawMessage, error) {
 		raw, err := api.ListVMs(ctx, client.VMEmptyInput{})
 		if err != nil {

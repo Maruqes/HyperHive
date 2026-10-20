@@ -104,7 +104,7 @@ func TestISOsContracts(t *testing.T) {
 						if tool.Name == tc.name {
 							found = tool
 						}
-						if strings.Contains(tool.Name, "iso") && (strings.Contains(tool.Name, "delete") || strings.Contains(tool.Name, "remove")) {
+						if tool.Name != "remove_vm_isos" && strings.Contains(tool.Name, "iso") && (strings.Contains(tool.Name, "delete") || strings.Contains(tool.Name, "remove")) {
 							t.Fatal("deletion tool exposed")
 						}
 					}

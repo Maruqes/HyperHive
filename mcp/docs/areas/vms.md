@@ -1,6 +1,6 @@
 # Virtual machines
 
-Local implementation updated 2026-10-20. The registry has **63 VM tools**. This batch used disposable API fixtures; no production mutation, real hypervisor/disk operation or deployment was performed. New secure snapshot prerequisites must be deployed together with the matching API/RPC implementations before VM writes work; older backends fail closed.
+Local implementation updated 2026-10-20. The registry has **64 VM tools**. This batch used disposable API fixtures; no production mutation, real hypervisor/disk operation or deployment was performed. New secure snapshot prerequisites must be deployed together with the matching API/RPC implementations before VM writes work; older backends fail closed.
 
 ## Coverage and disposition
 
@@ -8,10 +8,10 @@ The original selected area contained 80 HTTP method/path pairs across `master/ap
 
 | Measure | Supported / denominator | Coverage |
 | --- | --- | --- |
-| Original selected raw routes | 63 / 80 | 78.75% |
-| Current raw routes, including snapshot helpers | 63 / 82 | 76.83% |
-| Current policy-permitted original routes, excluding 17 remaining exclusions | 63 / 63 | 100.00% |
-| Current non-excluded routes, including internal-only helpers | 63 / 65 | 96.92% |
+| Original selected raw routes | 64 / 80 | 80.00% |
+| Current raw routes, including snapshot helpers | 64 / 82 | 78.05% |
+| Current policy-permitted original routes, excluding 16 remaining exclusions | 64 / 64 | 100.00% |
+| Current non-excluded routes, including internal-only helpers | 64 / 66 | 96.97% |
 
 The user explicitly authorized VM creation, autostart/live flag changes, automatic schedule creation/update/enable and SSH key injection on 2026-10-20. Six prior exclusions are now implemented; SSH injection uses a retained primary-disk artifact for guest recovery. Both snapshot helpers remain internal-only, so raw coverage is below 100%.
 
@@ -21,6 +21,7 @@ Every tool has explicit `hyperhive/risk` metadata and a matching risk descriptio
 
 | Tool | Method | Path | Risk |
 | --- | --- | --- | --- |
+| `remove_vm_isos` | POST | `/virsh/removeiso/{vm_name}` | high |
 | `create_vm` | POST | `/virsh/createvm` | high |
 | `set_vm_autostart` | POST | `/virsh/autostart/{vm_name}` | medium |
 | `set_vm_live` | POST | `/virsh/vmlive/{vm_name}` | high |
@@ -87,7 +88,7 @@ Every tool has explicit `hyperhive/risk` metadata and a matching risk descriptio
 
 ## Policy exclusions
 
-These 17 routes remain excluded from eligible coverage and have no registered tool. The no-deletion rule also applies to indirect deletion and rollback of business resources. Entire endpoint contracts are excluded when only a subset of argument values would avoid deletion.
+These 16 routes remain excluded from eligible coverage and have no registered tool. The no-deletion rule also applies to indirect deletion and rollback of business resources. Entire endpoint contracts are excluded when only a subset of argument values would avoid deletion.
 
 | Method/path | Reviewed reason |
 | --- | --- |
@@ -100,7 +101,6 @@ These 17 routes remain excluded from eligible coverage and have no registered to
 | DELETE `/virsh/autobak/{id}` | Deletes schedule record. |
 | DELETE `/virsh/xmltemplates/{id}` | Deletes XML template record. |
 | DELETE `/vm-disk/{id}` | Detaches and deletes disk data/record. |
-| POST `/virsh/removeiso/{vm_name}` | Explicit ISO device removal capability. |
 | POST `/virsh/novncvideo/remove/{vm_name}` | Explicit graphics/video/audio device removal capability. |
 | POST `/virsh/migratevm/{vm_name}` | Slave migration uses `MIGRATE_UNDEFINE_SOURCE`, removing source definition. |
 | POST `/virsh/moveDisk/{vm_name}/{dest_nfs}` | Calls `DeleteVM` after copying. |
@@ -204,3 +204,24 @@ tools, flags with explicit false, schedule windows, malformed keys, duplicate
 names, missing metadata, retained prior state, and fail-closed SSH export and
 manifest handling. Full checks and limits are recorded in
 [runs/2026-10-20-vm-increment-01.md](../../runs/2026-10-20-vm-increment-01.md).
+
+## Remove all VM ISOs
+
+`remove_vm_isos` accepts only required `vm_name`, for example
+`{"vm_name":"guest"}`. It calls `POST /virsh/removeiso/{vm_name}` without a
+request body. This explicitly requested exception removes every CD-ROM device
+and CD-ROM boot entry while retaining ISO files. It requires high-risk per-call
+approval and saves VM settings plus secure inactive/current domain XML privately
+before dispatch. Snapshot or persistence failure blocks the write.
+
+The backend attempts live detach for running, blocked or paused guests, then
+redefines persistent XML. Unsupported live detach or a later failure can leave a
+partial change. No matching CD-ROM devices is successful. HTTP 200 plain text is
+mapped to `result: {"accepted":true}`, alongside `backup_path` and
+`automatic_rollback:false`. Backend failures retain and report the backup;
+there is no automatic retry or rollback. This is source implementation and local
+HTTP/stdio fixture validation, not hypervisor qualification or deployment.
+
+Sources: `master/api/virsh.go:removeIso`, `master/services/virsh.go:RemoveIso`,
+`slave/virsh/common.go:RemoveIsoFromVM`, `mcp/vms_isos_test.go` and
+`mcp/vms_increment_test.go`.

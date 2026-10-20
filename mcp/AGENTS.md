@@ -27,6 +27,11 @@ This does not authorize standalone deletion, VM import/restore/migration, disk
 creation or any other previously excluded capability. SSH injection requires a
 shut-off guest and a privately persisted primary-disk artifact before dispatch.
 
+The user also explicitly authorized `remove_vm_isos` on 2026-10-20:
+`POST /virsh/removeiso/{vm_name}` removes all CD-ROM devices and CD-ROM boot
+entries while retaining ISO files. This narrow exception requires high-risk
+per-invocation approval and persisted prior VM state/XML. Other exclusions remain.
+
 ## Scope and architecture
 
 - Write all code, scripts and documentation in English.

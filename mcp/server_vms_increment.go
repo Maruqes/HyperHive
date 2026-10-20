@@ -55,3 +55,11 @@ func (api configuredAPI) AddVMSSHKey(ctx context.Context, in client.VMSSHInput) 
 	}
 	return c.AddVMSSHKey(ctx, in)
 }
+
+func (api configuredAPI) RemoveVMISOs(ctx context.Context, in client.VMNameInput) (json.RawMessage, error) {
+	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
+	if err != nil {
+		return nil, err
+	}
+	return c.RemoveVMISOs(ctx, in)
+}

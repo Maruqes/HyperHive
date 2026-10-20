@@ -31,6 +31,7 @@ func init() {
 	}
 	vm := `{"name":"guest","machineName":"host","state":5,"autoStart":true,"isLive":true,"VNCPassword":"old-private-password","DefinedCPUS":2,"DefinedRam":1024,"diskSizeGB":10,"MachineType":"pc-q35","network":"default"}`
 	for _, tc := range []vmWriteCase{
+		{Name: "remove_vm_isos", Method: "POST", Path: "/virsh/removeiso/guest", Args: `{"vm_name":"guest"}`, Response: "ISO removed from VM successfully", Risk: "high"},
 		{Name: "set_vm_autostart", Method: "POST", Path: "/virsh/autostart/guest", Args: `{"vm_name":"guest","auto_start":false}`, Body: `{"auto_start":false}`, Risk: "medium"},
 		{Name: "set_vm_live", Method: "POST", Path: "/virsh/vmlive/guest", Args: `{"vm_name":"guest","enable":false}`, Body: `{"enable":false}`, Risk: "high"},
 	} {

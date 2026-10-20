@@ -11,6 +11,7 @@ import (
 )
 
 type VMsAPI interface {
+	RemoveVMISOs(context.Context, client.VMNameInput) (json.RawMessage, error)
 	CreateVM(context.Context, client.VMCreateInput) (json.RawMessage, error)
 	SetVMAutostart(context.Context, client.VMAutostartInput) (json.RawMessage, error)
 	SetVMLive(context.Context, client.VMEnableInput) (json.RawMessage, error)

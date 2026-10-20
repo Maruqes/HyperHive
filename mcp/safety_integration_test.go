@@ -52,7 +52,9 @@ func TestVMPolicyDiscovery(t *testing.T) {
 		if mapping.Method != "GET" && risk == "low" {
 			t.Errorf("VM mutation %s is rated low", tool.Name)
 		}
-		if mapping.Method == "DELETE" || strings.Contains(strings.ToLower(tool.Name), "delete") || strings.Contains(strings.ToLower(tool.Name), "remove") {
+		// Only the explicitly requested CD-ROM removal contract is exempt.
+		isoException := tool.Name == "remove_vm_isos" && mapping.Method == "POST" && mapping.Path == "/virsh/removeiso/{vm_name}" && risk == "high"
+		if !isoException && (mapping.Method == "DELETE" || strings.Contains(strings.ToLower(tool.Name), "delete") || strings.Contains(strings.ToLower(tool.Name), "remove")) {
 			t.Errorf("new deletion capability exposed: %s", tool.Name)
 		}
 		if tool.Annotations == nil || tool.Annotations.DestructiveHint == nil || mapping.Method != "GET" && (!*tool.Annotations.DestructiveHint || tool.Annotations.ReadOnlyHint) {
