@@ -179,6 +179,9 @@ func runNginxContract(t *testing.T, tc nginxCase) {
 			// All required replacement fields must survive omission/false/zero checks.
 			invalid := []map[string]any{changed(tc.Args, "unknown_field", true)}
 			for key := range tc.Args {
+				if key == "upstream_id" {
+					continue
+				}
 				invalid = append(invalid, changed(tc.Args, key, nil))
 				missing := changed(tc.Args, key, nil)
 				delete(missing, key)
@@ -194,7 +197,12 @@ func runNginxContract(t *testing.T, tc nginxCase) {
 				invalid = append(invalid, changed(tc.Args, "certificate_id", -1))
 			}
 			if _, ok := tc.Args["incoming_port"]; ok {
-				invalid = append(invalid, changed(tc.Args, "incoming_port", 0), changed(tc.Args, "forwarding_port", 65536), changed(tc.Args, "forwarding_host", ""), changed(tc.Args, "enabled", false))
+				invalid = append(invalid, changed(tc.Args, "incoming_port", 0), changed(tc.Args, "forwarding_port", 65536), changed(tc.Args, "forwarding_host", func() string {
+					if tc.Args["upstream_id"] != nil {
+						return "conflicting.test"
+					}
+					return ""
+				}()), changed(tc.Args, "enabled", false))
 			}
 			if _, ok := tc.Args["forward_http_code"]; ok {
 				invalid = append(invalid, changed(tc.Args, "forward_http_code", true), changed(tc.Args, "forward_http_code", 301.5), changed(tc.Args, "forward_scheme", "ftp"), changed(tc.Args, "forward_domain_name", ""))

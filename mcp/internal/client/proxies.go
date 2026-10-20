@@ -1,6 +1,9 @@
 package client
 
-import "context"
+import (
+	"context"
+	"encoding/json"
+)
 
 // Endpoint paths are shared with executable tool metadata for coverage review.
 const (
@@ -17,29 +20,32 @@ const (
 // create/edit helpers. Enabled is changed through the dedicated action tools.
 // AccessListID accepts a nonnegative integer or its decimal string form.
 type ProxyConfig struct {
-	DomainNames           []string       `json:"domain_names"`
-	ForwardScheme         string         `json:"forward_scheme"`
-	ForwardHost           string         `json:"forward_host"`
-	ForwardPort           int            `json:"forward_port"`
-	CachingEnabled        bool           `json:"caching_enabled"`
-	BlockExploits         bool           `json:"block_exploits"`
-	AllowWebsocketUpgrade bool           `json:"allow_websocket_upgrade"`
-	AccessListID          any            `json:"access_list_id" jsonschema:"Nonnegative access-list ID as an integer or decimal string; zero means no access list"`
-	CertificateID         int            `json:"certificate_id"`
-	Meta                  map[string]any `json:"meta"`
-	AdvancedConfig        string         `json:"advanced_config"`
-	Locations             []Location     `json:"locations"`
-	HTTP2Support          bool           `json:"http2_support"`
-	HSTSEnabled           bool           `json:"hsts_enabled"`
-	HSTSSubdomains        bool           `json:"hsts_subdomains"`
-	SSLForced             bool           `json:"ssl_forced"`
+	UpstreamID            json.RawMessage `json:"upstream_id,omitempty" jsonschema:"Positive pool ID; null detaches; omission on update preserves the binding"`
+	DomainNames           []string        `json:"domain_names"`
+	ForwardScheme         string          `json:"forward_scheme"`
+	ForwardHost           string          `json:"forward_host"`
+	ForwardPort           int             `json:"forward_port"`
+	CachingEnabled        bool            `json:"caching_enabled"`
+	BlockExploits         bool            `json:"block_exploits"`
+	AllowWebsocketUpgrade bool            `json:"allow_websocket_upgrade"`
+	AccessListID          any             `json:"access_list_id" jsonschema:"Nonnegative access-list ID as an integer or decimal string; zero means no access list"`
+	CertificateID         int             `json:"certificate_id"`
+	Meta                  map[string]any  `json:"meta"`
+	AdvancedConfig        string          `json:"advanced_config"`
+	Locations             []Location      `json:"locations"`
+	HTTP2Support          bool            `json:"http2_support"`
+	HSTSEnabled           bool            `json:"hsts_enabled"`
+	HSTSSubdomains        bool            `json:"hsts_subdomains"`
+	SSLForced             bool            `json:"ssl_forced"`
 }
 
 type Location struct {
-	Path          string `json:"path"`
-	ForwardScheme string `json:"forward_scheme"`
-	ForwardHost   string `json:"forward_host"`
-	ForwardPort   int    `json:"forward_port"`
+	UpstreamID     json.RawMessage `json:"upstream_id,omitempty"`
+	AdvancedConfig *string         `json:"advanced_config,omitempty"`
+	Path           string          `json:"path"`
+	ForwardScheme  string          `json:"forward_scheme"`
+	ForwardHost    string          `json:"forward_host"`
+	ForwardPort    int             `json:"forward_port"`
 }
 
 func (c *Client) CreateProxy(ctx context.Context, input ProxyConfig) error {

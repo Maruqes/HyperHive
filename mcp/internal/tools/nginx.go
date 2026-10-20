@@ -102,6 +102,7 @@ func registerNginxMutation[In any](server *mcp.Server, tool *mcp.Tool, call func
 	if _, ok := schema.Properties["forward_http_code"]; ok {
 		schema.Properties["forward_http_code"] = &jsonschema.Schema{AnyOf: []*jsonschema.Schema{{Type: "string", Pattern: "^[0-9]+$"}, {Type: "integer"}}}
 	}
+	addUpstreamSelectionSchema(schema)
 	tool.InputSchema = schema
 	addExactTool(server, tool, func(ctx context.Context, req *mcp.CallToolRequest, input In) (*mcp.CallToolResult, mutationOutput, error) {
 		if err := validateNginxInput(req, input); err != nil {
@@ -126,7 +127,10 @@ func validateNginxInput(req *mcp.CallToolRequest, input any) error {
 		}
 		switch x := v.(type) {
 		case map[string]any:
-			for _, v := range x {
+			for key, v := range x {
+				if key == "upstream_id" && v == nil {
+					continue
+				}
 				if !check(v) {
 					return false
 				}
@@ -152,7 +156,7 @@ func validateNginxInput(req *mcp.CallToolRequest, input any) error {
 		if err := positiveNginxID(in.ID); err != nil {
 			return err
 		}
-		return validateStream(in.StreamConfig)
+		return validateStreamWithPreserve(in.StreamConfig, true)
 	case client.RedirectConfig:
 		return validateRedirect(in)
 	case client.UpdateRedirectConfig:
@@ -190,12 +194,14 @@ func positiveNginxID(id int) error {
 	}
 	return nil
 }
-func validateStream(in client.StreamConfig) error {
-	if in.IncomingPort < 1 || in.IncomingPort > 65535 || in.ForwardingPort < 1 || in.ForwardingPort > 65535 || strings.TrimSpace(in.ForwardingHost) == "" || in.CertificateID < 0 {
-		return errors.New("stream requires ports in 1–65535, a forwarding host and a nonnegative certificate_id")
+func validateStream(in client.StreamConfig) error { return validateStreamWithPreserve(in, false) }
+func validateStreamWithPreserve(in client.StreamConfig, preserve bool) error {
+	if in.IncomingPort < 1 || in.IncomingPort > 65535 || in.CertificateID < 0 {
+		return errors.New("stream requires incoming port 1 to 65535 and nonnegative certificate_id")
 	}
-	return nil
+	return validatePoolTarget(in.UpstreamID, "http", in.ForwardingHost, in.ForwardingPort, preserve)
 }
+
 func validateNginxDomains(domains []string, cert int) error {
 	if len(domains) == 0 || cert < 0 {
 		return errors.New("domain_names must be a nonempty array and certificate_id must be nonnegative")

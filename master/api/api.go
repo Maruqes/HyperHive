@@ -9,6 +9,7 @@ import (
 	"512SvMan/npm"
 	"512SvMan/services"
 	ws "512SvMan/websocket"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -235,6 +236,9 @@ func StartApi(exitAfterStart bool) {
 		panic(err)
 	}
 
+	if err := npm.InitializeUpstreams(context.Background()); err != nil {
+		logger.Error("NPM upstream reconciliation: " + err.Error())
+	}
 	npmapi.SetBaseURL(baseURL)
 	portNumber, _ := strconv.Atoi(port) // already validated by configuredAPIPort
 	npmapi.SetAPIPort(portNumber)
@@ -314,6 +318,7 @@ func StartApi(exitAfterStart bool) {
 
 		r.Get("/ws", wsHandler)
 
+		npmapi.SetupUpstreamAPI(r)
 		npmapi.SetupProxyAPI(r)
 		npmapi.Setup404API(r)
 		npmapi.SetupStreamAPI(r)

@@ -1,16 +1,16 @@
 # HyperHive MCP
 
 Use HyperHive through named MCP tools. The master serves **Streamable HTTP** on
-its API listener; standalone stdio shares the same 105-tool registry.
+its API listener; standalone stdio shares the same 110-tool registry.
 
 ## API coverage
 
-Last checked: **2026-10-19**, locally. Counts measure supported API endpoints.
+Last checked: **2026-10-20**, locally. Counts measure supported API endpoints.
 
 | Scope | Supported / total | Coverage |
 | --- | ---: | ---: |
-| HyperHive API | 105 / 316 | **33.23%** |
-| NGINX | 28 / 37 | 75.68% |
+| HyperHive API | 110 / 322 | **34.16%** |
+| NGINX | 33 / 43 | 76.74% |
 | Celld | 9 / 17 | 52.94% |
 | DNS aliases | 3 / 4 | 75.00% |
 | Notes | 5 / 6 | 83.33% |
@@ -22,8 +22,8 @@ Area rows are subsets, not additional endpoints. DNS, Notes and ISOs cover all
 permitted operations. SPA creation is excluded for deletion effects. VM SSH
 injection is blocked by unavailable prior guest-file state; other deletion
 capabilities remain excluded. The prior explicit Celld fleet-delete exception
-remains scoped to Celld. Two new recovery helpers increase raw inventory by two
-and earn no extra tool credit. See [full state](UPDATE_STATE.md) for all mappings,
+remains scoped to Celld. The inventory includes six upstream endpoints and two internal recovery
+helpers; the recovery helpers earn no direct tool credit. See [full state](UPDATE_STATE.md) for all mappings,
 exclusions, validation and missing endpoints.
 
 VM tools publish low/medium/high/very high risk. Medium+ requires explicit
@@ -34,7 +34,7 @@ user's cache default. No automatic rollback or disk-content backup is implied.
 Both updated master and slave snapshot support are required for protected VM
 changes. See [VM contracts](docs/areas/vms.md) and [connection setup](CONNECTING.md).
 
-Feature contracts: [NGINX](docs/areas/nginx.md), [Celld](docs/areas/celld.md),
+Feature contracts: [upstreams](docs/areas/upstreams.md), [NGINX](docs/areas/nginx.md), [Celld](docs/areas/celld.md),
 [DNS](docs/areas/dns.md), [Notes](docs/areas/notes.md), [SPA](docs/areas/spa.md),
 [ISOs](docs/areas/isos.md), [VMs](docs/areas/vms.md).
 

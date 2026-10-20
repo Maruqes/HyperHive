@@ -41,7 +41,7 @@ fields are rejected except arbitrary JSON keys inside `meta`.
 }
 ```
 
-Domains and upstream host must be nonempty. Schemes are http/https; forwarding
+Domains and direct forwarding hosts must be nonempty. Schemes are http/https; forwarding
 ports are 1–65535. Each location requires `path` starting with `/`,
 `forward_scheme`, `forward_host`, `forward_port` with the same bounds.
 Certificate IDs are nonnegative. Access-list IDs accept a nonnegative decimal
@@ -50,10 +50,7 @@ string or safe JSON integer; zero means no access list.
 `enabled` is ignored by the API's NPM create/edit helpers and is deliberately
 absent from their writable schema. Use the dedicated enable/disable actions.
 Create does not accept an ID; the API discards the created ID and returns no body.
-Update's managed restriction is checked by the first supplied domain in the
-existing API, not by a transactional comparison of the requested ID. The MCP
-retains that backend behavior and rejects empty domain arrays to avoid the
-handler's unsafe domain index.
+Update checks the existing proxy by immutable ID before applying changes, so changing its domain cannot bypass managed-frontend restrictions. Missing IDs/domains are rejected, and omitted REST advanced configuration is preserved. MCP continues to require its complete set of existing configuration fields.
 
 ## Enable and disable
 
@@ -105,3 +102,7 @@ original request numbers after SDK schema validation, preserving target IDs and
 metadata; numeric access-list IDs retain their documented safe-integer bounds.
 SDK clients that decode arbitrary structured objects as floats may need the
 exact text fallback. Regression: `TestReviewProxyListRetainsExactIntegerIDs`.
+
+## Reusable pool targets
+
+Root proxies and custom locations accept optional upstream_id. Use a positive compatible HTTP pool ID with empty direct host/zero port, null plus a valid direct target to detach, or omit on update to preserve the binding. Pool reads clear private target names. Location advanced_config is optional and preserved. REST edits preserve omitted configuration fields; MCP retains its complete-configuration contract for existing required settings. See [upstream tools](upstreams.md) for capabilities, revisions and recovery.

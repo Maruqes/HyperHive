@@ -342,6 +342,9 @@ func main() {
 	}
 
 	db.InitDB(ctx)
+	if err := db.CreateNPMUpstreamTables(ctx); err != nil {
+		log.Fatalf("create NPM upstream tables: %v", err)
+	}
 	if err := db.CreateResourceDescriptionsTable(ctx); err != nil {
 		log.Fatalf("create resource descriptions table: %v", err)
 	}

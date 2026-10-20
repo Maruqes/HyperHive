@@ -175,3 +175,7 @@ certificate transfer, downstream renewal acceptance and stream partial failure
 without retries or deletion. It does not run NGINX, ACME, certificate issuance,
 real renewal, DNS challenges or any production service. Check the batch checkpoint
 for the checks completed during this run and its final outcome.
+
+## Reusable upstream pools
+
+Five additional [upstream tools](upstreams.md) manage/read pool definitions and capabilities. Proxy/location/stream tools accept optional bindings while preserving direct clients. Confirmed creates are completed during recovery, without deletion compensation; explicit upstream deletion remains excluded. The [release guide](../../../notes/npm-upstreams.md) and disposable exact-image tests cover NGINX traffic separately from the historical HTTP-handler fixtures above.

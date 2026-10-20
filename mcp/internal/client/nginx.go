@@ -24,14 +24,15 @@ type StreamMeta struct {
 	DNSChallenge           bool   `json:"dns_challenge"`
 }
 type StreamConfig struct {
-	IncomingPort   int        `json:"incoming_port"`
-	ForwardingHost string     `json:"forwarding_host"`
-	ForwardingPort int        `json:"forwarding_port"`
-	TCPForwarding  bool       `json:"tcp_forwarding"`
-	UDPForwarding  bool       `json:"udp_forwarding"`
-	CertificateID  int        `json:"certificate_id"`
-	Meta           StreamMeta `json:"meta"`
-	Description    string     `json:"description" jsonschema:"Explicit description; empty string removes the description text; NPM changes can remain applied if saving this text fails"`
+	UpstreamID     json.RawMessage `json:"upstream_id,omitempty" jsonschema:"Compatible stream pool ID; null detaches; omission on update preserves the binding"`
+	IncomingPort   int             `json:"incoming_port"`
+	ForwardingHost string          `json:"forwarding_host"`
+	ForwardingPort int             `json:"forwarding_port"`
+	TCPForwarding  bool            `json:"tcp_forwarding"`
+	UDPForwarding  bool            `json:"udp_forwarding"`
+	CertificateID  int             `json:"certificate_id"`
+	Meta           StreamMeta      `json:"meta"`
+	Description    string          `json:"description" jsonschema:"Explicit description; empty string removes the description text; NPM changes can remain applied if saving this text fails"`
 }
 type UpdateStreamConfig struct {
 	StreamConfig

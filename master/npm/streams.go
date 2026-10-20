@@ -26,24 +26,21 @@ import (
 */
 
 type Stream struct {
-	ID              int    `json:"id"`
-	Description     string `json:"description"`
-	Incoming_port   int    `json:"incoming_port"`
-	Forwarding_host string `json:"forwarding_host"`
-	Forwarding_port int    `json:"forwarding_port"`
-	Tcp_forwarding  bool   `json:"tcp_forwarding"`
-	Udp_forwarding  bool   `json:"udp_forwarding"`
-	Certificate     int    `json:"certificate_id"`
-	Meta            struct {
-		Dns_provider_credentials string `json:"dns_provider_credentials"`
-		Letsencrypt_agree        bool   `json:"letsencrypt_agree"`
-		Dns_challenge            bool   `json:"dns_challenge"`
-	} `json:"meta"`
-	Enabled bool `json:"enabled"`
+	UpstreamID      json.RawMessage `json:"upstream_id,omitempty"`
+	ID              int             `json:"id"`
+	Description     string          `json:"description"`
+	Incoming_port   int             `json:"incoming_port"`
+	Forwarding_host string          `json:"forwarding_host"`
+	Forwarding_port int             `json:"forwarding_port"`
+	Tcp_forwarding  bool            `json:"tcp_forwarding"`
+	Udp_forwarding  bool            `json:"udp_forwarding"`
+	Certificate     int             `json:"certificate_id"`
+	Meta            map[string]any  `json:"meta"`
+	Enabled         bool            `json:"enabled"`
 }
 
 // POST to /api/nginx/streams
-func CreateStream(baseURL, token string, p Stream) (int, error) {
+func rawCreateStream(baseURL, token string, p Stream) (int, error) {
 	reqBody := map[string]any{
 		"incoming_port":   p.Incoming_port,
 		"forwarding_host": p.Forwarding_host,
@@ -84,7 +81,7 @@ func CreateStream(baseURL, token string, p Stream) (int, error) {
 	return id, nil
 }
 
-func EditStream(baseURL, token string, p Stream) error {
+func rawEditStream(baseURL, token string, p Stream) error {
 	reqBody := map[string]any{
 		"incoming_port":   p.Incoming_port,
 		"forwarding_host": p.Forwarding_host,
@@ -114,7 +111,7 @@ func EditStream(baseURL, token string, p Stream) error {
 	return nil
 }
 
-func DeleteStream(baseURL, token string, id int) error {
+func rawDeleteStream(baseURL, token string, id int) error {
 	resp, err := MakeRequest("DELETE", fmt.Sprintf("%s/api/nginx/streams/%d", baseURL, id), token, nil, 30)
 	if err != nil {
 		return err
@@ -129,7 +126,7 @@ func DeleteStream(baseURL, token string, id int) error {
 	return nil
 }
 
-func EnableStream(baseURL, token string, id int) error {
+func rawEnableStream(baseURL, token string, id int) error {
 	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/streams/%d/enable", baseURL, id), token, nil, 30)
 	if err != nil {
 		return err
@@ -144,7 +141,7 @@ func EnableStream(baseURL, token string, id int) error {
 	return nil
 }
 
-func DisableStream(baseURL, token string, id int) error {
+func rawDisableStream(baseURL, token string, id int) error {
 	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/streams/%d/disable", baseURL, id), token, nil, 30)
 	if err != nil {
 		return err
@@ -159,7 +156,7 @@ func DisableStream(baseURL, token string, id int) error {
 	return nil
 }
 
-func ListStreams(baseURL, token string) ([]Stream, error) {
+func rawListStreams(baseURL, token string) ([]Stream, error) {
 	resp, err := MakeRequest("GET", baseURL+"/api/nginx/streams", token, nil, 30)
 	if err != nil {
 		return nil, err

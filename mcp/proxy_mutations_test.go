@@ -180,6 +180,9 @@ func runMutationContract(t *testing.T, tc mutationCase) {
 			}
 			invalid := append([]map[string]any{{}, changed(tc.args, "unknown_field", true)}, tc.invalid...)
 			for key := range tc.args {
+				if key == "upstream_id" {
+					continue
+				}
 				invalid = append(invalid, changed(tc.args, key, nil))
 				missing := changed(tc.args, key, nil)
 				delete(missing, key)

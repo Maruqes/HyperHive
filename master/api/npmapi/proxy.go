@@ -2,9 +2,12 @@ package npmapi
 
 import (
 	"512SvMan/npm"
+	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"slices"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -17,6 +20,11 @@ func listProxies(w http.ResponseWriter, r *http.Request) {
 
 	proxies, err := npm.GetAllProxys(baseURL, loginToken)
 	if err != nil {
+		var typed *npm.UpstreamError
+		if errors.As(err, &typed) {
+			upstreamFailure(w, err)
+			return
+		}
 		http.Error(w, "failed to get proxies: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -30,12 +38,22 @@ func listProxies(w http.ResponseWriter, r *http.Request) {
 
 func createProxy(w http.ResponseWriter, r *http.Request) {
 	var p npm.Proxy
-	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&p); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
 
+	if len(p.DomainNames) == 0 {
+		http.Error(w, "domain_names are required", 400)
+		return
+	}
+	for _, domain := range p.DomainNames {
+		if strings.TrimSpace(domain) == "" {
+			http.Error(w, "domain_names cannot be empty", 400)
+			return
+		}
+	}
 	loginToken := GetTokenFromContext(r)
 
 	if _, err := npm.CreateProxy(baseURL, loginToken, p); err != nil {
@@ -46,26 +64,80 @@ func createProxy(w http.ResponseWriter, r *http.Request) {
 }
 
 func editProxy(w http.ResponseWriter, r *http.Request) {
-	var p npm.Proxy
-	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+	defer r.Body.Close()
+	var fields map[string]json.RawMessage
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&fields); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
-
+	var p npm.Proxy
+	raw, _ := json.Marshal(fields)
+	if err := json.Unmarshal(raw, &p); err != nil || p.ID < 1 || len(p.DomainNames) == 0 {
+		http.Error(w, "valid id and domain_names are required", 400)
+		return
+	}
+	for _, d := range p.DomainNames {
+		if strings.TrimSpace(d) == "" {
+			http.Error(w, "domain names cannot be empty", 400)
+			return
+		}
+	}
+	if value, ok := fields["advanced_config"]; ok && bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+		http.Error(w, "advanced_config must be a string", 400)
+		return
+	}
 	loginToken := GetTokenFromContext(r)
-
-	existing, err := findProxyByDomain(baseURL, loginToken, p.DomainNames[0])
+	proxies, err := npm.GetAllProxys(baseURL, loginToken)
 	if err != nil {
+		var typed *npm.UpstreamError
+		if errors.As(err, &typed) {
+			upstreamFailure(w, err)
+			return
+		}
 		http.Error(w, "failed to check proxy: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if existing != nil && isManagedProxy(existing) {
+	var existing *npm.Proxy
+	for i := range proxies {
+		if proxies[i].ID == p.ID {
+			existing = &proxies[i]
+			break
+		}
+	}
+	if existing == nil {
+		http.Error(w, "proxy not found", 404)
+		return
+	}
+	if isManagedProxy(existing) {
 		http.Error(w, "managed proxy cannot be edited", http.StatusForbidden)
+		return
+	}
+	mergedRaw, _ := json.Marshal(existing)
+	var merged map[string]json.RawMessage
+	_ = json.Unmarshal(mergedRaw, &merged)
+	for key, value := range fields {
+		merged[key] = value
+	}
+	if selection, ok := fields["upstream_id"]; ok && string(selection) != "null" {
+		if _, ok := fields["forward_host"]; !ok {
+			merged["forward_host"] = json.RawMessage(`""`)
+		}
+		if _, ok := fields["forward_port"]; !ok {
+			merged["forward_port"] = json.RawMessage(`0`)
+		}
+	}
+	mergedRaw, _ = json.Marshal(merged)
+	if err := json.NewDecoder(bytes.NewReader(mergedRaw)).Decode(&p); err != nil {
+		http.Error(w, "invalid request body", 400)
 		return
 	}
 
 	if err := npm.EditProxy(baseURL, loginToken, p); err != nil {
+		var typed *npm.UpstreamError
+		if errors.As(err, &typed) {
+			upstreamFailure(w, err)
+			return
+		}
 		http.Error(w, "failed to edit proxy: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -86,6 +158,11 @@ func deleteProxy(w http.ResponseWriter, r *http.Request) {
 
 	proxies, err := npm.GetAllProxys(baseURL, loginToken)
 	if err != nil {
+		var typed *npm.UpstreamError
+		if errors.As(err, &typed) {
+			upstreamFailure(w, err)
+			return
+		}
 		http.Error(w, "failed to check proxy: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -97,6 +174,11 @@ func deleteProxy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := npm.DeleteProxy(baseURL, loginToken, payload.ID); err != nil {
+		var typed *npm.UpstreamError
+		if errors.As(err, &typed) {
+			upstreamFailure(w, err)
+			return
+		}
 		http.Error(w, "failed to delete proxy: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -117,6 +199,11 @@ func disableProxy(w http.ResponseWriter, r *http.Request) {
 
 	proxies, err := npm.GetAllProxys(baseURL, loginToken)
 	if err != nil {
+		var typed *npm.UpstreamError
+		if errors.As(err, &typed) {
+			upstreamFailure(w, err)
+			return
+		}
 		http.Error(w, "failed to check proxy: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -128,6 +215,11 @@ func disableProxy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := npm.DisableProxy(baseURL, loginToken, payload.ID); err != nil {
+		var typed *npm.UpstreamError
+		if errors.As(err, &typed) {
+			upstreamFailure(w, err)
+			return
+		}
 		http.Error(w, "failed to disable proxy: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -147,6 +239,11 @@ func enableProxy(w http.ResponseWriter, r *http.Request) {
 	loginToken := GetTokenFromContext(r)
 
 	if err := npm.EnableProxy(baseURL, loginToken, payload.ID); err != nil {
+		var typed *npm.UpstreamError
+		if errors.As(err, &typed) {
+			upstreamFailure(w, err)
+			return
+		}
 		http.Error(w, "failed to enable proxy: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -301,6 +398,11 @@ func setupFrontEndSecure(w http.ResponseWriter, r *http.Request) {
 
 	existingPrivateID, existingPublicID, err := findManagedProxyIDs(baseURL, loginToken)
 	if err != nil {
+		var typed *npm.UpstreamError
+		if errors.As(err, &typed) {
+			upstreamFailure(w, err)
+			return
+		}
 		http.Error(w, "failed to check existing frontend: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

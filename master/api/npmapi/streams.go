@@ -4,6 +4,7 @@ import (
 	"512SvMan/db"
 	"512SvMan/npm"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -16,6 +17,11 @@ func listStream(w http.ResponseWriter, r *http.Request) {
 
 	streams, err := npm.ListStreams(baseURL, loginToken)
 	if err != nil {
+		var typed *npm.UpstreamError
+		if errors.As(err, &typed) {
+			upstreamFailure(w, err)
+			return
+		}
 		http.Error(w, "failed to get Stream hosts: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -25,6 +31,11 @@ func listStream(w http.ResponseWriter, r *http.Request) {
 	}
 	descriptions, err := db.GetResourceDescriptions(r.Context(), streamResourceType, ids)
 	if err != nil {
+		var typed *npm.UpstreamError
+		if errors.As(err, &typed) {
+			upstreamFailure(w, err)
+			return
+		}
 		http.Error(w, "failed to get stream descriptions: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -51,6 +62,11 @@ func createStream(w http.ResponseWriter, r *http.Request) {
 
 	id, err := npm.CreateStream(baseURL, loginToken, p)
 	if err != nil {
+		var typed *npm.UpstreamError
+		if errors.As(err, &typed) {
+			upstreamFailure(w, err)
+			return
+		}
 		http.Error(w, "failed to create Stream host: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -63,16 +79,67 @@ func createStream(w http.ResponseWriter, r *http.Request) {
 }
 
 func editStream(w http.ResponseWriter, r *http.Request) {
-	var p npm.Stream
-	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+	defer r.Body.Close()
+	var fields map[string]json.RawMessage
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&fields); err != nil {
+		http.Error(w, "invalid request body", 400)
 		return
 	}
-	defer r.Body.Close()
-
+	var p npm.Stream
+	raw, _ := json.Marshal(fields)
+	if json.Unmarshal(raw, &p) != nil || p.ID < 1 {
+		http.Error(w, "positive id required", 400)
+		return
+	}
 	loginToken := GetTokenFromContext(r)
+	// Existing direct clients use complete replacements. Pool-backed edits merge
+	// omitted fields so selecting a reusable target does not erase metadata.
+	if _, selected := fields["upstream_id"]; selected {
+		existing, err := npm.ListStreams(baseURL, loginToken)
+		if err != nil {
+			http.Error(w, "failed to read stream", 500)
+			return
+		}
+		found := false
+		for _, old := range existing {
+			if old.ID != p.ID {
+				continue
+			}
+			found = true
+			oldRaw, _ := json.Marshal(old)
+			var merged map[string]json.RawMessage
+			_ = json.Unmarshal(oldRaw, &merged)
+			for key, value := range fields {
+				merged[key] = value
+			}
+			if string(fields["upstream_id"]) != "null" {
+				if _, ok := fields["forwarding_host"]; !ok {
+					merged["forwarding_host"] = json.RawMessage(`""`)
+				}
+				if _, ok := fields["forwarding_port"]; !ok {
+					merged["forwarding_port"] = json.RawMessage(`0`)
+				}
+			}
+			data, _ := json.Marshal(merged)
+			if json.Unmarshal(data, &p) != nil {
+				http.Error(w, "invalid request body", 400)
+				return
+			}
+			break
+		}
+		if !found {
+			http.Error(w, "stream not found", 404)
+			return
+		}
+	}
+
 	err := npm.EditStream(baseURL, loginToken, p)
 	if err != nil {
+		var typed *npm.UpstreamError
+		if errors.As(err, &typed) {
+			upstreamFailure(w, err)
+			return
+		}
 		http.Error(w, "failed to edit Stream host: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -97,6 +164,11 @@ func deleteStream(w http.ResponseWriter, r *http.Request) {
 	loginToken := GetTokenFromContext(r)
 	err := npm.DeleteStream(baseURL, loginToken, payload.ID)
 	if err != nil {
+		var typed *npm.UpstreamError
+		if errors.As(err, &typed) {
+			upstreamFailure(w, err)
+			return
+		}
 		http.Error(w, "failed to delete Stream host: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -121,6 +193,11 @@ func disableStream(w http.ResponseWriter, r *http.Request) {
 	loginToken := GetTokenFromContext(r)
 	err := npm.DisableStream(baseURL, loginToken, payload.ID)
 	if err != nil {
+		var typed *npm.UpstreamError
+		if errors.As(err, &typed) {
+			upstreamFailure(w, err)
+			return
+		}
 		http.Error(w, "failed to disable Stream host: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -141,6 +218,11 @@ func enableStream(w http.ResponseWriter, r *http.Request) {
 	loginToken := GetTokenFromContext(r)
 	err := npm.EnableStream(baseURL, loginToken, payload.ID)
 	if err != nil {
+		var typed *npm.UpstreamError
+		if errors.As(err, &typed) {
+			upstreamFailure(w, err)
+			return
+		}
 		http.Error(w, "failed to enable Stream host: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

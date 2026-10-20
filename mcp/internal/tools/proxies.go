@@ -55,6 +55,9 @@ func Register(server *mcp.Server, api interface {
 		}
 		return &mcp.CallToolResult{StructuredContent: json.RawMessage(data), Content: []mcp.Content{&mcp.TextContent{Text: string(data)}}}, nil, nil
 	})
+	if upstreams, ok := any(api).(UpstreamsAPI); ok {
+		registerUpstreams(server, upstreams)
+	}
 	registerNginx(server, api)
 	registerCelld(server, api)
 	registerCreateProxy(server, api)

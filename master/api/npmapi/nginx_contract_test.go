@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"512SvMan/db"
+	"512SvMan/npm"
 	hyperhivemcp "github.com/Maruqes/HyperHive/mcp"
 	"github.com/go-chi/chi/v5"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -40,6 +41,12 @@ func TestMCPNginxThroughHandlers(t *testing.T) {
 	}
 	defer db.DB.Close()
 	db.DB.SetMaxOpenConns(1)
+	if err = db.CreateNPMUpstreamTables(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err = npm.InitializeUpstreams(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 	if err = db.CreateResourceDescriptionsTable(context.Background()); err != nil {
 		t.Fatal(err)
 	}

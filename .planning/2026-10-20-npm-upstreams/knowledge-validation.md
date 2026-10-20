@@ -1,0 +1,5 @@
+# Knowledge validation — 2026-10-20
+
+Updated the existing upstream integration topic as the canonical home for pool behavior and exact-image compatibility. Updated existing proxy navigation, MCP coverage/tool routing and the project MCP entry. No new page or host was introduced. Read each destination before writing and reread each changed section afterward; all linked targets were read existing pages. Frontmatter identifies source files, base commit and working-tree scope. Topic is below 800 words and each authored section below 300 words. No credentials or raw container logs were stored.
+
+K6 scoped exception: existing long project, proxy and MCP index pages retain legacy content and size; this change updates bounded relevant sections instead of redesigning unrelated knowledge. K11 exception: initial broad feature lookup exceeded normal retrieval budget; subsequent retrieval was narrowed. No full-space benchmark was run because this is a bounded update, not a knowledge rebuild. Local exact-image tests do not establish production state. Disposable containers are not inventory members; no new infrastructure candidate was discovered.

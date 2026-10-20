@@ -331,6 +331,7 @@ func TestCompleteToolRegistry(t *testing.T) {
 		want = append(want, tc.Name)
 	}
 	want = append(want, selectedFeatureToolNames...)
+	want = append(want, "list_upstreams", "get_upstream", "get_upstream_capabilities", "create_upstream", "update_upstream")
 	sort.Strings(want)
 	var got []string
 	for _, tool := range list.Tools {

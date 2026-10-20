@@ -39,31 +39,34 @@ func (s StringOrInt) String() string {
 }
 
 type Proxy struct {
-	ID                    int            `json:"id"`
-	DomainNames           []string       `json:"domain_names"`
-	ForwardScheme         string         `json:"forward_scheme"`
-	ForwardHost           string         `json:"forward_host"`
-	ForwardPort           int            `json:"forward_port"`
-	CachingEnabled        bool           `json:"caching_enabled"`
-	BlockExploits         bool           `json:"block_exploits"`
-	AllowWebsocketUpgrade bool           `json:"allow_websocket_upgrade"`
-	AccessListID          StringOrInt    `json:"access_list_id"`
-	CertificateID         int            `json:"certificate_id"`
-	Meta                  map[string]any `json:"meta"`
-	AdvancedConfig        string         `json:"advanced_config"`
-	Locations             []Location     `json:"locations"`
-	Http2Support          bool           `json:"http2_support"`
-	HstsEnabled           bool           `json:"hsts_enabled"`
-	HstsSubdomains        bool           `json:"hsts_subdomains"`
-	SslForced             bool           `json:"ssl_forced"`
-	Enabled               bool           `json:"enabled"`
+	UpstreamID            json.RawMessage `json:"upstream_id,omitempty"`
+	ID                    int             `json:"id"`
+	DomainNames           []string        `json:"domain_names"`
+	ForwardScheme         string          `json:"forward_scheme"`
+	ForwardHost           string          `json:"forward_host"`
+	ForwardPort           int             `json:"forward_port"`
+	CachingEnabled        bool            `json:"caching_enabled"`
+	BlockExploits         bool            `json:"block_exploits"`
+	AllowWebsocketUpgrade bool            `json:"allow_websocket_upgrade"`
+	AccessListID          StringOrInt     `json:"access_list_id"`
+	CertificateID         int             `json:"certificate_id"`
+	Meta                  map[string]any  `json:"meta"`
+	AdvancedConfig        string          `json:"advanced_config"`
+	Locations             []Location      `json:"locations"`
+	Http2Support          bool            `json:"http2_support"`
+	HstsEnabled           bool            `json:"hsts_enabled"`
+	HstsSubdomains        bool            `json:"hsts_subdomains"`
+	SslForced             bool            `json:"ssl_forced"`
+	Enabled               bool            `json:"enabled"`
 }
 
 type Location struct {
-	Path           string `json:"path"`
-	ForwardScheme  string `json:"forward_scheme"`
-	ForwardHost    string `json:"forward_host"`
-	ForwardPort    int    `json:"forward_port"`
+	UpstreamID     json.RawMessage `json:"upstream_id,omitempty"`
+	AdvancedConfig *string         `json:"advanced_config,omitempty"`
+	Path           string          `json:"path"`
+	ForwardScheme  string          `json:"forward_scheme"`
+	ForwardHost    string          `json:"forward_host"`
+	ForwardPort    int             `json:"forward_port"`
 }
 
 /*
@@ -93,7 +96,7 @@ type Location struct {
 	   "ssl_forced":false
 	}
 */
-func CreateProxy(baseURL, token string, p Proxy) (int, error) {
+func rawCreateProxy(baseURL, token string, p Proxy) (int, error) {
 	reqBody := map[string]any{
 		"domain_names":            p.DomainNames,
 		"forward_scheme":          p.ForwardScheme,
@@ -138,10 +141,13 @@ func CreateProxy(baseURL, token string, p Proxy) (int, error) {
 			id = int(d)
 		}
 	}
+	if id < 1 {
+		return 0, fmt.Errorf("create proxy response did not include a positive id")
+	}
 	return id, nil
 }
 
-func EditProxy(baseURL, token string, p Proxy) error {
+func rawEditProxy(baseURL, token string, p Proxy) error {
 	reqBody := map[string]any{
 		"domain_names":            p.DomainNames,
 		"forward_scheme":          p.ForwardScheme,
@@ -182,7 +188,7 @@ func EditProxy(baseURL, token string, p Proxy) error {
 }
 
 // POST TO /api/nginx/proxy-hosts/{id}/disable
-func DisableProxy(baseURL, token string, id int) error {
+func rawDisableProxy(baseURL, token string, id int) error {
 	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d/disable", baseURL, id), token, nil, 30)
 	if err != nil {
 		return err
@@ -197,7 +203,7 @@ func DisableProxy(baseURL, token string, id int) error {
 	return nil
 }
 
-func EnableProxy(baseURL, token string, id int) error {
+func rawEnableProxy(baseURL, token string, id int) error {
 	resp, err := MakeRequest("POST", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d/enable", baseURL, id), token, nil, 30)
 	if err != nil {
 		return err
@@ -213,7 +219,7 @@ func EnableProxy(baseURL, token string, id int) error {
 }
 
 // DELETE /api/nginx/proxy-hosts/{id}
-func DeleteProxy(baseURL, token string, id int) error {
+func rawDeleteProxy(baseURL, token string, id int) error {
 	resp, err := MakeRequest("DELETE", fmt.Sprintf("%s/api/nginx/proxy-hosts/%d", baseURL, id), token, nil, 30)
 	if err != nil {
 		return err
@@ -227,7 +233,7 @@ func DeleteProxy(baseURL, token string, id int) error {
 	return nil
 }
 
-func GetAllProxys(baseURL, token string) ([]Proxy, error) {
+func rawGetAllProxys(baseURL, token string) ([]Proxy, error) {
 	resp, err := MakeRequest("GET", baseURL+"/api/nginx/proxy-hosts", token, nil, 30)
 	if err != nil {
 		return nil, err

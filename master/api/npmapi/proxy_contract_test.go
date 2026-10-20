@@ -125,6 +125,8 @@ func TestMCPProxyMutationsThroughHandlers(t *testing.T) {
 		t.Fatalf("create fields changed: %#v", writes)
 	}
 	config["id"] = 42
+	existingJSON, _ := json.Marshal([]map[string]any{config})
+	proxies = string(existingJSON)
 	call("update_proxy", config, false)
 	if len(writes) != 2 || !reflect.DeepEqual(writes[1], want) || requests[1] != "PUT /api/nginx/proxy-hosts/42" {
 		t.Fatalf("update fields/path changed: %#v %v", writes, requests)

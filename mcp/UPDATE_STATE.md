@@ -39,24 +39,21 @@ Git revision alone do not prove freshness. There is no committed coverage CLI ye
 
 ## Latest report
 
-Checked: **2026-10-19**, from local source and SDK discovery. No live deployment check.
+Checked: **2026-10-20**, from current local source, SDK HTTP/stdio discovery and disposable NPM validation. No production deployment check.
 
-- Source revision: `5df87ec9923e330a6e25cc0cdb3110113fc28741` plus working-tree changes, preserving the preceding NGINX/Celld implementation.
-- Source content SHA-256: `5bc832a475da4c43d6ba2a43f7cc78504983bf46db9c1226decc9ac86b31abd1`.
-- Digest input: sorted repository-relative paths; non-test Go and protobuf sources under master/slave/api, all MCP Go sources, and those four modules' go.mod/go.sum. Hash `path + NUL + file bytes + NUL` for each. Expanded to include the VM/ISO/DNS/SPA/Notes service, slave and RPC contracts; the DNS metadata refresh retains its current path manifest in `.planning/2026-10-19-dns-optional-ssh-username-and-related-vm/mcp-source-digest.json`.
-- Inventory: **316** unique explicit API method/path pairs, including UI/static/WebSocket/alias routes. Previous inventory 314 is unchanged except two additive authenticated recovery helpers: `GET /virsh/snapshot/{vm_name}` and `GET /virsh/hostsnapshot/{machine_name}`. Existing route registrations and API-source changes were reviewed; no runtime router walker or general coverage CLI is claimed.
-- `/api` remains a prefix alias, not duplicate coverage. `/mcp` transport/session lifecycle and the separate pprof listener remain outside capability scope. Special Celld action-loop, GoAccess constant and nested XML-template registrations remain included.
-- Status: **105 implemented, 158 missing, 53 excluded**; no enabled partial, stale or disabled endpoint is counted as implemented. Missing includes one blocked selected SSH operation and two internal recovery helpers; helper calls earn no extra tool credit.
-- Scope: DNS, Notes and ISOs all permitted operations; SPA management reads S1/S2 (S3 excluded after effect review); all safely supportable selected VM operations. No new deletion permission was granted. The previous narrow Celld fleet-delete exception remains unchanged.
-- Validation: full MCP tests, race checks and vet passed after final review fixes. Affected master API/services/virsh/protocol suites, API/NPM regression suites, master race/vet, generated RPC compilation and focused slave snapshot tests/race/vet passed. Three new stdio fixtures initially read stderr before the child writer stopped; the original feature agents fixed ordering without removing assertions, then the full gates passed. Exact 105-tool discovery expectations passed.
-- Additional correctness review: two fresh VM reviewers and coordinator inspection found and fixed SDK input integer rounding that could mutate a different ID, incomplete pre-growth VM disk metadata, unsafe DNS whitespace/control writes, and older proxy-list numeric precision. Exact original input decoding retains schemas and full int64 IDs; invalid fractions/overflow/non-object roots fail before execution. New both-transport regressions and complete repeated normal/race/vet gates passed; tool count and coverage are unchanged.
-- DNS metadata compatibility refresh: existing `dns_alias_add` now accepts optional `ssh_username` and `related_vm`, preserving omitted versus explicit empty values. `dns_aliases_list` discovery describes both returned fields, validates present metadata types and preserves all response fields. Add remains acknowledgement-only and get remains existence-only. Backend VM deletion removes linked DNS entries; deletion is still not exposed by MCP. Metadata-only edits and legacy blank records are covered. Counts and endpoint mappings are unchanged; see [DNS contracts](docs/areas/dns.md).
-- Limits: SDK HTTP and actual stdio use disposable HTTP backends. Notes/SPA/ISO actual handlers use temporary SQLite; VM actual auth/HTTP/service/RPC backup-before-write is tested in an isolated subprocess with disposable gRPC. Slave readers/commands are injected. No real DNS restart, successful ipset read, ISO completion, VM/hypervisor action, host boot change, NFS transfer qualification or deployment was performed.
+- Source revision: `0472a8bee5d182fb5df677503773465a3b187e36` plus the NPM upstream working-tree implementation.
+- Source content SHA-256: `54ea66e60b26af0b1cb2eda2d4c74dbf3ac14bf12e329cca5e96545aa71ef7c3`.
+- Digest input: sorted repository-relative paths; non-test Go/protobuf sources under master/slave/api, all MCP Go sources, those modules' go.mod/go.sum, and the four pinned master/npm/upstream_templates/*.conf inputs. Hash path + NUL + file bytes + NUL. The task's manifest is `.planning/2026-10-20-npm-upstreams/mcp-source-digest.json`.
+- Inventory: **322** unique explicit method/path pairs. Existing inventory 316 is unchanged except the six authenticated /upstream registrations in master/api/npmapi/upstreams.go, mounted in master/api/api.go. /api remains an alias; /mcp transport lifecycle and the separate pprof listener remain outside capability coverage. This is a task-local source review, not a shipped coverage generator.
+- Status: **110 implemented, 158 missing, 54 excluded**. The upstream increment adds five supported endpoints and one deletion exclusion; helper calls earn no credit. No partial/stale/disabled endpoint is counted as implemented.
+- Scope: list/get/capabilities/create/update upstream tools and optional proxy/location/stream bindings. No upstream deletion tool or alias. Confirmed creates complete through journal reconciliation instead of deleting newly created resources as rollback; failed/unknown creates are not retried.
+- Validation: full MCP normal/race/vet checks and master normal/affected race/vet checks; SDK discovery expects 110 tools. New SDK HTTP/stdio fixtures check upstream method/path/auth/body, nullable bindings, complete existing consumer inputs, safe failures, no retries and exact response integer text. Actual-handler fixtures retain direct-client behavior. The disposable exact-image suite separately covers all advertised methods, HTTP/location/TCP/UDP traffic, IPv4/IPv6, affinity/weights/held connections, TLS SNI, WebSockets, lifecycle, drift, failure recovery and container recreation. See the task checkpoint and release guide for current run evidence.
+- Limits: these local checks do not establish production deployment, real ACME issuance or distributed atomicity. Existing DNS/Notes/SPA/ISO/VM contracts and policy exclusions retain their reviewed boundaries in their feature documents. Prior Celld deletion authorization remains limited to that existing tool; no new deletion permission is inferred.
 
 | Scope | Implemented / total | Missing | Coverage |
 | --- | ---: | ---: | ---: |
-| **HyperHive API** | 105 / 316 | 158 | 33.23% |
-| NGINX subtotal | 28 / 37 | 0 | 75.68% |
+| **HyperHive API** | 110 / 322 | 158 | 34.16% |
+| NGINX subtotal | 33 / 43 | 0 | 76.74% |
 | VM subtotal, including templates/disks/helpers | 56 / 82 | 3 | 68.29% |
 
 Subtotals are subsets of the API. Leaf areas partition the total. Missing omits policy exclusions; both new internal helper routes remain missing for direct tool coverage. Eligible-only percentages are meaningful only for reviewed selected scopes, not the entire API's still-unclassified browser/stream routes.
@@ -85,6 +82,7 @@ Subtotals are subsets of the API. Leaf areas partition the total. Missing omits 
 | NGINX / Proxies | 7 / 8 | 0 | 87.50% | [proxy.go](../master/api/npmapi/proxy.go) |
 | NGINX / Redirects | 5 / 6 | 0 | 83.33% | [redirection.go](../master/api/npmapi/redirection.go) |
 | NGINX / Streams | 5 / 6 | 0 | 83.33% | [streams.go](../master/api/npmapi/streams.go) |
+| NGINX / Upstreams | 5 / 6 | 0 | 83.33% | [upstreams.go](../master/api/npmapi/upstreams.go) |
 | PCI / GPU | 0 / 6 | 6 | 0.00% | [pci.go](../master/api/pci.go) |
 | Protocol connections | 0 / 1 | 1 | 0.00% | [protocol.go](../master/api/protocol.go) |
 | SMART disks | 0 / 14 | 12 | 0.00% | [smartdisk.go](../master/api/smartdisk.go) |
@@ -96,7 +94,7 @@ Subtotals are subsets of the API. Leaf areas partition the total. Missing omits 
 
 ### Available capabilities and safety
 
-Both transports share 105 registrations: 28 NGINX, nine Celld, three DNS, five Notes, two SPA, two ISO and 56 VM tools. Feature contracts: [NGINX](docs/areas/nginx.md), [proxies](docs/areas/nginx-proxies.md), [Celld](docs/areas/celld.md), [DNS](docs/areas/dns.md), [Notes](docs/areas/notes.md), [SPA](docs/areas/spa.md), [ISOs](docs/areas/isos.md), [VMs](docs/areas/vms.md).
+Both transports share 110 registrations: 33 NGINX, nine Celld, three DNS, five Notes, two SPA, two ISO and 56 VM tools. Feature contracts: [upstreams](docs/areas/upstreams.md), [NGINX](docs/areas/nginx.md), [proxies](docs/areas/nginx-proxies.md), [Celld](docs/areas/celld.md), [DNS](docs/areas/dns.md), [Notes](docs/areas/notes.md), [SPA](docs/areas/spa.md), [ISOs](docs/areas/isos.md), [VMs](docs/areas/vms.md).
 
 Every VM tool publishes low/medium/high/very high risk. Medium+ requires per-call explicit user form approval bound to complete arguments; stale/replayed/forged/changed continuations or unsupported/declined/canceled pickers cannot execute writes. Modern HTTP remains stateless; legacy HTTP retains authenticated sessions for form elicitation. Stdio supports both protocol generations.
 
@@ -108,6 +106,11 @@ DNS/Notes/ISO permitted endpoint coverage is 3/3, 5/5 and 2/2. SPA has the two s
 
 | Tool | Endpoint | VM risk |
 | --- | --- | --- |
+| `list_upstreams` | `GET /upstream/list` | — |
+| `get_upstream` | `GET /upstream/{id}` | — |
+| `get_upstream_capabilities` | `GET /upstream/capabilities` | — |
+| `create_upstream` | `POST /upstream/create` | — |
+| `update_upstream` | `PUT /upstream/{id}` | — |
 | `add_vm_video` | `POST /virsh/novncvideo/add/{vm_name}` | high |
 | `attach_vm_disk` | `POST /virsh/vm_disk/{vm_name}` | high |
 | `backup_vm` | `POST /virsh/backup/{vm_name}/{nfs_id}` | high |
@@ -239,18 +242,18 @@ One row is one method/path pair. Only registered, enabled, contract-reviewed and
 
 | Endpoint | Status | Route source |
 | --- | --- | --- |
-| `POST /login` | missing | [api.go:278](../master/api/api.go#L278) |
-| `GET /nots/register` | missing | [api.go:283](../master/api/api.go#L283) |
-| `GET /static/notification-icon.png` | missing | [api.go:284](../master/api/api.go#L284) |
-| `GET /icon.png` | missing | [api.go:288](../master/api/api.go#L288) |
-| `GET /new-slave-count` | missing | [api.go:300](../master/api/api.go#L300) |
-| `GET /notification/public-key` | missing | [api.go:304](../master/api/api.go#L304) |
-| `POST /notification/subscribe` | missing | [api.go:305](../master/api/api.go#L305) |
-| `GET /notification/test` | missing | [api.go:306](../master/api/api.go#L306) |
-| `DELETE /notification/subscriptions` | excluded (deletion policy) | [api.go:307](../master/api/api.go#L307) |
-| `GET /sw.js` | missing | [api.go:309](../master/api/api.go#L309) |
-| `GET /protected` | missing | [api.go:313](../master/api/api.go#L313) |
-| `GET /ws` | missing | [api.go:315](../master/api/api.go#L315) |
+| `POST /login` | missing | [api.go:282](../master/api/api.go#L282) |
+| `GET /nots/register` | missing | [api.go:287](../master/api/api.go#L287) |
+| `GET /static/notification-icon.png` | missing | [api.go:288](../master/api/api.go#L288) |
+| `GET /icon.png` | missing | [api.go:292](../master/api/api.go#L292) |
+| `GET /new-slave-count` | missing | [api.go:304](../master/api/api.go#L304) |
+| `GET /notification/public-key` | missing | [api.go:308](../master/api/api.go#L308) |
+| `POST /notification/subscribe` | missing | [api.go:309](../master/api/api.go#L309) |
+| `GET /notification/test` | missing | [api.go:310](../master/api/api.go#L310) |
+| `DELETE /notification/subscriptions` | excluded (deletion policy) | [api.go:311](../master/api/api.go#L311) |
+| `GET /sw.js` | missing | [api.go:313](../master/api/api.go#L313) |
+| `GET /protected` | missing | [api.go:317](../master/api/api.go#L317) |
+| `GET /ws` | missing | [api.go:319](../master/api/api.go#L319) |
 
 #### BTRFS
 
@@ -471,14 +474,14 @@ One row is one method/path pair. Only registered, enabled, contract-reviewed and
 
 | Endpoint | Status | Route source |
 | --- | --- | --- |
-| `GET /proxy/list` | implemented | [proxy.go:364](../master/api/npmapi/proxy.go#L364) |
-| `POST /proxy/create` | implemented | [proxy.go:365](../master/api/npmapi/proxy.go#L365) |
-| `PUT /proxy/edit` | implemented | [proxy.go:366](../master/api/npmapi/proxy.go#L366) |
-| `DELETE /proxy/delete` | excluded (deletion policy) | [proxy.go:367](../master/api/npmapi/proxy.go#L367) |
-| `POST /proxy/disable` | implemented | [proxy.go:368](../master/api/npmapi/proxy.go#L368) |
-| `POST /proxy/enable` | implemented | [proxy.go:369](../master/api/npmapi/proxy.go#L369) |
-| `POST /proxy/setupFrontEnd` | implemented | [proxy.go:371](../master/api/npmapi/proxy.go#L371) |
-| `POST /proxy/setupFrontEndSecure` | implemented | [proxy.go:372](../master/api/npmapi/proxy.go#L372) |
+| `GET /proxy/list` | implemented | [proxy.go:466](../master/api/npmapi/proxy.go#L466) |
+| `POST /proxy/create` | implemented | [proxy.go:467](../master/api/npmapi/proxy.go#L467) |
+| `PUT /proxy/edit` | implemented | [proxy.go:468](../master/api/npmapi/proxy.go#L468) |
+| `DELETE /proxy/delete` | excluded (deletion policy) | [proxy.go:469](../master/api/npmapi/proxy.go#L469) |
+| `POST /proxy/disable` | implemented | [proxy.go:470](../master/api/npmapi/proxy.go#L470) |
+| `POST /proxy/enable` | implemented | [proxy.go:471](../master/api/npmapi/proxy.go#L471) |
+| `POST /proxy/setupFrontEnd` | implemented | [proxy.go:473](../master/api/npmapi/proxy.go#L473) |
+| `POST /proxy/setupFrontEndSecure` | implemented | [proxy.go:474](../master/api/npmapi/proxy.go#L474) |
 
 #### NGINX / Redirects
 
@@ -495,12 +498,23 @@ One row is one method/path pair. Only registered, enabled, contract-reviewed and
 
 | Endpoint | Status | Route source |
 | --- | --- | --- |
-| `GET /stream/list` | implemented | [streams.go:153](../master/api/npmapi/streams.go#L153) |
-| `POST /stream/create` | implemented | [streams.go:154](../master/api/npmapi/streams.go#L154) |
-| `PUT /stream/edit` | implemented | [streams.go:155](../master/api/npmapi/streams.go#L155) |
-| `DELETE /stream/delete` | excluded (deletion policy) | [streams.go:156](../master/api/npmapi/streams.go#L156) |
-| `POST /stream/disable` | implemented | [streams.go:157](../master/api/npmapi/streams.go#L157) |
-| `POST /stream/enable` | implemented | [streams.go:158](../master/api/npmapi/streams.go#L158) |
+| `GET /stream/list` | implemented | [streams.go:235](../master/api/npmapi/streams.go#L235) |
+| `POST /stream/create` | implemented | [streams.go:236](../master/api/npmapi/streams.go#L236) |
+| `PUT /stream/edit` | implemented | [streams.go:237](../master/api/npmapi/streams.go#L237) |
+| `DELETE /stream/delete` | excluded (deletion policy) | [streams.go:238](../master/api/npmapi/streams.go#L238) |
+| `POST /stream/disable` | implemented | [streams.go:239](../master/api/npmapi/streams.go#L239) |
+| `POST /stream/enable` | implemented | [streams.go:240](../master/api/npmapi/streams.go#L240) |
+
+#### NGINX / Upstreams
+
+| Endpoint | Status | Route source |
+| --- | --- | --- |
+| `GET /upstream/list` | implemented | [upstreams.go:141](../master/api/npmapi/upstreams.go#L141) |
+| `GET /upstream/capabilities` | implemented | [upstreams.go:142](../master/api/npmapi/upstreams.go#L142) |
+| `POST /upstream/create` | implemented | [upstreams.go:143](../master/api/npmapi/upstreams.go#L143) |
+| `GET /upstream/{id}` | implemented | [upstreams.go:144](../master/api/npmapi/upstreams.go#L144) |
+| `PUT /upstream/{id}` | implemented | [upstreams.go:145](../master/api/npmapi/upstreams.go#L145) |
+| `DELETE /upstream/{id}` | excluded (deletion policy) | [upstreams.go:146](../master/api/npmapi/upstreams.go#L146) |
 
 #### PCI / GPU
 

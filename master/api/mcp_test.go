@@ -39,6 +39,7 @@ func TestMCPTokenPreservesAPIAuthentication(t *testing.T) {
 	setupMCPAPI(router, port)
 	router.Group(func(r chi.Router) {
 		r.Use(authMiddleware)
+		npmapi.SetupUpstreamAPI(r)
 		r.Get("/proxy/list", func(w http.ResponseWriter, r *http.Request) {
 			t.Error("unauthenticated request reached the protected API handler")
 		})
@@ -57,7 +58,7 @@ func TestMCPTokenPreservesAPIAuthentication(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list.Tools) != 105 {
+	if len(list.Tools) != 110 {
 		t.Fatalf("unexpected tools: %#v", list.Tools)
 	}
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_proxies"})
@@ -71,6 +72,16 @@ func TestMCPTokenPreservesAPIAuthentication(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("proxy API should still require authentication, got %d", resp.StatusCode)
+	}
+	for _, path := range []string{"/upstream/list", "/upstream/capabilities", "/upstream/42"} {
+		response, err := http.Get(server.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response.Body.Close()
+		if response.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("unprotected upstream route %s: %d", path, response.StatusCode)
+		}
 	}
 }
 
@@ -137,8 +148,8 @@ func TestMCPLoopbackUsesConfiguredPort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list.Tools) != 105 {
-		t.Fatalf("expected 105 HyperHive tools: %#v", list.Tools)
+	if len(list.Tools) != 110 {
+		t.Fatalf("expected 110 HyperHive tools: %#v", list.Tools)
 	}
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_proxies"})
 	if err != nil || result.IsError || !strings.Contains(result.Content[0].(*mcp.TextContent).Text, "custom-port.test") {

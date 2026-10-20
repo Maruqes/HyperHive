@@ -30,7 +30,8 @@ func validateTarget(scheme, host string, port int) error {
 	return nil
 }
 
-func validateConfig(input client.ProxyConfig) error {
+func validateConfig(input client.ProxyConfig) error { return validateConfigWithPreserve(input, false) }
+func validateConfigWithPreserve(input client.ProxyConfig, preserve bool) error {
 	if len(input.DomainNames) == 0 {
 		return errors.New("domain_names must contain at least one domain")
 	}
@@ -39,7 +40,7 @@ func validateConfig(input client.ProxyConfig) error {
 			return errors.New("domain_names must not contain empty domains")
 		}
 	}
-	if err := validateTarget(input.ForwardScheme, input.ForwardHost, input.ForwardPort); err != nil {
+	if err := validatePoolTarget(input.UpstreamID, input.ForwardScheme, input.ForwardHost, input.ForwardPort, preserve); err != nil {
 		return err
 	}
 	if input.CertificateID < 0 {
@@ -72,7 +73,7 @@ func validateConfig(input client.ProxyConfig) error {
 		if !strings.HasPrefix(loc.Path, "/") {
 			return errors.New("location path must start with /")
 		}
-		if err := validateTarget(loc.ForwardScheme, loc.ForwardHost, loc.ForwardPort); err != nil {
+		if err := validatePoolTarget(loc.UpstreamID, loc.ForwardScheme, loc.ForwardHost, loc.ForwardPort, preserve); err != nil {
 			return err
 		}
 	}
@@ -96,6 +97,7 @@ func proxyConfigSchema[T any]() *jsonschema.Schema {
 		{Type: "string", Pattern: "^[0-9]+$"},
 		{Type: "integer", Minimum: &zero, Maximum: &maxID},
 	}}
+	addUpstreamSelectionSchema(schema)
 	return schema
 }
 
@@ -115,14 +117,14 @@ func registerCreateProxy(server *mcp.Server, api ProxyAPI) {
 }
 
 func registerUpdateProxy(server *mcp.Server, api ProxyAPI) {
-	tool := mutationTool("update_proxy", "PUT", client.UpdateProxyPath, "Replace a proxy host's complete configuration. Calls PUT /proxy/edit. All settings and a positive id are required; omitted settings are rejected, false/zero settings are sent unchanged. Managed frontend proxies cannot be edited (403). The API checks the first domain for management restrictions. Enabled state uses separate actions. No automatic retry.")
+	tool := mutationTool("update_proxy", "PUT", client.UpdateProxyPath, "Replace a proxy host's complete configuration. Calls PUT /proxy/edit. All settings and a positive id are required; omitted settings are rejected, false/zero settings are sent unchanged. Managed frontend proxies cannot be edited (403). The API checks the immutable resource ID for management restrictions. Enabled state uses separate actions. No automatic retry.")
 	tool.InputSchema = proxyConfigSchema[client.UpdateProxyInput]()
 	addExactTool(server, tool,
 		func(ctx context.Context, _ *mcp.CallToolRequest, input client.UpdateProxyInput) (*mcp.CallToolResult, mutationOutput, error) {
 			if input.ID <= 0 {
 				return nil, mutationOutput{}, errors.New("id must be positive")
 			}
-			if err := validateConfig(input.ProxyConfig); err != nil {
+			if err := validateConfigWithPreserve(input.ProxyConfig, true); err != nil {
 				return nil, mutationOutput{}, err
 			}
 			if err := api.UpdateProxy(ctx, input); err != nil {

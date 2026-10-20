@@ -3,6 +3,7 @@ package npm
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -148,7 +149,11 @@ services:
 	}
 
 	// 3) Run docker compose up -d
-	cmd := exec.Command("docker", "compose", "up", "-d")
+	composeArgs, err := prepareUpstreamCompose(context.Background(), work)
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command("docker", composeArgs...)
 	cmd.Dir = work // run in project directory
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
