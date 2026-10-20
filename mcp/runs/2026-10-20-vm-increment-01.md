@@ -87,3 +87,22 @@ Canonical knowledge updated and verified: registry-and-coverage,
 vm-approval-and-recovery and index under
 knowledge/projects/HyperHive/features/mcp/. The plan's knowledge-validation.md
 records paths, sizes, links and the pre-existing index size exception.
+
+## Follow-up: missing approval picker
+
+The user reported the generic explicit-approval error with no picker visible.
+The exact message is reproducible when a client returns cancellation/decline or
+an incomplete form response without displaying UI. Source inspection cannot
+establish which response the actual client sent. Error handling now distinguishes
+client cancel, decline, selected cancel, absent/invalid decision and unavailable
+form elicitation, while retaining argument binding and fail-closed behavior.
+Tests cover modern input-required and legacy retained-session form flows. No
+production creation was attempted. This improves diagnostics; it does not add
+picker support to a client that lacks it or remove the approval requirement.
+
+The client was confirmed as Codex desktop; this chat's effective policy is
+approval_policy=never. Official Codex configuration documents the granular
+mcp_elicitations permission for surfacing MCP prompts instead of auto-rejection.
+CONNECTING.md now documents an MCP-only interactive granular policy and the
+need to refresh the effective chat permission profile. No user/global permission
+configuration was changed and server approval was not bypassed.

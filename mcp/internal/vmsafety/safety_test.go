@@ -29,7 +29,11 @@ func approvalSession(t *testing.T, handler func(context.Context, *mcp.ElicitRequ
 		calls.Add(1)
 		return nil, map[string]any{"changed": true}, nil
 	})
-	endpoint := httptest.NewServer(mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server }, &mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true}))
+	httpOptions := &mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true}
+	if len(options) > 0 && options[0] != nil && options[0].ProtocolVersion < "2026-07-28" {
+		httpOptions = &mcp.StreamableHTTPOptions{SessionTimeout: time.Minute}
+	}
+	endpoint := httptest.NewServer(mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server }, httpOptions))
 	t.Cleanup(endpoint.Close)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
@@ -205,5 +209,38 @@ func TestBackupPersistenceAndPrivacy(t *testing.T) {
 	}
 	if _, err := (Store{Dir: link}).Save(context.Background(), record); err == nil {
 		t.Fatal("symlink directory accepted")
+	}
+}
+
+// A host may advertise a handler yet cancel without ever rendering a picker.
+// The server must report the client response, not assert that a human declined.
+func TestApprovalClientResponseDiagnostics(t *testing.T) {
+	for _, version := range []string{"2025-11-25", "2026-07-28"} {
+		for _, tc := range []struct {
+			name     string
+			response *mcp.ElicitResult
+			want     string
+		}{
+			{"cancel-without-ui", &mcp.ElicitResult{Action: "cancel"}, "client canceled"},
+			{"decline-without-ui", &mcp.ElicitResult{Action: "decline"}, "client declined"},
+			{"cancel-choice", &mcp.ElicitResult{Action: "accept", Content: map[string]any{"decision": "cancel"}}, "cancel was selected"},
+			{"missing-choice", &mcp.ElicitResult{Action: "accept"}, "no explicit approve choice"},
+		} {
+			t.Run(version+"/"+tc.name, func(t *testing.T) {
+				var calls atomic.Int32
+				session := approvalSession(t, func(context.Context, *mcp.ElicitRequest) (*mcp.ElicitResult, error) { return tc.response, nil }, false, &calls, &mcp.ClientSessionOptions{ProtocolVersion: version})
+				result, err := session.CallTool(context.Background(), &mcp.CallToolParams{Name: "vm_change", Arguments: map[string]any{"target": "fixture"}})
+				if err != nil {
+					t.Fatal(err)
+				}
+				data, _ := json.Marshal(result)
+				if !result.IsError || !strings.Contains(string(data), tc.want) || !strings.Contains(string(data), "form elicitation") || !strings.Contains(string(data), "no change made") {
+					t.Fatalf("missing diagnostic: %s", data)
+				}
+				if calls.Load() != 0 {
+					t.Fatal("unapproved change")
+				}
+			})
+		}
 	}
 }

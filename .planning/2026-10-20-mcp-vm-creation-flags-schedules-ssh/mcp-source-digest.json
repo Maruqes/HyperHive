@@ -1,5 +1,5 @@
 {
-  "sha256": "67a37753f30fa41d49c1159d4fbcd5513d6c903ac3f48fa46491db0f643508c6",
+  "sha256": "ae9dd3527a57a93ff96bfa27037664fe25f74be602b0745c8a6e96b464e4a081",
   "paths": [
     "api/celldobserve/limits.go",
     "api/go.mod",

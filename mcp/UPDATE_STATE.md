@@ -41,8 +41,8 @@ Git revision alone do not prove freshness. There is no committed coverage CLI ye
 
 Checked: **2026-10-20**, from current local source and SDK HTTP/stdio fixtures. The seven-tool VM increment is locally verified; earlier NPM validation remains historical evidence. No production deployment check.
 
-- Source revision: `e8813e4be4fb416190f91f7922b42e61d660b099` plus the existing NPM working changes and VM MCP increment.
-- Source content SHA-256: `67a37753f30fa41d49c1159d4fbcd5513d6c903ac3f48fa46491db0f643508c6`.
+- Source revision: current working tree after the VM increment; approval diagnostic follow-up at `d7081d7` plus working changes.
+- Source content SHA-256: `ae9dd3527a57a93ff96bfa27037664fe25f74be602b0745c8a6e96b464e4a081`.
 - Digest input: sorted repository-relative paths; non-test Go/protobuf sources under master/slave/api, all MCP Go sources, those modules' go.mod/go.sum, and the four pinned master/npm/upstream_templates/*.conf inputs. Hash path + NUL + file bytes + NUL. The task's manifest is `.planning/2026-10-20-mcp-vm-creation-flags-schedules-ssh/mcp-source-digest.json`.
 - Inventory: **322** unique explicit method/path pairs. Existing inventory 316 is unchanged except the six authenticated /upstream registrations in master/api/npmapi/upstreams.go, mounted in master/api/api.go. /api remains an alias; /mcp transport lifecycle and the separate pprof listener remain outside capability coverage. This is a task-local source review, not a shipped coverage generator.
 - Status: **117 implemented, 157 missing, 48 excluded**. The VM increment adds seven supported endpoints: six specifically authorized prior exclusions and blocked SSH injection. Helper calls earn no credit. No partial/stale/disabled endpoint is counted as implemented.
@@ -704,3 +704,13 @@ One row is one method/path pair. Only registered, enabled, contract-reviewed and
 | `POST /wireguard/newPeer` | missing | [wireguard.go:204](../master/api/wireguard.go#L204) |
 | `GET /wireguard/` | missing | [wireguard.go:205](../master/api/wireguard.go#L205) |
 | `DELETE /wireguard/{id}` | excluded (deletion policy) | [wireguard.go:206](../master/api/wireguard.go#L206) |
+
+### Approval-picker diagnostic follow-up — 2026-10-20
+
+The VM gate now distinguishes client cancellation, decline, selected cancel,
+incomplete/invalid approval responses and unavailable form elicitation. No
+approval rule, tool, route or coverage count changed. A Codex desktop session
+with approval_policy=never can suppress the picker; CONNECTING.md documents
+the granular mcp_elicitations setting. Full MCP normal tests (643) and focused
+approval/transport race tests (31) plus vet passed. No production VM creation,
+permission-policy change or deployment was performed.

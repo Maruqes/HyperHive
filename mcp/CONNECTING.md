@@ -82,6 +82,30 @@ verified with the actual harness; server tests use SDK clients with disposable
 backends. Modern HTTP remains stateless. GET without a legacy session returns
 405 as before.
 
+If a VM call reports an approval error but no picker appeared, that error does
+not establish that the user declined. The MCP client may have canceled the form,
+returned no decision, or been unable to complete elicitation. Current errors
+identify the response category without exposing response payloads. Reconnect or
+use a client that displays MCP form elicitation and retry the exact invocation;
+permission typed in chat does not satisfy the server's per-call form gate.
+A tool being listed does not establish that its approval UI is supported.
+
+For Codex desktop, an effective `approval_policy = "never"` suppresses approval
+prompts. Use an interactive permission policy that permits MCP elicitation, or a
+granular policy with `mcp_elicitations = true`. For example, this configuration
+allows MCP forms while leaving the other approval prompt categories disabled:
+
+```toml
+approval_policy = { granular = { sandbox_approval = false, rules = false, mcp_elicitations = true, request_permissions = false, skill_approval = false } }
+```
+
+Apply it in the appropriate Codex configuration or active permission profile,
+then retry after the effective policy refreshes. Start a new chat if the existing
+chat retains the old policy. A desktop-selected permission profile can override
+file defaults. This enables a human prompt; it does not
+automatically approve a VM operation. Official reference:
+https://learn.chatgpt.com/docs/config-file/config-reference
+
 Before settings changes, MCP saves the old domain XML and relevant prior state
 on the filesystem of the MCP process. Configure an absolute private directory:
 

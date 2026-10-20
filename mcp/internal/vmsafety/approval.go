@@ -107,8 +107,11 @@ func (g *Gate) Require(ctx context.Context, req *mcp.CallToolRequest, risk Risk,
 				return nil, errors.New("VM approval is missing, expired, already used, or belongs to different arguments")
 			}
 			response, ok := req.Params.InputResponses["vm_approval"].(*mcp.ElicitResult)
-			if len(req.Params.InputResponses) != 1 || !ok || response == nil || response.Action != "accept" || response.Content["decision"] != "approve" {
-				return nil, errors.New("VM operation was not explicitly approved; no change made")
+			if len(req.Params.InputResponses) != 1 || !ok {
+				return nil, approvalResponseError(nil)
+			}
+			if err := approvalResponseError(response); err != nil {
+				return nil, err
 			}
 			if err := ctx.Err(); err != nil {
 				return nil, err
@@ -140,13 +143,38 @@ func (g *Gate) Require(ctx context.Context, req *mcp.CallToolRequest, risk Risk,
 	}
 	response, err := req.Session.Elicit(ctx, params)
 	if err != nil {
-		return nil, errors.New("VM operation requires a supported user approval picker; no change made")
+		return nil, errors.New("VM approval picker is unavailable: this MCP connection could not complete form elicitation; use a client that displays MCP approval forms, then retry the exact invocation; no change made")
 	}
-	if response == nil || response.Action != "accept" || response.Content["decision"] != "approve" {
-		return nil, errors.New("VM operation was not explicitly approved; no change made")
+	if err := approvalResponseError(response); err != nil {
+		return nil, err
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	return nil, nil
+}
+
+// A cancellation/decline is a client protocol response, not evidence that a
+// person saw a picker. Never echo arbitrary response content into errors.
+func approvalResponseError(response *mcp.ElicitResult) error {
+	reason := "MCP client returned no valid approval form response"
+	if response != nil {
+		switch response.Action {
+		case "cancel":
+			reason = "MCP client canceled the approval request"
+		case "decline":
+			reason = "MCP client declined the approval request"
+		case "accept":
+			decision, _ := response.Content["decision"].(string)
+			if decision == "approve" {
+				return nil
+			}
+			if decision == "cancel" {
+				reason = "Approval form returned accept, but cancel was selected"
+			} else {
+				reason = "MCP client returned no explicit approve choice"
+			}
+		}
+	}
+	return errors.New(reason + "; no change made. If no picker appeared, the client did not display or complete MCP form elicitation. Retry using a client that displays approval forms; chat permission alone cannot satisfy this gate.")
 }
