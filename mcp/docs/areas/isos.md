@@ -1,5 +1,7 @@
 # ISO MCP tools
 
+Registration and safety: [shared policy and classifications](../tool-safety.md).
+
 ## Scope and mapping
 
 | Tool | HTTP endpoint | Behavior |

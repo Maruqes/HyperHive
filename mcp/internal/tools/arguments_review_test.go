@@ -17,9 +17,11 @@ func TestExactToolPreservesSDKDiscoverySchema(t *testing.T) {
 	server := mcp.NewServer(&mcp.Implementation{Name: "schema-fixture"}, nil)
 	handler := func(context.Context, *mcp.CallToolRequest, client.VMIDInput) (*mcp.CallToolResult, struct {
 		Value int64 `json:"value"`
-	}, error) { return nil, struct {
-		Value int64 `json:"value"`
-	}{}, nil }
+	}, error) {
+		return nil, struct {
+			Value int64 `json:"value"`
+		}{}, nil
+	}
 	mcp.AddTool(server, &mcp.Tool{Name: "sdk"}, handler)
 	addExactTool(server, &mcp.Tool{Name: "exact"}, handler)
 	endpoint := httptest.NewServer(mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server }, &mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true}))

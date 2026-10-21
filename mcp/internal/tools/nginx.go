@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Maruqes/HyperHive/mcp/internal/safety"
+
 	"math"
 	"strconv"
 	"strings"
@@ -39,30 +41,6 @@ type NginxAPI interface {
 	ListCertificates(context.Context) ([]map[string]any, error)
 }
 
-func registerNginx(server *mcp.Server, api NginxAPI) {
-	registerDisableHost404(server, api)
-	registerEnableHost404(server, api)
-	registerUpdateHost404(server, api)
-	registerCreateHost404(server, api)
-	registerListHosts404(server, api)
-	registerDisableRedirect(server, api)
-	registerEnableRedirect(server, api)
-	registerUpdateRedirect(server, api)
-	registerCreateRedirect(server, api)
-	registerListRedirects(server, api)
-	registerDisableStream(server, api)
-	registerEnableStream(server, api)
-	registerUpdateStream(server, api)
-	registerCreateStream(server, api)
-	registerListStreams(server, api)
-	registerCreateAccessList(server, api)
-	registerListAccessLists(server, api)
-	registerRenewCertificate(server, api)
-	registerDownloadCertificate(server, api)
-	registerListDNSProviders(server, api)
-	registerListCertificates(server, api)
-}
-
 type nginxListOutput struct {
 	Items []map[string]any `json:"items" jsonschema:"Complete API objects, preserving all fields; null root list is normalized to an empty array"`
 }
@@ -74,13 +52,13 @@ func nginxTool(name, method, path, description string, readOnly bool) *mcp.Tool 
 
 // Explicit raw output avoids the SDK's object-default float conversion, so
 // arbitrary API metadata integers survive in both structured JSON and text.
-func registerNginxList(server *mcp.Server, tool *mcp.Tool, call func(context.Context) ([]map[string]any, error)) {
+func nginxListDefinition(tool *mcp.Tool, call func(context.Context) ([]map[string]any, error)) ToolDefinition {
 	schema, err := jsonschema.For[nginxListOutput](nil)
 	if err != nil {
 		panic(err)
 	}
 	tool.OutputSchema = schema
-	addExactTool(server, tool, func(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
+	return defineTool(tool, func(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		items, err := call(ctx)
 		if err != nil {
 			return nil, nil, err
@@ -93,7 +71,7 @@ func registerNginxList(server *mcp.Server, tool *mcp.Tool, call func(context.Con
 	})
 }
 
-func registerNginxMutation[In any](server *mcp.Server, tool *mcp.Tool, call func(context.Context, In) error) {
+func nginxMutationDefinition[In any](tool *mcp.Tool, call func(context.Context, In) error) ToolDefinition {
 	// Explicitly constrain the API's string-or-number redirect status in discovery.
 	schema, err := jsonschema.For[In](nil)
 	if err != nil {
@@ -104,7 +82,7 @@ func registerNginxMutation[In any](server *mcp.Server, tool *mcp.Tool, call func
 	}
 	addUpstreamSelectionSchema(schema)
 	tool.InputSchema = schema
-	addExactTool(server, tool, func(ctx context.Context, req *mcp.CallToolRequest, input In) (*mcp.CallToolResult, mutationOutput, error) {
+	return defineTool(tool, func(ctx context.Context, req *mcp.CallToolRequest, input In) (*mcp.CallToolResult, mutationOutput, error) {
 		if err := validateNginxInput(req, input); err != nil {
 			return nil, mutationOutput{}, err
 		}
@@ -251,16 +229,16 @@ func validateRedirect(in client.RedirectConfig) error {
 	return nil
 }
 
-func registerListCertificates(server *mcp.Server, api NginxAPI) {
-	registerNginxList(server, nginxTool("list_certificates", "GET", "/certs/list", "List certificate metadata visible to the configured account, preserving the complete HyperHive response objects. Takes no arguments.", true), api.ListCertificates)
+func defineListCertificates(api NginxAPI) ToolDefinition {
+	return nginxListDefinition(nginxTool("list_certificates", "GET", "/certs/list", "List certificate metadata visible to the configured account, preserving the complete HyperHive response objects. Takes no arguments.", true), api.ListCertificates)
 }
 
-func registerListDNSProviders(server *mcp.Server, api NginxAPI) {
-	registerNginxList(server, nginxTool("list_dns_providers", "GET", "/certs/dns-providers", "List supported DNS providers, names and credential-format templates. Templates are not configured credentials. Takes no arguments.", true), api.ListDNSProviders)
+func defineListDNSProviders(api NginxAPI) ToolDefinition {
+	return nginxListDefinition(nginxTool("list_dns_providers", "GET", "/certs/dns-providers", "List supported DNS providers, names and credential-format templates. Templates are not configured credentials. Takes no arguments.", true), api.ListDNSProviders)
 }
 
-func registerDownloadCertificate(server *mcp.Server, api NginxAPI) {
-	addExactTool(server, nginxTool("download_certificate", "POST", "/certs/download", "Download a certificate archive. The returned base64 data can contain private keys: treat it as secret. Preserves content type and disposition; never writes files. Maximum API response 16 MiB. Timeout three minutes, honoring cancellation. Read-only despite POST.", true), func(ctx context.Context, req *mcp.CallToolRequest, input client.NginxIDInput) (*mcp.CallToolResult, client.CertificateDownload, error) {
+func defineDownloadCertificate(api NginxAPI) ToolDefinition {
+	return defineTool(nginxTool("download_certificate", "POST", "/certs/download", "Download a certificate archive. The returned base64 data can contain private keys: treat it as secret. Preserves content type and disposition; never writes files. Maximum API response 16 MiB. Timeout three minutes, honoring cancellation. Read-only despite POST.", true), func(ctx context.Context, req *mcp.CallToolRequest, input client.NginxIDInput) (*mcp.CallToolResult, client.CertificateDownload, error) {
 		if err := validateNginxInput(req, input); err != nil {
 			return nil, client.CertificateDownload{}, err
 		}
@@ -269,74 +247,101 @@ func registerDownloadCertificate(server *mcp.Server, api NginxAPI) {
 	})
 }
 
-func registerRenewCertificate(server *mcp.Server, api NginxAPI) {
-	registerNginxMutation(server, nginxTool("renew_certificate", "POST", "/certs/renew", "Renew a Let's Encrypt certificate. Only the API decides provider eligibility. Waits for the API response, with an eleven-minute timeout covering its ten-minute downstream operation. Cancellation or timeout can leave work running in HyperHive: inspect certificate state before retrying. Returns acceptance only, not certificate data. No automatic retry.", false), api.RenewCertificate)
+func defineRenewCertificate(api NginxAPI) ToolDefinition {
+	return nginxMutationDefinition(nginxTool("renew_certificate", "POST", "/certs/renew", "Renew a Let's Encrypt certificate. Only the API decides provider eligibility. Waits for the API response, with an eleven-minute timeout covering its ten-minute downstream operation. Cancellation or timeout can leave work running in HyperHive: inspect certificate state before retrying. Returns acceptance only, not certificate data. No automatic retry.", false), api.RenewCertificate)
 }
 
-func registerListAccessLists(server *mcp.Server, api NginxAPI) {
-	registerNginxList(server, nginxTool("list_access_lists", "GET", "/access-lists/list", "List expanded access lists, including owner, authentication items and network clients. Preserve API masking and all returned fields. Takes no arguments.", true), api.ListAccessLists)
+func defineListAccessLists(api NginxAPI) ToolDefinition {
+	return nginxListDefinition(nginxTool("list_access_lists", "GET", "/access-lists/list", "List expanded access lists, including owner, authentication items and network clients. Preserve API masking and all returned fields. Takes no arguments.", true), api.ListAccessLists)
 }
 
-func registerCreateAccessList(server *mcp.Server, api NginxAPI) {
-	registerNginxMutation(server, nginxTool("create_access_list", "POST", "/access-lists/create", "Create an access list with explicit name, satisfy_any, pass_auth, authentication items and client rules. Empty arrays are supported. Passwords are sensitive; the API may mask them on listing. No existing entries are edited. Returns acceptance only; no created ID is returned and no automatic retry occurs.", false), api.CreateAccessList)
+func defineCreateAccessList(api NginxAPI) ToolDefinition {
+	return nginxMutationDefinition(nginxTool("create_access_list", "POST", "/access-lists/create", "Create an access list with explicit name, satisfy_any, pass_auth, authentication items and client rules. Empty arrays are supported. Passwords are sensitive; the API may mask them on listing. No existing entries are edited. Returns acceptance only; no created ID is returned and no automatic retry occurs.", false), api.CreateAccessList)
 }
 
-func registerListStreams(server *mcp.Server, api NginxAPI) {
-	registerNginxList(server, nginxTool("list_streams", "GET", "/stream/list", "List streams, preserving every field returned by HyperHive. Takes no arguments.", true), api.ListStreams)
+func defineListStreams(api NginxAPI) ToolDefinition {
+	return nginxListDefinition(nginxTool("list_streams", "GET", "/stream/list", "List streams, preserving every field returned by HyperHive. Takes no arguments.", true), api.ListStreams)
 }
 
-func registerCreateStream(server *mcp.Server, api NginxAPI) {
-	registerNginxMutation(server, nginxTool("create_stream", "POST", "/stream/create", "Create a stream. Supply complete writable configuration, including explicit false/zero settings. Enabled state uses dedicated actions; server-owned IDs are not create fields.  Stream changes persist NPM first and the description second; a description failure can leave NPM changed. Empty description explicitly overwrites existing text. Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.CreateStream)
+func defineCreateStream(api NginxAPI) ToolDefinition {
+	return nginxMutationDefinition(nginxTool("create_stream", "POST", "/stream/create", "Create a stream. Supply complete writable configuration, including explicit false/zero settings. Enabled state uses dedicated actions; server-owned IDs are not create fields.  Stream changes persist NPM first and the description second; a description failure can leave NPM changed. Empty description explicitly overwrites existing text. Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.CreateStream)
 }
 
-func registerUpdateStream(server *mcp.Server, api NginxAPI) {
-	registerNginxMutation(server, nginxTool("update_stream", "PUT", "/stream/edit", "Update a stream. Supply complete writable configuration, including explicit false/zero settings. Enabled state uses dedicated actions; server-owned IDs are not create fields.  Stream changes persist NPM first and the description second; a description failure can leave NPM changed. Empty description explicitly overwrites existing text. Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.UpdateStream)
+func defineUpdateStream(api NginxAPI) ToolDefinition {
+	return nginxMutationDefinition(nginxTool("update_stream", "PUT", "/stream/edit", "Update a stream. Supply complete writable configuration, including explicit false/zero settings. Enabled state uses dedicated actions; server-owned IDs are not create fields.  Stream changes persist NPM first and the description second; a description failure can leave NPM changed. Empty description explicitly overwrites existing text. Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.UpdateStream)
 }
 
-func registerEnableStream(server *mcp.Server, api NginxAPI) {
-	registerNginxMutation(server, nginxTool("enable_stream", "POST", "/stream/enable", "Enable a stream.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.EnableStream)
+func defineEnableStream(api NginxAPI) ToolDefinition {
+	return nginxMutationDefinition(nginxTool("enable_stream", "POST", "/stream/enable", "Enable a stream.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.EnableStream)
 }
 
-func registerDisableStream(server *mcp.Server, api NginxAPI) {
-	registerNginxMutation(server, nginxTool("disable_stream", "POST", "/stream/disable", "Disable a stream.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.DisableStream)
+func defineDisableStream(api NginxAPI) ToolDefinition {
+	return nginxMutationDefinition(nginxTool("disable_stream", "POST", "/stream/disable", "Disable a stream.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.DisableStream)
 }
 
-func registerListRedirects(server *mcp.Server, api NginxAPI) {
-	registerNginxList(server, nginxTool("list_redirects", "GET", "/redirection/list", "List redirects, preserving every field returned by HyperHive. Takes no arguments.", true), api.ListRedirects)
+func defineListRedirects(api NginxAPI) ToolDefinition {
+	return nginxListDefinition(nginxTool("list_redirects", "GET", "/redirection/list", "List redirects, preserving every field returned by HyperHive. Takes no arguments.", true), api.ListRedirects)
 }
 
-func registerCreateRedirect(server *mcp.Server, api NginxAPI) {
-	registerNginxMutation(server, nginxTool("create_redirect", "POST", "/redirection/create", "Create a redirect. Supply complete writable configuration, including explicit false/zero settings. Enabled state uses dedicated actions; server-owned IDs are not create fields.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.CreateRedirect)
+func defineCreateRedirect(api NginxAPI) ToolDefinition {
+	return nginxMutationDefinition(nginxTool("create_redirect", "POST", "/redirection/create", "Create a redirect. Supply complete writable configuration, including explicit false/zero settings. Enabled state uses dedicated actions; server-owned IDs are not create fields.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.CreateRedirect)
 }
 
-func registerUpdateRedirect(server *mcp.Server, api NginxAPI) {
-	registerNginxMutation(server, nginxTool("update_redirect", "PUT", "/redirection/edit", "Update a redirect. Supply complete writable configuration, including explicit false/zero settings. Enabled state uses dedicated actions; server-owned IDs are not create fields.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.UpdateRedirect)
+func defineUpdateRedirect(api NginxAPI) ToolDefinition {
+	return nginxMutationDefinition(nginxTool("update_redirect", "PUT", "/redirection/edit", "Update a redirect. Supply complete writable configuration, including explicit false/zero settings. Enabled state uses dedicated actions; server-owned IDs are not create fields.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.UpdateRedirect)
 }
 
-func registerEnableRedirect(server *mcp.Server, api NginxAPI) {
-	registerNginxMutation(server, nginxTool("enable_redirect", "POST", "/redirection/enable", "Enable a redirect.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.EnableRedirect)
+func defineEnableRedirect(api NginxAPI) ToolDefinition {
+	return nginxMutationDefinition(nginxTool("enable_redirect", "POST", "/redirection/enable", "Enable a redirect.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.EnableRedirect)
 }
 
-func registerDisableRedirect(server *mcp.Server, api NginxAPI) {
-	registerNginxMutation(server, nginxTool("disable_redirect", "POST", "/redirection/disable", "Disable a redirect.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.DisableRedirect)
+func defineDisableRedirect(api NginxAPI) ToolDefinition {
+	return nginxMutationDefinition(nginxTool("disable_redirect", "POST", "/redirection/disable", "Disable a redirect.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.DisableRedirect)
 }
 
-func registerListHosts404(server *mcp.Server, api NginxAPI) {
-	registerNginxList(server, nginxTool("list_404_hosts", "GET", "/404/list", "List 404 hosts, preserving every field returned by HyperHive. Takes no arguments.", true), api.ListHosts404)
+func defineList404Hosts(api NginxAPI) ToolDefinition {
+	return nginxListDefinition(nginxTool("list_404_hosts", "GET", "/404/list", "List 404 hosts, preserving every field returned by HyperHive. Takes no arguments.", true), api.ListHosts404)
 }
 
-func registerCreateHost404(server *mcp.Server, api NginxAPI) {
-	registerNginxMutation(server, nginxTool("create_404_host", "POST", "/404/create", "Create a 404 host. Supply complete writable configuration, including explicit false/zero settings. Enabled state uses dedicated actions; server-owned IDs are not create fields.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.CreateHost404)
+func defineCreate404Host(api NginxAPI) ToolDefinition {
+	return nginxMutationDefinition(nginxTool("create_404_host", "POST", "/404/create", "Create a 404 host. Supply complete writable configuration, including explicit false/zero settings. Enabled state uses dedicated actions; server-owned IDs are not create fields.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.CreateHost404)
 }
 
-func registerUpdateHost404(server *mcp.Server, api NginxAPI) {
-	registerNginxMutation(server, nginxTool("update_404_host", "PUT", "/404/edit", "Update a 404 host. Supply complete writable configuration, including explicit false/zero settings. Enabled state uses dedicated actions; server-owned IDs are not create fields.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.UpdateHost404)
+func defineUpdate404Host(api NginxAPI) ToolDefinition {
+	return nginxMutationDefinition(nginxTool("update_404_host", "PUT", "/404/edit", "Update a 404 host. Supply complete writable configuration, including explicit false/zero settings. Enabled state uses dedicated actions; server-owned IDs are not create fields.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.UpdateHost404)
 }
 
-func registerEnableHost404(server *mcp.Server, api NginxAPI) {
-	registerNginxMutation(server, nginxTool("enable_404_host", "POST", "/404/enable", "Enable a 404 host.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.EnableHost404)
+func defineEnable404Host(api NginxAPI) ToolDefinition {
+	return nginxMutationDefinition(nginxTool("enable_404_host", "POST", "/404/enable", "Enable a 404 host.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.EnableHost404)
 }
 
-func registerDisableHost404(server *mcp.Server, api NginxAPI) {
-	registerNginxMutation(server, nginxTool("disable_404_host", "POST", "/404/disable", "Disable a 404 host.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.DisableHost404)
+func defineDisable404Host(api NginxAPI) ToolDefinition {
+	return nginxMutationDefinition(nginxTool("disable_404_host", "POST", "/404/disable", "Disable a 404 host.  Returns acceptance only; never fabricates IDs/state and never automatically retries.", false), api.DisableHost404)
+}
+
+// RegisterNginx is the complete tool and safety catalog for this area.
+// Keep names and explicit levels here; definitions contain handlers and schemas.
+func RegisterNginx(server *Registry, api NginxAPI) {
+	server = server.Area("nginx")
+	RegisterTool(server, "create_404_host", defineCreate404Host(api), safety.High)
+	RegisterTool(server, "create_access_list", defineCreateAccessList(api), safety.High)
+	RegisterTool(server, "create_redirect", defineCreateRedirect(api), safety.High)
+	RegisterTool(server, "create_stream", defineCreateStream(api), safety.High)
+	RegisterTool(server, "disable_404_host", defineDisable404Host(api), safety.High)
+	RegisterTool(server, "disable_redirect", defineDisableRedirect(api), safety.High)
+	RegisterTool(server, "disable_stream", defineDisableStream(api), safety.High)
+	RegisterTool(server, "download_certificate", defineDownloadCertificate(api), safety.High)
+	RegisterTool(server, "enable_404_host", defineEnable404Host(api), safety.High)
+	RegisterTool(server, "enable_redirect", defineEnableRedirect(api), safety.High)
+	RegisterTool(server, "enable_stream", defineEnableStream(api), safety.High)
+	RegisterTool(server, "list_404_hosts", defineList404Hosts(api), safety.Low)
+	RegisterTool(server, "list_access_lists", defineListAccessLists(api), safety.Low)
+	RegisterTool(server, "list_certificates", defineListCertificates(api), safety.Low)
+	RegisterTool(server, "list_dns_providers", defineListDNSProviders(api), safety.Low)
+	RegisterTool(server, "list_redirects", defineListRedirects(api), safety.Low)
+	RegisterTool(server, "list_streams", defineListStreams(api), safety.Low)
+	RegisterTool(server, "renew_certificate", defineRenewCertificate(api), safety.High)
+	RegisterTool(server, "update_404_host", defineUpdate404Host(api), safety.High)
+	RegisterTool(server, "update_redirect", defineUpdateRedirect(api), safety.High)
+	RegisterTool(server, "update_stream", defineUpdateStream(api), safety.High)
 }

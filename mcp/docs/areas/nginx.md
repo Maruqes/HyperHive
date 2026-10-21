@@ -1,5 +1,7 @@
 # NGINX MCP contracts
 
+Registration and safety: [shared policy and classifications](../tool-safety.md).
+
 The shared registry exposes named HyperHive API operations over authenticated
 Streamable HTTP and executable stdio. See [current coverage](../../UPDATE_STATE.md)
 and [batch evidence](../../runs/2026-10-18-nginx-01.md) for enabled/verified state.

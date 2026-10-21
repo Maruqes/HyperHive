@@ -17,26 +17,17 @@ type Config struct {
 	// VMBackupDir is a private operator-controlled directory for retained
 	// pre-change records. Empty uses the MCP process user's cache directory.
 	VMBackupDir string
+	// SafetyReviewDir stores bounded private Medium preflight records.
+	SafetyReviewDir string
 }
 
-func newServer(api interface {
-	tools.ProxyAPI
-	tools.CelldAPI
-	tools.NginxAPI
-	tools.DNSAPI
-	tools.NotesAPI
-	tools.SPAAPI
-	tools.ISOsAPI
-	tools.VMsAPI
-}, backupDir string) *mcp.Server {
+func newServer(api tools.API, backupDir, reviewDir string) (*mcp.Server, error) {
 	server := mcp.NewServer(&mcp.Implementation{Name: "hyperhive-mcp", Version: "0.1.0"}, nil)
-	tools.Register(server, api)
-	tools.RegisterDNS(server, api)
-	tools.RegisterNotes(server, api)
-	tools.RegisterSPA(server, api)
-	tools.RegisterISOs(server, api)
-	tools.RegisterVMs(server, api, backupDir)
-	return server
+	registry := tools.NewRegistry(server, reviewDir)
+	if err := tools.RegisterAll(registry, api, backupDir); err != nil {
+		return nil, err
+	}
+	return server, nil
 }
 
 // NewServer validates the backend configuration for a standalone stdio server.
@@ -45,13 +36,18 @@ func NewServer(cfg Config) (*mcp.Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newServer(api, cfg.VMBackupDir), nil
+	return newServer(api, cfg.VMBackupDir, cfg.SafetyReviewDir)
 }
 
 // NewHTTPHandler requires a fixed MCP Bearer token. Backend configuration is
 // validated on tool invocation; a missing MCP key disables HTTP access.
 func NewHTTPHandler(cfg Config) http.Handler {
-	server := newServer(configuredAPI{cfg}, cfg.VMBackupDir)
+	server, err := newServer(configuredAPI{cfg}, cfg.VMBackupDir, cfg.SafetyReviewDir)
+	if err != nil {
+		return requireMCPToken(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "MCP tool registration is unavailable", http.StatusServiceUnavailable)
+		}), cfg.MCPToken)
+	}
 	handler := newMCPTransport(server)
 	return requireMCPToken(handler, cfg.MCPToken)
 }

@@ -18,8 +18,8 @@ Use this file when asked to refresh MCP compatibility:
    Only implemented endpoints with enabled tools and passing contract tests count.
    Keep exclusions in the stated denominator; explain scope changes explicitly.
    Apply the repository deletion policy, subject to explicit user overrides.
-   Preserve the prior narrow exception for `delete_celld_fleet`; the current
-   DNS/Notes/SPA/ISO/VM batch grants no new deletion exception. Classify HTTP
+   Celld fleet deletion is excluded following the user's 2026-10-21 decision.
+   The historical exception is revoked; do not register that tool. Classify HTTP
    DELETE endpoints and other operations with deletion behavior as excluded,
    unless explicitly authorized. Keep them in raw totals with zero credit and
    out of eligible tool queues. "All tools" or "100%" never grants an exception.
@@ -51,22 +51,46 @@ Validation includes both protocol generations over authenticated HTTP and actual
 See [run checkpoint](runs/2026-10-20-vm-isos-01.md) and
 [VM contract](docs/areas/vms.md#remove-all-vm-isos). No deployment performed.
 
+## Registration and safety rework — 2026-10-21
+
+Working-tree baseline: `dd63aad991860347d67b1d114d97d8cff810a258`. Current source
+SHA-256: `963a18b29c8af475443a627a15d724ab57786be742fcdd1ddca3c4b0314e08fe`. Task-local manifest:
+`.planning/2026-10-21-mcp-registration-safety/mcp-source-digest.json`; sorted path +
+NUL + contents + NUL, using the previously documented source inclusion rules.
+
+One typed `RegisterTool` now wraps all areas, with explicit composition through
+`RegisterAll`. The clarified layout keeps every area's direct calls and literal
+tool names/safety levels together at the end of each existing `internal/tools/<area>.go` file; all
+64 VM tools appear together in `RegisterVMs`. Definition helpers do not register
+tools or select levels. Medium uses recorded domain/target/argument/impact validation;
+High/VeryHigh retain mandatory per-invocation forms. Existing VM recovery capture
+is preserved. The user removed Celld fleet deletion from MCP: 117 registrations,
+117/322 endpoints (36.34%), eight Celld endpoints (47.06%), 157 missing and 48
+excluded. The API routes are unchanged by this rework; the 322-row denominator is
+retained from the source-reviewed inventory below. This is a targeted registry
+and contract refresh, not a new audit of all unrelated backend behavior.
+
+See [shared safety and generated discovery inventory](docs/tool-safety.md) and
+[run evidence](runs/2026-10-21-registration-safety.md). Actual Codex desktop human
+prompt presentation in both approval modes remains unverified; no deployment or
+production operation was performed.
+
 ## Latest report
 
-Checked: **2026-10-20**, from current local source and SDK HTTP/stdio fixtures. The ISO removal contract is locally fixture-verified; full normal/race suites (654 tests each) and vet passed. Earlier VM/NPM validation remains historical evidence. No production deployment check.
+Checked: **2026-10-21**, targeted registration/safety refresh. Current rework validation is recorded in the run checkpoint. Prior full-inventory and ISO evidence follows: The ISO removal contract is locally fixture-verified; full normal/race suites (654 tests each) and vet passed. Earlier VM/NPM validation remains historical evidence. No production deployment check.
 
-- Source revision: `4355281ba49b8e0ab6fabb508fd96e26a43acf43` plus local ISO-tool changes.
-- Source content SHA-256: `01afbf738f67140ae39b8815d70a2ae9be47b162c356eb203ff9b3225b178dfa`.
+- Prior full-inventory source revision: `4355281ba49b8e0ab6fabb508fd96e26a43acf43` plus local ISO-tool changes.
+- Prior full-inventory source content SHA-256: `01afbf738f67140ae39b8815d70a2ae9be47b162c356eb203ff9b3225b178dfa`.
 - Digest input: sorted repository-relative paths; non-test Go/protobuf sources under master/slave/api, all MCP Go sources, those modules' go.mod/go.sum, and the four pinned master/npm/upstream_templates/*.conf inputs. Hash path + NUL + file bytes + NUL. The task's manifest is `.planning/2026-10-20-mcp-remove-vm-isos/mcp-source-digest.json`.
 - Inventory: **322** unique explicit method/path pairs. Existing inventory 316 is unchanged except the six authenticated /upstream registrations in master/api/npmapi/upstreams.go, mounted in master/api/api.go. /api remains an alias; /mcp transport lifecycle and the separate pprof listener remain outside capability coverage. This is a task-local source review, not a shipped coverage generator.
-- Status: **118 implemented, 157 missing, 47 excluded**. The VM increment adds seven supported endpoints: six specifically authorized prior exclusions and blocked SSH injection. Helper calls earn no credit. No partial/stale/disabled endpoint is counted as implemented.
+- Status: **117 implemented, 157 missing, 48 excluded**. The VM increment adds seven supported endpoints: six specifically authorized prior exclusions and blocked SSH injection. Helper calls earn no credit. No partial/stale/disabled endpoint is counted as implemented.
 - Scope: the seven named VM capabilities in [the VM run](runs/2026-10-20-vm-increment-01.md), plus previously implemented list/get/capabilities/create/update upstream tools and optional proxy/location/stream bindings. No upstream deletion tool or alias. Confirmed creates complete through journal reconciliation instead of deleting newly created resources as rollback; failed/unknown creates are not retried.
-- Validation: this VM increment passed full MCP normal/race/vet checks (622 tests), master API/services/virsh normal tests (58 tests) and vet, plus focused normal/race checks for additional live/template/true-flag variants. The prior increment expected 117 tools; current discovery expects 118. Authenticated HTTP and actual executable stdio fixtures exercise modern/legacy approval, exact wire contracts, prior-state persistence, safe failures, no retries and fail-closed SSH disk export/manifest checks. Previous NPM handler/exact-image validation remains documented in its upstream checkpoint; it was not rerun as part of this VM increment. See [the VM run](runs/2026-10-20-vm-increment-01.md) for current checks and limits.
-- Limits: these local checks do not establish production deployment, real ACME issuance or distributed atomicity. Existing DNS/Notes/SPA/ISO/VM contracts and policy exclusions retain their reviewed boundaries in their feature documents. Prior Celld deletion authorization remains limited to that tool. The 2026-10-20 user request additionally authorizes only VM creation, autostart/live flag changes, schedule create/update/enable SSH injection and all VM ISO/CD-ROM removal; all other exclusions remain.
+- Validation: this VM increment passed full MCP normal/race/vet checks (622 tests), master API/services/virsh normal tests (58 tests) and vet, plus focused normal/race checks for additional live/template/true-flag variants. The prior increment expected 117 tools; that increment's discovery expected 118; current discovery expects 117. Authenticated HTTP and actual executable stdio fixtures exercise modern/legacy approval, exact wire contracts, prior-state persistence, safe failures, no retries and fail-closed SSH disk export/manifest checks. Previous NPM handler/exact-image validation remains documented in its upstream checkpoint; it was not rerun as part of this VM increment. See [the VM run](runs/2026-10-20-vm-increment-01.md) for current checks and limits.
+- Limits: these local checks do not establish production deployment, real ACME issuance or distributed atomicity. Existing DNS/Notes/SPA/ISO/VM contracts and policy exclusions retain their reviewed boundaries in their feature documents. Celld fleet deletion is no longer registered, following the user's 2026-10-21 decision. The 2026-10-20 user request additionally authorizes only VM creation, autostart/live flag changes, schedule create/update/enable SSH injection and all VM ISO/CD-ROM removal; all other exclusions remain.
 
 | Scope | Implemented / total | Missing | Coverage |
 | --- | ---: | ---: | ---: |
-| **HyperHive API** | 118 / 322 | 157 | 36.65% |
+| **HyperHive API** | 117 / 322 | 157 | 36.34% |
 | NGINX subtotal | 33 / 43 | 0 | 76.74% |
 | VM subtotal, including templates/disks/helpers | 64 / 82 | 2 | 78.05% |
 
@@ -77,7 +101,7 @@ Subtotals are subsets of the API. Leaf areas partition the total. Missing omits 
 | Guest access and SPA | 2 / 12 | 8 | 16.67% | [GUESTS.go](../master/api/GUESTS.go) |
 | Core, login and notifications | 0 / 12 | 11 | 0.00% | [api.go](../master/api/api.go) |
 | BTRFS | 0 / 22 | 19 | 0.00% | [btrfs.go](../master/api/btrfs.go) |
-| Celld | 9 / 17 | 7 | 52.94% | [celld.go](../master/api/celld.go) |
+| Celld | 8 / 17 | 7 | 47.06% | [celld.go](../master/api/celld.go) |
 | DNS aliases | 3 / 4 | 0 | 75.00% | [dnsmasq.go](../master/api/dnsmasq.go) |
 | Docker | 0 / 26 | 21 | 0.00% | [docker.go](../master/api/docker.go) |
 | Host maintenance | 0 / 4 | 4 | 0.00% | [extra.go](../master/api/extra.go) |
@@ -108,9 +132,9 @@ Subtotals are subsets of the API. Leaf areas partition the total. Missing omits 
 
 ### Available capabilities and safety
 
-Both transports share 118 registrations: 33 NGINX, nine Celld, three DNS, five Notes, two SPA, two ISO and 64 VM tools. Feature contracts: [upstreams](docs/areas/upstreams.md), [NGINX](docs/areas/nginx.md), [proxies](docs/areas/nginx-proxies.md), [Celld](docs/areas/celld.md), [DNS](docs/areas/dns.md), [Notes](docs/areas/notes.md), [SPA](docs/areas/spa.md), [ISOs](docs/areas/isos.md), [VMs](docs/areas/vms.md).
+Both transports share 117 registrations: 33 NGINX, eight Celld, three DNS, five Notes, two SPA, two ISO and 64 VM tools. Feature contracts: [upstreams](docs/areas/upstreams.md), [NGINX](docs/areas/nginx.md), [proxies](docs/areas/nginx-proxies.md), [Celld](docs/areas/celld.md), [DNS](docs/areas/dns.md), [Notes](docs/areas/notes.md), [SPA](docs/areas/spa.md), [ISOs](docs/areas/isos.md), [VMs](docs/areas/vms.md).
 
-Every VM tool publishes low/medium/high/very high risk. Medium+ requires per-call explicit user form approval bound to complete arguments; stale/replayed/forged/changed continuations or unsupported/declined/canceled pickers cannot execute writes. Modern HTTP remains stateless; legacy HTTP retains authenticated sessions for form elicitation. Stdio supports both protocol generations.
+Every tool publishes low/medium/high/very high risk. Medium requires a recorded validated preflight; High/VeryHigh require per-call explicit human form approval bound to complete arguments; stale/replayed/forged/changed continuations or unsupported/declined/canceled pickers cannot execute writes. Modern HTTP remains stateless; legacy HTTP retains authenticated sessions for form elicitation. Stdio supports both protocol generations.
 
 VM writes capture actual previous settings and secure inactive/current XML; CPU pinning includes the exact prior pinning getter. Host boot setters additionally capture every grubby entry, default kernel and current command line. Persistence must succeed before dispatch. Private 0700 directories and 0600 retained before.json files live in MCP_VM_BACKUP_DIR, or the process user's cache under hyperhive/mcp/vm-backups. Paths are returned even after subsequent backend failure. Configuration records do not contain disk snapshots or automatic rollback; SSH injection additionally retains the complete primary disk file before dispatch. Disk growth/guest RAM loss cannot be undone by them. Locking covers this registry, not external API/hypervisor changes or independent server processes. Updated master/slave snapshot support is required; older backends fail closed.
 
@@ -127,46 +151,45 @@ DNS/Notes/ISO permitted endpoint coverage is 3/3, 5/5 and 2/2. SPA has the two s
 | `update_vm_automatic_backup` | `PUT /virsh/autobak/{id}` | very high |
 | `enable_vm_automatic_backup` | `PATCH /virsh/autopak/enable/{id}` | very high |
 | `add_vm_ssh_key` | `POST /virsh/add_ssh_key/{vm_name}` | very high |
-| `list_upstreams` | `GET /upstream/list` | — |
-| `get_upstream` | `GET /upstream/{id}` | — |
-| `get_upstream_capabilities` | `GET /upstream/capabilities` | — |
-| `create_upstream` | `POST /upstream/create` | — |
-| `update_upstream` | `PUT /upstream/{id}` | — |
+| `list_upstreams` | `GET /upstream/list` | low |
+| `get_upstream` | `GET /upstream/{id}` | low |
+| `get_upstream_capabilities` | `GET /upstream/capabilities` | low |
+| `create_upstream` | `POST /upstream/create` | high |
+| `update_upstream` | `PUT /upstream/{id}` | high |
 | `add_vm_video` | `POST /virsh/novncvideo/add/{vm_name}` | high |
 | `attach_vm_disk` | `POST /virsh/vm_disk/{vm_name}` | high |
 | `backup_vm` | `POST /virsh/backup/{vm_name}/{nfs_id}` | high |
 | `clone_vm` | `POST /virsh/cloneVM/{vm_name}/{dest_nfs}/{dest_machine_name}` | high |
-| `create_404_host` | `POST /404/create` | — |
-| `create_access_list` | `POST /access-lists/create` | — |
-| `create_celld_fleet` | `POST /celld/fleets` | — |
-| `create_note` | `POST /notes/` | — |
-| `create_proxy` | `POST /proxy/create` | — |
-| `create_redirect` | `POST /redirection/create` | — |
-| `create_stream` | `POST /stream/create` | — |
+| `create_404_host` | `POST /404/create` | high |
+| `create_access_list` | `POST /access-lists/create` | high |
+| `create_celld_fleet` | `POST /celld/fleets` | high |
+| `create_note` | `POST /notes/` | medium |
+| `create_proxy` | `POST /proxy/create` | high |
+| `create_redirect` | `POST /redirection/create` | high |
+| `create_stream` | `POST /stream/create` | high |
 | `create_vm_xml_template` | `POST /virsh/xmltemplates/` | medium |
-| `delete_celld_fleet` | `DELETE /celld/fleets/{id}` | — |
-| `disable_404_host` | `POST /404/disable` | — |
-| `disable_proxy` | `POST /proxy/disable` | — |
-| `disable_redirect` | `POST /redirection/disable` | — |
-| `disable_stream` | `POST /stream/disable` | — |
+| `disable_404_host` | `POST /404/disable` | high |
+| `disable_proxy` | `POST /proxy/disable` | high |
+| `disable_redirect` | `POST /redirection/disable` | high |
+| `disable_stream` | `POST /stream/disable` | high |
 | `disable_vm_automatic_backup` | `PATCH /virsh/autopak/disable/{id}` | medium |
-| `dns_alias_add` | `POST /dnsmasq/alias/add` | — |
-| `dns_alias_get` | `GET /dnsmasq/alias/get` | — |
-| `dns_aliases_list` | `GET /dnsmasq/alias/all` | — |
-| `download_certificate` | `POST /certs/download` | — |
+| `dns_alias_add` | `POST /dnsmasq/alias/add` | high |
+| `dns_alias_get` | `GET /dnsmasq/alias/get` | low |
+| `dns_aliases_list` | `GET /dnsmasq/alias/all` | low |
+| `download_certificate` | `POST /certs/download` | high |
 | `download_vm_backup` | `GET /virsh/downloadbackup/{backup_id}` | low |
 | `edit_vm` | `POST /virsh/editvm/{vm_name}` | high |
-| `enable_404_host` | `POST /404/enable` | — |
-| `enable_proxy` | `POST /proxy/enable` | — |
-| `enable_redirect` | `POST /redirection/enable` | — |
-| `enable_stream` | `POST /stream/enable` | — |
+| `enable_404_host` | `POST /404/enable` | high |
+| `enable_proxy` | `POST /proxy/enable` | high |
+| `enable_redirect` | `POST /redirection/enable` | high |
+| `enable_stream` | `POST /stream/enable` | high |
 | `export_vm` | `GET /virsh/export/{vm_name}` | medium |
 | `force_shutdown_vm` | `POST /virsh/forceshutdownvm/{vm_name}` | very high |
-| `get_celld_credentials` | `GET /celld/fleets/{id}/credentials` | — |
-| `get_celld_events` | `GET /celld/fleets/{id}/events` | — |
-| `get_celld_health` | `GET /celld/health` | — |
-| `get_celld_logs` | `GET /celld/fleets/{id}/logs` | — |
-| `get_note` | `GET /notes/{id}` | — |
+| `get_celld_credentials` | `GET /celld/fleets/{id}/credentials` | high |
+| `get_celld_events` | `GET /celld/fleets/{id}/events` | low |
+| `get_celld_health` | `GET /celld/health` | low |
+| `get_celld_logs` | `GET /celld/fleets/{id}/logs` | low |
+| `get_note` | `GET /notes/{id}` | low |
 | `get_vm` | `GET /virsh/getvmbyname/{vm_name}` | low |
 | `get_vm_ballooning` | `GET /virsh/ballooning/{vm_name}` | low |
 | `get_vm_core_isolation` | `GET /virsh/coreisolation/{machine_name}` | low |
@@ -184,18 +207,18 @@ DNS/Notes/ISO permitted endpoint coverage is 3/3, 5/5 and 2/2. SPA has the two s
 | `get_vm_xml` | `GET /virsh/vmxml/{vm_name}` | low |
 | `get_vm_xml_template` | `GET /virsh/xmltemplates/{id}` | low |
 | `grow_vm_disk` | `POST /vm-disk/{id}/grow` | high |
-| `list_404_hosts` | `GET /404/list` | — |
-| `list_access_lists` | `GET /access-lists/list` | — |
-| `list_celld_fleets` | `GET /celld/fleets` | — |
-| `list_certificates` | `GET /certs/list` | — |
-| `list_dns_providers` | `GET /certs/dns-providers` | — |
-| `list_isos` | `GET /isos/` | — |
-| `list_notes` | `GET /notes/` | — |
-| `list_proxies` | `GET /proxy/list` | — |
-| `list_redirects` | `GET /redirection/list` | — |
-| `list_spa_allows` | `GET /spa/allow/{port}` | — |
-| `list_spa_ports` | `GET /spa/` | — |
-| `list_streams` | `GET /stream/list` | — |
+| `list_404_hosts` | `GET /404/list` | low |
+| `list_access_lists` | `GET /access-lists/list` | low |
+| `list_celld_fleets` | `GET /celld/fleets` | low |
+| `list_certificates` | `GET /certs/list` | low |
+| `list_dns_providers` | `GET /certs/dns-providers` | low |
+| `list_isos` | `GET /isos/` | low |
+| `list_notes` | `GET /notes/` | low |
+| `list_proxies` | `GET /proxy/list` | low |
+| `list_redirects` | `GET /redirection/list` | low |
+| `list_spa_allows` | `GET /spa/allow/{port}` | low |
+| `list_spa_ports` | `GET /spa/` | low |
+| `list_streams` | `GET /stream/list` | low |
 | `list_vm_attached_disks` | `GET /virsh/vm_disk/{vm_name}` | low |
 | `list_vm_automatic_backups` | `GET /virsh/autobak` | low |
 | `list_vm_backups` | `GET /virsh/backups` | low |
@@ -203,10 +226,10 @@ DNS/Notes/ISO permitted endpoint coverage is 3/3, 5/5 and 2/2. SPA has the two s
 | `list_vm_machine_types` | `GET /virsh/machine_types/{machine_name}` | low |
 | `list_vm_xml_templates` | `GET /virsh/xmltemplates/` | low |
 | `list_vms` | `GET /virsh/getallvms` | low |
-| `patch_note` | `PATCH /notes/{id}` | — |
+| `patch_note` | `PATCH /notes/{id}` | medium |
 | `pause_vm` | `POST /virsh/pausevm/{vm_name}` | high |
-| `renew_certificate` | `POST /certs/renew` | — |
-| `replace_note` | `PUT /notes/{id}` | — |
+| `renew_certificate` | `POST /certs/renew` | high |
+| `replace_note` | `PUT /notes/{id}` | medium |
 | `replace_vm_host_core_isolation` | `PUT /virsh/coreisolation/{machine_name}` | very high |
 | `replace_vm_host_hugepages` | `PUT /virsh/hosthugepages/{machine_name}` | very high |
 | `restart_vm` | `POST /virsh/restartvm/{vm_name}` | very high |
@@ -223,24 +246,24 @@ DNS/Notes/ISO permitted endpoint coverage is 3/3, 5/5 and 2/2. SPA has the two s
 | `set_vm_network` | `POST /virsh/change_vm_network/{vm_name}` | high |
 | `set_vm_tuned_profile` | `POST /virsh/tunedadm/{machine_name}` | high |
 | `set_vm_vnc_password` | `POST /virsh/change_vnc_password/{vm_name}` | high |
-| `setup_frontend_proxy` | `POST /proxy/setupFrontEnd` | — |
-| `setup_secure_frontend_proxy` | `POST /proxy/setupFrontEndSecure` | — |
+| `setup_frontend_proxy` | `POST /proxy/setupFrontEnd` | high |
+| `setup_secure_frontend_proxy` | `POST /proxy/setupFrontEndSecure` | high |
 | `shutdown_vm` | `POST /virsh/shutdownvm/{vm_name}` | high |
-| `start_celld_fleet` | `POST /celld/fleets/{id}/start` | — |
-| `start_iso_download` | `POST /isos/download` | — |
+| `start_celld_fleet` | `POST /celld/fleets/{id}/start` | high |
+| `start_iso_download` | `POST /isos/download` | medium |
 | `start_vm` | `POST /virsh/startvm/{vm_name}` | medium |
-| `stop_celld_fleet` | `POST /celld/fleets/{id}/stop` | — |
-| `update_404_host` | `PUT /404/edit` | — |
-| `update_proxy` | `PUT /proxy/edit` | — |
-| `update_redirect` | `PUT /redirection/edit` | — |
-| `update_stream` | `PUT /stream/edit` | — |
+| `stop_celld_fleet` | `POST /celld/fleets/{id}/stop` | high |
+| `update_404_host` | `PUT /404/edit` | high |
+| `update_proxy` | `PUT /proxy/edit` | high |
+| `update_redirect` | `PUT /redirection/edit` | high |
+| `update_stream` | `PUT /stream/edit` | high |
 | `update_vm_cpu_xml` | `POST /virsh/updatecpuxml/{vm_name}` | high |
 | `update_vm_xml` | `POST /virsh/updatevmxml/{vm_name}` | very high |
 | `update_vm_xml_template` | `PUT /virsh/xmltemplates/{id}` | high |
 
 ### Endpoint inventory and remaining work
 
-One row is one method/path pair. Only registered, enabled, contract-reviewed and validated tools count as implemented. Exclusions remain in raw coverage with zero credit; all/all-remaining/100% does not authorize deletion. The existing Celld exception does not authorize deletion elsewhere. Selected SSH injection is blocked and unregistered; the two snapshot routes are internal prerequisites with zero direct coverage. Unselected browser/stream routes remain visible for later disposition.
+One row is one method/path pair. Only registered, enabled, contract-reviewed and validated tools count as implemented. Exclusions remain in raw coverage with zero credit; all/all-remaining/100% does not authorize deletion. The historical Celld deletion exception is revoked; the endpoint is excluded. Selected SSH injection is blocked and unregistered; the two snapshot routes are internal prerequisites with zero direct coverage. Unselected browser/stream routes remain visible for later disposition.
 
 #### Guest access and SPA
 
@@ -312,7 +335,7 @@ One row is one method/path pair. Only registered, enabled, contract-reviewed and
 | `POST /celld/fleets` | implemented | [celld.go:16](../master/api/celld.go#L16) |
 | `GET /celld/fleets/{id}` | missing | [celld.go:17](../master/api/celld.go#L17) |
 | `PATCH /celld/fleets/{id}` | excluded (deletion policy: removes node data) | [celld.go:18](../master/api/celld.go#L18) |
-| `DELETE /celld/fleets/{id}` | implemented | [celld.go:19](../master/api/celld.go#L19) |
+| `DELETE /celld/fleets/{id}` | excluded (user removed MCP registration, 2026-10-21) | [celld.go:19](../master/api/celld.go#L19) |
 | `POST /celld/fleets/{id}/start` | implemented | [celld.go:21](../master/api/celld.go#L21) |
 | `POST /celld/fleets/{id}/stop` | implemented | [celld.go:21](../master/api/celld.go#L21) |
 | `POST /celld/fleets/{id}/restart` | missing | [celld.go:21](../master/api/celld.go#L21) |

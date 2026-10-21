@@ -60,12 +60,12 @@ func vmConnect(t *testing.T, transport, backend, backup string, opts *mcp.Client
 		connectOptions = &mcp.ClientSessionOptions{ProtocolVersion: "2025-11-25"}
 	}
 	if strings.Contains(transport, "http") {
-		endpoint := httptest.NewServer(NewHTTPHandler(Config{BaseURL: backend + "/prefix/api", MCPToken: "vm-fixture", VMBackupDir: backup}))
+		endpoint := httptest.NewServer(NewHTTPHandler(Config{BaseURL: backend + "/prefix/api", MCPToken: "vm-fixture", VMBackupDir: backup, SafetyReviewDir: backup + "-reviews"}))
 		t.Cleanup(endpoint.Close)
 		session, err = c.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: endpoint.URL, HTTPClient: &http.Client{Transport: bearerTransport{"vm-fixture"}}}, connectOptions)
 	} else {
 		cmd := exec.CommandContext(ctx, nginxBinary, "serve")
-		cmd.Env = append(os.Environ(), "HYPERHIVE_API_URL="+backend+"/prefix/api", "MCP_TOKEN=vm-fixture", "MCP_VM_BACKUP_DIR="+backup)
+		cmd.Env = append(os.Environ(), "HYPERHIVE_API_URL="+backend+"/prefix/api", "MCP_TOKEN=vm-fixture", "MCP_VM_BACKUP_DIR="+backup, "MCP_REVIEW_DIR="+backup+"-reviews")
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
 		session, err = c.Connect(ctx, &mcp.CommandTransport{Command: cmd}, connectOptions)

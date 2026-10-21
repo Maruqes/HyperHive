@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Maruqes/HyperHive/mcp/internal/client"
+	"github.com/Maruqes/HyperHive/mcp/internal/safety"
 	"github.com/Maruqes/HyperHive/mcp/internal/vmsafety"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func vmInventoryRecord(raw json.RawMessage) json.RawMessage {
@@ -16,8 +16,8 @@ func vmInventoryRecord(raw json.RawMessage) json.RawMessage {
 	}{raw})
 	return wrapped
 }
-func registerVMMore(server *mcp.Server, api VMsAPI, gate *vmsafety.Gate, store vmsafety.Store) {
-	addVMWrite(server, api, gate, store, vmTool("attach_vm_disk", "POST", "/virsh/vm_disk/{vm_name}", "Attach an existing registered disk to a VM; backend validates ownership/readability. Saves actual old disk metadata, VM settings, secure inactive/current XML and attachment inventory. No automatic rollback.", vmsafety.High), vmsafety.High, api.AttachVMDisk, func(ctx context.Context, in client.VMAttachDiskInput) (string, map[string]json.RawMessage, error) {
+func defineAttachVMDisk(api VMsAPI, gate *safety.Gate, store vmsafety.Store) ToolDefinition {
+	return addVMWrite(api, gate, store, vmTool("attach_vm_disk", "POST", "/virsh/vm_disk/{vm_name}", "Attach an existing registered disk to a VM; backend validates ownership/readability. Saves actual old disk metadata, VM settings, secure inactive/current XML and attachment inventory. No automatic rollback."), api.AttachVMDisk, func(ctx context.Context, in client.VMAttachDiskInput) (string, map[string]json.RawMessage, error) {
 		_, disk, err := vmSnapshotDisk(ctx, api, in.VMDiskID)
 		if err != nil {
 			return "", nil, err
@@ -34,7 +34,10 @@ func registerVMMore(server *mcp.Server, api VMsAPI, gate *vmsafety.Gate, store v
 		}
 		return in.VMName, snapshots, nil
 	})
-	addVMWrite(server, api, gate, store, vmTool("backup_vm", "POST", "/virsh/backup/{vm_name}/{nfs_id}", "Request a manual VM disk backup to NFS. A running guest needs qemu-guest-agent; backend freezes and thaws its filesystems. Returns acceptance only: background completion can fail later and no job ID is supplied. Saves source state, destination share and prior backup inventory. No automatic rollback.", vmsafety.High), vmsafety.High, api.BackupVM, func(ctx context.Context, in client.VMBackupInput) (string, map[string]json.RawMessage, error) {
+}
+
+func defineBackupVM(api VMsAPI, gate *safety.Gate, store vmsafety.Store) ToolDefinition {
+	return addVMWrite(api, gate, store, vmTool("backup_vm", "POST", "/virsh/backup/{vm_name}/{nfs_id}", "Request a manual VM disk backup to NFS. A running guest needs qemu-guest-agent; backend freezes and thaws its filesystems. Returns acceptance only: background completion can fail later and no job ID is supplied. Saves source state, destination share and prior backup inventory. No automatic rollback."), api.BackupVM, func(ctx context.Context, in client.VMBackupInput) (string, map[string]json.RawMessage, error) {
 		snapshots, err := vmSnapshotDomain(ctx, api, in.VMName, "")
 		if err != nil {
 			return "", nil, err
@@ -54,7 +57,10 @@ func registerVMMore(server *mcp.Server, api VMsAPI, gate *vmsafety.Gate, store v
 		snapshots["backups"] = vmInventoryRecord(raw)
 		return in.VMName, snapshots, nil
 	})
-	addVMWrite(server, api, gate, store, vmTool("clone_vm", "POST", "/virsh/cloneVM/{vm_name}/{dest_nfs}/{dest_machine_name}", "Request a full VM disk clone to a new name/host/NFS; may freeze and thaw a running source guest. Returns acceptance only: detached background completion can fail later; no job ID supplied. Saves actual source state, destination share, target VM inventory and optional selected template. No automatic rollback.", vmsafety.High), vmsafety.High, api.CloneVM, func(ctx context.Context, in client.VMCloneInput) (string, map[string]json.RawMessage, error) {
+}
+
+func defineCloneVM(api VMsAPI, gate *safety.Gate, store vmsafety.Store) ToolDefinition {
+	return addVMWrite(api, gate, store, vmTool("clone_vm", "POST", "/virsh/cloneVM/{vm_name}/{dest_nfs}/{dest_machine_name}", "Request a full VM disk clone to a new name/host/NFS; may freeze and thaw a running source guest. Returns acceptance only: detached background completion can fail later; no job ID supplied. Saves actual source state, destination share, target VM inventory and optional selected template. No automatic rollback."), api.CloneVM, func(ctx context.Context, in client.VMCloneInput) (string, map[string]json.RawMessage, error) {
 		snapshots, err := vmSnapshotDomain(ctx, api, in.VMName, "")
 		if err != nil {
 			return "", nil, err
@@ -90,7 +96,10 @@ func registerVMMore(server *mcp.Server, api VMsAPI, gate *vmsafety.Gate, store v
 		}
 		return in.VMName + " -> " + in.NewName, snapshots, nil
 	})
-	addVMWrite(server, api, gate, store, vmTool("disable_vm_automatic_backup", "PATCH", "/virsh/autopak/disable/{id}", "Disable an existing automatic backup schedule by setting Enabled=false. Saves the exact actual prior schedule. Does not create backups or enable retention deletion. A running background backup may still finish. No automatic rollback.", vmsafety.Medium), vmsafety.Medium, api.DisableVMAutomaticBackup, func(ctx context.Context, in client.VMIDInput) (string, map[string]json.RawMessage, error) {
+}
+
+func defineDisableVMAutomaticBackup(api VMsAPI, gate *safety.Gate, store vmsafety.Store) ToolDefinition {
+	return addVMWrite(api, gate, store, vmTool("disable_vm_automatic_backup", "PATCH", "/virsh/autopak/disable/{id}", "Disable an existing automatic backup schedule by setting Enabled=false. Saves the exact actual prior schedule. Does not create backups or enable retention deletion. A running background backup may still finish. No automatic rollback."), api.DisableVMAutomaticBackup, func(ctx context.Context, in client.VMIDInput) (string, map[string]json.RawMessage, error) {
 		raw, err := api.ListVMAutomaticBackups(ctx, client.VMEmptyInput{})
 		if err != nil {
 			return "", nil, err

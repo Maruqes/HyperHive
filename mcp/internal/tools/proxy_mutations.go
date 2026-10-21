@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+
 	"math"
 	"strconv"
 	"strings"
@@ -101,93 +102,87 @@ func proxyConfigSchema[T any]() *jsonschema.Schema {
 	return schema
 }
 
-func registerCreateProxy(server *mcp.Server, api ProxyAPI) {
+func defineCreateProxy(api ProxyAPI) ToolDefinition {
 	tool := mutationTool("create_proxy", "POST", client.CreateProxyPath, "Create a proxy host with complete configuration. Calls POST /proxy/create. Supply every setting, using false, zero, empty metadata/config and empty locations where appropriate. Enabled state is controlled by enable_proxy/disable_proxy; the API does not return the created ID. No automatic retry.")
 	tool.InputSchema = proxyConfigSchema[client.ProxyConfig]()
-	addExactTool(server, tool,
-		func(ctx context.Context, _ *mcp.CallToolRequest, input client.ProxyConfig) (*mcp.CallToolResult, mutationOutput, error) {
-			if err := validateConfig(input); err != nil {
-				return nil, mutationOutput{}, err
-			}
-			if err := api.CreateProxy(ctx, input); err != nil {
-				return nil, mutationOutput{}, err
-			}
-			return nil, mutationOutput{Success: true}, nil
-		})
+	return defineTool(tool, func(ctx context.Context, _ *mcp.CallToolRequest, input client.ProxyConfig) (*mcp.CallToolResult, mutationOutput, error) {
+		if err := validateConfig(input); err != nil {
+			return nil, mutationOutput{}, err
+		}
+		if err := api.CreateProxy(ctx, input); err != nil {
+			return nil, mutationOutput{}, err
+		}
+		return nil, mutationOutput{Success: true}, nil
+	})
 }
 
-func registerUpdateProxy(server *mcp.Server, api ProxyAPI) {
+func defineUpdateProxy(api ProxyAPI) ToolDefinition {
 	tool := mutationTool("update_proxy", "PUT", client.UpdateProxyPath, "Replace a proxy host's complete configuration. Calls PUT /proxy/edit. All settings and a positive id are required; omitted settings are rejected, false/zero settings are sent unchanged. Managed frontend proxies cannot be edited (403). The API checks the immutable resource ID for management restrictions. Enabled state uses separate actions. No automatic retry.")
 	tool.InputSchema = proxyConfigSchema[client.UpdateProxyInput]()
-	addExactTool(server, tool,
-		func(ctx context.Context, _ *mcp.CallToolRequest, input client.UpdateProxyInput) (*mcp.CallToolResult, mutationOutput, error) {
-			if input.ID <= 0 {
-				return nil, mutationOutput{}, errors.New("id must be positive")
-			}
-			if err := validateConfigWithPreserve(input.ProxyConfig, true); err != nil {
-				return nil, mutationOutput{}, err
-			}
-			if err := api.UpdateProxy(ctx, input); err != nil {
-				return nil, mutationOutput{}, err
-			}
-			return nil, mutationOutput{Success: true}, nil
-		})
+	return defineTool(tool, func(ctx context.Context, _ *mcp.CallToolRequest, input client.UpdateProxyInput) (*mcp.CallToolResult, mutationOutput, error) {
+		if input.ID <= 0 {
+			return nil, mutationOutput{}, errors.New("id must be positive")
+		}
+		if err := validateConfigWithPreserve(input.ProxyConfig, true); err != nil {
+			return nil, mutationOutput{}, err
+		}
+		if err := api.UpdateProxy(ctx, input); err != nil {
+			return nil, mutationOutput{}, err
+		}
+		return nil, mutationOutput{Success: true}, nil
+	})
 }
 
-func registerEnableProxy(server *mcp.Server, api ProxyAPI) {
-	addExactTool(server, mutationTool("enable_proxy", "POST", client.EnableProxyPath, "Enable a proxy host by positive id. Calls POST /proxy/enable with JSON. Managed frontend proxies may be enabled. Returns acceptance only; no automatic retry."),
-		func(ctx context.Context, _ *mcp.CallToolRequest, input client.ProxyIDInput) (*mcp.CallToolResult, mutationOutput, error) {
-			if input.ID <= 0 {
-				return nil, mutationOutput{}, errors.New("id must be positive")
-			}
-			if err := api.EnableProxy(ctx, input); err != nil {
-				return nil, mutationOutput{}, err
-			}
-			return nil, mutationOutput{Success: true}, nil
-		})
+func defineEnableProxy(api ProxyAPI) ToolDefinition {
+	return defineTool(mutationTool("enable_proxy", "POST", client.EnableProxyPath, "Enable a proxy host by positive id. Calls POST /proxy/enable with JSON. Managed frontend proxies may be enabled. Returns acceptance only; no automatic retry."), func(ctx context.Context, _ *mcp.CallToolRequest, input client.ProxyIDInput) (*mcp.CallToolResult, mutationOutput, error) {
+		if input.ID <= 0 {
+			return nil, mutationOutput{}, errors.New("id must be positive")
+		}
+		if err := api.EnableProxy(ctx, input); err != nil {
+			return nil, mutationOutput{}, err
+		}
+		return nil, mutationOutput{Success: true}, nil
+	})
 }
 
-func registerDisableProxy(server *mcp.Server, api ProxyAPI) {
-	addExactTool(server, mutationTool("disable_proxy", "POST", client.DisableProxyPath, "Disable a proxy host by positive id. Calls POST /proxy/disable with JSON. Managed frontend proxies cannot be disabled (403). Returns acceptance only; no automatic retry."),
-		func(ctx context.Context, _ *mcp.CallToolRequest, input client.ProxyIDInput) (*mcp.CallToolResult, mutationOutput, error) {
-			if input.ID <= 0 {
-				return nil, mutationOutput{}, errors.New("id must be positive")
-			}
-			if err := api.DisableProxy(ctx, input); err != nil {
-				return nil, mutationOutput{}, err
-			}
-			return nil, mutationOutput{Success: true}, nil
-		})
+func defineDisableProxy(api ProxyAPI) ToolDefinition {
+	return defineTool(mutationTool("disable_proxy", "POST", client.DisableProxyPath, "Disable a proxy host by positive id. Calls POST /proxy/disable with JSON. Managed frontend proxies cannot be disabled (403). Returns acceptance only; no automatic retry."), func(ctx context.Context, _ *mcp.CallToolRequest, input client.ProxyIDInput) (*mcp.CallToolResult, mutationOutput, error) {
+		if input.ID <= 0 {
+			return nil, mutationOutput{}, errors.New("id must be positive")
+		}
+		if err := api.DisableProxy(ctx, input); err != nil {
+			return nil, mutationOutput{}, err
+		}
+		return nil, mutationOutput{Success: true}, nil
+	})
 }
 
-func registerSetupFrontendProxy(server *mcp.Server, api ProxyAPI) {
-	addExactTool(server, mutationTool("setup_frontend_proxy", "POST", client.SetupFrontendProxyPath, "Create or replace the managed frontend proxy matched by domain. Calls POST /proxy/setupFrontEnd. id is a certificate ID (zero means no TLS), not a proxy ID. The server configures frontend port 8079 and API_PORT locations /api, /novnc and /guest_api, with streaming/timeouts/IP-header settings. This replaces matching configuration. Returns acceptance only; no automatic retry."),
-		func(ctx context.Context, _ *mcp.CallToolRequest, input client.FrontendProxyInput) (*mcp.CallToolResult, mutationOutput, error) {
-			if strings.TrimSpace(input.Domain) == "" {
-				return nil, mutationOutput{}, errors.New("domain must not be empty")
-			}
-			if input.ID < 0 {
-				return nil, mutationOutput{}, errors.New("id (certificate ID) must be nonnegative")
-			}
-			if err := api.SetupFrontendProxy(ctx, input); err != nil {
-				return nil, mutationOutput{}, err
-			}
-			return nil, mutationOutput{Success: true}, nil
-		})
+func defineSetupFrontendProxy(api ProxyAPI) ToolDefinition {
+	return defineTool(mutationTool("setup_frontend_proxy", "POST", client.SetupFrontendProxyPath, "Create or replace the managed frontend proxy matched by domain. Calls POST /proxy/setupFrontEnd. id is a certificate ID (zero means no TLS), not a proxy ID. The server configures frontend port 8079 and API_PORT locations /api, /novnc and /guest_api, with streaming/timeouts/IP-header settings. This replaces matching configuration. Returns acceptance only; no automatic retry."), func(ctx context.Context, _ *mcp.CallToolRequest, input client.FrontendProxyInput) (*mcp.CallToolResult, mutationOutput, error) {
+		if strings.TrimSpace(input.Domain) == "" {
+			return nil, mutationOutput{}, errors.New("domain must not be empty")
+		}
+		if input.ID < 0 {
+			return nil, mutationOutput{}, errors.New("id (certificate ID) must be nonnegative")
+		}
+		if err := api.SetupFrontendProxy(ctx, input); err != nil {
+			return nil, mutationOutput{}, err
+		}
+		return nil, mutationOutput{Success: true}, nil
+	})
 }
 
-func registerSetupSecureFrontendProxy(server *mcp.Server, api ProxyAPI) {
-	addExactTool(server, mutationTool("setup_secure_frontend_proxy", "POST", client.SetupSecureFrontendProxyPath, "Create or replace managed public/private frontend proxies. Calls POST /proxy/setupFrontEndSecure with publicDomain, publicCertificateId, privateDomain, privateCertificateId. Zero certificate ID means no TLS. Private exposes /api, /novnc and /guest_api; public exposes /guest_api and blocks root. Writes private then public, with NO rollback: an error can leave the private change applied. Inspect list_proxies before recovery. Returns acceptance only; no automatic retry."),
-		func(ctx context.Context, _ *mcp.CallToolRequest, input client.SecureFrontendProxyInput) (*mcp.CallToolResult, mutationOutput, error) {
-			if strings.TrimSpace(input.PublicDomain) == "" || strings.TrimSpace(input.PrivateDomain) == "" {
-				return nil, mutationOutput{}, errors.New("publicDomain and privateDomain must not be empty")
-			}
-			if input.PublicCertificateID < 0 || input.PrivateCertificateID < 0 {
-				return nil, mutationOutput{}, errors.New("certificate IDs must be nonnegative")
-			}
-			if err := api.SetupSecureFrontendProxy(ctx, input); err != nil {
-				return nil, mutationOutput{}, err
-			}
-			return nil, mutationOutput{Success: true}, nil
-		})
+func defineSetupSecureFrontendProxy(api ProxyAPI) ToolDefinition {
+	return defineTool(mutationTool("setup_secure_frontend_proxy", "POST", client.SetupSecureFrontendProxyPath, "Create or replace managed public/private frontend proxies. Calls POST /proxy/setupFrontEndSecure with publicDomain, publicCertificateId, privateDomain, privateCertificateId. Zero certificate ID means no TLS. Private exposes /api, /novnc and /guest_api; public exposes /guest_api and blocks root. Writes private then public, with NO rollback: an error can leave the private change applied. Inspect list_proxies before recovery. Returns acceptance only; no automatic retry."), func(ctx context.Context, _ *mcp.CallToolRequest, input client.SecureFrontendProxyInput) (*mcp.CallToolResult, mutationOutput, error) {
+		if strings.TrimSpace(input.PublicDomain) == "" || strings.TrimSpace(input.PrivateDomain) == "" {
+			return nil, mutationOutput{}, errors.New("publicDomain and privateDomain must not be empty")
+		}
+		if input.PublicCertificateID < 0 || input.PrivateCertificateID < 0 {
+			return nil, mutationOutput{}, errors.New("certificate IDs must be nonnegative")
+		}
+		if err := api.SetupSecureFrontendProxy(ctx, input); err != nil {
+			return nil, mutationOutput{}, err
+		}
+		return nil, mutationOutput{Success: true}, nil
+	})
 }

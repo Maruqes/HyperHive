@@ -101,7 +101,7 @@ func runDNSContract(t *testing.T, tc dnsCase, transport string) {
 	defer backend.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	c := mcp.NewClient(&mcp.Implementation{Name: "dns-contract"}, nil)
+	c := mcp.NewClient(&mcp.Implementation{Name: "dns-contract"}, &mcp.ClientOptions{ElicitationHandler: vmApprove})
 	var session *mcp.ClientSession
 	var err error
 	var stderr bytes.Buffer

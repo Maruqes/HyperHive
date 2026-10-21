@@ -6,13 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Maruqes/HyperHive/mcp/internal/safety"
 	"os"
 	"path/filepath"
 	"reflect"
 
 	"github.com/Maruqes/HyperHive/mcp/internal/client"
 	"github.com/Maruqes/HyperHive/mcp/internal/vmsafety"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // Flags come from master database state, not libvirt's autostart property.
@@ -76,12 +76,15 @@ func vmSnapshotScheduleSettings(ctx context.Context, api VMsAPI, in client.VMSch
 	snapshots["schedules"] = vmInventoryRecord(raw)
 	return snapshots, nil
 }
-func registerVMIncrement(server *mcp.Server, api VMsAPI, gate *vmsafety.Gate, store vmsafety.Store) {
-	addVMWrite(server, api, gate, store, vmTool("remove_vm_isos", "POST", "/virsh/removeiso/{vm_name}", "Remove all CD-ROM devices and CD-ROM boot entries from a VM, retaining ISO files in storage. Attempts live detach for running, blocked or paused guests before updating persistent XML; failure can leave a partial change. Saves prior VM settings and secure inactive/current domain XML privately before mutation. No automatic rollback.", vmsafety.High), vmsafety.High, api.RemoveVMISOs, func(ctx context.Context, in client.VMNameInput) (string, map[string]json.RawMessage, error) {
+func defineRemoveVMISOs(api VMsAPI, gate *safety.Gate, store vmsafety.Store) ToolDefinition {
+	return addVMWrite(api, gate, store, vmTool("remove_vm_isos", "POST", "/virsh/removeiso/{vm_name}", "Remove all CD-ROM devices and CD-ROM boot entries from a VM, retaining ISO files in storage. Attempts live detach for running, blocked or paused guests before updating persistent XML; failure can leave a partial change. Saves prior VM settings and secure inactive/current domain XML privately before mutation. No automatic rollback."), api.RemoveVMISOs, func(ctx context.Context, in client.VMNameInput) (string, map[string]json.RawMessage, error) {
 		snapshots, err := vmSnapshotDomain(ctx, api, in.VMName, "")
 		return in.VMName, snapshots, err
 	})
-	addVMWrite(server, api, gate, store, vmTool("create_vm", "POST", "/virsh/createvm", "Create a VM with explicit settings, optional XML template and live/autostart flags. Saves target inventory, destination NFS and selected template/ISO before creation. Backend can leave partially created resources on failure; no automatic rollback or fabricated resource ID.", vmsafety.High), vmsafety.High, api.CreateVM, func(ctx context.Context, in client.VMCreateInput) (string, map[string]json.RawMessage, error) {
+}
+
+func defineCreateVM(api VMsAPI, gate *safety.Gate, store vmsafety.Store) ToolDefinition {
+	return addVMWrite(api, gate, store, vmTool("create_vm", "POST", "/virsh/createvm", "Create a VM with explicit settings, optional XML template and live/autostart flags. Saves target inventory, destination NFS and selected template/ISO before creation. Backend can leave partially created resources on failure; no automatic rollback or fabricated resource ID."), api.CreateVM, func(ctx context.Context, in client.VMCreateInput) (string, map[string]json.RawMessage, error) {
 		raw, err := api.ListVMs(ctx, client.VMEmptyInput{})
 		if err != nil {
 			return "", nil, err
@@ -138,20 +141,33 @@ func registerVMIncrement(server *mcp.Server, api VMsAPI, gate *vmsafety.Gate, st
 		}
 		return in.Name, snapshots, nil
 	})
-	addVMWrite(server, api, gate, store, vmTool("set_vm_autostart", "POST", "/virsh/autostart/{vm_name}", "Set the master-managed VM autostart flag. False removes only its autostart database entry. Saves actual previous flag and secure domain XML. No automatic rollback.", vmsafety.Medium), vmsafety.Medium, api.SetVMAutostart, func(ctx context.Context, in client.VMAutostartInput) (string, map[string]json.RawMessage, error) {
+}
+
+func defineSetVMAutostart(api VMsAPI, gate *safety.Gate, store vmsafety.Store) ToolDefinition {
+	return addVMWrite(api, gate, store, vmTool("set_vm_autostart", "POST", "/virsh/autostart/{vm_name}", "Set the master-managed VM autostart flag. False removes only its autostart database entry. Saves actual previous flag and secure domain XML. No automatic rollback."), api.SetVMAutostart, func(ctx context.Context, in client.VMAutostartInput) (string, map[string]json.RawMessage, error) {
 		s, e := vmSnapshotFlag(ctx, api, in.VMName, "autoStart")
 		return in.VMName, s, e
 	})
-	addVMWrite(server, api, gate, store, vmTool("set_vm_live", "POST", "/virsh/vmlive/{vm_name}", "Set the master-managed VM live flag; this does not start or migrate the VM. False removes only its live database entry. Saves actual previous flag and secure domain XML. No automatic rollback.", vmsafety.High), vmsafety.High, api.SetVMLive, func(ctx context.Context, in client.VMEnableInput) (string, map[string]json.RawMessage, error) {
+}
+
+func defineSetVMLive(api VMsAPI, gate *safety.Gate, store vmsafety.Store) ToolDefinition {
+	return addVMWrite(api, gate, store, vmTool("set_vm_live", "POST", "/virsh/vmlive/{vm_name}", "Set the master-managed VM live flag; this does not start or migrate the VM. False removes only its live database entry. Saves actual previous flag and secure domain XML. No automatic rollback."), api.SetVMLive, func(ctx context.Context, in client.VMEnableInput) (string, map[string]json.RawMessage, error) {
 		s, e := vmSnapshotFlag(ctx, api, in.VMName, "isLive")
 		return in.VMName, s, e
 	})
-	const retention = "Automatically enables the schedule; future retention can permanently delete older backups. Saves prior schedule inventory, target VM and NFS state. Times use the backend server timezone. No backup job is started by this API call and no automatic rollback is provided."
-	addVMWrite(server, api, gate, store, vmTool("create_vm_automatic_backup", "POST", "/virsh/autobak", "Create an automatic VM backup schedule. "+retention, vmsafety.VeryHigh), vmsafety.VeryHigh, api.CreateVMAutomaticBackup, func(ctx context.Context, in client.VMScheduleSettings) (string, map[string]json.RawMessage, error) {
+}
+
+const vmRetentionImpact = "Automatically enables the schedule; future retention can permanently delete older backups. Saves prior schedule inventory, target VM and NFS state. Times use the backend server timezone. No backup job is started by this API call and no automatic rollback is provided."
+
+func defineCreateVMAutomaticBackup(api VMsAPI, gate *safety.Gate, store vmsafety.Store) ToolDefinition {
+	return addVMWrite(api, gate, store, vmTool("create_vm_automatic_backup", "POST", "/virsh/autobak", "Create an automatic VM backup schedule. "+vmRetentionImpact), api.CreateVMAutomaticBackup, func(ctx context.Context, in client.VMScheduleSettings) (string, map[string]json.RawMessage, error) {
 		s, e := vmSnapshotScheduleSettings(ctx, api, in)
 		return in.VMName, s, e
 	})
-	addVMWrite(server, api, gate, store, vmTool("update_vm_automatic_backup", "PUT", "/virsh/autobak/{id}", "Replace all writable automatic backup schedule settings. "+retention, vmsafety.VeryHigh), vmsafety.VeryHigh, api.UpdateVMAutomaticBackup, func(ctx context.Context, in client.VMUpdateScheduleInput) (string, map[string]json.RawMessage, error) {
+}
+
+func defineUpdateVMAutomaticBackup(api VMsAPI, gate *safety.Gate, store vmsafety.Store) ToolDefinition {
+	return addVMWrite(api, gate, store, vmTool("update_vm_automatic_backup", "PUT", "/virsh/autobak/{id}", "Replace all writable automatic backup schedule settings. "+vmRetentionImpact), api.UpdateVMAutomaticBackup, func(ctx context.Context, in client.VMUpdateScheduleInput) (string, map[string]json.RawMessage, error) {
 		s, e := vmSnapshotScheduleSettings(ctx, api, in.VMScheduleSettings)
 		if e != nil {
 			return "", nil, e
@@ -167,7 +183,10 @@ func registerVMIncrement(server *mcp.Server, api VMsAPI, gate *vmsafety.Gate, st
 		s["schedule"] = old
 		return fmt.Sprintf("schedule %d", in.ID), s, nil
 	})
-	addVMWrite(server, api, gate, store, vmTool("enable_vm_automatic_backup", "PATCH", "/virsh/autopak/enable/{id}", "Enable an existing schedule. Future retention can permanently delete older backups. Saves the exact prior schedule, VM and NFS state; already-enabled schedules are rejected. No automatic rollback.", vmsafety.VeryHigh), vmsafety.VeryHigh, api.EnableVMAutomaticBackup, func(ctx context.Context, in client.VMIDInput) (string, map[string]json.RawMessage, error) {
+}
+
+func defineEnableVMAutomaticBackup(api VMsAPI, gate *safety.Gate, store vmsafety.Store) ToolDefinition {
+	return addVMWrite(api, gate, store, vmTool("enable_vm_automatic_backup", "PATCH", "/virsh/autopak/enable/{id}", "Enable an existing schedule. Future retention can permanently delete older backups. Saves the exact prior schedule, VM and NFS state; already-enabled schedules are rejected. No automatic rollback."), api.EnableVMAutomaticBackup, func(ctx context.Context, in client.VMIDInput) (string, map[string]json.RawMessage, error) {
 		raw, e := vmScheduleInventory(ctx, api)
 		if e != nil {
 			return "", nil, e
@@ -197,7 +216,6 @@ func registerVMIncrement(server *mcp.Server, api VMsAPI, gate *vmsafety.Gate, st
 		s["schedule"] = old
 		return fmt.Sprintf("schedule %d", in.ID), s, nil
 	})
-	registerVMSSH(server, api, gate, store)
 }
 
 func vmRequireShutoff(s map[string]json.RawMessage) error {
@@ -212,8 +230,8 @@ func vmRequireShutoff(s map[string]json.RawMessage) error {
 	}
 	return vmValidatePrimaryDiskSnapshot(s)
 }
-func registerVMSSH(server *mcp.Server, api VMsAPI, gate *vmsafety.Gate, store vmsafety.Store) {
-	addVMTransfer(server, gate, store, vmTool("add_vm_ssh_key", "POST", "/virsh/add_ssh_key/{vm_name}", "Inject one public SSH key into eligible guest users and /etc/skel. Guest must already be shut off. Before injection, streams a retained primary-disk copy to private MCP server storage and saves its size/SHA-256 manifest, preserving prior guest files and ownership. This can consume the full disk-file size; backing files remain external dependencies. No automatic rollback. Protects only against operations serialized by this MCP registry; external starts or disk changes can race.", vmsafety.VeryHigh), vmsafety.VeryHigh, func(in client.VMSSHInput) error { return client.ValidateVMWrite(in) }, func(ctx context.Context, in client.VMSSHInput) (string, map[string]json.RawMessage, error) {
+func defineAddVMSSHKey(api VMsAPI, gate *safety.Gate, store vmsafety.Store) ToolDefinition {
+	return addVMTransfer(gate, store, vmTool("add_vm_ssh_key", "POST", "/virsh/add_ssh_key/{vm_name}", "Inject one public SSH key into eligible guest users and /etc/skel. Guest must already be shut off. Before injection, streams a retained primary-disk copy to private MCP server storage and saves its size/SHA-256 manifest, preserving prior guest files and ownership. This can consume the full disk-file size; backing files remain external dependencies. No automatic rollback. Protects only against operations serialized by this MCP registry; external starts or disk changes can race."), func(in client.VMSSHInput) error { return client.ValidateVMWrite(in) }, func(ctx context.Context, in client.VMSSHInput) (string, map[string]json.RawMessage, error) {
 		s, e := vmSnapshotDomain(ctx, api, in.VMName, "")
 		if e == nil {
 			e = vmRequireShutoff(s)

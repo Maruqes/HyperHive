@@ -38,6 +38,11 @@ per-invocation approval and persisted prior VM state/XML. Other exclusions remai
 - Implement the user's requested increment; add named, typed tools progressively.
 - Keep this folder a standalone Go module using a pinned official MCP Go SDK.
 - Share tool registration between embedded HTTP and standalone stdio.
+- Keep every area's direct RegisterTool calls in its register_<area>.go Register
+  function, with a literal tool name and explicit safety level on each line.
+  Include every VM tool in RegisterVMs. Definition helpers prepare typed handlers,
+  schemas and recovery callbacks; they must not select safety levels or register
+  additional tools.
 - Call the HyperHive HTTP API through the shared client. Do not bypass its
   authentication or business rules with direct database, NPM or master-service calls.
 - Keep tools grouped by feature under `internal/tools` and HTTP logic under
@@ -57,10 +62,11 @@ per-invocation approval and persisted prior VM state/XML. Other exclusions remai
 
 ## VM risk, approval and recovery
 
-- Give every VM, VM disk/template and host-tuning tool an explicit risk level:
+- Register every tool through the shared typed RegisterTool and give it an explicit risk level:
   low, medium, high or very high. Publish the level in discovery and its contract.
-- Medium and higher operations require an explicit per-invocation user choice
-  through the MCP client's approval picker. A tool argument, prior blanket
+- Medium operations require validated, privately persisted target/argument/impact
+  preflight records without human approval. High and very high require an explicit per-invocation user choice
+  through the MCP client's human approval picker in both chat approval modes. A tool argument, prior blanket
   permission or assistant-authored confirmation is not approval. Fail closed
   when the client cannot provide the picker or the user declines/cancels.
 - Bind approval to the exact operation and arguments; reject replayed, expired,

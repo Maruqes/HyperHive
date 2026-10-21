@@ -65,7 +65,7 @@ func TestReviewExactIntegerAndInvalidArguments(t *testing.T) {
 				}
 			}))
 			defer backend.Close()
-			session := vmConnect(t, transport, backend.URL, filepath.Join(t.TempDir(), "private"), nil)
+			session := vmConnect(t, transport, backend.URL, filepath.Join(t.TempDir(), "private"), &mcp.ClientOptions{ElicitationHandler: vmApprove})
 			for _, tc := range []struct{ name, args string }{
 				{"get_note", `{"id":9007199254740993}`},
 				{"get_note", `{"id":9223372036854775807}`},
@@ -109,7 +109,7 @@ func TestReviewProxyNumericAccessListAndMetadata(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 			}))
 			defer backend.Close()
-			session := vmConnect(t, transport, backend.URL, filepath.Join(t.TempDir(), "private"), nil)
+			session := vmConnect(t, transport, backend.URL, filepath.Join(t.TempDir(), "private"), &mcp.ClientOptions{ElicitationHandler: vmApprove})
 			args := changed(configuration(), "access_list_id", json.Number("42"))
 			args["meta"] = map[string]any{"counter": json.Number("9007199254740993")}
 			data, _ := json.Marshal(args)

@@ -86,7 +86,7 @@ func runMutationContract(t *testing.T, tc mutationCase) {
 			defer backend.Close()
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			client := mcp.NewClient(&mcp.Implementation{Name: "proxy-contract"}, nil)
+			client := mcp.NewClient(&mcp.Implementation{Name: "proxy-contract"}, &mcp.ClientOptions{ElicitationHandler: vmApprove})
 			var session *mcp.ClientSession
 			var err error
 			var stderr bytes.Buffer

@@ -1,5 +1,7 @@
 # DNS alias tools
 
+Registration and safety: [shared policy and classifications](../tool-safety.md).
+
 The DNS tools call the authenticated HyperHive API through the shared client.
 They use the same registration on embedded HTTP and standalone stdio.
 

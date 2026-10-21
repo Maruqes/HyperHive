@@ -30,7 +30,7 @@ func TestReviewDNSWritesRejectUnsafeConfigValues(t *testing.T) {
 				}
 				add = func(in client.DNSAliasWriteInput) bool { return c.AddDNSAlias(context.Background(), in) == nil }
 			} else {
-				session := vmConnect(t, transport, backend.URL, t.TempDir(), nil)
+				session := vmConnect(t, transport, backend.URL, t.TempDir(), &mcp.ClientOptions{ElicitationHandler: vmApprove})
 				add = func(in client.DNSAliasWriteInput) bool {
 					out, err := session.CallTool(context.Background(), &mcp.CallToolParams{Name: "dns_alias_add", Arguments: in})
 					if err != nil {

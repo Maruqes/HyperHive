@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/Maruqes/HyperHive/mcp/internal/safety"
 
 	"github.com/Maruqes/HyperHive/mcp/internal/client"
 	"github.com/google/jsonschema-go/jsonschema"
@@ -34,13 +35,13 @@ func notesTool(name, method, path, description string) *mcp.Tool {
 }
 
 // addNotesTool keeps integer precision in both result representations.
-func addNotesTool[In, Out any](server *mcp.Server, tool *mcp.Tool, handler func(context.Context, In) (Out, error)) {
+func addNotesTool[In, Out any](tool *mcp.Tool, handler func(context.Context, In) (Out, error)) ToolDefinition {
 	schema, err := jsonschema.For[Out](nil)
 	if err != nil {
 		panic(err)
 	}
 	tool.OutputSchema = schema
-	addExactTool(server, tool, func(ctx context.Context, req *mcp.CallToolRequest, input In) (*mcp.CallToolResult, any, error) {
+	return defineTool(tool, func(ctx context.Context, req *mcp.CallToolRequest, input In) (*mcp.CallToolResult, any, error) {
 		var args map[string]json.RawMessage
 		// The SDK may supply no raw bytes when arguments are omitted. Its
 		// typed validation still rejects omitted inputs for required tools.
@@ -66,38 +67,61 @@ func addNotesTool[In, Out any](server *mcp.Server, tool *mcp.Tool, handler func(
 	})
 }
 
-// RegisterNotes registers the permitted, named Notes operations.
-func RegisterNotes(server *mcp.Server, api NotesAPI) {
-	addNotesTool(server, notesTool("patch_note", "PATCH", client.NotesPath+"{id}", "Replace both title and body using the API PATCH alias. Calls PATCH /notes/{id}. This is a full replacement, not a partial merge: positive id, nonblank titulo and nota are all required. Overwrites both fields; returns the updated note or HTTP 404. No automatic retries."), func(ctx context.Context, input client.EditNoteInput) (notesObjectOutput, error) {
+// Notes definitions preserve typed contracts; registration is at the end of this file.
+func definePatchNote(api NotesAPI) ToolDefinition {
+	return addNotesTool(notesTool("patch_note", "PATCH", client.NotesPath+"{id}", "Replace both title and body using the API PATCH alias. Calls PATCH /notes/{id}. This is a full replacement, not a partial merge: positive id, nonblank titulo and nota are all required. Overwrites both fields; returns the updated note or HTTP 404. No automatic retries."), func(ctx context.Context, input client.EditNoteInput) (notesObjectOutput, error) {
 		if err := client.ValidateEditNote(input); err != nil {
 			return notesObjectOutput{}, err
 		}
 		result, err := api.PatchNote(ctx, input)
 		return notesObjectOutput{result}, err
 	})
-	addNotesTool(server, notesTool("replace_note", "PUT", client.NotesPath+"{id}", "Replace both title and body of an existing note. Calls PUT /notes/{id}. Positive id, nonblank titulo and nota are all required; this overwrites both fields. Returns the updated note, or HTTP 404 if missing. No automatic retries."), func(ctx context.Context, input client.EditNoteInput) (notesObjectOutput, error) {
+}
+
+func defineReplaceNote(api NotesAPI) ToolDefinition {
+	return addNotesTool(notesTool("replace_note", "PUT", client.NotesPath+"{id}", "Replace both title and body of an existing note. Calls PUT /notes/{id}. Positive id, nonblank titulo and nota are all required; this overwrites both fields. Returns the updated note, or HTTP 404 if missing. No automatic retries."), func(ctx context.Context, input client.EditNoteInput) (notesObjectOutput, error) {
 		if err := client.ValidateEditNote(input); err != nil {
 			return notesObjectOutput{}, err
 		}
 		result, err := api.ReplaceNote(ctx, input)
 		return notesObjectOutput{result}, err
 	})
-	addNotesTool(server, notesTool("create_note", "POST", client.NotesPath, "Create a note with required nonblank titulo and nota. Calls POST /notes/; returns the created note. Values are preserved unchanged. No automatic retries."), func(ctx context.Context, input client.NoteContent) (notesObjectOutput, error) {
+}
+
+func defineCreateNote(api NotesAPI) ToolDefinition {
+	return addNotesTool(notesTool("create_note", "POST", client.NotesPath, "Create a note with required nonblank titulo and nota. Calls POST /notes/; returns the created note. Values are preserved unchanged. No automatic retries."), func(ctx context.Context, input client.NoteContent) (notesObjectOutput, error) {
 		if err := client.ValidateNoteContent(input); err != nil {
 			return notesObjectOutput{}, err
 		}
 		result, err := api.CreateNote(ctx, input)
 		return notesObjectOutput{result}, err
 	})
-	addNotesTool(server, notesTool("get_note", "GET", client.NotesPath+"{id}", "Get a note by positive integer ID. Calls GET /notes/{id}; missing notes return HTTP 404."), func(ctx context.Context, input client.NoteIDInput) (notesObjectOutput, error) {
+}
+
+func defineGetNote(api NotesAPI) ToolDefinition {
+	return addNotesTool(notesTool("get_note", "GET", client.NotesPath+"{id}", "Get a note by positive integer ID. Calls GET /notes/{id}; missing notes return HTTP 404."), func(ctx context.Context, input client.NoteIDInput) (notesObjectOutput, error) {
 		if err := client.ValidateNoteID(input.ID); err != nil {
 			return notesObjectOutput{}, err
 		}
 		result, err := api.GetNote(ctx, input)
 		return notesObjectOutput{result}, err
 	})
-	addNotesTool(server, notesTool("list_notes", "GET", client.NotesPath, "List all notes ordered by descending ID. Calls GET /notes/. Takes no arguments."), func(ctx context.Context, _ struct{}) (notesListOutput, error) {
+}
+
+func defineListNotes(api NotesAPI) ToolDefinition {
+	return addNotesTool(notesTool("list_notes", "GET", client.NotesPath, "List all notes ordered by descending ID. Calls GET /notes/. Takes no arguments."), func(ctx context.Context, _ struct{}) (notesListOutput, error) {
 		result, err := api.ListNotes(ctx)
 		return notesListOutput{result}, err
 	})
+}
+
+// RegisterNotes is the complete tool and safety catalog for this area.
+// Keep names and explicit levels here; definitions contain handlers and schemas.
+func RegisterNotes(server *Registry, api NotesAPI) {
+	server = server.Area("notes")
+	RegisterTool(server, "create_note", defineCreateNote(api), safety.Medium)
+	RegisterTool(server, "get_note", defineGetNote(api), safety.Low)
+	RegisterTool(server, "list_notes", defineListNotes(api), safety.Low)
+	RegisterTool(server, "patch_note", definePatchNote(api), safety.Medium)
+	RegisterTool(server, "replace_note", defineReplaceNote(api), safety.Medium)
 }

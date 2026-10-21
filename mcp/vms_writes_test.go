@@ -212,7 +212,11 @@ func TestVMWriteContracts(t *testing.T) {
 						return out
 					}
 					args := json.RawMessage(tc.Args)
-					for _, choice := range []string{"decline", "cancel"} {
+					choices := []string{"decline", "cancel"}
+					if tc.Risk == "medium" {
+						choices = nil
+					}
+					for _, choice := range choices {
 						decision = choice
 						out := call(args)
 						if !out.IsError {
@@ -249,7 +253,7 @@ func TestVMWriteContracts(t *testing.T) {
 						t.Fatalf("approved call failed %s", data)
 					}
 					mu.Lock()
-					if writes != 1 || prompts < 4 {
+					if writes != 1 || (tc.Risk != "medium" && prompts < 4) || (tc.Risk == "medium" && prompts != 0) {
 						t.Errorf("writes=%d prompts=%d", writes, prompts)
 					}
 					savedPath := lastBackup

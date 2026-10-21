@@ -1,6 +1,6 @@
 # Celld MCP contracts
 
-Nine named Celld tools share the authenticated HyperHive HTTP client and the same
+Eight named Celld tools share the authenticated HyperHive HTTP client and the same
 registration over Streamable HTTP and executable stdio. API URLs and MCP_TOKEN
 are configuration, never arguments. Every result is `{ "result": <API object> }`
 with an identical JSON text fallback. Object fields and integer values are
@@ -16,7 +16,6 @@ in the SDK, with additional domain checks before HTTP dispatch.
 | `create_celld_fleet` | `name`, `servers`, optional `ports` | `POST /celld/fleets` |
 | `start_celld_fleet` | `id` | `POST /celld/fleets/{id}/start` |
 | `stop_celld_fleet` | `id` | `POST /celld/fleets/{id}/stop` |
-| `delete_celld_fleet` | `id` | `DELETE /celld/fleets/{id}` |
 | `get_celld_credentials` | `id` | `GET /celld/fleets/{id}/credentials` |
 | `get_celld_logs` | `id` and optional filters below | `GET /celld/fleets/{id}/logs` |
 | `get_celld_events` | `id` and optional filters below | `GET /celld/fleets/{id}/events` |
@@ -40,17 +39,14 @@ allocation, or supply `{ "http": 8080, "internal": 8081 }`: both must be distinc
 integers in 1–65535. HyperHive decides inventory validity, name uniqueness, port
 reservations and reset/busy conflicts. No extra inventory call or tool is added.
 
-Create, start, stop and delete return the real JSON fleet state acknowledged by
+Create, start and stop return the real JSON fleet state acknowledged by
 HTTP 202. This is queued work, not completed provisioning, shutdown or removal.
 Start sets desired_state=running; stop sets desired_state=stopped and preserves
 configuration/data. List can be called later to inspect the resulting state.
 
-Delete is destructive: reconciliation removes node data/logs, the fleet storage
-bucket and scoped storage credentials. Offline nodes can delay completion.
-The user's explicit request in this batch authorizes **only** this deletion tool
-as an exception to the repository's earlier no-deletion instruction. No proxy
-deletion, fleet editing or generic action/API dispatcher is exposed. Fleet edit
-remains excluded because its complete contract can remove node data.
+Celld fleet deletion is excluded from MCP at the user's request (2026-10-21).
+It remains a backend REST capability. All exposed Celld writes and credential
+reads require High approval under the [shared safety policy](../tool-safety.md).
 
 Credentials explicitly returns aws_access_key_id and aws_secret_access_key.
 These are sensitive, fleet-scoped credentials; the tool description identifies
@@ -101,8 +97,8 @@ are checked for exact text preservation.
 
 The master integration test uses real MCP routing/authentication, actual Celld
 handlers, disposable signing/admin state and a disposable fleet state file.
-It verifies automatic ports, server/name/busy conflicts, queued start/stop/delete,
-credential denial while deleting and partial/empty history/export behavior.
+It verifies automatic ports, server/name/busy conflicts, queued start/stop,
+credential retrieval for retained fleets and partial/empty history/export behavior.
 No reconciler, agent, process, storage bucket or production server is started or
 modified. These checks prove API acceptance, not eventual reconciliation.
 

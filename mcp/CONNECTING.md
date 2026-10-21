@@ -65,10 +65,12 @@ claude mcp remove hyperhive --scope user
 
 ## How it works and common errors
 
-### VM approval and recovery records
+### Tool safety and VM recovery records
 
-Every VM, disk, template and host-tuning tool publishes `hyperhive/risk` as
-`low`, `medium`, `high` or `very high`. Medium and higher require an explicit
+Every tool publishes `hyperhive/risk` as `low`, `medium`, `high` or `very high`.
+Medium validates and privately records target/arguments/impact without a human
+prompt; use `MCP_REVIEW_DIR` for an absolute private review directory.
+High and very high require an explicit
 `approve` choice in the client's MCP form picker for each invocation. Tool
 arguments cannot supply approval. Decline, cancellation, unsupported picker,
 expired continuation or changed arguments block the operation.
@@ -82,7 +84,12 @@ verified with the actual harness; server tests use SDK clients with disposable
 backends. Modern HTTP remains stateless. GET without a legacy session returns
 405 as before.
 
-If a VM call reports an approval error but no picker appeared, that error does
+Standard MCP cannot attest a human click or inspect the chat mode. Qualify the
+human form in both Ask for Approval and Approve for me; an automatically answering
+client is not qualified. Current local tests use fixtures, not actual desktop UI
+qualification. See [the full policy](docs/tool-safety.md).
+
+If a protected call reports an approval error but no picker appeared, that error does
 not establish that the user declined. The MCP client may have canceled the form,
 returned no decision, or been unable to complete elicitation. Current errors
 identify the response category without exposing response payloads. Reconnect or

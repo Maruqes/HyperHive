@@ -77,7 +77,7 @@ func runCelldContract(t *testing.T, tc celldCase) {
 			defer backend.Close()
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			c := mcp.NewClient(&mcp.Implementation{Name: "celld-contract"}, nil)
+			c := mcp.NewClient(&mcp.Implementation{Name: "celld-contract"}, &mcp.ClientOptions{ElicitationHandler: vmApprove})
 			var session *mcp.ClientSession
 			var err error
 			var stderr bytes.Buffer
@@ -263,11 +263,6 @@ func TestCelldStop(t *testing.T) {
 	runCelldContract(t, celldCase{name: "stop_celld_fleet", method: "POST", path: "/celld/fleets/fleet_one/stop", args: args, query: url.Values{}, status: 202, response: `{"id":"fleet_one","name":"analytics","desired_state":"stopped","status":"provisioning","servers":[],"ports":{"http":8080,"internal":8081},"storage":{"bucket":"hyperhive-celld-fleet_one","region":"us-east-1","endpoint":""},"urls":[],"deploy":{"command":"","credentials_url":"/celld/fleets/fleet_one/credentials","environment":[]},"checked_at":"2026-10-18T00:00:00Z"}`, invalid: []map[string]any{{}, changed(args, "id", ""), changed(args, "id", "../other"), changed(args, "id", "a/b"), changed(args, "id", "a?b"), changed(args, "id", "a#b"), changed(args, "id", "a%2fb"), changed(args, "id", strings.Repeat("x", 65)), changed(args, "id", 1)}})
 }
 
-func TestCelldDelete(t *testing.T) {
-	args := map[string]any{"id": "fleet_one"}
-	runCelldContract(t, celldCase{name: "delete_celld_fleet", method: "DELETE", path: "/celld/fleets/fleet_one", args: args, query: url.Values{}, status: 202, response: `{"id":"fleet_one","name":"analytics","desired_state":"deleting","status":"deleting","servers":[],"ports":{"http":8080,"internal":8081},"storage":{"bucket":"hyperhive-celld-fleet_one","region":"us-east-1","endpoint":""},"urls":[],"deploy":{"command":"","credentials_url":"/celld/fleets/fleet_one/credentials","environment":[]},"checked_at":"2026-10-18T00:00:00Z"}`, invalid: []map[string]any{{}, changed(args, "id", ""), changed(args, "id", "../other"), changed(args, "id", "a/b"), changed(args, "id", "a?b"), changed(args, "id", "a#b"), changed(args, "id", "a%2fb"), changed(args, "id", strings.Repeat("x", 65)), changed(args, "id", 1)}})
-}
-
 func TestCelldCredentials(t *testing.T) {
 	args := map[string]any{"id": "fleet_one"}
 	runCelldContract(t, celldCase{name: "get_celld_credentials", method: "GET", path: "/celld/fleets/fleet_one/credentials", args: args, query: url.Values{}, status: 200, response: `{"aws_access_key_id":"fleet-scoped-key","aws_secret_access_key":"fixture-secret-intentionally-returned"}`, invalid: []map[string]any{{}, changed(args, "id", ""), changed(args, "id", "../other"), changed(args, "id", 1)}})
@@ -326,7 +321,7 @@ func TestCompleteToolRegistry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"create_celld_fleet", "create_proxy", "delete_celld_fleet", "disable_proxy", "enable_proxy", "get_celld_credentials", "get_celld_events", "get_celld_health", "get_celld_logs", "list_celld_fleets", "list_proxies", "setup_frontend_proxy", "setup_secure_frontend_proxy", "start_celld_fleet", "stop_celld_fleet", "update_proxy"}
+	want := []string{"create_celld_fleet", "create_proxy", "disable_proxy", "enable_proxy", "get_celld_credentials", "get_celld_events", "get_celld_health", "get_celld_logs", "list_celld_fleets", "list_proxies", "setup_frontend_proxy", "setup_secure_frontend_proxy", "start_celld_fleet", "stop_celld_fleet", "update_proxy"}
 	for _, tc := range nginxCases {
 		want = append(want, tc.Name)
 	}
@@ -341,7 +336,7 @@ func TestCompleteToolRegistry(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("registry got %v want %v", got, want)
 	}
-	for _, name := range []string{"delete_proxy", "delete_celld_fleets", "remove_celld_fleet", "edit_celld_fleet", "update_celld_fleet", "restart_celld_fleet", "call_api", "celld_action"} {
+	for _, name := range []string{"delete_celld_fleet", "delete_proxy", "delete_celld_fleets", "remove_celld_fleet", "edit_celld_fleet", "update_celld_fleet", "restart_celld_fleet", "call_api", "celld_action"} {
 		result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: name, Arguments: map[string]any{"id": "fleet_one"}})
 		if err == nil && !result.IsError {
 			t.Fatalf("unrequested tool exposed: %s", name)

@@ -1,5 +1,7 @@
 # Reusable upstream tools
 
+Registration and safety: [shared policy and classifications](../tool-safety.md).
+
 Both authenticated HTTP and stdio expose five named upstream tools. They use the shared HyperHive client, authentication, cancellation, response limits and safe errors; mutations are never retried. No upstream deletion tool, alias or generic dispatcher is exposed.
 
 | Tool | REST endpoint | Output |

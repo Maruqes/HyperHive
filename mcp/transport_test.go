@@ -20,7 +20,7 @@ func TestHTTPApprovalProtocolCompatibility(t *testing.T) {
 				gate := &vmsafety.Gate{}
 				var writes, prompts atomic.Int32
 				mcp.AddTool(server, &mcp.Tool{Name: "protected_change"}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
-					result, err := gate.Require(ctx, req, vmsafety.Medium, "Change disposable fixture setting")
+					result, err := gate.Require(ctx, req, vmsafety.High, "Change disposable fixture setting")
 					if result != nil || err != nil {
 						return result, nil, err
 					}

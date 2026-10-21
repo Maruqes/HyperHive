@@ -17,7 +17,7 @@ The user explicitly authorized VM creation, autostart/live flag changes, automat
 
 ## Registered endpoint mapping
 
-Every tool has explicit `hyperhive/risk` metadata and a matching risk description. Medium, high and very high operations require a supported user option picker for each invocation; no argument can self-approve a call.
+Every tool has explicit `hyperhive/risk` metadata and a matching risk description. Medium operations require a recorded preflight without a prompt. High and very high operations require a supported human option picker for each invocation; no argument can self-approve a call.
 
 | Tool | Method | Path | Risk |
 | --- | --- | --- | --- |
@@ -149,7 +149,7 @@ there is no created ID, immediate backup job or fabricated completion.
 
 `add_vm_ssh_key` accepts vm_name and one supported OpenSSH public key. A parser
 rejects malformed keys, private keys and authorized_keys options. Comments are
-accepted; backend customization drops them. The picker displays a fingerprint.
+accepted; backend customization drops them. The picker redacts public-key content and binds approval to the exact argument digest.
 The guest must already be shut off; separately use shutdown_vm if needed. The
 export path must match the primary file-backed disk in secure inactive XML.
 Before injection, the tool persists before.json, streams the complete primary
@@ -169,9 +169,9 @@ rollback. Never retry automatically.
 
 ## Approval and retained prior state
 
-The harness must offer a real per-invocation option picker. Modern clients use argument-bound input requests; older supported HTTP and stdio clients use retained-session form elicitation. Missing, declined, canceled, forged, reused or changed-argument approval cannot mutate. Pending approval returns no structured success or backend calls. Operation, target, risk and meaningful requested values appear in the picker; XML is identified by size/SHA-256 and passwords are hidden. Configuration and credentials are never tool arguments.
+High/VeryHigh require a real per-invocation human picker in both chat approval modes. Medium uses a privately recorded preflight without prompting; Low uses ordinary validation. See the [shared safety policy](../tool-safety.md). Modern clients use argument-bound input requests; older supported HTTP and stdio clients use retained-session form elicitation. Missing, declined, canceled, forged, reused or changed-argument approval cannot mutate. Pending approval returns no structured success or backend calls. Operation, target, risk and meaningful requested values appear in the picker; XML is represented by size and passwords are hidden; the complete argument digest binds the request. Configuration and credentials are never tool arguments.
 
-After approval, one per-registry lock serializes the fresh snapshot, durable save and single backend request. Any read/shape/save failure blocks that request. VM setting records include actual identity, legacy domain response and complete secure inactive/current XML, plus exact setting getters where available, including the CPU pinning getter. XML replacement must preserve target name and actual UUID; an explicit machine override must match the current VM host. For positive `edit_vm` disk growth, the prior inventory must also contain a positive integral disk size and a path matching the primary file-backed disk in secure inactive XML; disk inspection failures block growth. CPU-only edits do not require a disk. Host boot mutations retain every kernel's exact previous arguments and current/default identities plus the relevant old setting response. Template, disk and schedule changes retain the actual corresponding records; disk attachment/grow also retain affected VM state when applicable.
+After the required approval or Medium review, one per-registry lock serializes the fresh snapshot, durable save and single backend request. Any read/shape/save failure blocks that request. VM setting records include actual identity, legacy domain response and complete secure inactive/current XML, plus exact setting getters where available, including the CPU pinning getter. XML replacement must preserve target name and actual UUID; an explicit machine override must match the current VM host. For positive `edit_vm` disk growth, the prior inventory must also contain a positive integral disk size and a path matching the primary file-backed disk in secure inactive XML; disk inspection failures block growth. CPU-only edits do not require a disk. Host boot mutations retain every kernel's exact previous arguments and current/default identities plus the relevant old setting response. Template, disk and schedule changes retain the actual corresponding records; disk attachment/grow also retain affected VM state when applicable.
 
 `MCP_VM_BACKUP_DIR` configures the operator-owned absolute private directory. The default is the OS user cache under `hyperhive/mcp/vm-backups`. Directories are private (0700), records/artifacts 0600, recovery files and directory entries are synced before the backend request, transfer artifacts are synced before success, existing public/symlink backup directories fail closed, and records are retained without automatic cleanup. Records may contain passwords and secure XML; they are never logged. Successful mutations and post-save backend failures expose the retained `before.json` path. No automatic rollback is attempted. These records capture configuration/metadata; they are not whole guest-disk backups and cannot reverse disk growth or recover lost guest RAM. External non-MCP changes are not serialized by this lock.
 

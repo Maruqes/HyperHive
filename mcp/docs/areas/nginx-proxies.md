@@ -1,5 +1,7 @@
 # Proxy-host tool contracts
 
+Registration and safety: [shared policy and classifications](../tool-safety.md).
+
 Reviewed source: `master/api/npmapi/proxy.go` (`SetupProxyAPI`, handlers and setup
 helpers), `master/npm/proxy.go` (`Proxy`, `Location`, `StringOrInt`, NPM helpers),
 `master/api/login.go` and `mcp/auth.go`. The current verified tool set and

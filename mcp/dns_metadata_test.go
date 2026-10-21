@@ -41,7 +41,7 @@ func TestDNSOptionalMetadataContracts(t *testing.T) {
 				}
 			}))
 			defer backend.Close()
-			session := vmConnect(t, transport, backend.URL, t.TempDir(), nil)
+			session := vmConnect(t, transport, backend.URL, t.TempDir(), &mcp.ClientOptions{ElicitationHandler: vmApprove})
 			listed, err := session.ListTools(context.Background(), nil)
 			if err != nil {
 				t.Fatal(err)

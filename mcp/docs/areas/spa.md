@@ -1,5 +1,7 @@
 # SPA management MCP tools
 
+Registration and safety: [shared policy and classifications](../tool-safety.md).
+
 Source reviewed on 2026-10-19. No production access or deployment.
 
 | Tool | HTTP endpoint | Contract |

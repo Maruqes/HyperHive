@@ -138,7 +138,7 @@ func TestApprovalBindingAndSingleUse(t *testing.T) {
 	}
 	approve := func(token string, arguments map[string]any) *mcp.CallToolResult {
 		t.Helper()
-		res, err := session.CallTool(context.Background(), &mcp.CallToolParams{Name: "vm_change", Arguments: arguments, RequestState: token, InputResponses: mcp.InputResponseMap{"vm_approval": &mcp.ElicitResult{Action: "accept", Content: map[string]any{"decision": "approve"}}}})
+		res, err := session.CallTool(context.Background(), &mcp.CallToolParams{Name: "vm_change", Arguments: arguments, RequestState: token, InputResponses: mcp.InputResponseMap{"tool_approval": &mcp.ElicitResult{Action: "accept", Content: map[string]any{"decision": "approve"}}}})
 		if err != nil {
 			t.Fatal(err)
 		}

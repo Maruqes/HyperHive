@@ -44,7 +44,9 @@ func TestCelldMCPActualHandlers(t *testing.T) {
 	defer server.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	session, err := mcp.NewClient(&mcp.Implementation{Name: "celld-handler-contract"}, nil).Connect(ctx, &mcp.StreamableClientTransport{Endpoint: server.URL + "/mcp", HTTPClient: &http.Client{Transport: mcpBearerTransport{}}}, nil)
+	session, err := mcp.NewClient(&mcp.Implementation{Name: "celld-handler-contract"}, &mcp.ClientOptions{ElicitationHandler: func(context.Context, *mcp.ElicitRequest) (*mcp.ElicitResult, error) {
+		return &mcp.ElicitResult{Action: "accept", Content: map[string]any{"decision": "approve"}}, nil
+	}}).Connect(ctx, &mcp.StreamableClientTransport{Endpoint: server.URL + "/mcp", HTTPClient: &http.Client{Transport: mcpBearerTransport{}}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +106,7 @@ func TestCelldMCPActualHandlers(t *testing.T) {
 	}
 	// Simulate completed previous operations by changing only disposable persisted
 	// fixture state. No reconciler or actual process operation runs in this test.
-	for _, action := range []struct{ name, state, status string }{{"start_celld_fleet", "running", "provisioning"}, {"stop_celld_fleet", "stopped", "provisioning"}, {"delete_celld_fleet", "deleting", "deleting"}} {
+	for _, action := range []struct{ name, state, status string }{{"start_celld_fleet", "running", "provisioning"}, {"stop_celld_fleet", "stopped", "provisioning"}} {
 		data, err := os.ReadFile(statePath)
 		if err != nil {
 			t.Fatal(err)
@@ -125,11 +127,11 @@ func TestCelldMCPActualHandlers(t *testing.T) {
 			t.Fatalf("%s: %#v", action.name, result)
 		}
 	}
-	call("get_celld_credentials", args, true) // Deleting fleet refuses credentials.
+	call("get_celld_credentials", args, false) // Stopped fleets retain their scoped credentials.
 	call("stop_celld_fleet", map[string]any{"id": "missing"}, true)
 	final := call("list_celld_fleets", map[string]any{}, false)
 	if len(final["fleets"].([]any)) != 1 {
-		t.Fatal("delete must report queued, not fabricate completed removal")
+		t.Fatal("start/stop must retain the fleet")
 	}
 	for _, secret := range []string{keys["aws_access_key_id"].(string), keys["aws_secret_access_key"].(string), "fixture-private"} {
 		data, _ := json.Marshal(final)

@@ -16,11 +16,11 @@ import (
 // schema/default processing passes numbers through float64, which can round
 // int64 resource IDs and silently select a different mutation target. Tool
 // schemas in this registry do not use defaults.
-func addExactTool[In, Out any](server *mcp.Server, tool *mcp.Tool, handler mcp.ToolHandlerFor[In, Out]) {
+func addExactTool[In, Out any](server *mcp.Server, tool *mcp.Tool, handler mcp.ToolHandlerFor[In, Out]) error {
 	if tool.InputSchema == nil {
 		schema, err := jsonschema.For[In](&jsonschema.ForOptions{})
 		if err != nil {
-			panic(fmt.Errorf("derive tool input schema: %w", err))
+			return fmt.Errorf("derive tool input schema: %w", err)
 		}
 		tool.InputSchema = schema
 	}
@@ -44,4 +44,5 @@ func addExactTool[In, Out any](server *mcp.Server, tool *mcp.Tool, handler mcp.T
 		}
 		return handler(ctx, req, input)
 	})
+	return nil
 }

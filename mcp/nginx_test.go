@@ -34,6 +34,7 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	os.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))
 	nginxBinary = filepath.Join(dir, "hyperhive-mcp")
 	output, err := exec.Command("go", "build", "-o", nginxBinary, "./cmd/hyperhive-mcp").CombinedOutput()
 	if err != nil {
@@ -100,7 +101,7 @@ func runNginxContract(t *testing.T, tc nginxCase) {
 			defer backend.Close()
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			c := mcp.NewClient(&mcp.Implementation{Name: "nginx-contract"}, nil)
+			c := mcp.NewClient(&mcp.Implementation{Name: "nginx-contract"}, &mcp.ClientOptions{ElicitationHandler: vmApprove})
 			var session *mcp.ClientSession
 			var err error
 			var stderr bytes.Buffer

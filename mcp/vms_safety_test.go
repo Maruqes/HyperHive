@@ -125,7 +125,7 @@ func TestVMApprovalTokensThroughBothTransports(t *testing.T) {
 			}
 			approve := func(token string, input any) *mcp.CallToolResult {
 				t.Helper()
-				out, err := session.CallTool(context.Background(), &mcp.CallToolParams{Name: tc.Name, Arguments: input, RequestState: token, InputResponses: mcp.InputResponseMap{"vm_approval": &mcp.ElicitResult{Action: "accept", Content: map[string]any{"decision": "approve"}}}})
+				out, err := session.CallTool(context.Background(), &mcp.CallToolParams{Name: tc.Name, Arguments: input, RequestState: token, InputResponses: mcp.InputResponseMap{"tool_approval": &mcp.ElicitResult{Action: "accept", Content: map[string]any{"decision": "approve"}}}})
 				if err != nil {
 					t.Fatal(err)
 				}

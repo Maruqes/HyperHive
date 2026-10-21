@@ -1,5 +1,7 @@
 # Notes MCP tools
 
+Registration and safety: [shared policy and classifications](../tool-safety.md).
+
 Source-reviewed against `master/api/notes.go` and `master/db/notes.go` on 2026-10-19. Both embedded authenticated HTTP and standalone stdio use the same registration and shared API client.
 
 | Tool | API endpoint | Required arguments | Behavior |

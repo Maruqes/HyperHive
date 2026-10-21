@@ -48,7 +48,7 @@ func TestAuthenticatedHTTPContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list.Tools) != 118 {
+	if len(list.Tools) != 117 {
 		t.Fatalf("unexpected tools: %#v", list.Tools)
 	}
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_proxies", Arguments: map[string]any{}})

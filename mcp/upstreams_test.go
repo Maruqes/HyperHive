@@ -67,7 +67,7 @@ func TestUpstreamContractsBothTransports(t *testing.T) {
 				defer backend.Close()
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
-				c := mcp.NewClient(&mcp.Implementation{Name: "upstream-contract"}, nil)
+				c := mcp.NewClient(&mcp.Implementation{Name: "upstream-contract"}, &mcp.ClientOptions{ElicitationHandler: vmApprove})
 				var session *mcp.ClientSession
 				var err error
 				if transport == "http" {

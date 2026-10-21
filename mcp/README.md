@@ -1,17 +1,17 @@
 # HyperHive MCP
 
 Use HyperHive through named MCP tools. The master serves **Streamable HTTP** on
-its API listener; standalone stdio shares the same 118-tool registry.
+its API listener; standalone stdio shares the same 117-tool registry.
 
 ## API coverage
 
-Last checked: **2026-10-20**, locally. Counts measure supported API endpoints.
+Last checked: **2026-10-21**, locally. Counts measure supported API endpoints.
 
 | Scope | Supported / total | Coverage |
 | --- | ---: | ---: |
-| HyperHive API | 118 / 322 | **36.65%** |
+| HyperHive API | 117 / 322 | **36.34%** |
 | NGINX | 33 / 43 | 76.74% |
-| Celld | 9 / 17 | 52.94% |
+| Celld | 8 / 17 | 47.06% |
 | DNS aliases | 3 / 4 | 75.00% |
 | Notes | 5 / 6 | 83.33% |
 | SPA management | 2 / 4 | 50.00% |
@@ -28,8 +28,11 @@ excluded. The inventory includes six upstream endpoints and two internal recover
 helpers; the recovery helpers earn no direct tool credit. See [full state](UPDATE_STATE.md) for all mappings,
 exclusions, validation and missing endpoints.
 
-VM tools publish low/medium/high/very high risk. Medium+ requires explicit
-per-invocation user approval in the harness picker. Before settings changes,
+All tools use one typed registrar and publish low/medium/high/very high risk.
+Each area's existing file ends with a `Register…` function showing all tool names and safety levels together.
+Medium records a validated preflight without a prompt; High/VeryHigh require an
+explicit per-invocation human form. See [tool safety and inventory](docs/tool-safety.md).
+Celld deletion is excluded at the user's request. Before settings changes,
 private retained records save actual old XML/settings; failed snapshots or
 persistence block the operation. Configure MCP_VM_BACKUP_DIR or use the process
 user's cache default. No automatic rollback is provided. SSH injection requires a
@@ -69,6 +72,8 @@ Requires Go 1.25+. From mcp/:
 go build -o bin/hyperhive-mcp ./cmd/hyperhive-mcp
 go test ./...
 ```
+
+See [TESTING.md](TESTING.md) for the test file map and focused test examples.
 
 Launch the binary by absolute path with HYPERHIVE_API_URL and MCP_TOKEN in its
 environment; it does not load .env. Follow [AGENTS.md](AGENTS.md) and
