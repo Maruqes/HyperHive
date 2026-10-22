@@ -6,11 +6,13 @@ import (
 	"512SvMan/env512"
 	"512SvMan/info"
 	"512SvMan/logs512"
+	"512SvMan/npm"
 	"512SvMan/protocol"
 	"512SvMan/services"
 	"512SvMan/wireguard"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -314,6 +316,12 @@ func installIpset() error {
 }
 
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "--npm-upgrade-manifest" {
+		if err := json.NewEncoder(os.Stdout).Encode(npm.NPMUpgradeManifest()); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 
 	// Set the function in api package to access newSlaveCount
 	api.GetNewSlaveCountValue = getNewSlaveCount

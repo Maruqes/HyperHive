@@ -67,3 +67,12 @@ data.db-shm
 *.db.bak
 *.db-wal
 *.db-shm
+
+# Private NPM upgrade backups and preserved rollback state.
+npm-update-backups/
+512SvMan.npm-previous
+npm-data.before-rollback-*/
+npm-ssl.before-rollback-*/
+data.db*.before-rollback-*
+docker-compose.hyperhive-upstreams.yml
+docker-compose.hyperhive-upstreams.yml.before-rollback-*

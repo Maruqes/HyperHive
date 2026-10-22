@@ -41,18 +41,44 @@ HTTPS backend SNI defaults to the public hostname and backend certificate verifi
 
 ## Adapter and persistence
 
-The tested image is `jc21/nginx-proxy-manager@sha256:cd9eba29ca132cb006729f2cb2660126453f84818c2f7d75963ad7b61ef696bd` (OpenResty 1.27.1.2). Native host fields append ports and failed all four pool traffic contexts. The adapter changes only pinned proxy_host.conf, _location.conf, stream.conf and the common proxy.conf include; direct targets retain their forwarding port. NPM startup may append blank lines to the common include; verification normalizes only its trailing LF bytes while keeping directive content pinned. Exact source fingerprints are in `npm-upstreams-compatibility.json`.
+The supported release is NPM 2.16.0 with OpenResty 1.31.1.1. The desired tag is defined once by `image` in `master/npm/npm.go`. The exact Docker image config ID and registry manifest digest are recorded separately in `npm-upstreams-compatibility.json`; a config ID must not be used as a `repository@digest` registry reference. Native host fields append ports and failed all four pool traffic contexts. The adapter changes only pinned proxy_host.conf, _location.conf, stream.conf and the common proxy.conf include; direct targets retain their forwarding port. NPM startup may append blank lines to the common include; verification normalizes only its trailing LF bytes while keeping directive content pinned. Exact source fingerprints are in `npm-upstreams-compatibility.json`.
 
 Generated files live under `/data/nginx/custom/hyperhive/generations/`, selected by one `current` symlink. Managed includes are appended to http_top.conf and stream.conf while preserving existing content and stream logging. A complete candidate is tested with the container's NGINX before publication; a Unix-socket generation response verifies activation. Failed edits compensate to the previous snapshot; uncertain outcomes remain journaled and block mutations. Confirmed creates are completed during reconciliation instead of deleting the new resource, so MCP creation has no deletion rollback. A failed request can therefore become a confirmed created resource after recovery; inspect state before repeating a create. Startup reconciles the journal before accepting further upstream changes. Pre-write and post-save checks return conflicts for observed external consumer edits. External writers do not share the mutex and can race after a check; stop other administrative writers for coordinated changes.
 
 On master-managed container recreation, an owned `docker-compose.hyperhive-upstreams.yml` adds the adapter mounts without replacing the base compose file. Adapter source files live in `npm-data/hyperhive-upstream-adapter`, outside NPM's recursive `/data/nginx` startup scan. Only the managed common proxy include is mounted writable because NPM's IPv6 preparation rewrites conf.d files; template mounts are read-only. Unsupported images, ambiguous multi-service compose files and conflicting custom template mounts fail closed. Use master-managed startup or the generated compose override when recreating NPM.
 
-## Release and recovery procedure
+## Upgrade from the previous adapter
 
-1. Stop concurrent administrative writes and take consistent backups of HyperHive's SQLite DB (including a SQLite backup rather than a live main-file-only copy), NPM data, certificate data, base/override compose files, adapter assets and generation tree. Keep backups private.
-2. Ship the updated master, frontend and standalone MCP binary together. Start the master against the verified image, inspect capabilities, then create an unused pool before binding consumers. First use installs the adapter; subsequent master-managed recreation installs persistent mounts. Do not upgrade NPM independently while pool bindings exist.
-3. After a 503, inspect capabilities/recovery_id, the journal and container diagnostics before another mutation. Repair unavailable storage/NPM or invalid custom configuration, then restart the updated master to reconcile. Unknown create outcomes without an observable operation marker remain recovery-required; do not repeat POST or hand-edit journal state without checking the actual NPM resource and completing that operation. Back up state before manual repair.
-4. For downgrade, explicitly detach every root/location/stream binding to valid direct endpoints, or disable affected consumers and retain their pool configuration until their references are removed. Remove unused pools only after references are gone. Verify direct traffic, then restore compatible backed-up state or remove the owned adapter mounts/includes and recreate the vanilla container. Never remove pool files while consumers still reference them. Additive DB tables may remain during a binary downgrade.
+The latest adapter does not support the old NPM image. The approved migration deletes all existing upstream pools and proxy hosts/streams that reference them, including proxy hosts with only a pooled custom location. It keeps direct-target resources, users, certificates, access lists, redirections and unrelated configuration.
+
+From the repository root, after obtaining this source update:
+
+```bash
+cp -p master/512SvMan master/512SvMan.npm-previous
+sudo pm2 stop hyperhive-master
+go -C master build
+sudo python3 scripts/update_npm.py --reset-upstreams
+```
+
+Only after the script succeeds and traffic is checked:
+
+```bash
+sudo pm2 start hyperhive-master
+```
+
+Save the old binary **before** rebuilding. The script checks the rebuilt master's read-only `--npm-upgrade-manifest` against the source image pin, validates the pulled image's exact identity, and rejects unknown overrides, conflicting template mounts, external databases and nested data mounts.
+
+Before any destructive work it stops NPM and creates a private backup in the NPM working directory's `npm-update-backups/`: both data directories, a consistent HyperHive SQLite backup, base/managed override Compose files and the saved previous master binary. It retains the running image under a local rollback tag. With `--reset-upstreams` it also deliberately discards pending pool journals: the entire old pool subsystem and its pooled consumers are being removed, not reconciled.
+
+The script soft-deletes pooled resources in the stopped NPM SQLite database, removes their generated configuration, clears HyperHive pool/binding/journal records, removes owned adapter files/includes, updates only the base image line and recreates NPM without the old override. Unrelated hook content is preserved. The new adapter is installed when new pools are created with the updated master. NGINX syntax and API readiness are checked; certificate issuance/renewal still needs operator testing.
+
+If anything fails after the complete backup, keep the master stopped and run the exact printed rollback command:
+
+```bash
+sudo python3 scripts/update_npm.py --rollback /absolute/path/to/npm-update-backups/TIMESTAMP
+```
+
+Rollback restores the previous image/configuration, NPM data, HyperHive SQLite state and previous master binary. It preserves the newer data directories and SQLite files separately instead of merging or deleting them. Restart PM2 only after rollback succeeds. This restores the whole backed-up HyperHive database, including unrelated metadata changes made since the backup; keep administrative writers stopped throughout testing and rollback. Do not prune the retained old image or delete the private backup before accepting the upgrade.
 
 SQLite, NPM HTTP and NGINX are coordinated with a journal and compensation; they are not one atomic transaction. External writers are detected but do not participate in HyperHive's mutex. This is process/crash recovery, not a guarantee of distributed or power-failure atomicity.
 

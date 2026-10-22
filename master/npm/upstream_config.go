@@ -15,11 +15,28 @@ import (
 	"time"
 )
 
-const UpstreamImageDigest = "sha256:cd9eba29ca132cb006729f2cb2660126453f84818c2f7d75963ad7b61ef696bd"
+// Docker image config ID; this is not a registry manifest digest for repo@sha256.
+const UpstreamImageDigest = "sha256:5c80aaf5e26c1f45a6ce9f58ad00edceabb717d68236ff5b06d6f4d1f1271742"
 const upstreamConfigRoot = "/data/nginx/custom/hyperhive"
 
 //go:embed upstream_templates/*.conf
 var upstreamTemplates embed.FS
+
+// NPMUpgradeManifest exports the compiled adapter to the offline update script.
+// The script checks Target against the source pin to reject an outdated master.
+func NPMUpgradeManifest() map[string]any {
+	files := map[string]map[string]string{}
+	for name, path := range upstreamTemplatePaths {
+		original, _ := upstreamTemplates.ReadFile("upstream_templates/" + name)
+		files[name] = map[string]string{"path": path, "original": string(original), "patched": patchedUpstreamTemplate(name, string(original))}
+	}
+	return map[string]any{"target": image, "target_id": UpstreamImageDigest, "templates": files}
+}
+
+func (d DockerUpstreamRuntime) imageIdentity(ctx context.Context) (string, error) {
+	b, err := d.command(ctx, "inspect", "--format", "{{.Image}}", d.Container)
+	return strings.TrimSpace(string(b)), err
+}
 
 var upstreamTemplatePaths = map[string]string{
 	"proxy_host.conf": "/app/templates/proxy_host.conf",
@@ -113,12 +130,12 @@ func patchedUpstreamTemplate(name, original string) string {
 }
 
 func (d DockerUpstreamRuntime) Verify(ctx context.Context) error {
-	b, err := d.command(ctx, "inspect", "--format", "{{.Image}}", d.Container)
+	identity, err := d.imageIdentity(ctx)
 	if err != nil {
 		return err
 	}
-	if strings.TrimSpace(string(b)) != UpstreamImageDigest {
-		return fmt.Errorf("unsupported NPM image; exact image digest is required")
+	if identity != UpstreamImageDigest {
+		return fmt.Errorf("unsupported NPM image; exact verified image identity is required")
 	}
 	main, err := d.read(ctx, "/etc/nginx/nginx.conf")
 	if err != nil {

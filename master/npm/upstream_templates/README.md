@@ -1,9 +1,7 @@
-# Pinned NPM template inputs
+# Verified NPM adapter templates
 
-These files were extracted unchanged from Nginx Proxy Manager 2.13.5 at the exact image identity recorded in notes/npm-upstreams-compatibility.json. Their paths and hashes are checked before applying the narrow adapter in upstream_config.go. They are not complete replacement host configurations.
+These pristine files were extracted from the NPM image identified by `UpstreamImageDigest` in `upstream_config.go`. The desired release is defined only by `image` in `npm.go`; `notes/npm-upstreams-compatibility.json` records the verified tag, image config ID, registry digest and local test evidence.
 
-Upstream sources:
-- https://github.com/NginxProxyManager/nginx-proxy-manager/tree/v2.13.5/backend/templates
-- https://github.com/NginxProxyManager/nginx-proxy-manager/blob/v2.13.5/docker/rootfs/etc/nginx/conf.d/include/proxy.conf
+The Go adapter applies only the reserved managed-target port omission and backend TLS policy. Runtime image identity, template bytes and include layout are checked before mutations. The common proxy include alone permits trailing LF variation introduced by NPM startup. The update script obtains patched assets from the compiled master's read-only `--npm-upgrade-manifest` command; Python does not duplicate the template patch logic.
 
-Retain upstream licensing when redistributing these NPM-derived inputs. Any image/template change requires a fresh disposable compatibility run before expanding the supported identity.
+Retain upstream licensing when redistributing these NPM-derived inputs. Every future image/template change requires a fresh disposable compatibility run. Upstream source: https://github.com/NginxProxyManager/nginx-proxy-manager/tree/v2.16.0

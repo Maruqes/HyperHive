@@ -1,10 +1,10 @@
 {
-  "image": "jc21/nginx-proxy-manager@sha256:cd9eba29ca132cb006729f2cb2660126453f84818c2f7d75963ad7b61ef696bd",
+  "image": "sha256:5c80aaf5e26c1f45a6ce9f58ad00edceabb717d68236ff5b06d6f4d1f1271742",
   "templates": {
     "/app/templates/proxy_host.conf": "d54de1d7bfa52936de5bee76e167ba87b52484753d157b15e24c3462f35248a0",
     "/app/templates/_location.conf": "cd63bd3dd63a7b364d2edb6cf98952fd5150b393dc73b30b8e01d39576b6dec1",
-    "/app/templates/stream.conf": "583182578d6858d4a099750a5961010cb780aed4d2c8f6aabcfbc018d4efcd79",
-    "/etc/nginx/conf.d/include/proxy.conf": "89b9a5458c12abd128f90cd137a433357c739a9216d237a3d5849f991801356c"
+    "/app/templates/stream.conf": "3e67b6c5da5d0d4ea27ae2070b0914e6a62b6b95c8155f4b7ab8ac45efd2e633",
+    "/etc/nginx/conf.d/include/proxy.conf": "cc440cb9c131b983f721b5e3185e6155e974a89922af11e90a2b7f36654d0ec8"
   },
   "adapter": {
     "http/": [
@@ -24,18 +24,14 @@
       "member-2"
     ]
   },
-  "nginx_build": "nginx version: openresty/1.27.1.2\nbuilt by gcc 12.2.0 (Debian 12.2.0-14+deb12u1) \nbuilt with OpenSSL 3.0.17 1 Jul 2025\nTLS SNI support enabled\nconfigure arguments: --prefix=/etc/nginx/nginx --with-cc-opt=-O2 --add-module=../ngx_devel_kit-0.3.3 --add-module=../echo-nginx-module-0.63 --add-module=../xss-nginx-module-0.06 --add-module=../ngx_coolkit-0.2 --add-module=../set-misc-nginx-module-0.33 --add-module=../form-input-nginx-module-0.12 --add-module=../encrypted-session-nginx-module-0.09 --add-module=../srcache-nginx-module-0.33 --add-module=../ngx_lua-0.10.28 --add-module=../ngx_lua_upstream-0.07 --add-module=../headers-more-nginx-module-0.37 --add-module=../array-var-nginx-module-0.06 --add-module=../memc-nginx-module-0.20 --add-module=../redis2-nginx-module-0.15 --add-module=../redis-nginx-module-0.3.9 --add-module=../rds-json-nginx-module-0.17 --add-module=../rds-csv-nginx-module-0.09 --add-module=../ngx_stream_lua-0.0.16 --with-ld-opt=-Wl,-rpath,/etc/nginx/luajit/lib --sbin-path=/usr/sbin/nginx --modules-path=/usr/lib/nginx/modules --conf-path=/etc/nginx/nginx.conf --error-log-path=/var/log/nginx/error.log --http-log-path=/var/log/nginx/access.log --pid-path=/var/run/nginx.pid --lock-path=/var/run/nginx.lock --http-client-body-temp-path=/var/cache/nginx/client_temp --http-proxy-temp-path=/var/cache/nginx/proxy_temp --http-fastcgi-temp-path=/var/cache/nginx/fastcgi_temp --http-uwsgi-temp-path=/var/cache/nginx/uwsgi_temp --http-scgi-temp-path=/var/cache/nginx/scgi_temp --user=nginx --group=nginx --with-compat --with-threads --with-http_addition_module --with-http_auth_request_module --with-http_dav_module --with-http_flv_module --with-http_gunzip_module --with-http_gzip_static_module --with-http_mp4_module --with-http_random_index_module --with-http_realip_module --with-http_secure_link_module --with-http_slice_module --with-http_ssl_module --with-http_stub_status_module --with-http_sub_module --with-http_v2_module --with-mail --with-mail_ssl_module --with-stream --with-stream_realip_module --with-stream_ssl_module --with-stream_ssl_preread_module --add-dynamic-module=/tmp/openresty/ngx_http_geoip2_module --with-stream\n",
-  "result": "local-runtime-and-lifecycle-passed",
-  "reviewed_on": "2026-10-20",
+  "nginx_build": "nginx version: openresty/1.31.1.1\nbuilt by gcc 14.2.0 (Debian 14.2.0-19) \nbuilt with OpenSSL 3.5.7 9 Jun 2026\nTLS SNI support enabled\nconfigure arguments: --prefix=/etc/nginx/nginx --with-cc-opt=-O2 --add-module=../ngx_devel_kit-0.3.4 --add-module=../echo-nginx-module-0.64 --add-module=../xss-nginx-module-0.07 --add-module=../ngx_coolkit-0.2 --add-module=../set-misc-nginx-module-0.33 --add-module=../form-input-nginx-module-0.12 --add-module=../encrypted-session-nginx-module-0.09 --add-module=../srcache-nginx-module-0.33 --add-module=../ngx_lua-0.10.31rc5 --add-module=../ngx_lua_upstream-0.08 --add-module=../headers-more-nginx-module-0.39 --add-module=../array-var-nginx-module-0.06 --add-module=../memc-nginx-module-0.20 --add-module=../redis2-nginx-module-0.15 --add-module=../redis-nginx-module-0.41 --add-module=../rds-json-nginx-module-0.17 --add-module=../rds-csv-nginx-module-0.10 --add-module=../ngx_stream_lua-0.0.19rc4 --with-ld-opt=-Wl,-rpath,/etc/nginx/luajit/lib --sbin-path=/usr/sbin/nginx --modules-path=/usr/lib/nginx/modules --conf-path=/etc/nginx/nginx.conf --error-log-path=/var/log/nginx/error.log --http-log-path=/var/log/nginx/access.log --pid-path=/var/run/nginx.pid --lock-path=/var/run/nginx.lock --http-client-body-temp-path=/var/cache/nginx/client_temp --http-proxy-temp-path=/var/cache/nginx/proxy_temp --http-fastcgi-temp-path=/var/cache/nginx/fastcgi_temp --http-uwsgi-temp-path=/var/cache/nginx/uwsgi_temp --http-scgi-temp-path=/var/cache/nginx/scgi_temp --user=nginx --group=nginx --with-compat --with-threads --with-http_addition_module --with-http_auth_request_module --with-http_dav_module --with-http_flv_module --with-http_gunzip_module --with-http_gzip_static_module --with-http_mp4_module --with-http_random_index_module --with-http_realip_module --with-http_secure_link_module --with-http_slice_module --with-http_ssl_module --with-http_stub_status_module --with-http_sub_module --with-http_v2_module --with-mail --with-mail_ssl_module --with-stream --with-stream_realip_module --with-stream_ssl_module --with-stream_ssl_preread_module --with-http_v3_module --add-dynamic-module=/tmp/openresty/ngx_http_geoip2_module --with-stream\n",
   "production_runtime": "passed; seven HTTP methods and six stream methods validated against exact image",
   "lifecycle": "passed",
+  "image_tag": "jc21/nginx-proxy-manager:2.16.0",
+  "registry_digest": "sha256:4393e642e233e5efd5adeb7f10918d4aaea71c9ed875b94190273fc8e87f9594",
+  "result": "local-runtime-lifecycle-reset-upgrade-and-rollback-passed",
+  "reviewed_on": "2026-10-22",
   "template_policy": "Exact pinned directive bytes; common proxy.conf permits trailing LF variation introduced by the NPM startup hook.",
-  "captured_template_hashes": {
-    "/app/templates/proxy_host.conf": "d54de1d7bfa52936de5bee76e167ba87b52484753d157b15e24c3462f35248a0",
-    "/app/templates/_location.conf": "cd63bd3dd63a7b364d2edb6cf98952fd5150b393dc73b30b8e01d39576b6dec1",
-    "/app/templates/stream.conf": "583182578d6858d4a099750a5961010cb780aed4d2c8f6aabcfbc018d4efcd79",
-    "/etc/nginx/conf.d/include/proxy.conf": "89b9a5458c12abd128f90cd137a433357c739a9216d237a3d5849f991801356c"
-  },
   "acceptance": [
     "seven HTTP and six stream methods",
     "IPv4 and IPv6 HTTP/custom locations/TCP/UDP",
@@ -45,7 +41,16 @@
     "stable IDs, bindings, revisions, disabled references and metadata",
     "drift, lost create response and journal reconciliation",
     "staged ENOSPC, invalid configuration and rejected reload compensation",
-    "image/template mismatch rejection and full compose recreation"
+    "image/template mismatch rejection and full compose recreation",
+    "old-image reset: pooled root/location proxies and streams removed, direct HTTP and TCP traffic preserved",
+    "rollback restores old container image, NPM databases/data, HyperHive SQLite, Compose override and saved master binary"
   ],
-  "scope": "Disposable isolated local container only; no production deployment or ACME issuance."
+  "scope": "Disposable isolated local containers only; no production deployment or ACME issuance. No claim that the bundled OpenResty fixes all October 2026 advisories.",
+  "source_template_fingerprints": {
+    "/app/templates/proxy_host.conf": "d54de1d7bfa52936de5bee76e167ba87b52484753d157b15e24c3462f35248a0",
+    "/app/templates/_location.conf": "cd63bd3dd63a7b364d2edb6cf98952fd5150b393dc73b30b8e01d39576b6dec1",
+    "/app/templates/stream.conf": "3e67b6c5da5d0d4ea27ae2070b0914e6a62b6b95c8155f4b7ab8ac45efd2e633",
+    "/etc/nginx/conf.d/include/proxy.conf": "38038210b9e19df7b26043392f7bd309531035960a61681d36c63071fd8ecca8"
+  },
+  "service_token": "passed against the actual NPM API with locally minted service credentials"
 }

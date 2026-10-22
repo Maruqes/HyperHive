@@ -57,10 +57,12 @@ type Proxy struct {
 	HstsEnabled           bool            `json:"hsts_enabled"`
 	HstsSubdomains        bool            `json:"hsts_subdomains"`
 	SslForced             bool            `json:"ssl_forced"`
+	TrustForwardedProto   *bool           `json:"trust_forwarded_proto,omitempty"`
 	Enabled               bool            `json:"enabled"`
 }
 
 type Location struct {
+	AccessListID   *int            `json:"access_list_id,omitempty"`
 	UpstreamID     json.RawMessage `json:"upstream_id,omitempty"`
 	AdvancedConfig *string         `json:"advanced_config,omitempty"`
 	Path           string          `json:"path"`
@@ -115,6 +117,9 @@ func rawCreateProxy(baseURL, token string, p Proxy) (int, error) {
 		"hsts_subdomains":         p.HstsSubdomains,
 		"ssl_forced":              p.SslForced,
 	}
+	if p.TrustForwardedProto != nil {
+		reqBody["trust_forwarded_proto"] = *p.TrustForwardedProto
+	}
 
 	//marshal to json
 	jsonData, err := json.Marshal(reqBody)
@@ -165,6 +170,9 @@ func rawEditProxy(baseURL, token string, p Proxy) error {
 		"hsts_enabled":            p.HstsEnabled,
 		"hsts_subdomains":         p.HstsSubdomains,
 		"ssl_forced":              p.SslForced,
+	}
+	if p.TrustForwardedProto != nil {
+		reqBody["trust_forwarded_proto"] = *p.TrustForwardedProto
 	}
 
 	//marshal to json

@@ -58,13 +58,17 @@ func TestUpstreamDockerLifecycle(t *testing.T) {
 	}
 	upstreamTestDB(t)
 	runtime := DockerUpstreamRuntime{Container: container}
+	imageID, err := runtime.imageIdentity(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
 	upstreamCoordinator.runtime = runtime
 	var dropNext atomic.Bool
 	server := disposableNPMGateway(t, runtime, &dropNext)
 	token := os.Getenv("HYPERHIVE_TEST_NPM_TOKEN")
 	ctx := WithUpstreamNPMContext(context.Background(), server.URL, token)
 	httpPool := Upstream{Name: "http_pool", Context: "http", Method: "round_robin", Members: []UpstreamMember{{IP: "127.0.0.1", Port: 18080}, {IP: "::1", Port: 18081}}}
-	httpPool, err := SaveUpstream(ctx, httpPool, 0)
+	httpPool, err = SaveUpstream(ctx, httpPool, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -385,7 +389,7 @@ func TestUpstreamDockerLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	compose := fmt.Sprintf("services:\n  app:\n    image: jc21/nginx-proxy-manager@%s\n    container_name: %s\n    network_mode: none\n    volumes:\n      - data:/data\n      - ssl:/etc/letsencrypt\n      - %q\nvolumes:\n  data:\n    external: true\n    name: %s\n  ssl:\n    external: true\n    name: %s\n", UpstreamImageDigest, container, fixtureDir+":/fixture:ro", dataVolume, sslVolume)
+	compose := fmt.Sprintf("services:\n  app:\n    image: %s\n    container_name: %s\n    network_mode: none\n    volumes:\n      - data:/data\n      - ssl:/etc/letsencrypt\n      - %q\nvolumes:\n  data:\n    external: true\n    name: %s\n  ssl:\n    external: true\n    name: %s\n", imageID, container, fixtureDir+":/fixture:ro", dataVolume, sslVolume)
 	composePath := filepath.Join(work, "docker-compose.yml")
 	if err := os.WriteFile(composePath, []byte(compose), 0600); err != nil {
 		t.Fatal(err)
@@ -396,7 +400,7 @@ func TestUpstreamDockerLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	// An image mismatch cannot overwrite the existing generated adapter.
-	if err := os.WriteFile(composePath, []byte(strings.Replace(compose, "jc21/nginx-proxy-manager@"+UpstreamImageDigest, "hh-unverified-test-image:never", 1)), 0600); err != nil {
+	if err := os.WriteFile(composePath, []byte(strings.Replace(compose, imageID, "hh-unverified-test-image:never", 1)), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := prepareUpstreamComposeForContainer(ctx, work, container); err == nil {

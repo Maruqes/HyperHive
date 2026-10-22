@@ -43,6 +43,11 @@ func UpstreamCapabilities(ctx context.Context) (UpstreamCapabilityResponse, erro
 	r := UpstreamCapabilityResponse{Image: UpstreamImageDigest, Status: status, RecoveryID: upstreamCoordinator.recovery, Contexts: map[string][]UpstreamMethodCapability{},
 		ServerParameters: []string{"weight", "max_conns", "max_fails", "fail_timeout", "backup", "down"}, Unsupported: []string{"least_time", "active_health_checks", "dns_members", "unix_members"},
 		SharedZone: true, ConnectionLimitScope: "shared_across_workers", MaxMembers: MaxUpstreamMembers}
+	if runtime, ok := upstreamCoordinator.runtime.(DockerUpstreamRuntime); ok {
+		if identity, err := runtime.imageIdentity(ctx); err == nil {
+			r.Image = identity
+		}
+	}
 	for _, context := range []string{"http", "stream"} {
 		for _, method := range []string{"round_robin", "least_conn", "random", "random_two", "hash", "hash_consistent", "ip_hash"} {
 			if context == "stream" && method == "ip_hash" {

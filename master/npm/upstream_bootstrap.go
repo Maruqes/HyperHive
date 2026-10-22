@@ -66,8 +66,11 @@ func prepareUpstreamComposeForContainer(ctx context.Context, work, container str
 		imageName = service.Image
 	}
 	identity, err := exec.CommandContext(ctx, "docker", "image", "inspect", "--format", "{{.Id}}", imageName).Output()
-	if err != nil || strings.TrimSpace(string(identity)) != UpstreamImageDigest {
+	if err != nil {
 		return nil, fmt.Errorf("upstream adapter requires the verified NPM image digest")
+	}
+	if strings.TrimSpace(string(identity)) != UpstreamImageDigest {
+		return nil, fmt.Errorf("upstream adapter requires the verified NPM image identity")
 	}
 	adapter := filepath.Join(work, "npm-data", "hyperhive-upstream-adapter")
 	if err := os.MkdirAll(adapter, 0755); err != nil {
@@ -82,7 +85,11 @@ func prepareUpstreamComposeForContainer(ctx context.Context, work, container str
 		path := filepath.Join(adapter, name)
 		patched := patchedUpstreamTemplate(name, string(original))
 		if existing, err := os.ReadFile(path); err == nil {
-			if string(existing) != patched {
+			actual, expected := string(existing), patched
+			if name == "proxy.conf" {
+				actual, expected = strings.TrimRight(actual, "\n"), strings.TrimRight(expected, "\n")
+			}
+			if actual != expected {
 				return nil, fmt.Errorf("existing upstream adapter asset differs from the verified version")
 			}
 		} else if os.IsNotExist(err) {
@@ -99,7 +106,7 @@ func prepareUpstreamComposeForContainer(ctx context.Context, work, container str
 		} // NPM IPv6 preparation rewrites every conf.d file.
 		fmt.Fprintf(&volumes, "      - %s\n", strconv.Quote(path+":"+upstreamTemplatePaths[name]+mode))
 	}
-	content := "services:\n  " + strconv.Quote(serviceName) + ":\n    image: " + strconv.Quote("jc21/nginx-proxy-manager@"+UpstreamImageDigest) + "\n    volumes:\n" + volumes.String()
+	content := "services:\n  " + strconv.Quote(serviceName) + ":\n    image: " + strconv.Quote(imageName) + "\n    volumes:\n" + volumes.String()
 	path := filepath.Join(work, "docker-compose.hyperhive-upstreams.yml")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		return nil, err

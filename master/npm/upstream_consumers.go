@@ -53,8 +53,15 @@ func consumerComparable(c upstreamConsumer) upstreamConsumer {
 	_ = json.Unmarshal(c.raw(), &result)
 	if result.Proxy != nil {
 		result.Proxy.UpstreamID = nil
+		// New NPM defaults are equivalent to fields absent in older snapshots.
+		if result.Proxy.TrustForwardedProto != nil && !*result.Proxy.TrustForwardedProto {
+			result.Proxy.TrustForwardedProto = nil
+		}
 		for i := range result.Proxy.Locations {
 			result.Proxy.Locations[i].UpstreamID = nil
+			if id := result.Proxy.Locations[i].AccessListID; id != nil && *id == 0 {
+				result.Proxy.Locations[i].AccessListID = nil
+			}
 		}
 		delete(result.Proxy.Meta, "nginx_online")
 		delete(result.Proxy.Meta, "nginx_err")
@@ -219,6 +226,15 @@ func mutateUpstreamConsumer(base, token string, desired upstreamConsumer, create
 		}
 	}
 	var bindings []db.NPMUpstreamBinding
+	if desired.Proxy != nil && !create && !remove {
+		if current.Proxy == nil {
+			current, err = readUpstreamConsumer(base, token, desired.Kind, desired.id())
+			if err != nil {
+				return 0, err
+			}
+		}
+		preserveProxyVersionSettings(desired.Proxy, *current.Proxy)
+	}
 	if bound && !remove {
 		// Existing integrations know only some metadata keys. Preserve unrelated
 		// NPM/user metadata while allowing explicitly supplied values to change.
@@ -367,6 +383,23 @@ func mutateUpstreamConsumer(base, token string, desired upstreamConsumer, create
 
 func CreateProxy(base, token string, p Proxy) (int, error) {
 	return mutateUpstreamConsumer(base, token, upstreamConsumer{Kind: "proxy", Proxy: &p}, true, false)
+}
+
+func preserveProxyVersionSettings(desired *Proxy, current Proxy) {
+	if desired.TrustForwardedProto == nil {
+		desired.TrustForwardedProto = current.TrustForwardedProto
+	}
+	for i := range desired.Locations {
+		if desired.Locations[i].AccessListID != nil {
+			continue
+		}
+		for _, location := range current.Locations {
+			if desired.Locations[i].Path == location.Path {
+				desired.Locations[i].AccessListID = location.AccessListID
+				break
+			}
+		}
+	}
 }
 func EditProxy(base, token string, p Proxy) error {
 	_, err := mutateUpstreamConsumer(base, token, upstreamConsumer{Kind: "proxy", Proxy: &p}, false, false)

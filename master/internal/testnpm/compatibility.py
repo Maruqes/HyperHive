@@ -9,7 +9,9 @@ import subprocess
 import time
 import uuid
 
-IMAGE = 'jc21/nginx-proxy-manager@sha256:cd9eba29ca132cb006729f2cb2660126453f84818c2f7d75963ad7b61ef696bd'
+import re
+CONFIG = pathlib.Path(__file__).resolve().parents[2] / 'npm/upstream_config.go'
+IMAGE = re.search(r'const UpstreamImageDigest = "([^"]+)"', CONFIG.read_text())[1]
 TEMPLATES = ['/app/templates/proxy_host.conf', '/app/templates/_location.conf',
              '/app/templates/stream.conf', '/etc/nginx/conf.d/include/proxy.conf']
 
@@ -117,7 +119,7 @@ class Fixture:
                 self.write(template_path, (self.output / 'templates' / pathlib.Path(template_path).name).read_text())
             # Exercise the production renderer, pinned adapter and activation probe.
             env = dict(os.environ, HYPERHIVE_TEST_NPM_CONTAINER=self.name)
-            result = subprocess.run(['go', 'test', './npm', '-run', '^TestUpstreamDockerRuntime$', '-v', '-count=1'],
+            result = subprocess.run(['go', 'test', './npm', '-run', '^TestUpstreamDocker(Runtime|ServiceToken)$', '-v', '-count=1'],
                                     cwd=self.root.parents[1], env=env, text=True, capture_output=True, timeout=300)
             (self.output / 'runtime-tests.log').write_text(result.stdout + result.stderr)
             if result.returncode:
@@ -152,8 +154,10 @@ class Fixture:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--image', default=IMAGE)
     parser.add_argument('--output', type=pathlib.Path, required=True)
     args = parser.parse_args()
+    IMAGE = args.image
     args.output.mkdir(parents=True, exist_ok=True)
     fixture = Fixture(pathlib.Path(__file__).resolve().parent)
     fixture.output = args.output.resolve()

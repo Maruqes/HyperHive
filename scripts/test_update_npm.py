@@ -38,9 +38,14 @@ class UpdateNPMTest(unittest.TestCase):
             {"Destination": "/data", "Type": "bind", "Source": str(self.data)},
             {"Destination": "/etc/letsencrypt", "Type": "bind", "Source": str(self.ssl)},
         ]}
+        self.manifest = {"target": updater.target_image(), "target_id": "sha256:new", "templates": {
+            "proxy.conf": {"path": "/etc/nginx/conf.d/include/proxy.conf", "original": "new native", "patched": "new adapter"}
+        }}
         self.real_run = updater.run
         self.addCleanup(patch.stopall)
         patch.object(updater, "run", side_effect=self.mock_run).start()
+        patch.object(updater, "adapter_manifest", return_value=self.manifest).start()
+        patch.object(updater, "wait_ready").start()
         patch("sys.stdout", new=io.StringIO()).start()
 
     def mock_run(self, *args, capture=False):
@@ -49,6 +54,10 @@ class UpdateNPMTest(unittest.TestCase):
             return self.real_run(*args, capture=capture)
         if args[:2] == ("docker", "inspect"):
             return json.dumps([self.container])
+        if args[:3] == ("docker", "image", "inspect"):
+            return "sha256:new" if args[-1] == updater.target_image() else "sha256:old"
+        if args[:3] == ("docker", "exec", "npm"):
+            return "old adapter"
         if args[-3:] == ("config", "--format", "json"):
             return json.dumps({"services": {"app": {"image": self.old_image}}})
         return ""
@@ -73,19 +82,67 @@ class UpdateNPMTest(unittest.TestCase):
             preserved = next(self.work.glob(directory.name + ".before-rollback-*"))
             self.assertEqual((preserved / "state").read_text(), "migrated")
 
-    def test_saved_pool_blocks_before_pull_or_stop(self):
+    def test_saved_pool_requires_explicit_reset(self):
         with sqlite3.connect(self.work / "data.db") as connection:
+            self.addCleanup(connection.close)
             connection.execute("CREATE TABLE npm_upstreams (id INTEGER)")
             connection.execute("INSERT INTO npm_upstreams VALUES (1)")
-        with self.assertRaisesRegex(RuntimeError, "Saved upstream pools"):
+        with self.assertRaisesRegex(RuntimeError, "--reset-upstreams"):
             updater.update()
         self.assertFalse(any("pull" in call or "stop" in call for call in self.calls))
-        self.assertEqual(self.compose.read_text(), self.original)
 
-    def test_adapter_blocks(self):
-        (self.data / "hyperhive-upstream-adapter").mkdir()
-        with self.assertRaisesRegex(RuntimeError, "Upstream adapter"):
+    def test_reset_removes_pooled_resources_and_rollback_restores_all_state(self):
+        with sqlite3.connect(self.work / "data.db") as connection:
+            self.addCleanup(connection.close)
+            connection.executescript("CREATE TABLE npm_upstreams (id INTEGER); INSERT INTO npm_upstreams VALUES (1); CREATE TABLE npm_upstream_bindings(consumer_type TEXT,npm_id INTEGER); INSERT INTO npm_upstream_bindings VALUES('proxy',3); CREATE TABLE npm_upstream_operations(state TEXT); INSERT INTO npm_upstream_operations VALUES('prepared');")
+        with sqlite3.connect(self.data / "database.sqlite") as connection:
+            self.addCleanup(connection.close)
+            connection.executescript("CREATE TABLE proxy_host(id INTEGER,forward_host TEXT,locations TEXT,is_deleted INTEGER,enabled INTEGER); CREATE TABLE stream(id INTEGER,forwarding_host TEXT,is_deleted INTEGER,enabled INTEGER); INSERT INTO proxy_host VALUES (1,'hh_upstream_1','[]',0,1),(2,'direct.test','[]',0,1),(3,'direct.test','[]',0,1),(4,'direct.test','[{\"forward_host\":\"hh_upstream_1\"}]',0,1); INSERT INTO stream VALUES(1,'hh_upstream_2',0,1),(2,'direct.test',0,1);")
+        assets = self.data / "hyperhive-upstream-adapter"
+        assets.mkdir()
+        (assets / "proxy.conf").write_text("old adapter")
+        custom = self.data / "nginx/custom"
+        custom.mkdir(parents=True)
+        (custom / "http_top.conf").write_text("# keep this user hook\n# HyperHive managed upstream pools\ninclude /data/nginx/custom/hyperhive/current/http.conf;\n")
+        (custom / "hyperhive").mkdir()
+        generated = self.data / "nginx/proxy_host"
+        generated.mkdir()
+        (generated / "1.conf").write_text("pooled")
+        (generated / "2.conf").write_text("direct")
+        (self.work / "512SvMan.npm-previous").write_bytes(b"old master")
+        (self.work / "512SvMan").write_bytes(b"new master")
+        override = self.work / "docker-compose.hyperhive-upstreams.yml"
+        original_override = "services:\n  app:\n    image: " + self.old_image + "\n"
+        override.write_text(original_override)
+        self.container["Config"]["Labels"]["com.docker.compose.project.config_files"] += "," + str(override)
+        updater.update(reset=True)
+        self.assertFalse(assets.exists())
+        self.assertFalse(override.exists())
+        self.assertIn("# keep this user hook", (custom / "http_top.conf").read_text())
+        self.assertNotIn("include /data/nginx/custom/hyperhive", (custom / "http_top.conf").read_text())
+        self.assertFalse((generated / "1.conf").exists())
+        self.assertEqual((generated / "2.conf").read_text(), "direct")
+        with sqlite3.connect(self.data / "database.sqlite") as connection:
+            self.addCleanup(connection.close)
+            self.assertEqual(connection.execute("SELECT id FROM proxy_host WHERE is_deleted=0").fetchall(), [(2,)])
+            self.assertEqual(connection.execute("SELECT id FROM stream WHERE is_deleted=0").fetchall(), [(2,)])
+        backup = next((self.work / "npm-update-backups").iterdir())
+        updater.rollback(backup)
+        self.assertEqual(override.read_text(), original_override)
+        self.assertEqual((assets / "proxy.conf").read_text(), "old adapter")
+        self.assertEqual((self.work / "512SvMan").read_bytes(), b"old master")
+        with sqlite3.connect(self.work / "data.db") as connection:
+            self.addCleanup(connection.close)
+            self.assertEqual(connection.execute("SELECT id FROM npm_upstreams").fetchall(), [(1,)])
+
+    def test_pending_operation_blocks(self):
+        with sqlite3.connect(self.work / "data.db") as connection:
+            self.addCleanup(connection.close)
+            connection.execute("CREATE TABLE npm_upstream_operations (state TEXT)")
+            connection.execute("INSERT INTO npm_upstream_operations VALUES ('prepared')")
+        with self.assertRaisesRegex(RuntimeError, "Unfinished upstream"):
             updater.update()
+        self.assertFalse(any("pull" in call or "stop" in call for call in self.calls))
 
     def test_backup_failure_restarts_original_container(self):
         original_run = self.mock_run
