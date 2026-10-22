@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	image      = "jc21/nginx-proxy-manager:2.13.5"
+	image      = "jc21/nginx-proxy-manager:2.16.0"
 	adminEmail = "admin@example.com" // change if you set INITIAL_ADMIN_EMAIL
 	adminPass  = "changeme"          // change if you set INITIAL_ADMIN_PASSWORD
 
