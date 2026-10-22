@@ -5,11 +5,10 @@ Usage: sudo python3 scripts/update_npm.py
        sudo python3 scripts/update_npm.py --rollback /path/to/backup
 Backups include private keys. Keep the printed backup directory private.
 The target image is read from master/npm/npm.go; edit its image constant only.
-Before rebuilding the master, save its current binary for rollback:
-  cp -p master/512SvMan master/512SvMan.npm-previous
-  (cd master && go build)
 With the master stopped, use --reset-upstreams to delete pools and pooled
 proxy hosts/streams. Direct-target resources and certificates are preserved.
+An older master binary is optional. If unavailable, restore the older Git
+revision and rebuild the master after rolling back NPM, before restarting PM2.
 """
 
 import argparse
@@ -216,10 +215,6 @@ def update(reset=False):
         if not reset:
             raise RuntimeError("Existing upstreams/adapter require --reset-upstreams, which deletes pooled proxy hosts, pooled streams and pools after backup.")
         previous_master = work / "512SvMan.npm-previous"
-        if not previous_master.is_file():
-            raise RuntimeError("Before rebuilding, save the existing master as master/512SvMan.npm-previous for rollback. See scripts/update_npm.py --help.")
-        if manifest["target_id"].encode() in previous_master.read_bytes():
-            raise RuntimeError("The saved master already targets the new adapter; retain the pre-upgrade binary for rollback.")
         if not (directories[0] / "database.sqlite").is_file():
             raise RuntimeError("NPM SQLite database is missing; cannot reset upstream resources.")
         templates = manifest["templates"]
@@ -248,7 +243,7 @@ def update(reset=False):
     (backup / "compose.original").write_text(original)
     if override:
         (backup / "override.original").write_bytes(override.read_bytes())
-    if adapter:
+    if adapter and previous_master.is_file():
         shutil.copy2(previous_master, backup / "master.original")
     print("Backup: " + str(backup), flush=True)
     compose(path, "stop", service, override=override)
@@ -323,6 +318,7 @@ def rollback(backup):
     compose(path, "up", "-d", "--no-deps", "--force-recreate", "--pull", "never", state["service"], override=override)
     wait_ready()
     print("Restored " + state["old_image"] + " and its pre-upgrade data. Restart the master when ready.")
+    print("Restore a compatible Git revision and rebuild the master before restarting PM2 if needed.")
 
 
 def main():

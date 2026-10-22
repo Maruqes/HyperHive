@@ -92,6 +92,15 @@ class UpdateNPMTest(unittest.TestCase):
         self.assertFalse(any("pull" in call or "stop" in call for call in self.calls))
 
     def test_reset_removes_pooled_resources_and_rollback_restores_all_state(self):
+        self.check_reset_roundtrip(b"old master")
+
+    def test_reset_without_previous_master(self):
+        self.check_reset_roundtrip(None)
+
+    def test_reset_accepts_saved_master_with_current_adapter(self):
+        self.check_reset_roundtrip(self.manifest["target_id"].encode())
+
+    def check_reset_roundtrip(self, previous):
         with sqlite3.connect(self.work / "data.db") as connection:
             self.addCleanup(connection.close)
             connection.executescript("CREATE TABLE npm_upstreams (id INTEGER); INSERT INTO npm_upstreams VALUES (1); CREATE TABLE npm_upstream_bindings(consumer_type TEXT,npm_id INTEGER); INSERT INTO npm_upstream_bindings VALUES('proxy',3); CREATE TABLE npm_upstream_operations(state TEXT); INSERT INTO npm_upstream_operations VALUES('prepared');")
@@ -109,7 +118,8 @@ class UpdateNPMTest(unittest.TestCase):
         generated.mkdir()
         (generated / "1.conf").write_text("pooled")
         (generated / "2.conf").write_text("direct")
-        (self.work / "512SvMan.npm-previous").write_bytes(b"old master")
+        if previous is not None:
+            (self.work / "512SvMan.npm-previous").write_bytes(previous)
         (self.work / "512SvMan").write_bytes(b"new master")
         override = self.work / "docker-compose.hyperhive-upstreams.yml"
         original_override = "services:\n  app:\n    image: " + self.old_image + "\n"
@@ -130,7 +140,7 @@ class UpdateNPMTest(unittest.TestCase):
         updater.rollback(backup)
         self.assertEqual(override.read_text(), original_override)
         self.assertEqual((assets / "proxy.conf").read_text(), "old adapter")
-        self.assertEqual((self.work / "512SvMan").read_bytes(), b"old master")
+        self.assertEqual((self.work / "512SvMan").read_bytes(), previous if previous is not None else b"new master")
         with sqlite3.connect(self.work / "data.db") as connection:
             self.addCleanup(connection.close)
             self.assertEqual(connection.execute("SELECT id FROM npm_upstreams").fetchall(), [(1,)])

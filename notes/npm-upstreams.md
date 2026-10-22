@@ -54,7 +54,6 @@ The latest adapter does not support the old NPM image. The approved migration de
 From the repository root, after obtaining this source update:
 
 ```bash
-cp -p master/512SvMan master/512SvMan.npm-previous
 sudo pm2 stop hyperhive-master
 go -C master build
 sudo python3 scripts/update_npm.py --reset-upstreams
@@ -66,9 +65,9 @@ Only after the script succeeds and traffic is checked:
 sudo pm2 start hyperhive-master
 ```
 
-Save the old binary **before** rebuilding. The script checks the rebuilt master's read-only `--npm-upgrade-manifest` against the source image pin, validates the pulled image's exact identity, and rejects unknown overrides, conflicting template mounts, external databases and nested data mounts.
+An old master binary is optional; the updater does not require or reject a saved binary based on its adapter version. The script checks the rebuilt master's read-only `--npm-upgrade-manifest` against the source image pin, validates the pulled image's exact identity, and rejects unknown overrides, conflicting template mounts, external databases and nested data mounts.
 
-Before any destructive work it stops NPM and creates a private backup in the NPM working directory's `npm-update-backups/`: both data directories, a consistent HyperHive SQLite backup, base/managed override Compose files and the saved previous master binary. It retains the running image under a local rollback tag. With `--reset-upstreams` it also deliberately discards pending pool journals: the entire old pool subsystem and its pooled consumers are being removed, not reconciled.
+Before any destructive work it stops NPM and creates a private backup in the NPM working directory's `npm-update-backups/`: both data directories, a consistent HyperHive SQLite backup, base/managed override Compose files and an optional saved master binary when master/512SvMan.npm-previous exists. It retains the running image under a local rollback tag. With `--reset-upstreams` it also deliberately discards pending pool journals: the entire old pool subsystem and its pooled consumers are being removed, not reconciled.
 
 The script soft-deletes pooled resources in the stopped NPM SQLite database, removes their generated configuration, clears HyperHive pool/binding/journal records, removes owned adapter files/includes, updates only the base image line and recreates NPM without the old override. Unrelated hook content is preserved. The new adapter is installed when new pools are created with the updated master. NGINX syntax and API readiness are checked; certificate issuance/renewal still needs operator testing.
 
@@ -78,7 +77,7 @@ If anything fails after the complete backup, keep the master stopped and run the
 sudo python3 scripts/update_npm.py --rollback /absolute/path/to/npm-update-backups/TIMESTAMP
 ```
 
-Rollback restores the previous image/configuration, NPM data, HyperHive SQLite state and previous master binary. It preserves the newer data directories and SQLite files separately instead of merging or deleting them. Restart PM2 only after rollback succeeds. This restores the whole backed-up HyperHive database, including unrelated metadata changes made since the backup; keep administrative writers stopped throughout testing and rollback. Do not prune the retained old image or delete the private backup before accepting the upgrade.
+Rollback restores the previous image/configuration, NPM data, HyperHive SQLite state and the saved master binary when available. Restore the older Git revision and rebuild the master after NPM rollback if that binary is unavailable or incompatible. Do this before restarting PM2. It preserves the newer data directories and SQLite files separately instead of merging or deleting them. Restart PM2 only after rollback succeeds. This restores the whole backed-up HyperHive database, including unrelated metadata changes made since the backup; keep administrative writers stopped throughout testing and rollback. Do not prune the retained old image or delete the private backup before accepting the upgrade.
 
 SQLite, NPM HTTP and NGINX are coordinated with a journal and compensation; they are not one atomic transaction. External writers are detected but do not participate in HyperHive's mutex. This is process/crash recovery, not a guarantee of distributed or power-failure atomicity.
 
