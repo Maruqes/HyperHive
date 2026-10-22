@@ -65,11 +65,12 @@ func prepareUpstreamComposeForContainer(ctx context.Context, work, container str
 		serviceName = name
 		imageName = service.Image
 	}
-	identity, err := exec.CommandContext(ctx, "docker", "image", "inspect", "--format", "{{.Id}}", imageName).Output()
+	identity, err := exec.CommandContext(ctx, "docker", "image", "inspect", "--format", "{{.Id}} {{.Architecture}}", imageName).Output()
 	if err != nil {
 		return nil, fmt.Errorf("upstream adapter requires the verified NPM image digest")
 	}
-	if strings.TrimSpace(string(identity)) != UpstreamImageDigest {
+	fields := strings.Fields(string(identity))
+	if len(fields) != 2 || !verifiedUpstreamImage(fields[0], fields[1]) {
 		return nil, fmt.Errorf("upstream adapter requires the verified NPM image identity")
 	}
 	adapter := filepath.Join(work, "npm-data", "hyperhive-upstream-adapter")

@@ -17,6 +17,27 @@ import (
 
 // Docker image config ID; this is not a registry manifest digest for repo@sha256.
 const UpstreamImageDigest = "sha256:5c80aaf5e26c1f45a6ce9f58ad00edceabb717d68236ff5b06d6f4d1f1271742"
+const upstreamImageArchitecture = "amd64"
+
+// Docker's classic and containerd stores expose different IDs for the same image.
+var upstreamImageIDs = []string{
+	UpstreamImageDigest,
+	"sha256:4393e642e233e5efd5adeb7f10918d4aaea71c9ed875b94190273fc8e87f9594", // OCI index
+	"sha256:57d85bffc776c01909c7b24e127a69a72b7d8c75d387e6cb26c762978fc43e4c", // amd64 manifest
+}
+
+func verifiedUpstreamImage(identity, architecture string) bool {
+	if architecture != upstreamImageArchitecture {
+		return false
+	}
+	for _, supported := range upstreamImageIDs {
+		if identity == supported {
+			return true
+		}
+	}
+	return false
+}
+
 const upstreamConfigRoot = "/data/nginx/custom/hyperhive"
 
 //go:embed upstream_templates/*.conf
@@ -30,7 +51,7 @@ func NPMUpgradeManifest() map[string]any {
 		original, _ := upstreamTemplates.ReadFile("upstream_templates/" + name)
 		files[name] = map[string]string{"path": path, "original": string(original), "patched": patchedUpstreamTemplate(name, string(original))}
 	}
-	return map[string]any{"target": image, "target_id": UpstreamImageDigest, "templates": files}
+	return map[string]any{"target": image, "target_id": UpstreamImageDigest, "target_ids": upstreamImageIDs, "target_architecture": upstreamImageArchitecture, "templates": files}
 }
 
 func (d DockerUpstreamRuntime) imageIdentity(ctx context.Context) (string, error) {
@@ -134,7 +155,11 @@ func (d DockerUpstreamRuntime) Verify(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if identity != UpstreamImageDigest {
+	architecture, err := d.command(ctx, "image", "inspect", "--format", "{{.Architecture}}", identity)
+	if err != nil {
+		return err
+	}
+	if !verifiedUpstreamImage(identity, strings.TrimSpace(string(architecture))) {
 		return fmt.Errorf("unsupported NPM image; exact verified image identity is required")
 	}
 	main, err := d.read(ctx, "/etc/nginx/nginx.conf")

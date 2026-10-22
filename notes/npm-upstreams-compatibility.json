@@ -52,5 +52,12 @@
     "/app/templates/stream.conf": "3e67b6c5da5d0d4ea27ae2070b0914e6a62b6b95c8155f4b7ab8ac45efd2e633",
     "/etc/nginx/conf.d/include/proxy.conf": "38038210b9e19df7b26043392f7bd309531035960a61681d36c63071fd8ecca8"
   },
-  "service_token": "passed against the actual NPM API with locally minted service credentials"
+  "service_token": "passed against the actual NPM API with locally minted service credentials",
+  "verified_image_ids": [
+    "sha256:5c80aaf5e26c1f45a6ce9f58ad00edceabb717d68236ff5b06d6f4d1f1271742",
+    "sha256:4393e642e233e5efd5adeb7f10918d4aaea71c9ed875b94190273fc8e87f9594",
+    "sha256:57d85bffc776c01909c7b24e127a69a72b7d8c75d387e6cb26c762978fc43e4c"
+  ],
+  "verified_architecture": "amd64",
+  "identity_policy": "Classic Docker reports the config ID; containerd-backed Docker can report the verified OCI index or platform-manifest digest. All accepted IDs are pinned to this release; amd64 is checked separately."
 }

@@ -38,7 +38,9 @@ class UpdateNPMTest(unittest.TestCase):
             {"Destination": "/data", "Type": "bind", "Source": str(self.data)},
             {"Destination": "/etc/letsencrypt", "Type": "bind", "Source": str(self.ssl)},
         ]}
-        self.manifest = {"target": updater.target_image(), "target_id": "sha256:new", "templates": {
+        self.target_id = "sha256:new"
+        self.target_architecture = "amd64"
+        self.manifest = {"target": updater.target_image(), "target_id": "sha256:new", "target_ids": ["sha256:new", "sha256:index", "sha256:platform"], "target_architecture": "amd64", "templates": {
             "proxy.conf": {"path": "/etc/nginx/conf.d/include/proxy.conf", "original": "new native", "patched": "new adapter"}
         }}
         self.real_run = updater.run
@@ -55,7 +57,9 @@ class UpdateNPMTest(unittest.TestCase):
         if args[:2] == ("docker", "inspect"):
             return json.dumps([self.container])
         if args[:3] == ("docker", "image", "inspect"):
-            return "sha256:new" if args[-1] == updater.target_image() else "sha256:old"
+            if args[-1] == updater.target_image():
+                return self.target_id + " " + self.target_architecture if any("{{.Architecture}}" in arg for arg in args) else self.target_id
+            return "sha256:old"
         if args[:3] == ("docker", "exec", "npm"):
             return "old adapter"
         if args[-3:] == ("config", "--format", "json"):
@@ -90,6 +94,20 @@ class UpdateNPMTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "--reset-upstreams"):
             updater.update()
         self.assertFalse(any("pull" in call or "stop" in call for call in self.calls))
+
+    def test_containerd_target_id_is_accepted(self):
+        self.target_id = "sha256:index"
+        updater.update()
+        self.assertIn(updater.target_image(), self.compose.read_text())
+
+    def test_unverified_target_or_architecture_is_rejected_before_stopping(self):
+        for identity, architecture in (("sha256:unverified", "amd64"), ("sha256:index", "arm64")):
+            with self.subTest(identity=identity, architecture=architecture):
+                self.target_id, self.target_architecture = identity, architecture
+                with self.assertRaisesRegex(RuntimeError, "Unverified target image"):
+                    updater.update()
+                self.assertFalse(any("stop" in call for call in self.calls))
+                self.assertEqual(self.compose.read_text(), self.original)
 
     def test_reset_removes_pooled_resources_and_rollback_restores_all_state(self):
         self.check_reset_roundtrip(b"old master")

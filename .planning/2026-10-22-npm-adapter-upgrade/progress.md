@@ -24,3 +24,10 @@
 ## Limits
 - No remote host deployment or real ACME issuance/renewal performed.
 - Latest NPM bundles OpenResty 1.31.1.1; no assertion that every October NGINX advisory is patched.
+
+## Follow-up: Docker image-store identity
+- User reports amd64 Docker .Id = verified OCI index 4393e642..., unlike the classic store's config ID 5c80aaf5.... Registry index/amd64 manifest/config chain independently verified.
+- Updater, runtime verification and bootstrap now accept only those exact three release IDs with amd64 architecture; wrong images and architectures still fail closed.
+- Removed previous-master requirement per user instruction; Git restore/rebuild is the fallback for application-code rollback. Existing data backups remain mandatory.
+- Eleven Python tests and Go npm tests passed, including reported index ID and rejection of unverified IDs/architectures.
+- Final real-container routing/service-token checks and lifecycle/container recreation passed after the identity-store fix; go vet and diff validation passed. No deployment to the user host was performed.

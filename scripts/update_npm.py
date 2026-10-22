@@ -64,7 +64,7 @@ def adapter_manifest():
     if not binary.is_file() or b"--npm-upgrade-manifest" not in binary.read_bytes():
         raise RuntimeError("Build the updated master first: cd master && go build")
     manifest = json.loads(run(str(binary), "--npm-upgrade-manifest", capture=True))
-    if manifest.get("target") != target_image():
+    if manifest.get("target") != target_image() or not manifest.get("target_ids") or not manifest.get("target_architecture"):
         raise RuntimeError("Master binary is outdated. Rebuild it with: cd master && go build")
     return manifest
 
@@ -187,7 +187,7 @@ def update(reset=False):
     selected_id = run("docker", "image", "inspect", "--format", "{{.Id}}", old_image, capture=True).strip()
     if selected_id != container["Image"]:
         raise RuntimeError("Compose and the running NPM image differ; resolve this before upgrading.")
-    if container["Image"] == manifest["target_id"] and not reset:
+    if container["Image"] in manifest["target_ids"] and not reset:
         print("Compose and the container already select " + target)
         return
     environment = services[service].get("environment") or {}
@@ -230,9 +230,9 @@ def update(reset=False):
     original = path.read_text()
     updated = replace_image(original, target)
     run("docker", "pull", target)
-    identity = run("docker", "image", "inspect", "--format", "{{.Id}}", target, capture=True).strip()
-    if identity != manifest["target_id"]:
-        raise RuntimeError("Target image identity is unverified for this architecture or the tag changed.")
+    identity = run("docker", "image", "inspect", "--format", "{{.Id}} {{.Architecture}}", target, capture=True).split()
+    if len(identity) != 2 or identity[0] not in manifest["target_ids"] or identity[1] != manifest["target_architecture"]:
+        raise RuntimeError("Unverified target image ID/architecture: " + " ".join(identity) + "; expected " + manifest["target_architecture"] + " and a verified release ID.")
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     backup = work / "npm-update-backups" / stamp
     backup.mkdir(parents=True, mode=0o700)

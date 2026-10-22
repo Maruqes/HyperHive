@@ -30,6 +30,20 @@ func TestUpstreamUpgradeManifest(t *testing.T) {
 
 }
 
+func TestVerifiedUpstreamImageAcrossDockerStores(t *testing.T) {
+	for _, identity := range upstreamImageIDs {
+		if !verifiedUpstreamImage(identity, "amd64") {
+			t.Fatal("verified release ID rejected", identity)
+		}
+		if verifiedUpstreamImage(identity, "arm64") {
+			t.Fatal("unverified architecture accepted", identity)
+		}
+	}
+	if verifiedUpstreamImage("sha256:unverified", "amd64") {
+		t.Fatal("unverified image accepted")
+	}
+}
+
 func TestProxyVersionSettings(t *testing.T) {
 	trust, access := true, 7
 	current := Proxy{TrustForwardedProto: &trust, Locations: []Location{{Path: "/private", AccessListID: &access}}}

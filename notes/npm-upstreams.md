@@ -65,7 +65,7 @@ Only after the script succeeds and traffic is checked:
 sudo pm2 start hyperhive-master
 ```
 
-An old master binary is optional; the updater does not require or reject a saved binary based on its adapter version. The script checks the rebuilt master's read-only `--npm-upgrade-manifest` against the source image pin, validates the pulled image's exact identity, and rejects unknown overrides, conflicting template mounts, external databases and nested data mounts.
+An old master binary is optional; the updater does not require or reject a saved binary based on its adapter version. The script checks the rebuilt master's read-only `--npm-upgrade-manifest` against the source image pin, validates the pulled image's exact release identity and amd64 architecture (accepting the verified config, OCI index or platform-manifest ID reported by Docker), and rejects unknown overrides, conflicting template mounts, external databases and nested data mounts.
 
 Before any destructive work it stops NPM and creates a private backup in the NPM working directory's `npm-update-backups/`: both data directories, a consistent HyperHive SQLite backup, base/managed override Compose files and an optional saved master binary when master/512SvMan.npm-previous exists. It retains the running image under a local rollback tag. With `--reset-upstreams` it also deliberately discards pending pool journals: the entire old pool subsystem and its pooled consumers are being removed, not reconciled.
 

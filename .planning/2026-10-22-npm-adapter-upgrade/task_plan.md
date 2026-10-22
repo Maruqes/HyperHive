@@ -15,7 +15,7 @@ No local implementation work remains. The user can run the documented reset upgr
 
 ## Decisions
 - User authorized deleting pooled proxy hosts and streams as well as pools; --reset-upstreams makes that destructive scope explicit.
-- Save the previous master binary before rebuilding, since rollback restores old data and must also restore compatible application code.
+- Saving the old master binary is optional per user instruction; restore the older Git revision and rebuild for application-code rollback if needed.
 - The desired image remains the single Go image constant. Exact config ID is a separate compatibility check, not a registry manifest digest.
 
 ## Errors and resolutions
