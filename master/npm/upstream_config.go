@@ -43,17 +43,6 @@ const upstreamConfigRoot = "/data/nginx/custom/hyperhive"
 //go:embed upstream_templates/*.conf
 var upstreamTemplates embed.FS
 
-// NPMUpgradeManifest exports the compiled adapter to the offline update script.
-// The script checks Target against the source pin to reject an outdated master.
-func NPMUpgradeManifest() map[string]any {
-	files := map[string]map[string]string{}
-	for name, path := range upstreamTemplatePaths {
-		original, _ := upstreamTemplates.ReadFile("upstream_templates/" + name)
-		files[name] = map[string]string{"path": path, "original": string(original), "patched": patchedUpstreamTemplate(name, string(original))}
-	}
-	return map[string]any{"target": image, "target_id": UpstreamImageDigest, "target_ids": upstreamImageIDs, "target_architecture": upstreamImageArchitecture, "templates": files}
-}
-
 func (d DockerUpstreamRuntime) imageIdentity(ctx context.Context) (string, error) {
 	b, err := d.command(ctx, "inspect", "--format", "{{.Image}}", d.Container)
 	return strings.TrimSpace(string(b)), err

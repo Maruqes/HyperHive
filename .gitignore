@@ -68,11 +68,5 @@ data.db-shm
 *.db-wal
 *.db-shm
 
-# Private NPM upgrade backups and preserved rollback state.
-npm-update-backups/
-512SvMan.npm-previous
-npm-data.before-rollback-*/
-npm-ssl.before-rollback-*/
-data.db*.before-rollback-*
+# Generated NPM upstream adapter Compose override.
 docker-compose.hyperhive-upstreams.yml
-docker-compose.hyperhive-upstreams.yml.before-rollback-*

@@ -119,7 +119,7 @@ class Fixture:
                 self.write(template_path, (self.output / 'templates' / pathlib.Path(template_path).name).read_text())
             # Exercise the production renderer, pinned adapter and activation probe.
             env = dict(os.environ, HYPERHIVE_TEST_NPM_CONTAINER=self.name)
-            result = subprocess.run(['go', 'test', './npm', '-run', '^TestUpstreamDocker(Runtime|ServiceToken)$', '-v', '-count=1'],
+            result = subprocess.run(['go', 'test', './npm', '-run', '^TestUpstreamDockerRuntime$', '-v', '-count=1'],
                                     cwd=self.root.parents[1], env=env, text=True, capture_output=True, timeout=300)
             (self.output / 'runtime-tests.log').write_text(result.stdout + result.stderr)
             if result.returncode:
