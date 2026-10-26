@@ -30,6 +30,9 @@ func supportError(w http.ResponseWriter, status int, message string) {
 
 func newSupportProxy(address, secret, allowedOrigins string) *supportProxy {
 	service := &supportProxy{tickets: make(map[string]time.Time), origins: make(map[string]bool)}
+	if strings.TrimSpace(allowedOrigins) == "" {
+		allowedOrigins = "*"
+	}
 	for _, origin := range strings.Split(allowedOrigins, ",") {
 		if origin = strings.TrimSpace(origin); origin != "" {
 			service.origins[origin] = true
@@ -66,6 +69,9 @@ func newSupportProxy(address, secret, allowedOrigins string) *supportProxy {
 }
 
 func (service *supportProxy) issueTicket(w http.ResponseWriter, r *http.Request) {
+	if !service.allowOrigin(w, r) {
+		return
+	}
 	service.mu.Lock()
 	defer service.mu.Unlock()
 	now := time.Now()
@@ -90,13 +96,23 @@ func (service *supportProxy) issueTicket(w http.ResponseWriter, r *http.Request)
 	_ = json.NewEncoder(w).Encode(map[string]string{"ticket": ticket})
 }
 
-func (service *supportProxy) websocket(w http.ResponseWriter, r *http.Request) {
+func (service *supportProxy) allowOrigin(w http.ResponseWriter, r *http.Request) bool {
+	if service.origins["*"] {
+		return true
+	}
 	if origin := r.Header.Get("Origin"); origin != "" {
 		parsed, err := url.Parse(origin)
 		if err != nil || parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" || (parsed.Scheme != "http" && parsed.Scheme != "https") || (!strings.EqualFold(parsed.Host, r.Host) && !service.origins[origin]) {
-			supportError(w, http.StatusForbidden, "Live connection origin is not allowed")
-			return
+			supportError(w, http.StatusForbidden, "Live connection origin is not allowed. Add the frontend origin (for example http://localhost:8081) to SUPPORT_ALLOWED_ORIGINS on the master and restart it.")
+			return false
 		}
+	}
+	return true
+}
+
+func (service *supportProxy) websocket(w http.ResponseWriter, r *http.Request) {
+	if !service.allowOrigin(w, r) {
+		return
 	}
 	if !isWebSocketRequest(r) {
 		supportError(w, http.StatusBadRequest, "A WebSocket upgrade is required")
