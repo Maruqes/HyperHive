@@ -1,0 +1,22 @@
+<template><style>
+@font-face{font-family:Inter;src:url('assets/fonts/Inter-Variable.ttf');font-weight:100 900}
+*{box-sizing:border-box}#root{position:absolute;inset:0;font-family:Inter,sans-serif;overflow:hidden;color:#E8EBF0}
+.clip{position:absolute;inset:0}.ground{position:absolute;inset:0;background:#0D1420}
+h1,h2,p{margin:0}h1{font-size:104px;font-weight:700;letter-spacing:-5px;line-height:1.07}h2{font-size:64px;letter-spacing:-2px;line-height:1.12}.body{font-size:36px;line-height:1.4}.small{font-size:30px;line-height:1.4}.accent{color:#28B8DA}.label{font-size:34px;font-weight:600}.hairline{height:2px;background:currentColor;opacity:.22}
+.master{position:absolute;left:685px;top:450px;width:550px;height:130px;background:#28B8DA;color:#0D1420;display:flex;justify-content:center;flex-direction:column;align-items:center;border-radius:10px}.master span{font-size:48px;font-weight:700}.master b{font-size:30px;font-weight:400}.host{position:absolute;top:640px;width:510px;text-align:center}.host span{display:block;font-size:38px;margin-top:25px}.rack{padding:22px 36px;border:2px solid #52667B;border-radius:10px;background:#152334}.rack i{display:block;height:24px;margin:12px 0;background:#2A3F53;border-right:50px solid #28B8DA;border-radius:4px}</style>
+<div id="root" data-composition-id="s1-together" data-duration="10.5" data-width="1920" data-height="1080">
+<div class="clip" id="s1-stage" data-start="0" data-duration="10.5" data-track-index="0"><div class="ground"></div><h1 id="s1-title" style="position:absolute;left:145px;top:125px">Your infrastructure.</h1>
+<h1 id="s1-together" class="accent" style="position:absolute;left:140px;top:245px;font-size:160px">Together.</h1>
+<svg style="position:absolute;inset:0;width:1920px;height:1080px" viewBox="0 0 1920 1080" aria-hidden="true">
+<g id="s1-links" fill="none" stroke="#28B8DA" stroke-width="4"><path d="M440 693H960V570"/><path d="M960 570V693H1480"/></g></svg>
+<div id="s1-master" class="master"><span>HyperHive</span><b>Control plane</b></div>
+<div id="s1-host1" class="host" style="left:185px"><div class="rack"><i></i><i></i><i></i></div><span>Compute</span></div>
+<div id="s1-host2" class="host" style="left:705px"><div class="rack"><i></i><i></i><i></i></div><span>Storage</span></div>
+<div id="s1-host3" class="host" style="left:1225px"><div class="rack"><i></i><i></i><i></i></div><span>Networking</span></div>
+<p id="s1-foot" class="body" style="position:absolute;left:145px;top:930px">One control plane. Your own infrastructure.</p></div></div>
+<script>(function(){const tl=gsap.timeline({paused:true});tl.fromTo('#s1-together',{clipPath:'inset(0 100% 0 0)'},{clipPath:'inset(0 0% 0 0)',duration:.8,ease:'expo.out'},.2);
+tl.fromTo('#s1-master',{scale:.8,opacity:0},{scale:1,opacity:1,duration:.6,ease:'power4.out'},2);
+tl.fromTo('#s1-links',{opacity:0},{opacity:1,duration:.5},3);
+['#s1-host1','#s1-host2','#s1-host3'].forEach((s,i)=>tl.fromTo(s,{y:80,opacity:0},{y:0,opacity:1,duration:.65,ease:'power4.out'},3.1+i*.85));
+tl.fromTo('#s1-foot',{opacity:0},{opacity:1,duration:.4},6.6);
+window.__timelines["s1-together"]=tl;})();</script></template>

@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "outputDir": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/opening",
+  "frames": [
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/opening/frame-00-at-0s.png",
+      "time": 0
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/opening/frame-01-at-0.033s.png",
+      "time": 0.033
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/opening/frame-02-at-0.3s.png",
+      "time": 0.3
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/opening/frame-03-at-58.2s.png",
+      "time": 58.2
+    }
+  ],
+  "contactSheets": [
+    "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/opening/contact-sheet.jpg"
+  ],
+  "_meta": {
+    "version": "0.8.188",
+    "latestVersion": "0.8.188",
+    "updateAvailable": false
+  }
+}

@@ -1,0 +1,460 @@
+{
+  "ok": true,
+  "outputDir": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e",
+  "frames": [
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-01-at-0.3s.png",
+      "time": 0.3,
+      "role": "beat",
+      "label": "s1-together"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-02-at-5s.png",
+      "time": 5,
+      "role": "beat",
+      "label": "s1-together mid"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-03-at-10.3s.png",
+      "time": 10.3,
+      "role": "beat",
+      "label": "s2-compute"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-04-at-15s.png",
+      "time": 15,
+      "role": "beat",
+      "label": "s2-compute mid"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-05-at-20.3s.png",
+      "time": 20.3,
+      "role": "beat",
+      "label": "s3-storage"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-06-at-25s.png",
+      "time": 25,
+      "role": "beat",
+      "label": "s3-storage mid"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-07-at-30.3s.png",
+      "time": 30.3,
+      "role": "beat",
+      "label": "s4-network"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-08-at-35s.png",
+      "time": 35,
+      "role": "beat",
+      "label": "s4-network mid"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-09-at-40.3s.png",
+      "time": 40.3,
+      "role": "beat",
+      "label": "s5-mcp"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-10-at-45s.png",
+      "time": 45,
+      "role": "beat",
+      "label": "s5-mcp mid"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-11-at-50.3s.png",
+      "time": 50.3,
+      "role": "beat",
+      "label": "s6-identity"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-12-at-55s.png",
+      "time": 55,
+      "role": "beat",
+      "label": "s6-identity mid"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-01-1-at-9.8s.png",
+      "time": 9.8,
+      "role": "seam",
+      "label": "cut -0.2"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-01-2-at-9.9s.png",
+      "time": 9.9,
+      "role": "seam",
+      "label": "-0.1"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-01-3-at-10s.png",
+      "time": 10,
+      "role": "seam",
+      "label": "cut s1-together -> s2-compute"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-01-4-at-10.1s.png",
+      "time": 10.1,
+      "role": "seam",
+      "label": "+0.1"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-01-5-at-10.2s.png",
+      "time": 10.2,
+      "role": "seam",
+      "label": "+0.2"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-02-1-at-19.8s.png",
+      "time": 19.8,
+      "role": "seam",
+      "label": "cut -0.2"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-02-2-at-19.9s.png",
+      "time": 19.9,
+      "role": "seam",
+      "label": "-0.1"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-02-3-at-20s.png",
+      "time": 20,
+      "role": "seam",
+      "label": "cut s2-compute -> s3-storage"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-02-4-at-20.1s.png",
+      "time": 20.1,
+      "role": "seam",
+      "label": "+0.1"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-02-5-at-20.2s.png",
+      "time": 20.2,
+      "role": "seam",
+      "label": "+0.2"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-03-1-at-29.8s.png",
+      "time": 29.8,
+      "role": "seam",
+      "label": "cut -0.2"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-03-2-at-29.9s.png",
+      "time": 29.9,
+      "role": "seam",
+      "label": "-0.1"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-03-3-at-30s.png",
+      "time": 30,
+      "role": "seam",
+      "label": "cut s3-storage -> s4-network"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-03-4-at-30.1s.png",
+      "time": 30.1,
+      "role": "seam",
+      "label": "+0.1"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-03-5-at-30.2s.png",
+      "time": 30.2,
+      "role": "seam",
+      "label": "+0.2"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-04-1-at-39.8s.png",
+      "time": 39.8,
+      "role": "seam",
+      "label": "cut -0.2"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-04-2-at-39.9s.png",
+      "time": 39.9,
+      "role": "seam",
+      "label": "-0.1"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-04-3-at-40s.png",
+      "time": 40,
+      "role": "seam",
+      "label": "cut s4-network -> s5-mcp"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-04-4-at-40.1s.png",
+      "time": 40.1,
+      "role": "seam",
+      "label": "+0.1"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-04-5-at-40.2s.png",
+      "time": 40.2,
+      "role": "seam",
+      "label": "+0.2"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-05-1-at-49.8s.png",
+      "time": 49.8,
+      "role": "seam",
+      "label": "cut -0.2"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-05-2-at-49.9s.png",
+      "time": 49.9,
+      "role": "seam",
+      "label": "-0.1"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-05-3-at-50s.png",
+      "time": 50,
+      "role": "seam",
+      "label": "cut s5-mcp -> s6-identity"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-05-4-at-50.1s.png",
+      "time": 50.1,
+      "role": "seam",
+      "label": "+0.1"
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-05-5-at-50.2s.png",
+      "time": 50.2,
+      "role": "seam",
+      "label": "+0.2"
+    }
+  ],
+  "contactSheets": [
+    "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/review-beats.jpg",
+    "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/review-seam-01.jpg",
+    "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/review-seam-02.jpg",
+    "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/review-seam-03.jpg",
+    "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/review-seam-04.jpg",
+    "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/review-seam-05.jpg",
+    "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/review-phone.jpg"
+  ],
+  "review": {
+    "window": [
+      0,
+      60
+    ],
+    "scenes": [
+      {
+        "id": "s1-together",
+        "start": 0,
+        "end": 10
+      },
+      {
+        "id": "s2-compute",
+        "start": 10,
+        "end": 20
+      },
+      {
+        "id": "s3-storage",
+        "start": 20,
+        "end": 30
+      },
+      {
+        "id": "s4-network",
+        "start": 30,
+        "end": 40
+      },
+      {
+        "id": "s5-mcp",
+        "start": 40,
+        "end": 50
+      },
+      {
+        "id": "s6-identity",
+        "start": 50,
+        "end": 60
+      }
+    ],
+    "beats": [
+      {
+        "time": 0.3,
+        "label": "s1-together",
+        "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-01-at-0.3s.png"
+      },
+      {
+        "time": 5,
+        "label": "s1-together mid",
+        "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-02-at-5s.png"
+      },
+      {
+        "time": 10.3,
+        "label": "s2-compute",
+        "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-03-at-10.3s.png"
+      },
+      {
+        "time": 15,
+        "label": "s2-compute mid",
+        "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-04-at-15s.png"
+      },
+      {
+        "time": 20.3,
+        "label": "s3-storage",
+        "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-05-at-20.3s.png"
+      },
+      {
+        "time": 25,
+        "label": "s3-storage mid",
+        "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-06-at-25s.png"
+      },
+      {
+        "time": 30.3,
+        "label": "s4-network",
+        "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-07-at-30.3s.png"
+      },
+      {
+        "time": 35,
+        "label": "s4-network mid",
+        "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-08-at-35s.png"
+      },
+      {
+        "time": 40.3,
+        "label": "s5-mcp",
+        "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-09-at-40.3s.png"
+      },
+      {
+        "time": 45,
+        "label": "s5-mcp mid",
+        "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-10-at-45s.png"
+      },
+      {
+        "time": 50.3,
+        "label": "s6-identity",
+        "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-11-at-50.3s.png"
+      },
+      {
+        "time": 55,
+        "label": "s6-identity mid",
+        "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/beat-12-at-55s.png"
+      }
+    ],
+    "seams": [
+      {
+        "time": 10,
+        "from": "s1-together",
+        "to": "s2-compute",
+        "times": [
+          9.8,
+          9.9,
+          10,
+          10.1,
+          10.2
+        ],
+        "paths": [
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-01-1-at-9.8s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-01-2-at-9.9s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-01-3-at-10s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-01-4-at-10.1s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-01-5-at-10.2s.png"
+        ],
+        "sheet": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/review-seam-01.jpg"
+      },
+      {
+        "time": 20,
+        "from": "s2-compute",
+        "to": "s3-storage",
+        "times": [
+          19.8,
+          19.9,
+          20,
+          20.1,
+          20.2
+        ],
+        "paths": [
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-02-1-at-19.8s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-02-2-at-19.9s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-02-3-at-20s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-02-4-at-20.1s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-02-5-at-20.2s.png"
+        ],
+        "sheet": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/review-seam-02.jpg"
+      },
+      {
+        "time": 30,
+        "from": "s3-storage",
+        "to": "s4-network",
+        "times": [
+          29.8,
+          29.9,
+          30,
+          30.1,
+          30.2
+        ],
+        "paths": [
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-03-1-at-29.8s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-03-2-at-29.9s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-03-3-at-30s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-03-4-at-30.1s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-03-5-at-30.2s.png"
+        ],
+        "sheet": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/review-seam-03.jpg"
+      },
+      {
+        "time": 40,
+        "from": "s4-network",
+        "to": "s5-mcp",
+        "times": [
+          39.8,
+          39.9,
+          40,
+          40.1,
+          40.2
+        ],
+        "paths": [
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-04-1-at-39.8s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-04-2-at-39.9s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-04-3-at-40s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-04-4-at-40.1s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-04-5-at-40.2s.png"
+        ],
+        "sheet": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/review-seam-04.jpg"
+      },
+      {
+        "time": 50,
+        "from": "s5-mcp",
+        "to": "s6-identity",
+        "times": [
+          49.8,
+          49.9,
+          50,
+          50.1,
+          50.2
+        ],
+        "paths": [
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-05-1-at-49.8s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-05-2-at-49.9s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-05-3-at-50s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-05-4-at-50.1s.png",
+          "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/seam-05-5-at-50.2s.png"
+        ],
+        "sheet": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/review-seam-05.jpg"
+      }
+    ],
+    "sheets": {
+      "beats": [
+        "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/review-beats.jpg"
+      ],
+      "seams": [
+        "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/review-seam-01.jpg",
+        "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/review-seam-02.jpg",
+        "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/review-seam-03.jpg",
+        "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/review-seam-04.jpg",
+        "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/review-seam-05.jpg"
+      ],
+      "phone": [
+        "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/snapshots/dadf9d92-0ca4-4115-b4f0-583ce72a1c7e/review-phone.jpg"
+      ]
+    },
+    "notes": []
+  },
+  "_meta": {
+    "version": "0.8.188",
+    "latestVersion": "0.8.188",
+    "updateAvailable": false
+  }
+}

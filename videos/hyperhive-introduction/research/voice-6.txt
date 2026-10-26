@@ -1,0 +1,1 @@
+A central master. Host agents where the work happens. HyperHive. Your infrastructure, one control plane. Built for your own hive.

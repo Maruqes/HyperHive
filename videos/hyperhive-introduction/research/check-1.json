@@ -1,0 +1,702 @@
+{
+  "ok": true,
+  "strict": false,
+  "browserSkipped": false,
+  "lint": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "filesScanned": 7
+  },
+  "runtime": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 20,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "console_warning",
+        "severity": "warning",
+        "message": "Failed to decode downloaded font: data:font/ttf;base64,CgoKCgoKCgo8IURPQ1RZUEUgaHRtbD4KPGh0bWwKICBsYW5nPSJlbiIKICAKICBkYXRhLWNvbG9yLW1vZGU9ImF1dG8iIGRhdGEtbGlnaHQtdGhlbWU9ImxpZ2h0IiBkYXRhLWRhcmstdGhlbWU9ImRhcmsiCiAgZGF0YS1hMTF5LWFuaW1hdGVkLWltYWdlcz0ic3lzdGVtIiBkYXRhLWExMXktbGluay11bmRlcmxpbmVzPSJ0cnVlIgogIAogID4KCgoKCiAgPGhlYWQ+CiAgICA8bWV0YSBjaGFyc2V0PSJ1dGYtOCI+CiAgPGxpbmsgcmVsPSJkbnMtcHJlZmV0Y2giIGhyZWY9Imh0dHBzOi8vZ2l0aHViLmdpdGh1YmFzc2V0cy5jb20iPgogIDxsaW5rIHJlbD0iZG5zLXByZWZldGNoIiBocmVmPSJodHRwczovL2F2YXRhcnMuZ2l0aHVidXNlcmNvbnRlbn...EuMDQyLS4wMThMNiAxMC45NGw2LjcyLTYuNzJhLjc1Ljc1IDAgMCAxIDEuMDYgMFoiPjwvcGF0aD4KPC9zdmc+CiAgICA8L2NsaXBib2FyZC1jb3B5PgogIDwvZGl2Pgo8L3RlbXBsYXRlPgoKCgoKICAgIDwvZGl2PgogICAgPGRpdiBpZD0ianMtZ2xvYmFsLXNjcmVlbi1yZWFkZXItbm90aWNlIiBjbGFzcz0ic3Itb25seSBtdC1uMSIgYXJpYS1saXZlPSJwb2xpdGUiIGFyaWEtYXRvbWljPSJ0cnVlIiA+PC9kaXY+CiAgICA8ZGl2IGlkPSJqcy1nbG9iYWwtc2NyZWVuLXJlYWRlci1ub3RpY2UtYXNzZXJ0aXZlIiBjbGFzcz0ic3Itb25seSBtdC1uMSIgYXJpYS1saXZlPSJhc3NlcnRpdmUiIGFyaWEtYXRvbWljPSJ0cnVlIj48L2Rpdj4KICA8L2JvZHk+CjwvaHRtbD4KCg==",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0,
+        "url": "http://127.0.0.1:46583/",
+        "line": 4509
+      },
+      {
+        "code": "console_warning",
+        "severity": "warning",
+        "message": "OTS parsing error: invalid sfntVersion: 168430090",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0,
+        "url": "http://127.0.0.1:46583/",
+        "line": 4509
+      },
+      {
+        "code": "console_warning",
+        "severity": "warning",
+        "message": "Failed to decode downloaded font: data:font/ttf;base64,CgoKCgoKCgo8IURPQ1RZUEUgaHRtbD4KPGh0bWwKICBsYW5nPSJlbiIKICAKICBkYXRhLWNvbG9yLW1vZGU9ImF1dG8iIGRhdGEtbGlnaHQtdGhlbWU9ImxpZ2h0IiBkYXRhLWRhcmstdGhlbWU9ImRhcmsiCiAgZGF0YS1hMTF5LWFuaW1hdGVkLWltYWdlcz0ic3lzdGVtIiBkYXRhLWExMXktbGluay11bmRlcmxpbmVzPSJ0cnVlIgogIAogID4KCgoKCiAgPGhlYWQ+CiAgICA8bWV0YSBjaGFyc2V0PSJ1dGYtOCI+CiAgPGxpbmsgcmVsPSJkbnMtcHJlZmV0Y2giIGhyZWY9Imh0dHBzOi8vZ2l0aHViLmdpdGh1YmFzc2V0cy5jb20iPgogIDxsaW5rIHJlbD0iZG5zLXByZWZldGNoIiBocmVmPSJodHRwczovL2F2YXRhcnMuZ2l0aHVidXNlcmNvbnRlbn...EuMDQyLS4wMThMNiAxMC45NGw2LjcyLTYuNzJhLjc1Ljc1IDAgMCAxIDEuMDYgMFoiPjwvcGF0aD4KPC9zdmc+CiAgICA8L2NsaXBib2FyZC1jb3B5PgogIDwvZGl2Pgo8L3RlbXBsYXRlPgoKCgoKICAgIDwvZGl2PgogICAgPGRpdiBpZD0ianMtZ2xvYmFsLXNjcmVlbi1yZWFkZXItbm90aWNlIiBjbGFzcz0ic3Itb25seSBtdC1uMSIgYXJpYS1saXZlPSJwb2xpdGUiIGFyaWEtYXRvbWljPSJ0cnVlIiA+PC9kaXY+CiAgICA8ZGl2IGlkPSJqcy1nbG9iYWwtc2NyZWVuLXJlYWRlci1ub3RpY2UtYXNzZXJ0aXZlIiBjbGFzcz0ic3Itb25seSBtdC1uMSIgYXJpYS1saXZlPSJhc3NlcnRpdmUiIGFyaWEtYXRvbWljPSJ0cnVlIj48L2Rpdj4KICA8L2JvZHk+CjwvaHRtbD4KCg==",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0,
+        "url": "http://127.0.0.1:46583/",
+        "line": 4509
+      },
+      {
+        "code": "console_warning",
+        "severity": "warning",
+        "message": "OTS parsing error: invalid sfntVersion: 168430090",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0,
+        "url": "http://127.0.0.1:46583/",
+        "line": 4509
+      },
+      {
+        "code": "console_warning",
+        "severity": "warning",
+        "message": "Failed to decode downloaded font: data:font/ttf;base64,CgoKCgoKCgo8IURPQ1RZUEUgaHRtbD4KPGh0bWwKICBsYW5nPSJlbiIKICAKICBkYXRhLWNvbG9yLW1vZGU9ImF1dG8iIGRhdGEtbGlnaHQtdGhlbWU9ImxpZ2h0IiBkYXRhLWRhcmstdGhlbWU9ImRhcmsiCiAgZGF0YS1hMTF5LWFuaW1hdGVkLWltYWdlcz0ic3lzdGVtIiBkYXRhLWExMXktbGluay11bmRlcmxpbmVzPSJ0cnVlIgogIAogID4KCgoKCiAgPGhlYWQ+CiAgICA8bWV0YSBjaGFyc2V0PSJ1dGYtOCI+CiAgPGxpbmsgcmVsPSJkbnMtcHJlZmV0Y2giIGhyZWY9Imh0dHBzOi8vZ2l0aHViLmdpdGh1YmFzc2V0cy5jb20iPgogIDxsaW5rIHJlbD0iZG5zLXByZWZldGNoIiBocmVmPSJodHRwczovL2F2YXRhcnMuZ2l0aHVidXNlcmNvbnRlbn...EuMDQyLS4wMThMNiAxMC45NGw2LjcyLTYuNzJhLjc1Ljc1IDAgMCAxIDEuMDYgMFoiPjwvcGF0aD4KPC9zdmc+CiAgICA8L2NsaXBib2FyZC1jb3B5PgogIDwvZGl2Pgo8L3RlbXBsYXRlPgoKCgoKICAgIDwvZGl2PgogICAgPGRpdiBpZD0ianMtZ2xvYmFsLXNjcmVlbi1yZWFkZXItbm90aWNlIiBjbGFzcz0ic3Itb25seSBtdC1uMSIgYXJpYS1saXZlPSJwb2xpdGUiIGFyaWEtYXRvbWljPSJ0cnVlIiA+PC9kaXY+CiAgICA8ZGl2IGlkPSJqcy1nbG9iYWwtc2NyZWVuLXJlYWRlci1ub3RpY2UtYXNzZXJ0aXZlIiBjbGFzcz0ic3Itb25seSBtdC1uMSIgYXJpYS1saXZlPSJhc3NlcnRpdmUiIGFyaWEtYXRvbWljPSJ0cnVlIj48L2Rpdj4KICA8L2JvZHk+CjwvaHRtbD4KCg==",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0,
+        "url": "http://127.0.0.1:46583/",
+        "line": 4509
+      },
+      {
+        "code": "console_warning",
+        "severity": "warning",
+        "message": "OTS parsing error: invalid sfntVersion: 168430090",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0,
+        "url": "http://127.0.0.1:46583/",
+        "line": 4509
+      },
+      {
+        "code": "console_warning",
+        "severity": "warning",
+        "message": "Failed to decode downloaded font: data:font/ttf;base64,CgoKCgoKCgo8IURPQ1RZUEUgaHRtbD4KPGh0bWwKICBsYW5nPSJlbiIKICAKICBkYXRhLWNvbG9yLW1vZGU9ImF1dG8iIGRhdGEtbGlnaHQtdGhlbWU9ImxpZ2h0IiBkYXRhLWRhcmstdGhlbWU9ImRhcmsiCiAgZGF0YS1hMTF5LWFuaW1hdGVkLWltYWdlcz0ic3lzdGVtIiBkYXRhLWExMXktbGluay11bmRlcmxpbmVzPSJ0cnVlIgogIAogID4KCgoKCiAgPGhlYWQ+CiAgICA8bWV0YSBjaGFyc2V0PSJ1dGYtOCI+CiAgPGxpbmsgcmVsPSJkbnMtcHJlZmV0Y2giIGhyZWY9Imh0dHBzOi8vZ2l0aHViLmdpdGh1YmFzc2V0cy5jb20iPgogIDxsaW5rIHJlbD0iZG5zLXByZWZldGNoIiBocmVmPSJodHRwczovL2F2YXRhcnMuZ2l0aHVidXNlcmNvbnRlbn...EuMDQyLS4wMThMNiAxMC45NGw2LjcyLTYuNzJhLjc1Ljc1IDAgMCAxIDEuMDYgMFoiPjwvcGF0aD4KPC9zdmc+CiAgICA8L2NsaXBib2FyZC1jb3B5PgogIDwvZGl2Pgo8L3RlbXBsYXRlPgoKCgoKICAgIDwvZGl2PgogICAgPGRpdiBpZD0ianMtZ2xvYmFsLXNjcmVlbi1yZWFkZXItbm90aWNlIiBjbGFzcz0ic3Itb25seSBtdC1uMSIgYXJpYS1saXZlPSJwb2xpdGUiIGFyaWEtYXRvbWljPSJ0cnVlIiA+PC9kaXY+CiAgICA8ZGl2IGlkPSJqcy1nbG9iYWwtc2NyZWVuLXJlYWRlci1ub3RpY2UtYXNzZXJ0aXZlIiBjbGFzcz0ic3Itb25seSBtdC1uMSIgYXJpYS1saXZlPSJhc3NlcnRpdmUiIGFyaWEtYXRvbWljPSJ0cnVlIj48L2Rpdj4KICA8L2JvZHk+CjwvaHRtbD4KCg==",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0,
+        "url": "http://127.0.0.1:46583/",
+        "line": 1170
+      },
+      {
+        "code": "console_warning",
+        "severity": "warning",
+        "message": "OTS parsing error: invalid sfntVersion: 168430090",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0,
+        "url": "http://127.0.0.1:46583/",
+        "line": 1170
+      },
+      {
+        "code": "console_warning",
+        "severity": "warning",
+        "message": "Failed to decode downloaded font: data:font/ttf;base64,CgoKCgoKCgo8IURPQ1RZUEUgaHRtbD4KPGh0bWwKICBsYW5nPSJlbiIKICAKICBkYXRhLWNvbG9yLW1vZGU9ImF1dG8iIGRhdGEtbGlnaHQtdGhlbWU9ImxpZ2h0IiBkYXRhLWRhcmstdGhlbWU9ImRhcmsiCiAgZGF0YS1hMTF5LWFuaW1hdGVkLWltYWdlcz0ic3lzdGVtIiBkYXRhLWExMXktbGluay11bmRlcmxpbmVzPSJ0cnVlIgogIAogID4KCgoKCiAgPGhlYWQ+CiAgICA8bWV0YSBjaGFyc2V0PSJ1dGYtOCI+CiAgPGxpbmsgcmVsPSJkbnMtcHJlZmV0Y2giIGhyZWY9Imh0dHBzOi8vZ2l0aHViLmdpdGh1YmFzc2V0cy5jb20iPgogIDxsaW5rIHJlbD0iZG5zLXByZWZldGNoIiBocmVmPSJodHRwczovL2F2YXRhcnMuZ2l0aHVidXNlcmNvbnRlbn...EuMDQyLS4wMThMNiAxMC45NGw2LjcyLTYuNzJhLjc1Ljc1IDAgMCAxIDEuMDYgMFoiPjwvcGF0aD4KPC9zdmc+CiAgICA8L2NsaXBib2FyZC1jb3B5PgogIDwvZGl2Pgo8L3RlbXBsYXRlPgoKCgoKICAgIDwvZGl2PgogICAgPGRpdiBpZD0ianMtZ2xvYmFsLXNjcmVlbi1yZWFkZXItbm90aWNlIiBjbGFzcz0ic3Itb25seSBtdC1uMSIgYXJpYS1saXZlPSJwb2xpdGUiIGFyaWEtYXRvbWljPSJ0cnVlIiA+PC9kaXY+CiAgICA8ZGl2IGlkPSJqcy1nbG9iYWwtc2NyZWVuLXJlYWRlci1ub3RpY2UtYXNzZXJ0aXZlIiBjbGFzcz0ic3Itb25seSBtdC1uMSIgYXJpYS1saXZlPSJhc3NlcnRpdmUiIGFyaWEtYXRvbWljPSJ0cnVlIj48L2Rpdj4KICA8L2JvZHk+CjwvaHRtbD4KCg==",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0,
+        "url": "http://127.0.0.1:46583/",
+        "line": 1170
+      },
+      {
+        "code": "console_warning",
+        "severity": "warning",
+        "message": "OTS parsing error: invalid sfntVersion: 168430090",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0,
+        "url": "http://127.0.0.1:46583/",
+        "line": 1170
+      },
+      {
+        "code": "console_warning",
+        "severity": "warning",
+        "message": "Failed to decode downloaded font: data:font/ttf;base64,CgoKCgoKCgo8IURPQ1RZUEUgaHRtbD4KPGh0bWwKICBsYW5nPSJlbiIKICAKICBkYXRhLWNvbG9yLW1vZGU9ImF1dG8iIGRhdGEtbGlnaHQtdGhlbWU9ImxpZ2h0IiBkYXRhLWRhcmstdGhlbWU9ImRhcmsiCiAgZGF0YS1hMTF5LWFuaW1hdGVkLWltYWdlcz0ic3lzdGVtIiBkYXRhLWExMXktbGluay11bmRlcmxpbmVzPSJ0cnVlIgogIAogID4KCgoKCiAgPGhlYWQ+CiAgICA8bWV0YSBjaGFyc2V0PSJ1dGYtOCI+CiAgPGxpbmsgcmVsPSJkbnMtcHJlZmV0Y2giIGhyZWY9Imh0dHBzOi8vZ2l0aHViLmdpdGh1YmFzc2V0cy5jb20iPgogIDxsaW5rIHJlbD0iZG5zLXByZWZldGNoIiBocmVmPSJodHRwczovL2F2YXRhcnMuZ2l0aHVidXNlcmNvbnRlbn...EuMDQyLS4wMThMNiAxMC45NGw2LjcyLTYuNzJhLjc1Ljc1IDAgMCAxIDEuMDYgMFoiPjwvcGF0aD4KPC9zdmc+CiAgICA8L2NsaXBib2FyZC1jb3B5PgogIDwvZGl2Pgo8L3RlbXBsYXRlPgoKCgoKICAgIDwvZGl2PgogICAgPGRpdiBpZD0ianMtZ2xvYmFsLXNjcmVlbi1yZWFkZXItbm90aWNlIiBjbGFzcz0ic3Itb25seSBtdC1uMSIgYXJpYS1saXZlPSJwb2xpdGUiIGFyaWEtYXRvbWljPSJ0cnVlIiA+PC9kaXY+CiAgICA8ZGl2IGlkPSJqcy1nbG9iYWwtc2NyZWVuLXJlYWRlci1ub3RpY2UtYXNzZXJ0aXZlIiBjbGFzcz0ic3Itb25seSBtdC1uMSIgYXJpYS1saXZlPSJhc3NlcnRpdmUiIGFyaWEtYXRvbWljPSJ0cnVlIj48L2Rpdj4KICA8L2JvZHk+CjwvaHRtbD4KCg==",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0,
+        "url": "http://127.0.0.1:46583/",
+        "line": 1170
+      },
+      {
+        "code": "console_warning",
+        "severity": "warning",
+        "message": "OTS parsing error: invalid sfntVersion: 168430090",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0,
+        "url": "http://127.0.0.1:46583/",
+        "line": 1170
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"voice-1\" is 8.58s but its slot (data-duration) is 9.40s — the slot is shortened to the media length when rendered. Set data-duration to ~8.58s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"voice-2\" is 7.81s but its slot (data-duration) is 9.40s — the slot is shortened to the media length when rendered. Set data-duration to ~7.81s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"voice-3\" is 8.38s but its slot (data-duration) is 9.40s — the slot is shortened to the media length when rendered. Set data-duration to ~8.38s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"voice-4\" is 8.77s but its slot (data-duration) is 9.40s — the slot is shortened to the media length when rendered. Set data-duration to ~8.77s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"voice-6\" is 8.87s but its slot (data-duration) is 9.40s — the slot is shortened to the media length when rendered. Set data-duration to ~8.87s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx-0\" is 0.57s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.57s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx-1\" is 0.57s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.57s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx-2\" is 0.57s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.57s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      }
+    ]
+  },
+  "layout": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 3,
+    "findings": [
+      {
+        "code": "canvas_overflow",
+        "severity": "info",
+        "time": 10,
+        "selector": "#s2-title",
+        "message": "Text extends outside the composition canvas.",
+        "rect": {
+          "left": 2060,
+          "top": 127,
+          "right": 3175.8,
+          "bottom": 243,
+          "width": 1115.8,
+          "height": 116
+        },
+        "containerSelector": "#root",
+        "text": "Compute, on your terms.",
+        "fixHint": "Move the text inward, reduce its size, or mark intentional off-canvas animation with data-layout-allow-overflow.",
+        "containerRect": {
+          "left": 0,
+          "top": 0,
+          "right": 1920,
+          "bottom": 1080,
+          "width": 1920,
+          "height": 1080
+        },
+        "overflow": {
+          "right": 1255.8
+        },
+        "dataAttributes": {},
+        "sourceFile": "compositions/s2-compute.html",
+        "bbox": {
+          "x": 2060,
+          "y": 127,
+          "width": 1115.8,
+          "height": 116
+        },
+        "firstSeen": 10,
+        "lastSeen": 10,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          10
+        ]
+      },
+      {
+        "code": "canvas_overflow",
+        "severity": "info",
+        "time": 10,
+        "selector": "#s2-sub",
+        "message": "Text extends outside the composition canvas.",
+        "rect": {
+          "left": 2065,
+          "top": 274,
+          "right": 2768.64,
+          "bottom": 315,
+          "width": 703.64,
+          "height": 41
+        },
+        "containerSelector": "#root",
+        "text": "Virtual machines, from creation to migration.",
+        "fixHint": "Move the text inward, reduce its size, or mark intentional off-canvas animation with data-layout-allow-overflow.",
+        "containerRect": {
+          "left": 0,
+          "top": 0,
+          "right": 1920,
+          "bottom": 1080,
+          "width": 1920,
+          "height": 1080
+        },
+        "overflow": {
+          "right": 848.64
+        },
+        "dataAttributes": {},
+        "sourceFile": "compositions/s2-compute.html",
+        "bbox": {
+          "x": 2065,
+          "y": 274,
+          "width": 703.64,
+          "height": 41
+        },
+        "firstSeen": 10,
+        "lastSeen": 10,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          10
+        ]
+      },
+      {
+        "code": "container_overflow",
+        "severity": "info",
+        "time": 10,
+        "selector": "#s2-stage",
+        "message": "Element extends outside a clipping layout container.",
+        "rect": {
+          "left": 1920,
+          "top": 0,
+          "right": 3840,
+          "bottom": 1080,
+          "width": 1920,
+          "height": 1080
+        },
+        "containerSelector": "#s2-compute > div:nth-of-type(1)",
+        "fixHint": "Resize/reposition the child or container, or mark intentional overflow with data-layout-allow-overflow.",
+        "containerRect": {
+          "left": 0,
+          "top": 0,
+          "right": 1920,
+          "bottom": 1080,
+          "width": 1920,
+          "height": 1080
+        },
+        "overflow": {
+          "right": 1920
+        },
+        "dataAttributes": {
+          "data-start": "0",
+          "data-duration": "10",
+          "data-track-index": "0"
+        },
+        "sourceFile": "compositions/s2-compute.html",
+        "bbox": {
+          "x": 1920,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "firstSeen": 10,
+        "lastSeen": 10,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          10
+        ]
+      }
+    ],
+    "duration": 60,
+    "samples": [
+      3.333,
+      10,
+      16.667,
+      23.333,
+      30,
+      36.667,
+      43.333,
+      50,
+      56.667
+    ],
+    "transitionSamples": [],
+    "transitionSamplesDropped": 0,
+    "tolerance": 2,
+    "totalIssueCount": 3,
+    "truncated": false
+  },
+  "motion": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": false,
+    "samples": 0
+  },
+  "contrast": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": true,
+    "samples": [
+      3.333,
+      16.667,
+      30,
+      43.333,
+      56.667
+    ],
+    "checked": 22,
+    "passed": 22
+  },
+  "craft": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": true,
+    "step": 0.125,
+    "samples": 480
+  },
+  "hdr": {
+    "autoPromotion": null,
+    "inspection": "available"
+  },
+  "snapshots": {
+    "enabled": false,
+    "files": [],
+    "times": [],
+    "findingFiles": []
+  },
+  "saved": {
+    "id": "136bc21e-95ac-4809-a1db-02f9bb00186a",
+    "revision": null,
+    "report": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/checks/136bc21e-95ac-4809-a1db-02f9bb00186a.json",
+    "attribution": "unversioned"
+  },
+  "_meta": {
+    "version": "0.8.188",
+    "latestVersion": "0.8.188",
+    "updateAvailable": false
+  }
+}

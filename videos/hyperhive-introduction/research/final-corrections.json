@@ -1,0 +1,38 @@
+{
+  "ok": true,
+  "outputDir": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/final-corrections",
+  "frames": [
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/final-corrections/frame-00-at-0s.png",
+      "time": 0
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/final-corrections/frame-01-at-0.033s.png",
+      "time": 0.033
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/final-corrections/frame-02-at-0.1s.png",
+      "time": 0.1
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/final-corrections/frame-03-at-0.49s.png",
+      "time": 0.49
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/final-corrections/frame-04-at-0.5s.png",
+      "time": 0.5
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/final-corrections/frame-05-at-25.5s.png",
+      "time": 25.5
+    }
+  ],
+  "contactSheets": [
+    "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/final-corrections/contact-sheet.jpg"
+  ],
+  "_meta": {
+    "version": "0.8.188",
+    "latestVersion": "0.8.188",
+    "updateAvailable": false
+  }
+}

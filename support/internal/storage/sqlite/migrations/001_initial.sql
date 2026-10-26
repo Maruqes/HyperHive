@@ -1,0 +1,8 @@
+
+CREATE TABLE IF NOT EXISTS tabs (id TEXT PRIMARY KEY, name TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS apps (id TEXT PRIMARY KEY, tab_id TEXT NOT NULL REFERENCES tabs(id), config TEXT NOT NULL, secret BLOB NOT NULL, direct TEXT, layout TEXT NOT NULL DEFAULT '{"revision":0,"widgets":[]}');
+CREATE TABLE IF NOT EXISTS instances (app_id TEXT NOT NULL REFERENCES apps(id) ON DELETE CASCADE, id TEXT NOT NULL, state TEXT NOT NULL, PRIMARY KEY(app_id,id));
+CREATE TABLE IF NOT EXISTS streams (app_id TEXT NOT NULL REFERENCES apps(id) ON DELETE CASCADE, name TEXT NOT NULL, definition TEXT NOT NULL, PRIMARY KEY(app_id,name));
+CREATE TABLE IF NOT EXISTS samples (id INTEGER PRIMARY KEY AUTOINCREMENT, app_id TEXT NOT NULL REFERENCES apps(id) ON DELETE CASCADE, stream TEXT NOT NULL, instance_id TEXT, timestamp TEXT NOT NULL, received_at INTEGER NOT NULL, value TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS samples_stream ON samples(app_id,stream,id);
+CREATE INDEX IF NOT EXISTS samples_received ON samples(app_id,received_at,id);

@@ -246,25 +246,12 @@ func StartApi(exitAfterStart bool) {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
+	r.Use(supportSafeRequestLog)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer) // apanha panics
 	r.Use(websocketSafeTimeout(time.Hour * 2))
 
-	// Strip a leading "/api" from any incoming request path
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			p := r.URL.Path
-			if len(p) >= 4 && p[:4] == "/api" {
-				newPath := p[4:]
-				if newPath == "" {
-					newPath = "/"
-				}
-				r = r.Clone(r.Context())
-				r.URL.Path = newPath
-			}
-			next.ServeHTTP(w, r)
-		})
-	})
+	r.Use(stripAPIPrefix)
 
 	r.Use(latencyLogger)
 
@@ -281,6 +268,7 @@ func StartApi(exitAfterStart bool) {
 
 	r.Post("/login", loginHandler)
 	setupMCPAPI(r, port)
+	setupSupportAPI(r)
 
 	//tem de estar fora a autenticacao esta dentro da rota
 	//é das notifications hehe :D:D:D:D:D::D:D:D:D q funfaoummm

@@ -8,6 +8,7 @@ import (
 	"512SvMan/logs512"
 	"512SvMan/protocol"
 	"512SvMan/services"
+	"512SvMan/supportdeploy"
 	"512SvMan/wireguard"
 	"bytes"
 	"context"
@@ -490,6 +491,11 @@ func main() {
 		os.Exit(1)
 	}
 	logger.Info("Frontend container ready at http://localhost:" + hostPort)
+
+	logger.Info("Preparing HH Support deployment")
+	if err := supportdeploy.Ensure(ctx); err != nil {
+		logger.Errorf("HH Support deployment failed; continuing master startup: %v", err)
+	}
 
 	//listen and connects to gRPC
 	logger.SetCallBack(logs512.LoggerCallBack)

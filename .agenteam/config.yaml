@@ -1,0 +1,119 @@
+version: "1"
+
+# --- Branch isolation for writing agents ---
+isolation: none
+
+# --- Force HOTL execution (auto-detected when omitted) ---
+# pipeline: hotl
+
+# --- Final verification (runs after all stages) ---
+# Auto-detected from repo signals when omitted (pytest, npm test, etc.)
+final_verify:
+  - "cd support && go test ./..."
+# final_verify_policy: block   # block (default) | warn
+# final_verify_max_retries: 1
+# final_verify_rework_to: implement  # writing stage dispatched between retries
+
+# --- Structured role handoffs (Codex output schema, opt-in) ---
+# structured_handoffs: true
+
+# --- Long-running runner budgets (seconds; 0 disables a limit) ---
+# runner:
+#   wall_timeout_seconds: 3600
+#   idle_timeout_seconds: 900
+#   heartbeat_seconds: 30
+
+# --- Role overrides (deep-merged with built-in defaults) ---
+# Model routing inherits the Codex platform default unless a personal override
+# is evaluated and pinned. Run `agenteam-rt doctor` to inspect the live Codex
+# catalog, deprecated pins, and model-specific reasoning levels.
+#
+# Analysis roles (uncomment in personal config):
+#   researcher:
+#     model: gpt-5.5           # strongest default for research
+#   pm:
+#     model: gpt-5.5           # strongest default for strategy
+#   architect:
+#     model: gpt-5.5           # strongest default for design
+#   reviewer:
+#     model: gpt-5.5           # strongest default for review
+#
+# Cross-model review: use different models for dev and reviewer
+# to avoid sycophantic reviews. See docs/configuration.md.
+
+roles:
+  dev:
+    can_write: true
+    write_scope:
+      - "support/**"
+      - "master/**"
+      - "docs/**"
+      - "plan/HH-Support/**"
+
+  qa:
+    can_write: true
+    write_scope:
+      - "support/**/*_test.go"
+      - "master/api/*support*test.go"
+      - "docs/**"
+
+  # Custom role example — uncomment and modify
+  # security_auditor:
+  #   description: "Reviews code for security vulnerabilities"
+  #   participates_in: [review]
+  #   can_write: false
+  #   system_instructions: |
+  #     Focus on OWASP top 10, auth/authz logic, and hardcoded secrets.
+
+# --- Pipeline stages ---
+# verify: shell command that must exit 0 (auto-detected when omitted)
+# max_retries: re-dispatch on verify failure (default: 0)
+pipeline:
+  stages:
+    - name: design
+      roles: [architect]
+      gate: auto
+
+    - name: implement
+      roles: [dev]
+      gate: auto
+      max_retries: 2
+      # criteria:                   # lightweight gate checks (optional)
+      #   max_files_changed: 15     # block if too many files changed
+      #   scope_paths: ["src/**"]   # block if files outside these patterns
+      #   requires_tests: true      # block if no test files modified
+
+    - name: test
+      roles: [qa]
+      gate: auto
+      max_retries: 1
+      rework_to: implement          # on test failure, dispatch dev to fix code first
+
+    - name: review
+      roles: [reviewer]
+      gate: auto
+
+  # --- Pipeline profiles (optional) ---
+  # Named subsets of stages for different task sizes.
+  # Omit for full pipeline on every run.
+  # profiles:
+  #   quick:
+  #     stages: [implement, test]
+  #     hints:
+  #       - typo
+  #       - one-line fix
+  #       - config change
+  #       - version bump
+  #   standard:
+  #     stages: [design, plan, implement, test, review]
+  #     hints:
+  #       - new endpoint
+  #       - refactor
+  #       - add feature
+  #       - fix bug
+  #   collaborative:
+  #     stages: [research, strategy, design, implement, test, review]
+  #     hints:
+  #       - new feature
+  #       - build something
+  #       - design and implement

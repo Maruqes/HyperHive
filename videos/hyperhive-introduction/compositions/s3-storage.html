@@ -1,0 +1,22 @@
+<template><style>
+@font-face{font-family:Inter;src:url('assets/fonts/Inter-Variable.ttf');font-weight:100 900}
+*{box-sizing:border-box}#root{position:absolute;inset:0;font-family:Inter,sans-serif;overflow:hidden;color:#E8EBF0}
+.clip{position:absolute;inset:0}.ground{position:absolute;inset:0;background:#0D1420}
+h1,h2,p{margin:0}h1{font-size:104px;font-weight:700;letter-spacing:-5px;line-height:1.07}h2{font-size:64px;letter-spacing:-2px;line-height:1.12}.body{font-size:36px;line-height:1.4}.small{font-size:30px;line-height:1.4}.accent{color:#28B8DA}.label{font-size:34px;font-weight:600}.hairline{height:2px;background:currentColor;opacity:.22}
+.ground{background:#E5F2F6}#root{color:#0D1420}.pool{position:absolute;left:735px;top:420px;width:450px;height:380px}.disk{position:absolute;width:450px;height:180px;border-radius:50%;background:#C2D8E1;border:4px solid #0A7EA4}.d3{top:180px}.d2{top:120px}.d1{top:60px}.top{top:0;background:#E5F2F6;display:flex;align-items:center;justify-content:center}.top span{font-size:52px;font-weight:600}.health{position:absolute;left:680px;top:845px;display:flex;gap:20px;align-items:center;font-size:34px}.dot{display:block;width:18px;height:18px;background:#0A7EA4;border-radius:50%}.storage-label{position:absolute;width:520px}.storage-label p{margin-top:20px}</style>
+<div id="root" data-composition-id="s3-storage" data-duration="10.5" data-width="1920" data-height="1080">
+<div class="clip" id="s3-stage" data-start="0" data-duration="10.5" data-track-index="0"><div class="ground"></div><h1 id="s3-title" style="position:absolute;left:140px;top:120px">Give every workload<br>solid ground.</h1>
+<div id="s3-pool" class="pool"><div class="disk d3"></div><div class="disk d2"></div><div class="disk d1"></div><div class="disk top"><span>Storage</span></div></div>
+<div id="s3-btrfs" class="storage-label" style="left:155px;top:500px"><h2>Btrfs</h2><p class="body">Filesystem management</p></div>
+<div id="s3-nfs" class="storage-label" style="left:1240px;top:500px"><h2>NFS</h2><p class="body">Shared storage</p></div>
+<svg id="s3-wires" style="position:absolute;inset:0;width:1920px;height:1080px" viewBox="0 0 1920 1080" aria-hidden="true"><path d="M610 610H735M1185 610H1210" fill="none" stroke="#0A7EA4" stroke-width="5"/></svg>
+<div id="s3-health" class="health"><span class="dot"></span><span>Disk health &amp; backups</span></div>
+<p id="s3-foot" class="body" style="position:absolute;left:145px;top:930px">Storage and compute, in the same picture.</p></div></div>
+<script>(function(){const tl=gsap.timeline({paused:true});tl.fromTo('#s3-stage',{y:1080},{y:0,duration:.5,ease:'power4.out'},0);
+tl.fromTo('#s3-pool',{scaleY:.1,opacity:0,transformOrigin:'center bottom'},{scaleY:1,opacity:1,duration:.8,ease:'expo.out'},1.2);
+tl.fromTo('#s3-btrfs',{x:-50,opacity:0},{x:0,opacity:1,duration:.6,ease:'power4.out'},2.4);
+tl.fromTo('#s3-nfs',{x:50,opacity:0},{x:0,opacity:1,duration:.6,ease:'power4.out'},4);
+tl.fromTo('#s3-wires',{opacity:0},{opacity:1,duration:.4},5.2);
+tl.fromTo('#s3-health',{opacity:0},{opacity:1,duration:.4},6.7);
+tl.fromTo('#s3-foot',{opacity:0},{opacity:1,duration:.4},7.7);
+window.__timelines["s3-storage"]=tl;})();</script></template>

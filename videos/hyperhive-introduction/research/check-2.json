@@ -1,0 +1,1472 @@
+{
+  "ok": true,
+  "strict": false,
+  "browserSkipped": false,
+  "lint": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 16,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "clip_ends_past_root_duration",
+        "severity": "warning",
+        "message": "<div id=\"s6-identity\"> runs from 50s to 60.5s, past the root composition's data-duration of 60s, so it is cut off in previews, posters and renders.",
+        "selector": "#s6-identity",
+        "dataAttributes": {},
+        "sourceFile": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Extend the root data-duration to 60.5, or make <div id=\"s6-identity\"> end at or before 60s."
+      },
+      {
+        "code": "duplicate_audio_track",
+        "severity": "warning",
+        "message": "Multiple audible <audio>/<video> elements on track 8 overlap (assets/voice-1.wav at 0.5-60s, assets/voice-2.wav at 10.5-60s). This causes layered audio playback.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Use non-overlapping time windows or different track indices."
+      },
+      {
+        "code": "duplicate_audio_track",
+        "severity": "warning",
+        "message": "Multiple audible <audio>/<video> elements on track 8 overlap (assets/voice-1.wav at 0.5-60s, assets/voice-3.wav at 20.5-60s). This causes layered audio playback.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Use non-overlapping time windows or different track indices."
+      },
+      {
+        "code": "duplicate_audio_track",
+        "severity": "warning",
+        "message": "Multiple audible <audio>/<video> elements on track 8 overlap (assets/voice-1.wav at 0.5-60s, assets/voice-4.wav at 30.5-60s). This causes layered audio playback.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Use non-overlapping time windows or different track indices."
+      },
+      {
+        "code": "duplicate_audio_track",
+        "severity": "warning",
+        "message": "Multiple audible <audio>/<video> elements on track 8 overlap (assets/voice-1.wav at 0.5-60s, assets/voice-5.wav at 40.5-60s). This causes layered audio playback.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Use non-overlapping time windows or different track indices."
+      },
+      {
+        "code": "duplicate_audio_track",
+        "severity": "warning",
+        "message": "Multiple audible <audio>/<video> elements on track 8 overlap (assets/voice-1.wav at 0.5-60s, assets/voice-6.wav at 50.5-60s). This causes layered audio playback.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Use non-overlapping time windows or different track indices."
+      },
+      {
+        "code": "duplicate_audio_track",
+        "severity": "warning",
+        "message": "Multiple audible <audio>/<video> elements on track 8 overlap (assets/voice-2.wav at 10.5-60s, assets/voice-3.wav at 20.5-60s). This causes layered audio playback.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Use non-overlapping time windows or different track indices."
+      },
+      {
+        "code": "duplicate_audio_track",
+        "severity": "warning",
+        "message": "Multiple audible <audio>/<video> elements on track 8 overlap (assets/voice-2.wav at 10.5-60s, assets/voice-4.wav at 30.5-60s). This causes layered audio playback.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Use non-overlapping time windows or different track indices."
+      },
+      {
+        "code": "duplicate_audio_track",
+        "severity": "warning",
+        "message": "Multiple audible <audio>/<video> elements on track 8 overlap (assets/voice-2.wav at 10.5-60s, assets/voice-5.wav at 40.5-60s). This causes layered audio playback.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Use non-overlapping time windows or different track indices."
+      },
+      {
+        "code": "duplicate_audio_track",
+        "severity": "warning",
+        "message": "Multiple audible <audio>/<video> elements on track 8 overlap (assets/voice-2.wav at 10.5-60s, assets/voice-6.wav at 50.5-60s). This causes layered audio playback.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Use non-overlapping time windows or different track indices."
+      },
+      {
+        "code": "duplicate_audio_track",
+        "severity": "warning",
+        "message": "Multiple audible <audio>/<video> elements on track 8 overlap (assets/voice-3.wav at 20.5-60s, assets/voice-4.wav at 30.5-60s). This causes layered audio playback.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Use non-overlapping time windows or different track indices."
+      },
+      {
+        "code": "duplicate_audio_track",
+        "severity": "warning",
+        "message": "Multiple audible <audio>/<video> elements on track 8 overlap (assets/voice-3.wav at 20.5-60s, assets/voice-5.wav at 40.5-60s). This causes layered audio playback.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Use non-overlapping time windows or different track indices."
+      },
+      {
+        "code": "duplicate_audio_track",
+        "severity": "warning",
+        "message": "Multiple audible <audio>/<video> elements on track 8 overlap (assets/voice-3.wav at 20.5-60s, assets/voice-6.wav at 50.5-60s). This causes layered audio playback.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Use non-overlapping time windows or different track indices."
+      },
+      {
+        "code": "duplicate_audio_track",
+        "severity": "warning",
+        "message": "Multiple audible <audio>/<video> elements on track 8 overlap (assets/voice-4.wav at 30.5-60s, assets/voice-5.wav at 40.5-60s). This causes layered audio playback.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Use non-overlapping time windows or different track indices."
+      },
+      {
+        "code": "duplicate_audio_track",
+        "severity": "warning",
+        "message": "Multiple audible <audio>/<video> elements on track 8 overlap (assets/voice-4.wav at 30.5-60s, assets/voice-6.wav at 50.5-60s). This causes layered audio playback.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Use non-overlapping time windows or different track indices."
+      },
+      {
+        "code": "duplicate_audio_track",
+        "severity": "warning",
+        "message": "Multiple audible <audio>/<video> elements on track 8 overlap (assets/voice-5.wav at 40.5-60s, assets/voice-6.wav at 50.5-60s). This causes layered audio playback.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Use non-overlapping time windows or different track indices."
+      }
+    ],
+    "filesScanned": 7
+  },
+  "runtime": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 3,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx-0\" is 0.57s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.57s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx-1\" is 0.57s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.57s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx-2\" is 0.57s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.57s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "60",
+          "data-width": "1920",
+          "data-height": "1080",
+          "data-fps": "30"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      }
+    ]
+  },
+  "layout": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 1,
+    "infoCount": 23,
+    "findings": [
+      {
+        "code": "content_overlap",
+        "severity": "warning",
+        "time": 30,
+        "selector": "#s3-title",
+        "message": "Two text blocks overlap and may render unreadable.",
+        "rect": {
+          "left": 140,
+          "top": 112,
+          "right": 1020.84,
+          "bottom": 349.27,
+          "width": 880.84,
+          "height": 237.27
+        },
+        "containerSelector": "#s4-sub",
+        "text": "Give every workload solid ground.",
+        "fixHint": "Give each block its own zone, or put data-layout-allow-overlap on the text or on a container inside the scene. A marker on the scene root does not apply.",
+        "dataAttributes": {},
+        "sourceFile": "compositions/s3-storage.html",
+        "bbox": {
+          "x": 140,
+          "y": 112,
+          "width": 880.84,
+          "height": 237.27
+        },
+        "firstSeen": 30,
+        "lastSeen": 30.337,
+        "occurrences": 2,
+        "heldMs": 336.9999999999998,
+        "times": [
+          30,
+          30.337
+        ]
+      },
+      {
+        "code": "canvas_overflow",
+        "severity": "info",
+        "time": 10,
+        "selector": "#s2-title",
+        "message": "Text extends outside the composition canvas.",
+        "rect": {
+          "left": 2060,
+          "top": 122,
+          "right": 3125.09,
+          "bottom": 248,
+          "width": 1065.09,
+          "height": 126
+        },
+        "containerSelector": "#root",
+        "text": "Compute, on your terms.",
+        "fixHint": "Move the text inward, reduce its size, or mark intentional off-canvas animation with data-layout-allow-overflow.",
+        "containerRect": {
+          "left": 0,
+          "top": 0,
+          "right": 1920,
+          "bottom": 1080,
+          "width": 1920,
+          "height": 1080
+        },
+        "overflow": {
+          "right": 1205.09
+        },
+        "dataAttributes": {},
+        "sourceFile": "compositions/s2-compute.html",
+        "bbox": {
+          "x": 2060,
+          "y": 122,
+          "width": 1065.09,
+          "height": 126
+        },
+        "firstSeen": 10,
+        "lastSeen": 10,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          10
+        ]
+      },
+      {
+        "code": "canvas_overflow",
+        "severity": "info",
+        "time": 10,
+        "selector": "#s2-sub",
+        "message": "Text extends outside the composition canvas.",
+        "rect": {
+          "left": 2065,
+          "top": 273,
+          "right": 2751.48,
+          "bottom": 317,
+          "width": 686.48,
+          "height": 44
+        },
+        "containerSelector": "#root",
+        "text": "Virtual machines, from creation to migration.",
+        "fixHint": "Move the text inward, reduce its size, or mark intentional off-canvas animation with data-layout-allow-overflow.",
+        "containerRect": {
+          "left": 0,
+          "top": 0,
+          "right": 1920,
+          "bottom": 1080,
+          "width": 1920,
+          "height": 1080
+        },
+        "overflow": {
+          "right": 831.48
+        },
+        "dataAttributes": {},
+        "sourceFile": "compositions/s2-compute.html",
+        "bbox": {
+          "x": 2065,
+          "y": 273,
+          "width": 686.48,
+          "height": 44
+        },
+        "firstSeen": 10,
+        "lastSeen": 10,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          10
+        ]
+      },
+      {
+        "code": "container_overflow",
+        "severity": "info",
+        "time": 10,
+        "selector": "#s2-stage",
+        "message": "Element extends outside a clipping layout container.",
+        "rect": {
+          "left": 1920,
+          "top": 0,
+          "right": 3840,
+          "bottom": 1080,
+          "width": 1920,
+          "height": 1080
+        },
+        "containerSelector": "#s2-compute > div:nth-of-type(1)",
+        "fixHint": "Resize/reposition the child or container, or mark intentional overflow with data-layout-allow-overflow.",
+        "containerRect": {
+          "left": 0,
+          "top": 0,
+          "right": 1920,
+          "bottom": 1080,
+          "width": 1920,
+          "height": 1080
+        },
+        "overflow": {
+          "right": 1920
+        },
+        "dataAttributes": {
+          "data-start": "0",
+          "data-duration": "10.5",
+          "data-track-index": "0"
+        },
+        "sourceFile": "compositions/s2-compute.html",
+        "bbox": {
+          "x": 1920,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "firstSeen": 10,
+        "lastSeen": 10,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          10
+        ]
+      },
+      {
+        "code": "content_overlap",
+        "severity": "info",
+        "time": 20.225,
+        "selector": "#s2-title",
+        "message": "Two text blocks overlap and may render unreadable.",
+        "rect": {
+          "left": 140,
+          "top": 122,
+          "right": 1205.09,
+          "bottom": 248,
+          "width": 1065.09,
+          "height": 126
+        },
+        "containerSelector": "#s3-title",
+        "text": "Compute, on your terms.",
+        "fixHint": "Give each block its own zone, or put data-layout-allow-overlap on the text or on a container inside the scene. A marker on the scene root does not apply.",
+        "dataAttributes": {},
+        "sourceFile": "compositions/s2-compute.html",
+        "bbox": {
+          "x": 140,
+          "y": 122,
+          "width": 1065.09,
+          "height": 126
+        },
+        "firstSeen": 20.225,
+        "lastSeen": 20.225,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          20.225
+        ]
+      },
+      {
+        "code": "content_overlap",
+        "severity": "info",
+        "time": 20.225,
+        "selector": "#s2-sub",
+        "message": "Two text blocks overlap and may render unreadable.",
+        "rect": {
+          "left": 145,
+          "top": 273,
+          "right": 831.48,
+          "bottom": 317,
+          "width": 686.48,
+          "height": 44
+        },
+        "containerSelector": "#s3-title",
+        "text": "Virtual machines, from creation to migration.",
+        "fixHint": "Give each block its own zone, or put data-layout-allow-overlap on the text or on a container inside the scene. A marker on the scene root does not apply.",
+        "dataAttributes": {},
+        "sourceFile": "compositions/s2-compute.html",
+        "bbox": {
+          "x": 145,
+          "y": 273,
+          "width": 686.48,
+          "height": 44
+        },
+        "firstSeen": 20.225,
+        "lastSeen": 20.225,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          20.225
+        ]
+      },
+      {
+        "code": "content_overlap",
+        "severity": "info",
+        "time": 20.225,
+        "selector": "#s2-left > span:nth-of-type(1)",
+        "message": "Two text blocks overlap and may render unreadable.",
+        "rect": {
+          "left": 177,
+          "top": 403,
+          "right": 358.84,
+          "bottom": 442,
+          "width": 181.84,
+          "height": 39
+        },
+        "containerSelector": "#s3-title",
+        "text": "Host agent A",
+        "fixHint": "Give each block its own zone, or put data-layout-allow-overlap on the text or on a container inside the scene. A marker on the scene root does not apply.",
+        "dataAttributes": {},
+        "sourceFile": "compositions/s2-compute.html",
+        "bbox": {
+          "x": 177,
+          "y": 403,
+          "width": 181.84,
+          "height": 39
+        },
+        "firstSeen": 20.225,
+        "lastSeen": 20.225,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          20.225
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 30,
+        "selector": "#s3-title",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 140,
+          "top": 112,
+          "right": 1020.84,
+          "bottom": 349.27,
+          "width": 880.84,
+          "height": 237.27
+        },
+        "containerSelector": "#s4-stage > div:nth-of-type(1)",
+        "text": "Give every workloadsolid ground.",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "dataAttributes": {},
+        "sourceFile": "compositions/s3-storage.html",
+        "bbox": {
+          "x": 140,
+          "y": 112,
+          "width": 880.84,
+          "height": 237.27
+        },
+        "firstSeen": 30,
+        "lastSeen": 30,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          30
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 30,
+        "selector": "div.disk.top > span:nth-of-type(1)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 866.95,
+          "top": 478.5,
+          "right": 1053.03,
+          "bottom": 541.5,
+          "width": 186.08,
+          "height": 63
+        },
+        "containerSelector": "#s4-stage > div:nth-of-type(1)",
+        "text": "Storage",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "dataAttributes": {},
+        "sourceFile": "compositions/s3-storage.html",
+        "bbox": {
+          "x": 866.95,
+          "y": 478.5,
+          "width": 186.08,
+          "height": 63
+        },
+        "firstSeen": 30,
+        "lastSeen": 30,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          30
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 30,
+        "selector": "#s3-btrfs > h2:nth-of-type(1)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 155,
+          "top": 497,
+          "right": 290.84,
+          "bottom": 574,
+          "width": 135.84,
+          "height": 77
+        },
+        "containerSelector": "#s4-stage > div:nth-of-type(1)",
+        "text": "Btrfs",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "dataAttributes": {},
+        "sourceFile": "compositions/s3-storage.html",
+        "bbox": {
+          "x": 155,
+          "y": 497,
+          "width": 135.84,
+          "height": 77
+        },
+        "firstSeen": 30,
+        "lastSeen": 30,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          30
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 30,
+        "selector": "#s3-btrfs > p:nth-of-type(1)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 155,
+          "top": 594.67,
+          "right": 537.7,
+          "bottom": 638.67,
+          "width": 382.7,
+          "height": 44
+        },
+        "containerSelector": "#s4-stage > div:nth-of-type(1)",
+        "text": "Filesystem management",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "dataAttributes": {},
+        "sourceFile": "compositions/s3-storage.html",
+        "bbox": {
+          "x": 155,
+          "y": 594.67,
+          "width": 382.7,
+          "height": 44
+        },
+        "firstSeen": 30,
+        "lastSeen": 30,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          30
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 30,
+        "selector": "#s3-nfs > h2:nth-of-type(1)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 1240,
+          "top": 497,
+          "right": 1359.38,
+          "bottom": 574,
+          "width": 119.38,
+          "height": 77
+        },
+        "containerSelector": "#s4-stage > div:nth-of-type(1)",
+        "text": "NFS",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "dataAttributes": {},
+        "sourceFile": "compositions/s3-storage.html",
+        "bbox": {
+          "x": 1240,
+          "y": 497,
+          "width": 119.38,
+          "height": 77
+        },
+        "firstSeen": 30,
+        "lastSeen": 30,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          30
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 30,
+        "selector": "#s3-nfs > p:nth-of-type(1)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 1240,
+          "top": 594.67,
+          "right": 1477.72,
+          "bottom": 638.67,
+          "width": 237.72,
+          "height": 44
+        },
+        "containerSelector": "#s4-stage > div:nth-of-type(1)",
+        "text": "Shared storage",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "dataAttributes": {},
+        "sourceFile": "compositions/s3-storage.html",
+        "bbox": {
+          "x": 1240,
+          "y": 594.67,
+          "width": 237.72,
+          "height": 44
+        },
+        "firstSeen": 30,
+        "lastSeen": 30,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          30
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 30,
+        "selector": "#s3-health > span:nth-of-type(2)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 718,
+          "top": 845,
+          "right": 1044.92,
+          "bottom": 886,
+          "width": 326.92,
+          "height": 41
+        },
+        "containerSelector": "#s4-stage > div:nth-of-type(1)",
+        "text": "Disk health & backups",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "dataAttributes": {},
+        "sourceFile": "compositions/s3-storage.html",
+        "bbox": {
+          "x": 718,
+          "y": 845,
+          "width": 326.92,
+          "height": 41
+        },
+        "firstSeen": 30,
+        "lastSeen": 30,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          30
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 30,
+        "selector": "#s3-foot",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 145,
+          "top": 933,
+          "right": 805.06,
+          "bottom": 977,
+          "width": 660.06,
+          "height": 44
+        },
+        "containerSelector": "#s4-stage > div:nth-of-type(1)",
+        "text": "Storage and compute, in the same picture.",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "dataAttributes": {},
+        "sourceFile": "compositions/s3-storage.html",
+        "bbox": {
+          "x": 145,
+          "y": 933,
+          "width": 660.06,
+          "height": 44
+        },
+        "firstSeen": 30,
+        "lastSeen": 30,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          30
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 50,
+        "selector": "#s5-title",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 140,
+          "top": 112,
+          "right": 974.53,
+          "bottom": 349.27,
+          "width": 834.53,
+          "height": 237.27
+        },
+        "containerSelector": "#s6-stage > div:nth-of-type(1)",
+        "text": "Your tools.Your infrastructure.",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "dataAttributes": {},
+        "sourceFile": "compositions/s5-mcp.html",
+        "bbox": {
+          "x": 140,
+          "y": 112,
+          "width": 834.53,
+          "height": 237.27
+        },
+        "firstSeen": 50,
+        "lastSeen": 50,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          50
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 50,
+        "selector": "#s5-client > span:nth-of-type(1)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 263.25,
+          "top": 529.5,
+          "right": 416.73,
+          "bottom": 580.5,
+          "width": 153.48,
+          "height": 51
+        },
+        "containerSelector": "#s6-stage > div:nth-of-type(1)",
+        "text": "AI client",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "dataAttributes": {},
+        "sourceFile": "compositions/s5-mcp.html",
+        "bbox": {
+          "x": 263.25,
+          "y": 529.5,
+          "width": 153.48,
+          "height": 51
+        },
+        "firstSeen": 50,
+        "lastSeen": 50,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          50
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 50,
+        "selector": "#s5-mcp > span:nth-of-type(1)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 845.34,
+          "top": 484.5,
+          "right": 1074.64,
+          "bottom": 543.5,
+          "width": 229.3,
+          "height": 59
+        },
+        "containerSelector": "#s6-stage > div:nth-of-type(1)",
+        "text": "HyperHive",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "dataAttributes": {},
+        "sourceFile": "compositions/s5-mcp.html",
+        "bbox": {
+          "x": 845.34,
+          "y": 484.5,
+          "width": 229.3,
+          "height": 59
+        },
+        "firstSeen": 50,
+        "lastSeen": 50,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          50
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 50,
+        "selector": "#s5-mcp > b:nth-of-type(1)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 881.92,
+          "top": 553.5,
+          "right": 1038.06,
+          "bottom": 625.5,
+          "width": 156.14,
+          "height": 72
+        },
+        "containerSelector": "#s6-stage > div:nth-of-type(1)",
+        "text": "MCP",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "dataAttributes": {},
+        "sourceFile": "compositions/s5-mcp.html",
+        "bbox": {
+          "x": 881.92,
+          "y": 553.5,
+          "width": 156.14,
+          "height": 72
+        },
+        "firstSeen": 50,
+        "lastSeen": 50,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          50
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 50,
+        "selector": "#s5-resources > span:nth-of-type(1)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 1474.73,
+          "top": 529.5,
+          "right": 1675.25,
+          "bottom": 580.5,
+          "width": 200.52,
+          "height": 51
+        },
+        "containerSelector": "#s6-stage > div:nth-of-type(1)",
+        "text": "Resources",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "dataAttributes": {},
+        "sourceFile": "compositions/s5-mcp.html",
+        "bbox": {
+          "x": 1474.73,
+          "y": 529.5,
+          "width": 200.52,
+          "height": 51
+        },
+        "firstSeen": 50,
+        "lastSeen": 50,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          50
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 50,
+        "selector": "span.small",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 145,
+          "top": 795.5,
+          "right": 340.02,
+          "bottom": 831.5,
+          "width": 195.02,
+          "height": 36
+        },
+        "containerSelector": "#s6-stage > div:nth-of-type(1)",
+        "text": "Supported tool",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "dataAttributes": {},
+        "sourceFile": "compositions/s5-mcp.html",
+        "bbox": {
+          "x": 145,
+          "y": 795.5,
+          "width": 195.02,
+          "height": 36
+        },
+        "firstSeen": 50,
+        "lastSeen": 50,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          50
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 50,
+        "selector": "#s5-tool3",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 485,
+          "top": 782,
+          "right": 854.28,
+          "bottom": 845,
+          "width": 369.28,
+          "height": 63
+        },
+        "containerSelector": "#s6-stage > div:nth-of-type(1)",
+        "text": "get_celld_health",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "dataAttributes": {},
+        "sourceFile": "compositions/s5-mcp.html",
+        "bbox": {
+          "x": 485,
+          "y": 782,
+          "width": 369.28,
+          "height": 63
+        },
+        "firstSeen": 50,
+        "lastSeen": 50,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          50
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 50,
+        "selector": "#s5-foot",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 145,
+          "top": 933,
+          "right": 660.92,
+          "bottom": 977,
+          "width": 515.92,
+          "height": 44
+        },
+        "containerSelector": "#s6-stage > div:nth-of-type(1)",
+        "text": "Explicit tools. Defined operations.",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "dataAttributes": {},
+        "sourceFile": "compositions/s5-mcp.html",
+        "bbox": {
+          "x": 145,
+          "y": 933,
+          "width": 515.92,
+          "height": 44
+        },
+        "firstSeen": 50,
+        "lastSeen": 50,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          50
+        ]
+      },
+      {
+        "code": "content_overlap",
+        "severity": "info",
+        "time": 50.225,
+        "selector": "#s5-title",
+        "message": "Two text blocks overlap and may render unreadable.",
+        "rect": {
+          "left": 140,
+          "top": 112,
+          "right": 974.53,
+          "bottom": 349.27,
+          "width": 834.53,
+          "height": 237.27
+        },
+        "containerSelector": "#s6-master > h2:nth-of-type(1)",
+        "text": "Your tools. Your infrastructure.",
+        "fixHint": "Give each block its own zone, or put data-layout-allow-overlap on the text or on a container inside the scene. A marker on the scene root does not apply.",
+        "dataAttributes": {},
+        "sourceFile": "compositions/s5-mcp.html",
+        "bbox": {
+          "x": 140,
+          "y": 112,
+          "width": 834.53,
+          "height": 237.27
+        },
+        "firstSeen": 50.225,
+        "lastSeen": 50.225,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          50.225
+        ]
+      }
+    ],
+    "duration": 60,
+    "samples": [
+      3.333,
+      10,
+      16.667,
+      23.333,
+      30,
+      36.667,
+      43.333,
+      50,
+      56.667
+    ],
+    "transitionSamples": [],
+    "transitionSamplesDropped": 0,
+    "tolerance": 2,
+    "totalIssueCount": 24,
+    "truncated": false
+  },
+  "motion": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": false,
+    "samples": 0
+  },
+  "contrast": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 8,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "contrast_aa_failure",
+        "severity": "warning",
+        "message": "Contrast is 1:1; WCAG AA requires 3:1.",
+        "text": "Give every workloadsolid ground.",
+        "fg": "rgb(13,20,32)",
+        "bg": "rgb(13,20,32)",
+        "ratio": 1,
+        "requiredRatio": 3,
+        "suggestedColor": "rgb(94,98,106)",
+        "large": true,
+        "selector": "#s3-title",
+        "dataAttributes": {},
+        "sourceFile": "compositions/s3-storage.html",
+        "bbox": {
+          "x": 140,
+          "y": 120,
+          "width": 880.84375,
+          "height": 222.53125
+        },
+        "time": 30,
+        "times": [
+          30
+        ]
+      },
+      {
+        "code": "contrast_aa_failure",
+        "severity": "warning",
+        "message": "Contrast is 1:1; WCAG AA requires 3:1.",
+        "text": "Storage",
+        "fg": "rgb(13,20,32)",
+        "bg": "rgb(13,20,32)",
+        "ratio": 1,
+        "requiredRatio": 3,
+        "suggestedColor": "rgb(94,98,106)",
+        "large": true,
+        "selector": "div > div:nth-of-type(3) > div > div > div:nth-of-type(2) > div:nth-of-type(4) > span",
+        "dataAttributes": {},
+        "sourceFile": "compositions/s3-storage.html",
+        "bbox": {
+          "x": 866.953125,
+          "y": 478.5,
+          "width": 186.078125,
+          "height": 63
+        },
+        "time": 30,
+        "times": [
+          30
+        ]
+      },
+      {
+        "code": "contrast_aa_failure",
+        "severity": "warning",
+        "message": "Contrast is 1:1; WCAG AA requires 3:1.",
+        "text": "Btrfs",
+        "fg": "rgb(13,20,32)",
+        "bg": "rgb(13,20,32)",
+        "ratio": 1,
+        "requiredRatio": 3,
+        "suggestedColor": "rgb(94,98,106)",
+        "large": true,
+        "selector": "div > div:nth-of-type(3) > div > div > div:nth-of-type(3) > h2",
+        "dataAttributes": {},
+        "sourceFile": "compositions/s3-storage.html",
+        "bbox": {
+          "x": 155,
+          "y": 500,
+          "width": 520,
+          "height": 71.671875
+        },
+        "time": 30,
+        "times": [
+          30
+        ]
+      },
+      {
+        "code": "contrast_aa_failure",
+        "severity": "warning",
+        "message": "Contrast is 1:1; WCAG AA requires 3:1.",
+        "text": "Filesystem management",
+        "fg": "rgb(13,20,32)",
+        "bg": "rgb(13,20,32)",
+        "ratio": 1,
+        "requiredRatio": 3,
+        "suggestedColor": "rgb(94,98,106)",
+        "large": true,
+        "selector": "div > div:nth-of-type(3) > div > div > div:nth-of-type(3) > p",
+        "dataAttributes": {},
+        "sourceFile": "compositions/s3-storage.html",
+        "bbox": {
+          "x": 155,
+          "y": 591.671875,
+          "width": 520,
+          "height": 50.390625
+        },
+        "time": 30,
+        "times": [
+          30
+        ]
+      },
+      {
+        "code": "contrast_aa_failure",
+        "severity": "warning",
+        "message": "Contrast is 1:1; WCAG AA requires 3:1.",
+        "text": "NFS",
+        "fg": "rgb(13,20,32)",
+        "bg": "rgb(13,20,32)",
+        "ratio": 1,
+        "requiredRatio": 3,
+        "suggestedColor": "rgb(94,98,106)",
+        "large": true,
+        "selector": "div > div:nth-of-type(3) > div > div > div:nth-of-type(4) > h2",
+        "dataAttributes": {},
+        "sourceFile": "compositions/s3-storage.html",
+        "bbox": {
+          "x": 1240,
+          "y": 500,
+          "width": 520,
+          "height": 71.671875
+        },
+        "time": 30,
+        "times": [
+          30
+        ]
+      },
+      {
+        "code": "contrast_aa_failure",
+        "severity": "warning",
+        "message": "Contrast is 1:1; WCAG AA requires 3:1.",
+        "text": "Shared storage",
+        "fg": "rgb(13,20,32)",
+        "bg": "rgb(13,20,32)",
+        "ratio": 1,
+        "requiredRatio": 3,
+        "suggestedColor": "rgb(94,98,106)",
+        "large": true,
+        "selector": "div > div:nth-of-type(3) > div > div > div:nth-of-type(4) > p",
+        "dataAttributes": {},
+        "sourceFile": "compositions/s3-storage.html",
+        "bbox": {
+          "x": 1240,
+          "y": 591.671875,
+          "width": 520,
+          "height": 50.390625
+        },
+        "time": 30,
+        "times": [
+          30
+        ]
+      },
+      {
+        "code": "contrast_aa_failure",
+        "severity": "warning",
+        "message": "Contrast is 1:1; WCAG AA requires 3:1.",
+        "text": "Disk health & backups",
+        "fg": "rgb(13,20,32)",
+        "bg": "rgb(13,20,32)",
+        "ratio": 1,
+        "requiredRatio": 3,
+        "suggestedColor": "rgb(94,98,106)",
+        "large": true,
+        "selector": "div > div:nth-of-type(3) > div > div > div:nth-of-type(5) > span:nth-of-type(2)",
+        "dataAttributes": {},
+        "sourceFile": "compositions/s3-storage.html",
+        "bbox": {
+          "x": 718,
+          "y": 845,
+          "width": 326.921875,
+          "height": 41
+        },
+        "time": 30,
+        "times": [
+          30
+        ]
+      },
+      {
+        "code": "contrast_aa_failure",
+        "severity": "warning",
+        "message": "Contrast is 1:1; WCAG AA requires 3:1.",
+        "text": "Storage and compute, in the same picture.",
+        "fg": "rgb(13,20,32)",
+        "bg": "rgb(13,20,32)",
+        "ratio": 1,
+        "requiredRatio": 3,
+        "suggestedColor": "rgb(94,98,106)",
+        "large": true,
+        "selector": "#s3-foot",
+        "dataAttributes": {},
+        "sourceFile": "compositions/s3-storage.html",
+        "bbox": {
+          "x": 145,
+          "y": 930,
+          "width": 660.0625,
+          "height": 50.390625
+        },
+        "time": 30,
+        "times": [
+          30
+        ]
+      }
+    ],
+    "enabled": true,
+    "samples": [
+      3.333,
+      16.667,
+      30,
+      43.333,
+      56.667
+    ],
+    "checked": 30,
+    "passed": 22
+  },
+  "craft": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": true,
+    "step": 0.125,
+    "samples": 480
+  },
+  "hdr": {
+    "autoPromotion": null,
+    "inspection": "available"
+  },
+  "snapshots": {
+    "enabled": false,
+    "files": [],
+    "times": [],
+    "findingFiles": []
+  },
+  "saved": {
+    "id": "15257e51-8f8b-42be-9d73-de023b243eab",
+    "revision": null,
+    "report": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/.hyperframes/artifacts/checks/15257e51-8f8b-42be-9d73-de023b243eab.json",
+    "attribution": "inputs-changed"
+  },
+  "_meta": {
+    "version": "0.8.188",
+    "latestVersion": "0.8.188",
+    "updateAvailable": false
+  }
+}

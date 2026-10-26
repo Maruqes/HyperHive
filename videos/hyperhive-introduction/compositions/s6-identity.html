@@ -1,0 +1,19 @@
+<template><style>
+@font-face{font-family:Inter;src:url('assets/fonts/Inter-Variable.ttf');font-weight:100 900}
+*{box-sizing:border-box}#root{position:absolute;inset:0;font-family:Inter,sans-serif;overflow:hidden;color:#E8EBF0}
+.clip{position:absolute;inset:0}.ground{position:absolute;inset:0;background:#0D1420}
+h1,h2,p{margin:0}h1{font-size:104px;font-weight:700;letter-spacing:-5px;line-height:1.07}h2{font-size:64px;letter-spacing:-2px;line-height:1.12}.body{font-size:36px;line-height:1.4}.small{font-size:30px;line-height:1.4}.accent{color:#28B8DA}.label{font-size:34px;font-weight:600}.hairline{height:2px;background:currentColor;opacity:.22}
+.ground{background:#0A7EA4}.arch{position:absolute}#s6-lockup img{object-fit:contain}.arch p{color:#E8EBF0}</style>
+<div id="root" data-composition-id="s6-identity" data-duration="10.5" data-width="1920" data-height="1080">
+<div class="clip" id="s6-stage" data-start="0" data-duration="10.5" data-track-index="0"><div class="ground"></div><div id="s6-master" class="arch" style="left:140px;top:145px;width:700px"><h2>One master.</h2><p class="body" style="margin-top:22px">A coordinated control plane.</p></div>
+<div id="s6-agents" class="arch" style="left:1060px;top:145px;width:720px"><h2>Work at the hosts.</h2><p class="body" style="margin-top:22px">Agents execute local operations.</p></div>
+<div id="s6-lockup" style="position:absolute;left:0;top:420px;width:1920px;display:flex;align-items:center;justify-content:center;gap:42px"><img src="assets/hyperhive-icon.png" width="155" height="155" alt="HyperHive H mark"/><h1 style="font-size:146px;letter-spacing:-7px">HyperHive</h1></div>
+<p id="s6-tagline" style="position:absolute;left:0;top:680px;width:1920px;text-align:center;font-size:52px;letter-spacing:-1px">Your infrastructure, one control plane.</p>
+<p id="s6-audience" class="body" style="position:absolute;left:0;top:790px;width:1920px;text-align:center">Built for homelabs and small datacenters.</p>
+<p id="s6-credit" style="position:absolute;left:145px;top:965px;font-size:28px;width:1630px;text-align:center">Music: “Cipher” · Kevin MacLeod · incompetech.com · CC BY 4.0</p></div></div>
+<script>(function(){const tl=gsap.timeline({paused:true});tl.fromTo('#s6-master',{opacity:0,x:-50},{opacity:1,x:0,duration:.65,ease:'expo.out'},.1);
+tl.fromTo('#s6-agents',{opacity:0,x:50},{opacity:1,x:0,duration:.65,ease:'expo.out'},1.2);
+tl.fromTo('#s6-lockup',{clipPath:'inset(0 100% 0 0)'},{clipPath:'inset(0 0% 0 0)',duration:1,ease:'power2.inOut'},2.7);
+tl.fromTo('#s6-tagline',{opacity:0},{opacity:1,duration:.45},5);
+tl.fromTo('#s6-audience',{opacity:0},{opacity:1,duration:.45},6.4);
+tl.fromTo('#s6-credit',{opacity:0},{opacity:1,duration:.25},7);window.__timelines["s6-identity"]=tl;})();</script></template>

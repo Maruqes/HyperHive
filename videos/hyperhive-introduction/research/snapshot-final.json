@@ -1,0 +1,63 @@
+{
+  "ok": true,
+  "outputDir": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review",
+  "frames": [
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/frame-00-at-0s.png",
+      "time": 0
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/frame-01-at-5s.png",
+      "time": 5
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/frame-02-at-8s.png",
+      "time": 8
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/frame-03-at-16.8s.png",
+      "time": 16.8
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/frame-04-at-25.5s.png",
+      "time": 25.5
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/frame-05-at-28.5s.png",
+      "time": 28.5
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/frame-06-at-36.5s.png",
+      "time": 36.5
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/frame-07-at-38.5s.png",
+      "time": 38.5
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/frame-08-at-46s.png",
+      "time": 46
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/frame-09-at-48s.png",
+      "time": 48
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/frame-10-at-58.5s.png",
+      "time": 58.5
+    },
+    {
+      "path": "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/frame-11-at-58.2s.png",
+      "time": 58.2
+    }
+  ],
+  "contactSheets": [
+    "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/contact-sheet-1.jpg",
+    "/home/marques/projects/HyperHive/videos/hyperhive-introduction/review/contact-sheet-2.jpg"
+  ],
+  "_meta": {
+    "version": "0.8.188",
+    "latestVersion": "0.8.188",
+    "updateAvailable": false
+  }
+}

@@ -1,0 +1,23 @@
+<template><style>
+@font-face{font-family:Inter;src:url('assets/fonts/Inter-Variable.ttf');font-weight:100 900}
+*{box-sizing:border-box}#root{position:absolute;inset:0;font-family:Inter,sans-serif;overflow:hidden;color:#E8EBF0}
+.clip{position:absolute;inset:0}.ground{position:absolute;inset:0;background:#0D1420}
+h1,h2,p{margin:0}h1{font-size:104px;font-weight:700;letter-spacing:-5px;line-height:1.07}h2{font-size:64px;letter-spacing:-2px;line-height:1.12}.body{font-size:36px;line-height:1.4}.small{font-size:30px;line-height:1.4}.accent{color:#28B8DA}.label{font-size:34px;font-weight:600}.hairline{height:2px;background:currentColor;opacity:.22}
+.ground{background:#28B8DA}#root{color:#0D1420}.tower{position:absolute;top:375px;width:650px;height:470px;background:#0D1420;border-radius:12px;padding:28px 32px}.tower>span{color:#E8EBF0;display:block;font-size:32px;margin-bottom:20px}.bay{height:112px;border:2px solid #52667B;border-radius:6px;margin-bottom:12px}.rackfoot{height:14px;width:80%;background:#0D1420;position:absolute;bottom:-14px;left:10%}.vm{position:absolute;width:550px;height:92px;display:flex;align-items:center;padding-left:28px;color:#0D1420;background:#E8EBF0;border-left:12px solid #0A7EA4;border-radius:5px;font-size:36px;font-weight:600}</style>
+<div id="root" data-composition-id="s2-compute" data-duration="10.5" data-width="1920" data-height="1080">
+<div class="clip" id="s2-stage" data-start="0" data-duration="10.5" data-track-index="0"><div class="ground"></div><h1 id="s2-title" style="position:absolute;left:140px;top:130px">Compute, on your terms.</h1>
+<p class="body" id="s2-sub" style="position:absolute;left:145px;top:270px">Virtual machines, from creation to migration.</p>
+<div id="s2-left" class="tower" style="left:145px"><span>Host agent A</span><div class="bay"></div><div class="bay"></div><div class="bay"></div><div class="rackfoot"></div></div>
+<div id="s2-right" class="tower" style="left:1125px"><span>Host agent B</span><div class="bay"></div><div class="bay"></div><div class="bay"></div><div class="rackfoot"></div></div>
+<svg id="s2-arrow" style="position:absolute;inset:0;width:1920px;height:1080px" viewBox="0 0 1920 1080" aria-hidden="true"><path d="M690 570H1200M1165 540L1200 570L1165 600" fill="none" stroke="#0D1420" stroke-width="5"/></svg>
+<div id="s2-vm" class="vm" style="left:195px;top:456px">Virtual machine</div><div id="s2-clone" class="vm" style="left:195px;top:582px">Clone</div>
+<p id="s2-verbs" class="body" style="position:absolute;left:145px;top:930px;font-weight:600">Create. Clone. Back up. Migrate.</p></div></div>
+<script>(function(){const tl=gsap.timeline({paused:true});tl.fromTo('#s2-stage',{x:1920},{x:0,duration:.5,ease:'power4.out'},0);
+tl.fromTo('#s2-left',{y:65,opacity:0},{y:0,opacity:1,duration:.65,ease:'expo.out'},.7);
+tl.fromTo('#s2-right',{y:65,opacity:0},{y:0,opacity:1,duration:.65,ease:'expo.out'},1.1);
+tl.fromTo('#s2-vm',{scaleX:0,transformOrigin:'left center'},{scaleX:1,duration:.5,ease:'expo.out'},2);
+tl.fromTo('#s2-clone',{opacity:0,y:-126},{opacity:1,y:0,duration:.65,ease:'power2.inOut'},3.8);
+tl.fromTo('#s2-arrow',{opacity:0},{opacity:1,duration:.25},5.4);
+tl.to('#s2-vm',{x:980,duration:1.25,ease:'power2.inOut'},5.7);
+tl.fromTo('#s2-verbs',{opacity:0},{opacity:1,duration:.4},7.2);
+window.__timelines["s2-compute"]=tl;})();</script></template>

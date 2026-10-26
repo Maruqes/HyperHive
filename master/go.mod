@@ -24,6 +24,7 @@ require (
 	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12
 	libvirt.org/go/libvirt v1.12007.0
+	hyperhive/support v0.0.0
 )
 
 require (
@@ -54,3 +55,5 @@ replace github.com/Maruqes/512SvMan/api => ../api
 replace github.com/Maruqes/512SvMan/logger => ../logger
 
 replace github.com/Maruqes/HyperHive/mcp => ../mcp
+
+replace hyperhive/support => ../support

@@ -1,0 +1,8 @@
+[
+"Your infrastructure should feel connected. HyperHive brings your homelab or small datacenter together, under one control plane.",
+"Create virtual machines. Clone them, back them up, and move workloads between hosts. Keep compute under your control.",
+"Bring storage into the same picture. Manage B T R F S, N F S shares, and disk health alongside your machines.",
+"Connect services to the outside world. Manage reverse proxies, certificates, D N S, and WireGuard from the same platform.",
+"And connect your AI tools through M C P. Inspect resources and perform supported operations through explicit tool contracts.",
+"A central master. Host agents where the work happens. HyperHive. Your infrastructure, one control plane. Built for your own hive."
+]

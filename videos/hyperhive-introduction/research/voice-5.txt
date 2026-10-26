@@ -1,0 +1,1 @@
+And connect your AI tools through M C P. Inspect resources and perform supported operations through explicit tool contracts.

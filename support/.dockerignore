@@ -1,0 +1,9 @@
+.git
+*.db
+*.db-shm
+*.db-wal
+hh-support
+support
+README.md
+ARCHITECTURE.md
+tests

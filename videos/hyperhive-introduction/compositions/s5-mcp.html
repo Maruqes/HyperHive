@@ -1,0 +1,25 @@
+<template><style>
+@font-face{font-family:Inter;src:url('assets/fonts/Inter-Variable.ttf');font-weight:100 900}
+*{box-sizing:border-box}#root{position:absolute;inset:0;font-family:Inter,sans-serif;overflow:hidden;color:#E8EBF0}
+.clip{position:absolute;inset:0}.ground{position:absolute;inset:0;background:#0D1420}
+h1,h2,p{margin:0}h1{font-size:104px;font-weight:700;letter-spacing:-5px;line-height:1.07}h2{font-size:64px;letter-spacing:-2px;line-height:1.12}.body{font-size:36px;line-height:1.4}.small{font-size:30px;line-height:1.4}.accent{color:#28B8DA}.label{font-size:34px;font-weight:600}.hairline{height:2px;background:currentColor;opacity:.22}
+.ground{background:#E5F2F6}#root{color:#0D1420}.mcp-node{position:absolute;height:170px;border:3px solid #0A7EA4;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:42px;font-weight:600;background:#E5F2F6}.central{background:#0D1420;color:#E8EBF0;flex-direction:column}.central span{font-size:48px}.central b{font-size:60px;color:#28B8DA;letter-spacing:6px;margin-top:10px}.tool{position:absolute;left:145px;top:750px;width:1630px;height:125px;border-top:2px solid #94B7C5;display:flex;align-items:center;gap:50px}.tool>span{width:290px}.tool code{position:absolute;left:340px;font-family:Inter,sans-serif;font-size:52px;font-weight:600;letter-spacing:-1px;color:#0A7EA4}</style>
+<div id="root" data-composition-id="s5-mcp" data-duration="10.5" data-width="1920" data-height="1080">
+<div class="clip" id="s5-stage" data-start="0" data-duration="10.5" data-track-index="0"><div class="ground"></div><h1 id="s5-title" style="position:absolute;left:140px;top:120px">Your tools.<br>Your infrastructure.</h1>
+<div id="s5-client" class="mcp-node" style="left:145px;top:470px;width:390px"><span>AI client</span></div>
+<div id="s5-mcp" class="mcp-node central" style="left:690px;top:445px;width:540px;height:220px"><span>HyperHive</span><b>MCP</b></div>
+<div id="s5-resources" class="mcp-node" style="left:1380px;top:470px;width:390px"><span>Resources</span></div>
+<svg id="s5-links" style="position:absolute;inset:0;width:1920px;height:1080px" viewBox="0 0 1920 1080" aria-hidden="true"><path d="M535 550H690M1230 550H1380" fill="none" stroke="#0A7EA4" stroke-width="5"/></svg>
+<div id="s5-tool" class="tool"><span class="small">Supported tool</span><code id="s5-tool1">list_proxies</code><code id="s5-tool2">list_certificates</code><code id="s5-tool3">get_celld_health</code></div>
+<p id="s5-foot" class="body" style="position:absolute;left:145px;top:930px">Explicit tools. Defined operations.</p></div></div>
+<script>(function(){const tl=gsap.timeline({paused:true});tl.fromTo('#s5-stage',{x:-1920},{x:0,duration:.5,ease:'power4.out'},0);
+tl.fromTo('#s5-client',{opacity:0,x:-40},{opacity:1,x:0,duration:.6,ease:'expo.out'},.7);
+tl.fromTo('#s5-mcp',{scale:.8,opacity:0},{scale:1,opacity:1,duration:.65,ease:'expo.out'},1.8);
+tl.fromTo('#s5-resources',{opacity:0,x:40},{opacity:1,x:0,duration:.6,ease:'expo.out'},2.7);
+tl.fromTo('#s5-links',{opacity:0},{opacity:1,duration:.3},3.2);
+tl.fromTo('#s5-tool',{opacity:0},{opacity:1,duration:.35},3.7);
+tl.fromTo('#s5-tool1',{opacity:0},{opacity:1,duration:.15},3.7);tl.to('#s5-tool1',{opacity:0,duration:.15},5.3);
+tl.fromTo('#s5-tool2',{opacity:0},{opacity:1,duration:.15},5.5);tl.to('#s5-tool2',{opacity:0,duration:.15},7.1);
+tl.fromTo('#s5-tool3',{opacity:0},{opacity:1,duration:.15},7.3);
+tl.fromTo('#s5-foot',{opacity:0},{opacity:1,duration:.4},7.7);
+window.__timelines["s5-mcp"]=tl;})();</script></template>

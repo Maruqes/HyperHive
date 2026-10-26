@@ -1,0 +1,325 @@
+{
+  "ok": true,
+  "strict": false,
+  "browserSkipped": false,
+  "lint": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "filesScanned": 7
+  },
+  "runtime": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": []
+  },
+  "layout": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 6,
+    "findings": [
+      {
+        "code": "canvas_overflow",
+        "severity": "info",
+        "time": 10,
+        "selector": "#s2-title",
+        "message": "Text extends outside the composition canvas.",
+        "rect": {
+          "left": 2060,
+          "top": 122,
+          "right": 3125.09,
+          "bottom": 248,
+          "width": 1065.09,
+          "height": 126
+        },
+        "containerSelector": "#root",
+        "text": "Compute, on your terms.",
+        "fixHint": "Move the text inward, reduce its size, or mark intentional off-canvas animation with data-layout-allow-overflow.",
+        "containerRect": {
+          "left": 0,
+          "top": 0,
+          "right": 1920,
+          "bottom": 1080,
+          "width": 1920,
+          "height": 1080
+        },
+        "overflow": {
+          "right": 1205.09
+        },
+        "dataAttributes": {},
+        "sourceFile": "compositions/s2-compute.html",
+        "bbox": {
+          "x": 2060,
+          "y": 122,
+          "width": 1065.09,
+          "height": 126
+        },
+        "firstSeen": 10,
+        "lastSeen": 10,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          10
+        ]
+      },
+      {
+        "code": "canvas_overflow",
+        "severity": "info",
+        "time": 10,
+        "selector": "#s2-sub",
+        "message": "Text extends outside the composition canvas.",
+        "rect": {
+          "left": 2065,
+          "top": 273,
+          "right": 2751.48,
+          "bottom": 317,
+          "width": 686.48,
+          "height": 44
+        },
+        "containerSelector": "#root",
+        "text": "Virtual machines, from creation to migration.",
+        "fixHint": "Move the text inward, reduce its size, or mark intentional off-canvas animation with data-layout-allow-overflow.",
+        "containerRect": {
+          "left": 0,
+          "top": 0,
+          "right": 1920,
+          "bottom": 1080,
+          "width": 1920,
+          "height": 1080
+        },
+        "overflow": {
+          "right": 831.48
+        },
+        "dataAttributes": {},
+        "sourceFile": "compositions/s2-compute.html",
+        "bbox": {
+          "x": 2065,
+          "y": 273,
+          "width": 686.48,
+          "height": 44
+        },
+        "firstSeen": 10,
+        "lastSeen": 10,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          10
+        ]
+      },
+      {
+        "code": "container_overflow",
+        "severity": "info",
+        "time": 10,
+        "selector": "#s2-stage",
+        "message": "Element extends outside a clipping layout container.",
+        "rect": {
+          "left": 1920,
+          "top": 0,
+          "right": 3840,
+          "bottom": 1080,
+          "width": 1920,
+          "height": 1080
+        },
+        "containerSelector": "#s2-compute > div:nth-of-type(1)",
+        "fixHint": "Resize/reposition the child or container, or mark intentional overflow with data-layout-allow-overflow.",
+        "containerRect": {
+          "left": 0,
+          "top": 0,
+          "right": 1920,
+          "bottom": 1080,
+          "width": 1920,
+          "height": 1080
+        },
+        "overflow": {
+          "right": 1920
+        },
+        "dataAttributes": {
+          "data-start": "0",
+          "data-duration": "10.5",
+          "data-track-index": "0"
+        },
+        "sourceFile": "compositions/s2-compute.html",
+        "bbox": {
+          "x": 1920,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "firstSeen": 10,
+        "lastSeen": 10,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          10
+        ]
+      },
+      {
+        "code": "content_overlap",
+        "severity": "info",
+        "time": 20.225,
+        "selector": "#s2-title",
+        "message": "Two text blocks overlap and may render unreadable.",
+        "rect": {
+          "left": 140,
+          "top": 122,
+          "right": 1205.09,
+          "bottom": 248,
+          "width": 1065.09,
+          "height": 126
+        },
+        "containerSelector": "#s3-title",
+        "text": "Compute, on your terms.",
+        "fixHint": "Give each block its own zone, or put data-layout-allow-overlap on the text or on a container inside the scene. A marker on the scene root does not apply.",
+        "dataAttributes": {},
+        "sourceFile": "compositions/s2-compute.html",
+        "bbox": {
+          "x": 140,
+          "y": 122,
+          "width": 1065.09,
+          "height": 126
+        },
+        "firstSeen": 20.225,
+        "lastSeen": 20.225,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          20.225
+        ]
+      },
+      {
+        "code": "content_overlap",
+        "severity": "info",
+        "time": 20.225,
+        "selector": "#s2-sub",
+        "message": "Two text blocks overlap and may render unreadable.",
+        "rect": {
+          "left": 145,
+          "top": 273,
+          "right": 831.48,
+          "bottom": 317,
+          "width": 686.48,
+          "height": 44
+        },
+        "containerSelector": "#s3-title",
+        "text": "Virtual machines, from creation to migration.",
+        "fixHint": "Give each block its own zone, or put data-layout-allow-overlap on the text or on a container inside the scene. A marker on the scene root does not apply.",
+        "dataAttributes": {},
+        "sourceFile": "compositions/s2-compute.html",
+        "bbox": {
+          "x": 145,
+          "y": 273,
+          "width": 686.48,
+          "height": 44
+        },
+        "firstSeen": 20.225,
+        "lastSeen": 20.225,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          20.225
+        ]
+      },
+      {
+        "code": "content_overlap",
+        "severity": "info",
+        "time": 20.225,
+        "selector": "#s2-left > span:nth-of-type(1)",
+        "message": "Two text blocks overlap and may render unreadable.",
+        "rect": {
+          "left": 177,
+          "top": 403,
+          "right": 358.84,
+          "bottom": 442,
+          "width": 181.84,
+          "height": 39
+        },
+        "containerSelector": "#s3-title",
+        "text": "Host agent A",
+        "fixHint": "Give each block its own zone, or put data-layout-allow-overlap on the text or on a container inside the scene. A marker on the scene root does not apply.",
+        "dataAttributes": {},
+        "sourceFile": "compositions/s2-compute.html",
+        "bbox": {
+          "x": 177,
+          "y": 403,
+          "width": 181.84,
+          "height": 39
+        },
+        "firstSeen": 20.225,
+        "lastSeen": 20.225,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          20.225
+        ]
+      }
+    ],
+    "duration": 60,
+    "samples": [
+      3.333,
+      10,
+      16.667,
+      23.333,
+      30,
+      36.667,
+      43.333,
+      50,
+      56.667
+    ],
+    "transitionSamples": [],
+    "transitionSamplesDropped": 0,
+    "tolerance": 2,
+    "totalIssueCount": 6,
+    "truncated": false
+  },
+  "motion": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": false,
+    "samples": 0
+  },
+  "contrast": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": true,
+    "samples": [
+      3.333,
+      16.667,
+      30,
+      43.333,
+      56.667
+    ],
+    "checked": 22,
+    "passed": 22
+  },
+  "craft": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": true,
+    "step": 0.125,
+    "samples": 480
+  },
+  "hdr": {
+    "autoPromotion": null,
+    "inspection": "available"
+  },
+  "snapshots": {
+    "enabled": false,
+    "files": [],
+    "times": [],
+    "findingFiles": []
+  }
+}
