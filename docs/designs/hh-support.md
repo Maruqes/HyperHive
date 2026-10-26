@@ -41,8 +41,8 @@ type EventValue = { name: string; fields: Record<string, unknown> };
 type Sample = { id: number; app_id: string; stream: string;
   instance_id: string | null; timestamp: string; received_at: string;
   value: number | string | boolean | LogValue | EventValue };
-type WidgetKind = "value" | "line" | "gauge" | "text" | "boolean" | "logs" | "events";
-type Widget = { id: string; stream: string; kind: WidgetKind;
+type WidgetKind = "value" | "line" | "area" | "bar" | "sparkline" | "gauge" | "progress" | "text" | "boolean" | "logs" | "events" | "table";
+type Widget = { id: string; stream: string; stream_type?: StreamType; kind: WidgetKind;
   x: number; y: number; w: number; h: number;
   min?: number; max?: number; window_minutes?: number; severity?: Severity[] };
 type Layout = { revision: number; widgets: Widget[] };
@@ -123,7 +123,7 @@ SQLite WAL and busy timeout; one writer/connection is adequate initially. Tables
 
 Add Support navigation in existing shared sidebar/layout, Expo route `app/support.tsx`, typed `services/support-client.ts`, support-specific socket management and focused UI components. Reuse `apiRequest`, installed SVG/chart/UI primitives and existing theme; add no dependencies for this proof of concept. App list uses tabs/tag filtering and separate connectivity/health indicators. App detail shows instances, settings, one-time credential copy, discovered streams and a shared dashboard editor.
 
-Widget compatibility: value supports number/text/boolean; line/gauge number; text text; boolean boolean; logs log; events event. Gauge default 0–100, require finite min < max. Line window default 60 minutes and bounded history. Grid uses 12 columns, integer x/y/w/h, w/h >=1, x>=0, y>=0, x+w<=12, max 50 widgets; validate compatibility and unique IDs on save. Pointer drag/resize plus accessible move/resize controls; save whole layout with optimistic revision, show conflict and reload rather than overwrite silently. Missing streams and expired values show explicit no-data states.
+Widget compatibility: value supports number/text/boolean; line/area/bar/sparkline/gauge/progress number; text text; boolean boolean; logs log; events event; table all stream types. Gauge/progress default 0–100, require finite min < max. Chart window defaults to 60 minutes and bounded history. Optional `stream_type` must match a declared stream; it is required on each widget referencing a not-yet-declared stream. Widgets sharing an undeclared stream must agree on its type. Ingestion still requires stream declarations and atomically rejects a declaration conflicting with a configured widget type (409). Layouts persist in the backend SQLite database and are shared by browser/device; no stream is implicitly declared by configuring a widget. Grid uses 12 columns, integer x/y/w/h, w/h >=1, x>=0, y>=0, x+w<=12, max 50 widgets; validate compatibility and unique IDs on save. Pointer drag/resize plus accessible move/resize controls; save whole layout with optimistic revision, show conflict and reload rather than overwrite silently. Missing streams and expired values show explicit no-data states.
 
 Tests must cover all five ingestion types; atomic rejection; secret redaction/rotation; direct and instance connectivity/health and restart; stream type conflicts; limits; history cursor boundaries/filtering/retention; layout revision and compatibility; WS origin/ticket replay/spoofed trust header/slow clients; master prefix precedence and upgrades; frontend service parsing, sample merge, widget compatibility and typecheck/build. Final source review checks root backend and nested frontend documentation/config/build hooks. Do not run or change live infrastructure.
 

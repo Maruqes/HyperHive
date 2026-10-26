@@ -45,17 +45,18 @@ type Sample struct {
 	Value      json.RawMessage `json:"value"`
 }
 type Widget struct {
-	ID       string   `json:"id"`
-	Stream   string   `json:"stream"`
-	Kind     string   `json:"kind"`
-	X        int      `json:"x"`
-	Y        int      `json:"y"`
-	W        int      `json:"w"`
-	H        int      `json:"h"`
-	Min      *float64 `json:"min,omitempty"`
-	Max      *float64 `json:"max,omitempty"`
-	Window   *int     `json:"window_minutes,omitempty"`
-	Severity []string `json:"severity,omitempty"`
+	ID         string   `json:"id"`
+	Stream     string   `json:"stream"`
+	StreamType string   `json:"stream_type,omitempty"`
+	Kind       string   `json:"kind"`
+	X          int      `json:"x"`
+	Y          int      `json:"y"`
+	W          int      `json:"w"`
+	H          int      `json:"h"`
+	Min        *float64 `json:"min,omitempty"`
+	Max        *float64 `json:"max,omitempty"`
+	Window     *int     `json:"window_minutes,omitempty"`
+	Severity   []string `json:"severity,omitempty"`
 }
 type Layout struct {
 	Revision int64    `json:"revision"`

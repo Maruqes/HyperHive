@@ -101,29 +101,48 @@ func ValidateLayout(layout Layout, streams map[string]Stream) error {
 		return Invalid("invalid layout revision or widget count")
 	}
 	seen := map[string]bool{}
+	types := map[string]string{}
+	for name, stream := range streams {
+		types[name] = stream.Type
+	}
 	for _, widget := range layout.Widgets {
 		if !ValidLength(widget.ID, 1, 128) || seen[widget.ID] || widget.X < 0 || widget.Y < 0 || widget.W < 1 || widget.W > 12 || widget.H < 1 || widget.X > 12-widget.W {
 			return Invalid("invalid widget identity or grid position")
 		}
 		seen[widget.ID] = true
-		stream, exists := streams[widget.Stream]
-		if !exists {
-			return Invalid("widget stream does not exist")
+		if !ValidLength(widget.Stream, 1, 128) || strings.TrimSpace(widget.Stream) == "" {
+			return Invalid("invalid widget stream name")
+		}
+		if _, exists := streams[widget.Stream]; !exists && widget.StreamType == "" {
+			return Invalid("stream_type is required for an undeclared widget stream")
+		}
+		streamType := types[widget.Stream]
+		if widget.StreamType != "" {
+			if !ValidStreamType(widget.StreamType) {
+				return Invalid("invalid widget stream_type")
+			}
+			if streamType != "" && streamType != widget.StreamType {
+				return Invalid("widget stream_type does not match stream")
+			}
+			streamType = widget.StreamType
+			types[widget.Stream] = streamType
 		}
 		compatible := false
 		switch widget.Kind {
 		case "value":
-			compatible = stream.Type == "number" || stream.Type == "text" || stream.Type == "boolean"
-		case "line", "gauge":
-			compatible = stream.Type == "number"
+			compatible = streamType == "number" || streamType == "text" || streamType == "boolean"
+		case "line", "area", "bar", "sparkline", "gauge", "progress":
+			compatible = streamType == "number"
 		case "text":
-			compatible = stream.Type == "text"
+			compatible = streamType == "text"
 		case "boolean":
-			compatible = stream.Type == "boolean"
+			compatible = streamType == "boolean"
 		case "logs":
-			compatible = stream.Type == "log"
+			compatible = streamType == "log"
 		case "events":
-			compatible = stream.Type == "event"
+			compatible = streamType == "event"
+		case "table":
+			compatible = true
 		}
 		if !compatible {
 			return Invalid("widget kind is incompatible with stream")

@@ -51,6 +51,12 @@ WAL SQLite uses one connection with a five-second busy timeout. Samples retain r
 
 WebSockets register before sending `ready`; clients reload bounded snapshots and history after every reconnect. Frames contain at most 32 samples, queues at most 64 frames; overloaded clients close with 1013. Connections require reauthentication after one hour. Management and ingestion changes become frames only after successful persistence. Retention cleanup emits changes so open dashboards clear expired values.
 
+## Shared widget layouts
+
+`GET/PUT /apps/{id}/layout` reads and saves the App's SQLite-backed layout across browsers, devices and service restarts. Save the current `revision`; a concurrent edit returns 409. Widget kinds include `value`, `line`, `area`, `bar`, `sparkline`, `gauge`, `progress`, `text`, `boolean`, `logs`, `events` and `table`; compatibility is defined in the [HTTP contract](../docs/designs/hh-support.md).
+
+To configure telemetry before its first sample, save a widget with the exact stream name and `stream_type` (`number`, `text`, `boolean`, `log` or `event`), for example `{"id":"cpu","stream":"number_cpu","stream_type":"number","kind":"line","x":0,"y":0,"w":6,"h":3}`. This does not declare a sender stream. The sender must still declare the matching type; a conflicting declaration rejects the entire ingestion batch with 409. `stream_type` remains optional for already declared streams, preserving existing layouts.
+
 ## Validate
 
 ```sh

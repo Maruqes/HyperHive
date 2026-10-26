@@ -61,6 +61,17 @@ func (service *Service) Ingest(ctx context.Context, id, secret string, body doma
 	if len(definitions) > 256 {
 		return 0, domain.Invalid("maximum 256 streams per App")
 	}
+	if len(body.Streams) > 0 {
+		layout, err := service.store.Layout(id)
+		if err != nil {
+			return 0, err
+		}
+		for _, widget := range layout.Widgets {
+			if stream, exists := definitions[widget.Stream]; exists && widget.StreamType != "" && widget.StreamType != stream.Type {
+				return 0, domain.Conflict("stream type conflicts with configured widget stream_type")
+			}
+		}
+	}
 	for _, sample := range body.Samples {
 		stream, exists := definitions[sample.Stream]
 		if !exists {

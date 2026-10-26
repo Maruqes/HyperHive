@@ -21,6 +21,22 @@ Only exact `POST /api/support/ingest` bypasses HH login; Support validates `X-Ap
 
 Live frontend connections request authenticated `POST /api/support/ws-ticket`. Its ticket establishes one WebSocket connection at `/api/support/ws?ticket=...` within 30 seconds. Master atomically consumes it and checks browser Origin. HH request logs omit Support query strings. Configure external access logs to omit query strings for this endpoint too.
 
+## Build a shared dashboard
+
+Open an App and add a widget by choosing an incoming stream, such as `number_cpu`, then a compatible display. You can also configure a stream before its first sample by entering its name and expected data type. The sender must declare that same type when the stream arrives.
+
+| Incoming type | Displays |
+| --- | --- |
+| Number | Live value, line chart, area chart, bar chart, sparkline, gauge, progress bar, sample table |
+| Text | Live value, text, sample table |
+| Boolean | Live value, boolean indicator, sample table |
+| Log | Log feed, sample table |
+| Event | Event feed, sample table |
+
+Widget changes save to the backend automatically. Wait for the saved state before reloading or leaving the App. Saved layouts are shared across browsers and devices connected to the same backend. A failed save keeps the local change visible for retry; a revision conflict requires reloading the saved layout before editing again. Simultaneous operators cannot silently overwrite one another.
+
+Choose the time window for numeric charts, minimum/maximum for gauges and progress bars, and severity filters for log feeds. Existing telemetry retention and bounded history pages still apply; a chart window does not guarantee every sample in that window fits in the loaded page.
+
 ## Operational boundaries
 
 Support data and shared layouts persist in SQLite in the named Docker volume `hyperhive-support-data`, mounted at `/data`. Back it up independently using a SQLite-consistent backup. The container uses host networking but listens only on loopback: public access still goes through the master. Master must run on the Docker host or share its host network, not an unrelated bridged network. Runtime UID/GID is `10001:10001`, with read-only root filesystem, dropped capabilities and no-new-privileges.
