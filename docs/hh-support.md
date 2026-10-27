@@ -53,7 +53,11 @@ Open an App and add a widget by choosing an incoming stream, such as `number_cpu
 
 Widget changes save to the backend automatically. Wait for the saved state before reloading or leaving the App. Saved layouts are shared across browsers and devices connected to the same backend. A failed save keeps the local change visible for retry; a revision conflict requires reloading the saved layout before editing again. Simultaneous operators cannot silently overwrite one another.
 
-Choose the time window for numeric charts, minimum/maximum for gauges and progress bars, and severity filters for log feeds. Existing telemetry retention and bounded history pages still apply; a chart window does not guarantee every sample in that window fits in the loaded page.
+The page header selects 30 minutes, 1 day (default), 7 days or an inclusive custom local-time interval for every widget, using server receipt time. The page selection overrides saved widget windows without changing shared layouts. App health/connectivity badges remain current. Rolling ranges refresh retained data once per minute as well as receiving live samples.
+
+Charts request a separate numeric summary across the selected interval: 60 time buckets retain minima, maxima and interval endpoints. Raw tables, metrics and feeds keep their original samples and bounded pagination. Dense plots simplify their drawing while preserving extrema; chart inspection covers loaded summary samples, not every raw measurement. Filesystem/process tables show key columns by default, with All columns and row details available; event details open in a dialog.
+
+The samples API accepts inclusive RFC3339 `since`/`until` receipt bounds. Optional `buckets` (1–400) applies only to numeric streams without cursors, requires `limit >= 2*buckets+2`, and returns extrema/endpoints without a pagination cursor. Retention still bounds all results. Deploy the frontend and Support backend together for bounded custom history and chart summaries.
 
 ## Operational boundaries
 

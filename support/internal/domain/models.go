@@ -102,6 +102,8 @@ type HistoryQuery struct {
 	Before   *int64
 	After    *int64
 	Since    *time.Time
+	Until    *time.Time
+	Buckets  int
 	Severity []string
 }
 type History struct {

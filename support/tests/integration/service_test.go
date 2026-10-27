@@ -422,3 +422,37 @@ func TestExpirySweepPublishesState(testing *testing.T) {
 		testing.Fatal(app)
 	}
 }
+
+func TestHistoryTimeframeAndChartBuckets(testing *testing.T) {
+	fixture := setup(testing)
+	start := fixture.now
+	for index := 0; index < 20; index++ {
+		fixture.now = start.Add(time.Duration(index) * time.Minute)
+		value := index
+		if index == 8 {
+			value = 999
+		}
+		fixture.request("POST", "/ingest", fmt.Sprintf(`{"streams":[{"name":"number","type":"number"}],"samples":[{"stream":"number","value":%d}]}`, value), 200)
+	}
+	bounds := "stream=number&since=" + url.QueryEscape(start.Add(5*time.Minute).Format(time.RFC3339)) + "&until=" + url.QueryEscape(start.Add(12*time.Minute).Format(time.RFC3339))
+	samples, _ := fixture.history(bounds)
+	if len(samples) != 8 {
+		testing.Fatal("inclusive receipt bounds", samples)
+	}
+	chart, next := fixture.history(bounds + "&buckets=2&limit=1000")
+	if len(chart) > 6 || len(chart) < 3 || next != nil || chart[0].ID != samples[0].ID || chart[len(chart)-1].ID != samples[len(samples)-1].ID {
+		testing.Fatal("bucket endpoints", chart, next)
+	}
+	foundPeak := false
+	for _, sample := range chart {
+		if string(sample.Value) == "999" {
+			foundPeak = true
+		}
+	}
+	if !foundPeak {
+		testing.Fatal("lost peak", chart)
+	}
+	for _, query := range []string{"stream=number&until=no", "stream=number&buckets=0", "stream=number&buckets=401", "stream=number&buckets=2&limit=1", "stream=number&buckets=2&before=9", "stream=number&since=2026-10-28T00:00:00Z&until=2026-10-27T00:00:00Z"} {
+		fixture.request("GET", "/apps/"+fixture.id+"/samples?"+query, "", 400)
+	}
+}

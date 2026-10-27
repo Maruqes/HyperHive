@@ -9,6 +9,9 @@ func (service *Service) History(id string, query domain.HistoryQuery) (domain.Hi
 	if err != nil {
 		return domain.History{}, err
 	}
+	if query.Since != nil && query.Until != nil && !query.Until.After(*query.Since) {
+		return domain.History{}, domain.Invalid("until must be after since")
+	}
 	if query.Stream == "" {
 		return domain.History{}, domain.Invalid("stream is required")
 	}
@@ -19,6 +22,9 @@ func (service *Service) History(id string, query domain.HistoryQuery) (domain.Hi
 	stream, exists := domain.StreamMap(streams)[query.Stream]
 	if !exists {
 		return domain.History{}, domain.NotFound()
+	}
+	if query.Buckets != 0 && (query.Buckets < 1 || query.Buckets > 400 || stream.Type != "number" || query.Before != nil || query.After != nil || query.Limit < query.Buckets*2+2) {
+		return domain.History{}, domain.Invalid("buckets require a numeric stream, no cursor, and a limit of at least 2*buckets+2")
 	}
 	if query.Limit < 1 || query.Limit > 1000 {
 		return domain.History{}, domain.Invalid("limit must be 1–1000")

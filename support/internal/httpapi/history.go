@@ -19,6 +19,13 @@ func (handler *Handler) history(writer http.ResponseWriter, request *http.Reques
 		}
 		query.Limit = limit
 	}
+	if values.Has("buckets") {
+		buckets, err := strconv.Atoi(values.Get("buckets"))
+		if err != nil || buckets < 1 || buckets > 400 {
+			return domain.Invalid("buckets must be 1–400")
+		}
+		query.Buckets = buckets
+	}
 	for _, name := range []string{"before", "after"} {
 		if values.Has(name) {
 			cursor, err := strconv.ParseInt(values.Get(name), 10, 64)
@@ -32,12 +39,18 @@ func (handler *Handler) history(writer http.ResponseWriter, request *http.Reques
 			}
 		}
 	}
-	if values.Has("since") {
-		since, err := time.Parse(time.RFC3339Nano, values.Get("since"))
-		if err != nil {
-			return domain.Invalid("invalid since timestamp")
+	for _, name := range []string{"since", "until"} {
+		if values.Has(name) {
+			value, err := time.Parse(time.RFC3339Nano, values.Get(name))
+			if err != nil {
+				return domain.Invalid("invalid " + name + " timestamp")
+			}
+			if name == "since" {
+				query.Since = &value
+			} else {
+				query.Until = &value
+			}
 		}
-		query.Since = &since
 	}
 	if values.Has("severity") {
 		query.Severity = strings.Split(values.Get("severity"), ",")

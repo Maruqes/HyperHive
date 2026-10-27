@@ -34,6 +34,10 @@ func (store *Store) History(app domain.App, query domain.HistoryQuery, now time.
 	}
 	where := "app_id=? AND stream=? AND received_at>=?"
 	args := []any{app.ID, streamName, cutoff.UnixNano()}
+	if query.Until != nil {
+		where += " AND received_at<=?"
+		args = append(args, query.Until.UnixNano())
+	}
 	if len(query.Severity) > 0 {
 		severities := query.Severity
 		placeholders := []string{}
@@ -59,7 +63,25 @@ func (store *Store) History(app domain.App, query domain.HistoryQuery, now time.
 		order = "ASC"
 	}
 	args = append(args, limit)
-	rows, err := store.db.Query("SELECT id,stream,instance_id,timestamp,received_at,value FROM samples WHERE "+where+" ORDER BY id "+order+" LIMIT ?", args...)
+	statement := "SELECT id,stream,instance_id,timestamp,received_at,value FROM samples WHERE " + where + " ORDER BY id " + order + " LIMIT ?"
+	if query.Buckets > 0 {
+		end := now
+		if query.Until != nil && query.Until.Before(end) {
+			end = *query.Until
+		}
+		width := max(int64(1), end.Sub(cutoff).Nanoseconds()/int64(query.Buckets)+1)
+		// Window ranks preserve each time bucket's extrema plus the interval endpoints.
+		statement = `WITH ranked AS (SELECT id,stream,instance_id,timestamp,received_at,value,
+            ROW_NUMBER() OVER (PARTITION BY (received_at-?)/? ORDER BY CAST(value AS REAL),id) AS low_rank,
+            ROW_NUMBER() OVER (PARTITION BY (received_at-?)/? ORDER BY CAST(value AS REAL) DESC,id DESC) AS high_rank,
+            ROW_NUMBER() OVER (ORDER BY id) AS first_rank,
+            ROW_NUMBER() OVER (ORDER BY id DESC) AS last_rank
+            FROM samples WHERE ` + where + `)
+            SELECT id,stream,instance_id,timestamp,received_at,value FROM ranked
+            WHERE low_rank=1 OR high_rank=1 OR first_rank=1 OR last_rank=1 ORDER BY id DESC LIMIT ?`
+		args = append([]any{cutoff.UnixNano(), width, cutoff.UnixNano(), width}, args...)
+	}
+	rows, err := store.db.Query(statement, args...)
 	if err != nil {
 		return domain.History{}, err
 	}
@@ -97,7 +119,7 @@ func (store *Store) History(app domain.App, query domain.HistoryQuery, now time.
 		}
 	}
 	var nextBefore *int64
-	if len(samples) > 0 {
+	if len(samples) > 0 && query.Buckets == 0 {
 		var exists int
 		args = append(baseArgs, samples[0].ID)
 		if err = store.db.QueryRow("SELECT EXISTS(SELECT 1 FROM samples WHERE "+baseWhere+" AND id<?)", args...).Scan(&exists); err != nil {
