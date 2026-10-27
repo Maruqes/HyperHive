@@ -137,13 +137,13 @@ func affected(result sql.Result, err error) error {
 	return nil
 }
 
-func (store *Store) SaveApp(app domain.App, create bool, secret string) error {
+func (store *Store) SaveApp(app domain.App, create bool, secret string, layout domain.Layout) error {
 	if err := store.tabExists(app.TabID); err != nil {
 		return err
 	}
 	if create {
 		hash := sha256.Sum256([]byte(secret))
-		_, err := store.db.Exec("INSERT INTO apps(id,tab_id,config,secret) VALUES(?,?,?,?)", app.ID, app.TabID, domain.EncodeJSON(app), hash[:])
+		_, err := store.db.Exec("INSERT INTO apps(id,tab_id,config,secret,layout) VALUES(?,?,?,?,?)", app.ID, app.TabID, domain.EncodeJSON(app), hash[:], domain.EncodeJSON(layout))
 		return err
 	}
 	return affected(store.db.Exec("UPDATE apps SET tab_id=?,config=? WHERE id=?", app.TabID, domain.EncodeJSON(app), app.ID))

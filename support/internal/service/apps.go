@@ -30,6 +30,13 @@ func (service *Service) Detail(id string) (domain.AppDetail, error) {
 func (service *Service) SaveApp(id string, body domain.AppSettings) (domain.App, string, error) {
 	service.mu.Lock()
 	defer service.mu.Unlock()
+	if id != "" && body.TemplateID != "" {
+		return domain.App{}, "", domain.Invalid("templates can only be used when creating an App")
+	}
+	layout, err := domain.TemplateLayout(body.TemplateID)
+	if err != nil {
+		return domain.App{}, "", err
+	}
 	if id != "" {
 		if _, err := service.store.App(id, service.now()); err != nil {
 			return domain.App{}, "", err
@@ -49,7 +56,6 @@ func (service *Service) SaveApp(id string, body domain.AppSettings) (domain.App,
 		return domain.App{}, "", err
 	}
 	secret := ""
-	var err error
 	if id == "" {
 		app.ID, err = security.NewToken()
 		if err != nil {
@@ -60,7 +66,7 @@ func (service *Service) SaveApp(id string, body domain.AppSettings) (domain.App,
 			return domain.App{}, "", err
 		}
 	}
-	if err := service.store.SaveApp(app, id == "", secret); err != nil {
+	if err := service.store.SaveApp(app, id == "", secret, layout); err != nil {
 		return domain.App{}, "", err
 	}
 	app, err = service.store.App(app.ID, service.now())

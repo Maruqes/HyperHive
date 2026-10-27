@@ -79,11 +79,12 @@ type IngestRequest struct {
 	Samples    []IngestSample `json:"samples"`
 }
 type AppSettings struct {
-	Name      string   `json:"name"`
-	TabID     string   `json:"tab_id"`
-	Tags      []string `json:"tags"`
-	Timeout   *int     `json:"heartbeat_timeout_seconds"`
-	Retention *int     `json:"retention_days"`
+	TemplateID string   `json:"template_id,omitempty"`
+	Name       string   `json:"name"`
+	TabID      string   `json:"tab_id"`
+	Tags       []string `json:"tags"`
+	Timeout    *int     `json:"heartbeat_timeout_seconds"`
+	Retention  *int     `json:"retention_days"`
 }
 type ReplicateAppSettings struct {
 	Name  string   `json:"name"`

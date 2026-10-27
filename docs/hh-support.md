@@ -21,9 +21,15 @@ Only exact `POST /api/support/ingest` bypasses HH login; Support validates `X-Ap
 
 Live frontend connections request authenticated `POST /api/support/ws-ticket`. Its ticket establishes one WebSocket connection at `/api/support/ws?ticket=...` within 30 seconds. Master atomically consumes it and checks browser Origin. HH request logs omit Support query strings. Configure external access logs to omit query strings for this endpoint too.
 
+## Start from a built-in template
+
+In **Create an App → Start from**, choose **Small Template** for a saved CPU value, CPU line chart and log feed. This option is available even before the first App exists. Choose a name, destination tab, tags, heartbeat timeout and retention, then save the new one-time credentials. The widgets wait for a numeric `cpu` stream and a log-type `logs` stream from the sender; no demonstration telemetry is inserted.
+
+Authenticated `POST /api/support/apps` accepts optional `"template_id":"small"` alongside the normal App settings. The backend owns the hard-coded layout and inserts it atomically with the new App, with layout revision zero. Unknown template IDs and applying templates to existing Apps are rejected. Omit `template_id` for a blank App. To add another built-in template, extend `domain.TemplateLayout` in `support/internal/domain/templates.go` and the frontend catalog in `components/support/app-templates.ts`.
+
 ## Register from an existing App
 
-In **Register App**, select **Replicate [App name]** to use any existing App as a template. Enter the new name, choose its destination tab and edit its tags. Create a tab first if you need a new destination. Save the new one-time credentials and configure the new sender with them.
+In **Create an App → Start from**, select an existing App to replicate it. Enter the new name, choose its destination tab and edit its tags. Create a tab first if you need a new destination. Save the new one-time credentials and configure the new sender with them.
 
 Authenticated `POST /api/support/apps/{source_id}/replicate` accepts `{"name":"New App","tab_id":"general","tags":["production"]}` and returns HTTP 201 with `{"app":...,"secret":...}`. Only `name` is required: omitted/empty `tab_id` inherits the source tab; omitted/null `tags` inherits tags, while `[]` clears them. Other fields are rejected.
 
