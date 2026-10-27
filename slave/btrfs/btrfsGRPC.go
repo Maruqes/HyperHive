@@ -13,7 +13,7 @@ type BTRFSService struct {
 }
 
 func (s *BTRFSService) GetAllDisks(ctx context.Context, _ *btrfsGrpc.Empty) (*btrfsGrpc.MinDiskArr, error) {
-	disks, err := GetAllDisks(true)
+	disks, err := GetAllDisks(false)
 	if err != nil {
 		return nil, err
 	}
@@ -144,11 +144,49 @@ func convertStringToRaidType(s string) *raidType {
 }
 
 func (s *BTRFSService) CreateRaid(ctx context.Context, req *btrfsGrpc.CreateRaidReq) (*btrfsGrpc.Empty, error) {
+	if req == nil {
+		return nil, fmt.Errorf("missing RAID request")
+	}
+	if err := validateAvailableRaidDevices(req.Disks); err != nil {
+		return nil, err
+	}
 	_, err := CreateRaid(req.Name, convertStringToRaidType(req.Raid), req.Disks...)
 	if err != nil {
 		return nil, err
 	}
 	return &btrfsGrpc.Empty{}, nil
+}
+
+func validateAvailableRaidDevices(requested []string) error {
+	disks, err := GetAllDisks(false)
+	if err != nil {
+		return err
+	}
+	return validateRaidDevices(requested, disks)
+}
+
+func validateRaidDevices(requested []string, disks []MinDisk) error {
+	if len(requested) == 0 {
+		return fmt.Errorf("at least one disk is required")
+	}
+	seen := make(map[string]bool)
+	for _, path := range requested {
+		if seen[path] {
+			return fmt.Errorf("disk %q is duplicated", path)
+		}
+		seen[path] = true
+		eligible := false
+		for _, disk := range disks {
+			if path != "" && path == disk.Path && !disk.Mounted && disk.SizeGB > 0 {
+				eligible = true
+				break
+			}
+		}
+		if !eligible {
+			return fmt.Errorf("disk %q is not an available disk", path)
+		}
+	}
+	return nil
 }
 
 func (s *BTRFSService) RemoveRaid(ctx context.Context, req *btrfsGrpc.UUIDReq) (*btrfsGrpc.Empty, error) {
@@ -180,6 +218,12 @@ func (s *BTRFSService) UMountRaid(ctx context.Context, req *btrfsGrpc.UMountReq)
 }
 
 func (s *BTRFSService) AddDiskToRaid(ctx context.Context, req *btrfsGrpc.AddDiskToRaidReq) (*btrfsGrpc.Empty, error) {
+	if req == nil {
+		return nil, fmt.Errorf("missing add disk request")
+	}
+	if err := validateAvailableRaidDevices([]string{req.DiskPath}); err != nil {
+		return nil, err
+	}
 	mp, err := GetMountPointFromUUID(req.Uuid)
 	if err != nil {
 		return nil, err
@@ -204,6 +248,12 @@ func (s *BTRFSService) RemoveDiskFromRaid(ctx context.Context, req *btrfsGrpc.Re
 }
 
 func (s *BTRFSService) ReplaceDiskInRaid(ctx context.Context, req *btrfsGrpc.ReplaceDiskToRaidReq) (*btrfsGrpc.Empty, error) {
+	if req == nil {
+		return nil, fmt.Errorf("missing replace disk request")
+	}
+	if err := validateAvailableRaidDevices([]string{req.NewDiskPath}); err != nil {
+		return nil, err
+	}
 	mp, err := GetMountPointFromUUID(req.Uuid)
 	if err != nil {
 		return nil, err

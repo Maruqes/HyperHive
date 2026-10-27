@@ -1,0 +1,1281 @@
+[
+  {
+    "name": "Shared shell and design language",
+    "route": "All pages",
+    "shot": "01-vms.jpg",
+    "items": [
+      {
+        "id": "G01",
+        "priority": "P1",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Reserve space below the setup banner",
+        "detail": "Docker and Notes headings touch the banner; use one shared content offset and consistent top spacing on every route."
+      },
+      {
+        "id": "G02",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Turn the permanent setup strip into a setup notice",
+        "detail": "Offer a direct setup destination, explain the affected feature, and allow dismissal after acknowledgement. Preserve the underlying setup requirement."
+      },
+      {
+        "id": "G03",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Align page gutters and headers",
+        "detail": "Standardize title, subtitle, action row and content start. Current left gutters vary substantially between DNS, VMs, Support, Logs and Docker."
+      },
+      {
+        "id": "G04",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Use one primary button treatment",
+        "detail": "Teal and white both mean primary today. Keep the current teal brand and define consistent primary, secondary, quiet and danger variants."
+      },
+      {
+        "id": "G05",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Unify filters and status badges",
+        "detail": "NFS selected filters, XML counters and Nginx chips use different treatments. Use a consistent selected state and restrained status tokens."
+      },
+      {
+        "id": "G06",
+        "priority": "P1",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Give every control an accessible name",
+        "detail": "NFS, backups, DNS, VPN, Docker and Nginx contain unnamed buttons in the accessibility tree; several inputs are named only Input Field. Include the resource name in repeated actions."
+      },
+      {
+        "id": "G07",
+        "priority": "P1",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Distinguish pending data from zero",
+        "detail": "Dashboard, Docker, Updates and Nginx initially show zeros or empty content before data arrives. Use unknown placeholders/skeletons until the first response."
+      },
+      {
+        "id": "G08",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Make secondary text and badges easier to read",
+        "detail": "Several metadata lines and dark chips appear faint. Measure text at 4.5:1 and essential controls at 3:1 before changing tokens; this audit does not certify contrast ratios."
+      },
+      {
+        "id": "G09",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Add searchable navigation",
+        "detail": "The expanded menu requires long scrolling. Add a small navigation search, preserving the existing resize and collapse behavior."
+      },
+      {
+        "id": "G10",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Use explicit resource names and consistent terminology",
+        "detail": "Prefer Host over Slave in interface copy, VM disks over VMs Disks, and Kubernetes over K8 Cluster. Keep API identifiers unchanged."
+      },
+      {
+        "id": "G11",
+        "priority": "P1",
+        "effort": "M",
+        "kind": "Verify first",
+        "title": "Check shared modal keyboard behavior",
+        "detail": "Audit dialog semantics, named close controls, Escape, focus containment and focus return. The observed trees expose backgrounds and unnamed close buttons; a full screen-reader test remains needed."
+      },
+      {
+        "id": "G12",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Standardize dates and technical values",
+        "detail": "Use one date/time format with timezone for schedules, tabular numbers, and monospace for addresses/paths. Preserve exact technical strings and allow copying full values."
+      },
+      {
+        "id": "G13",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Verify first",
+        "title": "Complete phone, zoom and keyboard checks",
+        "detail": "Check 375px, tablet, landscape, 200% zoom, reduced motion, light theme and keyboard focus before rolling out shared changes. These are validation work, not confirmed defects."
+      }
+    ],
+    "note": "Keep the current dark/teal direction, Lucide icons and existing components. No font or dependency replacement is needed.",
+    "pins": [
+      [
+        "G02",
+        65,
+        2
+      ],
+      [
+        "G03",
+        22,
+        9
+      ],
+      [
+        "G09",
+        10,
+        65
+      ]
+    ]
+  },
+  {
+    "name": "Cluster Dashboard",
+    "route": "/dashboard",
+    "shot": "02-dashboard.jpg",
+    "items": [
+      {
+        "id": "D01",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Replace redundant storage graphics with one clear comparison",
+        "detail": "The gauge, total bar and volume strip repeat capacity information. Keep a compact total, then show labeled per-volume used/free bars with host and mount names."
+      },
+      {
+        "id": "D02",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Replace implementation copy with operator copy",
+        "detail": "Replace Uses the same NFS calculation with a plain description of included mounts. Label the Update button Refresh storage so its scope is clear."
+      },
+      {
+        "id": "D03",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Surface attention items before normal telemetry",
+        "detail": "Add a compact attention summary linking to high storage usage, unhealthy disks and stale hosts, using already available data. Requires agreed thresholds; no new monitoring backend assumed."
+      }
+    ],
+    "note": "",
+    "pins": [
+      [
+        "D01",
+        58,
+        51
+      ],
+      [
+        "D02",
+        49,
+        32
+      ]
+    ]
+  },
+  {
+    "name": "Host details",
+    "route": "/dashboard/[machine]",
+    "shot": "35-host-details.jpg",
+    "items": [
+      {
+        "id": "H01",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Move tuning controls behind a distinct section",
+        "detail": "Host Controls occupies a large area before disk/network/history diagnostics. Put monitoring first and keep service tuning in an expandable Advanced controls section."
+      },
+      {
+        "id": "H02",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Make hugepage state understandable",
+        "detail": "Group configured versus active capacity together and explain what zero active capacity means; avoid requiring operators to reconcile Disabled with Active: 2M (0 B). Verify backend meanings first."
+      },
+      {
+        "id": "H03",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Reduce repeated gauges and tall empty panels",
+        "detail": "Use compact metrics and align host-control content to its actual height. Keep per-core detail available, with a clear expanded state."
+      }
+    ],
+    "note": "The warning toast in this screenshot belongs to the development runtime; it is not evidence of a production warning.",
+    "pins": [
+      [
+        "H01",
+        39,
+        35
+      ],
+      [
+        "H02",
+        82,
+        58
+      ]
+    ]
+  },
+  {
+    "name": "Btrfs RAIDs",
+    "route": "/btrfs-raids",
+    "shot": "03-btrfs.jpg",
+    "items": [
+      {
+        "id": "BR01",
+        "priority": "P1",
+        "effort": "M",
+        "kind": "Verify first",
+        "title": "Verify eligibility of devices shown as free disks",
+        "detail": "The list shows /dev/zram0 as a free SSD. Check whether it is actually eligible for array creation; if not, exclude it or explain why it cannot be used. This is not proof that creation accepts it."
+      },
+      {
+        "id": "BR02",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Make capacity and identity easier to scan",
+        "detail": "Add a small labeled usage bar, align used/total/free values, and make UUID secondary but copyable. Preserve the existing balanced density."
+      }
+    ],
+    "note": "",
+    "pins": [
+      [
+        "BR01",
+        34,
+        68
+      ],
+      [
+        "BR02",
+        44,
+        39
+      ]
+    ]
+  },
+  {
+    "name": "Automatic mounts",
+    "route": "/btrfs-automatic-mounts",
+    "shot": "04-auto-mounts.jpg",
+    "items": [
+      {
+        "id": "AM01",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Clarify removal scope",
+        "detail": "Rename Remove to Remove rule and explain that removing the startup rule differs from unmounting the active filesystem. Verify existing behavior before final copy."
+      },
+      {
+        "id": "AM02",
+        "priority": "P3",
+        "effort": "S",
+        "kind": "Optional",
+        "title": "Trim repeated row metadata",
+        "detail": "Keep mount path, array and compression aligned; move repeated host/UUID detail to a disclosure with copy support."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "Smart Disk",
+    "route": "/smartdisk",
+    "shot": "05-smartdisk.jpg",
+    "items": [
+      {
+        "id": "SD01",
+        "priority": "P1",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Explain Caution beside the disk",
+        "detail": "The caution disk shows zero reallocated and pending sectors, so the reason is unclear. Show the actual triggering attribute and a View health details action; do not infer failure from the badge alone."
+      },
+      {
+        "id": "SD02",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Clarify reallocation and action hierarchy",
+        "detail": "Details is repeated as a primary teal action while Reallocation is unexplained. Keep Details neutral and explain potentially intensive maintenance before its confirmation."
+      },
+      {
+        "id": "SD03",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Add health filtering and next-run context",
+        "detail": "Allow attention-only filtering, and show the next scheduled test with timezone. Next-run display may require derived scheduling logic or an API field."
+      }
+    ],
+    "note": "",
+    "pins": [
+      [
+        "SD01",
+        88,
+        58
+      ],
+      [
+        "SD02",
+        37,
+        68
+      ]
+    ]
+  },
+  {
+    "name": "NFS mounts",
+    "route": "/mounts",
+    "shot": "06-nfs.jpg",
+    "items": [
+      {
+        "id": "NF01",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Offer compact capacity rows",
+        "detail": "Replace or supplement large gauges with name, host, path, used/free and VM connection counts in aligned rows. This is a density choice; retain cards if preferred."
+      },
+      {
+        "id": "NF02",
+        "priority": "P1",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Separate unmount from routine actions",
+        "detail": "Unmount sits directly beside Connect and Details on every card. Move it to a clearly labeled danger area or menu and explain affected consumers at confirmation."
+      },
+      {
+        "id": "NF03",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Keep full paths inspectable",
+        "detail": "Long export paths wrap inside narrow cards. Provide full-value disclosure and a labeled copy button without expanding every row."
+      }
+    ],
+    "note": "",
+    "pins": [
+      [
+        "NF01",
+        61,
+        52
+      ],
+      [
+        "NF02",
+        94,
+        61
+      ]
+    ]
+  },
+  {
+    "name": "ISO library",
+    "route": "/isos",
+    "shot": "07-isos.jpg",
+    "items": [
+      {
+        "id": "IS01",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Explain unavailable sizes once",
+        "detail": "Every visible size says Not reported. Use an unknown marker with a column-level explanation, or show sizes only when supplied; do not imply zero bytes."
+      },
+      {
+        "id": "IS02",
+        "priority": "P3",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Add storage and host filters",
+        "detail": "Search already works across the library; optional dropdown filters make storage placement and host availability easier to browse as inventory grows."
+      }
+    ],
+    "note": "The current row layout and explicit host availability are good foundations; a full redesign is unnecessary.",
+    "pins": []
+  },
+  {
+    "name": "Virtual Machines",
+    "route": "/vms",
+    "shot": "01-vms.jpg",
+    "items": [
+      {
+        "id": "VM01",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Explain the two RAM measurements",
+        "detail": "Rename RAM and Host RAM (real) only after confirming their semantics, and add short help explaining why they differ. Keep both readings available."
+      },
+      {
+        "id": "VM02",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Make power actions recognizable before clicking",
+        "detail": "The actions have accessible names but no visible labels. Add keyboard-accessible tooltips or short labels for pause, restart, shutdown and details; retain frequently used actions."
+      },
+      {
+        "id": "VM03",
+        "priority": "P3",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Offer a compact row view for larger fleets",
+        "detail": "Add an optional view with host grouping, state, CPU/RAM/disk, primary IP and actions. Preserve the current cards, colored borders and compact host allocation summaries."
+      }
+    ],
+    "note": "",
+    "pins": [
+      [
+        "VM01",
+        30,
+        53
+      ],
+      [
+        "VM02",
+        32,
+        71
+      ]
+    ]
+  },
+  {
+    "name": "VM creation",
+    "route": "New VM dialog",
+    "shot": "36-new-vm.jpg",
+    "items": [
+      {
+        "id": "VC01",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Group basic and advanced options",
+        "detail": "Group identity/host, resources, storage and network. Put XML template and specialized flags in Advanced while keeping selected values visible in a review summary."
+      },
+      {
+        "id": "VC02",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Replace API-facing form language",
+        "detail": "Use Host, NFS share and Installation ISO. Remove Sends template_id only when a template is selected and explain the actual effect of selecting a template."
+      },
+      {
+        "id": "VC03",
+        "priority": "P1",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Associate labels and expose preset buttons correctly",
+        "detail": "Inputs appear as Input Field and RAM/disk presets as containers in the accessibility tree. Give inputs meaningful names and presets button roles with selected state."
+      },
+      {
+        "id": "VC04",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Show host and storage capacity before creation",
+        "detail": "Once host and NFS are selected, show available capacity and explain overcommit warnings. Reuse allocation semantics and avoid silently changing creation rules."
+      }
+    ],
+    "note": "Form opened and cancelled without submission. Validation, live creation and failure recovery were not exercised.",
+    "pins": [
+      [
+        "VC02",
+        54,
+        61
+      ],
+      [
+        "VC03",
+        60,
+        35
+      ],
+      [
+        "VC01",
+        33,
+        68
+      ]
+    ]
+  },
+  {
+    "name": "VM details",
+    "route": "VM details dialog",
+    "shot": "37-vm-details.jpg",
+    "items": [
+      {
+        "id": "VD01",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Allow full path and per-interface IP inspection",
+        "detail": "Disk Path is truncated and all IPs share one line. Wrap or disclose the full path with copy, and list addresses individually with interface context when available."
+      },
+      {
+        "id": "VD02",
+        "priority": "P3",
+        "effort": "L",
+        "kind": "Optional",
+        "title": "Give VM details a dedicated URL",
+        "detail": "Make details shareable and preserve browser Back, keeping a lightweight modal for quick inspection if useful. This changes navigation and needs route/state work."
+      }
+    ],
+    "note": "",
+    "pins": [
+      [
+        "VD01",
+        48,
+        46
+      ]
+    ]
+  },
+  {
+    "name": "VM disks",
+    "route": "/vms-disks",
+    "shot": "08-vm-disks.jpg",
+    "items": [
+      {
+        "id": "DK01",
+        "priority": "P1",
+        "effort": "M",
+        "kind": "Verify first",
+        "title": "Clarify what Used measures for raw disks",
+        "detail": "The attached raw disk reads 100%. Verify whether this is host allocation rather than guest filesystem usage and label it accordingly to avoid a false full-disk interpretation."
+      },
+      {
+        "id": "DK02",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Show attachment and path more clearly",
+        "detail": "Give attached VM its own labeled field, disclose/copy the full path, and separate deletion from Grow. Keep attached-resource safety in the existing backend."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "XML templates",
+    "route": "/vms-xml-templates",
+    "shot": "09-xml.jpg",
+    "items": [
+      {
+        "id": "XT01",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Remove repeated counts and character totals",
+        "detail": "The same one-template count appears in multiple summaries; character counts dominate the page. Keep total/matching count once and show size only in detail."
+      },
+      {
+        "id": "XT02",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Make XML preview readable on demand",
+        "detail": "Use a collapsible formatted code preview instead of a flattened truncated line. Preserve placeholder case exactly and make placeholder behavior available in help."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "GPUs",
+    "route": "/gpus",
+    "shot": "10-gpus.jpg",
+    "items": [
+      {
+        "id": "GP01",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Use a compact host selector toolbar",
+        "detail": "The host selector spans the page while Refresh and counters occupy another row. Match the compact toolbar used by other storage pages."
+      },
+      {
+        "id": "GP02",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Optional",
+        "title": "Explain the empty inventory state",
+        "detail": "Explain whether no devices were detected versus none eligible for passthrough, and provide Retry and a host-switch suggestion only where the API can distinguish those cases."
+      }
+    ],
+    "note": "Only the empty inventory for the selected host was verified; populated GPU assignment is outside this pass.",
+    "pins": []
+  },
+  {
+    "name": "Backups",
+    "route": "/backups",
+    "shot": "11-backups.jpg",
+    "items": [
+      {
+        "id": "BK01",
+        "priority": "P1",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Name restore and delete actions by backup",
+        "detail": "Icon-only actions are unnamed in the observed tree. Include VM and backup date in accessible names, and provide tooltips with Restore, Download and Delete."
+      },
+      {
+        "id": "BK02",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Use meaningful storage and backup-state names",
+        "detail": "Replace NFS #1 with its share name where known. Clarify Working / Live versus completed backup status after checking the underlying field semantics."
+      },
+      {
+        "id": "BK03",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Add sorting, filters and collapsible VM groups",
+        "detail": "Keep the approved table layout; add latest-first sorting controls, date/status filters and group collapse for long backup histories."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "Automatic backups",
+    "route": "/autobackups",
+    "shot": "12-auto-backups.jpg",
+    "items": [
+      {
+        "id": "AB01",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Replace average frequency with next-run information",
+        "detail": "5 d average frequency mixes daily and weekly schedules without helping the operator. Show the next scheduled window per VM and the applicable timezone."
+      },
+      {
+        "id": "AB02",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Keep schedule identity and storage explicit",
+        "detail": "Show weekly day, actual NFS share name, retention and last result. Keep the existing aligned rows and neutral borders."
+      }
+    ],
+    "note": "Next-run accuracy depends on scheduler semantics; this needs verification before implementation.",
+    "pins": []
+  },
+  {
+    "name": "WireGuard VPN",
+    "route": "/wireguard",
+    "shot": "13-wireguard.jpg",
+    "items": [
+      {
+        "id": "WG01",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Prioritize peer connection information",
+        "detail": "Offer search and, if the API provides them, latest handshake and traffic. Move full public keys into a copy/disclosure control so peer identity stays prominent."
+      },
+      {
+        "id": "WG02",
+        "priority": "P1",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Label copy and remove controls",
+        "detail": "Use Copy public key for [peer] and Remove [peer] labels. Explain what Connect locally does before it starts a local connection workflow."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "DNS",
+    "route": "/dns",
+    "shot": "14-dns.jpg",
+    "items": [
+      {
+        "id": "DN01",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Add alias search and sorting",
+        "detail": "Filter by alias, address and VM; keep the row layout and allow copying addresses."
+      },
+      {
+        "id": "DN02",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Make optional metadata lighter",
+        "detail": "Two mostly empty columns consume space. Offer compact default rows with SSH username and VM relationship in details, retaining editable values."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "Kubernetes cluster",
+    "route": "/k8s-cluster",
+    "shot": "15-k8s.jpg",
+    "items": [
+      {
+        "id": "K801",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Explain the connection address choice",
+        "detail": "Show which interface or network each address belongs to when available and explain where the downloaded connection file will be usable."
+      },
+      {
+        "id": "K802",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Prioritize node state above download setup",
+        "detail": "Put node status first and keep the connection-file action compact. Avoid allocating a full section to an empty disconnected group."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "celld Fleets",
+    "route": "/celld-fleet",
+    "shot": "16-celld.jpg",
+    "items": [
+      {
+        "id": "CF01",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Separate no resources from healthy resources",
+        "detail": "Healthy beside zero fleets/buckets can be read as a workload verdict. Label service reachability separately and show No fleets / No buckets as inventory state."
+      },
+      {
+        "id": "CF02",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Make the empty state actionable",
+        "detail": "Place Create fleet in the empty-state panel as well as the header, and explain SILO in plain language. Move deleted-fleet recovery to a secondary menu."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "Single Packet Authorization",
+    "route": "/spa",
+    "shot": "17-spa.jpg",
+    "items": [
+      {
+        "id": "SP01",
+        "priority": "P1",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Fix browser autofill and port input semantics",
+        "detail": "The browser filled the Port field with an account email on navigation. Use an explicitly labeled numeric port input and appropriate autocomplete semantics; verify password-manager behavior without submitting a port."
+      },
+      {
+        "id": "SP02",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Make access scope and duration explicit",
+        "detail": "Explain what access is opened, how long it lasts and how it is revoked before Create port. Show actual configured behavior; do not invent an expiry field unsupported by the backend."
+      }
+    ],
+    "note": "Screenshot captures initial loading and browser autofill, not a configured-port result. No port was created.",
+    "pins": [
+      [
+        "SP01",
+        43,
+        28
+      ]
+    ]
+  },
+  {
+    "name": "Updates",
+    "route": "/updates",
+    "shot": "18-updates.jpg",
+    "items": [
+      {
+        "id": "UP01",
+        "priority": "P1",
+        "effort": "M",
+        "kind": "Verify first",
+        "title": "Show update impact before applying",
+        "detail": "Review the existing confirmation flow for host, package count, automatic reboot and expected interruption. Add missing impact information only after inspecting the current confirmation."
+      },
+      {
+        "id": "UP03",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Use compact package rows",
+        "detail": "Thirty-eight updates each occupy a large card. Use aligned package, installed version, available version and action columns; explain unknown installed versions instead of a bare arrow."
+      },
+      {
+        "id": "UP02",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Make refresh and pending availability explicit",
+        "detail": "Name the refresh control and distinguish checking from no pending packages. Preserve the existing Last checked timestamp and keep automatic interval labels hidden."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "Logs",
+    "route": "/logs",
+    "shot": "19-logs.jpg",
+    "items": [
+      {
+        "id": "LG01",
+        "priority": "P1",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Use semantic controls for filtering and reloading",
+        "detail": "Reload, Select sources and Register Notifications appear as text/containers in the observed tree. Make them keyboard-operable buttons/selects with proper names and state."
+      },
+      {
+        "id": "LG02",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Simplify the filter model",
+        "detail": "Level (API) overlaps INFO/DEBUG switches and accepts arbitrary text. Offer one understandable severity model, with advanced source/limit controls in a disclosure."
+      },
+      {
+        "id": "LG03",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Give empty results a recovery path",
+        "detail": "Differentiate loading, no matching logs, no collected logs and failed query. Offer Clear filters or Retry as applicable and put notification setup in secondary actions."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "HH Support",
+    "route": "/support",
+    "shot": "20-support.jpg",
+    "items": [
+      {
+        "id": "SU01",
+        "priority": "P1",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Prevent widgets shrinking below usable sizes",
+        "detail": "The saved layout shows a very narrow text widget and a narrow CPU chart surrounded by gaps. Enforce minimum usable widget dimensions and provide a deliberate Fit layout action without silently overwriting saved positions."
+      },
+      {
+        "id": "SU02",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Explain Live, Offline and Healthy separately",
+        "detail": "The screen shows all three at once. Label connection to telemetry service, App heartbeat and last evaluated health as distinct signals with timestamps."
+      },
+      {
+        "id": "SU03",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Offer alignment and layout recovery tools",
+        "detail": "Add Snap to grid / Align / Reset layout in edit mode, preserving the free placement model. Any reset must preview its effect and preserve a recovery path."
+      },
+      {
+        "id": "SU04",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Make empty widgets concise and useful",
+        "detail": "The narrow waiting widget wraps a long paragraph word by word. Use a short no-data message with expected stream name and a details disclosure."
+      }
+    ],
+    "note": "The displayed layout is user-configurable; sparse placement may be intentional. Proposals must preserve existing layouts unless explicitly reset.",
+    "pins": [
+      [
+        "SU01",
+        56,
+        43
+      ],
+      [
+        "SU02",
+        42,
+        18
+      ],
+      [
+        "SU04",
+        35,
+        35
+      ]
+    ]
+  },
+  {
+    "name": "404 hosts",
+    "route": "/404",
+    "shot": "21-404.jpg",
+    "items": [
+      {
+        "id": "N401",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Present intentional 404 behavior without alarm styling",
+        "detail": "Every correctly configured rule shows a red warning-style 404 Not Found. Use a neutral Returns 404 behavior label; reserve red for actual failures."
+      },
+      {
+        "id": "N402",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Use compact domain rules",
+        "detail": "Offer rows with domain, TLS policy, enabled state and actions. Remove repeated ACTIVE / SSL ENABLED chips when the same information is already expressed."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "Certificates",
+    "route": "/certificates",
+    "shot": "22-certificates.jpg",
+    "items": [
+      {
+        "id": "CE01",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Make expiry actionable",
+        "detail": "Show Expires in [days] beside an unambiguous date, with expiry sorting and due-soon filtering. Reuse existing certificate data."
+      },
+      {
+        "id": "CE02",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Verify first",
+        "title": "Match certificate actions to provider capabilities",
+        "detail": "The custom certificate also shows Renew. Verify what that action does and use Replace or Renew according to the actual supported operation."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "Access lists",
+    "route": "/access-lists",
+    "shot": "23-access-lists.jpg",
+    "items": [
+      {
+        "id": "AL01",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Optional",
+        "title": "Explain the two kinds of access rules in the empty state",
+        "detail": "Offer concise guidance on HTTP authentication versus client allow/deny rules, then one Create access list action."
+      },
+      {
+        "id": "AL02",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Verify first",
+        "title": "Show policy effects in create/edit review",
+        "detail": "Before save, summarize allow/deny ordering, authentication combination and affected proxies. No populated list or save flow was tested in this audit."
+      }
+    ],
+    "note": "Only the empty inventory was inspected; the second item is a proposed verification task, not a confirmed bug.",
+    "pins": []
+  },
+  {
+    "name": "Proxy hosts",
+    "route": "/proxy",
+    "shot": "24-proxy.jpg",
+    "items": [
+      {
+        "id": "PX01",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Separate setup from everyday proxy management",
+        "detail": "Setup FrontEnd Page competes with Add Proxy Host in the same toolbar. Put setup status in a compact distinct notice, preserving its existing operation."
+      },
+      {
+        "id": "PX02",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Offer searchable compact proxy rows",
+        "detail": "Add free-text search alongside domain grouping, and align domain, destination, TLS and enabled state. Keep operational actions available."
+      },
+      {
+        "id": "PX03",
+        "priority": "P1",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Reduce the visual dominance of delete",
+        "detail": "Bright filled red Delete appears on every proxy. Use a quiet danger affordance or labeled menu and retain resource-specific confirmation."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "Upstreams",
+    "route": "/upstreams",
+    "shot": "25-upstreams.jpg",
+    "items": [
+      {
+        "id": "US01",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Optional",
+        "title": "Offer purpose-specific empty-state actions",
+        "detail": "Give Create HTTP pool and Create TCP/UDP pool choices with a brief consumer explanation, instead of requiring an extra type decision after Add pool."
+      },
+      {
+        "id": "US02",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Verify first",
+        "title": "Show usage and capability restrictions on populated pools",
+        "detail": "Review whether pools show consumers and supported backend capabilities before editing/removal. Empty inventory prevents visual verification of that state."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "Redirections",
+    "route": "/redirection",
+    "shot": "26-redirection.jpg",
+    "items": [
+      {
+        "id": "RD01",
+        "priority": "P1",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Make redirect behavior readable",
+        "detail": "The 302 TEMPORARY and PRESERVE PATH chips are faint. Show clear normal-text labels for code, path behavior and destination."
+      },
+      {
+        "id": "RD02",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Optional",
+        "title": "Show source-to-destination mapping directly",
+        "detail": "Use Domain \u2192 destination, with copy/open controls and an explicit protocol. Preserve configured destinations exactly."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "TCP/UDP streams",
+    "route": "/streams",
+    "shot": "27-streams.jpg",
+    "items": [
+      {
+        "id": "TS01",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Optional",
+        "title": "Align listener and destination fields",
+        "detail": "Use rows with listener port, target host/port, TCP/UDP, TLS and enabled state. Keep description visible and technical values copyable."
+      },
+      {
+        "id": "TS02",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Use protocol-appropriate security copy",
+        "detail": "For a TCP stream, No SSL is informational. Show TLS off neutrally; explain exposure in details instead of implying all non-HTTP streams require HTTPS."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "Docker images",
+    "route": "/docker/images",
+    "shot": "28-images.jpg",
+    "items": [
+      {
+        "id": "DI01",
+        "priority": "P1",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Contain overflowing image metadata",
+        "detail": "Long label chips run beyond the content area. Show label count and expand to a wrapping key/value table with full-value copy; preserve case and exact strings."
+      },
+      {
+        "id": "DI02",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Add image search and usage context",
+        "detail": "Filter by repository/tag and show in-use references when available. Separate tag and digest so long hashes do not dominate identity; do not offer unverified cleanup savings."
+      }
+    ],
+    "note": "",
+    "pins": [
+      [
+        "G01",
+        34,
+        5
+      ],
+      [
+        "DI01",
+        78,
+        73
+      ]
+    ]
+  },
+  {
+    "name": "Docker containers",
+    "route": "/docker/containers",
+    "shot": "29-containers.jpg",
+    "items": [
+      {
+        "id": "DC01",
+        "priority": "P1",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Separate routine controls from forceful actions",
+        "detail": "Every container exposes Logs, Update, Restart, Pause, Stop, Kill and Remove together. Keep common actions visible and move Kill/Remove to a labeled danger menu with impact confirmation."
+      },
+      {
+        "id": "DC02",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Make container rows scannable",
+        "detail": "Show name, image, textual state/health and ports first; collapse mount lists and restart metadata into details. Add search and state filters."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "Docker volumes",
+    "route": "/docker/volumes",
+    "shot": "30-volumes.jpg",
+    "items": [
+      {
+        "id": "DV01",
+        "priority": "P1",
+        "effort": "M",
+        "kind": "Verify first",
+        "title": "Disambiguate displayed capacity",
+        "detail": "Multiple different volumes show the same 33.9 GB / 220.6 GB pair. Verify whether this is backing-filesystem usage, then label it accordingly instead of implying per-volume size."
+      },
+      {
+        "id": "DV02",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Optional",
+        "title": "Prioritize volume identity and consumers",
+        "detail": "Shorten anonymous hashes visually with full copy/disclosure and show attached containers when available. Distinguish an unused volume only when reference data supports it."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "Docker networks",
+    "route": "/docker/networks",
+    "shot": "31-networks.jpg",
+    "items": [
+      {
+        "id": "DW01",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Collapse verbose network driver options",
+        "detail": "Keep network, driver, subnet and scope prominent. Expand full options as a key/value table without uppercasing technical values."
+      },
+      {
+        "id": "DW02",
+        "priority": "P1",
+        "effort": "M",
+        "kind": "Verify first",
+        "title": "Explain built-in and in-use deletion restrictions",
+        "detail": "Built-in bridge/host/none networks display remove controls. Verify server restrictions and disable or explain unavailable actions, retaining backend validation."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "Docker Git",
+    "route": "/docker/git",
+    "shot": "32-git.jpg",
+    "items": [
+      {
+        "id": "GT01",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Give the empty state a clear next step",
+        "detail": "Replace plain No repositories configured with a compact explanation and Clone stack action, including accepted repository/compose expectations."
+      },
+      {
+        "id": "GT02",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Verify first",
+        "title": "Review deployment state presentation",
+        "detail": "For populated stacks, check branch/ref, last result, update progress and error recovery. The current host has no repositories, so no such defect is claimed."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "Notes",
+    "route": "/notes",
+    "shot": "33-notes.jpg",
+    "items": [
+      {
+        "id": "NT01",
+        "priority": "P2",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Use consistent interface language",
+        "detail": "Rename Ver to View. Preserve user-authored Portuguese note titles and content exactly."
+      },
+      {
+        "id": "NT02",
+        "priority": "P2",
+        "effort": "M",
+        "kind": "Observed",
+        "title": "Make note previews more useful",
+        "detail": "Render a readable markdown excerpt rather than raw markdown markers, reduce forced empty card height, and provide search as notes grow."
+      }
+    ],
+    "note": "",
+    "pins": []
+  },
+  {
+    "name": "Settings",
+    "route": "Settings dialog",
+    "shot": "34-settings.jpg",
+    "items": [
+      {
+        "id": "SE01",
+        "priority": "P1",
+        "effort": "S",
+        "kind": "Observed",
+        "title": "Name the close icon and theme options clearly",
+        "detail": "The top close button has no accessible name and radio descriptions are light/dark/system. Use Close settings and the visible human-readable option labels."
+      },
+      {
+        "id": "SE02",
+        "priority": "P3",
+        "effort": "S",
+        "kind": "Optional",
+        "title": "Make the settings dialog proportional to its content",
+        "detail": "The dialog contains only theme preferences but uses a large shell. Use a compact layout while retaining readable descriptions and the explicit Close action."
+      }
+    ],
+    "note": "No theme preference was changed. Light appearance was not validated.",
+    "pins": []
+  }
+]

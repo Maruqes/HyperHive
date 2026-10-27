@@ -1,0 +1,11 @@
+# Smart Disk coordinator review
+
+Implemented SD01–SD03 in `app/smartdisk.tsx`, `utils/smartdisk-health.ts`, `tests/smartdisk-health.test.js`, and `tests/smartdisk-page.test.js` in HyperHiveFront/HyperHive. No backend files changed.
+
+Caution lists the matching server assessment indicators or explicitly says the cause is unknown; Details opens the existing health information and raw details. Missing counters are no longer presented as zero. Health filters include unknown. Reallocation explains its read/write workload, data loss risk and backup need; existing operations, confirmations and progress remain. Details is an outline action. Active schedules state that the next launch and timezone are unknown; inactive schedules say none. The scheduler checks approximately every 20 minutes during the configured hour.
+
+Evidence: `slave/smartdisk/smartdisk.go` assessHealth evaluates warning thresholds, `master/api/info.go` emits unpopulated proto fields, and `master/api/smartdisk.go` listSchedules returns no next_run or timezone. `master/db/smartdisk.go` GetDueSchedules requires matching local weekday/hour and prevents another launch that day; `master/smartdisk/smartdisk.go` contains the polling loop. The stored SilverBullet scheduled-tests page was corrected for the current endpoint.
+
+Validation: `npx jest --runInBand --watchAll=false tests/smartdisk-health.test.js tests/smartdisk-page.test.js` passed (2 suites, 4 tests); assertions cover thresholds, invalid/missing values, spare threshold, health filter, failed SMART read and recovery, an empty filter and an inactive schedule. `npx tsc --noEmit --pretty false` produced no diagnostics matching smartdisk files; other project diagnostics were filtered. `git diff --check -- app/smartdisk.tsx` passed. Existing `tests/storage-pages.test.js` Smart Disk test passed, but its automatic-mount test failed due to concurrent changes to that separate page.
+
+Screenshots: none. The browser inventory initially failed with `transport closed before response`; on retry it recovered, but no synthetic Smart Disk app was running and the shared Expo port was not listening. Desktop, 375px, intermediate width, keyboard and light/dark visual checks remain for coordinator validation. No real resource operations or full Expo build were run. Ready for coordinator review, subject to those visual checks.

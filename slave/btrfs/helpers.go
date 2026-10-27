@@ -97,19 +97,15 @@ func findByID(name string) string {
 // - test = true → não filtra por TYPE (permite ver "loop", etc.)
 // - test = false → só TYPE == "disk"
 func GetAllDisks(test bool) ([]MinDisk, error) {
-	// Map of devices that belong to any BTRFS filesystem
-	btrfsInUse := make(map[string]bool)
-	if devsByUUID, _, _, err := collectBtrfsDevices(); err == nil {
-		for _, devs := range devsByUUID {
-			for _, d := range devs {
-				path := strings.TrimSpace(d.Path)
-				if path != "" {
-					btrfsInUse[path] = true
-				}
+	outputTree, err := exec.Command("lsblk", "-b", "--json", "-o", "NAME,TYPE,SIZE,FSTYPE,PATH,MOUNTPOINT").Output()
+	var tree lsblkResponse
+	occupied := make(map[string]bool)
+	if err == nil && json.Unmarshal(outputTree, &tree) == nil {
+		for _, disk := range tree.BlockDevices {
+			if disk.getPath() != "" {
+				occupied[disk.getPath()] = diskTreeInUse(disk, true)
 			}
 		}
-	} else {
-		logger.Debug(fmt.Sprintf("collectBtrfsDevices failed: %v", err))
 	}
 
 	// lsblk in JSON with SIZE in bytes (-b) to list all block devices
@@ -142,16 +138,25 @@ func GetAllDisks(test bool) ([]MinDisk, error) {
 		if d.Type != "disk" && !test {
 			continue
 		}
-
 		path := d.Path
 		if strings.TrimSpace(path) == "" {
 			path = "/dev/" + d.Name
 		}
+		name := filepath.Base(path)
+		if suffix := strings.TrimPrefix(name, "zram"); suffix != name && suffix != "" {
+			if _, err := strconv.ParseUint(suffix, 10, 64); err == nil {
+				continue
+			}
+		}
 
 		sizeBytes := parseInt64(d.Size)
+		if sizeBytes <= 0 {
+			continue
+		}
 		sizeGB := float64(sizeBytes) / (1024 * 1024 * 1024)
 
-		mounted := btrfsInUse[path] || isMounted(path)
+		inUse, known := occupied[path]
+		mounted := !known || inUse || isMounted(path)
 
 		md := MinDisk{
 			Path:       path,
@@ -171,6 +176,18 @@ func GetAllDisks(test bool) ([]MinDisk, error) {
 	}
 
 	return disks, nil
+}
+
+func diskTreeInUse(disk lsblkDevice, root bool) bool {
+	if disk.getMountPoint() != "" || strings.EqualFold(disk.getFSType(), "btrfs") || (!root && disk.Type != "part") {
+		return true
+	}
+	for _, child := range disk.Children {
+		if diskTreeInUse(child, false) {
+			return true
+		}
+	}
+	return false
 }
 
 //findmnt -t btrfs -o TARGET,SOURCE,FSTYPE,OPTIONS -J

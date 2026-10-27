@@ -270,6 +270,9 @@ func CreateRaid(name string, raid *raidType, disks ...string) (string, error) {
 	if raid == nil {
 		return "", fmt.Errorf("raid type is not valid")
 	}
+	if strings.TrimSpace(name) == "" || len(name) > 255 || strings.ContainsRune(name, '\x00') {
+		return "", fmt.Errorf("raid name is not valid")
+	}
 	for _, disk := range disks {
 		if !doesDiskExist(disk) {
 			return "", fmt.Errorf("disk %s does not exist", disk)
@@ -286,19 +289,25 @@ func CreateRaid(name string, raid *raidType, disks ...string) (string, error) {
 		return "", fmt.Errorf("amount of disks must be at least %d to use %s", raid.c, raid.sType)
 	}
 
-	for _, disk := range disks {
-		if err := wipeDiskSignatures(disk); err != nil {
-			return "", fmt.Errorf("failed to wipe signatures on %s: %w", disk, err)
-		}
-	}
-
 	allFS, err := GetAllFileSystems()
-	if err == nil && allFS != nil {
+	if err != nil {
+		return "", fmt.Errorf("failed to check existing filesystems: %w", err)
+	}
+	if allFS != nil {
 		for _, fs := range allFS.FileSystems {
-			label := getBtrfsLabel(fs.Target)
+			label := fs.Label
+			if label == "" {
+				label = getBtrfsLabel(fs.Target)
+			}
 			if label == name {
 				return "", fmt.Errorf("a BTRFS filesystem with label '%s' already exists at %s", name, fs.Target)
 			}
+		}
+	}
+
+	for _, disk := range disks {
+		if err := wipeDiskSignatures(disk); err != nil {
+			return "", fmt.Errorf("failed to wipe signatures on %s: %w", disk, err)
 		}
 	}
 
@@ -656,14 +665,14 @@ func AddDiskToRaid(diskPath string, target string) error {
 		return fmt.Errorf("%s", "diskpath its not a disk -> "+diskPath)
 	}
 
-	err := wipeDiskSignatures(diskPath)
-	if err != nil {
-		return err
-	}
-
 	//check if is not mounted anywhere
 	if isMounted(diskPath) {
 		return fmt.Errorf("%s", "disk path is already mounted somewhere -> "+diskPath)
+	}
+
+	err := wipeDiskSignatures(diskPath)
+	if err != nil {
+		return err
 	}
 
 	// Add the disk to the BTRFS filesystem

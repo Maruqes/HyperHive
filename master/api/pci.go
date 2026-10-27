@@ -3,6 +3,7 @@ package api
 import (
 	"512SvMan/services"
 	"encoding/json"
+	pciGrpc "github.com/Maruqes/512SvMan/api/proto/pci"
 	"net/http"
 	"strings"
 
@@ -38,6 +39,19 @@ func writePCIError(w http.ResponseWriter, err error) {
 	http.Error(w, err.Error(), status)
 }
 
+func writeHostGPUs(w http.ResponseWriter, resp *pciGrpc.HostGPUList) {
+	if resp == nil {
+		http.Error(w, "GPU inventory response was empty", http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if len(resp.GetGpus()) == 0 {
+		_, _ = w.Write([]byte(`{"gpus":[]}`))
+		return
+	}
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
 func listHostGPUs(w http.ResponseWriter, r *http.Request) {
 	machineName := strings.TrimSpace(chi.URLParam(r, "machine_name"))
 	if machineName == "" {
@@ -52,8 +66,7 @@ func listHostGPUs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	writeHostGPUs(w, resp)
 }
 
 func listHostGPUsWithIOMMU(w http.ResponseWriter, r *http.Request) {
