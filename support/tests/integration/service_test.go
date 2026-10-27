@@ -67,7 +67,7 @@ func setup(testing *testing.T) *fixture {
 	fixture.db = database
 	fixture.hub = hub
 	testing.Cleanup(func() { application.Close(); database.Close() })
-	response := fixture.request("POST", "/apps", `{"name":"Example","tab_id":"general","tags":[" Go ","Go"],"heartbeat_timeout_seconds":10}`, 201)
+	response := fixture.request("POST", "/apps", `{"name":"Example","tab_id":"general","tags":[" Go "],"heartbeat_timeout_seconds":10}`, 201)
 	var created struct {
 		App    domain.App `json:"app"`
 		Secret string     `json:"secret"`
@@ -258,7 +258,7 @@ func TestTabsSettingsLayoutsDeletion(testing *testing.T) {
 	var tab domain.Tab
 	decode(testing, fixture.request("POST", "/tabs", `{"name":"Services"}`, 201), &tab)
 	fixture.request("PUT", "/tabs/"+tab.ID, `{"name":"Renamed"}`, 200)
-	fixture.request("PUT", "/apps/"+fixture.id, `{"name":"Changed","tab_id":"`+tab.ID+`","tags":["one","two","one"],"heartbeat_timeout_seconds":20,"retention_days":1}`, 200)
+	fixture.request("PUT", "/apps/"+fixture.id, `{"name":"Changed","tab_id":"`+tab.ID+`","tags":["one","two"],"heartbeat_timeout_seconds":20,"retention_days":1}`, 200)
 	app := fixture.app()
 	if app.Name != "Changed" || app.ID != fixture.id || len(app.Tags) != 2 {
 		testing.Fatal(app)

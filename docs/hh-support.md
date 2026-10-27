@@ -27,6 +27,8 @@ In **Create an App → Start from**, choose **Small Template** for a saved CPU v
 
 Authenticated `POST /api/support/apps` accepts optional `"template_id":"small"` alongside the normal App settings. The backend owns the hard-coded layout and inserts it atomically with the new App, with layout revision zero. Unknown template IDs and applying templates to existing Apps are rejected. Omit `template_id` for a blank App. To add another built-in template, extend `domain.TemplateLayout` in `support/internal/domain/templates.go` and the frontend catalog in `components/support/app-templates.ts`.
 
+**Linux Machine** uses `"template_id":"linux-machine"` for 45 widgets covering machine identity, CPU, memory, swap, root filesystem, disk and network activity, processes, services, hardware, logs and events. A Linux collector must send the matching streams; the template does not install a collector or generate telemetry. See the [Linux Machine stream contract](hh-support-linux-machine.md) for names, units, snapshot fields and collection timing.
+
 ## Register from an existing App
 
 In **Create an App → Start from**, select an existing App to replicate it. Enter the new name, choose its destination tab and edit its tags. Create a tab first if you need a new destination. Save the new one-time credentials and configure the new sender with them.

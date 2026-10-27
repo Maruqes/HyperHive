@@ -43,10 +43,12 @@ func NormalizeApp(app *App) error {
 		if !ValidLength(tag, 1, 64) {
 			return Invalid("invalid tag")
 		}
-		if !seen[tag] {
-			tags = append(tags, tag)
-			seen[tag] = true
+		key := strings.ToLower(tag)
+		if seen[key] {
+			return Invalid("A tag with this name already exists")
 		}
+		tags = append(tags, tag)
+		seen[key] = true
 	}
 	app.Tags = tags
 	return nil

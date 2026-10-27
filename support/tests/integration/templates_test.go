@@ -1,11 +1,78 @@
 package integration
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 
 	"hyperhive/support/internal/domain"
 )
+
+func TestCreateLinuxMachineTemplate(t *testing.T) {
+	f := setup(t)
+	var created struct {
+		App    domain.App `json:"app"`
+		Secret string     `json:"secret"`
+	}
+	decode(t, f.request("POST", "/apps", `{"name":"Linux server","tab_id":"general","template_id":"linux-machine"}`, 201), &created)
+	var detail domain.AppDetail
+	decode(t, f.request("GET", "/apps/"+created.App.ID, "", 200), &detail)
+	if detail.Layout.Revision != 0 || len(detail.Layout.Widgets) != 45 || len(detail.Streams) != 0 || detail.App.Connectivity != "unknown" {
+		t.Fatal("Linux template must start with saved widgets and no telemetry", detail)
+	}
+	if err := f.store.AuthenticateApp(created.App.ID, created.Secret); err != nil {
+		t.Fatal(err)
+	}
+	streams := map[string]string{}
+	for i, widget := range detail.Layout.Widgets {
+		streams[widget.Stream] = widget.StreamType
+		for _, other := range detail.Layout.Widgets[:i] {
+			if widget.X < other.X+other.W && other.X < widget.X+widget.W && widget.Y < other.Y+other.H && other.Y < widget.Y+widget.H {
+				t.Fatalf("Linux widgets overlap: %s and %s", widget.ID, other.ID)
+			}
+		}
+	}
+	for name, kind := range map[string]string{
+		"machine_info": "text", "cpu_usage_percent": "number", "memory_usage_percent": "number", "root_usage_percent": "number",
+		"disk_read_bytes_per_second": "number", "network_receive_bytes_per_second": "number", "process_count": "number",
+		"filesystems": "event", "network_interfaces": "event", "top_processes": "event", "services": "event", "hardware": "event",
+		"system_logs": "log", "machine_events": "event",
+	} {
+		if streams[name] != kind {
+			t.Fatalf("missing or incorrect Linux stream %s: %s", name, streams[name])
+		}
+	}
+	definitions := []domain.Stream{}
+	samples := []map[string]any{}
+	for name, kind := range streams {
+		definitions = append(definitions, domain.Stream{Name: name, Type: kind, Label: name})
+		var value any = 24.5
+		switch kind {
+		case "text":
+			value = "linux-server | Linux | x86_64"
+		case "event":
+			value = map[string]any{"name": "Snapshot", "fields": map[string]any{"items": []any{}}}
+		case "log":
+			value = map[string]any{"severity": "info", "message": "Collector connected"}
+		}
+		samples = append(samples, map[string]any{"stream": name, "value": value})
+	}
+	payload, err := json.Marshal(map[string]any{"heartbeat": true, "streams": definitions, "samples": samples})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.id, f.secret = created.App.ID, created.Secret
+	f.request("POST", "/ingest", string(payload), 200)
+	decode(t, f.request("GET", "/apps/"+created.App.ID, "", 200), &detail)
+	if len(detail.Streams) != len(streams) || detail.App.Connectivity != "online" {
+		t.Fatal("Linux collector streams were not accepted", detail)
+	}
+	var history domain.History
+	decode(t, f.request("GET", "/apps/"+created.App.ID+"/samples?stream=cpu_usage_percent", "", 200), &history)
+	if len(history.Samples) != 1 {
+		t.Fatal("Linux metric was not persisted", history)
+	}
+}
 
 func TestCreateAppFromSmallTemplate(t *testing.T) {
 	f := setup(t)

@@ -3,6 +3,7 @@ package service
 import (
 	"hyperhive/support/internal/domain"
 	"hyperhive/support/internal/security"
+	"strings"
 )
 
 func (service *Service) Apps() ([]domain.App, error) {
@@ -55,6 +56,9 @@ func (service *Service) SaveApp(id string, body domain.AppSettings) (domain.App,
 	if err := domain.NormalizeApp(&app); err != nil {
 		return domain.App{}, "", err
 	}
+	if err := service.checkAppName(app); err != nil {
+		return domain.App{}, "", err
+	}
 	secret := ""
 	if id == "" {
 		app.ID, err = security.NewToken()
@@ -93,6 +97,9 @@ func (service *Service) ReplicateApp(sourceID string, body domain.ReplicateAppSe
 		app.Tags = body.Tags
 	}
 	if err := domain.NormalizeApp(&app); err != nil {
+		return domain.App{}, "", err
+	}
+	if err := service.checkAppName(app); err != nil {
 		return domain.App{}, "", err
 	}
 	app.ID, err = security.NewToken()
@@ -186,4 +193,17 @@ func (service *Service) SaveLayout(id string, updated domain.Layout) (domain.Lay
 	}
 	service.changed(id)
 	return updated, nil
+}
+
+func (service *Service) checkAppName(app domain.App) error {
+	apps, err := service.store.Apps(service.now())
+	if err != nil {
+		return err
+	}
+	for _, existing := range apps {
+		if existing.ID != app.ID && strings.EqualFold(existing.Name, app.Name) {
+			return domain.Conflict("An App with this name already exists")
+		}
+	}
+	return nil
 }

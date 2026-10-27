@@ -19,6 +19,15 @@ func (service *Service) SaveTab(id, name string) (domain.Tab, error) {
 	if !domain.ValidLength(name, 1, 120) {
 		return domain.Tab{}, domain.Invalid("invalid tab name")
 	}
+	tabs, err := service.store.Tabs()
+	if err != nil {
+		return domain.Tab{}, err
+	}
+	for _, tab := range tabs {
+		if tab.ID != id && strings.EqualFold(tab.Name, name) {
+			return domain.Tab{}, domain.Conflict("A tab with this name already exists")
+		}
+	}
 	create := id == ""
 	if create {
 		var err error
