@@ -71,6 +71,48 @@ func (service *Service) SaveApp(id string, body domain.AppSettings) (domain.App,
 	service.publishState(app)
 	return app, secret, nil
 }
+
+func (service *Service) ReplicateApp(sourceID string, body domain.ReplicateAppSettings) (domain.App, string, error) {
+	service.mu.Lock()
+	defer service.mu.Unlock()
+	source, err := service.store.App(sourceID, service.now())
+	if err != nil {
+		return domain.App{}, "", err
+	}
+	app := domain.App{Name: body.Name, TabID: source.TabID, Tags: source.Tags, Timeout: source.Timeout, Retention: source.Retention}
+	if body.TabID != "" {
+		app.TabID = body.TabID
+	}
+	if body.Tags != nil {
+		app.Tags = body.Tags
+	}
+	if err := domain.NormalizeApp(&app); err != nil {
+		return domain.App{}, "", err
+	}
+	app.ID, err = security.NewToken()
+	if err != nil {
+		return domain.App{}, "", err
+	}
+	secret, err := security.NewToken()
+	if err != nil {
+		return domain.App{}, "", err
+	}
+	layout, err := service.store.Layout(sourceID)
+	if err != nil {
+		return domain.App{}, "", err
+	}
+	layout.Revision = 0
+	if err := service.store.ReplicateApp(sourceID, app, secret, layout); err != nil {
+		return domain.App{}, "", err
+	}
+	app, err = service.store.App(app.ID, service.now())
+	if err != nil {
+		return domain.App{}, "", err
+	}
+	service.changed(app.ID)
+	service.publishState(app)
+	return app, secret, nil
+}
 func (service *Service) DeleteApp(id string) error {
 	service.mu.Lock()
 	defer service.mu.Unlock()

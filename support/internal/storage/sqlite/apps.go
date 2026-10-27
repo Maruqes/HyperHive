@@ -151,6 +151,24 @@ func (store *Store) SaveApp(app domain.App, create bool, secret string) error {
 func (store *Store) DeleteApp(id string) error {
 	return affected(store.db.Exec("DELETE FROM apps WHERE id=?", id))
 }
+func (store *Store) ReplicateApp(sourceID string, app domain.App, secret string, layout domain.Layout) error {
+	if err := store.tabExists(app.TabID); err != nil {
+		return err
+	}
+	tx, err := store.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	hash := sha256.Sum256([]byte(secret))
+	if err := affected(tx.Exec("INSERT INTO apps(id,tab_id,config,secret,layout) SELECT ?,?,?,?,? FROM apps WHERE id=?", app.ID, app.TabID, domain.EncodeJSON(app), hash[:], domain.EncodeJSON(layout), sourceID)); err != nil {
+		return err
+	}
+	if _, err := tx.Exec("INSERT INTO streams(app_id,name,definition) SELECT ?,name,definition FROM streams WHERE app_id=?", app.ID, sourceID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
 func (store *Store) RotateSecret(id, secret string) error {
 	hash := sha256.Sum256([]byte(secret))
 	return affected(store.db.Exec("UPDATE apps SET secret=? WHERE id=?", hash[:], id))

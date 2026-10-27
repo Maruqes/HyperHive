@@ -85,6 +85,11 @@ type AppSettings struct {
 	Timeout   *int     `json:"heartbeat_timeout_seconds"`
 	Retention *int     `json:"retention_days"`
 }
+type ReplicateAppSettings struct {
+	Name  string   `json:"name"`
+	TabID string   `json:"tab_id"`
+	Tags  []string `json:"tags"`
+}
 type AppDetail struct {
 	App     App      `json:"app"`
 	Streams []Stream `json:"streams"`

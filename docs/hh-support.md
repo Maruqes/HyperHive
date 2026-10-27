@@ -21,6 +21,16 @@ Only exact `POST /api/support/ingest` bypasses HH login; Support validates `X-Ap
 
 Live frontend connections request authenticated `POST /api/support/ws-ticket`. Its ticket establishes one WebSocket connection at `/api/support/ws?ticket=...` within 30 seconds. Master atomically consumes it and checks browser Origin. HH request logs omit Support query strings. Configure external access logs to omit query strings for this endpoint too.
 
+## Register from an existing App
+
+In **Register App**, select **Replicate [App name]** to use any existing App as a template. Enter the new name, choose its destination tab and edit its tags. Create a tab first if you need a new destination. Save the new one-time credentials and configure the new sender with them.
+
+Authenticated `POST /api/support/apps/{source_id}/replicate` accepts `{"name":"New App","tab_id":"general","tags":["production"]}` and returns HTTP 201 with `{"app":...,"secret":...}`. Only `name` is required: omitted/empty `tab_id` inherits the source tab; omitted/null `tags` inherits tags, while `[]` clears them. Other fields are rejected.
+
+Replication atomically copies stream definitions (names, types, labels and units), heartbeat timeout, retention and the complete saved widget configuration, including positions, dimensions, filters and pending streams. The new App gets its own ID and secret, with layout revision zero. Samples, instances, heartbeats and health state start empty/unknown. The source remains unchanged; later edits and secret rotation are independent, and replicas can themselves be reused as templates. Save source dashboard changes before registering a replica.
+
+When extending App configuration, preserve replication coverage: new App settings must be inherited in `service.ReplicateApp`; widget/stream fields are already copied as complete definitions. New configuration tables require a copy inside `sqlite.ReplicateApp`'s transaction and regression coverage. Keep runtime telemetry excluded.
+
 ## Build a shared dashboard
 
 Open an App and add a widget by choosing an incoming stream, such as `number_cpu`, then a compatible display. You can also configure a stream before its first sample by entering its name and expected data type. The sender must declare that same type when the stream arrives.

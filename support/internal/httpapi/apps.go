@@ -57,6 +57,20 @@ func (handler *Handler) appsRoute(writer http.ResponseWriter, request *http.Requ
 		return domain.NotFound()
 	}
 	switch parts[2] {
+	case "replicate":
+		if request.Method != "POST" {
+			return domain.NotFound()
+		}
+		var body domain.ReplicateAppSettings
+		if err := readBody(writer, request, &body); err != nil {
+			return err
+		}
+		app, secret, err := handler.service.ReplicateApp(id, body)
+		if err != nil {
+			return err
+		}
+		respond(writer, 201, map[string]any{"app": app, "secret": secret})
+		return nil
 	case "rotate-secret":
 		if request.Method != "POST" {
 			return domain.NotFound()
