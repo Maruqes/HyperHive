@@ -184,7 +184,7 @@ func (d DockerUpstreamRuntime) Apply(ctx context.Context, generation int64, pool
 		return err
 	}
 	base := upstreamConfigRoot + "/generations/" + strconv.FormatInt(generation, 10)
-	http := RenderUpstreams(pools, "http") + fmt.Sprintf("server { listen unix:/tmp/hyperhive-upstream-status.sock; server_name _; location = /generation { return 200 \"%d\"; } }\n", generation)
+	http := RenderUpstreams(pools, "http") + fmt.Sprintf("server { listen 127.0.0.1:18959; server_name _; location = /generation { return 200 \"%d\"; } }\n", generation)
 	if err := d.write(ctx, base+"/http.conf", http); err != nil {
 		return err
 	}
@@ -257,9 +257,9 @@ func (d DockerUpstreamRuntime) Apply(ctx context.Context, generation int64, pool
 		return err
 	}
 	// Reading a generated file cannot establish activation. Probe a generation-specific
-	// response served by the new workers over a container-local Unix socket.
+	// response served by the new workers on a loopback-only listener.
 	for attempt := 0; attempt < 30; attempt++ {
-		out, err := d.node(ctx, `const http=require('node:http');http.get({socketPath:'/tmp/hyperhive-upstream-status.sock',path:'/generation'},r=>{let b='';r.on('data',v=>b+=v);r.on('end',()=>process.stdout.write(b))}).on('error',()=>process.exit(1)).setTimeout(1000,()=>process.exit(1));`, nil)
+		out, err := d.node(ctx, `const http=require('node:http');http.get({host:'127.0.0.1',port:18959,path:'/generation'},r=>{let b='';r.on('data',v=>b+=v);r.on('end',()=>process.stdout.write(b))}).on('error',()=>process.exit(1)).setTimeout(1000,()=>process.exit(1));`, nil)
 		if err == nil && strings.TrimSpace(string(out)) == strconv.FormatInt(generation, 10) {
 			return nil
 		}

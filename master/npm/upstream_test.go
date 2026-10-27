@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func exampleUpstream() Upstream {
@@ -154,6 +155,31 @@ func TestUpstreamDockerRuntime(t *testing.T) {
 	}
 	if err := runtime.Apply(context.Background(), 999, pools); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestUpstreamDockerRestart(t *testing.T) {
+	container := os.Getenv("HYPERHIVE_TEST_NPM_CONTAINER")
+	if container == "" {
+		t.Skip("run with the disposable exact-image compatibility fixture")
+	}
+	runtime := DockerUpstreamRuntime{Container: container}
+	if err := runtime.Apply(context.Background(), 999, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runtime.command(context.Background(), "restart", container); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		out, err := runtime.node(context.Background(), `const http=require('node:http');http.get('http://127.0.0.1:18959/generation',r=>r.pipe(process.stdout)).on('error',()=>process.exit(1));`, nil)
+		if err == nil && strings.TrimSpace(string(out)) == "999" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("NGINX did not recover after container restart: %v", err)
+		}
+		time.Sleep(500 * time.Millisecond)
 	}
 }
 

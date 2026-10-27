@@ -141,6 +141,12 @@ class Fixture:
             if result.returncode:
                 raise RuntimeError('upstream lifecycle verification failed: ' + result.stdout[-4000:] + result.stderr[-1000:])
             evidence['lifecycle'] = 'passed'
+            result = subprocess.run(['go', 'test', './npm', '-run', '^TestUpstreamDockerRestart$', '-v', '-count=1'],
+                                    cwd=self.root.parents[1], env=env, text=True, capture_output=True, timeout=120)
+            (self.output / 'restart-test.log').write_text(result.stdout + result.stderr)
+            if result.returncode:
+                raise RuntimeError('restart verification failed: ' + result.stdout[-3000:] + result.stderr[-3000:])
+            evidence['restart'] = 'passed'
             return evidence
         finally:
             (self.output / 'candidate-validation.log').write_text(command('docker', 'exec', self.name, 'nginx', '-t', '-p', '/etc/nginx/', '-c', '/etc/nginx/hyperhive-candidate-100.conf', check=False).stderr)
