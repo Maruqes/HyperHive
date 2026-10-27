@@ -2,11 +2,13 @@
 
 This document defines the collector streams used by the built-in Linux Machine dashboard.
 
-Choose **Create an App → Start from → Linux Machine**, or create an App with `"template_id":"linux-machine"`. Its 45 widgets are saved atomically and wait for real telemetry. Each machine should have its own App and ingestion credentials. Connectivity and health use the existing Support heartbeat/health fields; see [HH Support integration](hh-support.md).
+Choose **Create an App → Start from → Linux Machine**, or create an App with `"template_id":"linux-machine"`. Its 20 widgets are saved atomically and wait for real telemetry. The first screen prioritizes diagnosis: a four-column, three-row identity card with a compact two-by-two block of readings (uptime, CPU, RAM and root usage) directly beneath it. Service failures occupy the remaining eight columns across all five rows, followed by a full-width system warnings/errors feed. The full journal follows, then kernel/service logs and machine/service activity. Only four resource charts remain: CPU, RAM and network receive/transmit. Filesystems, interfaces, processes and hardware snapshots sit at the bottom for investigation.
+
+Detailed CPU modes, load averages, swap traffic, disk throughput/operation charts and separate process-count tiles are omitted from the default layout. Collectors can still send optional metrics. Each machine should have its own App and ingestion credentials. Connectivity and health use the existing Support heartbeat/health fields; see [HH Support integration](hh-support.md). Template revisions apply to new Apps; existing saved dashboards are not rewritten.
 
 ## Numeric streams
 
-Declare each stream as `number`, with a readable `label` and the indicated `unit`. The dashboard includes percentage gauges, resource trends and current values. Percentages use 0–100. Load averages are raw values, not percentages; compare them with `cpu_core_count`.
+Declare each stream as `number`, with a readable `label` and the indicated `unit`. The dashboard includes compact values and essential resource trends. The table also defines optional detailed streams which collectors may send without creating default widgets. Percentages use 0–100. Load averages are raw values, not percentages; compare them with `cpu_core_count`.
 
 | Stream | Unit | Meaning |
 | --- | --- | --- |
@@ -41,6 +43,8 @@ Declare each stream as `number`, with a readable `label` and the indicated `unit
 
 Calculate CPU percentages and counter rates from interval deltas. Omit the first interval and intervals affected by counter resets. Disk aggregates must use one consistent device layer, avoiding double-counting partitions and their parent disks. Network aggregates should use the machine's selected uplink interfaces, excluding loopback and duplicate bridge/veth traffic; report the selected devices/interfaces in their detail snapshots. Disk latency is weighted by operation count, not a sum of device averages.
 
+Support displays second-based durations as days/hours, hours/minutes or minutes/seconds as appropriate. Byte capacities and byte-per-second rates scale automatically through B, KiB, MiB, GiB and larger units. Stored samples, copied values and inspected chart samples keep their original values and units.
+
 ## Identity and detailed snapshots
 
 `machine_info` is a `text` stream containing readable multiline identity: hostname, distribution/version, kernel, architecture, CPU model and boot time. Send it at startup and when those values change.
@@ -59,9 +63,16 @@ Keep snapshots bounded: prioritize mounted filesystems, relevant interfaces, sel
 
 ## Logs, events and timing
 
-- `system_logs`: `log` values with `message` and Support severity (`debug`, `info`, `warn`, `error`, `fatal`). Forward selected system/kernel/service warnings and errors, plus collector diagnostics.
+- `journal_logs`: `log` values from the system journal, collected through `journalctl` or the journal API. Include the originating unit/identifier and PID in `message` when available. This is the main, unfiltered journal view.
+- `system_logs`: `log` values for system warnings/errors and collector diagnostics. The default widget filters to `warn`, `error` and `fatal`; informational samples can still be stored and viewed by changing the widget filter.
+- `kernel_logs`: `log` values for kernel messages, including storage/I/O faults, out-of-memory events, driver failures and network errors. Include useful diagnostic context.
+- `service_logs`: `log` values for selected important services. Prefix each message with the unit/service name so the shared feed stays understandable.
+- All four log streams use `{"message":"...","severity":"error"}` values. Map journal priorities 0–2 to `fatal`, 3 to `error`, 4 to `warn`, 5–6 to `info`, and 7 to `debug`. Preserve the original message and timestamp; use Support's sample `timestamp` field for source time. Keep a journal cursor for resumable collection, and avoid replaying the entire journal at startup.
+- `service_failures`: `event` values when a service fails or recovers, with a readable `name` and `fields` containing the unit, state, result, exit code, restart count and relevant diagnostic message when available. This feed highlights failures separately from periodic `services` inventory snapshots.
 - `machine_events`: `event` values with `name` and structured `fields`, for reboots, service failure/recovery, mount changes and network link changes.
 - Send a heartbeat and resource metrics every 15 seconds. The default App heartbeat timeout remains 120 seconds and can be changed in App settings.
 - Send process/service/detail snapshots every 60 seconds; identity on startup/change. Send logs and machine events as they occur, with bounded batches and backoff on failures.
 
 The template defines the dashboard and this sender contract. Collector installation, privileges and collection logic are separate work. This contract is locally source-reviewed, not evidence of a deployed Linux collector.
+
+Use the [AI implementation prompt](prompts/linux-machine-collector.md) to build a collector that reads its endpoint and App credentials from `.env`, implements these streams and verifies delivery behavior.

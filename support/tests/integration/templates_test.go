@@ -17,7 +17,7 @@ func TestCreateLinuxMachineTemplate(t *testing.T) {
 	decode(t, f.request("POST", "/apps", `{"name":"Linux server","tab_id":"general","template_id":"linux-machine"}`, 201), &created)
 	var detail domain.AppDetail
 	decode(t, f.request("GET", "/apps/"+created.App.ID, "", 200), &detail)
-	if detail.Layout.Revision != 0 || len(detail.Layout.Widgets) != 45 || len(detail.Streams) != 0 || detail.App.Connectivity != "unknown" {
+	if detail.Layout.Revision != 0 || len(detail.Layout.Widgets) != 20 || len(detail.Streams) != 0 || detail.App.Connectivity != "unknown" {
 		t.Fatal("Linux template must start with saved widgets and no telemetry", detail)
 	}
 	if err := f.store.AuthenticateApp(created.App.ID, created.Secret); err != nil {
@@ -26,6 +26,24 @@ func TestCreateLinuxMachineTemplate(t *testing.T) {
 	streams := map[string]string{}
 	for i, widget := range detail.Layout.Widgets {
 		streams[widget.Stream] = widget.StreamType
+		if widget.Kind == "value" && (widget.H != 1 || widget.W != 2 || widget.X >= 4 || widget.Y < 3 || widget.Y > 4) {
+			t.Fatalf("Linux summary widget should be compact: %s", widget.ID)
+		}
+		if widget.ID == "machine-info" && (widget.W != 4 || widget.H != 3) {
+			t.Fatal("machine identity needs a narrow, tall card", widget)
+		}
+		if widget.Kind == "logs" && widget.Y >= 22 {
+			t.Fatalf("Linux logs should appear before resource charts: %s", widget.ID)
+		}
+		if widget.Stream == "service_failures" && (widget.X != 4 || widget.Y != 0 || widget.W != 8 || widget.H != 5) {
+			t.Fatal("service failures need the larger panel beside machine identity", widget)
+		}
+		if widget.Stream == "system_logs" && (widget.W != 12 || widget.Y != 5) {
+			t.Fatal("system errors must be a prominent full-width panel", widget)
+		}
+		if widget.Stream == "system_logs" && !reflect.DeepEqual(widget.Severity, []string{"warn", "error", "fatal"}) {
+			t.Fatal("system log view must focus on warnings and errors", widget.Severity)
+		}
 		for _, other := range detail.Layout.Widgets[:i] {
 			if widget.X < other.X+other.W && other.X < widget.X+widget.W && widget.Y < other.Y+other.H && other.Y < widget.Y+widget.H {
 				t.Fatalf("Linux widgets overlap: %s and %s", widget.ID, other.ID)
@@ -34,12 +52,18 @@ func TestCreateLinuxMachineTemplate(t *testing.T) {
 	}
 	for name, kind := range map[string]string{
 		"machine_info": "text", "cpu_usage_percent": "number", "memory_usage_percent": "number", "root_usage_percent": "number",
-		"disk_read_bytes_per_second": "number", "network_receive_bytes_per_second": "number", "process_count": "number",
-		"filesystems": "event", "network_interfaces": "event", "top_processes": "event", "services": "event", "hardware": "event",
+		"network_receive_bytes_per_second": "number",
+		"filesystems":                      "event", "network_interfaces": "event", "top_processes": "event", "services": "event", "hardware": "event",
 		"system_logs": "log", "machine_events": "event",
+		"journal_logs": "log", "kernel_logs": "log", "service_logs": "log", "service_failures": "event",
 	} {
 		if streams[name] != kind {
 			t.Fatalf("missing or incorrect Linux stream %s: %s", name, streams[name])
+		}
+	}
+	for _, name := range []string{"load_average_1m", "cpu_user_percent", "cpu_system_percent", "disk_read_operations_per_second", "swap_in_bytes_per_second", "memory_cached_bytes", "disk_read_bytes_per_second", "disk_write_bytes_per_second", "cpu_core_count", "failed_service_count"} {
+		if _, exists := streams[name]; exists {
+			t.Fatalf("detailed resource breakdown should not crowd the default template: %s", name)
 		}
 	}
 	definitions := []domain.Stream{}
