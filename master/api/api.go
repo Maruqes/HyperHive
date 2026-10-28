@@ -292,9 +292,11 @@ func StartApi(exitAfterStart bool) {
 		r.Get("/new-slave-count", getNewSlaveCount)
 
 		//NOTIFICATION heere HEHEHE
-		firebaseSender, _ := nots.NewFirebaseSender()
+		firebaseSender := liveFirebaseSender{}
 		r.Route("/notification", func(r chi.Router) {
-			r.Post("/firebase/test", newFirebaseTestHandler(firebaseSender))
+			r.Post("/firebase/test", newFirebaseTestHandler(firebaseSender, false))
+			r.Post("/firebase/check", newFirebaseTestHandler(firebaseSender, true))
+			r.Get("/firebase/status", firebaseConfigurationStatus)
 			r.Get("/public-key", get_public_key)
 			r.Post("/subscribe", subscribe_nots)
 			r.Get("/test", test_nots) // opcional, para testes

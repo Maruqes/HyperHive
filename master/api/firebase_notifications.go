@@ -19,7 +19,11 @@ type firebaseTestSender interface {
 	SendTest(context.Context, string, string) (string, error)
 }
 
-func newFirebaseTestHandler(sender firebaseTestSender) http.HandlerFunc {
+func newFirebaseTestHandler(sender firebaseTestSender, checking bool) http.HandlerFunc {
+	cooldown := 30 * time.Second
+	if checking {
+		cooldown = 5 * time.Second
+	}
 	var mu sync.Mutex
 	recent := make(map[string]time.Time)
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -53,27 +57,39 @@ func newFirebaseTestHandler(sender firebaseTestSender) http.HandlerFunc {
 		now := time.Now()
 		mu.Lock()
 		for user, last := range recent {
-			if now.Sub(last) >= 30*time.Second {
+			if now.Sub(last) >= cooldown {
 				delete(recent, user)
 			}
 		}
-		if last, exists := recent[key]; exists && now.Sub(last) < 30*time.Second {
+		if last, exists := recent[key]; exists && now.Sub(last) < cooldown {
 			mu.Unlock()
-			w.Header().Set("Retry-After", "30")
-			http.Error(w, "Wait 30 seconds before sending another test.", http.StatusTooManyRequests)
+			w.Header().Set("Retry-After", strconv.Itoa(int(cooldown.Seconds())))
+			http.Error(w, "Wait a few seconds before trying again.", http.StatusTooManyRequests)
 			return
 		}
 		recent[key] = now
 		mu.Unlock()
 		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 		defer cancel()
-		name, err := sender.SendTest(ctx, input.ProjectID, input.Token)
+		var name string
+		if checking {
+			checker, ok := sender.(interface {
+				Check(context.Context, string, string) error
+			})
+			if !ok {
+				err = nots.ErrFirebaseUnavailable
+			} else {
+				err = checker.Check(ctx, input.ProjectID, input.Token)
+			}
+		} else {
+			name, err = sender.SendTest(ctx, input.ProjectID, input.Token)
+		}
 		if err != nil {
 			status, message := http.StatusBadGateway, "Firebase test failed."
 			var providerError *nots.FirebaseError
 			switch {
 			case errors.Is(err, nots.ErrFirebaseUnavailable):
-				status, message = http.StatusServiceUnavailable, nots.ErrFirebaseUnavailable.Error()
+				status, message = http.StatusServiceUnavailable, err.Error()
 			case errors.Is(err, nots.ErrFirebaseProject):
 				status, message = http.StatusConflict, nots.ErrFirebaseProject.Error()
 			case errors.As(err, &providerError):
@@ -83,6 +99,38 @@ func newFirebaseTestHandler(sender firebaseTestSender) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
+		if checking {
+			_ = json.NewEncoder(w).Encode(map[string]string{"result": "working", "projectId": input.ProjectID})
+			return
+		}
 		_ = json.NewEncoder(w).Encode(map[string]string{"result": "accepted by Firebase", "messageId": name})
 	}
+}
+
+// Credentials are loaded per request so replacing a mounted credential file does not require a restart.
+type liveFirebaseSender struct{}
+
+func (liveFirebaseSender) SendTest(ctx context.Context, project, token string) (string, error) {
+	sender, err := nots.NewFirebaseSender()
+	if err != nil {
+		return "", err
+	}
+	return sender.SendTest(ctx, project, token)
+}
+func (liveFirebaseSender) Check(ctx context.Context, project, token string) error {
+	sender, err := nots.NewFirebaseSender()
+	if err != nil {
+		return err
+	}
+	return sender.Check(ctx, project, token)
+}
+func firebaseConfigurationStatus(w http.ResponseWriter, r *http.Request) {
+	sender, err := nots.NewFirebaseSender()
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	if err != nil {
+		_ = json.NewEncoder(w).Encode(map[string]any{"configured": false, "message": err.Error()})
+		return
+	}
+	_ = json.NewEncoder(w).Encode(map[string]any{"configured": true, "projectId": sender.ProjectID(), "message": "Service-account file loaded. Check connection to validate Firebase access."})
 }

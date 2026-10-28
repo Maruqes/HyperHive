@@ -1,3 +1,5 @@
+For the current credential setup, manual input fields, connection diagnostics and receipt checks, use [Firebase Android setup](firebase-android-setup.md). The guide below includes the original build history; later validation and workflow changes are documented in that setup guide.
+
 # Android Firebase test notifications
 
 This feature adds a manual, single-device Android push test. It does not publish infrastructure events or store device tokens in the database.
@@ -48,7 +50,7 @@ Provision a service-account JSON file on the backend host outside source control
 GOOGLE_APPLICATION_CREDENTIALS=/private/path/firebase-service-account.json
 ```
 
-Restart the backend after changing the credential file/environment. Missing or invalid configuration leaves other functionality usable and returns an unavailable response for this feature. There is no credential-upload endpoint. Client configuration alone cannot authorize the backend to send.
+Restart the backend after initially setting or changing the credential environment variable. Replacing the file at that configured path is reloaded on later requests. Missing or invalid configuration leaves other functionality usable and returns an unavailable response for this feature. There is no credential-upload endpoint. Client configuration alone cannot authorize the backend to send.
 
 `POST /notification/firebase/test` uses normal authentication. Its JSON body contains `token` (1–4096 characters) and `projectId`. It rejects unknown fields, oversized bodies and project mismatch; imposes a 30-second per-user cooldown; sends a fixed title/body/channel to one token; and returns `result` and `messageId`. Provider errors are sanitized, network requests are bounded, and no application retry is performed. Browser Web Push and notification history retain their existing behavior.
 

@@ -3,12 +3,15 @@ package nots
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"regexp"
+	"sync"
 	"time"
 
 	jwtgo "github.com/golang-jwt/jwt/v5"
@@ -17,7 +20,7 @@ import (
 	"golang.org/x/oauth2/jwt"
 )
 
-var ErrFirebaseUnavailable = errors.New("Firebase sender unavailable; configure GOOGLE_APPLICATION_CREDENTIALS with a valid service-account file and restart HyperHive")
+var ErrFirebaseUnavailable = errors.New("Firebase backend is not configured")
 var ErrFirebaseProject = errors.New("Firebase project does not match backend credentials")
 var firebaseProjectPattern = regexp.MustCompile(`^[a-z][a-z0-9-]{4,28}[a-z0-9]$`)
 
@@ -33,20 +36,39 @@ type FirebaseSender struct {
 	client  *http.Client
 }
 
-// NewFirebaseSender reads only server-side service-account credentials. Failure disables this feature.
+var firebaseCache struct {
+	sync.Mutex
+	digest [32]byte
+	sender *FirebaseSender
+}
+
+// Reload credentials on requests; reuse the OAuth token source while the file is unchanged.
 func NewFirebaseSender() (*FirebaseSender, error) {
 	path := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
 	if path == "" {
-		return nil, ErrFirebaseUnavailable
+		return nil, fmt.Errorf("%w: GOOGLE_APPLICATION_CREDENTIALS is not set in the running backend process; configure the backend service environment and restart it", ErrFirebaseUnavailable)
 	}
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, ErrFirebaseUnavailable
+		return nil, fmt.Errorf("%w: credential file is missing or unreadable by the backend service", ErrFirebaseUnavailable)
 	}
 	defer file.Close()
 	data, err := io.ReadAll(io.LimitReader(file, 65537))
 	if err != nil || len(data) > 65536 {
 		return nil, ErrFirebaseUnavailable
+	}
+	var kind map[string]json.RawMessage
+	if json.Unmarshal(data, &kind) != nil {
+		return nil, fmt.Errorf("%w: invalid credential JSON", ErrFirebaseUnavailable)
+	}
+	if kind["project_info"] != nil || kind["client"] != nil {
+		return nil, fmt.Errorf("%w: google-services.json is an Android client file; the backend needs a service-account JSON from Firebase Project settings > Service accounts", ErrFirebaseUnavailable)
+	}
+	digest := sha256.Sum256(data)
+	firebaseCache.Lock()
+	defer firebaseCache.Unlock()
+	if firebaseCache.sender != nil && firebaseCache.digest == digest {
+		return firebaseCache.sender, nil
 	}
 	var identity struct {
 		Type         string `json:"type"`
@@ -71,10 +93,23 @@ func NewFirebaseSender() (*FirebaseSender, error) {
 	client := cfg.Client(authContext)
 	client.Timeout = 15 * time.Second
 	client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
-	return &FirebaseSender{project: identity.Project, client: client}, nil
+	firebaseCache.sender = &FirebaseSender{project: identity.Project, client: client}
+	firebaseCache.digest = digest
+	return firebaseCache.sender, nil
 }
 
 func (s *FirebaseSender) SendTest(ctx context.Context, project, token string) (string, error) {
+	return s.send(ctx, project, token, false)
+}
+
+func (s *FirebaseSender) Check(ctx context.Context, project, token string) error {
+	_, err := s.send(ctx, project, token, true)
+	return err
+}
+
+func (s *FirebaseSender) ProjectID() string { return s.project }
+
+func (s *FirebaseSender) send(ctx context.Context, project, token string, validateOnly bool) (string, error) {
 	if s == nil {
 		return "", ErrFirebaseUnavailable
 	}
@@ -84,8 +119,11 @@ func (s *FirebaseSender) SendTest(ctx context.Context, project, token string) (s
 	payload := map[string]any{"message": map[string]any{
 		"token":        token,
 		"notification": map[string]string{"title": "HyperHive test notification", "body": "Your Android notification test was accepted by Firebase."},
-		"android":      map[string]any{"notification": map[string]string{"channel_id": "hyperhive_test", "icon": "hyperhive_notification"}},
+		"android":      map[string]any{"priority": "high", "notification": map[string]string{"channel_id": "hyperhive_test_v2", "icon": "hyperhive_notification"}},
 	}}
+	if validateOnly {
+		payload["validate_only"] = true
+	}
 	body, _ := json.Marshal(payload)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://fcm.googleapis.com/v1/projects/"+s.project+"/messages:send", bytes.NewReader(body))
 	if err != nil {
@@ -107,7 +145,32 @@ func (s *FirebaseSender) SendTest(ctx context.Context, project, token string) (s
 		case 429:
 			status, message = http.StatusTooManyRequests, "Firebase rate limit reached. Wait before trying again."
 		}
+		var failure struct {
+			Error struct {
+				Status  string `json:"status"`
+				Details []struct {
+					ErrorCode string `json:"errorCode"`
+					Reason    string `json:"reason"`
+				} `json:"details"`
+			} `json:"error"`
+		}
+		if json.NewDecoder(io.LimitReader(resp.Body, 16384)).Decode(&failure) == nil {
+			for _, detail := range failure.Error.Details {
+				switch detail.ErrorCode {
+				case "UNREGISTERED":
+					message = "Device token expired or was unregistered. Disable and enable notifications, then check again."
+				case "SENDER_ID_MISMATCH":
+					message = "Device token belongs to a different Firebase sender. Match the Android client and backend service-account projects."
+				}
+				if detail.Reason == "SERVICE_DISABLED" {
+					message = "Enable the Firebase Cloud Messaging API (fcm.googleapis.com) in the backend credential project."
+				}
+			}
+		}
 		return "", &FirebaseError{status, message}
+	}
+	if validateOnly {
+		return "", nil
 	}
 	var result struct {
 		Name string `json:"name"`

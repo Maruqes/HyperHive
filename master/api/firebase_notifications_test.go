@@ -12,8 +12,9 @@ import (
 )
 
 type fakeFirebaseSender struct {
-	calls int
-	err   error
+	calls  int
+	checks int
+	err    error
 }
 
 func (s *fakeFirebaseSender) SendTest(_ context.Context, project, token string) (string, error) {
@@ -32,7 +33,7 @@ func firebaseRequest(body string, authenticated bool) *http.Request {
 }
 func TestFirebaseHandlerValidationAndCooldown(t *testing.T) {
 	sender := &fakeFirebaseSender{}
-	handler := newFirebaseTestHandler(sender)
+	handler := newFirebaseTestHandler(sender, false)
 	body := `{"projectId":"example-project","token":"device-one"}`
 	for _, tc := range []struct {
 		body   string
@@ -64,11 +65,33 @@ func TestFirebaseHandlerErrors(t *testing.T) {
 		err    error
 		status int
 	}{{nots.ErrFirebaseProject, 409}, {nots.ErrFirebaseUnavailable, 503}, {&nots.FirebaseError{Status: 429, Message: "Wait"}, 429}} {
-		handler := newFirebaseTestHandler(&fakeFirebaseSender{err: tc.err})
+		handler := newFirebaseTestHandler(&fakeFirebaseSender{err: tc.err}, false)
 		w := httptest.NewRecorder()
 		handler(w, firebaseRequest(`{"projectId":"example-project","token":"device-one"}`, true))
 		if w.Code != tc.status {
 			t.Fatal(w.Code, w.Body.String())
 		}
+	}
+}
+
+func (s *fakeFirebaseSender) Check(_ context.Context, project, token string) error {
+	s.checks++
+	return s.err
+}
+func TestFirebaseCheckValidatesWithoutSending(t *testing.T) {
+	sender := &fakeFirebaseSender{}
+	handler := newFirebaseTestHandler(sender, true)
+	w := httptest.NewRecorder()
+	handler(w, firebaseRequest(`{"projectId":"example-project","token":"device-one"}`, true))
+	if w.Code != 200 || sender.calls != 0 || sender.checks != 1 || !strings.Contains(w.Body.String(), `"result":"working"`) {
+		t.Fatal(w.Code, w.Body.String(), sender)
+	}
+}
+func TestFirebaseStatusExplainsMissingCredentialEnvironment(t *testing.T) {
+	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+	w := httptest.NewRecorder()
+	firebaseConfigurationStatus(w, firebaseRequest("", true))
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"configured":false`) || !strings.Contains(w.Body.String(), "GOOGLE_APPLICATION_CREDENTIALS") {
+		t.Fatal(w.Code, w.Body.String())
 	}
 }
