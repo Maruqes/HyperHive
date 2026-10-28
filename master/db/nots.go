@@ -95,6 +95,11 @@ CREATE TABLE IF NOT EXISTS nots (
 	return err
 }
 
+func DbClearNots(ctx context.Context) error {
+	_, err := DB.ExecContext(ctx, `DELETE FROM nots`)
+	return err
+}
+
 // DbSaveNot inserts a notification and then deletes notifications older than 3 months.
 func DbSaveNot(ctx context.Context, n Not) error {
 	tx, err := DB.BeginTx(ctx, nil)

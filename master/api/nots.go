@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"512SvMan/db"
 	"512SvMan/nots"
 )
 
@@ -40,8 +41,17 @@ func listNots(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(nots)
 }
 
+func clearNots(w http.ResponseWriter, r *http.Request) {
+	if err := db.DbClearNots(r.Context()); err != nil {
+		http.Error(w, "failed to clear notifications", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func setupNotsAPI(r chi.Router) chi.Router {
 	return r.Route("/nots", func(r chi.Router) {
 		r.Get("/", listNots)
+		r.Delete("/", clearNots)
 	})
 }

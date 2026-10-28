@@ -282,3 +282,29 @@ func UpstreamTemplateFingerprints() map[string]string {
 	}
 	return result
 }
+
+// Only HyperHive-owned generations are migrated; inactive generations may be restored during recovery.
+const migrateLegacyStatusListenersJS = `
+const fs = require('node:fs'), path = require('node:path');
+const root = JSON.parse(fs.readFileSync(0, 'utf8')).root;
+let entries;
+try { entries = fs.readdirSync(root, {withFileTypes:true}); }
+catch (e) { if (e.code === 'ENOENT') process.exit(0); throw e; }
+for (const entry of entries) {
+  if (!entry.isDirectory() || !/^[0-9]+$/.test(entry.name)) continue;
+  const file = path.join(root, entry.name, 'http.conf');
+  const original = fs.readFileSync(file, 'utf8');
+  const updated = original.replaceAll('listen unix:/tmp/hyperhive-upstream-status.sock;', 'listen 127.0.0.1:18959;');
+  if (updated === original) continue;
+  const backup = file + '.before-status-tcp';
+  if (!fs.existsSync(backup)) fs.copyFileSync(file, backup, fs.constants.COPYFILE_EXCL);
+  const tmp = file + '.hh-tmp';
+  fs.writeFileSync(tmp, updated, {mode:0o644});
+  fs.renameSync(tmp, file);
+}
+`
+
+func (d DockerUpstreamRuntime) migrateLegacyStatusListeners(ctx context.Context) error {
+	_, err := d.node(ctx, migrateLegacyStatusListenersJS, map[string]string{"root": upstreamConfigRoot + "/generations"})
+	return err
+}

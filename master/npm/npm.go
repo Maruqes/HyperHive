@@ -162,7 +162,8 @@ services:
 		return err
 	}
 
-	return nil
+	// Migrate persisted listeners before readiness waits: nginx cannot start with a stale Unix socket.
+	return (DockerUpstreamRuntime{Container: "npm"}).migrateLegacyStatusListeners(context.Background())
 }
 
 func ensureStreamLogging(work string) error {
