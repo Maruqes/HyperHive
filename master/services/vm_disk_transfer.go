@@ -282,7 +282,6 @@ func (s *VMDiskService) Move(ctx context.Context, id, nfsID int) (*db.DiskOperat
 		return nil, err
 	}
 	defer lock.Unlock()
-	transferStarted := false
 	err = func() error {
 		// Reload after reservation to close attachment/mutation races.
 		current, err := db.GetVMDiskByID(ctx, id)
@@ -315,7 +314,6 @@ func (s *VMDiskService) Move(ctx context.Context, id, nfsID int) (*db.DiskOperat
 		if err = db.SaveDiskOperation(ctx, op, op.Phase); err != nil {
 			return err
 		}
-		transferStarted = true
 		upload, err := destination.UploadVMDisk(transferCtx)
 		if err != nil {
 			return err
@@ -604,13 +602,6 @@ func (s *VMDiskService) Reconcile(ctx context.Context, id, action string) (*db.D
 		return s.finishMove(ctx, op, result)
 	}()
 	if err != nil {
-		if !transferStarted {
-			if abortErr := db.AbortDiskOperation(context.Background(), op); abortErr == nil {
-				return op, err
-			} else {
-				return op, fmt.Errorf("%v; failed to release reservation: %w", err, abortErr)
-			}
-		}
 		return op, diskFailure(op, err)
 	}
 	return op, nil
