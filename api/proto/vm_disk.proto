@@ -32,9 +32,36 @@ message VMDiskResponse {
   int64 occupiedBytes = 7;
 }
 
+message VMDiskChunk {
+  bytes data = 1;
+}
+
 service VMDiskService {
+  rpc UploadVMDisk(stream DiskUploadChunk) returns (DiskTransferResponse);
+  rpc TransferVMDisk(DiskTransferRequest) returns (DiskTransferResponse);
+  rpc DownloadVMDisk(VMDiskByNameRequest) returns (stream VMDiskChunk);
   rpc CreateVMDisk(CreateVMDiskRequest) returns (VMDiskResponse);
   rpc DeleteVMDisk(VMDiskByNameRequest) returns (VMDiskResponse);
   rpc GrowVMDisk(GrowVMDiskRequest) returns (VMDiskResponse);
   rpc GetVMDiskInfo(VMDiskByNameRequest) returns (VMDiskResponse);
+}
+
+message DiskTransferRequest {
+  string operationID = 1;
+  string basePath = 2;
+  string name = 3;
+  int64 length = 4;
+  string sha256 = 5;
+  string action = 6;
+}
+message DiskUploadChunk {
+  DiskTransferRequest transfer = 1;
+  bytes data = 2;
+}
+message DiskTransferResponse {
+  VMDiskResponse disk = 1;
+  int64 length = 2;
+  string sha256 = 3;
+  string phase = 4;
+  uint64 freeBytes = 5;
 }

@@ -59,7 +59,22 @@ func (s *VMDiskService) List(ctx context.Context) ([]VMDiskResult, error) {
 	return results, nil
 }
 
-func (s *VMDiskService) Create(ctx context.Context, name string, nfsID int, sizeGB int64, format string) (*VMDiskResult, error) {
+func (s *VMDiskService) Create(ctx context.Context, name string, nfsID int, sizeGB int64, format string) (created *VMDiskResult, err error) {
+	operation := &db.DiskOperation{Kind: "create", Name: name}
+	if err = db.BeginDiskOperation(ctx, operation); err != nil {
+		return nil, err
+	}
+	rpcStarted := false
+	defer func() {
+		if err != nil && !rpcStarted {
+			if finishErr := finishDiskMutation(operation, nil); finishErr != nil {
+				err = fmt.Errorf("%v; %w", err, finishErr)
+			}
+		} else {
+			err = finishDiskMutation(operation, err)
+		}
+	}()
+
 	if exists, err := db.DoesVMDiskNameExist(ctx, name); err != nil {
 		return nil, fmt.Errorf("failed to check VM disk name: %w", err)
 	} else if exists {
@@ -71,6 +86,7 @@ func (s *VMDiskService) Create(ctx context.Context, name string, nfsID int, size
 		return nil, err
 	}
 
+	rpcStarted = true
 	res, err := vmdisk.CreateVMDisk(conn.Connection, &vmDiskGrpc.CreateVMDiskRequest{
 		BasePath: target,
 		Name:     name,
@@ -98,7 +114,22 @@ func (s *VMDiskService) Create(ctx context.Context, name string, nfsID int, size
 	return result, nil
 }
 
-func (s *VMDiskService) Delete(ctx context.Context, id int) (*VMDiskResult, error) {
+func (s *VMDiskService) Delete(ctx context.Context, id int) (result *VMDiskResult, err error) {
+	operation, err := db.BeginDiskMutation(ctx, id, "delete")
+	if err != nil {
+		return nil, err
+	}
+	rpcStarted := false
+	defer func() {
+		if err != nil && !rpcStarted {
+			if finishErr := finishDiskMutation(operation, nil); finishErr != nil {
+				err = fmt.Errorf("%v; %w", err, finishErr)
+			}
+		} else {
+			err = finishDiskMutation(operation, err)
+		}
+	}()
+
 	disk, err := db.GetVMDiskByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get VM disk by ID: %w", err)
@@ -120,6 +151,7 @@ func (s *VMDiskService) Delete(ctx context.Context, id int) (*VMDiskResult, erro
 				return nil, fmt.Errorf("attached VM machine %s is not connected", machine)
 			}
 		}
+		rpcStarted = true
 		if err := detachAttachedVMDisk(attachedConn.Connection, disk); err != nil {
 			return nil, fmt.Errorf("failed to detach VM disk from %s before delete: %w", disk.AttachedVMName, err)
 		}
@@ -128,6 +160,7 @@ func (s *VMDiskService) Delete(ctx context.Context, id int) (*VMDiskResult, erro
 		}
 	}
 
+	rpcStarted = true
 	res, err := vmdisk.DeleteVMDisk(conn.Connection, &vmDiskGrpc.VMDiskByNameRequest{
 		BasePath: target,
 		Name:     disk.Name,
@@ -147,7 +180,22 @@ func (s *VMDiskService) Delete(ctx context.Context, id int) (*VMDiskResult, erro
 	return convertDBAndRPCVMDisk(disk, res), nil
 }
 
-func (s *VMDiskService) Grow(ctx context.Context, id int, sizeGB int64) (*VMDiskResult, error) {
+func (s *VMDiskService) Grow(ctx context.Context, id int, sizeGB int64) (result *VMDiskResult, err error) {
+	operation, err := db.BeginDiskMutation(ctx, id, "grow")
+	if err != nil {
+		return nil, err
+	}
+	rpcStarted := false
+	defer func() {
+		if err != nil && !rpcStarted {
+			if finishErr := finishDiskMutation(operation, nil); finishErr != nil {
+				err = fmt.Errorf("%v; %w", err, finishErr)
+			}
+		} else {
+			err = finishDiskMutation(operation, err)
+		}
+	}()
+
 	disk, err := db.GetVMDiskByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get VM disk by ID: %w", err)
@@ -161,6 +209,7 @@ func (s *VMDiskService) Grow(ctx context.Context, id int, sizeGB int64) (*VMDisk
 		return nil, err
 	}
 
+	rpcStarted = true
 	res, err := vmdisk.GrowVMDisk(conn.Connection, &vmDiskGrpc.GrowVMDiskRequest{
 		BasePath: target,
 		Name:     disk.Name,
@@ -272,4 +321,31 @@ func detachAttachedVMDisk(conn *grpc.ClientConn, disk *db.VMDisk) error {
 	}
 	_, err := virsh.DetachExternalDisk(conn, disk.AttachedVMName, disk.DiskPath, disk.Format)
 	return err
+}
+
+// Download resolves the registered disk on its share host. The caller must keep
+// any attached VM stopped until the stream completes.
+func (s *VMDiskService) Download(ctx context.Context, id int) (*db.VMDisk, grpc.ServerStreamingClient[vmDiskGrpc.VMDiskChunk], error) {
+	disk, err := db.GetVMDiskByID(ctx, id)
+	if err != nil {
+		return nil, nil, err
+	}
+	if disk == nil {
+		return nil, nil, fmt.Errorf("VM disk %d not found", id)
+	}
+	if _, err := stoppedDiskVM(ctx, disk); err != nil {
+		return nil, nil, err
+	}
+	conn, target, err := s.readyNFSConnection(ctx, disk.NFSID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := checkManagedDiskPath(disk, target); err != nil {
+		return nil, nil, err
+	}
+	stream, err := vmDiskGrpc.NewVMDiskServiceClient(conn.Connection).DownloadVMDisk(ctx, &vmDiskGrpc.VMDiskByNameRequest{BasePath: target, Name: disk.Name})
+	if err != nil {
+		return nil, nil, err
+	}
+	return disk, stream, nil
 }

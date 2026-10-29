@@ -35,7 +35,10 @@ func CreateVMDiskTable(ctx context.Context) error {
 	);
 	`
 	_, err := DB.ExecContext(ctx, query)
-	return err
+	if err != nil {
+		return err
+	}
+	return CreateDiskOperationsTable(ctx)
 }
 
 func AddVMDisk(ctx context.Context, name string, nfsID int, diskPath, folderPath, format string, sizeGB int64) (int, error) {

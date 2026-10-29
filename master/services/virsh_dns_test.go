@@ -90,6 +90,11 @@ func TestVMDeletionDNSCleanup(t *testing.T) {
 		{name: "DNS cleanup failure is reported", failDNS: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			// Each case represents an independent VM lifecycle; uncertain deletion
+			// records intentionally survive until reviewed by an operator.
+			if _, err := db.DB.ExecContext(ctx, "DELETE FROM vm_disk_operations"); err != nil {
+				t.Fatal(err)
+			}
 			fixture.failRemoval.Store(tc.failVM)
 			fixture.removed.Store(false)
 			calls := 0

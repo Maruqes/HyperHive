@@ -511,7 +511,22 @@ func (v *VirshService) GetVmXML(machine_name string, vmName string) (string, err
 	return vmXml, nil
 }
 
-func (v *VirshService) DeleteVM(ctx context.Context, name string) error {
+func (v *VirshService) DeleteVM(ctx context.Context, name string) (deleteErr error) {
+	operation := &db.DiskOperation{Kind: "delete-vm", Name: "vm:" + name, VMName: name}
+	if err := db.BeginDiskOperation(ctx, operation); err != nil {
+		return err
+	}
+	rpcStarted := false
+	defer func() {
+		if deleteErr != nil && !rpcStarted {
+			if finishErr := finishDiskMutation(operation, nil); finishErr != nil {
+				deleteErr = fmt.Errorf("%v; %w", deleteErr, finishErr)
+			}
+		} else {
+			deleteErr = finishDiskMutation(operation, deleteErr)
+		}
+	}()
+
 	//find vm by name
 	exists, err := virsh.DoesVMExist(name)
 	if err != nil {
@@ -526,6 +541,7 @@ func (v *VirshService) DeleteVM(ctx context.Context, name string) error {
 		vm, err := virsh.GetVmByName(conn, &grpcVirsh.GetVmByNameRequest{Name: name})
 		if err == nil && vm != nil {
 			//found the vm
+			rpcStarted = true
 			err = virsh.RemoveVM(conn, vm)
 			if err != nil {
 				return fmt.Errorf("failed to delete VM %s: %v", name, err)
@@ -924,7 +940,22 @@ func (v *VirshService) RemoveIso(vmName string) error {
 	return fmt.Errorf("failed to find VM %s on any machine", vmName)
 }
 
-func (v *VirshService) AddVMDisk(ctx context.Context, vmName string, vmDiskID int) (*db.VMDisk, error) {
+func (v *VirshService) AddVMDisk(ctx context.Context, vmName string, vmDiskID int) (result *db.VMDisk, err error) {
+	operation, err := db.BeginDiskMutation(ctx, vmDiskID, "attach", vmName)
+	if err != nil {
+		return nil, err
+	}
+	rpcStarted := false
+	defer func() {
+		if err != nil && !rpcStarted {
+			if finishErr := finishDiskMutation(operation, nil); finishErr != nil {
+				err = fmt.Errorf("%v; %w", err, finishErr)
+			}
+		} else {
+			err = finishDiskMutation(operation, err)
+		}
+	}()
+
 	vmName = strings.TrimSpace(vmName)
 	if vmName == "" {
 		return nil, fmt.Errorf("vm name is required")
@@ -964,8 +995,8 @@ func (v *VirshService) AddVMDisk(ctx context.Context, vmName string, vmDiskID in
 		return nil, fmt.Errorf("VM disk %d is already attached", disk.Id)
 	}
 
+	rpcStarted = true
 	if _, err := virsh.AttachExternalDisk(conn.Connection, vmName, disk.DiskPath, disk.Format); err != nil {
-		_ = db.ClearVMDiskAttachment(ctx, disk.Id)
 		return nil, fmt.Errorf("failed to attach VM disk %d to VM %s: %w", disk.Id, vmName, err)
 	}
 
@@ -984,7 +1015,22 @@ func (v *VirshService) ListVMDisk(ctx context.Context, vmName string) ([]db.VMDi
 	return db.GetVMDiskByAttachedVM(ctx, vmName)
 }
 
-func (v *VirshService) RemoveVMDisk(ctx context.Context, vmName string, vmDiskID int) (*db.VMDisk, error) {
+func (v *VirshService) RemoveVMDisk(ctx context.Context, vmName string, vmDiskID int) (result *db.VMDisk, err error) {
+	operation, err := db.BeginDiskMutation(ctx, vmDiskID, "detach", vmName)
+	if err != nil {
+		return nil, err
+	}
+	rpcStarted := false
+	defer func() {
+		if err != nil && !rpcStarted {
+			if finishErr := finishDiskMutation(operation, nil); finishErr != nil {
+				err = fmt.Errorf("%v; %w", err, finishErr)
+			}
+		} else {
+			err = finishDiskMutation(operation, err)
+		}
+	}()
+
 	vmName = strings.TrimSpace(vmName)
 	if vmName == "" {
 		return nil, fmt.Errorf("vm name is required")
@@ -1016,6 +1062,7 @@ func (v *VirshService) RemoveVMDisk(ctx context.Context, vmName string, vmDiskID
 		return nil, fmt.Errorf("machine %s not connected", vm.MachineName)
 	}
 
+	rpcStarted = true
 	if _, err := virsh.DetachExternalDisk(conn.Connection, vmName, disk.DiskPath, disk.Format); err != nil {
 		return nil, fmt.Errorf("failed to detach VM disk %d from VM %s: %w", disk.Id, vmName, err)
 	}

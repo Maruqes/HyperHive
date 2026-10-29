@@ -2,6 +2,11 @@ package vmdisk
 
 import (
 	"context"
+	"fmt"
+	"google.golang.org/grpc/metadata"
+	"io"
+	"os"
+	"strconv"
 
 	pb "github.com/Maruqes/512SvMan/api/proto/vm_disk"
 )
@@ -51,5 +56,57 @@ func vmDiskResponse(disk *VMDisk) *pb.VMDiskResponse {
 		SizeGB:        disk.SizeGB,
 		OccupiedGB:    disk.OccupiedGB,
 		OccupiedBytes: disk.OccupiedBytes,
+	}
+}
+
+func (s *Service) DownloadVMDisk(req *pb.VMDiskByNameRequest, stream pb.VMDiskService_DownloadVMDiskServer) error {
+	disk, err := findVMDiskContext(stream.Context(), req.BasePath, req.Name)
+	if err != nil {
+		return err
+	}
+	info, err := os.Lstat(disk.DiskPath)
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("disk is not a regular file")
+	}
+	file, err := regularFile(disk.DiskPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	info, err = file.Stat()
+	if err != nil {
+		return err
+	}
+	if err := stream.SendHeader(metadata.Pairs("disk-length", strconv.FormatInt(info.Size(), 10))); err != nil {
+		return err
+	}
+	remaining := info.Size()
+	buf := make([]byte, 256*1024)
+	for {
+		if err := stream.Context().Err(); err != nil {
+			return err
+		}
+		n, err := file.Read(buf)
+		if int64(n) > remaining {
+			return fmt.Errorf("disk grew during download")
+		}
+		remaining -= int64(n)
+		if n > 0 {
+			if sendErr := stream.Send(&pb.VMDiskChunk{Data: buf[:n]}); sendErr != nil {
+				return sendErr
+			}
+		}
+		if err == io.EOF {
+			if remaining != 0 {
+				return io.ErrUnexpectedEOF
+			}
+			return nil
+		}
+		if err != nil {
+			return err
+		}
 	}
 }

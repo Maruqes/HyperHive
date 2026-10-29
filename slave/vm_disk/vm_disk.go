@@ -1,6 +1,7 @@
 package vmdisk
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -114,6 +115,9 @@ func DeleteVMDisk(basePath, name string) (*VMDisk, error) {
 	if err := os.Remove(disk.DiskPath); err != nil {
 		return nil, fmt.Errorf("remove vm disk %s: %w", disk.DiskPath, err)
 	}
+	if err := removeManagedReceipt(disk.FolderPath, name); err != nil {
+		return nil, err
+	}
 	if err := os.Remove(disk.FolderPath); err != nil {
 		return nil, fmt.Errorf("remove vm disk folder %s: %w", disk.FolderPath, err)
 	}
@@ -172,6 +176,10 @@ func GrowVMDisk(basePath, name string, sizeGB int64) (*VMDisk, error) {
 }
 
 func findVMDisk(basePath, name string) (*VMDisk, error) {
+	return findVMDiskContext(context.Background(), basePath, name)
+}
+
+func findVMDiskContext(ctx context.Context, basePath, name string) (*VMDisk, error) {
 	if err := validateVMDiskName(strings.TrimSpace(name)); err != nil {
 		return nil, err
 	}
@@ -188,7 +196,7 @@ func findVMDisk(basePath, name string) (*VMDisk, error) {
 	if err := ensurePathInsideBase(cleanBase, folderPath); err != nil {
 		return nil, err
 	}
-	info, err := os.Stat(folderPath)
+	info, err := os.Lstat(folderPath)
 	if err != nil {
 		return nil, fmt.Errorf("stat vm disk folder %s: %w", folderPath, err)
 	}
@@ -206,11 +214,11 @@ func findVMDisk(basePath, name string) (*VMDisk, error) {
 		if err := ensurePathInsideBase(cleanBase, candidate); err != nil {
 			return nil, err
 		}
-		info, err := os.Stat(candidate)
+		info, err := os.Lstat(candidate)
 		switch {
-		case err == nil && !info.IsDir():
+		case err == nil && info.Mode().IsRegular():
 			matches = append(matches, candidate)
-		case err == nil && info.IsDir():
+		case err == nil:
 			return nil, fmt.Errorf("vm disk path is a directory: %s", candidate)
 		case errors.Is(err, os.ErrNotExist):
 		default:
@@ -224,9 +232,12 @@ func findVMDisk(basePath, name string) (*VMDisk, error) {
 		return nil, fmt.Errorf("multiple vm disk files found in %s", folderPath)
 	}
 
-	qemuInfo, err := readQemuImgInfo(matches[0])
+	qemuInfo, err := transferImageInfo(ctx, matches[0])
 	if err != nil {
 		return nil, err
+	}
+	if filepath.Ext(matches[0]) != "."+qemuInfo.Format {
+		return nil, fmt.Errorf("managed disk extension differs from actual format")
 	}
 	return diskFromQemuInfo(matches[0], folderPath, qemuInfo), nil
 }
@@ -361,5 +372,5 @@ func ceilDiv(n, d int64) int64 {
 	if n <= 0 {
 		return 0
 	}
-	return (n + d - 1) / d
+	return n/d + min(1, n%d)
 }

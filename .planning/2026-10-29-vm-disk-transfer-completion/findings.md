@@ -1,0 +1,13 @@
+# Findings
+- Existing managed disk helpers own name validation, share readiness, qemu info and create/delete/grow.
+- Download lacks length framing and interrupted-stream abort.
+- No durable transfer records exist yet.
+- SilverBullet project/storage indexes consulted; original storage evidence predates managed disks. Further knowledge retrieval will target virtualization pages only if required.
+- Existing service MoveDisk discovered; inspect before implementing managed moves.
+- Existing MoveDisk recreates/renames a whole VM and copyFile requires master-local paths; neither can safely serve managed NFS cross-agent moves.
+- Reuse GetVMSnapshot (secure inactive XML) and UpdateVMXml (agent enforces shutoff) for precise disk-source edits.
+- Agent transfer RPCs now stage under operation UUID and publish a whole folder with renameat2 NOREPLACE; operation receipts and checksums support recovery.
+- New regression: imported receipt files must be removed by the existing managed DeleteVMDisk helper; fixed and tested growth/deletion after import.
+- Master recovery fixture (local fake agents, isolated subprocess) passes detached/attached moves, publication acknowledgement loss, definition acknowledgement loss, DB commit failure, source cleanup failure, running VM and overlapping-operation cases.
+- NFS may lack renameat2 NOREPLACE. Added exclusive mkdir + hard-link publication fallback; receipts make interrupted publication recoverable without replacing paths.
+- Knowledge retrieval extension: the existing storage index has no managed-disk topic. Next bounded scope is the virtualization index to select the canonical home for transfer contracts and recovery; no operational-history retrieval is needed.
