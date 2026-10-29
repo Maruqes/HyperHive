@@ -99,28 +99,52 @@ func NewFirebaseSender() (*FirebaseSender, error) {
 }
 
 func (s *FirebaseSender) SendTest(ctx context.Context, project, token string) (string, error) {
-	return s.send(ctx, project, token, false)
+	return s.SendTypedTest(ctx, project, token, "")
+}
+
+func (s *FirebaseSender) SendTypedTest(ctx context.Context, project, token, severity string) (string, error) {
+	return s.send(ctx, project, token, false, severity)
 }
 
 func (s *FirebaseSender) Check(ctx context.Context, project, token string) error {
-	_, err := s.send(ctx, project, token, true)
+	_, err := s.send(ctx, project, token, true, "")
 	return err
 }
 
 func (s *FirebaseSender) ProjectID() string { return s.project }
 
-func (s *FirebaseSender) send(ctx context.Context, project, token string, validateOnly bool) (string, error) {
+func (s *FirebaseSender) send(ctx context.Context, project, token string, validateOnly bool, severity string) (string, error) {
 	if s == nil {
 		return "", ErrFirebaseUnavailable
 	}
 	if project != s.project {
 		return "", ErrFirebaseProject
 	}
+	if severity != "" && severity != "info" && severity != "warn" && severity != "error" && severity != "critical" {
+		return "", errors.New("invalid Firebase test severity")
+	}
+	channel := "hyperhive_test_v2"
+	title, bodyText, priority := "HyperHive test notification", "Your Android notification test was accepted by Firebase.", "high"
+	if severity != "" {
+		label := severity
+		if label == "warn" {
+			label = "warning"
+		}
+		channel = "hyperhive_test_" + severity
+		title = "HyperHive test: " + label
+		bodyText = "This is a test " + label + " notification."
+		if severity == "info" || severity == "warn" {
+			priority = "normal"
+		}
+	}
 	payload := map[string]any{"message": map[string]any{
 		"token":        token,
-		"notification": map[string]string{"title": "HyperHive test notification", "body": "Your Android notification test was accepted by Firebase."},
-		"android":      map[string]any{"priority": "high", "notification": map[string]string{"channel_id": "hyperhive_test_v2", "icon": "hyperhive_notification"}},
+		"notification": map[string]string{"title": title, "body": bodyText},
+		"android":      map[string]any{"priority": priority, "notification": map[string]string{"channel_id": channel, "icon": "hyperhive_notification"}},
 	}}
+	if severity != "" {
+		payload["message"].(map[string]any)["data"] = map[string]string{"severity": severity, "channelId": channel}
+	}
 	if validateOnly {
 		payload["validate_only"] = true
 	}

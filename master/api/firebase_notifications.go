@@ -19,6 +19,10 @@ type firebaseTestSender interface {
 	SendTest(context.Context, string, string) (string, error)
 }
 
+type firebaseTypedTestSender interface {
+	SendTypedTest(context.Context, string, string, string) (string, error)
+}
+
 func newFirebaseTestHandler(sender firebaseTestSender, checking bool) http.HandlerFunc {
 	cooldown := 30 * time.Second
 	if checking {
@@ -44,13 +48,19 @@ func newFirebaseTestHandler(sender firebaseTestSender, checking bool) http.Handl
 			return
 		}
 		var input struct {
-			Token     string `json:"token"`
-			ProjectID string `json:"projectId"`
+			Token     string          `json:"token"`
+			ProjectID string          `json:"projectId"`
+			Severity  json.RawMessage `json:"severity"`
 		}
 		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8192))
 		decoder.DisallowUnknownFields()
 		if decoder.Decode(&input) != nil || decoder.Decode(new(any)) != io.EOF || len(input.Token) < 1 || len(input.Token) > 4096 || strings.ContainsAny(input.Token, " \t\r\n") || len(input.ProjectID) < 6 || len(input.ProjectID) > 30 {
 			http.Error(w, "invalid Firebase device token or project ID", http.StatusBadRequest)
+			return
+		}
+		severity := ""
+		if len(input.Severity) > 0 && (json.Unmarshal(input.Severity, &severity) != nil || (severity != "info" && severity != "warn" && severity != "error" && severity != "critical")) || (checking && len(input.Severity) > 0) {
+			http.Error(w, "invalid Firebase notification severity", http.StatusBadRequest)
 			return
 		}
 		key := strconv.FormatInt(claims.Attrs.ID, 10)
@@ -62,8 +72,12 @@ func newFirebaseTestHandler(sender firebaseTestSender, checking bool) http.Handl
 			}
 		}
 		if last, exists := recent[key]; exists && now.Sub(last) < cooldown {
+			retryAfter := int(cooldown.Seconds() - now.Sub(last).Seconds())
+			if retryAfter < 1 {
+				retryAfter = 1
+			}
 			mu.Unlock()
-			w.Header().Set("Retry-After", strconv.Itoa(int(cooldown.Seconds())))
+			w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
 			http.Error(w, "Wait a few seconds before trying again.", http.StatusTooManyRequests)
 			return
 		}
@@ -82,7 +96,16 @@ func newFirebaseTestHandler(sender firebaseTestSender, checking bool) http.Handl
 				err = checker.Check(ctx, input.ProjectID, input.Token)
 			}
 		} else {
-			name, err = sender.SendTest(ctx, input.ProjectID, input.Token)
+			if severity != "" {
+				typed, ok := sender.(firebaseTypedTestSender)
+				if !ok {
+					err = nots.ErrFirebaseUnavailable
+				} else {
+					name, err = typed.SendTypedTest(ctx, input.ProjectID, input.Token, severity)
+				}
+			} else {
+				name, err = sender.SendTest(ctx, input.ProjectID, input.Token)
+			}
 		}
 		if err != nil {
 			status, message := http.StatusBadGateway, "Firebase test failed."
@@ -116,6 +139,13 @@ func (liveFirebaseSender) SendTest(ctx context.Context, project, token string) (
 		return "", err
 	}
 	return sender.SendTest(ctx, project, token)
+}
+func (liveFirebaseSender) SendTypedTest(ctx context.Context, project, token, severity string) (string, error) {
+	sender, err := nots.NewFirebaseSender()
+	if err != nil {
+		return "", err
+	}
+	return sender.SendTypedTest(ctx, project, token, severity)
 }
 func (liveFirebaseSender) Check(ctx context.Context, project, token string) error {
 	sender, err := nots.NewFirebaseSender()

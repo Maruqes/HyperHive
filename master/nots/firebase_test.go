@@ -51,6 +51,43 @@ func TestFirebaseTargetsOneTokenAndRejectsMismatch(t *testing.T) {
 	}
 }
 
+func TestFirebaseSeverityPayloadDefaultsAndMappings(t *testing.T) {
+	for _, tc := range []struct{ severity, priority string }{{"info", "normal"}, {"warn", "normal"}, {"error", "high"}, {"critical", "high"}} {
+		t.Run(tc.severity, func(t *testing.T) {
+			label := tc.severity
+			if label == "warn" {
+				label = "warning"
+			}
+			sender := &FirebaseSender{project: "example-project", client: &http.Client{Transport: firebaseTransport(func(r *http.Request) (*http.Response, error) {
+				var payload struct {
+					Message struct {
+						Notification map[string]string `json:"notification"`
+						Android      struct {
+							Priority     string            `json:"priority"`
+							Notification map[string]string `json:"notification"`
+						} `json:"android"`
+						Data map[string]string `json:"data"`
+					} `json:"message"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+					t.Fatal(err)
+				}
+				if payload.Message.Android.Priority != tc.priority || payload.Message.Android.Notification["channel_id"] != "hyperhive_test_"+tc.severity || payload.Message.Data["severity"] != tc.severity || payload.Message.Notification["title"] != "HyperHive test: "+label || payload.Message.Notification["body"] != "This is a test "+label+" notification." {
+					t.Fatalf("wrong typed payload: %+v", payload.Message)
+				}
+				return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"name":"projects/example-project/messages/123"}`))}, nil
+			})}}
+			if _, err := sender.SendTypedTest(context.Background(), "example-project", "device-one", tc.severity); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	sender := &FirebaseSender{project: "example-project"}
+	if _, err := sender.SendTypedTest(context.Background(), "example-project", "device-one", "urgent"); err == nil {
+		t.Fatal("invalid severity accepted")
+	}
+}
+
 func TestFirebaseSanitizesProviderFailures(t *testing.T) {
 	for _, status := range []int{400, 401, 403, 404, 429, 500} {
 		sender := &FirebaseSender{project: "example-project", client: &http.Client{Transport: firebaseTransport(func(*http.Request) (*http.Response, error) {
