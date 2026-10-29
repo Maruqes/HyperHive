@@ -121,8 +121,9 @@ func downloadVMDisk(w http.ResponseWriter, r *http.Request) {
 		if succeeded {
 			operation.Phase = "complete"
 		} else {
+			// Downloads only read the disk, so a failure leaves nothing to reconcile.
 			operation.Error = "download failed or client disconnected"
-			operation.Phase = "uncertain"
+			operation.Phase = "aborted"
 		}
 		if err := db.SaveDiskOperation(context.Background(), operation, "reserved"); err != nil {
 			fmt.Printf("failed to persist disk download operation %s: %v\n", operation.ID, err)

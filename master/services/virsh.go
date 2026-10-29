@@ -995,10 +995,15 @@ func (v *VirshService) AddVMDisk(ctx context.Context, vmName string, vmDiskID in
 		return nil, fmt.Errorf("VM disk %d is already attached", disk.Id)
 	}
 
-	rpcStarted = true
 	if _, err := virsh.AttachExternalDisk(conn.Connection, vmName, disk.DiskPath, disk.Format); err != nil {
+		// libvirt rejected the attach, so release the reservation instead of locking the disk.
+		if clearErr := db.ClearVMDiskAttachment(context.Background(), disk.Id); clearErr != nil {
+			rpcStarted = true
+			return nil, fmt.Errorf("failed to attach VM disk %d to VM %s: %w; reservation release failed: %v", disk.Id, vmName, err, clearErr)
+		}
 		return nil, fmt.Errorf("failed to attach VM disk %d to VM %s: %w", disk.Id, vmName, err)
 	}
+	rpcStarted = true
 
 	updated, err := db.GetVMDiskByID(ctx, disk.Id)
 	if err != nil {
