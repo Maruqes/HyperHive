@@ -75,6 +75,9 @@ func TestFirebaseSeverityPayloadDefaultsAndMappings(t *testing.T) {
 				if payload.Message.Android.Priority != tc.priority || payload.Message.Android.Notification["channel_id"] != "hyperhive_test_"+tc.severity || payload.Message.Data["severity"] != tc.severity || payload.Message.Notification["title"] != "HyperHive test: "+label || payload.Message.Notification["body"] != "This is a test "+label+" notification." {
 					t.Fatalf("wrong typed payload: %+v", payload.Message)
 				}
+				if (payload.Message.Android.Notification["sound"] == "hyperhive_critical") != (tc.severity == "critical") {
+					t.Fatalf("wrong critical sound: %+v", payload.Message.Android.Notification)
+				}
 				return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"name":"projects/example-project/messages/123"}`))}, nil
 			})}}
 			if _, err := sender.SendTypedTest(context.Background(), "example-project", "device-one", tc.severity); err != nil {

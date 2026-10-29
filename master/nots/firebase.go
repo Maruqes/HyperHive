@@ -137,10 +137,14 @@ func (s *FirebaseSender) send(ctx context.Context, project, token string, valida
 			priority = "normal"
 		}
 	}
+	androidNotification := map[string]string{"channel_id": channel, "icon": "hyperhive_notification"}
+	if severity == "critical" {
+		androidNotification["sound"] = "hyperhive_critical"
+	}
 	payload := map[string]any{"message": map[string]any{
 		"token":        token,
 		"notification": map[string]string{"title": title, "body": bodyText},
-		"android":      map[string]any{"priority": priority, "notification": map[string]string{"channel_id": channel, "icon": "hyperhive_notification"}},
+		"android":      map[string]any{"priority": priority, "notification": androidNotification},
 	}}
 	if severity != "" {
 		payload["message"].(map[string]any)["data"] = map[string]string{"severity": severity, "channelId": channel}

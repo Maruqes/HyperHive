@@ -17,7 +17,7 @@ Reuse existing configuration, enable/disable, connection validation, authenticat
 | `error` | High | Default | Sound and vibration enabled | Notification with sound when permitted; no heads-up requested |
 | `critical` | High | High | Distinct notification sound and vibration enabled | Heads-up when permitted; lock-screen notification |
 
-Use four stable, separate channel IDs so Android exposes independent controls. Use the system notification sound initially; critical can use a distinct bundled sound only if an existing suitable asset exists, otherwise use the default and distinguish it by channel importance and vibration. No new sound dependency or asset-generation work is required.
+Use four stable, separate channel IDs so Android exposes independent controls. The user subsequently requested a distinct critical sound on 2026-10-29; the implementation adds a short bundled tone. Android preserves the selected sound for already-created channels, which users can change in system settings.
 
 In sound mode, error/critical request sound and vibration. In vibrate mode, they follow Android's vibration behavior without forcing sound. In silent mode, they remain quiet. All types respect DND, notification volume, app permission, channel overrides and lock-screen privacy settings. Device/OEM settings determine final behavior; do not promise screen wake or heads-up display. Label Settings descriptions as defaults.
 

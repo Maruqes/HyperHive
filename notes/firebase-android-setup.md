@@ -64,14 +64,48 @@ No credential-upload API is provided. Uploading a JSON file through an unrelated
 
 ## 5. Verify on the phone
 
-1. Install the updated **standalone** APK, which embeds JavaScript and does not require Metro. Keep Settings open during the initial test.
-2. Sign in to `https://512hyperhive.maruqes.local/api`.
-3. Open **Settings → Notifications**, import the Android client file or fill the four fields and press **Save manual configuration**.
-4. Enable notifications and grant Android notification permission. For a project change, disable first, save, then force-stop and reopen the app.
-5. Press **Check Firebase connection**. This fetches a current device token and uses Firebase's `validate_only` request; it sends **no push**.
-6. Look for green **Android client: Working** and **Backend credentials: Working**. Red messages explain which step failed. A loaded JSON file alone is not labelled Working.
-7. Press **Send test notification** once. The backend uses high FCM priority and Android's high-importance `hyperhive_test_v2` channel.
-8. **Accepted by Firebase** means the provider accepted the request. Green **Device receipt: Working** means the foreground native handler received this exact message and posted the Android notification. Background notifications may display through the SDK without a foreground receipt. Neither provider acceptance nor a green credential check proves delivery.
+1. Install the updated **standalone** APK, which embeds JavaScript and does not require Metro. The local ARM64 APK is `/home/marques/projects/HyperHiveFront/HyperHive/android/app/build/outputs/apk/release/app-release.apk`. It is signed with the local debug key, not a production key. An in-place update requires the installed app to have the same package and signing certificate. If the installer reports a signature mismatch, stop and preserve the existing app data; uninstalling can erase configuration.
+2. Open HyperHive and sign in to the intended, updated backend. Deploy the backend supporting typed tests before using the four buttons.
+3. Open HyperHive **Settings → Notifications**, import the Android client file or fill the four client fields and press **Save manual configuration**. To change projects, disable notifications first, save the new configuration, then force-stop and reopen the app.
+4. Press **Enable notifications** and allow Android's notification permission. Also check **Android Settings → Apps → HyperHive → Notifications → Allow notifications** if the permission was previously denied.
+5. Press **Check Firebase connection**. This fetches a current device token and uses Firebase's `validate_only` request; it sends **no push**. Look for green **Android client: Working** and **Backend credentials: Working**. A loaded JSON file alone is not labelled Working.
+6. Set up the critical channel sound as described below, turn the phone's sound mode on, and check that notification volume is audible. Silent/vibrate modes, Do Not Disturb, app permission, channel settings and lock-screen privacy still apply. A channel can request a pop-up; the phone decides whether to display it.
+7. In HyperHive, press **Test info**, **Test warning**, **Test error**, or **Test critical**. Info and warning are quiet by default; error uses the system notification sound; a newly created critical channel defaults to the distinct bundled sound and vibration. The four buttons share a 30-second per-user cooldown. Wait for the countdown before another send.
+8. **Accepted by Firebase** means the provider accepted the request. Green **Device receipt: Working** confirms that the app received the matching foreground message; it does not confirm that a sound played. A background notification can be displayed by Android without that foreground receipt. Try foreground, background and locked-screen delivery and listen on the phone.
+
+### Set the critical sound on Android
+
+On a fresh installation, opening and enabling HyperHive creates the critical channel with the bundled tone as its default; no separate sound file is needed. Check that the channel and app notifications are enabled. If it is blocked, enable it yourself in Android settings. A previously blocked legacy test channel can cause the new channels to start blocked; HyperHive preserves that choice.
+
+An existing `hyperhive_test_critical` channel keeps its previous sound when HyperHive is updated. Android lets the user change that sound in system settings; reinstalling or clearing app data is not necessary and can erase configuration. See [Android notification channels](https://developer.android.com/develop/ui/compose/notifications/channels).
+
+Current implementation limitation: acquiring a Firebase token for the connection check or a test also requires the legacy **HyperHive test notifications** channel (`hyperhive_test_v2`) to be enabled. If Android reports that notifications are blocked even though the critical category is enabled, enable the legacy category too, then check the connection again.
+
+To make the bundled tone available in the system sound picker for an existing channel, copy `hyperhive_critical.wav` from `HyperHiveFront/HyperHive/modules/firebase-notifications/android/src/main/res/raw/` to the phone's **Internal storage → Notifications** folder. Give it a recognizable name such as `HyperHive-critical.wav`; choose a different name if a file with that name already exists. Use USB file transfer or another file-copy method. With an authorized USB-debugging connection, the equivalent commands on this workstation are:
+
+```sh
+adb push /home/marques/projects/HyperHiveFront/HyperHive/modules/firebase-notifications/android/src/main/res/raw/hyperhive_critical.wav /sdcard/Notifications/HyperHive-critical.wav
+adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Notifications/HyperHive-critical.wav
+```
+
+On Samsung Galaxy phones:
+
+1. If **Notification categories** is hidden, open **Android Settings → Notifications → Advanced settings** and enable **Manage notification categories for each app**.
+2. Open **Settings → Apps → HyperHive → Notifications**, enable **Allow notifications**, then open **Notification categories → HyperHive test critical**. HyperHive's **Open Android app settings** link can also take you to the app settings when a channel or permission is blocked.
+3. Enable the category and select **Alert**. Tap **Sound**, select **HyperHive-critical** under **Custom**, and return to the category. Enable **Vibrate** and **Show as pop-up** if desired; check the lock-screen setting separately. Do not change the sound for the error channel unless you want to.
+4. Confirm the category shows **Sound: HyperHive-critical**. If the file is missing from the picker, check that it is in the Notifications folder and scan or reopen the sound picker. On other Android phones, the path and labels may differ; look under the app's notification channels or categories.
+
+These steps were checked on the connected Galaxy A35 with Android 16: the updated APK was installed in place and the existing critical category showed **HyperHive-critical** with vibration enabled. This confirms the setting, not that a notification played audibly. Samsung's [notification category guide](https://www.samsung.com/us/support/answer/ANS10002521/) explains where to find these controls.
+
+### Listen to the critical tone on this computer
+
+The tone is a short WAV file at `/home/marques/projects/HyperHiveFront/HyperHive/modules/firebase-notifications/android/src/main/res/raw/hyperhive_critical.wav`. Open it in an audio player, or run:
+
+```sh
+paplay /home/marques/projects/HyperHiveFront/HyperHive/modules/firebase-notifications/android/src/main/res/raw/hyperhive_critical.wav
+```
+
+Turn up the computer's output volume and choose the correct speakers or headphones. This previews the file; it does not prove the phone will play a notification.
 
 ## Troubleshooting
 
@@ -85,8 +119,12 @@ No credential-upload API is provided. Uploading a JSON file through an unrelated
 | Unregistered token | Disable notifications, enable again and rerun Check connection |
 | Android client registration failure | Google Play services, internet access, correct App ID/sender/API key and key restrictions |
 | Check endpoint is 404 | Backend code is older than the APK; deploy the matching backend update |
+| Typed test says the backend needs updating | Deploy the backend with typed test support; older versions reject the severity field |
 | Accepted but no foreground receipt | Keep Settings open; check phone connectivity to Google, VPN/firewall, battery restrictions and Play services. Do not assume backend acceptance equals delivery |
 | Receipt confirmed but no banner | Check Android app/channel notification settings, Do Not Disturb, sound and lock-screen rules; these can suppress banners. An explicitly blocked old test channel remains respected |
+| Critical notification uses the old sound | Existing Android channels retain their sound. Copy the tone to Notifications and select **HyperHive-critical** in that channel's Android settings |
+| Critical category enabled but connection check says notifications are blocked | Enable the legacy **HyperHive test notifications** category too; the current native token check requires it |
+| No sound | Check sound mode, notification volume, Do Not Disturb, app permission and the critical category's **Alert** and **Sound** settings. Info and warning are quiet by default |
 | Intermittent credential errors | Check every backend instance/replica and the phone's selected backend URL; a load balancer may route to differently configured processes |
 | Nothing after force-stop | Reopen the app. Android force-stop prevents FCM delivery until the app is opened again |
 
