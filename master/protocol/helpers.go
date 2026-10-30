@@ -7,6 +7,7 @@ import (
 	"time"
 
 	pb "github.com/Maruqes/512SvMan/api/proto/protocol"
+	"github.com/Maruqes/512SvMan/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 )
@@ -149,7 +150,15 @@ func removeConnection(addr string, machineName string, expectedEntry time.Time) 
 		if c.Addr == addr && (expectedEntry.IsZero() || c.EntryTime.Equal(expectedEntry)) {
 			removed := c
 			connections = append(connections[:i], connections[i+1:]...)
-			nots.SendGlobalNotification(fmt.Sprintf("Lost connection to %s", machineName), "Lost connection after many attempts", "/", true)
+			if err := nots.Notify(context.Background(), nots.Notification{
+				Event:    "connection.lost",
+				Severity: nots.SeverityCritical,
+				Title:    fmt.Sprintf("Lost connection to %s", machineName),
+				Body:     "Lost connection after many attempts",
+				Machine:  machineName,
+			}); err != nil {
+				logger.Errorf("connection lost notification: %v", err)
+			}
 			return removed
 		}
 	}

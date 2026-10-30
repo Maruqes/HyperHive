@@ -23,6 +23,24 @@ type firebaseTypedTestSender interface {
 	SendTypedTest(context.Context, string, string, string) (string, error)
 }
 
+// npmUserID reads attrs.id from the NPM token the auth middleware already validated.
+func npmUserID(r *http.Request) (int64, bool) {
+	parts := strings.Split(GetTokenFromContext(r), ".")
+	if len(parts) != 3 {
+		return 0, false
+	}
+	var claims struct {
+		Attrs struct {
+			ID int64 `json:"id"`
+		} `json:"attrs"`
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil || json.Unmarshal(payload, &claims) != nil || claims.Attrs.ID <= 0 {
+		return 0, false
+	}
+	return claims.Attrs.ID, true
+}
+
 func newFirebaseTestHandler(sender firebaseTestSender, checking bool) http.HandlerFunc {
 	cooldown := 30 * time.Second
 	if checking {
@@ -31,19 +49,8 @@ func newFirebaseTestHandler(sender firebaseTestSender, checking bool) http.Handl
 	var mu sync.Mutex
 	recent := make(map[string]time.Time)
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Middleware already authenticated the NPM token; attrs.id identifies its user across sessions.
-		parts := strings.Split(GetTokenFromContext(r), ".")
-		var claims struct {
-			Attrs struct {
-				ID int64 `json:"id"`
-			} `json:"attrs"`
-		}
-		if len(parts) != 3 {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
-		payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-		if err != nil || json.Unmarshal(payload, &claims) != nil || claims.Attrs.ID <= 0 {
+		userID, ok := npmUserID(r)
+		if !ok {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -63,7 +70,7 @@ func newFirebaseTestHandler(sender firebaseTestSender, checking bool) http.Handl
 			http.Error(w, "invalid Firebase notification severity", http.StatusBadRequest)
 			return
 		}
-		key := strconv.FormatInt(claims.Attrs.ID, 10)
+		key := strconv.FormatInt(userID, 10)
 		now := time.Now()
 		mu.Lock()
 		for user, last := range recent {
@@ -86,6 +93,7 @@ func newFirebaseTestHandler(sender firebaseTestSender, checking bool) http.Handl
 		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 		defer cancel()
 		var name string
+		var err error
 		if checking {
 			checker, ok := sender.(interface {
 				Check(context.Context, string, string) error

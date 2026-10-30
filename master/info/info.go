@@ -64,111 +64,89 @@ func TestRamMEM(ctx context.Context, conn *grpc.ClientConn, params *infoGrpc.Tes
 	return client.TestRamMEM(ctx, params)
 }
 
-func LoopNots() {
-	notCpu := func(cpu *infoGrpc.CPUCoreInfo, machine string) {
-		if cpu == nil {
-			return
+// Metric alert thresholds. Errors push; warnings are kept in history and shown as toasts.
+const (
+	cpuTempWarnC   = 78
+	cpuTempErrorC  = 85
+	memWarnPct     = 90
+	memErrorPct    = 95
+	diskWarnPct    = 80
+	diskErrorPct   = 90
+	diskTempWarnC  = 50
+	diskTempErrorC = 55
+
+	metricsCheckInterval = 5 * time.Minute
+	metricsInfoTimeout   = 30 * time.Second
+)
+
+// Two consecutive samples (about 10 minutes) make a change sustained; active alerts remind every 6 h.
+var metricAlerts = nots.NewAlertEngine(nots.Notify, 2, 6*time.Hour)
+
+func classify(value, warn, errorLimit float64) nots.AlertLevel {
+	switch {
+	case value >= errorLimit:
+		return nots.AlertError
+	case value >= warn:
+		return nots.AlertWarning
+	default:
+		return nots.AlertOK
+	}
+}
+
+func isPhysicalDisk(name string) bool {
+	n := strings.TrimSpace(name)
+	if n == "" || strings.HasPrefix(n, "/dev/mapper/") {
+		return false
+	}
+	if strings.HasPrefix(n, "/dev/") {
+		n = filepath.Base(n)
+	}
+	if n == "tmpfs" || n == "devtmpfs" {
+		return false
+	}
+	for _, p := range []string{"dm-", "ram", "loop", "zram"} {
+		if strings.HasPrefix(n, p) {
+			return false
 		}
+	}
+	return true
+}
+
+// metricSamples turns one host snapshot into alert samples: one per host for CPU and
+// memory, one per physical disk for usage and temperature.
+func metricSamples(machine string, cpu *infoGrpc.CPUCoreInfo, mem *infoGrpc.MemSummary, disk *infoGrpc.DiskSummary) []nots.AlertSample {
+	var samples []nots.AlertSample
+	add := func(event, key string, level nots.AlertLevel, title, body string) {
+		samples = append(samples, nots.AlertSample{Key: event + ":" + machine + key, Event: event, Machine: machine, Level: level, Title: title, Body: body, URL: "/"})
+	}
+
+	if cpu != nil && len(cpu.Cores) > 0 {
+		var maxTemp float64
 		for _, core := range cpu.Cores {
-			if core.Temp >= 85 {
-				msg := fmt.Sprintf("CPU core high temperature on %s: %.0f°C", machine, core.Temp)
-				nots.SendGlobalNotification("High CPU temperature", msg, "/", true)
-			} else if core.Temp >= 78 {
-				msg := fmt.Sprintf("CPU core temperature warning on %s: %.0f°C", machine, core.Temp)
-				nots.SendGlobalNotification("CPU temperature", msg, "/", false)
-			}
-
-			if core.Usage >= 90 {
-				msg := fmt.Sprintf("CPU usage high on %s: %.0f%%", machine, core.Usage)
-				nots.SendGlobalNotification("High CPU usage", msg, "/", true)
-			} else if core.Usage >= 80 {
-				msg := fmt.Sprintf("CPU usage warning on %s: %.0f%%", machine, core.Usage)
-				nots.SendGlobalNotification("CPU usage", msg, "/", false)
+			if core.Temp > maxTemp {
+				maxTemp = core.Temp
 			}
 		}
+		add("metrics.cpu_temperature", "", classify(maxTemp, cpuTempWarnC, cpuTempErrorC),
+			fmt.Sprintf("%s CPU %.0f°C (max core)", machine, maxTemp),
+			fmt.Sprintf("Hottest CPU core on %s is at %.0f°C (warning %d°C, error %d°C).", machine, maxTemp, cpuTempWarnC, cpuTempErrorC))
 	}
 
-	notMem := func(mem *infoGrpc.MemSummary, machine string) {
-
-		if mem == nil {
-			return
-		}
-
-		// Prefer explicit UsedPercent from the protobuf
-		used := mem.UsedPercent
-
-		if used >= 85 {
-			msg := fmt.Sprintf("Memory critical on %s: %.0f%% used (%d MB used of %d MB)", machine, used, mem.UsedMb, mem.TotalMb)
-			nots.SendGlobalNotification("Memory critical", msg, "/", true)
-		} else if used >= 70 {
-			msg := fmt.Sprintf("Memory high on %s: %.0f%% used (%d MB used of %d MB)", machine, used, mem.UsedMb, mem.TotalMb)
-			nots.SendGlobalNotification("Memory usage", msg, "/", false)
-		}
+	if mem != nil {
+		add("metrics.memory", "", classify(mem.UsedPercent, memWarnPct, memErrorPct),
+			fmt.Sprintf("%s memory %.0f%% used", machine, mem.UsedPercent),
+			fmt.Sprintf("%s uses %d MB of %d MB memory.", machine, mem.UsedMb, mem.TotalMb))
 	}
 
-	notDisk := func(disk *infoGrpc.DiskSummary, machine string) {
-		if disk == nil {
-			return
-		}
-
-		isPhysicalDisk := func(name string) bool {
-			n := strings.TrimSpace(name)
-			if n == "" {
-				return false
-			}
-
-			// Skip device-mapper paths directly.
-			if strings.HasPrefix(n, "/dev/mapper/") {
-				return false
-			}
-
-			if strings.HasPrefix(n, "/dev/") {
-				n = filepath.Base(n)
-			}
-
-			// Exact virtual filesystems
-			blacklistExact := []string{
-				"tmpfs",
-				"devtmpfs",
-			}
-
-			for _, b := range blacklistExact {
-				if n == b {
-					return false
-				}
-			}
-
-			// Prefix-based virtual / non-physical devices
-			blacklistPrefixes := []string{
-				"dm-",
-				"ram",
-				"loop",
-				"zram",
-			}
-
-			for _, p := range blacklistPrefixes {
-				if strings.HasPrefix(n, p) {
-					return false
-				}
-			}
-
-			return true
-		}
-
-		for k, v := range disk.Usage {
-			if !isPhysicalDisk(k) {
+	if disk != nil {
+		for name, used := range disk.Usage {
+			if !isPhysicalDisk(name) {
 				continue
 			}
-			if v >= 85 {
-				msg := fmt.Sprintf("Disk %s critical usage on %s: %.0f%%", k, machine, v)
-				nots.SendGlobalNotification("Disk critical usage", msg, "/", true)
-			} else if v >= 70 {
-				msg := fmt.Sprintf("Disk %s high usage on %s: %.0f%%", k, machine, v)
-				nots.SendGlobalNotification("Disk usage", msg, "/", false)
-			}
+			add("metrics.disk_usage", ":"+name, classify(used, diskWarnPct, diskErrorPct),
+				fmt.Sprintf("%s disk %s %.0f%% full", machine, name, used),
+				fmt.Sprintf("Disk %s on %s is %.0f%% full (warning %d%%, error %d%%).", name, machine, used, diskWarnPct, diskErrorPct))
 		}
-
-		// Check individual disks
 		for _, d := range disk.Disks {
 			if d == nil {
 				continue
@@ -177,60 +155,51 @@ func LoopNots() {
 			if name == "" {
 				name = d.Device
 			}
-
-			// temperature checks
-			if d.TemperatureC >= 55 {
-				msg := fmt.Sprintf("Disk %s critical temperature on %s: %d°C", name, machine, d.TemperatureC)
-				nots.SendGlobalNotification("Disk critical temperature", msg, "/", true)
-			} else if d.TemperatureC >= 45 {
-				msg := fmt.Sprintf("Disk %s high temperature on %s: %d°C", name, machine, d.TemperatureC)
-				nots.SendGlobalNotification("Disk temperature", msg, "/", false)
-			}
+			add("metrics.disk_temperature", ":"+name, classify(float64(d.TemperatureC), diskTempWarnC, diskTempErrorC),
+				fmt.Sprintf("%s disk %s %d°C", machine, name, d.TemperatureC),
+				fmt.Sprintf("Disk %s on %s is at %d°C (warning %d°C, error %d°C).", name, machine, d.TemperatureC, diskTempWarnC, diskTempErrorC))
 		}
 	}
+	return samples
+}
 
-	notAll := func(con protocol.ConnectionsStruct) {
+// LoopNots checks every connected host's metrics for the process lifetime.
+func LoopNots() {
+	check := func(con protocol.ConnectionsStruct) {
 		if con.Connection == nil {
 			return
 		}
-		cpu, err := GetCPUInfo(con.Connection, &infoGrpc.Empty{})
+		ctx, cancel := context.WithTimeout(context.Background(), metricsInfoTimeout)
+		defer cancel()
+		client := infoGrpc.NewInfoClient(con.Connection)
+		cpu, err := client.GetCPUInfo(ctx, &infoGrpc.Empty{})
 		if err != nil {
-			logger.Errorf("%v", err)
+			logger.Errorf("metrics alerts: cpu info %s: %v", con.MachineName, err)
 			return
 		}
-
-		disk, err := GetDiskSummary(con.Connection, &infoGrpc.Empty{})
+		disk, err := client.GetDiskSummary(ctx, &infoGrpc.Empty{})
 		if err != nil {
-			logger.Errorf("%v", err)
+			logger.Errorf("metrics alerts: disk info %s: %v", con.MachineName, err)
 			return
 		}
-
-		mem, err := GetMemSummary(con.Connection, &infoGrpc.Empty{})
+		mem, err := client.GetMemSummary(ctx, &infoGrpc.Empty{})
 		if err != nil {
-			logger.Errorf("%v", err)
+			logger.Errorf("metrics alerts: memory info %s: %v", con.MachineName, err)
 			return
 		}
-
-		machine := con.MachineName
-		notCpu(cpu, machine)
-		notMem(mem, machine)
-		notDisk(disk, machine)
-	}
-
-	checkFunc := func() {
-		conns := protocol.GetConnectionsSnapshot()
-		if conns == nil {
-			return
-		}
-		for _, con := range conns {
-			go notAll(con)
+		for _, sample := range metricSamples(con.MachineName, cpu, mem, disk) {
+			if err := metricAlerts.Observe(ctx, sample); err != nil {
+				logger.Errorf("metrics alert %s: %v", sample.Key, err)
+			}
 		}
 	}
 
 	go func() {
 		for {
-			checkFunc()
-			time.Sleep(10 * time.Minute)
+			for _, con := range protocol.GetConnectionsSnapshot() {
+				go check(con)
+			}
+			time.Sleep(metricsCheckInterval)
 		}
 	}()
 }

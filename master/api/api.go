@@ -209,10 +209,14 @@ func delete_all_subscriptions(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"status":"ok"}`))
 }
 
-// POST /notification/test → envia notificação para TODOS
+// GET /notification/test sends a critical test notification to every channel.
 func test_nots(w http.ResponseWriter, r *http.Request) {
-
-	if err := nots.SendGlobalNotification("HyperHive", "Isto é uma notificação de teste.", "/", true); err != nil {
+	if err := nots.Notify(r.Context(), nots.Notification{
+		Event:    "system.test",
+		Severity: nots.SeverityCritical,
+		Title:    "HyperHive",
+		Body:     "This is a test notification.",
+	}); err != nil {
 		http.Error(w, "failed to send notifications: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -297,6 +301,10 @@ func StartApi(exitAfterStart bool) {
 			r.Post("/firebase/test", newFirebaseTestHandler(firebaseSender, false))
 			r.Post("/firebase/check", newFirebaseTestHandler(firebaseSender, true))
 			r.Get("/firebase/status", firebaseConfigurationStatus)
+			r.Post("/firebase/devices", liveFirebaseDevices.register)
+			r.Post("/firebase/devices/unregister", liveFirebaseDevices.unregister)
+			r.Get("/rules", liveNotificationRules.listRules)
+			r.Put("/rules/{category}", liveNotificationRules.putRule)
 			r.Get("/public-key", get_public_key)
 			r.Post("/subscribe", subscribe_nots)
 			r.Get("/test", test_nots) // opcional, para testes
@@ -335,7 +343,6 @@ func StartApi(exitAfterStart bool) {
 		setupBTRFS(r)
 		setupNotsAPI(r)
 		setupNotesAPI(r)
-		setupDockerAPI(r)
 		setupK8sAPI(r)
 		setupCelldAPI(r)
 		setupSPAAPI(r)

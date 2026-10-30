@@ -7,7 +7,6 @@ import (
 	"os"
 	"slave/btrfs"
 	"slave/celld"
-	"slave/docker"
 	"slave/env512"
 	"slave/extra"
 	"slave/info"
@@ -24,7 +23,6 @@ import (
 
 	btrfsGrpc "github.com/Maruqes/512SvMan/api/proto/btrfs"
 	celldGrpc "github.com/Maruqes/512SvMan/api/proto/celld"
-	dockerGRPC "github.com/Maruqes/512SvMan/api/proto/docker"
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
 	infoGrpc "github.com/Maruqes/512SvMan/api/proto/info"
 	k8s "github.com/Maruqes/512SvMan/api/proto/k8s"
@@ -129,7 +127,6 @@ func listenGRPC() {
 		infoGrpc.RegisterInfoServer(s, &info.INFOService{})
 		smartdiskGrpc.RegisterSmartDiskServiceServer(s, &smartdisk.Service{})
 		btrfsGrpc.RegisterBtrFSServiceServer(s, &btrfs.BTRFSService{})
-		dockerGRPC.RegisterDockerServiceServer(s, &docker.DockerService{})
 		k8s.RegisterK8SServiceServer(s, &ourk8s.K8sService{})
 		celldGrpc.RegisterCelldServiceServer(s, &celld.Service{})
 		logger.Info("client services listening", "port", 50052)

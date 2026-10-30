@@ -7,7 +7,7 @@ Instructions for AI coding agents working in the slave module. Read the root `AG
 A privileged host agent (runs as root). Each machine, including the master host, runs one. Bootstrap in `main.go`:
 
 1. Load env (`env512`: `MASTER_IP`, `SLAVE_IP`, `MACHINE_NAME`, …) and the logger.
-2. Stop and disable firewalld; ensure Docker and its client.
+2. Stop and disable firewalld; ensure Docker is installed (runtime for NPM, HH Support and celld; HyperHive does not manage Docker resources).
 3. Ensure virt-xml and tuned-adm. If `MASTER_IP == SLAVE_IP`, install the k3s server.
 4. Disable swap, install Git, apply dirty-page ratios, set VNC port bounds (no automatic GPU detach).
 5. Install NFS, `setupAll` (virtualization setup, inter-slave SSH keys), ensure the VirtIO ISO, set the host UUID source.
@@ -30,7 +30,6 @@ Each domain package holds both the host logic and its gRPC service:
 | `smartdisk/` | `SmartDiskService` | SMART data and tests |
 | `pci/` | `SlavePCIService` | PCI/GPU passthrough |
 | `info/` | `Info` | host telemetry |
-| `docker/`, `docker_git/` | `DockerService` | containers and git-based builds |
 | `our_k8s/` | `K8SService` | k3s |
 | `celld/` | `CelldService` | celld fleet agents |
 | `extra/` | `ExtraService` | updates, restart and shutdown, misc |

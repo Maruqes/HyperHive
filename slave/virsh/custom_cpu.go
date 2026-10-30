@@ -89,7 +89,7 @@ func CreateVMCustomCPU(opts CreateVMCustomCPUOptions) (xmlPath string, err error
 	// notify on failure when this function returns with an error
 	defer func() {
 		if err != nil {
-			_ = extra.SendNotifications("VM creation failed", fmt.Sprintf("Failed to create VM %s: %v", opts.Name, err), "/", true)
+			_ = extra.Notify(extra.Notification{Event: "operation.vm_create", Severity: extra.SeverityError, Title: "VM creation failed", Body: fmt.Sprintf("Failed to create VM %s: %v", opts.Name, err)})
 		}
 	}()
 

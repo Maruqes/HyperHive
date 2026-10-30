@@ -199,3 +199,47 @@ func TestFirebaseReportsProviderReasonWithoutRawDetails(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestFirebaseEventPayloadMapsSeverityToChannel(t *testing.T) {
+	for _, tc := range []struct {
+		severity         Severity
+		channel, priorty string
+		sound            bool
+	}{{SeverityInfo, "hyperhive_test_info", "normal", false}, {SeverityWarning, "hyperhive_test_warn", "normal", false}, {SeverityError, "hyperhive_test_error", "high", false}, {SeverityCritical, "hyperhive_test_critical", "high", true}} {
+		sender := &FirebaseSender{project: "example-project", client: &http.Client{Transport: firebaseTransport(func(r *http.Request) (*http.Response, error) {
+			var payload struct {
+				Message struct {
+					Token        string            `json:"token"`
+					Notification map[string]string `json:"notification"`
+					Android      struct {
+						Priority     string            `json:"priority"`
+						Notification map[string]string `json:"notification"`
+					} `json:"android"`
+					Data map[string]string `json:"data"`
+				} `json:"message"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Fatal(err)
+			}
+			m := payload.Message
+			if m.Token != "device" || m.Notification["title"] != "Disk failing" || m.Android.Priority != tc.priorty || m.Android.Notification["channel_id"] != tc.channel || m.Data["event"] != "health.smart" || (m.Android.Notification["sound"] == "hyperhive_critical") != tc.sound {
+				t.Fatalf("%s: %+v", tc.severity, m)
+			}
+			return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"name":"projects/example-project/messages/1"}`))}, nil
+		})}}
+		if _, err := sender.SendNotification(context.Background(), "device", Notification{Event: "health.smart", Severity: tc.severity, Title: "Disk failing", Body: "b"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestFirebaseUnregisteredTokenIsFlagged(t *testing.T) {
+	sender := &FirebaseSender{project: "example-project", client: &http.Client{Transport: firebaseTransport(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 404, Body: io.NopCloser(strings.NewReader(`{"error":{"status":"NOT_FOUND","details":[{"errorCode":"UNREGISTERED"}]}}`))}, nil
+	})}}
+	_, err := sender.SendNotification(context.Background(), "device", Notification{Title: "t"})
+	var providerErr *FirebaseError
+	if !errors.As(err, &providerErr) || !providerErr.Unregistered {
+		t.Fatalf("unregistered not flagged: %v", err)
+	}
+}

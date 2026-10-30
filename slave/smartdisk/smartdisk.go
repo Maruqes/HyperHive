@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Maruqes/512SvMan/logger"
 	"os/exec"
 	"regexp"
 	"slave/extra"
@@ -107,12 +108,7 @@ func RunSelfTest(device string, test SelfTestType) error {
 	}
 
 	if device, err := validateDevicePath(device); err != nil {
-		extra.SendNotifications(
-			"SMART self-test",
-			fmt.Sprintf("Self-test %s failed to start on %s: %v.", testFlag, device, err),
-			"/",
-			true,
-		)
+		extra.Notify(extra.Notification{Event: "operation.smart_selftest", Severity: extra.SeverityError, Title: "SMART self-test failed to start", Body: fmt.Sprintf("Self-test %s failed to start on %s: %v.", testFlag, device, err)})
 		return err
 	}
 
@@ -120,21 +116,11 @@ func RunSelfTest(device string, test SelfTestType) error {
 	output, err := cmd.CombinedOutput()
 	outStr := strings.TrimSpace(string(output))
 	if err != nil {
-		extra.SendNotifications(
-			"SMART self-test",
-			fmt.Sprintf("Self-test %s failed to start on %s: %v. smartctl output: %s", testFlag, device, err, outStr),
-			"/",
-			true,
-		)
+		extra.Notify(extra.Notification{Event: "operation.smart_selftest", Severity: extra.SeverityError, Title: "SMART self-test failed to start", Body: fmt.Sprintf("Self-test %s failed to start on %s: %v. smartctl output: %s", testFlag, device, err, outStr)})
 		return fmt.Errorf("smartctl self-test (%s): %w: %s", testFlag, err, outStr)
 	}
 
-	extra.SendNotifications(
-		"SMART self-test",
-		fmt.Sprintf("Self-test %s started on %s.", testFlag, device),
-		"/",
-		false,
-	)
+	logger.Infof("SMART self-test %s started on %s", testFlag, device)
 	return nil
 }
 

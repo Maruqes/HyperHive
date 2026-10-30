@@ -1,7 +1,7 @@
 # HyperHive MCP
 
 Use HyperHive through named MCP tools. The master serves **Streamable HTTP** on
-its API listener; standalone stdio shares the same 117-tool registry.
+its API listener; standalone stdio shares the same 119-tool registry.
 
 ## API coverage
 
@@ -9,11 +9,12 @@ Last checked: **2026-10-21**, locally. Counts measure supported API endpoints.
 
 | Scope | Supported / total | Coverage |
 | --- | ---: | ---: |
-| HyperHive API | 117 / 322 | **36.34%** |
+| HyperHive API | 119 / 300 | **39.67%** |
 | NGINX | 33 / 43 | 76.74% |
 | Celld | 8 / 17 | 47.06% |
 | DNS aliases | 3 / 4 | 75.00% |
 | Notes | 5 / 6 | 83.33% |
+| Notification rules | 2 / 2 | 100.00% |
 | SPA management | 2 / 4 | 50.00% |
 | ISOs | 2 / 3 | 66.67% |
 | VMs, templates and disks | 64 / 82 | 78.05% |

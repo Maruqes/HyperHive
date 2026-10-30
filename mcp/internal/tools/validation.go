@@ -40,6 +40,8 @@ func validateRegisteredInput(req *mcp.CallToolRequest, input any, area string, l
 		return client.ValidateEditNote(in)
 	case client.NoteIDInput:
 		return client.ValidateNoteID(in.ID)
+	case client.UpdateNotificationRuleInput:
+		return client.ValidateUpdateNotificationRule(in)
 	case client.SPAPortInput:
 		return client.ValidateSPAPort(in)
 	case client.CelldFleetIDInput:

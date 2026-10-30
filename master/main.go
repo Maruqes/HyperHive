@@ -90,12 +90,6 @@ func scheduleDelayedSlaveStartup(machineName string) {
 		if err != nil && err != services.ErrSlaveMasterNotConnected {
 			logger.Errorf("k8s startup failed for %s: %v", machine, err)
 		}
-
-		dockerService := services.DockerService{}
-		err = dockerService.StartAlwaysContainers()
-		if err != nil {
-			logger.Errorf("dockerService startup failed for %s: %v", machine, err)
-		}
 	}(machineName)
 }
 
@@ -464,11 +458,6 @@ func main() {
 		log.Fatalf("create btrfs auto table: %v", err)
 	}
 
-	err = db.CreateDockerRepoTable(ctx)
-	if err != nil {
-		log.Fatalf("create docker repo table: %v", err)
-	}
-
 	err = db.DbCreatePushSubscriptionsTable(ctx)
 	if err != nil {
 		log.Fatalf("create push subs table: %v", err)
@@ -477,6 +466,16 @@ func main() {
 	err = db.DbCreateNotsTable(ctx)
 	if err != nil {
 		log.Fatalf("create nots table: %v", err)
+	}
+
+	err = db.DbCreateFirebaseDevicesTable(ctx)
+	if err != nil {
+		log.Fatalf("create firebase devices table: %v", err)
+	}
+
+	err = db.DbCreateNotificationRulesTable(ctx)
+	if err != nil {
+		log.Fatalf("create notification rules table: %v", err)
 	}
 
 	err = db.CreateNotesTable(ctx)

@@ -3,6 +3,7 @@ package nfs
 import (
 	"context"
 	"fmt"
+	"slave/env512"
 	"slave/extra"
 
 	pb "github.com/Maruqes/512SvMan/api/proto/nfs"
@@ -33,7 +34,13 @@ func (s *NFSService) MountFolder(ctx context.Context, req *pb.FolderMount) (*pb.
 		HostNormalMount: req.HostNormalMount,
 	})
 	if err != nil {
-		extra.SendNotifications("Could not Mount", fmt.Sprintf("Could not Mount %s", req.Target), "/", true)
+		extra.Notify(extra.Notification{
+			Event:    "health.mount",
+			Severity: extra.SeverityCritical,
+			Title:    fmt.Sprintf("%s could not mount %s", env512.MachineName, req.Target),
+			Body:     fmt.Sprintf("Mounting %s on %s failed: %v", req.Source, req.Target, err),
+			DedupKey: "health.mount:" + env512.MachineName + ":" + req.Target,
+		})
 		logger.Error("MountFolder failed", "error", err)
 		return &pb.MountResponse{Ok: false}, err
 	}

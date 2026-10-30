@@ -169,6 +169,7 @@ type API interface {
 	UpstreamsAPI
 	DNSAPI
 	NotesAPI
+	NotificationsAPI
 	SPAAPI
 	ISOsAPI
 	VMsAPI
@@ -181,6 +182,7 @@ func RegisterAll(r *Registry, api API, backupDir string) error {
 	RegisterCelld(r, api)
 	RegisterDNS(r, api)
 	RegisterNotes(r, api)
+	RegisterNotifications(r, api)
 	RegisterSPA(r, api)
 	RegisterISOs(r, api)
 	RegisterVMs(r, api, backupDir)

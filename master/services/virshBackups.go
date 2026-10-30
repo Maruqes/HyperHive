@@ -34,11 +34,7 @@ func copyFile(ctx context.Context, origin, dest, vmName string) (err error) {
 		ctx = context.Background()
 	}
 
-	defer func() {
-		if err != nil {
-			nots.SendGlobalNotification("Problem CopyFile", fmt.Sprint(err.Error()), "/", true)
-		}
-	}()
+	// Callers report copy failures in their own operation notification.
 
 	select {
 	case copyFileSlots <- struct{}{}:
@@ -127,7 +123,16 @@ func sendImportantNotification(title string, err error) {
 	if err == nil {
 		return
 	}
-	nots.SendGlobalNotification(title, fmt.Sprint(err.Error()), "/", true)
+	// Repeats of the same failure (e.g. a scheduled backup on a down slave) are deduplicated.
+	if notifyErr := nots.Notify(context.Background(), nots.Notification{
+		Event:    "operation.vm_task",
+		Severity: nots.SeverityError,
+		Title:    title,
+		Body:     err.Error(),
+		DedupKey: "operation.vm_task:" + title + ":" + err.Error(),
+	}); notifyErr != nil {
+		logger.Errorf("notify %s: %v", title, notifyErr)
+	}
 }
 
 // validate and remove a backup directory while avoiding accidental broad deletes
@@ -329,7 +334,7 @@ func (v *VirshService) BackupVM(ctx context.Context, vmName string, nfsID int, a
 			return fmt.Errorf("problems writing to db backup: %v", err)
 		}
 
-		nots.SendGlobalNotification("Backup successful", fmt.Sprintf("Backup %s created at %s", vmName, backup.Path), "/", false)
+		notifyOperation(context.Background(), "operation.backup", nots.SeverityInfo, vm.MachineName, "Backup successful", fmt.Sprintf("Backup %s created at %s", vmName, backup.Path))
 		return nil
 	}
 

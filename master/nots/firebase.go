@@ -27,6 +27,8 @@ var firebaseProjectPattern = regexp.MustCompile(`^[a-z][a-z0-9-]{4,28}[a-z0-9]$`
 type FirebaseError struct {
 	Status  int
 	Message string
+	// Unregistered means FCM no longer knows the token and it should be removed.
+	Unregistered bool
 }
 
 func (e *FirebaseError) Error() string { return e.Message }
@@ -137,18 +139,46 @@ func (s *FirebaseSender) send(ctx context.Context, project, token string, valida
 			priority = "normal"
 		}
 	}
+	data := map[string]string(nil)
+	if severity != "" {
+		data = map[string]string{"severity": severity, "channelId": channel}
+	}
+	return s.post(ctx, firebaseMessage(token, title, bodyText, channel, priority, severity == "critical", data), validateOnly)
+}
+
+// SendNotification delivers a real event to one device on the severity's Android channel.
+func (s *FirebaseSender) SendNotification(ctx context.Context, token string, n Notification) (string, error) {
+	if s == nil {
+		return "", ErrFirebaseUnavailable
+	}
+	severity := n.Severity.androidName()
+	channel := "hyperhive_test_" + severity
+	priority := "high"
+	if n.Severity < SeverityError {
+		priority = "normal"
+	}
+	data := map[string]string{"severity": severity, "channelId": channel, "event": n.Event, "url": n.URL}
+	return s.post(ctx, firebaseMessage(token, n.Title, n.Body, channel, priority, n.Severity == SeverityCritical, data), false)
+}
+
+func firebaseMessage(token, title, body, channel, priority string, criticalSound bool, data map[string]string) map[string]any {
 	androidNotification := map[string]string{"channel_id": channel, "icon": "hyperhive_notification"}
-	if severity == "critical" {
+	if criticalSound {
 		androidNotification["sound"] = "hyperhive_critical"
 	}
-	payload := map[string]any{"message": map[string]any{
+	message := map[string]any{
 		"token":        token,
-		"notification": map[string]string{"title": title, "body": bodyText},
+		"notification": map[string]string{"title": title, "body": body},
 		"android":      map[string]any{"priority": priority, "notification": androidNotification},
-	}}
-	if severity != "" {
-		payload["message"].(map[string]any)["data"] = map[string]string{"severity": severity, "channelId": channel}
 	}
+	if data != nil {
+		message["data"] = data
+	}
+	return message
+}
+
+func (s *FirebaseSender) post(ctx context.Context, message map[string]any, validateOnly bool) (string, error) {
+	payload := map[string]any{"message": message}
 	if validateOnly {
 		payload["validate_only"] = true
 	}
@@ -160,11 +190,11 @@ func (s *FirebaseSender) send(ctx context.Context, project, token string, valida
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return "", &FirebaseError{http.StatusBadGateway, "Firebase request failed or timed out; acceptance is unknown. Check connectivity and backend Firebase credentials before trying again."}
+		return "", &FirebaseError{Status: http.StatusBadGateway, Message: "Firebase request failed or timed out; acceptance is unknown. Check connectivity and backend Firebase credentials before trying again."}
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		status, message := http.StatusBadGateway, "Firebase rejected the test notification. Check backend configuration."
+		status, message, unregistered := http.StatusBadGateway, "Firebase rejected the notification. Check backend configuration.", resp.StatusCode == http.StatusNotFound
 		switch resp.StatusCode {
 		case 400, 404:
 			status, message = http.StatusBadRequest, "Firebase rejected the device token or project. Re-enable notifications and check the Firebase project."
@@ -186,6 +216,7 @@ func (s *FirebaseSender) send(ctx context.Context, project, token string, valida
 			for _, detail := range failure.Error.Details {
 				switch detail.ErrorCode {
 				case "UNREGISTERED":
+					unregistered = true
 					message = "Device token expired or was unregistered. Disable and enable notifications, then check again."
 				case "SENDER_ID_MISMATCH":
 					message = "Device token belongs to a different Firebase sender. Match the Android client and backend service-account projects."
@@ -195,7 +226,7 @@ func (s *FirebaseSender) send(ctx context.Context, project, token string, valida
 				}
 			}
 		}
-		return "", &FirebaseError{status, message}
+		return "", &FirebaseError{Status: status, Message: message, Unregistered: unregistered}
 	}
 	if validateOnly {
 		return "", nil
@@ -204,7 +235,7 @@ func (s *FirebaseSender) send(ctx context.Context, project, token string, valida
 		Name string `json:"name"`
 	}
 	if json.NewDecoder(io.LimitReader(resp.Body, 16384)).Decode(&result) != nil || result.Name == "" {
-		return "", &FirebaseError{http.StatusBadGateway, "Firebase returned an invalid response; acceptance is unknown."}
+		return "", &FirebaseError{Status: http.StatusBadGateway, Message: "Firebase returned an invalid response; acceptance is unknown."}
 	}
 	return result.Name, nil
 }

@@ -8,7 +8,7 @@ Runs as root (`--exit-after-start` = first-run setup, then exit). Startup order 
 
 1. Load env (`env512`), logging, clean SQLite backups, open SQLite (`db.InitDB`), restore SPA firewall rules.
 2. Ensure noVNC, GoAccess, WireGuard; restore VPN peers.
-3. Create tables per feature (NFS, VMs/disks/templates, logs, ISOs, info, SMART, backups, Btrfs, Docker, notifications, notes) and start the SQLite backup loop.
+3. Create tables per feature (NFS, VMs/disks/templates, logs, ISOs, info, SMART, backups, Btrfs, notifications, notes) and start the SQLite backup loop.
 4. Install the frontend release and its Nginx container (failure is fatal).
 5. Start slave pings and the gRPC registration listener on `:50051` with the `newSlave` callback (Btrfs auto-mount, NFS readiness, delayed workload autostart).
 6. Start schedulers: NFS maintenance, automatic VM backups, SMART schedules, host notifications, SPA maintenance.
@@ -25,10 +25,10 @@ Many startup steps exit the process on error. Signal handling after `StartApi` n
 | `services/` | Business logic: combine DB metadata with slave RPCs, pick the target slave, manage multi-step operations and cleanup. |
 | `db/` | SQLite access. One file per area with `Create<Area>Table`, typed structs and context-aware queries. |
 | `protocol/` | Slave registry, connections, pings and the registration gRPC server. |
-| `virsh/`, `vm_disk/`, `nfs/`, `btrfs/`, `docker/`, `k8s/`, `pci/`, `info/`, `smartdisk/`, `extra/` | Thin gRPC client wrappers: one function per RPC, each with its own `context.WithTimeout`. |
+| `virsh/`, `vm_disk/`, `nfs/`, `btrfs/`, `k8s/`, `pci/`, `info/`, `smartdisk/`, `extra/` | Thin gRPC client wrappers: one function per RPC, each with its own `context.WithTimeout`. |
 | `npm/` | Client for the local Nginx Proxy Manager API. |
 | `websocket/` | Browser websocket registry and `BroadcastMessage`. |
-| `nots/` | WebPush and global notifications. |
+| `nots/` | Notifications: `nots.Notify` (severity, per-category rules, dedup, history) with websocket, Web Push and FCM channels; `AlertEngine` for metric alert state. |
 | `env512/` | Environment configuration. |
 | `wireguard/`, `spa/`, `dnsmasq/`, `supportdeploy/`, `internal/` | Feature-specific subsystems and test helpers. |
 

@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"slave/env512"
 	"strings"
+	"time"
 
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
 	"github.com/Maruqes/512SvMan/logger"
@@ -70,22 +71,53 @@ func SendWebsocketMessage(message, extra string, msgType extraGrpc.WebSocketsMes
 	return err
 }
 
-func SendNotifications(title, body, relURL string, critical bool) error {
+// Severity mirrors the master's notification severities.
+type Severity = extraGrpc.NotificationSeverity
+
+const (
+	SeverityInfo     = extraGrpc.NotificationSeverity_SEVERITY_INFO
+	SeverityWarning  = extraGrpc.NotificationSeverity_SEVERITY_WARNING
+	SeverityError    = extraGrpc.NotificationSeverity_SEVERITY_ERROR
+	SeverityCritical = extraGrpc.NotificationSeverity_SEVERITY_CRITICAL
+)
+
+// Notification is an event sent to the master, which applies policy and delivery.
+type Notification struct {
+	Event    string // stable key, e.g. "health.smart"
+	Severity Severity
+	Title    string
+	Body     string
+	URL      string
+	DedupKey string // repeats with the same key are suppressed by the master
+}
+
+const notifyTimeout = 15 * time.Second
+
+// Notify sends n to the master. Failures are logged and returned; callers usually continue.
+func Notify(n Notification) error {
 	if env512.Conn == nil {
 		err := fmt.Errorf("gRPC connection not set")
-		logger.Error("SendNotifications: %v", err)
+		logger.Error("Notify: %v", err)
 		return err
 	}
-	msg := &extraGrpc.Notification{
-		Title:    title,
-		Body:     body,
-		RelURL:   relURL,
-		Critical: critical,
+	if n.URL == "" {
+		n.URL = "/"
 	}
-	h := extraGrpc.NewExtraServiceClient(env512.Conn)
-	_, err := h.SendNotifications(context.Background(), msg)
+	msg := &extraGrpc.Notification{
+		Title:    n.Title,
+		Body:     n.Body,
+		RelURL:   n.URL,
+		Critical: n.Severity >= SeverityError, // older masters only read critical
+		Severity: n.Severity,
+		Event:    n.Event,
+		DedupKey: n.DedupKey,
+		Machine:  env512.MachineName,
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), notifyTimeout)
+	defer cancel()
+	_, err := extraGrpc.NewExtraServiceClient(env512.Conn).SendNotifications(ctx, msg)
 	if err != nil {
-		logger.Error("SendNotifications: %v", err)
+		logger.Error("Notify %s: %v", n.Event, err)
 	}
 	return err
 }

@@ -2,7 +2,6 @@ package docker
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/Maruqes/512SvMan/logger"
-	"github.com/docker/docker/client"
 )
 
 func runCommand(desc string, args ...string) error {
@@ -83,28 +81,5 @@ func InstallLatestDocker() error {
 	if err := runCommand("start docker", "systemctl", "enable", "--now", "docker"); err != nil {
 		return fmt.Errorf("failed to start docker: %w", err)
 	}
-	return nil
-}
-
-var cli *client.Client
-
-func NewDockerService() error {
-	cliii, err := client.NewClientWithOpts(
-		client.FromEnv,
-		client.WithAPIVersionNegotiation(),
-	)
-	if err != nil {
-		return err
-	}
-	cli = cliii
-	// Negotiate API version to ensure compatibility
-	cli.NegotiateAPIVersion(context.Background())
-
-	// Initialize package-level singletons used by gRPC/service handlers
-	our_container = &Container{}
-	our_volume = &Volume{}
-	our_network = &Network{}
-	our_git = &Git{}
-	ImagesService = &Image{}
 	return nil
 }

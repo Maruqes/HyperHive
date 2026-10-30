@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/Maruqes/512SvMan/logger"
 	"os/exec"
 	"regexp"
 	"slave/extra"
@@ -276,7 +277,7 @@ func (m *ForceReallocManager) start(device string, mode ForceReallocMode) (*forc
 		// notify start failure
 		title := "Force realloc start failed"
 		msg := fmt.Sprintf("Failed to start badblocks on %s: %v", device, err)
-		extra.SendNotifications(title, msg, "/", true)
+		extra.Notify(extra.Notification{Event: "operation.realloc", Severity: extra.SeverityError, Title: title, Body: msg})
 		return nil, fmt.Errorf("failed to start badblocks on %s: %w", device, err)
 	}
 
@@ -285,7 +286,7 @@ func (m *ForceReallocManager) start(device string, mode ForceReallocMode) (*forc
 	if mode == ForceReallocModeDestructive {
 		modeStr = "destructive"
 	}
-	extra.SendNotifications("Force realloc started", fmt.Sprintf("%s realloc started on %s", strings.Title(modeStr), device), "/", false)
+	logger.Info(fmt.Sprintf("%s realloc started on %s", modeStr, device))
 
 	// wait in background and notify on completion
 	go func() {
@@ -315,7 +316,11 @@ func (m *ForceReallocManager) start(device string, mode ForceReallocMode) (*forc
 		} else {
 			body = fmt.Sprintf("Badblocks %s failed on %s: %v. Last output: %s", modeStr, device, completedErr, lastLine)
 		}
-		extra.SendNotifications(title, body, "/", !success)
+		severity := extra.SeverityInfo
+		if !success {
+			severity = extra.SeverityError
+		}
+		extra.Notify(extra.Notification{Event: "operation.realloc", Severity: severity, Title: title, Body: body})
 	}()
 
 	return job, nil

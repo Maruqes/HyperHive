@@ -24,14 +24,12 @@ const (
 type WebSocketsMessageType int32
 
 const (
-	WebSocketsMessageType_DownloadIso   WebSocketsMessageType = 0
-	WebSocketsMessageType_MigrateVm     WebSocketsMessageType = 1
-	WebSocketsMessageType_BackUpVM      WebSocketsMessageType = 2
-	WebSocketsMessageType_ContainerLogs WebSocketsMessageType = 3
-	WebSocketsMessageType_Logs          WebSocketsMessageType = 4
-	WebSocketsMessageType_DockerCompose WebSocketsMessageType = 5
-	WebSocketsMessageType_VMInfo        WebSocketsMessageType = 6
-	WebSocketsMessageType_Error         WebSocketsMessageType = 7
+	WebSocketsMessageType_DownloadIso WebSocketsMessageType = 0
+	WebSocketsMessageType_MigrateVm   WebSocketsMessageType = 1
+	WebSocketsMessageType_BackUpVM    WebSocketsMessageType = 2
+	WebSocketsMessageType_Logs        WebSocketsMessageType = 4
+	WebSocketsMessageType_VMInfo      WebSocketsMessageType = 6
+	WebSocketsMessageType_Error       WebSocketsMessageType = 7
 )
 
 // Enum value maps for WebSocketsMessageType.
@@ -40,21 +38,17 @@ var (
 		0: "DownloadIso",
 		1: "MigrateVm",
 		2: "BackUpVM",
-		3: "ContainerLogs",
 		4: "Logs",
-		5: "DockerCompose",
 		6: "VMInfo",
 		7: "Error",
 	}
 	WebSocketsMessageType_value = map[string]int32{
-		"DownloadIso":   0,
-		"MigrateVm":     1,
-		"BackUpVM":      2,
-		"ContainerLogs": 3,
-		"Logs":          4,
-		"DockerCompose": 5,
-		"VMInfo":        6,
-		"Error":         7,
+		"DownloadIso": 0,
+		"MigrateVm":   1,
+		"BackUpVM":    2,
+		"Logs":        4,
+		"VMInfo":      6,
+		"Error":       7,
 	}
 )
 
@@ -83,6 +77,61 @@ func (x WebSocketsMessageType) Number() protoreflect.EnumNumber {
 // Deprecated: Use WebSocketsMessageType.Descriptor instead.
 func (WebSocketsMessageType) EnumDescriptor() ([]byte, []int) {
 	return file_extra_proto_rawDescGZIP(), []int{0}
+}
+
+type NotificationSeverity int32
+
+const (
+	NotificationSeverity_SEVERITY_UNSPECIFIED NotificationSeverity = 0 // older slaves: master derives severity from critical
+	NotificationSeverity_SEVERITY_INFO        NotificationSeverity = 1
+	NotificationSeverity_SEVERITY_WARNING     NotificationSeverity = 2
+	NotificationSeverity_SEVERITY_ERROR       NotificationSeverity = 3
+	NotificationSeverity_SEVERITY_CRITICAL    NotificationSeverity = 4
+)
+
+// Enum value maps for NotificationSeverity.
+var (
+	NotificationSeverity_name = map[int32]string{
+		0: "SEVERITY_UNSPECIFIED",
+		1: "SEVERITY_INFO",
+		2: "SEVERITY_WARNING",
+		3: "SEVERITY_ERROR",
+		4: "SEVERITY_CRITICAL",
+	}
+	NotificationSeverity_value = map[string]int32{
+		"SEVERITY_UNSPECIFIED": 0,
+		"SEVERITY_INFO":        1,
+		"SEVERITY_WARNING":     2,
+		"SEVERITY_ERROR":       3,
+		"SEVERITY_CRITICAL":    4,
+	}
+)
+
+func (x NotificationSeverity) Enum() *NotificationSeverity {
+	p := new(NotificationSeverity)
+	*p = x
+	return p
+}
+
+func (x NotificationSeverity) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (NotificationSeverity) Descriptor() protoreflect.EnumDescriptor {
+	return file_extra_proto_enumTypes[1].Descriptor()
+}
+
+func (NotificationSeverity) Type() protoreflect.EnumType {
+	return &file_extra_proto_enumTypes[1]
+}
+
+func (x NotificationSeverity) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use NotificationSeverity.Descriptor instead.
+func (NotificationSeverity) EnumDescriptor() ([]byte, []int) {
+	return file_extra_proto_rawDescGZIP(), []int{1}
 }
 
 type WebsocketMessage struct {
@@ -334,7 +383,11 @@ type Notification struct {
 	Title         string                 `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
 	Body          string                 `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
 	RelURL        string                 `protobuf:"bytes,3,opt,name=relURL,proto3" json:"relURL,omitempty"`
-	Critical      bool                   `protobuf:"varint,4,opt,name=critical,proto3" json:"critical,omitempty"`
+	Critical      bool                   `protobuf:"varint,4,opt,name=critical,proto3" json:"critical,omitempty"` // kept for older masters; true when severity >= error
+	Severity      NotificationSeverity   `protobuf:"varint,5,opt,name=severity,proto3,enum=extra.NotificationSeverity" json:"severity,omitempty"`
+	Event         string                 `protobuf:"bytes,6,opt,name=event,proto3" json:"event,omitempty"`                       // stable key, e.g. "health.smart"
+	DedupKey      string                 `protobuf:"bytes,7,opt,name=dedup_key,json=dedupKey,proto3" json:"dedup_key,omitempty"` // repeated notifications with the same key are suppressed
+	Machine       string                 `protobuf:"bytes,8,opt,name=machine,proto3" json:"machine,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -395,6 +448,34 @@ func (x *Notification) GetCritical() bool {
 		return x.Critical
 	}
 	return false
+}
+
+func (x *Notification) GetSeverity() NotificationSeverity {
+	if x != nil {
+		return x.Severity
+	}
+	return NotificationSeverity_SEVERITY_UNSPECIFIED
+}
+
+func (x *Notification) GetEvent() string {
+	if x != nil {
+		return x.Event
+	}
+	return ""
+}
+
+func (x *Notification) GetDedupKey() string {
+	if x != nil {
+		return x.DedupKey
+	}
+	return ""
+}
+
+func (x *Notification) GetMachine() string {
+	if x != nil {
+		return x.Machine
+	}
+	return ""
 }
 
 type RestartShutdownNow struct {
@@ -504,26 +585,34 @@ const file_extra_proto_rawDesc = "" +
 	"\aupdates\x18\x01 \x03(\v2\x11.extra.UpdateInfoR\aupdates\"G\n" +
 	"\rUpdateRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\"\n" +
-	"\frestartAfter\x18\x02 \x01(\bR\frestartAfter\"l\n" +
+	"\frestartAfter\x18\x02 \x01(\bR\frestartAfter\"\xf2\x01\n" +
 	"\fNotification\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\tR\x04body\x12\x16\n" +
 	"\x06relURL\x18\x03 \x01(\tR\x06relURL\x12\x1a\n" +
-	"\bcritical\x18\x04 \x01(\bR\bcritical\"&\n" +
+	"\bcritical\x18\x04 \x01(\bR\bcritical\x127\n" +
+	"\bseverity\x18\x05 \x01(\x0e2\x1b.extra.NotificationSeverityR\bseverity\x12\x14\n" +
+	"\x05event\x18\x06 \x01(\tR\x05event\x12\x1b\n" +
+	"\tdedup_key\x18\a \x01(\tR\bdedupKey\x12\x18\n" +
+	"\amachine\x18\b \x01(\tR\amachine\"&\n" +
 	"\x12RestartShutdownNow\x12\x10\n" +
 	"\x03now\x18\x01 \x01(\bR\x03now\"2\n" +
 	"\x14SparsifyQcow2Request\x12\x1a\n" +
-	"\bdiskPath\x18\x01 \x01(\tR\bdiskPath*\x8c\x01\n" +
+	"\bdiskPath\x18\x01 \x01(\tR\bdiskPath*\x90\x01\n" +
 	"\x15WebSocketsMessageType\x12\x0f\n" +
 	"\vDownloadIso\x10\x00\x12\r\n" +
 	"\tMigrateVm\x10\x01\x12\f\n" +
-	"\bBackUpVM\x10\x02\x12\x11\n" +
-	"\rContainerLogs\x10\x03\x12\b\n" +
-	"\x04Logs\x10\x04\x12\x11\n" +
-	"\rDockerCompose\x10\x05\x12\n" +
+	"\bBackUpVM\x10\x02\x12\b\n" +
+	"\x04Logs\x10\x04\x12\n" +
 	"\n" +
 	"\x06VMInfo\x10\x06\x12\t\n" +
-	"\x05Error\x10\a2\x93\x03\n" +
+	"\x05Error\x10\a\"\x04\b\x03\x10\x03\"\x04\b\x05\x10\x05*\rContainerLogs*\rDockerCompose*\x84\x01\n" +
+	"\x14NotificationSeverity\x12\x18\n" +
+	"\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x11\n" +
+	"\rSEVERITY_INFO\x10\x01\x12\x14\n" +
+	"\x10SEVERITY_WARNING\x10\x02\x12\x12\n" +
+	"\x0eSEVERITY_ERROR\x10\x03\x12\x15\n" +
+	"\x11SEVERITY_CRITICAL\x10\x042\x93\x03\n" +
 	"\fExtraService\x12=\n" +
 	"\x14SendWebsocketMessage\x12\x17.extra.WebsocketMessage\x1a\f.extra.Empty\x122\n" +
 	"\x0fCheckForUpdates\x12\f.extra.Empty\x1a\x11.extra.AllUpdates\x123\n" +
@@ -545,41 +634,43 @@ func file_extra_proto_rawDescGZIP() []byte {
 	return file_extra_proto_rawDescData
 }
 
-var file_extra_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_extra_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_extra_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_extra_proto_goTypes = []any{
 	(WebSocketsMessageType)(0),   // 0: extra.WebSocketsMessageType
-	(*WebsocketMessage)(nil),     // 1: extra.WebsocketMessage
-	(*Empty)(nil),                // 2: extra.Empty
-	(*UpdateInfo)(nil),           // 3: extra.UpdateInfo
-	(*AllUpdates)(nil),           // 4: extra.AllUpdates
-	(*UpdateRequest)(nil),        // 5: extra.UpdateRequest
-	(*Notification)(nil),         // 6: extra.Notification
-	(*RestartShutdownNow)(nil),   // 7: extra.RestartShutdownNow
-	(*SparsifyQcow2Request)(nil), // 8: extra.SparsifyQcow2Request
+	(NotificationSeverity)(0),    // 1: extra.NotificationSeverity
+	(*WebsocketMessage)(nil),     // 2: extra.WebsocketMessage
+	(*Empty)(nil),                // 3: extra.Empty
+	(*UpdateInfo)(nil),           // 4: extra.UpdateInfo
+	(*AllUpdates)(nil),           // 5: extra.AllUpdates
+	(*UpdateRequest)(nil),        // 6: extra.UpdateRequest
+	(*Notification)(nil),         // 7: extra.Notification
+	(*RestartShutdownNow)(nil),   // 8: extra.RestartShutdownNow
+	(*SparsifyQcow2Request)(nil), // 9: extra.SparsifyQcow2Request
 }
 var file_extra_proto_depIdxs = []int32{
-	0, // 0: extra.WebsocketMessage.type:type_name -> extra.WebSocketsMessageType
-	3, // 1: extra.AllUpdates.updates:type_name -> extra.UpdateInfo
-	1, // 2: extra.ExtraService.SendWebsocketMessage:input_type -> extra.WebsocketMessage
-	2, // 3: extra.ExtraService.CheckForUpdates:input_type -> extra.Empty
-	5, // 4: extra.ExtraService.PerformUpdate:input_type -> extra.UpdateRequest
-	6, // 5: extra.ExtraService.SendNotifications:input_type -> extra.Notification
-	7, // 6: extra.ExtraService.ShutDown:input_type -> extra.RestartShutdownNow
-	7, // 7: extra.ExtraService.Restart:input_type -> extra.RestartShutdownNow
-	8, // 8: extra.ExtraService.SparsifyQcow2:input_type -> extra.SparsifyQcow2Request
-	2, // 9: extra.ExtraService.SendWebsocketMessage:output_type -> extra.Empty
-	4, // 10: extra.ExtraService.CheckForUpdates:output_type -> extra.AllUpdates
-	2, // 11: extra.ExtraService.PerformUpdate:output_type -> extra.Empty
-	2, // 12: extra.ExtraService.SendNotifications:output_type -> extra.Empty
-	2, // 13: extra.ExtraService.ShutDown:output_type -> extra.Empty
-	2, // 14: extra.ExtraService.Restart:output_type -> extra.Empty
-	2, // 15: extra.ExtraService.SparsifyQcow2:output_type -> extra.Empty
-	9, // [9:16] is the sub-list for method output_type
-	2, // [2:9] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	0,  // 0: extra.WebsocketMessage.type:type_name -> extra.WebSocketsMessageType
+	4,  // 1: extra.AllUpdates.updates:type_name -> extra.UpdateInfo
+	1,  // 2: extra.Notification.severity:type_name -> extra.NotificationSeverity
+	2,  // 3: extra.ExtraService.SendWebsocketMessage:input_type -> extra.WebsocketMessage
+	3,  // 4: extra.ExtraService.CheckForUpdates:input_type -> extra.Empty
+	6,  // 5: extra.ExtraService.PerformUpdate:input_type -> extra.UpdateRequest
+	7,  // 6: extra.ExtraService.SendNotifications:input_type -> extra.Notification
+	8,  // 7: extra.ExtraService.ShutDown:input_type -> extra.RestartShutdownNow
+	8,  // 8: extra.ExtraService.Restart:input_type -> extra.RestartShutdownNow
+	9,  // 9: extra.ExtraService.SparsifyQcow2:input_type -> extra.SparsifyQcow2Request
+	3,  // 10: extra.ExtraService.SendWebsocketMessage:output_type -> extra.Empty
+	5,  // 11: extra.ExtraService.CheckForUpdates:output_type -> extra.AllUpdates
+	3,  // 12: extra.ExtraService.PerformUpdate:output_type -> extra.Empty
+	3,  // 13: extra.ExtraService.SendNotifications:output_type -> extra.Empty
+	3,  // 14: extra.ExtraService.ShutDown:output_type -> extra.Empty
+	3,  // 15: extra.ExtraService.Restart:output_type -> extra.Empty
+	3,  // 16: extra.ExtraService.SparsifyQcow2:output_type -> extra.Empty
+	10, // [10:17] is the sub-list for method output_type
+	3,  // [3:10] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_extra_proto_init() }
@@ -592,7 +683,7 @@ func file_extra_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_extra_proto_rawDesc), len(file_extra_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,

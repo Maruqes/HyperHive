@@ -36,9 +36,21 @@ func CheckSmartTestNot() {
 
 func checkSmartDiskProblems(device string, info *SmartDiskInfo) {
 	// Helper: envia notificação + log de erro.
+	// Each problem is deduplicated per disk by the master, so the 6-hourly check
+	// does not repeat it more than once a day.
 	notify := func(title, msg string, critical bool) {
 		logger.Errorf("%s-[%s] %s", env512.MachineName, device, msg)
-		extra.SendNotifications(env512.MachineName+"-"+title, msg, "/", critical)
+		severity := extra.SeverityWarning
+		if critical {
+			severity = extra.SeverityCritical
+		}
+		extra.Notify(extra.Notification{
+			Event:    "health.smart",
+			Severity: severity,
+			Title:    env512.MachineName + " " + device + ": " + title,
+			Body:     msg,
+			DedupKey: "health.smart:" + env512.MachineName + ":" + device + ":" + title,
+		})
 	}
 
 	// Check summary info (model/serial/firmware/capacity) – info only.

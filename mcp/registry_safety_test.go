@@ -90,14 +90,14 @@ func TestUnifiedSafetyDiscoveryInventory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(listed.Tools) != 117 {
+	if len(listed.Tools) != 119 {
 		t.Fatalf("unexpected tool inventory: %d", len(listed.Tools))
 	}
 	// Every live tool must have exactly one literal name and level in a compact
 	// area Register function; helper factories cannot hide registrations.
 	catalogLevels := map[string]string{}
 	catalogAreas := map[string]string{}
-	files := []string{"vms.go", "celld.go", "dns.go", "isos.go", "notes.go", "spa.go", "proxies.go", "nginx.go", "upstreams.go"}
+	files := []string{"vms.go", "celld.go", "dns.go", "isos.go", "notes.go", "notifications.go", "spa.go", "proxies.go", "nginx.go", "upstreams.go"}
 	for _, path := range files {
 		file, err := parser.ParseFile(token.NewFileSet(), filepath.Join("internal/tools", path), nil, 0)
 		if err != nil {

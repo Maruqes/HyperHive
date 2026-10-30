@@ -84,7 +84,7 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 	// notify migration start (websocket + push)
 	extra.SendWebsocketMessage("migration started", identifier, extraGrpc.WebSocketsMessageType_MigrateVm)
 	// notify migration start
-	extra.SendNotifications("VM migration started", fmt.Sprintf("Starting migration of %s to %s", name, destURI), "/", false)
+	logger.Info(fmt.Sprintf("Starting migration of %s to %s", name, destURI))
 
 	// best-effort live progress using libvirt job info while virsh runs
 	progressCtx, cancelProgress := context.WithCancel(ctx)
@@ -150,13 +150,13 @@ func MigrateVM(opts MigrateOptions, ctx context.Context) error {
 	close(doneCmd)
 	if errRun != nil {
 		errMsg := errRun.Error()
-		extra.SendNotifications("VM migration failed", fmt.Sprintf("Migration of %s to %s failed: %s", name, destURI, errMsg), "/", true)
+		extra.Notify(extra.Notification{Event: "operation.migration", Severity: extra.SeverityError, Title: "VM migration failed", Body: fmt.Sprintf("Migration of %s to %s failed: %s", name, destURI, errMsg)})
 		return fmt.Errorf("virsh migrate: %s", errMsg)
 	}
 
 	// success
 	extra.SendWebsocketMessage("migration finished", identifier, extraGrpc.WebSocketsMessageType_MigrateVm)
-	extra.SendNotifications("VM migration succeeded", fmt.Sprintf("Migration of %s to %s completed successfully", name, destURI), "/", false)
+	extra.Notify(extra.Notification{Event: "operation.migration", Severity: extra.SeverityInfo, Title: "VM migration succeeded", Body: fmt.Sprintf("Migration of %s to %s completed successfully", name, destURI)})
 
 	return nil
 }

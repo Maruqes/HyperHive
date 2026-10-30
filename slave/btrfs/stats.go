@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slave/env512"
 	"slave/extra"
 	"strconv"
 	"strings"
@@ -663,10 +664,13 @@ func CheckBtrfs(callErrs func(*btrfsErrorEvent, error)) {
 	}
 }
 
+// CheckBtrfsLoop checks btrfs device stats every btrfsCheckInterval for the process lifetime.
 func CheckBtrfsLoop(callErrs func(*btrfsErrorEvent, error)) {
 	go func() {
-		CheckBtrfs(callErrs)
-		time.Sleep(btrfsCheckInterval)
+		for {
+			CheckBtrfs(callErrs)
+			time.Sleep(btrfsCheckInterval)
+		}
 	}()
 }
 
@@ -691,11 +695,7 @@ func StartCheckBTRFSLOOP() {
 			"device_missing", event.DeviceMissing,
 		)
 
-		var (
-			title    string
-			body     string
-			critical = true // se quiseres podes afinar por tipo
-		)
+		var title, body string
 
 		switch event.ErrorType {
 		case "device_missing":
@@ -758,7 +758,22 @@ func StartCheckBTRFSLOOP() {
 			)
 		}
 
-		extra.SendNotifications(title, body, "/", critical)
+		// Device stats are cumulative, so the count is part of the key: new errors notify
+		// at once, an unchanged count repeats at most once per dedup window.
+		key, severity := "health.btrfs_device", extra.SeverityCritical
+		dedupKey := fmt.Sprintf("%s:%s:%s:%s:%s:%d", key, env512.MachineName, event.Target, event.Device, event.ErrorType, event.Count)
+		if event.ErrorType == "space_usage_percent" {
+			// Usage moves every check; one notification per filesystem per window is enough.
+			key, severity = "metrics.btrfs_usage", extra.SeverityError
+			dedupKey = fmt.Sprintf("%s:%s:%s", key, env512.MachineName, event.Target)
+		}
+		extra.Notify(extra.Notification{
+			Event:    key,
+			Severity: severity,
+			Title:    env512.MachineName + ": " + title,
+			Body:     body,
+			DedupKey: dedupKey,
+		})
 	}
 
 	CheckBtrfsLoop(handler)

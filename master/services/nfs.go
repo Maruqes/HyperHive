@@ -780,19 +780,22 @@ func (s *NFSService) DownloadISOAsync(url, isoName string, nfsShare db.NFSShare)
 
 	go func() {
 		taskCtx := context.Background()
+		isoFailed := func(title, body string, err error) {
+			notifyOperation(taskCtx, "operation.iso", nots.SeverityError, nfsShare.MachineName, title, body+": "+err.Error())
+		}
 		if err := nfs.DownloadISO(conn.Connection, taskCtx, isoRequest); err != nil {
-			nots.SendGlobalNotification("ISO download failed", "ISO download failed for "+isoName+" on "+nfsShare.MachineName, err.Error(), true)
+			isoFailed("ISO download failed", "ISO download failed for "+isoName+" on "+nfsShare.MachineName, err)
 			return
 		}
 		if err := nfs.Sync(conn.Connection); err != nil {
-			nots.SendGlobalNotification("ISO sync failed", "ISO sync failed for "+isoName+" on "+nfsShare.MachineName, err.Error(), true)
+			isoFailed("ISO sync failed", "ISO sync failed for "+isoName+" on "+nfsShare.MachineName, err)
 			return
 		}
 		if err := db.AddISO(taskCtx, nfsShare.MachineName, isoPath, isoName); err != nil {
-			nots.SendGlobalNotification("ISO register failed", "ISO download finished but failed to save "+isoName+" on "+nfsShare.MachineName, err.Error(), true)
+			isoFailed("ISO register failed", "ISO download finished but failed to save "+isoName+" on "+nfsShare.MachineName, err)
 			return
 		}
-		nots.SendGlobalNotification("ISO download done", "ISO "+isoName+" downloaded on "+nfsShare.MachineName, "/", true)
+		notifyOperation(taskCtx, "operation.iso", nots.SeverityInfo, nfsShare.MachineName, "ISO download done", "ISO "+isoName+" downloaded on "+nfsShare.MachineName)
 	}()
 
 	return nil

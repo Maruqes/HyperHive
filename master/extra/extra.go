@@ -62,11 +62,42 @@ func SendWebsocketMessage(Type extraGrpc.WebSocketsMessageType, Message, Extra s
 }
 
 func (s *ExtraServiceServer) SendNotifications(ctx context.Context, req *extraGrpc.Notification) (*extraGrpc.Empty, error) {
-	if err := nots.SendGlobalNotification(req.Title, req.Body, req.RelURL, req.Critical); err != nil {
-		logger.Errorf("nao foi possivel enviar a not %s: %s", req.Title, req.Body)
+	if err := nots.Notify(ctx, notificationFromSlave(req)); err != nil {
+		logger.Errorf("slave notification %q: %v", req.Title, err)
 	}
 
 	return &extraGrpc.Empty{}, nil
+}
+
+// notificationFromSlave maps the gRPC message; older slaves only send critical.
+func notificationFromSlave(req *extraGrpc.Notification) nots.Notification {
+	n := nots.Notification{
+		Event:    req.Event,
+		Title:    req.Title,
+		Body:     req.Body,
+		URL:      req.RelURL,
+		Machine:  req.Machine,
+		DedupKey: req.DedupKey,
+	}
+	switch req.Severity {
+	case extraGrpc.NotificationSeverity_SEVERITY_INFO:
+		n.Severity = nots.SeverityInfo
+	case extraGrpc.NotificationSeverity_SEVERITY_WARNING:
+		n.Severity = nots.SeverityWarning
+	case extraGrpc.NotificationSeverity_SEVERITY_ERROR:
+		n.Severity = nots.SeverityError
+	case extraGrpc.NotificationSeverity_SEVERITY_CRITICAL:
+		n.Severity = nots.SeverityCritical
+	default:
+		n.Severity = nots.SeverityInfo
+		if req.Critical {
+			n.Severity = nots.SeverityError
+		}
+	}
+	if n.Event == "" {
+		n.Event = nots.CategoryLegacy
+	}
+	return n
 }
 
 func (s *ExtraServiceServer) SendWebsocketMessage(ctx context.Context, req *extraGrpc.WebsocketMessage) (*extraGrpc.Empty, error) {

@@ -1748,20 +1748,11 @@ func downloadFile(ctx context.Context, url, destPath string) (err error) {
 		if elapsed == 0 {
 			elapsed = time.Since(start)
 		}
+		// The master sends the ISO outcome notification; log here only.
 		if err != nil {
-			extra.SendNotifications(
-				"ISO download failed",
-				fmt.Sprintf("Failed to download %s from %s to %s: %v", fileName, url, destPath, err),
-				"/",
-				true,
-			)
+			logger.Error("ISO download failed", "file", fileName, "url", url, "dest", destPath, "error", err)
 		} else {
-			extra.SendNotifications(
-				"ISO download succeeded",
-				fmt.Sprintf("Downloaded %s to %s in %s", fileName, destPath, elapsed),
-				"/",
-				false,
-			)
+			logger.Info("ISO download succeeded", "file", fileName, "dest", destPath, "elapsed", elapsed)
 		}
 	}()
 
@@ -1848,12 +1839,7 @@ func DownloadISO(ctx context.Context, url, isoName, downloadFolder string) (stri
 	}
 
 	isoPath := filepath.Join(downloadFolder, isoName)
-	extra.SendNotifications(
-		"ISO download started",
-		fmt.Sprintf("Downloading %s from %s to %s", isoName, url, isoPath),
-		"/",
-		false,
-	)
+	logger.Info("ISO download started", "iso", isoName, "url", url, "dest", isoPath)
 
 	err := downloadFile(ctx, url, isoPath)
 	if err != nil {

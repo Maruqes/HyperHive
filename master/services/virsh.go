@@ -764,7 +764,15 @@ func (v *VirshService) GetAllVms(ctx context.Context) ([]VmType, []string, error
 			}
 			if found {
 				logger.Error("DOUBLE VM IN GetALLVMS")
-				nots.SendGlobalNotification("DOUBLE VM IN GetALLVMS", "if there is a duplicate VM delete one of them manually with CLI virsh", "", true)
+				if err := nots.Notify(context.Background(), nots.Notification{
+					Event:    "vm.duplicate",
+					Severity: nots.SeverityError,
+					Title:    "Duplicate VM " + vm.Name,
+					Body:     "VM " + vm.Name + " exists on more than one host. Delete one copy manually with virsh.",
+					DedupKey: "vm.duplicate:" + vm.Name,
+				}); err != nil {
+					logger.Errorf("duplicate VM notification: %v", err)
+				}
 			}
 			allVms = append(allVms, VmType{Vm: vm, IsLive: isLive})
 			mu.Unlock()

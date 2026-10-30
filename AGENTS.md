@@ -17,7 +17,7 @@ Instructions for AI coding agents working in this repository. `CLAUDE.md` files 
 | Component | Module | Role |
 | --- | --- | --- |
 | `master/` | `512SvMan` | Control plane: HTTP API + MCP on `:9595`, SQLite metadata, NPM integration, frontend install, schedulers, websocket, notifications. gRPC registration listener on `:50051`. |
-| `slave/` | `slave` | Privileged host agent on every machine (the master host runs one too). gRPC services on `:50052` that drive libvirt, qemu-img, Docker, NFS, Btrfs, SMART, PCI, k3s, celld. |
+| `slave/` | `slave` | Privileged host agent on every machine (the master host runs one too). gRPC services on `:50052` that drive libvirt, qemu-img, NFS, Btrfs, SMART, PCI, k3s, celld. |
 | `api/` | `github.com/Maruqes/512SvMan/api` | `.proto` contracts in `api/proto/` and their generated Go bindings. Contract of record between master and slave. |
 | `logger/` | `github.com/Maruqes/512SvMan/logger` | Shared logger; slaves forward logs to master. |
 | `mcp/` | `github.com/Maruqes/HyperHive/mcp` | MCP tool server, embedded in master (`/mcp`) and standalone over stdio. Has its own strict `mcp/AGENTS.md`; read it before touching MCP. |
@@ -25,7 +25,7 @@ Instructions for AI coding agents working in this repository. `CLAUDE.md` files 
 
 ### Request flows
 
-- **Host operation** (VMs, disks, NFS, Btrfs, Docker, PCI, info…): `master/api` handler → `master/services` → master domain client (`master/virsh`, `master/vm_disk`, …) → gRPC → slave `*Service` handler → slave domain code → host tool.
+- **Host operation** (VMs, disks, NFS, Btrfs, PCI, info…): `master/api` handler → `master/services` → master domain client (`master/virsh`, `master/vm_disk`, …) → gRPC → slave `*Service` handler → slave domain code → host tool.
 - **Proxy/certs**: `master/api/npmapi` → `master/npm` → local Nginx Proxy Manager API. Never via a slave.
 - **Master-only metadata** (notes, descriptions, schedules): handler → `master/db`.
 - **Progress / live updates**: websocket broadcast to browsers. Slaves push messages and notifications back through the master's `ExtraService`.

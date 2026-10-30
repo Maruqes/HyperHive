@@ -82,15 +82,15 @@ Checked: **2026-10-21**, targeted registration/safety refresh. Current rework va
 - Prior full-inventory source revision: `4355281ba49b8e0ab6fabb508fd96e26a43acf43` plus local ISO-tool changes.
 - Prior full-inventory source content SHA-256: `01afbf738f67140ae39b8815d70a2ae9be47b162c356eb203ff9b3225b178dfa`.
 - Digest input: sorted repository-relative paths; non-test Go/protobuf sources under master/slave/api, all MCP Go sources, those modules' go.mod/go.sum, and the four pinned master/npm/upstream_templates/*.conf inputs. Hash path + NUL + file bytes + NUL. The task's manifest is `.planning/2026-10-20-mcp-remove-vm-isos/mcp-source-digest.json`.
-- Inventory: **322** unique explicit method/path pairs. Existing inventory 316 is unchanged except the six authenticated /upstream registrations in master/api/npmapi/upstreams.go, mounted in master/api/api.go. /api remains an alias; /mcp transport lifecycle and the separate pprof listener remain outside capability coverage. This is a task-local source review, not a shipped coverage generator.
-- Status: **117 implemented, 157 missing, 48 excluded**. The VM increment adds seven supported endpoints: six specifically authorized prior exclusions and blocked SSH injection. Helper calls earn no credit. No partial/stale/disabled endpoint is counted as implemented.
+- Inventory: **300** unique explicit method/path pairs (322 before the Docker management API was removed, 2026-10-30; then +4 notification routes: rules GET/PUT and Firebase device register/unregister). Existing inventory 316 is unchanged except the six authenticated /upstream registrations in master/api/npmapi/upstreams.go, mounted in master/api/api.go. /api remains an alias; /mcp transport lifecycle and the separate pprof listener remain outside capability coverage. This is a task-local source review, not a shipped coverage generator.
+- Status: **119 implemented**; the notification rules increment (2026-10-30) adds `list_notification_rules` (low) and `update_notification_rule` (medium) and leaves the two Firebase device routes missing. The missing/excluded split below this line predates the Docker removal and was not re-audited. The VM increment adds seven supported endpoints: six specifically authorized prior exclusions and blocked SSH injection. Helper calls earn no credit. No partial/stale/disabled endpoint is counted as implemented.
 - Scope: the seven named VM capabilities in [the VM run](runs/2026-10-20-vm-increment-01.md), plus previously implemented list/get/capabilities/create/update upstream tools and optional proxy/location/stream bindings. No upstream deletion tool or alias. Confirmed creates complete through journal reconciliation instead of deleting newly created resources as rollback; failed/unknown creates are not retried.
 - Validation: this VM increment passed full MCP normal/race/vet checks (622 tests), master API/services/virsh normal tests (58 tests) and vet, plus focused normal/race checks for additional live/template/true-flag variants. The prior increment expected 117 tools; that increment's discovery expected 118; current discovery expects 117. Authenticated HTTP and actual executable stdio fixtures exercise modern/legacy approval, exact wire contracts, prior-state persistence, safe failures, no retries and fail-closed SSH disk export/manifest checks. Previous NPM handler/exact-image validation remains documented in its upstream checkpoint; it was not rerun as part of this VM increment. See [the VM run](runs/2026-10-20-vm-increment-01.md) for current checks and limits.
 - Limits: these local checks do not establish production deployment, real ACME issuance or distributed atomicity. Existing DNS/Notes/SPA/ISO/VM contracts and policy exclusions retain their reviewed boundaries in their feature documents. Celld fleet deletion is no longer registered, following the user's 2026-10-21 decision. The 2026-10-20 user request additionally authorizes only VM creation, autostart/live flag changes, schedule create/update/enable SSH injection and all VM ISO/CD-ROM removal; all other exclusions remain.
 
 | Scope | Implemented / total | Missing | Coverage |
 | --- | ---: | ---: | ---: |
-| **HyperHive API** | 117 / 322 | 157 | 36.34% |
+| **HyperHive API** | 119 / 300 | 138 | 39.67% |
 | NGINX subtotal | 33 / 43 | 0 | 76.74% |
 | VM subtotal, including templates/disks/helpers | 64 / 82 | 2 | 78.05% |
 
@@ -99,11 +99,10 @@ Subtotals are subsets of the API. Leaf areas partition the total. Missing omits 
 | Area | Implemented / total | Missing | Coverage | Route source |
 | --- | ---: | ---: | ---: | --- |
 | Guest access and SPA | 2 / 12 | 8 | 16.67% | [GUESTS.go](../master/api/GUESTS.go) |
-| Core, login and notifications | 0 / 12 | 11 | 0.00% | [api.go](../master/api/api.go) |
+| Core, login and notifications | 2 / 16 | 13 | 12.50% | [api.go](../master/api/api.go) |
 | BTRFS | 0 / 22 | 19 | 0.00% | [btrfs.go](../master/api/btrfs.go) |
 | Celld | 8 / 17 | 7 | 47.06% | [celld.go](../master/api/celld.go) |
 | DNS aliases | 3 / 4 | 0 | 75.00% | [dnsmasq.go](../master/api/dnsmasq.go) |
-| Docker | 0 / 26 | 21 | 0.00% | [docker.go](../master/api/docker.go) |
 | Host maintenance | 0 / 4 | 4 | 0.00% | [extra.go](../master/api/extra.go) |
 | GoAccess | 0 / 3 | 3 | 0.00% | [goaccess.go](../master/api/goaccess.go) |
 | Host information | 0 / 15 | 15 | 0.00% | [info.go](../master/api/info.go) |
@@ -132,7 +131,7 @@ Subtotals are subsets of the API. Leaf areas partition the total. Missing omits 
 
 ### Available capabilities and safety
 
-Both transports share 117 registrations: 33 NGINX, eight Celld, three DNS, five Notes, two SPA, two ISO and 64 VM tools. Feature contracts: [upstreams](docs/areas/upstreams.md), [NGINX](docs/areas/nginx.md), [proxies](docs/areas/nginx-proxies.md), [Celld](docs/areas/celld.md), [DNS](docs/areas/dns.md), [Notes](docs/areas/notes.md), [SPA](docs/areas/spa.md), [ISOs](docs/areas/isos.md), [VMs](docs/areas/vms.md).
+Both transports share 119 registrations: 33 NGINX, eight Celld, three DNS, five Notes, two notification rules, two SPA, two ISO and 64 VM tools. Feature contracts: [upstreams](docs/areas/upstreams.md), [NGINX](docs/areas/nginx.md), [proxies](docs/areas/nginx-proxies.md), [Celld](docs/areas/celld.md), [DNS](docs/areas/dns.md), [Notes](docs/areas/notes.md), [SPA](docs/areas/spa.md), [ISOs](docs/areas/isos.md), [VMs](docs/areas/vms.md).
 
 Every tool publishes low/medium/high/very high risk. Medium requires a recorded validated preflight; High/VeryHigh require per-call explicit human form approval bound to complete arguments; stale/replayed/forged/changed continuations or unsupported/declined/canceled pickers cannot execute writes. Modern HTTP remains stateless; legacy HTTP retains authenticated sessions for form elicitation. Stdio supports both protocol generations.
 
@@ -294,6 +293,10 @@ One row is one method/path pair. Only registered, enabled, contract-reviewed and
 | `GET /notification/public-key` | missing | [api.go:308](../master/api/api.go#L308) |
 | `POST /notification/subscribe` | missing | [api.go:309](../master/api/api.go#L309) |
 | `GET /notification/test` | missing | [api.go:310](../master/api/api.go#L310) |
+| `POST /notification/firebase/devices` | missing | [api.go:304](../master/api/api.go#L304) |
+| `POST /notification/firebase/devices/unregister` | missing (removes a device token) | [api.go:305](../master/api/api.go#L305) |
+| `GET /notification/rules` | implemented: `list_notification_rules` | [api.go:306](../master/api/api.go#L306) |
+| `PUT /notification/rules/{category}` | implemented: `update_notification_rule` | [api.go:307](../master/api/api.go#L307) |
 | `DELETE /notification/subscriptions` | excluded (deletion policy) | [api.go:311](../master/api/api.go#L311) |
 | `GET /sw.js` | missing | [api.go:313](../master/api/api.go#L313) |
 | `GET /protected` | missing | [api.go:317](../master/api/api.go#L317) |
@@ -356,37 +359,6 @@ One row is one method/path pair. Only registered, enabled, contract-reviewed and
 | `GET /dnsmasq/alias/get` | implemented | [dnsmasq.go:127](../master/api/dnsmasq.go#L127) |
 | `POST /dnsmasq/alias/add` | implemented | [dnsmasq.go:128](../master/api/dnsmasq.go#L128) |
 | `DELETE /dnsmasq/alias/remove` | excluded (deletion policy) | [dnsmasq.go:129](../master/api/dnsmasq.go#L129) |
-
-#### Docker
-
-| Endpoint | Status | Route source |
-| --- | --- | --- |
-| `GET /docker/images/{machineName}` | missing | [docker.go:716](../master/api/docker.go#L716) |
-| `POST /docker/images/download/{machineName}` | missing | [docker.go:717](../master/api/docker.go#L717) |
-| `DELETE /docker/images/remove/{machineName}` | excluded (deletion policy) | [docker.go:718](../master/api/docker.go#L718) |
-| `GET /docker/containers/{machineName}` | missing | [docker.go:722](../master/api/docker.go#L722) |
-| `POST /docker/containers/create/{machineName}` | missing | [docker.go:723](../master/api/docker.go#L723) |
-| `DELETE /docker/containers/remove/{machineName}` | excluded (deletion policy) | [docker.go:724](../master/api/docker.go#L724) |
-| `POST /docker/containers/stop/{machineName}` | missing | [docker.go:725](../master/api/docker.go#L725) |
-| `POST /docker/containers/start/{machineName}` | missing | [docker.go:726](../master/api/docker.go#L726) |
-| `POST /docker/containers/restart/{machineName}` | missing | [docker.go:727](../master/api/docker.go#L727) |
-| `POST /docker/containers/pause/{machineName}` | missing | [docker.go:728](../master/api/docker.go#L728) |
-| `POST /docker/containers/unpause/{machineName}` | missing | [docker.go:729](../master/api/docker.go#L729) |
-| `POST /docker/containers/kill/{machineName}` | missing | [docker.go:730](../master/api/docker.go#L730) |
-| `POST /docker/containers/logs/{machineName}` | missing | [docker.go:731](../master/api/docker.go#L731) |
-| `POST /docker/containers/update/{machineName}` | missing | [docker.go:732](../master/api/docker.go#L732) |
-| `POST /docker/containers/rename/{machineName}` | missing | [docker.go:733](../master/api/docker.go#L733) |
-| `POST /docker/containers/exec/{machineName}` | missing | [docker.go:734](../master/api/docker.go#L734) |
-| `GET /docker/volumes/{machineName}` | missing | [docker.go:738](../master/api/docker.go#L738) |
-| `POST /docker/volumes/create/{machineName}` | missing | [docker.go:739](../master/api/docker.go#L739) |
-| `DELETE /docker/volumes/remove/{machineName}` | excluded (deletion policy) | [docker.go:740](../master/api/docker.go#L740) |
-| `GET /docker/networks/{machineName}` | missing | [docker.go:744](../master/api/docker.go#L744) |
-| `POST /docker/networks/create/{machineName}` | missing | [docker.go:745](../master/api/docker.go#L745) |
-| `DELETE /docker/networks/remove/{machineName}` | excluded (deletion policy) | [docker.go:746](../master/api/docker.go#L746) |
-| `GET /docker/git/{machineName}` | missing | [docker.go:750](../master/api/docker.go#L750) |
-| `POST /docker/git/clone/{machineName}` | missing | [docker.go:751](../master/api/docker.go#L751) |
-| `DELETE /docker/git/remove/{machineName}` | excluded (deletion policy) | [docker.go:752](../master/api/docker.go#L752) |
-| `POST /docker/git/update/{machineName}` | missing | [docker.go:753](../master/api/docker.go#L753) |
 
 #### Host maintenance
 

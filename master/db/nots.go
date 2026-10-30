@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"time"
 )
 
@@ -22,6 +23,9 @@ type Not struct {
 	Body      string    `json:"body"`
 	RelURL    string    `json:"relURL"`
 	Critical  bool      `json:"critical"`
+	Severity  string    `json:"severity"`
+	Event     string    `json:"event"`
+	Machine   string    `json:"machine"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
@@ -72,6 +76,12 @@ func DbGetAllSubscriptions(ctx context.Context) ([]PushSubscription, error) {
 	return subs, nil
 }
 
+// DbDeleteSubscription removes one subscription, e.g. after the push service reports it gone.
+func DbDeleteSubscription(ctx context.Context, endpoint string) error {
+	_, err := DB.ExecContext(ctx, `DELETE FROM push_subscriptions WHERE endpoint = ?`, endpoint)
+	return err
+}
+
 // DbDeleteAllSubscriptions removes all rows from push_subscriptions.
 func DbDeleteAllSubscriptions(ctx context.Context) error {
 	const q = `DELETE FROM push_subscriptions`
@@ -91,8 +101,44 @@ CREATE TABLE IF NOT EXISTS nots (
 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 `
-	_, err := DB.ExecContext(ctx, q)
-	return err
+	if _, err := DB.ExecContext(ctx, q); err != nil {
+		return err
+	}
+	return addMissingColumns(ctx, "nots", map[string]string{
+		"severity": "TEXT NOT NULL DEFAULT ''",
+		"event":    "TEXT NOT NULL DEFAULT ''",
+		"machine":  "TEXT NOT NULL DEFAULT ''",
+	})
+}
+
+// addMissingColumns adds columns that older databases do not have yet.
+func addMissingColumns(ctx context.Context, table string, columns map[string]string) error {
+	rows, err := DB.QueryContext(ctx, `SELECT name FROM pragma_table_info(?)`, table)
+	if err != nil {
+		return fmt.Errorf("read %s columns: %w", table, err)
+	}
+	existing := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			rows.Close()
+			return fmt.Errorf("read %s columns: %w", table, err)
+		}
+		existing[name] = true
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("read %s columns: %w", table, err)
+	}
+	for name, def := range columns {
+		if existing[name] {
+			continue
+		}
+		if _, err := DB.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, name, def)); err != nil {
+			return fmt.Errorf("add %s.%s: %w", table, name, err)
+		}
+	}
+	return nil
 }
 
 func DbClearNots(ctx context.Context) error {
@@ -113,8 +159,8 @@ func DbSaveNot(ctx context.Context, n Not) error {
 	}()
 
 	const insertQ = `
-	INSERT INTO nots (title, body, relurl, critical, created_at)
-	VALUES (?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
+	INSERT INTO nots (title, body, relurl, critical, severity, event, machine, created_at)
+	VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
 	`
 
 	var created interface{}
@@ -124,7 +170,7 @@ func DbSaveNot(ctx context.Context, n Not) error {
 		created = formatSnapshotTime(n.CreatedAt)
 	}
 
-	_, err = tx.Exec(insertQ, n.Title, n.Body, n.RelURL, n.Critical, created)
+	_, err = tx.Exec(insertQ, n.Title, n.Body, n.RelURL, n.Critical, n.Severity, n.Event, n.Machine, created)
 	if err != nil {
 		_ = tx.Rollback()
 		return err
@@ -146,8 +192,16 @@ func DbGetRecentNots(ctx context.Context, limit int) ([]Not, error) {
 	if limit <= 0 {
 		limit = 100
 	}
-	q := `SELECT title, body, relurl, critical, created_at FROM nots ORDER BY datetime(created_at) DESC LIMIT ?`
-	rows, err := DB.QueryContext(ctx, q, limit)
+	return queryNots(ctx, `SELECT title, body, relurl, critical, severity, event, machine, created_at FROM nots ORDER BY datetime(created_at) DESC LIMIT ?`, limit)
+}
+
+// DbGetNotsFrom returns notifications created at or after `since`, ordered newest first.
+func DbGetNotsFrom(ctx context.Context, since time.Time) ([]Not, error) {
+	return queryNots(ctx, `SELECT title, body, relurl, critical, severity, event, machine, created_at FROM nots WHERE datetime(created_at) >= datetime(?) ORDER BY datetime(created_at) DESC`, formatSnapshotTime(since))
+}
+
+func queryNots(ctx context.Context, q string, args ...any) ([]Not, error) {
+	rows, err := DB.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +211,7 @@ func DbGetRecentNots(ctx context.Context, limit int) ([]Not, error) {
 	for rows.Next() {
 		var n Not
 		var createdAtStr string
-		if err := rows.Scan(&n.Title, &n.Body, &n.RelURL, &n.Critical, &createdAtStr); err != nil {
+		if err := rows.Scan(&n.Title, &n.Body, &n.RelURL, &n.Critical, &n.Severity, &n.Event, &n.Machine, &createdAtStr); err != nil {
 			return nil, err
 		}
 		// Try parsing stored timestamp in multiple formats (RFC3339Nano first, then SQLite default)
@@ -167,41 +221,6 @@ func DbGetRecentNots(ctx context.Context, limit int) ([]Not, error) {
 			n.CreatedAt = t2
 		} else if t3, err3 := time.Parse(time.RFC3339, createdAtStr); err3 == nil {
 			n.CreatedAt = t3
-		} else {
-			n.CreatedAt = time.Time{}
-		}
-		res = append(res, n)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return res, nil
-}
-
-// DbGetNotsFrom returns notifications created at or after `since`, ordered newest first.
-func DbGetNotsFrom(ctx context.Context, since time.Time) ([]Not, error) {
-	q := `SELECT title, body, relurl, critical, created_at FROM nots WHERE datetime(created_at) >= datetime(?) ORDER BY datetime(created_at) DESC`
-	rows, err := DB.QueryContext(ctx, q, formatSnapshotTime(since))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var res []Not
-	for rows.Next() {
-		var n Not
-		var createdAtStr string
-		if err := rows.Scan(&n.Title, &n.Body, &n.RelURL, &n.Critical, &createdAtStr); err != nil {
-			return nil, err
-		}
-		if t, err := parseSnapshotTime(createdAtStr); err == nil {
-			n.CreatedAt = t
-		} else if t2, err2 := time.Parse("2006-01-02 15:04:05", createdAtStr); err2 == nil {
-			n.CreatedAt = t2
-		} else if t3, err3 := time.Parse(time.RFC3339, createdAtStr); err3 == nil {
-			n.CreatedAt = t3
-		} else {
-			n.CreatedAt = time.Time{}
 		}
 		res = append(res, n)
 	}
