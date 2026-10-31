@@ -32,6 +32,15 @@ func Restart(conn *grpc.ClientConn, update *extraGrpc.RestartShutdownNow) (*extr
 	return client.Restart(context.Background(), update)
 }
 
+// powerScheduleTimeout covers a first apply that installs the at package with dnf.
+const powerScheduleTimeout = 6 * time.Minute
+
+func ApplyPowerSchedule(ctx context.Context, conn *grpc.ClientConn, req *extraGrpc.PowerScheduleRequest) (*extraGrpc.PowerScheduleResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, powerScheduleTimeout)
+	defer cancel()
+	return extraGrpc.NewExtraServiceClient(conn).ApplyPowerSchedule(ctx, req)
+}
+
 type ExtraServiceServer struct {
 	extraGrpc.UnimplementedExtraServiceServer
 }

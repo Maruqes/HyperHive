@@ -346,6 +346,7 @@ func StartApi(exitAfterStart bool) {
 		setupK8sAPI(r)
 		setupCelldAPI(r)
 		setupSPAAPI(r)
+		setupPowerScheduleAPI(r)
 	})
 
 	go func() {

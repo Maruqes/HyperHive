@@ -4,6 +4,7 @@ package hyperhivemcp
 // independent expected set fixed unless the human-selected scope changes.
 var selectedFeatureToolNames = []string{
 	"list_notification_rules", "update_notification_rule",
+	"get_power_schedule",
 	"remove_vm_isos",
 	"create_vm", "set_vm_autostart", "set_vm_live", "create_vm_automatic_backup", "update_vm_automatic_backup", "enable_vm_automatic_backup", "add_vm_ssh_key",
 	"add_vm_video",

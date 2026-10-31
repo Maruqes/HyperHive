@@ -83,14 +83,14 @@ Checked: **2026-10-21**, targeted registration/safety refresh. Current rework va
 - Prior full-inventory source content SHA-256: `01afbf738f67140ae39b8815d70a2ae9be47b162c356eb203ff9b3225b178dfa`.
 - Digest input: sorted repository-relative paths; non-test Go/protobuf sources under master/slave/api, all MCP Go sources, those modules' go.mod/go.sum, and the four pinned master/npm/upstream_templates/*.conf inputs. Hash path + NUL + file bytes + NUL. The task's manifest is `.planning/2026-10-20-mcp-remove-vm-isos/mcp-source-digest.json`.
 - Inventory: **300** unique explicit method/path pairs (322 before the Docker management API was removed, 2026-10-30; then +4 notification routes: rules GET/PUT and Firebase device register/unregister). Existing inventory 316 is unchanged except the six authenticated /upstream registrations in master/api/npmapi/upstreams.go, mounted in master/api/api.go. /api remains an alias; /mcp transport lifecycle and the separate pprof listener remain outside capability coverage. This is a task-local source review, not a shipped coverage generator.
-- Status: **119 implemented**; the notification rules increment (2026-10-30) adds `list_notification_rules` (low) and `update_notification_rule` (medium) and leaves the two Firebase device routes missing. The missing/excluded split below this line predates the Docker removal and was not re-audited. The VM increment adds seven supported endpoints: six specifically authorized prior exclusions and blocked SSH injection. Helper calls earn no credit. No partial/stale/disabled endpoint is counted as implemented.
+- Status: **120 implemented**; the power schedule increment (2026-10-31) adds read-only `get_power_schedule` (low) for `GET /power-schedule` and excludes `PUT /power-schedule` by user decision (it powers off the whole fabric; UI-only). The notification rules increment (2026-10-30) adds `list_notification_rules` (low) and `update_notification_rule` (medium) and leaves the two Firebase device routes missing. The missing/excluded split below this line predates the Docker removal and was not re-audited. The VM increment adds seven supported endpoints: six specifically authorized prior exclusions and blocked SSH injection. Helper calls earn no credit. No partial/stale/disabled endpoint is counted as implemented.
 - Scope: the seven named VM capabilities in [the VM run](runs/2026-10-20-vm-increment-01.md), plus previously implemented list/get/capabilities/create/update upstream tools and optional proxy/location/stream bindings. No upstream deletion tool or alias. Confirmed creates complete through journal reconciliation instead of deleting newly created resources as rollback; failed/unknown creates are not retried.
 - Validation: this VM increment passed full MCP normal/race/vet checks (622 tests), master API/services/virsh normal tests (58 tests) and vet, plus focused normal/race checks for additional live/template/true-flag variants. The prior increment expected 117 tools; that increment's discovery expected 118; current discovery expects 117. Authenticated HTTP and actual executable stdio fixtures exercise modern/legacy approval, exact wire contracts, prior-state persistence, safe failures, no retries and fail-closed SSH disk export/manifest checks. Previous NPM handler/exact-image validation remains documented in its upstream checkpoint; it was not rerun as part of this VM increment. See [the VM run](runs/2026-10-20-vm-increment-01.md) for current checks and limits.
 - Limits: these local checks do not establish production deployment, real ACME issuance or distributed atomicity. Existing DNS/Notes/SPA/ISO/VM contracts and policy exclusions retain their reviewed boundaries in their feature documents. Celld fleet deletion is no longer registered, following the user's 2026-10-21 decision. The 2026-10-20 user request additionally authorizes only VM creation, autostart/live flag changes, schedule create/update/enable SSH injection and all VM ISO/CD-ROM removal; all other exclusions remain.
 
 | Scope | Implemented / total | Missing | Coverage |
 | --- | ---: | ---: | ---: |
-| **HyperHive API** | 119 / 300 | 138 | 39.67% |
+| **HyperHive API** | 120 / 302 | 138 | 39.74% |
 | NGINX subtotal | 33 / 43 | 0 | 76.74% |
 | VM subtotal, including templates/disks/helpers | 64 / 82 | 2 | 78.05% |
 
@@ -131,7 +131,7 @@ Subtotals are subsets of the API. Leaf areas partition the total. Missing omits 
 
 ### Available capabilities and safety
 
-Both transports share 119 registrations: 33 NGINX, eight Celld, three DNS, five Notes, two notification rules, two SPA, two ISO and 64 VM tools. Feature contracts: [upstreams](docs/areas/upstreams.md), [NGINX](docs/areas/nginx.md), [proxies](docs/areas/nginx-proxies.md), [Celld](docs/areas/celld.md), [DNS](docs/areas/dns.md), [Notes](docs/areas/notes.md), [SPA](docs/areas/spa.md), [ISOs](docs/areas/isos.md), [VMs](docs/areas/vms.md).
+Both transports share 120 registrations: 33 NGINX, eight Celld, three DNS, five Notes, two notification rules, one power schedule, two SPA, two ISO and 64 VM tools. Feature contracts: [upstreams](docs/areas/upstreams.md), [NGINX](docs/areas/nginx.md), [proxies](docs/areas/nginx-proxies.md), [Celld](docs/areas/celld.md), [DNS](docs/areas/dns.md), [Notes](docs/areas/notes.md), [SPA](docs/areas/spa.md), [ISOs](docs/areas/isos.md), [VMs](docs/areas/vms.md).
 
 Every tool publishes low/medium/high/very high risk. Medium requires a recorded validated preflight; High/VeryHigh require per-call explicit human form approval bound to complete arguments; stale/replayed/forged/changed continuations or unsupported/declined/canceled pickers cannot execute writes. Modern HTTP remains stateless; legacy HTTP retains authenticated sessions for form elicitation. Stdio supports both protocol generations.
 
@@ -298,6 +298,8 @@ One row is one method/path pair. Only registered, enabled, contract-reviewed and
 | `GET /notification/rules` | implemented: `list_notification_rules` | [api.go:306](../master/api/api.go#L306) |
 | `PUT /notification/rules/{category}` | implemented: `update_notification_rule` | [api.go:307](../master/api/api.go#L307) |
 | `DELETE /notification/subscriptions` | excluded (deletion policy) | [api.go:311](../master/api/api.go#L311) |
+| `GET /power-schedule` | implemented: `get_power_schedule` | [power_schedule.go](../master/api/power_schedule.go) |
+| `PUT /power-schedule` | excluded (user decision 2026-10-31: schedule changes stay UI-only) | [power_schedule.go](../master/api/power_schedule.go) |
 | `GET /sw.js` | missing | [api.go:313](../master/api/api.go#L313) |
 | `GET /protected` | missing | [api.go:317](../master/api/api.go#L317) |
 | `GET /ws` | missing | [api.go:319](../master/api/api.go#L319) |

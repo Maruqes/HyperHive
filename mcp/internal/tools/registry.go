@@ -170,6 +170,7 @@ type API interface {
 	DNSAPI
 	NotesAPI
 	NotificationsAPI
+	PowerScheduleAPI
 	SPAAPI
 	ISOsAPI
 	VMsAPI
@@ -183,6 +184,7 @@ func RegisterAll(r *Registry, api API, backupDir string) error {
 	RegisterDNS(r, api)
 	RegisterNotes(r, api)
 	RegisterNotifications(r, api)
+	RegisterPowerSchedule(r, api)
 	RegisterSPA(r, api)
 	RegisterISOs(r, api)
 	RegisterVMs(r, api, backupDir)

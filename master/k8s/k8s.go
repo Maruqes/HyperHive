@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"time"
 
 	k8sGrpc "github.com/Maruqes/512SvMan/api/proto/k8s"
 	"google.golang.org/grpc"
@@ -35,4 +36,17 @@ func SetConnectionToCluster(conn *grpc.ClientConn, con *k8sGrpc.ConnectionToClus
 func IsMasterSlave(conn *grpc.ClientConn) (*k8sGrpc.IsMasterSlaveRes, error) {
 	client := k8sGrpc.NewK8SServiceClient(conn)
 	return client.IsMasterSlave(context.Background(), &k8sGrpc.Empty{})
+}
+
+const isMasterSlaveTimeout = 15 * time.Second
+
+// IsMasterSlaveCtx is IsMasterSlave with ctx and its own timeout.
+func IsMasterSlaveCtx(ctx context.Context, conn *grpc.ClientConn) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, isMasterSlaveTimeout)
+	defer cancel()
+	res, err := k8sGrpc.NewK8SServiceClient(conn).IsMasterSlave(ctx, &k8sGrpc.Empty{})
+	if err != nil {
+		return false, err
+	}
+	return res.GetWeAreMasterSlave(), nil
 }

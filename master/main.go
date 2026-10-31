@@ -119,6 +119,10 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 		logger.Infof("newSlave finished for %s (%s). In-flight=%d", machineName, addr, atomic.LoadInt32(&newSlaveCount))
 	}()
 
+	// Re-arm (or clear) this host's power-off job on every (re)connect.
+	powerScheduleService := services.PowerScheduleService{}
+	go powerScheduleService.ApplyMachine(context.Background(), machineName)
+
 	btrfsService := services.BTRFSService{}
 	err := btrfsService.AutoMountRaid(machineName)
 	if err != nil {
@@ -483,6 +487,11 @@ func main() {
 		log.Fatalf("create notes table: %v", err)
 	}
 
+	err = db.CreatePowerScheduleTables(ctx)
+	if err != nil {
+		log.Fatalf("create power schedule tables: %v", err)
+	}
+
 	db.StartSQLiteBackupLoop(ctx)
 
 	if err := setupFrontendContainer(); err != nil {
@@ -511,6 +520,8 @@ func main() {
 	smartDiskService.DoAutomaticTest()
 	info.LoopNots()
 	go SpaService.Maintain(ctx, 30*time.Second)
+	powerScheduleService := services.PowerScheduleService{}
+	go powerScheduleService.RunLoop(ctx)
 
 	// go func() {
 	// 	addr := "127.0.0.1:6060"

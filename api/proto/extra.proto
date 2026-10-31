@@ -57,6 +57,21 @@ message RestartShutdownNow { bool now = 1; }
 
 message SparsifyQcow2Request { string diskPath = 1; }
 
+// PowerScheduleRequest replaces the host's HH power-off job. When enabled, the host
+// runs `rtcwake -u -m off -t wake_unix` at stop_unix. When disabled, HH jobs are
+// removed and the RTC alarm is cleared. Epochs are UTC seconds.
+message PowerScheduleRequest {
+  bool enabled = 1;
+  int64 stop_unix = 2;
+  int64 wake_unix = 3;
+}
+
+message PowerScheduleResult {
+  string job_id = 1; // empty when disabled
+  int64 stop_unix = 2;
+  int64 wake_unix = 3;
+}
+
 // master service
 service ExtraService {
   // master
@@ -71,4 +86,5 @@ service ExtraService {
   rpc ShutDown(RestartShutdownNow)returns(Empty);
   rpc Restart(RestartShutdownNow)returns(Empty);
   rpc SparsifyQcow2(SparsifyQcow2Request)returns(Empty);
+  rpc ApplyPowerSchedule(PowerScheduleRequest) returns (PowerScheduleResult);
 }

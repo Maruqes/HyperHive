@@ -57,6 +57,18 @@ func (s *ExtraService) Restart(ctx context.Context, req *extraGrpc.RestartShutdo
 	return &extraGrpc.Empty{}, nil
 }
 
+func (s *ExtraService) ApplyPowerSchedule(ctx context.Context, req *extraGrpc.PowerScheduleRequest) (*extraGrpc.PowerScheduleResult, error) {
+	res, err := ApplyPowerSchedule(ctx, req.GetEnabled(), time.Unix(req.GetStopUnix(), 0), time.Unix(req.GetWakeUnix(), 0))
+	if err != nil {
+		return nil, err
+	}
+	out := &extraGrpc.PowerScheduleResult{JobId: res.JobID}
+	if !res.Stop.IsZero() {
+		out.StopUnix, out.WakeUnix = res.Stop.Unix(), res.Wake.Unix()
+	}
+	return out, nil
+}
+
 func SendWebsocketMessage(message, extra string, msgType extraGrpc.WebSocketsMessageType) error {
 	if env512.Conn == nil {
 		err := fmt.Errorf("gRPC connection not set")
