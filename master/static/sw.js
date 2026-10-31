@@ -24,6 +24,7 @@ self.addEventListener('push', function (event) {
 		data: { url: url },
 		// include a simple icon (provided by server)
 		icon: data.icon || '/static/notification-icon.png',
+		badge: data.badge || '/static/notification-badge.png',
 		tag: isCritical ? 'hyperhive-critical' : Date.now().toString(),
 		requireInteraction: !!isCritical,
 		renotify: !!isCritical,
