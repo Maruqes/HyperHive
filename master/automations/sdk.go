@@ -152,6 +152,45 @@ interface HHClient {
   delete<T = any>(path: string, options?: HHRequestOptions): Promise<T>;
   /** One function per master route; path parameters are positional arguments. */
   api: HHApi;
+  /** Live HH Support values, read now (not the values the condition saw when it fired). */
+  support: HHSupport;
+  /** Resolves after ms milliseconds. */
+  sleep(ms: number): Promise<void>;
+}
+interface HHAppValues {
+  id: string;
+  name: string;
+  /** Set when the values are for one instance. */
+  instance?: string;
+  health: "healthy" | "degraded" | "unhealthy" | "unknown";
+  connectivity: "online" | "offline" | "unknown";
+  health_message: string;
+  /** Current stream values; missing and stale (sender offline) values are absent. */
+  streams: Record<string, any>;
+}
+interface HHConditionResult {
+  value: boolean;
+  /** Why the condition evaluated to false, e.g. a missing or stale value. */
+  error: string;
+  snapshot: Record<string, unknown>;
+}
+interface HHWaitOptions extends HHRequestOptions {
+  /** Defaults to 60000 ms. */
+  waitMs?: number;
+  /** Defaults to 1000 ms. */
+  intervalMs?: number;
+}
+interface HHSupport {
+  /** Current values of an App (name or ID), or of one instance; same data as app() in a condition. Throws when the App or instance is unknown. */
+  app(app: string, instance?: string, options?: HHRequestOptions): Promise<HHAppValues>;
+  /** One current value: "health", "connectivity", "health_message" or a stream name. undefined when missing or stale. */
+  value<T = any>(app: string, field: string, instance?: string, options?: HHRequestOptions): Promise<T | undefined>;
+  /** Evaluates a condition expression now, e.g. "app('db').cpu > 95". */
+  evaluate(condition: string, options?: HHRequestOptions): Promise<HHConditionResult>;
+  /** true when the condition is true now; errors (missing or stale values) count as false. */
+  check(condition: string, options?: HHRequestOptions): Promise<boolean>;
+  /** Polls the condition until it is true (resolves true) or waitMs passes (resolves false). */
+  waitFor(condition: string, options?: HHWaitOptions): Promise<boolean>;
 }
 interface HHNotificationOptions extends HHRequestOptions {
   /** Defaults to "HH Automation: <automation name>" inside a run. */
@@ -247,7 +286,7 @@ func GenerateSDK(routes []Route) (string, string) {
 		runtime.WriteString("  },\n")
 	}
 	declaration.WriteString("}\n")
-	runtime.WriteString("};\n\nexport const hh = { request, get, post, put, patch, delete: del, api };\n")
+	runtime.WriteString("};\n\nexport const hh = { request, get, post, put, patch, delete: del, api, support, sleep };\n")
 	return declaration.String(), runtime.String()
 }
 
@@ -313,6 +352,34 @@ function sendNotification({ severity, message, title, event, url, dedupKey, ...r
   };
   return request("POST", "/notification/send", { ...requestOptions, body });
 }
+
+export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+
+const appFields = ["health", "connectivity", "health_message"];
+
+export const support = {
+  app: (app, instance, options = {}) =>
+    request("GET", "/automations/values", { ...options, query: { ...options.query, app, instance: instance || undefined } }),
+  async value(app, field, instance, options) {
+    const values = await support.app(app, instance, options);
+    if (field === "streams") return values.streams;
+    if (appFields.includes(field)) return values[field];
+    return Object.hasOwn(values.streams ?? {}, field) ? values.streams[field] : undefined;
+  },
+  evaluate: (condition, options = {}) => request("POST", "/automations/evaluate", { ...options, body: { condition } }),
+  async check(condition, options) {
+    return (await support.evaluate(condition, options)).value === true;
+  },
+  async waitFor(condition, { waitMs = 60000, intervalMs = 1000, ...options } = {}) {
+    const deadline = Date.now() + waitMs;
+    for (;;) {
+      if (await support.check(condition, options)) return true;
+      const left = deadline - Date.now();
+      if (left <= 0) return false;
+      await sleep(Math.min(Math.max(intervalMs, 100), left));
+    }
+  },
+};
 
 `
 

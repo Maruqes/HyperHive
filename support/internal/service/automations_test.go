@@ -3,6 +3,7 @@ package service_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -241,5 +242,32 @@ func TestConditionCatalog(t *testing.T) {
 	catalog, _ = f.app.ConditionCatalog()
 	if value := catalog.Apps[0].Streams[0].Value; value != nil {
 		t.Fatalf("stale value listed: %v", value)
+	}
+}
+
+func TestAppValues(t *testing.T) {
+	f := newAutomationFixture(t)
+	f.cpu(97, time.Second)
+	values, err := f.app.AppValues("db", "")
+	if err != nil || values.Name != "DB" || values.Connectivity != "online" || values.Streams["cpu"] != float64(97) {
+		t.Fatalf("values: %+v %v", values, err)
+	}
+	f.cpu(12, time.Second)
+	if values, _ = f.app.AppValues("DB", ""); values.Streams["cpu"] != float64(12) {
+		t.Fatalf("values must follow the latest sample: %+v", values)
+	}
+	var problem *domain.Error
+	if _, err := f.app.AppValues("nope", ""); !errors.As(err, &problem) || problem.Kind != domain.MissingResource {
+		t.Fatalf("unknown App: %v", err)
+	}
+	if _, err := f.app.AppValues("db", "missing"); !errors.As(err, &problem) || problem.Kind != domain.MissingResource {
+		t.Fatalf("unknown instance: %v", err)
+	}
+	if _, err := f.app.AppValues(" ", ""); !errors.As(err, &problem) || problem.Kind != domain.InvalidInput {
+		t.Fatalf("empty app: %v", err)
+	}
+	f.clock = f.clock.Add(10 * time.Minute)
+	if values, _ = f.app.AppValues("db", ""); values.Connectivity != "offline" || len(values.Streams) != 0 {
+		t.Fatalf("stale values listed: %+v", values)
 	}
 }

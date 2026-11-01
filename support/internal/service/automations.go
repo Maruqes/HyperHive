@@ -200,6 +200,31 @@ func (service *Service) TestCondition(condition string) (domain.ConditionResult,
 	return result, nil
 }
 
+// AppValues returns the current values of one App (by name or ID) or one of its
+// instances, as a condition would read them right now.
+func (service *Service) AppValues(app, instance string) (domain.AppValues, error) {
+	app, instance = strings.TrimSpace(app), strings.TrimSpace(instance)
+	if !domain.ValidLength(app, 1, 200) || len(instance) > 200 {
+		return domain.AppValues{}, domain.Invalid("app is required (maximum 200 characters)")
+	}
+	service.mu.Lock()
+	defer service.mu.Unlock()
+	now := service.now()
+	view, err := service.conditionData(now).AppView(app, instance)
+	if err != nil {
+		return domain.AppValues{}, err
+	}
+	record, err := service.store.App(view.ID, now)
+	if err != nil {
+		return domain.AppValues{}, err
+	}
+	return domain.AppValues{
+		ID: view.ID, Name: record.Name, Instance: instance,
+		Health: view.Fields["health"], Connectivity: view.Fields["connectivity"], HealthMessage: view.Fields["health_message"],
+		Streams: view.Streams,
+	}, nil
+}
+
 // ConditionCatalog lists every App with its instances, streams and current
 // values so the condition editor can offer completions.
 func (service *Service) ConditionCatalog() (domain.ConditionCatalog, error) {
@@ -406,7 +431,7 @@ func (data *conditionData) load(name, instance string) (*domain.AppView, error) 
 	id, err := store.AppIDByName(name)
 	var problem *domain.Error
 	if errors.As(err, &problem) && problem.Kind == domain.MissingResource {
-		return nil, fmt.Errorf("unknown App %q", name)
+		return nil, &domain.Error{Kind: domain.MissingResource, Message: fmt.Sprintf("unknown App %q", name)}
 	} else if err != nil {
 		return nil, err
 	}
@@ -434,7 +459,7 @@ func (data *conditionData) load(name, instance string) (*domain.AppView, error) 
 		view.Label = app.Name + "[" + instance + "]"
 		index := slices.IndexFunc(app.Instances, func(item domain.Instance) bool { return item.ID == instance })
 		if index < 0 {
-			return nil, fmt.Errorf("App %q has no instance %q", app.Name, instance)
+			return nil, &domain.Error{Kind: domain.MissingResource, Message: fmt.Sprintf("App %q has no instance %q", app.Name, instance)}
 		}
 		participant := app.Instances[index]
 		view.Fields = map[string]any{"health": participant.Health, "connectivity": participant.Connectivity, "health_message": participant.HealthMessage}

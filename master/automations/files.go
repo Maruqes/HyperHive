@@ -35,6 +35,9 @@ var (
 export default async function ({ ctx, hh, log }: HHAutomationArgs) {
   log.info(` + "`run ${ctx.runId} started by ${ctx.trigger}`" + `, ctx.snapshot);
   // const vms = await hh.api.virsh.getGetallvms();
+  // Live HH Support values (ctx.snapshot is what the condition saw when it fired):
+  // await hh.sleep(10_000);
+  // if ((await hh.support.value("db", "cpu")) > 95) await hh.api.notification.sendWarning("db CPU still high");
 }
 `
 )

@@ -476,6 +476,11 @@ func TestAutomationRoutes(t *testing.T) {
 		t.Fatalf("list: %v", list)
 	}
 	f.request("POST", "/automations/evaluate", `{"condition":"app('missing').x > 1"}`, 200)
+	f.request("GET", "/automations/values?app=missing", "", 404)
+	f.request("GET", "/automations/values", "", 400)
+	if values := f.request("GET", "/automations/values?app=Example", "", 200); !strings.Contains(values, `"streams":`) {
+		t.Fatalf("values: %s", values)
+	}
 	f.request("DELETE", "/automations/"+id, "", 204)
 	f.request("GET", "/automations/"+id, "", 404)
 }

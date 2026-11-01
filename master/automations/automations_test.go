@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -87,7 +88,7 @@ func TestGenerateSDKNames(t *testing.T) {
 		{"POST", "/support-internal/automations/fire"},
 		{"GET", "/ws"},
 	})
-	for _, want := range []string{"getGetallvms<T = any>(options?", "get<T = any>(options?", "getById<T = any>(id: string | number", "postRunById", "powerSchedule: {", "deleteDisksByVmNameAndDisk", "sendCritical<T = any>(message: string"} {
+	for _, want := range []string{"getGetallvms<T = any>(options?", "get<T = any>(options?", "getById<T = any>(id: string | number", "postRunById", "powerSchedule: {", "deleteDisksByVmNameAndDisk", "sendCritical<T = any>(message: string", "support: HHSupport;", "waitFor(condition: string"} {
 		if !strings.Contains(declaration, want) {
 			t.Fatalf("declaration lacks %q:\n%s", want, declaration)
 		}
@@ -143,6 +144,68 @@ export default async function ({ hh }: HHAutomationArgs) {
 		t.Fatalf("second: %v", second)
 	}
 }
+
+func TestRunScriptReadsLiveSupportValues(t *testing.T) {
+	requireNode(t)
+	useWorkspace(t)
+	var cpuReads atomic.Int32
+	warnings := make(chan map[string]any, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !ValidRunToken(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")) {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/automations/values":
+			if r.URL.Query().Get("app") != "db" || r.URL.Query().Get("instance") != "" {
+				http.Error(w, "unexpected query", http.StatusBadRequest)
+				return
+			}
+			_, _ = w.Write([]byte(`{"id":"a1","name":"DB","health":"healthy","connectivity":"online","health_message":"","streams":{"cpu":` + jsonNumber(95+int(cpuReads.Add(1))) + `}}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/automations/evaluate":
+			_, _ = w.Write([]byte(`{"value":true,"error":"","snapshot":{"DB.cpu":99}}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/notification/send":
+			var body map[string]any
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			warnings <- body
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = w.Write([]byte(`{"status":"accepted"}`))
+		default:
+			http.Error(w, "unexpected request", http.StatusBadRequest)
+		}
+	}))
+	defer server.Close()
+	_, port, _ := net.SplitHostPort(strings.TrimPrefix(server.URL, "http://"))
+	if err := Configure(port, []Route{{"POST", "/notification/send"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := WriteFile("auto-s", "main.ts", `
+export default async function ({ hh, log }: HHAutomationArgs) {
+  if ((await hh.support.value("db", "cpu")) > 95) {
+    await hh.sleep(50);
+    const cpu = await hh.support.value<number>("db", "cpu");
+    const missing = await hh.support.value("db", "nope");
+    const health = await hh.support.value("db", "health");
+    if (cpu > 95 && (await hh.support.check("app('db').cpu > 95")) && (await hh.support.waitFor("app('db').cpu > 95", { waitMs: 10 }))) {
+      log.info("still high", cpu, missing, health);
+      await hh.api.notification.sendWarning("db CPU still at " + cpu + "%");
+    }
+  }
+}
+`); err != nil {
+		t.Fatal(err)
+	}
+	result := runAndWait(t, RunSpec{RunID: "run-s", AutomationID: "auto-s", AutomationName: "CPU watch", Trigger: TriggerCondition, Timeout: 20 * time.Second})
+	if result.Status != StatusSucceeded || !strings.Contains(result.Output, "[info] still high 97 undefined healthy") {
+		t.Fatalf("result: %+v", result)
+	}
+	if warning := <-warnings; warning["severity"] != "warning" || warning["message"] != "db CPU still at 97%" {
+		t.Fatalf("warning: %v", warning)
+	}
+}
+
+func jsonNumber(value int) string { data, _ := json.Marshal(value); return string(data) }
 
 func requireNode(t *testing.T) {
 	t.Helper()

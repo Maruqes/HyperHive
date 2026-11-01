@@ -172,6 +172,18 @@ func (AutomationService) Evaluate(ctx context.Context, body json.RawMessage) (js
 	return result, err
 }
 
+// AppValues returns the current HH Support values of one App (or instance),
+// as a condition would read them now.
+func (AutomationService) AppValues(ctx context.Context, app, instance string) (json.RawMessage, error) {
+	query := url.Values{"app": {app}}
+	if instance != "" {
+		query.Set("instance", instance)
+	}
+	var result json.RawMessage
+	err := automations.SupportRequest(ctx, http.MethodGet, "/automations/values?"+query.Encode(), nil, &result)
+	return result, err
+}
+
 // ConditionCatalog returns the Apps, instances and streams a condition can read.
 func (AutomationService) ConditionCatalog(ctx context.Context) (json.RawMessage, error) {
 	var result json.RawMessage

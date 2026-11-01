@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"512SvMan/automations"
 	"512SvMan/services"
@@ -148,6 +149,21 @@ func evaluateAutomationCondition(w http.ResponseWriter, r *http.Request) {
 
 func getAutomationConditionCatalog(w http.ResponseWriter, r *http.Request) {
 	result, err := services.AutomationService{}.ConditionCatalog(r.Context())
+	if err != nil {
+		automationError(w, err)
+		return
+	}
+	writeJSONWithStatus(w, http.StatusOK, result)
+}
+
+func getAutomationAppValues(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	app := strings.TrimSpace(query.Get("app"))
+	if app == "" {
+		http.Error(w, "app is required", http.StatusBadRequest)
+		return
+	}
+	result, err := services.AutomationService{}.AppValues(r.Context(), app, strings.TrimSpace(query.Get("instance")))
 	if err != nil {
 		automationError(w, err)
 		return
@@ -324,6 +340,7 @@ func setupAutomationsAPI(r chi.Router) chi.Router {
 		r.Post("/", createAutomation)
 		r.Post("/evaluate", evaluateAutomationCondition)
 		r.Get("/catalog", getAutomationConditionCatalog)
+		r.Get("/values", getAutomationAppValues)
 		r.Get("/settings", getAutomationSettings)
 		r.Put("/settings", putAutomationSettings)
 		r.Get("/package", getAutomationPackage)

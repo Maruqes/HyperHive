@@ -67,6 +67,19 @@ type ConditionResult struct {
 	Snapshot map[string]any `json:"snapshot"`
 }
 
+// AppValues is the current data of one App, or one of its instances, exactly as
+// app('name'[, 'instance']) sees it in a condition. Streams holds only current
+// values: values whose sender is offline are left out.
+type AppValues struct {
+	ID            string         `json:"id"`
+	Name          string         `json:"name"`
+	Instance      string         `json:"instance,omitempty"`
+	Health        any            `json:"health"`
+	Connectivity  any            `json:"connectivity"`
+	HealthMessage any            `json:"health_message"`
+	Streams       map[string]any `json:"streams"`
+}
+
 // ConditionCatalog lists what a condition can read, for editor autocomplete.
 type ConditionCatalog struct {
 	Apps []CatalogApp `json:"apps"`

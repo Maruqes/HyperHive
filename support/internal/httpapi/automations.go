@@ -55,6 +55,14 @@ func (handler *Handler) automationsRoute(writer http.ResponseWriter, request *ht
 		}
 		respond(writer, 200, catalog)
 		return nil
+	case parts[1] == "values" && request.Method == "GET":
+		query := request.URL.Query()
+		values, err := handler.service.AppValues(query.Get("app"), query.Get("instance"))
+		if err != nil {
+			return err
+		}
+		respond(writer, 200, values)
+		return nil
 	case parts[1] == "evaluate" && request.Method == "POST":
 		var body struct {
 			Condition string `json:"condition"`

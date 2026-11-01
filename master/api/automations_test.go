@@ -50,6 +50,13 @@ func fakeSupport(t *testing.T) *httptest.Server {
 			configs[config.ID] = config
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(config)
+		case r.Method == http.MethodGet && id == "values":
+			if r.URL.Query().Get("app") != "db" || r.URL.Query().Get("instance") != "i-1" {
+				w.WriteHeader(http.StatusNotFound)
+				_, _ = w.Write([]byte(`{"error":"unknown App"}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{"id":"a1","name":"DB","instance":"i-1","streams":{"cpu":97}}`))
 		case r.Method == http.MethodGet && id == "catalog":
 			_, _ = w.Write([]byte(`{"apps":[{"id":"a1","name":"DB","streams":[{"name":"cpu","type":"number"}]}]}`))
 		case r.Method == http.MethodGet:
@@ -109,6 +116,15 @@ func TestAutomationHandlers(t *testing.T) {
 	}
 	if rec := do(http.MethodGet, "/automations/catalog", "", nil); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"name":"cpu"`) {
 		t.Fatalf("catalog: %d %s", rec.Code, rec.Body)
+	}
+	if rec := do(http.MethodGet, "/automations/values?app=db&instance=i-1", "", nil); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"cpu":97`) {
+		t.Fatalf("values: %d %s", rec.Code, rec.Body)
+	}
+	if rec := do(http.MethodGet, "/automations/values?app=nope", "", nil); rec.Code != http.StatusNotFound || !strings.Contains(rec.Body.String(), "unknown App") {
+		t.Fatalf("unknown values: %d %s", rec.Code, rec.Body)
+	}
+	if rec := do(http.MethodGet, "/automations/values", "", nil); rec.Code != http.StatusBadRequest {
+		t.Fatalf("values without app: %d %s", rec.Code, rec.Body)
 	}
 	if rec := do(http.MethodPost, "/automations/", `{"name":"Check"}`, nil); rec.Code != http.StatusCreated {
 		t.Fatalf("create: %d %s", rec.Code, rec.Body)

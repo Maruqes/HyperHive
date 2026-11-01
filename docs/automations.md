@@ -78,6 +78,19 @@ Globals available to scripts (typings in `GET /automations/sdk/hh.d.ts`):
   helpers over `POST /notification/send` (see below). `options` takes `title`
   (default `HH Automation: <name>`), `event` (default `automation.<id>`), `url`
   (relative app path) and `dedupKey`, plus the usual request options.
+- `hh.support` — live HH Support values, read at call time (unlike `ctx.snapshot`,
+  which is what the condition saw when it fired):
+  - `hh.support.value(app, field, instance?)` — one value: `health`, `connectivity`,
+    `health_message` or a stream name. `undefined` when missing or stale, so
+    `(await hh.support.value('db', 'cpu')) > 95` is simply false then.
+  - `hh.support.app(app, instance?)` — `{ id, name, instance?, health, connectivity,
+    health_message, streams }`, the same data `app()` reads in a condition. Throws
+    (404) for an unknown App or instance.
+  - `hh.support.evaluate(condition)` → `{ value, error, snapshot }`;
+    `hh.support.check(condition)` → boolean (errors count as false);
+    `hh.support.waitFor(condition, { waitMs = 60000, intervalMs = 1000 })` polls
+    until true (→ `true`) or `waitMs` passes (→ `false`).
+- `hh.sleep(ms)` — resolves after `ms` milliseconds.
 - `log.info|warn|error(...args)` — writes to the run output.
 - A default-exported function is awaited: `export default async function ({ ctx, hh, log }) {}`.
 
@@ -91,6 +104,18 @@ namespaces). Exit code 0 is success. The default timeout is 600 s (per automatio
 Shared dependencies: one `package.json` and `node_modules` in `$HH_AUTOMATIONS_DIR`;
 `POST /automations/package/install` runs `npm install` as a run with
 `trigger: "npm-install"`. Node and npm are installed with `dnf` when missing.
+
+Re-checking a condition before acting:
+
+```ts
+export default async function ({ hh }: HHAutomationArgs) {
+  await hh.sleep(10_000);
+  const cpu = await hh.support.value<number>("db", "cpu");
+  if (cpu > 95) await hh.api.notification.sendWarning(`db CPU still at ${cpu}% after 10 s`);
+}
+```
+
+For "true for N seconds" without code, prefer `for_seconds` on the automation.
 
 ## Sending notifications
 
@@ -126,6 +151,7 @@ export default async function ({ hh }: HHAutomationArgs) {
 | POST | `/automations/{id}/run` | Manual run → 202 `{ run_id }`; 409 when already running |
 | POST | `/automations/evaluate` | `{ condition }` → `{ value, error, snapshot }` without firing |
 | GET | `/automations/catalog` | `{ apps: [{ id, name, connectivity, health, instances: [id], streams: [{ name, type, unit?, label?, value? }] }] }` — what a condition can read, for editor autocomplete; `value` is the current App-wide value, absent when missing or stale |
+| GET | `/automations/values?app=&instance=` | Current values of one App (name or ID) or instance: `{ id, name, instance?, health, connectivity, health_message, streams }`; missing/stale streams are absent; 404 unknown App or instance (backs `hh.support.app/value`) |
 | GET | `/automations/settings` | `{ paused, retention_days, retention_count }` (defaults 30 days, 200 runs per automation) |
 | PUT | `/automations/settings` | Same body; `paused` stops condition fires |
 | GET | `/automations/{id}/files` | `{ files: [{ path, size, modified_at }] }` |
@@ -205,6 +231,12 @@ fields and streams and inserts one at the cursor. Live hints flag unknown Apps,
 instances or streams (with a "did you mean"), comparisons with the wrong literal type,
 invalid enum values and streams with no current value. They are advisory; the server
 still decides.
+"See examples", next to Save in the code toolbar, opens a dialog
+(`components/automations/examples-dialog.web.tsx`, scripts in
+`components/automations/automation-examples.ts`) with a list of example scripts on
+the left and the selected one in a read-only Monaco view on the right, with its
+suggested "Run when" condition. "Use in <file>" replaces the open script in the
+editor without saving; "Copy code" copies it.
 Unsaved config or code edits prompt before switching automations or leaving the
 page. Monaco is web-only, loads from cdn.jsdelivr.net and follows the app theme.
 The list polls every 5 s and follows `AutomationRun`/`AutomationLog` websocket
