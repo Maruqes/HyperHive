@@ -273,6 +273,7 @@ func StartApi(exitAfterStart bool) {
 	r.Post("/login", loginHandler)
 	setupMCPAPI(r, port)
 	setupSupportAPI(r)
+	setupSupportInternalAPI(r)
 
 	//tem de estar fora a autenticacao esta dentro da rota
 	//é das notifications hehe :D:D:D:D:D::D:D:D:D q funfaoummm
@@ -347,7 +348,10 @@ func StartApi(exitAfterStart bool) {
 		setupCelldAPI(r)
 		setupSPAAPI(r)
 		setupPowerScheduleAPI(r)
+		setupAutomationsAPI(r)
 	})
+
+	configureAutomationSDK(r, port)
 
 	go func() {
 		// Expose pprof on localhost for live debugging of stuck goroutines.

@@ -492,6 +492,12 @@ func main() {
 		log.Fatalf("create power schedule tables: %v", err)
 	}
 
+	err = db.CreateAutomationTables(ctx)
+	if err != nil {
+		log.Fatalf("create automation tables: %v", err)
+	}
+	services.RecoverAutomationRuns(ctx)
+
 	db.StartSQLiteBackupLoop(ctx)
 
 	if err := setupFrontendContainer(); err != nil {

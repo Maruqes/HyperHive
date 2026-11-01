@@ -23,6 +23,7 @@ func (service *Service) Run(ctx context.Context) {
 					service.publishState(app)
 				}
 			}
+			service.evaluateAutomations("")
 			service.mu.Unlock()
 			if err != nil {
 				log.Printf("support state sweep failed: %v", err)

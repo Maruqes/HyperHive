@@ -174,6 +174,7 @@ type API interface {
 	SPAAPI
 	ISOsAPI
 	VMsAPI
+	AutomationsAPI
 }
 
 func RegisterAll(r *Registry, api API, backupDir string) error {
@@ -188,6 +189,7 @@ func RegisterAll(r *Registry, api API, backupDir string) error {
 	RegisterSPA(r, api)
 	RegisterISOs(r, api)
 	RegisterVMs(r, api, backupDir)
+	RegisterAutomations(r, api, backupDir)
 	return r.Err()
 }
 

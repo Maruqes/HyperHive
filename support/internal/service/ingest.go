@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"hyperhive/support/internal/domain"
+	"hyperhive/support/internal/storage/sqlite"
 )
 
 func (service *Service) AuthenticateApp(id, secret string) error {
@@ -124,6 +125,13 @@ func (service *Service) Ingest(ctx context.Context, id, secret string, body doma
 	if err != nil {
 		return 0, err
 	}
+	for _, sample := range samples {
+		instance := ""
+		if sample.InstanceID != nil {
+			instance = *sample.InstanceID
+		}
+		service.recordLatest(sqlite.LatestValue{AppID: id, Stream: sample.Stream, Instance: instance, SampleID: sample.ID, Received: sample.ReceivedAt, Value: sample.Value})
+	}
 	if metadataChanged || discovered {
 		service.changed(id)
 	}
@@ -136,5 +144,6 @@ func (service *Service) Ingest(ctx context.Context, id, secret string, body doma
 		return 0, err
 	}
 	service.publishState(app)
+	service.evaluateAutomations(id)
 	return len(samples), nil
 }

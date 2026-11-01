@@ -83,14 +83,14 @@ Checked: **2026-10-21**, targeted registration/safety refresh. Current rework va
 - Prior full-inventory source content SHA-256: `01afbf738f67140ae39b8815d70a2ae9be47b162c356eb203ff9b3225b178dfa`.
 - Digest input: sorted repository-relative paths; non-test Go/protobuf sources under master/slave/api, all MCP Go sources, those modules' go.mod/go.sum, and the four pinned master/npm/upstream_templates/*.conf inputs. Hash path + NUL + file bytes + NUL. The task's manifest is `.planning/2026-10-20-mcp-remove-vm-isos/mcp-source-digest.json`.
 - Inventory: **300** unique explicit method/path pairs (322 before the Docker management API was removed, 2026-10-30; then +4 notification routes: rules GET/PUT and Firebase device register/unregister). Existing inventory 316 is unchanged except the six authenticated /upstream registrations in master/api/npmapi/upstreams.go, mounted in master/api/api.go. /api remains an alias; /mcp transport lifecycle and the separate pprof listener remain outside capability coverage. This is a task-local source review, not a shipped coverage generator.
-- Status: **120 implemented**; the power schedule increment (2026-10-31) adds read-only `get_power_schedule` (low) for `GET /power-schedule` and excludes `PUT /power-schedule` by user decision (it powers off the whole fabric; UI-only). The notification rules increment (2026-10-30) adds `list_notification_rules` (low) and `update_notification_rule` (medium) and leaves the two Firebase device routes missing. The missing/excluded split below this line predates the Docker removal and was not re-audited. The VM increment adds seven supported endpoints: six specifically authorized prior exclusions and blocked SSH injection. Helper calls earn no credit. No partial/stale/disabled endpoint is counted as implemented.
+- Status: **134 implemented**; the HH Automations increment (2026-11-01) adds 20 authenticated `/automations` routes and 14 tools: low reads (`list_automations`, `get_automation`, `evaluate_automation_condition`, `list_automation_runs`, `get_automation_run`, `list_automation_files`, `read_automation_file`, `read_automation_package`), medium `create_automation` (always disabled), high `update_automation`/`write_automation_file`/`write_automation_package`/`install_automation_packages` (prior state saved to MCP_VM_BACKUP_DIR first) and very high `run_automation` (root execution). `DELETE /automations/{id}` and `DELETE /automations/{id}/files/content` are policy exclusions; settings GET/PUT, `GET /automations/sdk/hh.d.ts` and run kill are missing. The `/support-internal/automations/*` routes authenticate HH Support only and stay outside coverage like /mcp. The power schedule increment (2026-10-31) adds read-only `get_power_schedule` (low) for `GET /power-schedule` and excludes `PUT /power-schedule` by user decision (it powers off the whole fabric; UI-only). The notification rules increment (2026-10-30) adds `list_notification_rules` (low) and `update_notification_rule` (medium) and leaves the two Firebase device routes missing. The missing/excluded split below this line predates the Docker removal and was not re-audited. The VM increment adds seven supported endpoints: six specifically authorized prior exclusions and blocked SSH injection. Helper calls earn no credit. No partial/stale/disabled endpoint is counted as implemented.
 - Scope: the seven named VM capabilities in [the VM run](runs/2026-10-20-vm-increment-01.md), plus previously implemented list/get/capabilities/create/update upstream tools and optional proxy/location/stream bindings. No upstream deletion tool or alias. Confirmed creates complete through journal reconciliation instead of deleting newly created resources as rollback; failed/unknown creates are not retried.
 - Validation: this VM increment passed full MCP normal/race/vet checks (622 tests), master API/services/virsh normal tests (58 tests) and vet, plus focused normal/race checks for additional live/template/true-flag variants. The prior increment expected 117 tools; that increment's discovery expected 118; current discovery expects 117. Authenticated HTTP and actual executable stdio fixtures exercise modern/legacy approval, exact wire contracts, prior-state persistence, safe failures, no retries and fail-closed SSH disk export/manifest checks. Previous NPM handler/exact-image validation remains documented in its upstream checkpoint; it was not rerun as part of this VM increment. See [the VM run](runs/2026-10-20-vm-increment-01.md) for current checks and limits.
 - Limits: these local checks do not establish production deployment, real ACME issuance or distributed atomicity. Existing DNS/Notes/SPA/ISO/VM contracts and policy exclusions retain their reviewed boundaries in their feature documents. Celld fleet deletion is no longer registered, following the user's 2026-10-21 decision. The 2026-10-20 user request additionally authorizes only VM creation, autostart/live flag changes, schedule create/update/enable SSH injection and all VM ISO/CD-ROM removal; all other exclusions remain.
 
 | Scope | Implemented / total | Missing | Coverage |
 | --- | ---: | ---: | ---: |
-| **HyperHive API** | 120 / 302 | 138 | 39.74% |
+| **HyperHive API** | 134 / 322 | 142 | 41.61% |
 | NGINX subtotal | 33 / 43 | 0 | 76.74% |
 | VM subtotal, including templates/disks/helpers | 64 / 82 | 2 | 78.05% |
 
@@ -98,6 +98,7 @@ Subtotals are subsets of the API. Leaf areas partition the total. Missing omits 
 
 | Area | Implemented / total | Missing | Coverage | Route source |
 | --- | ---: | ---: | ---: | --- |
+| HH Automations | 14 / 20 | 4 | 70.00% | [automations.go](../master/api/automations.go) |
 | Guest access and SPA | 2 / 12 | 8 | 16.67% | [GUESTS.go](../master/api/GUESTS.go) |
 | Core, login and notifications | 2 / 16 | 13 | 12.50% | [api.go](../master/api/api.go) |
 | BTRFS | 0 / 22 | 19 | 0.00% | [btrfs.go](../master/api/btrfs.go) |
@@ -300,6 +301,26 @@ One row is one method/path pair. Only registered, enabled, contract-reviewed and
 | `DELETE /notification/subscriptions` | excluded (deletion policy) | [api.go:311](../master/api/api.go#L311) |
 | `GET /power-schedule` | implemented: `get_power_schedule` | [power_schedule.go](../master/api/power_schedule.go) |
 | `PUT /power-schedule` | excluded (user decision 2026-10-31: schedule changes stay UI-only) | [power_schedule.go](../master/api/power_schedule.go) |
+| `GET /automations` | implemented: `list_automations` | [automations.go](../master/api/automations.go) |
+| `POST /automations` | implemented: `create_automation` | [automations.go](../master/api/automations.go) |
+| `GET /automations/{id}` | implemented: `get_automation` | [automations.go](../master/api/automations.go) |
+| `PUT /automations/{id}` | implemented: `update_automation` (reads current config, saves it, sends a full PUT) | [automations.go](../master/api/automations.go) |
+| `DELETE /automations/{id}` | excluded (deletion) | [automations.go](../master/api/automations.go) |
+| `POST /automations/{id}/run` | implemented: `run_automation` | [automations.go](../master/api/automations.go) |
+| `POST /automations/evaluate` | implemented: `evaluate_automation_condition` | [automations.go](../master/api/automations.go) |
+| `GET /automations/settings` | missing (UI-only) | [automations.go](../master/api/automations.go) |
+| `PUT /automations/settings` | missing (UI-only) | [automations.go](../master/api/automations.go) |
+| `GET /automations/{id}/files` | implemented: `list_automation_files` | [automations.go](../master/api/automations.go) |
+| `GET /automations/{id}/files/content` | implemented: `read_automation_file` | [automations.go](../master/api/automations.go) |
+| `PUT /automations/{id}/files/content` | implemented: `write_automation_file` | [automations.go](../master/api/automations.go) |
+| `DELETE /automations/{id}/files/content` | excluded (deletion) | [automations.go](../master/api/automations.go) |
+| `GET /automations/package` | implemented: `read_automation_package` | [automations.go](../master/api/automations.go) |
+| `PUT /automations/package` | implemented: `write_automation_package` | [automations.go](../master/api/automations.go) |
+| `POST /automations/package/install` | implemented: `install_automation_packages` | [automations.go](../master/api/automations.go) |
+| `GET /automations/sdk/hh.d.ts` | missing (editor typings) | [automations.go](../master/api/automations.go) |
+| `GET /automations/runs` | implemented: `list_automation_runs` | [automations.go](../master/api/automations.go) |
+| `GET /automations/runs/{runID}` | implemented: `get_automation_run` | [automations.go](../master/api/automations.go) |
+| `POST /automations/runs/{runID}/kill` | missing (UI-only) | [automations.go](../master/api/automations.go) |
 | `GET /sw.js` | missing | [api.go:313](../master/api/api.go#L313) |
 | `GET /protected` | missing | [api.go:317](../master/api/api.go#L317) |
 | `GET /ws` | missing | [api.go:319](../master/api/api.go#L319) |

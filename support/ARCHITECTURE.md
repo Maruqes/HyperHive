@@ -12,6 +12,7 @@ support/
 │   ├── storage/sqlite/         Queries, atomic writes and database lifecycle
 │   │   └── migrations/         Embedded, numbered SQL schema migrations
 │   ├── httpapi/                Authentication, routing and JSON contracts
+│   ├── master/                 Client for the master's internal automation API (fire, notify)
 │   ├── realtime/               WebSocket clients, queues and connection lifecycle
 │   └── security/               Random credentials and constant-time comparisons
 └── tests/integration/          HTTP, persistence and live-update regressions
@@ -24,6 +25,8 @@ support/
 `httpapi` handles HTTP concerns: HH proxy authentication, sender headers, bounded JSON decoding, query parsing, status codes and response encoding. It delegates operations to `service`; handlers contain no SQL. Ingestion authenticates before reading its body and rechecks credentials under the application lock before committing, so rotation cannot authorize a batch using a stale secret.
 
 `service` orchestrates App/tab/layout changes, ingestion validation, heartbeat expiry and retention. It owns synchronization across read/validate/write operations and emits realtime changes only after successful persistence. Business operations can be exercised directly without starting an HTTP server. Feature-related operations live in their own files rather than a central router or utility file.
+
+HH Automations (see `docs/automations.md`) keep config and trigger state here: `domain/conditions.go` compiles and evaluates expr conditions, `service/automations.go` keeps the latest value per App/participant/stream in memory, evaluates conditions after ingest and on the one-second sweep, and dispatches fires to the master outside the service lock. Only the master runs scripts.
 
 `domain` contains transport-independent data and rules. Typed domain errors are mapped to HTTP status codes by `httpapi`. Domain code imports neither HTTP handlers nor storage. Keep new business invariants here when they do not require persistence.
 

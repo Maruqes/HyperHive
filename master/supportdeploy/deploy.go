@@ -95,7 +95,7 @@ func ensure(ctx context.Context, getenv func(string) string, setenv func(string,
 	if err = privateWrite(envPath, []byte("SUPPORT_PROXY_SECRET="+secret+"\n")); err != nil {
 		return err
 	}
-	compose := composeConfig(image, listen, envPath)
+	compose := composeConfig(image, listen, envPath, masterURL(getenv("API_PORT")))
 	composePath := filepath.Join(stateDir, "compose.json")
 	if err = privateWrite(composePath, compose); err != nil {
 		return err
@@ -250,10 +250,19 @@ func extractSources(directory string) (string, error) {
 	return fmt.Sprintf("hyperhive-support:%x", hash.Sum(nil)[:16]), nil
 }
 
-func composeConfig(image, listen, envPath string) []byte {
+// masterURL is where Support sends automation fires: the master on loopback
+// (both use host networking).
+func masterURL(port string) string {
+	if number, err := strconv.Atoi(strings.TrimSpace(port)); err == nil && number > 0 && number <= 65535 {
+		return "http://127.0.0.1:" + strconv.Itoa(number)
+	}
+	return "http://127.0.0.1:9595"
+}
+
+func composeConfig(image, listen, envPath, master string) []byte {
 	config := map[string]any{"services": map[string]any{containerName: map[string]any{
 		"image": image, "container_name": containerName, "network_mode": "host", "restart": "unless-stopped",
-		"env_file": []map[string]string{{"path": strings.ReplaceAll(envPath, "$", "$$"), "format": "raw"}}, "environment": map[string]string{"SUPPORT_LISTEN": listen, "SUPPORT_DB_PATH": "/data/support.db"},
+		"env_file": []map[string]string{{"path": strings.ReplaceAll(envPath, "$", "$$"), "format": "raw"}}, "environment": map[string]string{"SUPPORT_LISTEN": listen, "SUPPORT_DB_PATH": "/data/support.db", "SUPPORT_MASTER_URL": master},
 		"volumes": []string{"hyperhive-support-data:/data"}, "read_only": true, "cap_drop": []string{"ALL"}, "security_opt": []string{"no-new-privileges:true"},
 		"labels": map[string]string{"io.hyperhive.support.managed": "true"},
 	}}, "volumes": map[string]any{"hyperhive-support-data": map[string]string{"name": "hyperhive-support-data"}}}

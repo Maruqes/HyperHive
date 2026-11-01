@@ -115,7 +115,7 @@ func TestEnsureCreatesProtectedPersistentConfiguration(testing *testing.T) {
 		testing.Fatal(err)
 	}
 	service := config.Services[containerName]
-	if service.NetworkMode != "host" || service.Restart != "unless-stopped" || !service.ReadOnly || !reflect.DeepEqual(service.CapDrop, []string{"ALL"}) || !reflect.DeepEqual(service.Security, []string{"no-new-privileges:true"}) || !reflect.DeepEqual(service.Volumes, []string{"hyperhive-support-data:/data"}) || config.Volumes["hyperhive-support-data"].Name != "hyperhive-support-data" || service.Environment["SUPPORT_LISTEN"] != "127.0.0.1:8091" || service.Environment["SUPPORT_DB_PATH"] != "/data/support.db" {
+	if service.NetworkMode != "host" || service.Restart != "unless-stopped" || !service.ReadOnly || !reflect.DeepEqual(service.CapDrop, []string{"ALL"}) || !reflect.DeepEqual(service.Security, []string{"no-new-privileges:true"}) || !reflect.DeepEqual(service.Volumes, []string{"hyperhive-support-data:/data"}) || config.Volumes["hyperhive-support-data"].Name != "hyperhive-support-data" || service.Environment["SUPPORT_LISTEN"] != "127.0.0.1:8091" || service.Environment["SUPPORT_DB_PATH"] != "/data/support.db" || service.Environment["SUPPORT_MASTER_URL"] != "http://127.0.0.1:9595" {
 		testing.Fatalf("unsafe deployment configuration: %+v", config)
 	}
 	if strings.Contains(string(data), secret) {
@@ -167,7 +167,7 @@ func TestComposePreservesConfiguredSecret(test *testing.T) {
 		test.Fatal(err)
 	}
 	composePath := filepath.Join(directory, "compose.json")
-	if err := privateWrite(composePath, composeConfig("hyperhive-support:test", "127.0.0.1:8091", envPath)); err != nil {
+	if err := privateWrite(composePath, composeConfig("hyperhive-support:test", "127.0.0.1:8091", envPath, masterURL(""))); err != nil {
 		test.Fatal(err)
 	}
 	output, err := exec.Command("docker", "compose", "--file", composePath, "config", "--format", "json").Output()

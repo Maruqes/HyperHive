@@ -11,10 +11,11 @@ cd support
 export SUPPORT_PROXY_SECRET="$(openssl rand -hex 32)"
 export SUPPORT_LISTEN=127.0.0.1:8091
 export SUPPORT_DB_PATH=./support.db
+export SUPPORT_MASTER_URL=http://127.0.0.1:9595
 go run ./cmd/hh-support
 ```
 
-Configure master with `SUPPORT_URL=http://127.0.0.1:8091` and the same `SUPPORT_PROXY_SECRET`. Keep credentials out of source control. Missing secrets, invalid listen addresses and database startup failures stop the service. The database parent directory must exist and be writable; SQLite creates the file and WAL sidecars. Keep this directory private to the service account. Back up SQLite with its backup API or stop the service before copying the database and WAL together.
+Configure master with `SUPPORT_URL=http://127.0.0.1:8091` and the same `SUPPORT_PROXY_SECRET`. `SUPPORT_MASTER_URL` (default `http://127.0.0.1:9595`; the managed deployment derives it from `API_PORT`) is where HH Automation condition fires go, authenticated with the same secret; see [HH Automations](../docs/automations.md). Keep credentials out of source control. Missing secrets, invalid listen addresses and database startup failures stop the service. The database parent directory must exist and be writable; SQLite creates the file and WAL sidecars. Keep this directory private to the service account. Back up SQLite with its backup API or stop the service before copying the database and WAL together.
 
 The master owns HH login, Origin validation and one-use WebSocket tickets. It strips `/support` before proxying. Management requires `X-HH-Support-Key`; only local health checks (`GET /healthz`) and independently authenticated sender ingestion (`POST /ingest`) bypass that header. Bind to loopback by default. If master and support are separated, use TLS and network access controls for the service; the shared header must never traverse an untrusted plaintext network. Browsers connect through master, never directly to this listener.
 

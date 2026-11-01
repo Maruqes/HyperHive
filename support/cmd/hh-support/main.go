@@ -13,6 +13,7 @@ import (
 
 	"hyperhive/support/internal/config"
 	"hyperhive/support/internal/httpapi"
+	"hyperhive/support/internal/master"
 	"hyperhive/support/internal/realtime"
 	"hyperhive/support/internal/service"
 	"hyperhive/support/internal/storage/sqlite"
@@ -51,6 +52,7 @@ func run() error {
 		return err
 	}
 	defer application.Close()
+	application.SetMaster(master.New(cfg.MasterURL, cfg.ProxySecret))
 	handler, err := httpapi.New(application, hub, cfg.ProxySecret)
 	if err != nil {
 		return err

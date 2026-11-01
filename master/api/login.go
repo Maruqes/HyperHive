@@ -1,6 +1,7 @@
 package api
 
 import (
+	"512SvMan/automations"
 	"512SvMan/npm"
 	"512SvMan/services"
 	"context"
@@ -118,6 +119,10 @@ func authenticateRequest(r *http.Request) (string, error) {
 
 	if token == "" {
 		return "", errUnauthorized
+	}
+	if automations.ValidRunToken(token) {
+		// An HH Automation run token; like MCP, handlers get an NPM credential.
+		return npm.ServiceToken(r.Context(), "npm-data")
 	}
 	if hyperhivemcp.MatchesMCPKey(token, os.Getenv("MCP_TOKEN")) {
 		// A fixed key in a cookie/query/raw header must not leak to NPM via the

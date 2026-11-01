@@ -88,6 +88,7 @@ const (
 	CategoryOperation  = "operation"
 	CategoryVM         = "vm"
 	CategorySystem     = "system"
+	CategoryAutomation = "automation"
 	CategoryLegacy     = "legacy"
 )
 
@@ -104,6 +105,7 @@ var Categories = []CategoryInfo{
 	{CategoryOperation, "Long operations: backups, migrations, btrfs operations, ISO downloads, VM creation"},
 	{CategoryVM, "VM consistency problems such as duplicate VMs"},
 	{CategorySystem, "Test notifications"},
+	{CategoryAutomation, "HH Automation runs that failed or timed out, and automations disabled by their rate cap"},
 	{CategoryLegacy, "Notifications from slaves that predate severities"},
 }
 

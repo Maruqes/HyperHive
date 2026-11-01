@@ -456,3 +456,26 @@ func TestHistoryTimeframeAndChartBuckets(testing *testing.T) {
 		fixture.request("GET", "/apps/"+fixture.id+"/samples?"+query, "", 400)
 	}
 }
+
+func TestAutomationRoutes(t *testing.T) {
+	f := setup(t)
+	var created map[string]any
+	_ = json.Unmarshal([]byte(f.request("POST", "/automations", `{"name":"Restart","condition":"app('example').cpu >= 95"}`, 201)), &created)
+	id, _ := created["id"].(string)
+	if id == "" || created["enabled"] != false {
+		t.Fatalf("create: %v", created)
+	}
+	f.request("POST", "/automations", `{"name":"Bad","condition":"app('example').cpu >="}`, 400)
+	f.request("PUT", "/automations/"+id, `{"name":"Restart"}`, 400)
+	f.request("PUT", "/automations/"+id, `{"name":"Restart","description":"","enabled":true,"condition":"","cooldown_seconds":0,"for_seconds":0,"timeout_seconds":60,"max_runs_per_hour":5}`, 200)
+	f.request("GET", "/automations/"+id, "", 200)
+	f.request("PUT", "/automations/settings", `{"paused":true}`, 200)
+	var list map[string]any
+	_ = json.Unmarshal([]byte(f.request("GET", "/automations", "", 200)), &list)
+	if list["paused"] != true {
+		t.Fatalf("list: %v", list)
+	}
+	f.request("POST", "/automations/evaluate", `{"condition":"app('missing').x > 1"}`, 200)
+	f.request("DELETE", "/automations/"+id, "", 204)
+	f.request("GET", "/automations/"+id, "", 404)
+}

@@ -133,6 +133,7 @@ func (service *Service) DeleteApp(id string) error {
 		return err
 	}
 	delete(service.states, id)
+	delete(service.latest, id)
 	service.changed(id)
 	return nil
 }

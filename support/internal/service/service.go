@@ -16,13 +16,26 @@ type Service struct {
 	mu     sync.Mutex
 	now    func() time.Time
 	states map[string]string
+
+	automations       map[string]*domain.Automation
+	automationDeps    map[string]map[string]bool
+	automationsPaused bool
+	// latest holds the newest value per App, participant ("" = direct) and stream.
+	latest     map[string]map[string]map[string]sqlite.LatestValue
+	master     Master
+	dispatches sync.WaitGroup
 }
 
 func New(store *sqlite.Store, hub *realtime.Hub, now func() time.Time) (*Service, error) {
 	if now == nil {
 		now = func() time.Time { return time.Now().UTC() }
 	}
-	service := &Service{store: store, hub: hub, now: now, states: map[string]string{}}
+	service := &Service{store: store, hub: hub, now: now, states: map[string]string{},
+		automations: map[string]*domain.Automation{}, automationDeps: map[string]map[string]bool{},
+		latest: map[string]map[string]map[string]sqlite.LatestValue{}}
+	if err := service.loadAutomations(); err != nil {
+		return nil, err
+	}
 	apps, err := store.Apps(now())
 	if err != nil {
 		return nil, err
@@ -32,7 +45,11 @@ func New(store *sqlite.Store, hub *realtime.Hub, now func() time.Time) (*Service
 	}
 	return service, nil
 }
-func (service *Service) Close() error                   { service.hub.Close(); return service.store.Close() }
+func (service *Service) Close() error {
+	service.hub.Close()
+	service.dispatches.Wait()
+	return service.store.Close()
+}
 func (service *Service) Ping(ctx context.Context) error { return service.store.Ping(ctx) }
 func (service *Service) changed(id string) {
 	frame := map[string]any{"type": "changed"}

@@ -62,6 +62,9 @@ func (handler *Handler) route(writer http.ResponseWriter, request *http.Request)
 	if parts[0] == "apps" {
 		return handler.appsRoute(writer, request, parts)
 	}
+	if parts[0] == "automations" {
+		return handler.automationsRoute(writer, request, parts)
+	}
 	return domain.NotFound()
 }
 

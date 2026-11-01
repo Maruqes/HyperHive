@@ -77,7 +77,7 @@ func TestOpenUpgradesUnversionedSupportDatabase(t *testing.T) {
 	}
 	defer store.Close()
 	var version, samples int
-	if err := store.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 1 {
+	if err := store.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 2 {
 		t.Fatalf("legacy version: %d %v", version, err)
 	}
 	if err := store.db.QueryRow("SELECT count(*) FROM samples WHERE app_id='legacy-app' AND value='42'").Scan(&samples); err != nil || samples != 1 {

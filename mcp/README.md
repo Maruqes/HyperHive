@@ -1,7 +1,7 @@
 # HyperHive MCP
 
 Use HyperHive through named MCP tools. The master serves **Streamable HTTP** on
-its API listener; standalone stdio shares the same 120-tool registry.
+its API listener; standalone stdio shares the same 134-tool registry.
 
 ## API coverage
 
@@ -9,7 +9,7 @@ Last checked: **2026-10-21**, locally. Counts measure supported API endpoints.
 
 | Scope | Supported / total | Coverage |
 | --- | ---: | ---: |
-| HyperHive API | 120 / 302 | **39.74%** |
+| HyperHive API | 134 / 322 | **41.61%** |
 | NGINX | 33 / 43 | 76.74% |
 | Celld | 8 / 17 | 47.06% |
 | DNS aliases | 3 / 4 | 75.00% |
@@ -18,6 +18,7 @@ Last checked: **2026-10-21**, locally. Counts measure supported API endpoints.
 | SPA management | 2 / 4 | 50.00% |
 | ISOs | 2 / 3 | 66.67% |
 | VMs, templates and disks | 64 / 82 | 78.05% |
+| HH Automations | 14 / 20 | 70.00% |
 
 Area rows are subsets, not additional endpoints. DNS, Notes and ISOs cover all
 permitted operations. SPA creation is excluded for deletion effects. The explicitly
@@ -25,7 +26,9 @@ authorized VM increment adds creation, autostart/live flag changes,
 automatic backup schedule create/update/enable, SSH key injection, and
 `remove_vm_isos` (all CD-ROM devices, retaining ISO files). Schedules
 can delete old backups under retention. Other deletion capabilities remain
-excluded. The inventory includes six upstream endpoints and two internal recovery
+excluded. HH Automations (2026-11-01) cover list/get/create/update/run, condition
+evaluation, script files, runs and the shared package.json; deleting automations
+or files is excluded, and kill/settings/SDK typings stay UI-only. The inventory includes six upstream endpoints and two internal recovery
 helpers; the recovery helpers earn no direct tool credit. See [full state](UPDATE_STATE.md) for all mappings,
 exclusions, validation and missing endpoints.
 
