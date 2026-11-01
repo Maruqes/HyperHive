@@ -98,12 +98,14 @@ Shared dependencies: one `package.json` and `node_modules` in `$HH_AUTOMATIONS_D
 | DELETE | `/automations/{id}` | Kill its run, delete config, files and runs (UI only, never MCP) |
 | POST | `/automations/{id}/run` | Manual run → 202 `{ run_id }`; 409 when already running |
 | POST | `/automations/evaluate` | `{ condition }` → `{ value, error, snapshot }` without firing |
+| GET | `/automations/catalog` | `{ apps: [{ id, name, connectivity, health, instances: [id], streams: [{ name, type, unit?, label?, value? }] }] }` — what a condition can read, for editor autocomplete; `value` is the current App-wide value, absent when missing or stale |
 | GET | `/automations/settings` | `{ paused, retention_days, retention_count }` (defaults 30 days, 200 runs per automation) |
 | PUT | `/automations/settings` | Same body; `paused` stops condition fires |
 | GET | `/automations/{id}/files` | `{ files: [{ path, size, modified_at }] }` |
 | GET | `/automations/{id}/files/content?path=` | `{ path, content }` (UTF-8, ≤ 1 MiB) |
 | PUT | `/automations/{id}/files/content?path=` | `{ content }` → `{ path, size, modified_at }` |
 | DELETE | `/automations/{id}/files/content?path=` | Delete one file (UI only) |
+| POST | `/automations/{id}/files/rename` | `{ from, to }` → `{ path, size, modified_at }`; never overwrites (409 if `to` exists), creates parent folders (UI only) |
 | GET | `/automations/package` | `{ content }` of the shared `package.json` |
 | PUT | `/automations/package` | `{ content }` (must be a JSON object) |
 | POST | `/automations/package/install` | 202 `{ run_id }` |
@@ -158,9 +160,28 @@ are UI-only.
 
 ## Frontend
 
-HyperHiveFront `app/automations.tsx` (sidebar "HH Automations"). The Monaco IDE is
-web-only and loads Monaco from cdn.jsdelivr.net; the list polls every 5 s and
-follows `AutomationRun`/`AutomationLog` websocket messages.
+HyperHiveFront `app/automations.tsx`. In the sidebar, "HH Automations" is the
+first child of HH Support and expands into one entry per automation (store
+`hooks/useAutomationNavigation.ts`). With nothing selected the page shows an
+overview grid and the global settings. Selecting an automation opens a workspace:
+on web at 1100 px or wider it is a full-height IDE (configuration inspector on the
+left, file explorer and Monaco editor filling the rest, resizable Output/Runs panel
+at the bottom); narrower screens and native stack the same parts in one column.
+The "Run when" field (`components/automations/condition-input.tsx`, logic in
+`utils/condition-assist.ts`) loads `/automations/catalog` (refreshed on focus after
+30 s) and suggests, as you type, App names, instances, fields and streams (with type
+and current value), comparisons that fit the type (number, text, boolean, the
+`health`/`connectivity` values) and enum values inside quotes. Stream names that are
+not identifiers or clash with a field are inserted as `['name']` / `.streams['name']`.
+Web keys: ↑/↓, Enter or Tab, Esc. A "Variables" panel lists and filters every App's
+fields and streams and inserts one at the cursor. Live hints flag unknown Apps,
+instances or streams (with a "did you mean"), comparisons with the wrong literal type,
+invalid enum values and streams with no current value. They are advisory; the server
+still decides.
+Unsaved config or code edits prompt before switching automations or leaving the
+page. Monaco is web-only, loads from cdn.jsdelivr.net and follows the app theme.
+The list polls every 5 s and follows `AutomationRun`/`AutomationLog` websocket
+messages.
 
 ## Limits
 

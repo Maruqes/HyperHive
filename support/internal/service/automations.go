@@ -200,6 +200,42 @@ func (service *Service) TestCondition(condition string) (domain.ConditionResult,
 	return result, nil
 }
 
+// ConditionCatalog lists every App with its instances, streams and current
+// values so the condition editor can offer completions.
+func (service *Service) ConditionCatalog() (domain.ConditionCatalog, error) {
+	service.mu.Lock()
+	defer service.mu.Unlock()
+	now := service.now()
+	apps, err := service.store.Apps(now)
+	if err != nil {
+		return domain.ConditionCatalog{}, err
+	}
+	data := service.conditionData(now)
+	catalog := domain.ConditionCatalog{Apps: []domain.CatalogApp{}}
+	for _, app := range apps {
+		declared, err := service.store.Streams(app.ID)
+		if err != nil {
+			return domain.ConditionCatalog{}, err
+		}
+		view, err := data.AppView(app.ID, "")
+		if err != nil {
+			return domain.ConditionCatalog{}, err
+		}
+		entry := domain.CatalogApp{ID: app.ID, Name: app.Name, Connectivity: app.Connectivity, Health: app.Health, Instances: []string{}, Streams: []domain.CatalogStream{}}
+		for _, instance := range app.Instances {
+			entry.Instances = append(entry.Instances, instance.ID)
+		}
+		for _, stream := range declared {
+			entry.Streams = append(entry.Streams, domain.CatalogStream{Name: stream.Name, Type: stream.Type, Unit: stream.Unit, Label: stream.Label, Value: view.Streams[stream.Name]})
+		}
+		catalog.Apps = append(catalog.Apps, entry)
+	}
+	sort.SliceStable(catalog.Apps, func(i, j int) bool {
+		return strings.ToLower(catalog.Apps[i].Name) < strings.ToLower(catalog.Apps[j].Name)
+	})
+	return catalog, nil
+}
+
 // evaluateAutomations re-evaluates every automation, or with appID only those
 // that read that App (or whose App references are still unresolved). The
 // caller holds service.mu.

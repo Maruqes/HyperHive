@@ -308,6 +308,7 @@ One row is one method/path pair. Only registered, enabled, contract-reviewed and
 | `DELETE /automations/{id}` | excluded (deletion) | [automations.go](../master/api/automations.go) |
 | `POST /automations/{id}/run` | implemented: `run_automation` | [automations.go](../master/api/automations.go) |
 | `POST /automations/evaluate` | implemented: `evaluate_automation_condition` | [automations.go](../master/api/automations.go) |
+| `GET /automations/catalog` | missing (condition editor autocomplete; read-only candidate) | [automations.go](../master/api/automations.go) |
 | `GET /automations/settings` | missing (UI-only) | [automations.go](../master/api/automations.go) |
 | `PUT /automations/settings` | missing (UI-only) | [automations.go](../master/api/automations.go) |
 | `GET /automations/{id}/files` | implemented: `list_automation_files` | [automations.go](../master/api/automations.go) |

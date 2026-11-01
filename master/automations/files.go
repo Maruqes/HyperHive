@@ -27,6 +27,7 @@ const (
 var (
 	ErrNotFound     = errors.New("not found")
 	ErrInvalidPath  = errors.New("invalid file path")
+	ErrFileExists   = errors.New("a file already exists at that path")
 	idPattern       = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
 	defaultPackage  = "{\n  \"name\": \"hh-automations\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {}\n}\n"
 	starterMainFile = `// HH Automation entry point. It runs on the master host as root.
@@ -269,6 +270,50 @@ func DeleteFile(id, name string) error {
 		return ErrInvalidPath
 	}
 	return root.Remove(name)
+}
+
+// RenameFile moves a script file inside the automation's directory. It never overwrites:
+// an existing target fails with ErrFileExists and leaves both files untouched.
+func RenameFile(id, from, to string) (FileInfo, error) {
+	from, err := cleanPath(from)
+	if err != nil {
+		return FileInfo{}, err
+	}
+	to, err = cleanPath(to)
+	if err != nil {
+		return FileInfo{}, err
+	}
+	root, err := openScriptRoot(id, false)
+	if err != nil {
+		return FileInfo{}, err
+	}
+	defer root.Close()
+	info, err := root.Lstat(from)
+	if errors.Is(err, os.ErrNotExist) {
+		return FileInfo{}, ErrNotFound
+	} else if err != nil {
+		return FileInfo{}, err
+	}
+	if !info.Mode().IsRegular() {
+		return FileInfo{}, ErrInvalidPath
+	}
+	if from == to {
+		return FileInfo{Path: to, Size: info.Size(), ModifiedAt: info.ModTime().UTC()}, nil
+	}
+	if _, err := root.Lstat(to); err == nil {
+		return FileInfo{}, ErrFileExists
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return FileInfo{}, err
+	}
+	if dir := path.Dir(to); dir != "." {
+		if err := root.MkdirAll(dir, 0o700); err != nil {
+			return FileInfo{}, fmt.Errorf("create %s: %w", dir, err)
+		}
+	}
+	if err := root.Rename(from, to); err != nil {
+		return FileInfo{}, fmt.Errorf("rename %s to %s: %w", from, to, err)
+	}
+	return FileInfo{Path: to, Size: info.Size(), ModifiedAt: info.ModTime().UTC()}, nil
 }
 
 // RemoveScripts deletes an automation's whole script directory.

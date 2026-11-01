@@ -172,6 +172,13 @@ func (AutomationService) Evaluate(ctx context.Context, body json.RawMessage) (js
 	return result, err
 }
 
+// ConditionCatalog returns the Apps, instances and streams a condition can read.
+func (AutomationService) ConditionCatalog(ctx context.Context) (json.RawMessage, error) {
+	var result json.RawMessage
+	err := automations.SupportRequest(ctx, http.MethodGet, "/automations/catalog", nil, &result)
+	return result, err
+}
+
 func (AutomationService) Settings(ctx context.Context) (AutomationSettingsView, error) {
 	var support struct {
 		Paused bool `json:"paused"`

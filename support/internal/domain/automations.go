@@ -67,6 +67,30 @@ type ConditionResult struct {
 	Snapshot map[string]any `json:"snapshot"`
 }
 
+// ConditionCatalog lists what a condition can read, for editor autocomplete.
+type ConditionCatalog struct {
+	Apps []CatalogApp `json:"apps"`
+}
+
+type CatalogApp struct {
+	ID           string          `json:"id"`
+	Name         string          `json:"name"`
+	Connectivity string          `json:"connectivity"`
+	Health       string          `json:"health"`
+	Instances    []string        `json:"instances"`
+	Streams      []CatalogStream `json:"streams"`
+}
+
+// CatalogStream is a declared stream. Value is the current App-level value,
+// absent when missing or stale.
+type CatalogStream struct {
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Unit  string `json:"unit,omitempty"`
+	Label string `json:"label,omitempty"`
+	Value any    `json:"value,omitempty"`
+}
+
 const (
 	DefaultAutomationTimeout = 600
 	DefaultMaxRunsPerHour    = 10

@@ -48,7 +48,25 @@ func TestFilesStayInsideScriptDirectory(t *testing.T) {
 	if err != nil || !strings.Contains(content, "export default async function") {
 		t.Fatalf("starter: %q %v", content, err)
 	}
-	if err := DeleteFile("auto-1", "lib/util.ts"); err != nil {
+	if _, err := RenameFile("auto-1", "lib/util.ts", "main.ts"); !errors.Is(err, ErrFileExists) {
+		t.Fatalf("rename over existing file: %v", err)
+	}
+	if _, err := RenameFile("auto-1", "lib/util.ts", "../escape.ts"); !errors.Is(err, ErrInvalidPath) {
+		t.Fatalf("rename escaping directory: %v", err)
+	}
+	if _, err := RenameFile("auto-1", "missing.ts", "x.ts"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("rename missing file: %v", err)
+	}
+	if info, err := RenameFile("auto-1", "lib/util.ts", "helpers/util.ts"); err != nil || info.Path != "helpers/util.ts" {
+		t.Fatalf("rename: %+v %v", info, err)
+	}
+	if content, err := ReadFile("auto-1", "helpers/util.ts"); err != nil || !strings.Contains(content, "export const x") {
+		t.Fatalf("renamed content: %q %v", content, err)
+	}
+	if _, err := ReadFile("auto-1", "lib/util.ts"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("old path still readable: %v", err)
+	}
+	if err := DeleteFile("auto-1", "helpers/util.ts"); err != nil {
 		t.Fatal(err)
 	}
 	if err := WritePackage("[]"); err == nil {

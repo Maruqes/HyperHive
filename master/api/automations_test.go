@@ -50,6 +50,8 @@ func fakeSupport(t *testing.T) *httptest.Server {
 			configs[config.ID] = config
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(config)
+		case r.Method == http.MethodGet && id == "catalog":
+			_, _ = w.Write([]byte(`{"apps":[{"id":"a1","name":"DB","streams":[{"name":"cpu","type":"number"}]}]}`))
 		case r.Method == http.MethodGet:
 			config, ok := configs[id]
 			if !ok {
@@ -105,6 +107,9 @@ func TestAutomationHandlers(t *testing.T) {
 	if rec := do(http.MethodPost, "/automations/", `{"name":""}`, nil); rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "name is required") {
 		t.Fatalf("invalid create: %d %s", rec.Code, rec.Body)
 	}
+	if rec := do(http.MethodGet, "/automations/catalog", "", nil); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"name":"cpu"`) {
+		t.Fatalf("catalog: %d %s", rec.Code, rec.Body)
+	}
 	if rec := do(http.MethodPost, "/automations/", `{"name":"Check"}`, nil); rec.Code != http.StatusCreated {
 		t.Fatalf("create: %d %s", rec.Code, rec.Body)
 	}
@@ -117,6 +122,15 @@ func TestAutomationHandlers(t *testing.T) {
 	}
 	if rec := do(http.MethodPut, "/automations/auto-api/files/content?path=main.ts", `{"content":"log.info('hello', ctx.trigger);"}`, nil); rec.Code != http.StatusOK {
 		t.Fatalf("write: %d %s", rec.Code, rec.Body)
+	}
+	if rec := do(http.MethodPut, "/automations/auto-api/files/content?path=util.ts", `{"content":"export const x = 1;"}`, nil); rec.Code != http.StatusOK {
+		t.Fatalf("write helper: %d %s", rec.Code, rec.Body)
+	}
+	if rec := do(http.MethodPost, "/automations/auto-api/files/rename", `{"from":"util.ts","to":"lib/util.ts"}`, nil); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "lib/util.ts") {
+		t.Fatalf("rename: %d %s", rec.Code, rec.Body)
+	}
+	if rec := do(http.MethodPost, "/automations/auto-api/files/rename", `{"from":"lib/util.ts","to":"main.ts"}`, nil); rec.Code != http.StatusConflict {
+		t.Fatalf("rename over existing: %d %s", rec.Code, rec.Body)
 	}
 	if rec := do(http.MethodGet, "/automations/sdk/hh.d.ts", "", nil); !strings.Contains(rec.Body.String(), "getById") {
 		t.Fatalf("sdk: %s", rec.Body)

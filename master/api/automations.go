@@ -37,6 +37,8 @@ func automationError(w http.ResponseWriter, err error) {
 		http.Error(w, err.Error(), http.StatusConflict)
 	case errors.Is(err, services.ErrAutomationNotRunning):
 		http.Error(w, err.Error(), http.StatusConflict)
+	case errors.Is(err, automations.ErrFileExists):
+		http.Error(w, err.Error(), http.StatusConflict)
 	case errors.Is(err, automations.ErrNotFound), errors.Is(err, sql.ErrNoRows):
 		http.Error(w, "not found", http.StatusNotFound)
 	case errors.Is(err, automations.ErrInvalidPath), errors.Is(err, services.ErrAutomationInvalid):
@@ -144,6 +146,15 @@ func evaluateAutomationCondition(w http.ResponseWriter, r *http.Request) {
 	writeJSONWithStatus(w, http.StatusOK, result)
 }
 
+func getAutomationConditionCatalog(w http.ResponseWriter, r *http.Request) {
+	result, err := services.AutomationService{}.ConditionCatalog(r.Context())
+	if err != nil {
+		automationError(w, err)
+		return
+	}
+	writeJSONWithStatus(w, http.StatusOK, result)
+}
+
 func getAutomationSettings(w http.ResponseWriter, r *http.Request) {
 	result, err := services.AutomationService{}.Settings(r.Context())
 	if err != nil {
@@ -207,6 +218,27 @@ func writeAutomationFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	info, err := automations.WriteFile(id, r.URL.Query().Get("path"), *body.Content)
+	if err != nil {
+		automationError(w, err)
+		return
+	}
+	writeJSONWithStatus(w, http.StatusOK, info)
+}
+
+func renameAutomationFile(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var body struct {
+		From string `json:"from"`
+		To   string `json:"to"`
+	}
+	if !decodeAutomationJSON(w, r, &body) {
+		return
+	}
+	if _, err := automations.GetConfig(r.Context(), id); err != nil {
+		automationError(w, err)
+		return
+	}
+	info, err := automations.RenameFile(id, body.From, body.To)
 	if err != nil {
 		automationError(w, err)
 		return
@@ -291,6 +323,7 @@ func setupAutomationsAPI(r chi.Router) chi.Router {
 		r.Get("/", listAutomations)
 		r.Post("/", createAutomation)
 		r.Post("/evaluate", evaluateAutomationCondition)
+		r.Get("/catalog", getAutomationConditionCatalog)
 		r.Get("/settings", getAutomationSettings)
 		r.Put("/settings", putAutomationSettings)
 		r.Get("/package", getAutomationPackage)
@@ -308,6 +341,7 @@ func setupAutomationsAPI(r chi.Router) chi.Router {
 		r.Get("/{id}/files/content", readAutomationFile)
 		r.Put("/{id}/files/content", writeAutomationFile)
 		r.Delete("/{id}/files/content", deleteAutomationFile)
+		r.Post("/{id}/files/rename", renameAutomationFile)
 	})
 }
 

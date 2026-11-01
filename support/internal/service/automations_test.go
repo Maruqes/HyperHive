@@ -218,3 +218,28 @@ func TestAutomationStaleValueAndPersistence(t *testing.T) {
 		t.Fatal("deleted automation still present")
 	}
 }
+
+func TestConditionCatalog(t *testing.T) {
+	f := newAutomationFixture(t)
+	f.cpu(42, time.Second)
+	f.ingest(`{"heartbeat":true,"streams":[{"name":"disk.used","type":"number","unit":"%"}],"samples":[{"stream":"disk.used","value":7}]}`)
+	catalog, err := f.app.ConditionCatalog()
+	if err != nil || len(catalog.Apps) != 1 {
+		t.Fatalf("catalog: %+v %v", catalog, err)
+	}
+	app := catalog.Apps[0]
+	if app.Name != "DB" || app.Connectivity != "online" || len(app.Streams) != 2 {
+		t.Fatalf("app: %+v", app)
+	}
+	if cpu := app.Streams[0]; cpu.Name != "cpu" || cpu.Type != "number" || cpu.Value != float64(42) {
+		t.Fatalf("cpu: %+v", cpu)
+	}
+	if disk := app.Streams[1]; disk.Name != "disk.used" || disk.Unit != "%" || disk.Value != float64(7) {
+		t.Fatalf("disk: %+v", disk)
+	}
+	f.clock = f.clock.Add(10 * time.Minute)
+	catalog, _ = f.app.ConditionCatalog()
+	if value := catalog.Apps[0].Streams[0].Value; value != nil {
+		t.Fatalf("stale value listed: %v", value)
+	}
+}
