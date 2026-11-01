@@ -153,6 +153,20 @@ interface HHClient {
   /** One function per master route; path parameters are positional arguments. */
   api: HHApi;
 }
+interface HHNotificationOptions extends HHRequestOptions {
+  /** Defaults to "HH Automation: <automation name>" inside a run. */
+  title?: string;
+  /** Stored as "custom.<event>"; a-z, 0-9, '.', '_' and '-'. Defaults to "automation.<id>" inside a run. */
+  event?: string;
+  /** Relative app path opened from the notification, e.g. "/automations". */
+  url?: string;
+  /** Repeats with the same key are dropped for 6 hours. */
+  dedupKey?: string;
+}
+interface HHNotification extends HHNotificationOptions {
+  severity: "info" | "warning" | "error" | "critical";
+  message: string;
+}
 interface HHAutomationArgs {
   ctx: HHContext;
   hh: HHClient;
@@ -162,6 +176,32 @@ declare const hh: HHClient;
 declare const ctx: HHContext;
 declare const log: HHLog;
 `
+
+// sdkHelper adds hand-written members to a generated API group.
+type sdkHelper struct {
+	group, declaration, runtime string
+}
+
+var sdkHelpers = []sdkHelper{{
+	group: "notification",
+	declaration: `    /** POST /notification/send with full control over the notification. */
+    send<T = any>(notification: HHNotification, options?: HHRequestOptions): Promise<T>;
+    /** Sends an info notification (category "custom"). */
+    sendInfo<T = any>(message: string, options?: HHNotificationOptions): Promise<T>;
+    /** Sends a warning notification (category "custom"). */
+    sendWarning<T = any>(message: string, options?: HHNotificationOptions): Promise<T>;
+    /** Sends an error notification (category "custom"). */
+    sendError<T = any>(message: string, options?: HHNotificationOptions): Promise<T>;
+    /** Sends a critical notification; critical pushes ignore quiet hours. */
+    sendCritical<T = any>(message: string, options?: HHNotificationOptions): Promise<T>;
+`,
+	runtime: `    send: (notification, options) => sendNotification({ ...options, ...notification }),
+    sendInfo: (message, options) => sendNotification({ ...options, severity: "info", message }),
+    sendWarning: (message, options) => sendNotification({ ...options, severity: "warning", message }),
+    sendError: (message, options) => sendNotification({ ...options, severity: "error", message }),
+    sendCritical: (message, options) => sendNotification({ ...options, severity: "critical", message }),
+`,
+}}
 
 // GenerateSDK returns the TypeScript declarations and the ESM runtime module.
 func GenerateSDK(routes []Route) (string, string) {
@@ -174,6 +214,12 @@ func GenerateSDK(routes []Route) (string, string) {
 		}
 		groups[function.group] = append(groups[function.group], function)
 	}
+	for _, helper := range sdkHelpers {
+		if _, exists := groups[helper.group]; !exists {
+			groups[helper.group] = nil
+			order = append(order, helper.group)
+		}
+	}
 	var declaration, runtime strings.Builder
 	declaration.WriteString(declarationHeader)
 	declaration.WriteString("interface HHApi {\n")
@@ -182,6 +228,12 @@ func GenerateSDK(routes []Route) (string, string) {
 	for _, group := range order {
 		fmt.Fprintf(&declaration, "  %s: {\n", group)
 		fmt.Fprintf(&runtime, "  %s: {\n", group)
+		for _, helper := range sdkHelpers {
+			if helper.group == group {
+				declaration.WriteString(helper.declaration)
+				runtime.WriteString(helper.runtime)
+			}
+		}
 		for _, function := range groups[group] {
 			args := []string{}
 			for _, param := range function.params {
@@ -240,6 +292,27 @@ const post = (path, body, options = {}) => request("POST", path, { ...options, b
 const put = (path, body, options = {}) => request("PUT", path, { ...options, body });
 const patch = (path, body, options = {}) => request("PATCH", path, { ...options, body });
 const del = (path, options) => request("DELETE", path, options);
+
+function runContext() {
+  try {
+    return JSON.parse(process.env.HH_CONTEXT ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+function sendNotification({ severity, message, title, event, url, dedupKey, ...requestOptions } = {}) {
+  const run = runContext();
+  const body = {
+    severity,
+    message: message === undefined || message === null ? "" : String(message),
+    title: title ?? (run.automationName ? "HH Automation: " + run.automationName : undefined),
+    event: event ?? (run.automationId ? "automation." + run.automationId : undefined),
+    url,
+    dedup_key: dedupKey,
+  };
+  return request("POST", "/notification/send", { ...requestOptions, body });
+}
 
 `
 

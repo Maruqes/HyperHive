@@ -1,6 +1,7 @@
 package automations
 
 import (
+	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
@@ -86,7 +87,7 @@ func TestGenerateSDKNames(t *testing.T) {
 		{"POST", "/support-internal/automations/fire"},
 		{"GET", "/ws"},
 	})
-	for _, want := range []string{"getGetallvms<T = any>(options?", "get<T = any>(options?", "getById<T = any>(id: string | number", "postRunById", "powerSchedule: {", "deleteDisksByVmNameAndDisk"} {
+	for _, want := range []string{"getGetallvms<T = any>(options?", "get<T = any>(options?", "getById<T = any>(id: string | number", "postRunById", "powerSchedule: {", "deleteDisksByVmNameAndDisk", "sendCritical<T = any>(message: string"} {
 		if !strings.Contains(declaration, want) {
 			t.Fatalf("declaration lacks %q:\n%s", want, declaration)
 		}
@@ -98,6 +99,48 @@ func TestGenerateSDKNames(t *testing.T) {
 	}
 	if !strings.Contains(runtime, "`/vms/${encodeURIComponent(String(vmName))}/disks/${encodeURIComponent(String(disk))}`") {
 		t.Fatalf("runtime path template:\n%s", runtime)
+	}
+}
+
+func TestRunScriptSendsNotification(t *testing.T) {
+	requireNode(t)
+	useWorkspace(t)
+	seen := make(chan map[string]any, 2)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !ValidRunToken(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")) || r.Method != http.MethodPost || r.URL.Path != "/notification/send" {
+			http.Error(w, "unexpected request", http.StatusBadRequest)
+			return
+		}
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		seen <- body
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"status":"accepted"}`))
+	}))
+	defer server.Close()
+	_, port, _ := net.SplitHostPort(strings.TrimPrefix(server.URL, "http://"))
+	if err := Configure(port, []Route{{"POST", "/notification/send"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := WriteFile("auto-n", "main.ts", `
+export default async function ({ hh }: HHAutomationArgs) {
+  await hh.api.notification.sendCritical("disk full");
+  await hh.api.notification.send({ severity: "info", message: "done", title: "Custom", event: "nightly", dedupKey: "k" });
+}
+`); err != nil {
+		t.Fatal(err)
+	}
+	result := runAndWait(t, RunSpec{RunID: "run-n", AutomationID: "auto-n", AutomationName: "Disk watch", Trigger: TriggerManual, Timeout: 20 * time.Second})
+	if result.Status != StatusSucceeded {
+		t.Fatalf("result: %+v", result)
+	}
+	first, second := <-seen, <-seen
+	if first["severity"] != "critical" || first["message"] != "disk full" || first["title"] != "HH Automation: Disk watch" || first["event"] != "automation.auto-n" {
+		t.Fatalf("first: %v", first)
+	}
+	if second["severity"] != "info" || second["title"] != "Custom" || second["event"] != "nightly" || second["dedup_key"] != "k" {
+		t.Fatalf("second: %v", second)
 	}
 }
 

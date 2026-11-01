@@ -73,6 +73,11 @@ Globals available to scripts (typings in `GET /automations/sdk/hh.d.ts`):
 - `hh` — generated client for the master REST API: `hh.request(method, path, { query, body })`
   plus one function per master route, e.g. `hh.api.virsh.getGetallvms()`. Path
   parameters become arguments. A per-run token is injected and revoked when the run ends.
+- `hh.api.notification.sendInfo|sendWarning|sendError|sendCritical(message, options?)`
+  and `hh.api.notification.send({ severity, message, ...options })` — hand-written
+  helpers over `POST /notification/send` (see below). `options` takes `title`
+  (default `HH Automation: <name>`), `event` (default `automation.<id>`), `url`
+  (relative app path) and `dedupKey`, plus the usual request options.
 - `log.info|warn|error(...args)` — writes to the run output.
 - A default-exported function is awaited: `export default async function ({ ctx, hh, log }) {}`.
 
@@ -86,6 +91,28 @@ namespaces). Exit code 0 is success. The default timeout is 600 s (per automatio
 Shared dependencies: one `package.json` and `node_modules` in `$HH_AUTOMATIONS_DIR`;
 `POST /automations/package/install` runs `npm install` as a run with
 `trigger: "npm-install"`. Node and npm are installed with `dnf` when missing.
+
+## Sending notifications
+
+`POST /notification/send` (authenticated; a run token works) with
+`{ severity, message, title?, event?, url?, dedup_key? }` returns 202
+`{ status: "accepted", event, severity }` once the notification is in history;
+websocket/Web Push/FCM delivery continues in the background.
+
+- `severity`: `info|warning|error|critical`. `message` is required (≤ 4000 chars),
+  `title` ≤ 300 (default `HyperHive`), `url` must be a relative path (`/…`).
+- `event` (a-z, 0-9, `.`, `_`, `-`, ≤ 100) is lowercased and stored as
+  `custom.<event>` (default `custom.api`), so every sent notification belongs to the
+  `custom` category and follows its rule (default: push at every severity; quiet
+  hours hold back pushes below critical). Change it in the notification rules.
+- `dedup_key` drops repeats with the same key for 6 hours. It is namespaced, so it
+  cannot suppress built-in notifications.
+
+```ts
+export default async function ({ hh }: HHAutomationArgs) {
+  await hh.api.notification.sendCritical("db CPU above 95%", { url: "/automations", dedupKey: "db-cpu" });
+}
+```
 
 ## HTTP API (master, authenticated)
 

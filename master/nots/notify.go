@@ -89,6 +89,7 @@ const (
 	CategoryVM         = "vm"
 	CategorySystem     = "system"
 	CategoryAutomation = "automation"
+	CategoryCustom     = "custom"
 	CategoryLegacy     = "legacy"
 )
 
@@ -106,6 +107,7 @@ var Categories = []CategoryInfo{
 	{CategoryVM, "VM consistency problems such as duplicate VMs"},
 	{CategorySystem, "Test notifications"},
 	{CategoryAutomation, "HH Automation runs that failed or timed out, and automations disabled by their rate cap"},
+	{CategoryCustom, "Notifications sent through POST /notification/send, e.g. by HH Automation scripts"},
 	{CategoryLegacy, "Notifications from slaves that predate severities"},
 }
 
@@ -128,10 +130,11 @@ type Rule struct {
 }
 
 // DefaultRule is used when a category has no stored rule.
-// Finished operations push at low priority; everything else pushes from error up.
+// Finished operations and explicitly sent custom notifications push at every
+// severity; everything else pushes from error up.
 func DefaultRule(category string) Rule {
 	rule := Rule{Category: category, Enabled: true, MinPushSeverity: SeverityError}
-	if category == CategoryOperation {
+	if category == CategoryOperation || category == CategoryCustom {
 		rule.MinPushSeverity = SeverityInfo
 	}
 	return rule

@@ -306,6 +306,7 @@ func StartApi(exitAfterStart bool) {
 			r.Post("/firebase/devices/unregister", liveFirebaseDevices.unregister)
 			r.Get("/rules", liveNotificationRules.listRules)
 			r.Put("/rules/{category}", liveNotificationRules.putRule)
+			r.Post("/send", liveNotificationSender.send)
 			r.Get("/public-key", get_public_key)
 			r.Post("/subscribe", subscribe_nots)
 			r.Get("/test", test_nots) // opcional, para testes
