@@ -231,6 +231,17 @@ fields and streams and inserts one at the cursor. Live hints flag unknown Apps,
 instances or streams (with a "did you mean"), comparisons with the wrong literal type,
 invalid enum values and streams with no current value. They are advisory; the server
 still decides.
+"Run when" holds one or more rows (`components/automations/condition-group.tsx`,
+logic in `utils/condition-group.ts`), each a condition field as above with a NOT
+toggle, joined by AND / OR / AND NOT / OR NOT / XOR and an optional "Negate result".
+The stored condition stays one string: rows are emitted as `(c)` / `!(c)` with
+left-to-right parentheses, e.g. `((c1) && (c2)) || !(c3)`, and XOR is `!=`. One
+plain row is stored exactly as typed. On load only that emitted shape is split back
+into rows (and only when rebuilding gives the identical string); anything else,
+such as hand-written `a && b || c`, shows as one row and is never rewritten.
+Because any evaluation error makes the whole condition false, a row that cannot be
+read (missing stream, offline sender) makes the result false unless an earlier row
+already decided it (`&&` / `||` short-circuit), so row order matters.
 "See examples", next to Save in the code toolbar, opens a dialog
 (`components/automations/examples-dialog.web.tsx`, scripts in
 `components/automations/automation-examples.ts`) with a list of example scripts on

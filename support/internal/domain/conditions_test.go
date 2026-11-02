@@ -52,6 +52,49 @@ func TestEvaluateCondition(t *testing.T) {
 	}
 }
 
+// Shapes emitted by the frontend condition builder (rows joined left to right, see
+// HyperHiveFront utils/condition-group.ts). Deps follow short-circuiting, and any error
+// makes the whole condition false, so the result depends on row order.
+func TestEvaluateConditionGroups(t *testing.T) {
+	data := fakeConditionData{
+		"db|":  {ID: "id-db", Label: "db", Fields: map[string]any{"health": "healthy"}, Streams: map[string]any{"cpu": 97.0}},
+		"web|": {ID: "id-web", Label: "web", Fields: map[string]any{"connectivity": "offline"}, Streams: map[string]any{}},
+	}
+	const hot, low, down, up, missing = "(app('db').cpu > 90)", "(app('db').cpu < 50)", "(app('web').connectivity == 'offline')", "(app('web').connectivity == 'online')", "(app('db').missing > 1)"
+	cases := []struct {
+		source string
+		value  bool
+		err    string
+		deps   []string
+	}{
+		{hot + " && " + down, true, "", []string{"id-db", "id-web"}},
+		{low + " || " + down, true, "", []string{"id-db", "id-web"}},
+		{low + " && " + down, false, "", []string{"id-db"}},
+		{hot + " && !" + up, true, "", []string{"id-db", "id-web"}},
+		{low + " || !" + up, true, "", []string{"id-db", "id-web"}},
+		{hot + " != " + down, false, "", []string{"id-db", "id-web"}},
+		{"!(" + hot + " && " + down + ")", false, "", []string{"id-db", "id-web"}},
+		{"(" + hot + " && " + down + ") != !" + low, false, "", []string{"id-db", "id-web"}},
+		{"((" + low + " || " + down + ") && !!" + up + ") || " + hot, true, "", []string{"id-db", "id-web"}},
+		{missing + " || " + down, false, "missing", []string{"id-db"}},
+		{down + " || " + missing, true, "", []string{"id-web"}},
+	}
+	for _, test := range cases {
+		result, deps := EvaluateCondition(test.source, data)
+		if result.Value == nil || *result.Value != test.value || !strings.Contains(result.Error, test.err) || (test.err == "" && result.Error != "") {
+			t.Fatalf("%s: value=%v error=%q", test.source, result.Value, result.Error)
+		}
+		if len(deps) != len(test.deps) {
+			t.Fatalf("%s: deps=%v want %v", test.source, deps, test.deps)
+		}
+		for _, id := range test.deps {
+			if !deps[id] {
+				t.Fatalf("%s: deps=%v want %v", test.source, deps, test.deps)
+			}
+		}
+	}
+}
+
 func TestValidateAutomationRejectsBadCondition(t *testing.T) {
 	automation := Automation{Name: "x", Timeout: 1, MaxRunsPerHour: 1, Condition: "app('db').cpu >="}
 	if err := ValidateAutomation(automation); err == nil {
