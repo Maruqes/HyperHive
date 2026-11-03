@@ -83,10 +83,9 @@ type SmartDiskInfo struct {
 	LastNVMeErrors   []NVMeErrorEntry `json:"last_nvme_errors,omitempty"`
 	SelfTests        []SelfTestResult `json:"self_tests"`
 	// Health assessment
-	HealthStatus          string `json:"health_status"`         // "healthy", "warning", "critical", "failing"
-	PhysicalProblemRisk   string `json:"physical_problem_risk"` // "none", "low", "medium", "high", "critical"
-	RecommendedAction     string `json:"recommended_action"`
-	rawSmartctlParseError error  `json:"-"`
+	HealthStatus        string `json:"health_status"`         // "healthy", "warning", "critical", "failing"
+	PhysicalProblemRisk string `json:"physical_problem_risk"` // "none", "low", "medium", "high", "critical"
+	RecommendedAction   string `json:"recommended_action"`
 }
 
 // SelfTestResult captures the outcome of recent SMART self-tests.
@@ -127,7 +126,7 @@ func RunSelfTest(device string, test SelfTestType) error {
 // GetSmartInfo collects SMART details for a device and returns a summarized view.
 // The function still returns parsed information when smartctl exits non-zero
 // (common if the drive reports failing health); in that case the error is
-// attached to SmartDiskInfo.rawSmartctlParseError and also returned.
+// also returned and the gRPC handler forwards it as smartctl_error.
 func GetSmartInfo(device string) (*SmartDiskInfo, error) {
 	var err error
 	if device, err = validateDevicePath(device); err != nil {
@@ -139,9 +138,7 @@ func GetSmartInfo(device string) (*SmartDiskInfo, error) {
 		return nil, parseErr
 	}
 
-	info := summarizeSMART(device, resp)
-	info.rawSmartctlParseError = parseErr
-	return info, parseErr
+	return summarizeSMART(device, resp), parseErr
 }
 
 // === Helpers ===

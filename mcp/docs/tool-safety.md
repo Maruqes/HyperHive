@@ -25,6 +25,7 @@ The catalog name must match its definition or server construction fails.
 | Proxies | [RegisterProxies](../internal/tools/proxies.go) |
 | NGINX | [RegisterNginx](../internal/tools/nginx.go) |
 | Upstreams | [RegisterUpstreams](../internal/tools/upstreams.go) |
+| Disk health | [RegisterDiskHealth](../internal/tools/disk_health.go) |
 
 ```go
 func RegisterCelld(server *Registry, api CelldAPI) {
@@ -126,6 +127,8 @@ form. VM writes/transfers retain the feature-specific recovery checks in their
 | celld | `list_celld_fleets` | low | `GET /celld/fleets` |
 | celld | `start_celld_fleet` | high | `POST /celld/fleets/{id}/start` |
 | celld | `stop_celld_fleet` | high | `POST /celld/fleets/{id}/stop` |
+| disk_health | `get_disk_health_history` | low | `GET /diskhealth/{serial}` |
+| disk_health | `list_disk_health` | low | `GET /diskhealth` |
 | dns | `dns_alias_add` | high | `POST /dnsmasq/alias/add` |
 | dns | `dns_alias_get` | low | `GET /dnsmasq/alias/get` |
 | dns | `dns_aliases_list` | low | `GET /dnsmasq/alias/all` |

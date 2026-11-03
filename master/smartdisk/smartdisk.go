@@ -2,14 +2,20 @@ package smartdisk
 
 import (
 	"context"
+	"time"
 
 	smartdiskGrpc "github.com/Maruqes/512SvMan/api/proto/smartdisk"
 	"google.golang.org/grpc"
 )
 
-func GetSmartInfo(conn *grpc.ClientConn, req *smartdiskGrpc.SmartInfoRequest) (*smartdiskGrpc.SmartDiskInfo, error) {
+// smartInfoTimeout bounds one smartctl read on the slave, which has no exec timeout of its own.
+const smartInfoTimeout = 60 * time.Second
+
+func GetSmartInfo(ctx context.Context, conn *grpc.ClientConn, req *smartdiskGrpc.SmartInfoRequest) (*smartdiskGrpc.SmartDiskInfo, error) {
+	ctx, cancel := context.WithTimeout(ctx, smartInfoTimeout)
+	defer cancel()
 	client := smartdiskGrpc.NewSmartDiskServiceClient(conn)
-	return client.GetSmartInfo(context.Background(), req)
+	return client.GetSmartInfo(ctx, req)
 }
 
 func RunSelfTest(ctx context.Context, conn *grpc.ClientConn, req *smartdiskGrpc.SelfTestRequest) (*smartdiskGrpc.SelfTestResponse, error) {

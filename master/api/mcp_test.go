@@ -58,7 +58,7 @@ func TestMCPTokenPreservesAPIAuthentication(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list.Tools) != 134 {
+	if len(list.Tools) != 136 {
 		t.Fatalf("unexpected tools: %#v", list.Tools)
 	}
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_proxies"})
@@ -148,8 +148,8 @@ func TestMCPLoopbackUsesConfiguredPort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list.Tools) != 134 {
-		t.Fatalf("expected 134 HyperHive tools: %#v", list.Tools)
+	if len(list.Tools) != 136 {
+		t.Fatalf("expected 136 HyperHive tools: %#v", list.Tools)
 	}
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_proxies"})
 	if err != nil || result.IsError || !strings.Contains(result.Content[0].(*mcp.TextContent).Text, "custom-port.test") {

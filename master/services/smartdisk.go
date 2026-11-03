@@ -15,7 +15,7 @@ import (
 
 type SmartDiskService struct{}
 
-func (s *SmartDiskService) GetSmartInfo(machineName, device string) (*smartdiskGrpc.SmartDiskInfo, error) {
+func (s *SmartDiskService) GetSmartInfo(ctx context.Context, machineName, device string) (*smartdiskGrpc.SmartDiskInfo, error) {
 	if device == "" {
 		return nil, fmt.Errorf("device parameter is required")
 	}
@@ -25,7 +25,7 @@ func (s *SmartDiskService) GetSmartInfo(machineName, device string) (*smartdiskG
 		return nil, fmt.Errorf("no connection found for machine: %s", machineName)
 	}
 
-	return smartdisk.GetSmartInfo(conn.Connection, &smartdiskGrpc.SmartInfoRequest{Device: device})
+	return smartdisk.GetSmartInfo(ctx, conn.Connection, &smartdiskGrpc.SmartInfoRequest{Device: device})
 }
 
 func (s *SmartDiskService) RunSelfTest(ctx context.Context, machineName, device string, testType smartdiskGrpc.SelfTestType) (string, error) {

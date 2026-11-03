@@ -40,7 +40,7 @@ func getAllDisks(w http.ResponseWriter, r *http.Request) {
 
 	btrfsService := services.BTRFSService{}
 	// imagina que isto te devolve um *pb.GetAllDisksResponse
-	resp, err := btrfsService.GetAllDisks(machineName)
+	resp, err := btrfsService.GetAllDisks(r.Context(), machineName)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to get disks: %v", err), http.StatusInternalServerError)
 		return
@@ -58,7 +58,7 @@ func getFreeDisks(w http.ResponseWriter, r *http.Request) {
 
 	btrfsService := services.BTRFSService{}
 	// imagina que isto te devolve um *pb.GetAllDisksResponse
-	resp, err := btrfsService.GetNotMountedDisks(machineName)
+	resp, err := btrfsService.GetNotMountedDisks(r.Context(), machineName)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to get disks: %v", err), http.StatusInternalServerError)
 		return

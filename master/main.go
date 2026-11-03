@@ -340,6 +340,10 @@ func main() {
 	}
 
 	db.InitDB(ctx)
+	// Disk health history is non-critical: run without the feature if its file fails.
+	if err := db.InitDiskHealthDB(ctx); err != nil {
+		logger.Errorf("disk health database unavailable, feature disabled: %v", err)
+	}
 	if err := db.CreateNPMUpstreamTables(ctx); err != nil {
 		log.Fatalf("create NPM upstream tables: %v", err)
 	}
@@ -530,6 +534,7 @@ func main() {
 	go SpaService.Maintain(ctx, 30*time.Second)
 	powerScheduleService := services.PowerScheduleService{}
 	go powerScheduleService.RunLoop(ctx)
+	go services.NewDiskHealthService().RunLoop(ctx)
 
 	// go func() {
 	// 	addr := "127.0.0.1:6060"

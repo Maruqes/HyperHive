@@ -338,6 +338,7 @@ func StartApi(exitAfterStart bool) {
 		setupExtraAPI(r)
 		setupInfoAPI(r)
 		setupSmartDiskAPI(r)
+		setupDiskHealthAPI(r)
 		setupGoAccessAPI(r)
 		setupStreamInfo(r)
 		setupWireguardAPI(r)

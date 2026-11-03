@@ -15,22 +15,22 @@ import (
 
 type BTRFSService struct{}
 
-func (s *BTRFSService) GetAllDisks(machineName string) (*btrfsGrpc.MinDiskArr, error) {
+func (s *BTRFSService) GetAllDisks(ctx context.Context, machineName string) (*btrfsGrpc.MinDiskArr, error) {
 	conn := protocol.GetConnectionByMachineName(machineName)
 	if conn == nil {
 		return nil, fmt.Errorf("no connection found for machine: %s", machineName)
 	}
 
-	return btrfs.GetAllDisks(conn.Connection)
+	return btrfs.GetAllDisks(ctx, conn.Connection)
 }
 
-func (s *BTRFSService) GetNotMountedDisks(machineName string) (*btrfsGrpc.MinDiskArr, error) {
+func (s *BTRFSService) GetNotMountedDisks(ctx context.Context, machineName string) (*btrfsGrpc.MinDiskArr, error) {
 	conn := protocol.GetConnectionByMachineName(machineName)
 	if conn == nil {
 		return nil, fmt.Errorf("no connection found for machine: %s", machineName)
 	}
 
-	disks, err := btrfs.GetAllDisks(conn.Connection)
+	disks, err := btrfs.GetAllDisks(ctx, conn.Connection)
 	if err != nil {
 		return nil, err
 	}

@@ -2,14 +2,20 @@ package btrfs
 
 import (
 	"context"
+	"time"
 
 	btrfsGrpc "github.com/Maruqes/512SvMan/api/proto/btrfs"
 	"google.golang.org/grpc"
 )
 
-func GetAllDisks(conn *grpc.ClientConn) (*btrfsGrpc.MinDiskArr, error) {
+// getAllDisksTimeout bounds the lsblk-based disk listing on the slave.
+const getAllDisksTimeout = 30 * time.Second
+
+func GetAllDisks(ctx context.Context, conn *grpc.ClientConn) (*btrfsGrpc.MinDiskArr, error) {
+	ctx, cancel := context.WithTimeout(ctx, getAllDisksTimeout)
+	defer cancel()
 	client := btrfsGrpc.NewBtrFSServiceClient(conn)
-	res, err := client.GetAllDisks(context.Background(), &btrfsGrpc.Empty{})
+	res, err := client.GetAllDisks(ctx, &btrfsGrpc.Empty{})
 	if err != nil {
 		return nil, err
 	}

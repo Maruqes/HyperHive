@@ -24,7 +24,6 @@ import (
 	"slave/nfs"
 	ourk8s "slave/our_k8s"
 	"slave/protocol"
-	"slave/smartdisk"
 	"slave/virsh"
 	"strings"
 	"syscall"
@@ -781,9 +780,9 @@ func main() {
 
 	// Setup environment variables
 	if err := env512.Setup(); err != nil {
-		log.Fatalf("[1/17] Environment setup: %v", err)
+		log.Fatalf("[1/16] Environment setup: %v", err)
 	}
-	logger.Info("[1/17] Environment setup: success")
+	logger.Info("[1/16] Environment setup: success")
 
 	// Setup logging
 	logger.SetType(env512.Mode)
@@ -791,24 +790,24 @@ func main() {
 
 	// Disable firewall
 	if err := stopAndDisableFirewalld(); err != nil {
-		log.Fatalf("[2/17] Stop and disable firewalld: %v", err)
+		log.Fatalf("[2/16] Stop and disable firewalld: %v", err)
 	}
-	logger.Info("[2/17] Stop and disable firewalld: success")
+	logger.Info("[2/16] Stop and disable firewalld: success")
 
 	// Install Docker
 	if err := docker.InstallLatestDocker(); err != nil {
-		log.Fatalf("[3/17] Docker installation: %v", err)
+		log.Fatalf("[3/16] Docker installation: %v", err)
 	}
-	logger.Info("[3/17] Docker installation: success")
+	logger.Info("[3/16] Docker installation: success")
 
 	// Ensure virt-xml and tuned-adm are installed
 	if err := virsh.EnsureVirtXMLInstalled(); err != nil {
-		log.Fatalf("[4/17] Ensure virt-xml installed: %v", err)
+		log.Fatalf("[4/16] Ensure virt-xml installed: %v", err)
 	}
 	if err := virsh.EnsureTunedAdmInstalled(); err != nil {
-		log.Fatalf("[4/17] Ensure tuned-adm installed: %v", err)
+		log.Fatalf("[4/16] Ensure tuned-adm installed: %v", err)
 	}
-	logger.Info("[4/17] Ensure virt-xml and tuned-adm installed: success")
+	logger.Info("[4/16] Ensure virt-xml and tuned-adm installed: success")
 
 	// Setup Kubernetes if this is master-slave
 	if ourk8s.AreWeMasterSlave() {
@@ -827,69 +826,69 @@ func main() {
 			ExtraArgs:      []string{},
 		})
 		if err != nil {
-			log.Fatalf("[5/17] Install K3s server: %v", err)
+			log.Fatalf("[5/16] Install K3s server: %v", err)
 		}
 		ourk8s.TOKEN = token
-		logger.Info("[5/17] Install K3s server: success")
+		logger.Info("[5/16] Install K3s server: success")
 		fmt.Println(token)
 	}
 
 	// Disable swap
 	if err := desligar_swap(); err != nil {
-		log.Fatalf("[6/17] Disable swap: %v", err)
+		log.Fatalf("[6/16] Disable swap: %v", err)
 	}
-	logger.Info("[6/17] Disable swap: success")
+	logger.Info("[6/16] Disable swap: success")
 
 	// Install Git
 	if err := install_git(); err != nil {
-		log.Fatalf("[7/17] Install git: %v", err)
+		log.Fatalf("[7/16] Install git: %v", err)
 	}
-	logger.Info("[7/17] Install git: success")
+	logger.Info("[7/16] Install git: success")
 
 	// Apply dirty ratio settings
 	if err := applyDirtyRatioSettings(env512.DirtyRatioPercent, env512.DirtyBackgroundRatioPercent); err != nil {
-		log.Fatalf("[8/17] Apply dirty ratio settings: %v", err)
+		log.Fatalf("[8/16] Apply dirty ratio settings: %v", err)
 	}
-	logger.Info("[8/17] Apply dirty ratio settings: success")
+	logger.Info("[8/16] Apply dirty ratio settings: success")
 
 	// Configure VNC ports
 	if err := virsh.SetVNCPorts(env512.VNC_MIN_PORT, env512.VNC_MAX_PORT); err != nil {
-		log.Fatalf("[9/17] Set VNC ports: %v", err)
+		log.Fatalf("[9/16] Set VNC ports: %v", err)
 	}
-	logger.Info("[9/17] Set VNC ports: success")
+	logger.Info("[9/16] Set VNC ports: success")
 
-	logger.Info("[10/17] Preserve GPU PCI assignments on startup: skipped auto detach")
+	logger.Info("[10/16] Preserve GPU PCI assignments on startup: skipped auto detach")
 	// if err := pci.DetachAllGPUs(); err != nil {
-	// 	logger.Warnf("[10/17] Detach unassigned GPUs: %v (non-fatal)", err)
+	// 	logger.Warnf("[10/16] Detach unassigned GPUs: %v (non-fatal)", err)
 	// } else {
-	// 	logger.Info("[10/17] Detach unassigned GPUs: success")
+	// 	logger.Info("[10/16] Detach unassigned GPUs: success")
 	// }
 
 	// Install NFS
 	if err := nfs.InstallNFS(); err != nil {
-		log.Fatalf("[11/17] Install NFS: %v", err)
+		log.Fatalf("[11/16] Install NFS: %v", err)
 	}
-	logger.Info("[11/17] Install NFS: success")
+	logger.Info("[11/16] Install NFS: success")
 
 	// Setup all components
 	if err := setupAll(); err != nil {
-		log.Fatalf("[12/17] Setup all components: %v", err)
+		log.Fatalf("[12/16] Setup all components: %v", err)
 	}
-	logger.Info("[12/17] Setup all components: success")
+	logger.Info("[12/16] Setup all components: success")
 
 	// Ensure VirtIO ISO
 	isoPath, err := ensureVirtioISO()
 	if err != nil {
-		log.Fatalf("[13/17] Ensure VirtIO ISO: %v", err)
+		log.Fatalf("[13/16] Ensure VirtIO ISO: %v", err)
 	}
 	env512.VirtioISOPath = isoPath
-	logger.Info("[13/17] Ensure VirtIO ISO: success")
+	logger.Info("[13/16] Ensure VirtIO ISO: success")
 
 	// Set host UUID source
 	if err := set_host_uuid_source(); err != nil {
 		logger.Error(err.Error())
 	}
-	logger.Info("[14/17] Set host UUID source: success")
+	logger.Info("[14/16] Set host UUID source: success")
 	if firstRun {
 		logger.Info("First-run mode enabled; exiting after step 15/18")
 		return
@@ -906,16 +905,13 @@ func main() {
 	go func() { <-agentCtx.Done(); celld.Local.Close(); os.Exit(0) }()
 	conn := protocol.ConnectGRPC()
 	env512.SetConn(conn)
-	logger.Info("[15/17] Connect to gRPC server: success")
+	logger.Info("[15/16] Connect to gRPC server: success")
 	defer conn.Close()
 
 	// Start BTRFS check loop
 	btrfs.StartCheckBTRFSLOOP()
-	logger.Info("[16/17] Start BTRFS check loop: success")
-
-	// Start smart disk test checker
-	smartdisk.StartSmartTestChecker()
-	logger.Info("[17/17] Start smart disk test checker: success")
+	logger.Info("[16/16] Start BTRFS check loop: success")
+	// SMART health alerts are raised by the master's disk health poller.
 
 	// Keep application running
 	select {}

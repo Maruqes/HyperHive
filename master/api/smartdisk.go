@@ -3,6 +3,7 @@ package api
 import (
 	"512SvMan/db"
 	"512SvMan/services"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -31,7 +32,7 @@ type scheduleRequest struct {
 	Active  *bool  `json:"active"` // optional
 }
 
-func (s *scheduleRequest) Validate(machineName string) error {
+func (s *scheduleRequest) Validate(ctx context.Context, machineName string) error {
 	// Check week day
 	if s.WeekDay < 0 || s.WeekDay > 6 {
 		return fmt.Errorf("week_day must be 0..6")
@@ -47,7 +48,7 @@ func (s *scheduleRequest) Validate(machineName string) error {
 	}
 	// Check device exists
 	btrfsService := services.BTRFSService{}
-	disks, err := btrfsService.GetAllDisks(machineName)
+	disks, err := btrfsService.GetAllDisks(ctx, machineName)
 	if err != nil {
 		return err
 	}
@@ -73,7 +74,7 @@ func getSmartDiskInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	service := services.SmartDiskService{}
-	info, err := service.GetSmartInfo(machineName, device)
+	info, err := service.GetSmartInfo(r.Context(), machineName, device)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -295,7 +296,7 @@ func createSchedule(w http.ResponseWriter, r *http.Request) {
 		active = *req.Active
 	}
 
-	err := req.Validate(machineName)
+	err := req.Validate(r.Context(), machineName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -364,7 +365,7 @@ func editSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = req.Validate(machineName)
+	err = req.Validate(r.Context(), machineName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
