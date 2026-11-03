@@ -567,7 +567,7 @@ func (s *VMDiskService) Reconcile(ctx context.Context, id, action string) (*db.D
 	if op.Phase == "complete" || op.Phase == "aborted" {
 		return op, nil
 	}
-	if action == "abort" && (op.Kind == "download" || op.Kind == "attach" || op.Kind == "detach") {
+	if action == "abort" && (op.Kind == "download" || op.Kind == "attach" || op.Kind == "detach" || op.Kind == revertOperationKind) {
 		// Operator-confirmed release of a stale lock; the disk catalog is left untouched.
 		if err = diskPhase(ctx, op, "aborted"); err != nil {
 			return nil, err

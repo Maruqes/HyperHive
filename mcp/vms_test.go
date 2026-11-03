@@ -41,6 +41,7 @@ var vmReadCases = []vmReadCase{
 	{"get_vm_core_isolation", "/virsh/coreisolation/host", "", "", `{"enabled":false,"rebootRequired":false,"message":"","isolcpus":"","nohzFull":"","rcuNocbs":"","activeIsolcpus":"","configuredCpus":[],"activeCpus":[],"sockets":[]}`, map[string]any{"machine_name": "host"}},
 	{"get_vm_host_hugepages", "/virsh/hosthugepages/host", "", "", `{"enabled":false,"rebootRequired":false,"message":"","pageSize":"","pageCount":0,"activePageSize":"","activePageCount":0,"defaultHugepagesz":"","hugepagesz":"","hugepages":"","activeDefaultHugepagesz":"","activeHugepagesz":"","activeHugepages":""}`, map[string]any{"machine_name": "host"}},
 	{"list_vm_backups", "/virsh/backups", "", "", `null`, map[string]any{}},
+	{"list_vm_backups", "/virsh/backups", "vm_name=guest", "", `[{"db_res":{"Id":3,"Name":"guest","Path":"/nfs/backup-x/guest.qcow2","NfsId":1,"CreatedAt":"2026-11-03 10:00:00","Automatic":false},"live":true,"size":1.5}]`, map[string]any{"vm_name": "guest"}},
 	{"list_vm_automatic_backups", "/virsh/autobak", "", "", `null`, map[string]any{}},
 	{"list_vm_xml_templates", "/virsh/xmltemplates/", "", "", `[]`, map[string]any{}},
 	{"get_vm_xml_template", "/virsh/xmltemplates/7", "", "", `{"id":7,"name":"template","description":"","xml":"<domain/>","created_at":"","updated_at":""}`, map[string]any{"id": 7}},

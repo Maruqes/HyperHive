@@ -77,7 +77,7 @@ type VMsAPI interface {
 	GetVMIrqBalance(context.Context, client.VMHostInput) (json.RawMessage, error)
 	GetVMCoreIsolation(context.Context, client.VMHostInput) (json.RawMessage, error)
 	GetVMHostHugePages(context.Context, client.VMHostInput) (json.RawMessage, error)
-	ListVMBackups(context.Context, client.VMEmptyInput) (json.RawMessage, error)
+	ListVMBackups(context.Context, client.VMBackupsListInput) (json.RawMessage, error)
 	ListVMAutomaticBackups(context.Context, client.VMEmptyInput) (json.RawMessage, error)
 	ListVMXMLTemplates(context.Context, client.VMEmptyInput) (json.RawMessage, error)
 	GetVMXMLTemplate(context.Context, client.VMIDInput) (json.RawMessage, error)
@@ -196,7 +196,7 @@ func defineGetVMHostHugepages(api VMsAPI) ToolDefinition {
 }
 
 func defineListVMBackups(api VMsAPI) ToolDefinition {
-	return addVMRead(vmTool("list_vm_backups", "GET", "/virsh/backups", "Return the complete API JSON, preserving exact integers and backend fields."), api.ListVMBackups)
+	return addVMRead(vmTool("list_vm_backups", "GET", "/virsh/backups", "Optional vm_name lists one VM's backup timeline. Return the complete API JSON, preserving exact integers and backend fields."), api.ListVMBackups)
 }
 
 func defineListVMAutomaticBackups(api VMsAPI) ToolDefinition {

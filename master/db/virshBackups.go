@@ -89,6 +89,33 @@ func GetVirshBackupsByNfsMountID(ctx context.Context, nfsMountID int) ([]VirshBa
 	return backups, nil
 }
 
+// GetVirshBackupsByName returns every manual and automatic backup of a VM, newest first.
+func GetVirshBackupsByName(ctx context.Context, vmName string) ([]VirshBackup, error) {
+	const query = `
+	SELECT id, name, path, nfsmount_id, created_at, automatic
+	FROM virsh_backups
+	WHERE name = ?
+	ORDER BY created_at DESC, id DESC;
+	`
+
+	rows, err := DB.QueryContext(ctx, query, vmName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query backups for vm %s: %v", vmName, err)
+	}
+	defer rows.Close()
+
+	var backups []VirshBackup
+	for rows.Next() {
+		var b VirshBackup
+		if err := rows.Scan(&b.Id, &b.Name, &b.Path, &b.NfsId, &b.CreatedAt, &b.Automatic); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %v", err)
+		}
+		backups = append(backups, b)
+	}
+
+	return backups, rows.Err()
+}
+
 func GetVirshBackupById(ctx context.Context, id int) (*VirshBackup, error) {
 	query := `SELECT id, name, path, nfsmount_id, created_at, automatic FROM virsh_backups WHERE id = ?`
 	row := DB.QueryRowContext(ctx, query, id)

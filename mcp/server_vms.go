@@ -125,7 +125,7 @@ func (api configuredAPI) GetVMHostHugePages(ctx context.Context, in client.VMHos
 	}
 	return c.GetVMHostHugePages(ctx, in)
 }
-func (api configuredAPI) ListVMBackups(ctx context.Context, in client.VMEmptyInput) (json.RawMessage, error) {
+func (api configuredAPI) ListVMBackups(ctx context.Context, in client.VMBackupsListInput) (json.RawMessage, error) {
 	c, err := client.New(client.Config{BaseURL: api.cfg.BaseURL, Token: api.cfg.MCPToken})
 	if err != nil {
 		return nil, err

@@ -13,6 +13,7 @@ enum WebSocketsMessageType {
   Logs = 4;
   VMInfo = 6;
   Error = 7;
+  RevertVM = 8;
 }
 
 message WebsocketMessage {

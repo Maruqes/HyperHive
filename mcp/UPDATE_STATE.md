@@ -37,6 +37,12 @@ This is an agent workflow and source-reviewed report, not an executable command
 or background updater. Reinspect the working tree on each refresh; the date and
 Git revision alone do not prove freshness. There is no committed coverage CLI yet.
 
+## Backup timeline increment — 2026-11-03
+
+- `list_vm_backups` (low) gains an optional `vm_name` input that becomes `GET /virsh/backups?vm_name=`; the response shape is unchanged. Mock-server contract cases cover both forms over HTTP and stdio.
+- New `POST /virsh/revertBackup/{backup_id}` (revert a VM disk in place) is a policy exclusion: it overwrites the VM's primary disk, and the user decided it is UI-only. No tool, alias or helper calls it.
+- Counts: API total 322 → 323, VM subtotal 82 → 83, "VMs and host tuning" 73 → 74; implemented counts unchanged. `go test ./...` passed in `mcp/`.
+
 ## ISO removal increment — 2026-10-20
 
 One explicitly requested tool: `remove_vm_isos`, high risk, required `vm_name`.
@@ -90,9 +96,9 @@ Checked: **2026-10-21**, targeted registration/safety refresh. Current rework va
 
 | Scope | Implemented / total | Missing | Coverage |
 | --- | ---: | ---: | ---: |
-| **HyperHive API** | 134 / 322 | 142 | 41.61% |
+| **HyperHive API** | 134 / 323 | 142 | 41.49% |
 | NGINX subtotal | 33 / 43 | 0 | 76.74% |
-| VM subtotal, including templates/disks/helpers | 64 / 82 | 2 | 78.05% |
+| VM subtotal, including templates/disks/helpers | 64 / 83 | 2 | 77.11% |
 
 Subtotals are subsets of the API. Leaf areas partition the total. Missing omits policy exclusions; both new internal helper routes remain missing for direct tool coverage. Eligible-only percentages are meaningful only for reviewed selected scopes, not the entire API's still-unclassified browser/stream routes.
 
@@ -125,7 +131,7 @@ Subtotals are subsets of the API. Leaf areas partition the total. Missing omits 
 | Protocol connections | 0 / 1 | 1 | 0.00% | [protocol.go](../master/api/protocol.go) |
 | SMART disks | 0 / 14 | 12 | 0.00% | [smartdisk.go](../master/api/smartdisk.go) |
 | Stream observability | 0 / 35 | 33 | 0.00% | [streamInfo.go](../master/api/streamInfo.go) |
-| VMs and host tuning | 58 / 73 | 2 | 79.45% | [virsh.go](../master/api/virsh.go) |
+| VMs and host tuning | 58 / 74 | 2 | 78.38% | [virsh.go](../master/api/virsh.go) |
 | VM XML templates | 4 / 5 | 0 | 80.00% | [virsh_xml_templates.go](../master/api/virsh_xml_templates.go) |
 | VM disks | 2 / 4 | 0 | 50.00% | [vm_disk.go](../master/api/vm_disk.go) |
 | WireGuard | 0 / 4 | 3 | 0.00% | [wireguard.go](../master/api/wireguard.go) |
@@ -699,6 +705,7 @@ One row is one method/path pair. Only registered, enabled, contract-reviewed and
 | `GET /virsh/downloadbackup/{backup_id}` | implemented | [virsh.go:2581](../master/api/virsh.go#L2581) |
 | `POST /virsh/useBackup/{backup_id}` | excluded (deletion policy: rollback deletes destination business disk) | [virsh.go:2582](../master/api/virsh.go#L2582) |
 | `DELETE /virsh/deleteBackup/{backup_id}` | excluded (deletion policy) | [virsh.go:2583](../master/api/virsh.go#L2583) |
+| `POST /virsh/revertBackup/{backup_id}` | excluded (user decision 2026-11-03: overwrites the VM disk; UI-only) | [virsh.go](../master/api/virsh.go) |
 | `POST /virsh/autostart/{vm_name}` | implemented | [virsh.go:2585](../master/api/virsh.go#L2585) |
 | `POST /virsh/vmlive/{vm_name}` | implemented | [virsh.go:2586](../master/api/virsh.go#L2586) |
 | `POST /virsh/autobak` | implemented | [virsh.go:2589](../master/api/virsh.go#L2589) |

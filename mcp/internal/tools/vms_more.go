@@ -47,7 +47,7 @@ func defineBackupVM(api VMsAPI, gate *safety.Gate, store vmsafety.Store) ToolDef
 			return "", nil, err
 		}
 		snapshots["nfs_share"] = share
-		raw, err := api.ListVMBackups(ctx, client.VMEmptyInput{})
+		raw, err := api.ListVMBackups(ctx, client.VMBackupsListInput{})
 		if err != nil {
 			return "", nil, err
 		}

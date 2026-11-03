@@ -587,6 +587,9 @@ func (v *VirshService) StartVM(ctx context.Context, name string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	if err := refuseDuringRevert(ctx, name); err != nil {
+		return err
+	}
 	//find vm by name
 	exists, err := virsh.DoesVMExist(name)
 	if err != nil {
@@ -1664,6 +1667,12 @@ func (v *VirshService) startAutoStartVms(ctx context.Context, machineFilter stri
 	runVm := func(vm *grpcVirsh.Vm, conn *protocol.ConnectionsStruct, auto db.AutoStart, tries int) bool {
 		runVmMutex.Lock()
 		defer runVmMutex.Unlock()
+
+		// A revert owns the disk; it starts the VM itself when asked to.
+		if err := refuseDuringRevert(context.Background(), vm.Name); err != nil {
+			logger.Warnf("autostart skipped %s: %v", vm.Name, err)
+			return true
+		}
 
 		// All NFS checks passed (or disk is not on NFS), try to start the VM
 		startTime := time.Now()

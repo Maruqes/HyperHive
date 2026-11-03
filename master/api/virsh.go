@@ -318,6 +318,10 @@ func startVM(w http.ResponseWriter, r *http.Request) {
 
 	virshServices := services.VirshService{}
 	err := virshServices.StartVM(r.Context(), vmName)
+	if errors.Is(err, services.ErrRevertConflict) {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1510,6 +1514,10 @@ func backupVM(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = virshServices.BackupVM(r.Context(), vmName, nfsIdInt, false)
+	if errors.Is(err, services.ErrRevertConflict) {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
 	if err != nil {
 		http.Error(w, "was not possible to backup your vm err: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -1528,7 +1536,14 @@ func caniseefileorfolder(path string) (bool, float64) {
 }
 
 func getAllBackups(w http.ResponseWriter, r *http.Request) {
-	virshBackups, err := db.GetAllVirshBackups(r.Context())
+	var virshBackups []db.VirshBackup
+	var err error
+	// Optional vm_name narrows the list to one VM's timeline; the shape is unchanged.
+	if vmName := strings.TrimSpace(r.URL.Query().Get("vm_name")); vmName != "" {
+		virshBackups, err = db.GetVirshBackupsByName(r.Context(), vmName)
+	} else {
+		virshBackups, err = db.GetAllVirshBackups(r.Context())
+	}
 	if err != nil {
 		http.Error(w, "error getting all backups "+err.Error(), http.StatusInternalServerError)
 		return
@@ -1636,6 +1651,48 @@ func useBackup(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// revertBackup starts an in-place revert of the backup's VM; the outcome is
+// reported by notification and RevertVM websocket messages.
+func revertBackup(w http.ResponseWriter, r *http.Request) {
+	backupID, err := strconv.Atoi(chi.URLParam(r, "backup_id"))
+	if err != nil || backupID <= 0 {
+		http.Error(w, "valid backup_id is required", http.StatusBadRequest)
+		return
+	}
+	var req struct {
+		StartAfter bool `json:"start_after"`
+	}
+	if r.Body != nil && r.ContentLength != 0 {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid body: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+	virshServices := services.VirshService{}
+	err = virshServices.RevertBackup(r.Context(), backupID, req.StartAfter)
+	switch {
+	case err == nil:
+	case errors.Is(err, services.ErrRevertInvalid):
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	case errors.Is(err, services.ErrRevertNotFound):
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	case errors.Is(err, services.ErrRevertConflict):
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	default:
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	backup, _ := db.GetVirshBackupById(r.Context(), backupID)
+	vmName := ""
+	if backup != nil {
+		vmName = backup.Name
+	}
+	writeJSONWithStatus(w, http.StatusAccepted, map[string]any{"status": "started", "vm_name": vmName, "backup_id": backupID})
+}
+
 func deleteBackup(w http.ResponseWriter, r *http.Request) {
 	backupId := chi.URLParam(r, "backup_id")
 	if backupId == "" {
@@ -1650,6 +1707,10 @@ func deleteBackup(w http.ResponseWriter, r *http.Request) {
 	}
 	virshServices := services.VirshService{}
 	err = virshServices.DeleteBackup(r.Context(), backupIdInt)
+	if errors.Is(err, services.ErrRevertConflict) {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -2581,6 +2642,7 @@ func setupVirshAPI(r chi.Router) chi.Router {
 		r.Get("/downloadbackup/{backup_id}", downloadBackup)
 		r.Post("/useBackup/{backup_id}", useBackup)
 		r.Delete("/deleteBackup/{backup_id}", deleteBackup)
+		r.Post("/revertBackup/{backup_id}", revertBackup)
 
 		r.Post("/autostart/{vm_name}", autoStart)
 		r.Post("/vmlive/{vm_name}", setVmLive)

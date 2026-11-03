@@ -21,7 +21,7 @@ func defineExportVM(api VMsAPI, gate *safety.Gate, store vmsafety.Store) ToolDef
 
 func defineDownloadVMBackup(api VMsAPI, gate *safety.Gate, store vmsafety.Store) ToolDefinition {
 	return addVMTransfer(gate, store, vmTool("download_vm_backup", "GET", "/virsh/downloadbackup/{backup_id}", "Download an existing VM backup disk to a new private artifact on the MCP server filesystem. Returns only after the full file is saved, with byte count and SHA-256. Does not restore or modify any guest."), func(in client.VMIDInput) error { return client.ValidateVMID(in.ID) }, func(ctx context.Context, in client.VMIDInput) (string, map[string]json.RawMessage, error) {
-		raw, err := api.ListVMBackups(ctx, client.VMEmptyInput{})
+		raw, err := api.ListVMBackups(ctx, client.VMBackupsListInput{})
 		if err != nil {
 			return "", nil, err
 		}

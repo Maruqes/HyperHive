@@ -29,7 +29,21 @@ import (
 
 var copyFileSlots = make(chan struct{}, 1)
 
-func copyFile(ctx context.Context, origin, dest, vmName string) (err error) {
+// copyProgress names the websocket stream a copy reports to. An empty ID
+// becomes "<vmName>-<unix seconds>".
+type copyProgress struct {
+	Type  extraGrpc.WebSocketsMessageType
+	Label string
+	ID    string
+}
+
+var backupCopyProgress = copyProgress{Type: extraGrpc.WebSocketsMessageType_BackUpVM, Label: "Backup progress"}
+
+func copyFile(ctx context.Context, origin, dest, vmName string) error {
+	return copyFileWithProgress(ctx, origin, dest, vmName, backupCopyProgress)
+}
+
+func copyFileWithProgress(ctx context.Context, origin, dest, vmName string, report copyProgress) (err error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -67,7 +81,10 @@ func copyFile(ctx context.Context, origin, dest, vmName string) (err error) {
 	var copied int64
 	buf := make([]byte, 32*1024*1024) // 32MB buffer
 
-	identifier := fmt.Sprintf("%s-%d", vmName, time.Now().Unix())
+	identifier := report.ID
+	if identifier == "" {
+		identifier = fmt.Sprintf("%s-%d", vmName, time.Now().Unix())
+	}
 
 	for {
 		if err := ctx.Err(); err != nil {
@@ -84,7 +101,7 @@ func copyFile(ctx context.Context, origin, dest, vmName string) (err error) {
 
 			// Calculate and log progress
 			progress := float64(copied) / float64(totalSize) * 100
-			extra.SendWebsocketMessage(extraGrpc.WebSocketsMessageType_BackUpVM, fmt.Sprintf("Backup progress for %s: %.2f%%", vmName, progress), identifier)
+			extra.SendWebsocketMessage(report.Type, fmt.Sprintf("%s for %s: %.2f%%", report.Label, vmName, progress), identifier)
 		}
 		if err == io.EOF {
 			break
@@ -208,6 +225,10 @@ func (v *VirshService) ImportVmHelper(ctx context.Context, nfsId int, filename s
 // Virtual machine needs to have "qemu-guest-agent" for live
 // Virtual machine needs to have "qemu-guest-agent" for live
 func (v *VirshService) BackupVM(ctx context.Context, vmName string, nfsID int, automatic bool) error {
+	if err := refuseDuringRevert(ctx, vmName); err != nil {
+		return err
+	}
+
 	//check if vmName exists and is turned off, check if nfsID exists
 	vm, err := v.GetVmByName(vmName)
 	if err != nil {
@@ -220,21 +241,56 @@ func (v *VirshService) BackupVM(ctx context.Context, vmName string, nfsID int, a
 		return err
 	}
 
+	backup, err := prepareBackup(ctx, vmName, nfsID, automatic)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		taskCtx, cancel := context.WithTimeout(context.Background(), longTaskTimeout)
+		defer cancel()
+
+		err := copyBackup(taskCtx, vm, backup)
+		if err != nil {
+			logger.Error(err.Error())
+			extra.SendWebsocketMessage(proto.WebSocketsMessageType_Error, "Could not backups "+err.Error(), vmName)
+			sendImportantNotification("BackupVM: copyFile failed", err)
+		}
+	}()
+
+	return nil
+}
+
+// backupVMDisk takes a backup synchronously. The revert safety backup uses it
+// directly because the VM is already off and its revert lock must not block it.
+func backupVMDisk(ctx context.Context, vm *grpcVirsh.Vm, nfsID int, automatic bool) (*db.VirshBackup, error) {
+	backup, err := prepareBackup(ctx, vm.Name, nfsID, automatic)
+	if err != nil {
+		return nil, err
+	}
+	if err := copyBackup(ctx, vm, backup); err != nil {
+		return nil, err
+	}
+	return backup, nil
+}
+
+// prepareBackup validates the target share and creates the backup folder.
+func prepareBackup(ctx context.Context, vmName string, nfsID int, automatic bool) (*db.VirshBackup, error) {
 	nfsShare, err := db.GetNFSShareByID(ctx, nfsID)
 	if err != nil {
 		sendImportantNotification("BackupVM: GetNFSShareByID failed", err)
-		return fmt.Errorf("failed to get NFS share by ID: %v", err)
+		return nil, fmt.Errorf("failed to get NFS share by ID: %v", err)
 	}
 	if nfsShare == nil {
 		err := fmt.Errorf("NFS share not found with ID %d", nfsID)
 		sendImportantNotification("BackupVM: NFS share not found", err)
-		return err
+		return nil, err
 	}
 
 	if nfsShare.Target == "" {
 		err := fmt.Errorf("NFS share %d has an empty target path", nfsID)
 		sendImportantNotification("BackupVM: empty NFS target", err)
-		return err
+		return nil, err
 	}
 
 	// ensure the target exists and is a directory to avoid mkdir errors when a file occupies the path
@@ -243,23 +299,23 @@ func (v *VirshService) BackupVM(ctx context.Context, vmName string, nfsID int, a
 		if errors.Is(statErr, syscall.ESTALE) {
 			err := fmt.Errorf("NFS target %s is unavailable (stale file handle); remount the share and retry", nfsShare.Target)
 			sendImportantNotification("BackupVM: NFS target stale", err)
-			return err
+			return nil, err
 		}
 
 		if os.IsNotExist(statErr) {
 			err := fmt.Errorf("NFS target %s does not exist", nfsShare.Target)
 			sendImportantNotification("BackupVM: NFS target missing", err)
-			return err
+			return nil, err
 		}
 
 		sendImportantNotification("BackupVM: NFS target stat failed", statErr)
-		return fmt.Errorf("failed to stat NFS target %s: %v", nfsShare.Target, statErr)
+		return nil, fmt.Errorf("failed to stat NFS target %s: %v", nfsShare.Target, statErr)
 	}
 
 	if !info.IsDir() {
 		err := fmt.Errorf("NFS target %s is not a directory", nfsShare.Target)
 		sendImportantNotification("BackupVM: NFS target is file", err)
-		return err
+		return nil, err
 	}
 
 	// nfsShare.Target + "/backUpFolder" + uuid.string
@@ -277,83 +333,74 @@ func (v *VirshService) BackupVM(ctx context.Context, vmName string, nfsID int, a
 	err = os.MkdirAll(backUpFolder, 0o755)
 	if err != nil {
 		sendImportantNotification("BackupVM: failed to create backup folder", err)
-		return fmt.Errorf("could not create the backUpFolder folder at %s: %v", backUpFolder, err)
+		return nil, fmt.Errorf("could not create the backUpFolder folder at %s: %v", backUpFolder, err)
 	}
 
 	//create struct with already extension file path
-	backup := &db.VirshBackup{
+	return &db.VirshBackup{
 		Name:      vmName,
 		Path:      backUpFolder + "/" + vmName + ".qcow2",
 		NfsId:     nfsID,
 		Automatic: automatic,
-	}
+	}, nil
+}
 
-	actuallyDoBakcup := func(taskCtx context.Context) error {
-		if vm.State != grpcVirsh.VmState_SHUTOFF {
+// copyBackup copies the disk (freezing a running guest) and registers the row.
+func copyBackup(taskCtx context.Context, vm *grpcVirsh.Vm, backup *db.VirshBackup) (err error) {
+	vmName := vm.Name
+	if vm.State != grpcVirsh.VmState_SHUTOFF {
 
-			conn := protocol.GetConnectionByMachineName(vm.MachineName)
-			if conn == nil || conn.Connection == nil {
-				err := fmt.Errorf("connection for vm %s is nil (slave %s likely down)", vmName, vm.MachineName)
-				sendImportantNotification("BackupVM: connection missing", err)
-				return err
-			}
-
-			logger.Info("Frezzing")
-			err := virsh.FreezeDisk(conn.Connection, vm)
-			if err != nil {
-				sendImportantNotification("BackupVM: FreezeDisk failed", err)
-				return err
-			}
-
-			defer func() {
-				logger.Info("UnFrezzing")
-				err = virsh.UnFreezeDisk(conn.Connection, vm)
-				if err != nil {
-					logger.Error("Cannot unfreeze machine " + vm.Name)
-				}
-			}()
-
-			logger.Info("Copying")
-			err = copyFile(taskCtx, vm.DiskPath, backup.Path, vmName)
-			if err != nil {
-				sendImportantNotification("BackupVM: copyFile failed", err)
-				return err
-			}
-
-		} else {
-			err = copyFile(taskCtx, vm.DiskPath, backup.Path, vmName)
-			if err != nil {
-				sendImportantNotification("BackupVM: copyFile failed", err)
-				return err
-			}
+		conn := protocol.GetConnectionByMachineName(vm.MachineName)
+		if conn == nil || conn.Connection == nil {
+			err := fmt.Errorf("connection for vm %s is nil (slave %s likely down)", vmName, vm.MachineName)
+			sendImportantNotification("BackupVM: connection missing", err)
+			return err
 		}
 
-		err = db.InsertVirshBackup(taskCtx, backup)
+		logger.Info("Frezzing")
+		err := virsh.FreezeDisk(conn.Connection, vm)
 		if err != nil {
-			sendImportantNotification("BackupVM: InsertVirshBackup failed", err)
-			return fmt.Errorf("problems writing to db backup: %v", err)
+			sendImportantNotification("BackupVM: FreezeDisk failed", err)
+			return err
 		}
 
-		notifyOperation(context.Background(), "operation.backup", nots.SeverityInfo, vm.MachineName, "Backup successful", fmt.Sprintf("Backup %s created at %s", vmName, backup.Path))
-		return nil
-	}
+		defer func() {
+			logger.Info("UnFrezzing")
+			if thawErr := virsh.UnFreezeDisk(conn.Connection, vm); thawErr != nil {
+				logger.Error("Cannot unfreeze machine " + vm.Name)
+			}
+		}()
 
-	go func() {
-		taskCtx, cancel := context.WithTimeout(context.Background(), longTaskTimeout)
-		defer cancel()
-
-		err := actuallyDoBakcup(taskCtx)
+		logger.Info("Copying")
+		err = copyFile(taskCtx, vm.DiskPath, backup.Path, vmName)
 		if err != nil {
-			logger.Error(err.Error())
-			extra.SendWebsocketMessage(proto.WebSocketsMessageType_Error, "Could not backups "+err.Error(), vmName)
 			sendImportantNotification("BackupVM: copyFile failed", err)
+			return err
 		}
-	}()
 
+	} else {
+		err = copyFile(taskCtx, vm.DiskPath, backup.Path, vmName)
+		if err != nil {
+			sendImportantNotification("BackupVM: copyFile failed", err)
+			return err
+		}
+	}
+
+	err = db.InsertVirshBackup(taskCtx, backup)
+	if err != nil {
+		sendImportantNotification("BackupVM: InsertVirshBackup failed", err)
+		return fmt.Errorf("problems writing to db backup: %v", err)
+	}
+
+	notifyOperation(context.Background(), "operation.backup", nots.SeverityInfo, vm.MachineName, "Backup successful", fmt.Sprintf("Backup %s created at %s", vmName, backup.Path))
 	return nil
 }
 
 func (v *VirshService) DeleteBackup(ctx context.Context, bakId int) error {
+	if vmName, inUse := revertBackupInUse(bakId); inUse {
+		return fmt.Errorf("%w: backup %d is in use by the revert of %s", ErrRevertConflict, bakId, vmName)
+	}
+
 	bakup, err := db.GetVirshBackupById(ctx, bakId)
 	if err != nil {
 		sendImportantNotification("DeleteBackup: GetVirshBackupById failed", err)
@@ -829,6 +876,11 @@ func (v *VirshService) LoopAutomaticBaks(ctx context.Context) {
 				}
 
 				if shouldBackup {
+					// A revert owns the disk; retry on a later round, without pruning.
+					if err := refuseDuringRevert(ctx, bak.VmName); err != nil {
+						logger.Infof("Skipping automatic backup for VM %s: %v", bak.VmName, err)
+						continue
+					}
 					logger.Infof("Creating automatic backup for VM %s", bak.VmName)
 					err = v.createAutoBak(ctx, bak)
 					if err != nil {

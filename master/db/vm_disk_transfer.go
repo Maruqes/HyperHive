@@ -31,6 +31,10 @@ type DiskOperation struct {
 	SHA256           string   `json:"sha256"`
 	Phase            string   `json:"phase"`
 	Error            string   `json:"error,omitempty"`
+	// Revert-in-place bookkeeping: the backup written over the disk and the
+	// safety backup taken before it.
+	BackupID       int `json:"backup_id,omitempty"`
+	SafetyBackupID int `json:"safety_backup_id,omitempty"`
 }
 
 func CreateDiskOperationsTable(ctx context.Context) error {
@@ -142,6 +146,48 @@ func ListDiskOperations(ctx context.Context, limit int) ([]DiskOperation, error)
 			return nil, err
 		}
 		ops = append(ops, op)
+	}
+	return ops, rows.Err()
+}
+
+// GetActiveVMOperation returns the unresolved operation holding vmName, or nil.
+// The vm_name unique index allows at most one.
+func GetActiveVMOperation(ctx context.Context, vmName string) (*DiskOperation, error) {
+	var data string
+	err := DB.QueryRowContext(ctx, `SELECT record FROM vm_disk_operations WHERE vm_name=? AND vm_name <> '' AND phase NOT IN ('complete','aborted') LIMIT 1`, vmName).Scan(&data)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var op DiskOperation
+	if err = json.Unmarshal([]byte(data), &op); err != nil {
+		return nil, err
+	}
+	return &op, nil
+}
+
+// ListActiveDiskOperationsByKind returns every unresolved operation of one kind.
+func ListActiveDiskOperationsByKind(ctx context.Context, kind string) ([]DiskOperation, error) {
+	rows, err := DB.QueryContext(ctx, `SELECT record FROM vm_disk_operations WHERE phase NOT IN ('complete','aborted') ORDER BY updated_at`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ops := []DiskOperation{}
+	for rows.Next() {
+		var data string
+		var op DiskOperation
+		if err = rows.Scan(&data); err != nil {
+			return nil, err
+		}
+		if err = json.Unmarshal([]byte(data), &op); err != nil {
+			return nil, err
+		}
+		if op.Kind == kind {
+			ops = append(ops, op)
+		}
 	}
 	return ops, rows.Err()
 }

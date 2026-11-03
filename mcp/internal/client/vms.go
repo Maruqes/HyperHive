@@ -15,6 +15,9 @@ type VMEmptyInput struct{}
 type VMNameInput struct {
 	VMName string `json:"vm_name" jsonschema:"Existing VM name"`
 }
+type VMBackupsListInput struct {
+	VMName string `json:"vm_name,omitempty" jsonschema:"Optional VM name; omitted lists every VM backup"`
+}
 type VMHostInput struct {
 	MachineName string `json:"machine_name" jsonschema:"Existing HyperHive machine name"`
 }
@@ -165,8 +168,15 @@ func (c *Client) GetVMHostHugePages(ctx context.Context, in VMHostInput) (json.R
 	}
 	return c.vmReadJSON(ctx, "GetVMHostHugePages", "GET", "/virsh/hosthugepages/"+url.PathEscape(in.MachineName)+"", nil)
 }
-func (c *Client) ListVMBackups(ctx context.Context, in VMEmptyInput) (json.RawMessage, error) {
-	return c.vmReadJSON(ctx, "ListVMBackups", "GET", "/virsh/backups", nil)
+func (c *Client) ListVMBackups(ctx context.Context, in VMBackupsListInput) (json.RawMessage, error) {
+	path := "/virsh/backups"
+	if in.VMName != "" {
+		if err := ValidateVMName(in.VMName); err != nil {
+			return nil, err
+		}
+		path += "?" + url.Values{"vm_name": {in.VMName}}.Encode()
+	}
+	return c.vmReadJSON(ctx, "ListVMBackups", "GET", path, nil)
 }
 func (c *Client) ListVMAutomaticBackups(ctx context.Context, in VMEmptyInput) (json.RawMessage, error) {
 	return c.vmReadJSON(ctx, "ListVMAutomaticBackups", "GET", "/virsh/autobak", nil)

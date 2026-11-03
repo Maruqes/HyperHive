@@ -9,7 +9,7 @@ Last checked: **2026-10-21**, locally. Counts measure supported API endpoints.
 
 | Scope | Supported / total | Coverage |
 | --- | ---: | ---: |
-| HyperHive API | 134 / 322 | **41.61%** |
+| HyperHive API | 134 / 323 | **41.49%** |
 | NGINX | 33 / 43 | 76.74% |
 | Celld | 8 / 17 | 47.06% |
 | DNS aliases | 3 / 4 | 75.00% |
@@ -17,7 +17,7 @@ Last checked: **2026-10-21**, locally. Counts measure supported API endpoints.
 | Notification rules | 2 / 2 | 100.00% |
 | SPA management | 2 / 4 | 50.00% |
 | ISOs | 2 / 3 | 66.67% |
-| VMs, templates and disks | 64 / 82 | 78.05% |
+| VMs, templates and disks | 64 / 83 | 77.11% |
 | HH Automations | 14 / 20 | 70.00% |
 
 Area rows are subsets, not additional endpoints. DNS, Notes and ISOs cover all

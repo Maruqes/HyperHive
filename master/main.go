@@ -522,6 +522,8 @@ func main() {
 	nfsService := services.NFSService{}
 	go nfsService.MaintainNFS()
 
+	// Release revert locks a restart left behind before backups or starts run.
+	services.RecoverInterruptedReverts(ctx)
 	virshService.LoopAutomaticBaks(context.Background())
 	smartDiskService.DoAutomaticTest()
 	info.LoopNots()

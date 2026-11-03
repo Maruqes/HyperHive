@@ -30,6 +30,7 @@ const (
 	WebSocketsMessageType_Logs        WebSocketsMessageType = 4
 	WebSocketsMessageType_VMInfo      WebSocketsMessageType = 6
 	WebSocketsMessageType_Error       WebSocketsMessageType = 7
+	WebSocketsMessageType_RevertVM    WebSocketsMessageType = 8
 )
 
 // Enum value maps for WebSocketsMessageType.
@@ -41,6 +42,7 @@ var (
 		4: "Logs",
 		6: "VMInfo",
 		7: "Error",
+		8: "RevertVM",
 	}
 	WebSocketsMessageType_value = map[string]int32{
 		"DownloadIso": 0,
@@ -49,6 +51,7 @@ var (
 		"Logs":        4,
 		"VMInfo":      6,
 		"Error":       7,
+		"RevertVM":    8,
 	}
 )
 
@@ -729,7 +732,7 @@ const file_extra_proto_rawDesc = "" +
 	"\x13PowerScheduleResult\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x1b\n" +
 	"\tstop_unix\x18\x02 \x01(\x03R\bstopUnix\x12\x1b\n" +
-	"\twake_unix\x18\x03 \x01(\x03R\bwakeUnix*\x90\x01\n" +
+	"\twake_unix\x18\x03 \x01(\x03R\bwakeUnix*\x9e\x01\n" +
 	"\x15WebSocketsMessageType\x12\x0f\n" +
 	"\vDownloadIso\x10\x00\x12\r\n" +
 	"\tMigrateVm\x10\x01\x12\f\n" +
@@ -737,7 +740,8 @@ const file_extra_proto_rawDesc = "" +
 	"\x04Logs\x10\x04\x12\n" +
 	"\n" +
 	"\x06VMInfo\x10\x06\x12\t\n" +
-	"\x05Error\x10\a\"\x04\b\x03\x10\x03\"\x04\b\x05\x10\x05*\rContainerLogs*\rDockerCompose*\x84\x01\n" +
+	"\x05Error\x10\a\x12\f\n" +
+	"\bRevertVM\x10\b\"\x04\b\x03\x10\x03\"\x04\b\x05\x10\x05*\rContainerLogs*\rDockerCompose*\x84\x01\n" +
 	"\x14NotificationSeverity\x12\x18\n" +
 	"\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rSEVERITY_INFO\x10\x01\x12\x14\n" +
