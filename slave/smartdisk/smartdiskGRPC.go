@@ -179,7 +179,7 @@ func toProtoForceReallocStatus(st ForceReallocStatus) *smartdiskGrpc.ForceReallo
 }
 
 func (s *Service) GetSmartInfo(ctx context.Context, req *smartdiskGrpc.SmartInfoRequest) (*smartdiskGrpc.SmartDiskInfo, error) {
-	info, err := GetSmartInfo(req.GetDevice())
+	info, err := GetSmartInfoContext(ctx, req.GetDevice())
 	if info == nil {
 		return nil, err
 	}
@@ -196,7 +196,7 @@ func (s *Service) RunSelfTest(ctx context.Context, req *smartdiskGrpc.SelfTestRe
 		return nil, fmt.Errorf("device must not be empty")
 	}
 
-	if err := RunSelfTest(req.GetDevice(), testType); err != nil {
+	if err := RunSelfTestContext(ctx, req.GetDevice(), testType); err != nil {
 		return nil, err
 	}
 
@@ -211,9 +211,9 @@ func (s *Service) RunSelfTest(ctx context.Context, req *smartdiskGrpc.SelfTestRe
 }
 
 func (s *Service) GetSelfTestProgress(ctx context.Context, req *smartdiskGrpc.SmartInfoRequest) (*smartdiskGrpc.SelfTestProgress, error) {
-	info, err := GetSmartInfo(req.GetDevice())
+	info, err := GetSmartInfoContext(ctx, req.GetDevice())
 	if err != nil && info == nil {
-		// Falha mesmo, não há JSON útil
+		// Real failure: there is no usable JSON.
 		return nil, err
 	}
 
@@ -244,7 +244,7 @@ func (s *Service) GetSelfTestProgress(ctx context.Context, req *smartdiskGrpc.Sm
 	}
 
 	// 2b) Fallback: try running smartctl text output and parse remaining percent
-	if pct, ok := getRemainingFromSmartctlText(req.GetDevice()); ok {
+	if pct, ok := getRemainingFromSmartctlText(ctx, req.GetDevice()); ok {
 		progress.Status = "in progress"
 		progress.RemainingPercent = pct
 		progress.ProgressPercent = clampPercent(100 - pct)
@@ -313,8 +313,11 @@ func parseRemainingFromText(text string) (int64, bool) {
 // getRemainingFromSmartctlText runs `smartctl -a` and parses the textual output
 // for remaining percentage. This helps when JSON output doesn't include the
 // self-test entry for an in-progress test.
-func getRemainingFromSmartctlText(device string) (int64, bool) {
-	cmd := exec.Command("smartctl", "-a", device)
+func getRemainingFromSmartctlText(ctx context.Context, device string) (int64, bool) {
+	ctx, cancel := context.WithTimeout(ctx, smartctlTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "smartctl", "-a", device)
 	out, err := cmd.CombinedOutput()
 	if err != nil && len(out) == 0 {
 		return 0, false

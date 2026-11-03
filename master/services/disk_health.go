@@ -130,7 +130,7 @@ func (s *DiskHealthService) PollOnce(ctx context.Context) {
 		go func(machine string) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			s.pollMachine(ctx, machine, now)
+			s.pollMachine(ctx, machine)
 		}(machine)
 	}
 	wg.Wait()
@@ -148,9 +148,11 @@ func (s *DiskHealthService) PollOnce(ctx context.Context) {
 	}
 }
 
-// pollMachine reads disks one at a time, because smartctl on the slave has no
-// exec timeout and parallel reads could pile up on a stuck drive.
-func (s *DiskHealthService) pollMachine(ctx context.Context, machine string, now time.Time) {
+// pollMachine reads disks one at a time, because a slow drive can make smartctl
+// take a long time and parallel reads would pile up. Each disk is timestamped
+// when it is read, so a long pass does not stamp later disks with the pass
+// start time.
+func (s *DiskHealthService) pollMachine(ctx context.Context, machine string) {
 	disks, err := s.Fetcher.ListDisks(ctx, machine)
 	if err != nil {
 		logger.Errorf("disk health: list disks on %s: %v", machine, err)
@@ -160,7 +162,7 @@ func (s *DiskHealthService) pollMachine(ctx context.Context, machine string, now
 		if ctx.Err() != nil {
 			return
 		}
-		if err := s.recordDisk(ctx, machine, disk, now); err != nil {
+		if err := s.recordDisk(ctx, machine, disk, s.now()); err != nil {
 			logger.Errorf("disk health: %s %s: %v", machine, disk.GetPath(), err)
 		}
 	}
@@ -169,13 +171,14 @@ func (s *DiskHealthService) pollMachine(ctx context.Context, machine string, now
 func (s *DiskHealthService) recordDisk(ctx context.Context, machine string, disk *btrfsGrpc.MinDisk, now time.Time) error {
 	serial := strings.TrimSpace(disk.GetSerial())
 	seen := db.DiskSeen{
-		Serial:        serial,
-		Model:         strings.TrimSpace(disk.GetModel()),
-		MachineName:   machine,
-		Device:        disk.GetPath(),
-		Transport:     disk.GetTransport(),
-		Rotational:    disk.GetRotational(),
-		CapacityBytes: int64(disk.GetSizeGb() * 1e9),
+		Serial:      serial,
+		Model:       strings.TrimSpace(disk.GetModel()),
+		MachineName: machine,
+		Device:      disk.GetPath(),
+		Transport:   disk.GetTransport(),
+		Rotational:  disk.GetRotational(),
+		// SizeGb is GiB (sizeBytes / 1024^3); convert back to bytes.
+		CapacityBytes: int64(disk.GetSizeGb() * 1024 * 1024 * 1024),
 		SeenAt:        now,
 	}
 

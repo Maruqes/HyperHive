@@ -64,9 +64,28 @@ func parseInt64(raw json.RawMessage) int64 {
 	return 0
 }
 
-func parseBoolFromInt(raw json.RawMessage) bool {
-	n := parseInt64(raw)
-	return n == 1
+// parseBoolJSON accepts every shape lsblk emits for boolean columns: a JSON
+// boolean (util-linux >= 2.38), 0/1, or a "0"/"1"/"true"/"false" string.
+func parseBoolJSON(raw json.RawMessage) bool {
+	if len(raw) == 0 {
+		return false
+	}
+
+	var b bool
+	if err := json.Unmarshal(raw, &b); err == nil {
+		return b
+	}
+
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		switch strings.ToLower(strings.TrimSpace(s)) {
+		case "true", "1", "yes":
+			return true
+		}
+		return false
+	}
+
+	return parseInt64(raw) == 1
 }
 
 // devolve o primeiro /dev/disk/by-id/* que aponta para este device (ex: "sda")
@@ -164,7 +183,7 @@ func GetAllDisks(test bool) ([]MinDisk, error) {
 			Model:      strings.TrimSpace(d.Model),
 			Vendor:     strings.TrimSpace(d.Vendor),
 			Serial:     strings.TrimSpace(d.Serial),
-			Rotational: parseBoolFromInt(d.Rota),
+			Rotational: parseBoolJSON(d.Rota),
 			SizeGB:     sizeGB,
 			Mounted:    mounted,
 			ByID:       findByID(d.Name),

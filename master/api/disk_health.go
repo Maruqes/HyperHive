@@ -10,6 +10,7 @@ import (
 	"512SvMan/db"
 	"512SvMan/services"
 
+	"github.com/Maruqes/512SvMan/logger"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -32,7 +33,10 @@ func writeDiskHealthError(w http.ResponseWriter, err error) {
 	case errors.Is(err, db.ErrDiskNotRetired):
 		http.Error(w, "only retired disks can be purged", http.StatusConflict)
 	default:
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		// The real error may expose SQL or host details; log it and return a
+		// generic body.
+		logger.Errorf("disk health request failed: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 	}
 }
 
@@ -47,13 +51,14 @@ func listDiskHealth(w http.ResponseWriter, r *http.Request) {
 	writeJSONWithStatus(w, http.StatusOK, list)
 }
 
-// getDiskHealthHistory returns one disk and its chart points; ?days=N limits the range.
+// getDiskHealthHistory returns one disk and its chart points; ?days=N limits the
+// range and days=0 (the default) means all history.
 func getDiskHealthHistory(w http.ResponseWriter, r *http.Request) {
 	days := 0
 	if raw := strings.TrimSpace(r.URL.Query().Get("days")); raw != "" {
 		n, err := strconv.Atoi(raw)
-		if err != nil || n <= 0 {
-			http.Error(w, "days must be a positive integer", http.StatusBadRequest)
+		if err != nil || n < 0 {
+			http.Error(w, "days must be a non-negative integer", http.StatusBadRequest)
 			return
 		}
 		days = n

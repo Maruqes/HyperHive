@@ -256,6 +256,57 @@ func TestDiskHealthSkipsAndFailures(t *testing.T) {
 	}
 }
 
+func TestDiskHealthPerDiskTimestampAndCapacity(t *testing.T) {
+	h := newDiskHealthHarness(t)
+	h.addDisk("a", "/dev/sda", "S1", "sata")
+	override := h.addDisk("a", "/dev/sdb", "S2", "sata")
+	override.CapacityBytes = 500000000000
+
+	// Each disk read advances the clock, so a long pass does not stamp later
+	// disks with the pass start time.
+	var mu sync.Mutex
+	next := h.now
+	h.svc.Now = func() time.Time {
+		mu.Lock()
+		defer mu.Unlock()
+		next = next.Add(time.Minute)
+		return next
+	}
+	h.svc.PollOnce(context.Background())
+
+	ctx := context.Background()
+	first, err := db.GetDiskSamplesSince(ctx, "S1", time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := db.GetDiskSamplesSince(ctx, "S2", time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first) != 1 || len(second) != 1 {
+		t.Fatalf("samples: %v %v", first, second)
+	}
+	if first[0].CapturedAt.Equal(second[0].CapturedAt) {
+		t.Fatalf("disks share one timestamp: %v", first[0].CapturedAt)
+	}
+
+	// SizeGb is GiB and SMART capacity overrides it when present.
+	disk, err := db.GetDisk(ctx, "S1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := int64(1000) * 1024 * 1024 * 1024; disk.CapacityBytes != want {
+		t.Fatalf("capacity bytes = %d, want %d", disk.CapacityBytes, want)
+	}
+	disk, err = db.GetDisk(ctx, "S2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if disk.CapacityBytes != 500000000000 {
+		t.Fatalf("SMART capacity override lost: %d", disk.CapacityBytes)
+	}
+}
+
 func TestDiskHealthHistoryAndPurge(t *testing.T) {
 	h := newDiskHealthHarness(t)
 	h.addDisk("a", "/dev/sda", "S1", "sata")

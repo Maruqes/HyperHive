@@ -127,6 +127,66 @@ func TestDiskHealthUpsertRetireAndSamples(t *testing.T) {
 	}
 }
 
+func TestDiskHealthDuplicateSamplesIgnored(t *testing.T) {
+	useDiskHealthTestDB(t)
+	ctx := context.Background()
+
+	sample := DiskHealthSample{Serial: "S1", CapturedAt: diskT0, Score: intPtr(90), PendingSectors: 2}
+	if err := InsertDiskSample(ctx, sample); err != nil {
+		t.Fatal(err)
+	}
+	// A retried poll inserts the same (serial, captured_at) again.
+	sample.PendingSectors = 9
+	if err := InsertDiskSample(ctx, sample); err != nil {
+		t.Fatalf("duplicate insert: %v", err)
+	}
+	samples, err := GetDiskSamplesSince(ctx, "S1", time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(samples) != 1 || samples[0].PendingSectors != 2 {
+		t.Fatalf("duplicate sample stored: %+v", samples)
+	}
+
+	// Table creation is idempotent with the unique index in place.
+	if err := CreateDiskHealthTables(ctx); err != nil {
+		t.Fatalf("second table creation: %v", err)
+	}
+
+	// An older database may already hold duplicates: creation removes them
+	// before adding the unique index.
+	if _, err := DiskHealthDB.ExecContext(ctx, `DROP INDEX idx_disk_health_samples_unique`); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		if _, err := DiskHealthDB.ExecContext(ctx, `INSERT INTO disk_health_samples (serial, captured_at) VALUES (?, ?)`,
+			"S2", formatDiskHealthTime(diskT0)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := CreateDiskHealthTables(ctx); err != nil {
+		t.Fatalf("migrate duplicates: %v", err)
+	}
+	if samples, _ := GetDiskSamplesSince(ctx, "S2", time.Time{}); len(samples) != 1 {
+		t.Fatalf("duplicates not cleaned: %d", len(samples))
+	}
+
+	// Compaction still works after a duplicate insert.
+	if err := CompactDiskHealth(ctx, diskT0.Add(100*24*time.Hour)); err != nil {
+		t.Fatalf("compact: %v", err)
+	}
+	if raw, _ := GetDiskSamplesSince(ctx, "S1", time.Time{}); len(raw) != 0 {
+		t.Fatalf("raw samples left: %d", len(raw))
+	}
+	daily, err := GetDiskDailySince(ctx, "S1", time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(daily) != 1 || daily[0].PendingSectors != 2 {
+		t.Fatalf("compacted daily %+v", daily)
+	}
+}
+
 func TestPurgeRetiredDisk(t *testing.T) {
 	useDiskHealthTestDB(t)
 	ctx := context.Background()

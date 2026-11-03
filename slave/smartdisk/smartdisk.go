@@ -1,6 +1,7 @@
 package smartdisk
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"regexp"
 	"slave/extra"
 	"strings"
+	"time"
 )
 
 // SelfTestType defines which SMART test to trigger.
@@ -18,6 +20,11 @@ const (
 	SelfTestShort    SelfTestType = "short"
 	SelfTestExtended SelfTestType = "long" // "long" is the smartctl flag for extended tests
 )
+
+// smartctlTimeout bounds a single smartctl invocation. smartctl can hang on a
+// failing or slow device, so every call must have a hard deadline in addition
+// to the caller's context.
+const smartctlTimeout = 90 * time.Second
 
 var devicePathPattern = regexp.MustCompile(`^/dev/(sd[a-z][a-z0-9]*|hd[a-z][a-z0-9]*|vd[a-z][a-z0-9]*|xvd[a-z][a-z0-9]*|nvme[0-9]+n[0-9]+(p[0-9]+)?|mmcblk[0-9]+(p[0-9]+)?|loop[0-9]+|disk/by-id/[A-Za-z0-9._:-]+|disk/by-path/[A-Za-z0-9._:-]+)$`)
 
@@ -101,19 +108,36 @@ type SelfTestResult struct {
 // a non-zero exit code when the device reports problems, so the caller should
 // inspect the returned error message for context.
 func RunSelfTest(device string, test SelfTestType) error {
+	return RunSelfTestContext(context.Background(), device, test)
+}
+
+// RunSelfTestContext is RunSelfTest bound to the caller's context. The
+// context is canceled when the caller goes away or when smartctlTimeout
+// elapses.
+func RunSelfTestContext(ctx context.Context, device string, test SelfTestType) error {
 	testFlag := string(test)
 	if test == SelfTestExtended {
 		testFlag = "long"
 	}
 
-	if device, err := validateDevicePath(device); err != nil {
-		extra.Notify(extra.Notification{Event: "operation.smart_selftest", Severity: extra.SeverityError, Title: "SMART self-test failed to start", Body: fmt.Sprintf("Self-test %s failed to start on %s: %v.", testFlag, device, err)})
+	rawDevice := device
+	device, err := validateDevicePath(device)
+	if err != nil {
+		extra.Notify(extra.Notification{Event: "operation.smart_selftest", Severity: extra.SeverityError, Title: "SMART self-test failed to start", Body: fmt.Sprintf("Self-test %s failed to start on %s: %v.", testFlag, rawDevice, err)})
 		return err
 	}
 
-	cmd := exec.Command("smartctl", "-t", testFlag, device)
-	output, err := cmd.CombinedOutput()
+	ctx, cancel := context.WithTimeout(ctx, smartctlTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "smartctl", "-t", testFlag, device)
+	output, cmdErr := cmd.CombinedOutput()
 	outStr := strings.TrimSpace(string(output))
+	err = cmdErr
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		// Surface the cancellation/timeout instead of the bare "signal: killed".
+		err = ctxErr
+	}
 	if err != nil {
 		extra.Notify(extra.Notification{Event: "operation.smart_selftest", Severity: extra.SeverityError, Title: "SMART self-test failed to start", Body: fmt.Sprintf("Self-test %s failed to start on %s: %v. smartctl output: %s", testFlag, device, err, outStr)})
 		return fmt.Errorf("smartctl self-test (%s): %w: %s", testFlag, err, outStr)
@@ -128,12 +152,22 @@ func RunSelfTest(device string, test SelfTestType) error {
 // (common if the drive reports failing health); in that case the error is
 // also returned and the gRPC handler forwards it as smartctl_error.
 func GetSmartInfo(device string) (*SmartDiskInfo, error) {
+	return GetSmartInfoContext(context.Background(), device)
+}
+
+// GetSmartInfoContext is GetSmartInfo bound to the caller's context. The
+// context is canceled when the caller goes away or when smartctlTimeout
+// elapses.
+func GetSmartInfoContext(ctx context.Context, device string) (*SmartDiskInfo, error) {
 	var err error
 	if device, err = validateDevicePath(device); err != nil {
 		return nil, err
 	}
 
-	resp, parseErr := runSmartctlJSON(device)
+	ctx, cancel := context.WithTimeout(ctx, smartctlTimeout)
+	defer cancel()
+
+	resp, parseErr := runSmartctlJSON(ctx, device)
 	if resp == nil {
 		return nil, parseErr
 	}
@@ -143,9 +177,14 @@ func GetSmartInfo(device string) (*SmartDiskInfo, error) {
 
 // === Helpers ===
 
-func runSmartctlJSON(device string) (*smartctlResponse, error) {
-	cmd := exec.Command("smartctl", "-a", "-j", device)
+func runSmartctlJSON(ctx context.Context, device string) (*smartctlResponse, error) {
+	cmd := exec.CommandContext(ctx, "smartctl", "-a", "-j", device)
 	output, err := cmd.CombinedOutput()
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		// Cancellation/timeout wins over the exit status: smartctl was killed
+		// and any partial output is not trustworthy.
+		return nil, fmt.Errorf("smartctl -a -j %s: %w", device, ctxErr)
+	}
 	if len(output) == 0 && err != nil {
 		return nil, fmt.Errorf("smartctl -a -j %s: %w", device, err)
 	}
@@ -179,7 +218,9 @@ func summarizeSMART(device string, resp *smartctlResponse) *SmartDiskInfo {
 			return 0
 		}(),
 		PowerOnHours: resp.PowerOnTime.Hours,
-		SmartPassed:  resp.SmartStatus.Passed,
+		// An absent smart_status object is not a failure: USB bridges and some
+		// odd devices omit the verdict entirely. When present, its value wins.
+		SmartPassed: resp.SmartStatus == nil || resp.SmartStatus.Passed,
 	}
 
 	// Temperature extraction
@@ -272,18 +313,20 @@ func summarizeSMART(device string, resp *smartctlResponse) *SmartDiskInfo {
 func extractSelfTests(resp *smartctlResponse) []SelfTestResult {
 	var results []SelfTestResult
 
-	// 1) Estado ATA atual (ata_smart_data.self_test.status)
+	// 1) Current ATA status (ata_smart_data.self_test.status). The status text
+	// is the only source of the verdict here, so a "completed" test is only
+	// passed when the text does not describe a failure.
 	if resp.ATASMARTData != nil {
 		st := resp.ATASMARTData.SelfTest.Status
 		if st.String != "" {
 			results = append(results, SelfTestResult{
 				Type:   "current",
 				Status: st.String,
-				// Se remaining == 0 e a string disser "completed", podemos marcar como passed
 				Passed: st.RemainingPercent == 0 &&
-					strings.Contains(strings.ToLower(st.String), "completed"),
+					strings.Contains(strings.ToLower(st.String), "completed") &&
+					!selfTestFailed(st.String, st.RemainingPercent),
 				RemainingPercent: st.RemainingPercent,
-				LifetimeHours:    0, // não vem neste field
+				LifetimeHours:    0, // not provided in this field
 			})
 		}
 	}
@@ -315,6 +358,37 @@ func extractSelfTests(resp *smartctlResponse) []SelfTestResult {
 	}
 
 	return results
+}
+
+// selfTestFailed reports whether a self-test status string describes a
+// finished test that ended in error. It mirrors the master-side
+// diskhealth.SelfTestFailed logic: only a finished test (remaining percent 0)
+// whose status does not describe success, an ongoing test, an abort/interrupt
+// or an unsupported test counts as a failure.
+func selfTestFailed(status string, remainingPercent int64) bool {
+	s := strings.ToLower(strings.TrimSpace(status))
+	if s == "" || remainingPercent != 0 {
+		return false
+	}
+	for _, neutral := range []string{
+		"without error",
+		"success",
+		"passed",
+		"no error",
+		"in progress",
+		"running",
+		"abort",
+		"interrupt",
+		"never",
+		"not supported",
+		"unsupported",
+		"not applicable",
+	} {
+		if strings.Contains(s, neutral) {
+			return false
+		}
+	}
+	return true
 }
 
 func extractATAErrors(log *ataSmartErrorLog) []ATAErrorEntry {
@@ -531,7 +605,7 @@ type smartctlResponse struct {
 	UserCapacity          *userCapacity        `json:"user_capacity"`
 	PowerOnTime           powerOnTime          `json:"power_on_time"`
 	Temperature           *temperatureInfo     `json:"temperature"`
-	SmartStatus           smartStatus          `json:"smart_status"`
+	SmartStatus           *smartStatus         `json:"smart_status"`
 	ATASMARTAttributes    *ataSmartAttributes  `json:"ata_smart_attributes"`
 	ATASMARTErrorLog      *ataSmartErrorLog    `json:"ata_smart_error_log"`
 	ATASMARTSelfTestLog   *ataSmartSelfTestLog `json:"ata_smart_self_test_log"`

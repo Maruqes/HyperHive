@@ -143,13 +143,18 @@ func BandLabel(band string) string {
 }
 
 // SelfTestFailed reports whether the latest self-test entry finished with an
-// error. Running, aborted and interrupted tests do not count as failures.
+// error. Running, aborted and interrupted tests do not count as failures, and
+// neither do statuses that report success or that the test is unsupported.
 func SelfTestFailed(status string, remainingPercent int64) bool {
 	s := strings.ToLower(strings.TrimSpace(status))
 	if s == "" || remainingPercent != 0 {
 		return false
 	}
-	for _, neutral := range []string{"without error", "in progress", "running", "abort", "interrupt", "never"} {
+	for _, neutral := range []string{
+		"without error", "success", "passed", "no error",
+		"not supported", "unsupported", "not applicable",
+		"in progress", "running", "abort", "interrupt", "never",
+	} {
 		if strings.Contains(s, neutral) {
 			return false
 		}

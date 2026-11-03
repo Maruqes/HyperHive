@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -74,8 +75,15 @@ func TestDiskHealthHandlers(t *testing.T) {
 	if rec := do(http.MethodGet, "/diskhealth/ACTIVE%201?days=7"); rec.Code != http.StatusOK {
 		t.Fatalf("GET history status %d: %s", rec.Code, rec.Body)
 	}
-	if rec := do(http.MethodGet, "/diskhealth/ACTIVE%201?days=0"); rec.Code != http.StatusBadRequest {
-		t.Fatalf("bad days status %d", rec.Code)
+	// days=0 means all history; only negative or non-numeric values are invalid.
+	if rec := do(http.MethodGet, "/diskhealth/ACTIVE%201?days=0"); rec.Code != http.StatusOK {
+		t.Fatalf("days=0 status %d: %s", rec.Code, rec.Body)
+	}
+	if rec := do(http.MethodGet, "/diskhealth/ACTIVE%201?days=-1"); rec.Code != http.StatusBadRequest {
+		t.Fatalf("negative days status %d", rec.Code)
+	}
+	if rec := do(http.MethodGet, "/diskhealth/ACTIVE%201?days=abc"); rec.Code != http.StatusBadRequest {
+		t.Fatalf("non-numeric days status %d", rec.Code)
 	}
 	if rec := do(http.MethodGet, "/diskhealth/missing"); rec.Code != http.StatusNotFound {
 		t.Fatalf("missing history status %d", rec.Code)
@@ -92,5 +100,17 @@ func TestDiskHealthHandlers(t *testing.T) {
 	}
 	if rec := do(http.MethodGet, "/diskhealth/OLD"); rec.Code != http.StatusNotFound {
 		t.Fatalf("purged disk still readable: %d", rec.Code)
+	}
+
+	// An unexpected database error is logged and hidden behind a generic body.
+	closed, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	closed.Close()
+	db.DiskHealthDB = closed
+	rec = do(http.MethodGet, "/diskhealth/")
+	if rec.Code != http.StatusInternalServerError || strings.TrimSpace(rec.Body.String()) != "internal error" {
+		t.Fatalf("internal error status %d: %q", rec.Code, rec.Body)
 	}
 }

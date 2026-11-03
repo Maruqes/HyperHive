@@ -185,6 +185,11 @@ func CreateDiskHealthTables(ctx context.Context) error {
 			smartctl_error TEXT NOT NULL DEFAULT ''
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_disk_health_samples_serial_time ON disk_health_samples(serial, captured_at)`,
+		// A retried poll used to insert the same (serial, captured_at) twice.
+		// Remove the duplicates before the unique index below is created.
+		`DELETE FROM disk_health_samples WHERE id NOT IN (SELECT MIN(id) FROM disk_health_samples GROUP BY serial, captured_at)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_disk_health_samples_unique ON disk_health_samples(serial, captured_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_disk_health_samples_time ON disk_health_samples(captured_at)`,
 		`CREATE TABLE IF NOT EXISTS disk_health_daily (
 			serial TEXT NOT NULL,
 			day TEXT NOT NULL,
@@ -285,13 +290,15 @@ func UpsertDiskSeen(ctx context.Context, d DiskSeen) error {
 	return nil
 }
 
+// InsertDiskSample stores one raw sample. A duplicate (serial, captured_at) from
+// a retried poll is ignored instead of failing.
 func InsertDiskSample(ctx context.Context, s DiskHealthSample) error {
 	conn, err := diskHealthDB()
 	if err != nil {
 		return err
 	}
 	_, err = conn.ExecContext(ctx, `
-		INSERT INTO disk_health_samples (serial, captured_at, machine_name, device, score, temperature_c, power_on_hours,
+		INSERT OR IGNORE INTO disk_health_samples (serial, captured_at, machine_name, device, score, temperature_c, power_on_hours,
 			pending_sectors, offline_uncorrectable, reallocated_sectors, reported_uncorrectable, media_errors, crc_error_count,
 			percentage_used, available_spare, available_spare_threshold, critical_warning, smart_passed, self_test_failed,
 			health_status, smartctl_error)

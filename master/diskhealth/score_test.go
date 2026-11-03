@@ -161,10 +161,14 @@ func TestWearProjection(t *testing.T) {
 func TestSelfTestFailed(t *testing.T) {
 	cases := map[string]bool{
 		"Completed without error":       false,
+		"Completed successfully":        false,
+		"Self-test not supported":       false,
+		"Not applicable":                false,
 		"Self-test routine in progress": false,
 		"Aborted by host":               false,
 		"Interrupted (host reset)":      false,
 		"Completed: read failure":       true,
+		"Fatal or unknown error":        true,
 		"The previous self-test completed having the read element of the test failed.": true,
 		"": false,
 	}

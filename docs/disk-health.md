@@ -13,7 +13,7 @@ All routes are in the authenticated group.
 | Route | Behavior |
 | --- | --- |
 | `GET /diskhealth?state=active\|retired\|all` | `{lastPollAt, disks}`. Each disk: serial, model, host, device, transport, size, `smartAvailable`, `score`, `band`, `reasons`, `wearOutAt`, `pastRatedEndurance`, `retiredAt` and the `latest` sample. Default state is `all`. |
-| `GET /diskhealth/{serial}?days=N` | `{disk, points}`, oldest first. Points from the last 90 days are raw samples (`resolution: "6h"`); older points are daily rows (`resolution: "daily"`). `days` is optional (1–3650). 404 for an unknown serial. |
+| `GET /diskhealth/{serial}?days=N` | `{disk, points}`, oldest first. Points from the last 90 days are raw samples (`resolution: "6h"`); older points are daily rows (`resolution: "daily"`). `days` is optional (0 or omitted = all history, otherwise 1–3650). 404 for an unknown serial. |
 | `DELETE /diskhealth/{serial}` | Purge a retired disk and all its history. 409 if the disk is not retired, 404 if unknown. UI-only, never MCP. |
 
 Every route returns 503 when `disk_health.db` could not be opened at startup.
@@ -22,7 +22,7 @@ Every route returns 503 when `disk_health.db` could not be opened at startup.
 
 `DiskHealthService.RunLoop` waits 2 minutes after master start, then polls every 6 hours. A guard skips a poll while the previous one is still running.
 
-1. Up to 4 hosts are polled in parallel. Disks on one host are read one at a time, because smartctl on the slave has no exec timeout. `GetAllDisks` has a 30 s timeout and `GetSmartInfo` a 60 s timeout per disk.
+1. Up to 4 hosts are polled in parallel. Disks on one host are read one at a time, because a slow drive can make smartctl take a long time; the slave bounds each smartctl call to 90 s. `GetAllDisks` has a 30 s timeout and `GetSmartInfo` a 60 s timeout per disk.
 2. The serial comes from lsblk, with the smartctl serial as a fallback. Disks with no serial at all are not stored.
 3. `virtio` disks are recorded as having no SMART and are never read.
 4. A disk is SMART-available when the RPC succeeds and it reports power-on hours or a temperature. A failing drive that returns parsed data plus `smartctl_error` is still scored, and the error is stored with the sample.
@@ -85,7 +85,12 @@ Two read-only tools at low risk: `list_disk_health` and `get_disk_health_history
 
 ## Frontend
 
-`HyperHiveFront`: score badge and reason per disk plus a "Retired disks" section on the SMART page (`app/smartdisk.tsx`), and a page per disk with charts (`app/smartdisk/[serial].tsx`).
+`HyperHiveFront`:
+
+- **SMART page** (`app/smartdisk.tsx`): each disk has a full-width health row (band + score, the first reason, `History ›`) that opens the per-disk page. The SMART verdict badge reads `SMART · …` so it is not confused with the health score. A collapsible "Retired disks" section links to the same pages.
+- **Per-disk page** (`app/smartdisk/[serial].tsx`): band badge, reasons, a wrapping metric grid, last-sample time and `7 d / 30 d / 90 d / All` ranges. With fewer than two samples it shows a "History is building" note instead of empty charts. With history it shows the score (band-shaded), critical counters (replaced by a one-line "no errors" note when every counter is zero), temperature (padded axis) and, for SSD/NVMe, wear with the dashed projection.
+- **Polling cost:** the SMART page polls self-test progress only while a test is running; a full sweep of all disks runs every 5 minutes to pick up tests started elsewhere. Starting or cancelling a test from the page refreshes immediately.
+- Charts measure their own card and render at that width, so they are not stretched on desktop; retired disks expose the purge dialog on their page.
 
 ## Known limits
 
@@ -93,9 +98,10 @@ Two read-only tools at low risk: `list_disk_health` and `get_disk_health_history
 - `disk_health.db` is not backed up. If it is lost or corrupt, the tables are recreated empty, history starts over and degraded disks alert once more.
 - If the file cannot be opened at startup, the feature is disabled until the next master start (routes return 503, no polling).
 - Older history exists only as daily rows; nothing is kept beyond 2 years. Trends and the wear projection use only the raw 90-day window.
-- A host offline for more than 90 days has its disks retired; they return when seen again.
+- A host offline for more than 90 days has its disks retired; they return when seen again. Retirement is silent (no notification) and purge is manual from the UI.
 - Alerts can be up to 6 hours late.
 - An older slave keeps its own SMART alert loop until it is upgraded, so both alert paths can fire during a mixed-version rollout.
+- Rotation is read from `lsblk`'s `rota` column. Before 2026-11-03 the slave parsed it as an integer, so every disk (including HDDs) was stored as non-rotational and got wear charts and projections. The fix is in `slave/btrfs/helpers.go` (`parseBoolJSON`); a slave upgrade corrects each row on the next poll.
 
 ## Source
 
