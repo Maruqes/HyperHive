@@ -35,7 +35,20 @@ func TestNetworkGraphRouteReturnsPartialGraphWithWarnings(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &graph); err != nil {
 		t.Fatal(err)
 	}
-	if graph.GeneratedAt.IsZero() || graph.Nodes == nil || graph.Edges == nil || len(graph.Warnings) == 0 {
+	if graph.GeneratedAt.IsZero() || graph.Nodes == nil || graph.Edges == nil || graph.Flows == nil || len(graph.Warnings) == 0 {
 		t.Fatalf("unexpected graph %+v", graph)
+	}
+
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/network/traffic", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("traffic status %d: %s", rec.Code, rec.Body)
+	}
+	var traffic services.NetworkTraffic
+	if err := json.Unmarshal(rec.Body.Bytes(), &traffic); err != nil {
+		t.Fatal(err)
+	}
+	if traffic.At.IsZero() || traffic.Nodes == nil || traffic.Endpoints == nil {
+		t.Fatalf("unexpected traffic %+v", traffic)
 	}
 }

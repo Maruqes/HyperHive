@@ -14,6 +14,11 @@ func getNetworkGraph(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, graph)
 }
 
+func getNetworkTraffic(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, (&services.NetworkGraphService{}).Traffic(r.Context()))
+}
+
 func setupNetworkGraphAPI(r chi.Router) {
 	r.Get("/network/graph", getNetworkGraph)
+	r.Get("/network/traffic", getNetworkTraffic)
 }

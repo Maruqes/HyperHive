@@ -68,6 +68,15 @@ message Vm {
 
 message GetVmByNameRequest { string name = 1; }
 
+// Cumulative bytes over all NICs of a running VM, from the guest's point of view.
+message VMInterfaceCounters {
+  string name = 1;
+  uint64 rx_bytes = 2;
+  uint64 tx_bytes = 3;
+}
+
+message VMInterfaceStatsResponse { repeated VMInterfaceCounters vms = 1; }
+
 message GetAllVmsResponse {
   repeated Vm vms = 1;
   repeated string warnings = 2;
@@ -209,6 +218,7 @@ message HostBootSnapshotResponse { string grubby_info = 1; string current_cmdlin
 
 service SlaveVirshService {
  rpc GetHostBootSnapshot(Empty) returns (HostBootSnapshotResponse);
+ rpc GetVMInterfaceStats(Empty) returns (VMInterfaceStatsResponse);
  rpc GetVMSnapshot(GetVmByNameRequest) returns (VMSnapshotResponse);
   rpc GetCpuFeatures(Empty) returns (GetCpuFeaturesResponse);
   rpc GetCPUXML(Empty) returns (CPUXMLResponse);

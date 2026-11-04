@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/netip"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -51,6 +52,7 @@ type NetworkGraph struct {
 	GeneratedAt time.Time     `json:"generatedAt"`
 	Nodes       []NetworkNode `json:"nodes"`
 	Edges       []NetworkEdge `json:"edges"`
+	Flows       []NetworkFlow `json:"flows"`
 	Warnings    []string      `json:"warnings"`
 }
 
@@ -69,6 +71,13 @@ type NetworkEdge struct {
 	Target string `json:"target"`
 	Type   string `json:"type"`
 	Match  string `json:"match"`
+}
+
+// NetworkFlow lists the ip:port sockets that carry an edge, keying it to NetworkTraffic.Endpoints.
+type NetworkFlow struct {
+	Source    string   `json:"source"`
+	Target    string   `json:"target"`
+	Endpoints []string `json:"endpoints"`
 }
 
 type NetworkGraphHost struct {
@@ -344,6 +353,8 @@ type networkGraphBuilder struct {
 	aliases    map[string][]dnsmasq.AliasEntry
 	masterName string
 	masterID   string
+	flows      map[[2]string]map[string]bool
+	pools      map[string][]string
 }
 
 // BuildNetworkGraph is pure: all I/O happens in the collectors.
@@ -352,6 +363,8 @@ func BuildNetworkGraph(in NetworkGraphInputs) NetworkGraph {
 		in:        in,
 		nodes:     map[string]*NetworkNode{},
 		edges:     map[NetworkEdge]bool{},
+		flows:     map[[2]string]map[string]bool{},
+		pools:     map[string][]string{},
 		warnings:  append([]string{}, in.Warnings...),
 		ipNodes:   map[string][]string{},
 		vmsByName: map[string][]string{},
@@ -369,7 +382,7 @@ func BuildNetworkGraph(in NetworkGraphInputs) NetworkGraph {
 }
 
 func (b *networkGraphBuilder) graph() NetworkGraph {
-	out := NetworkGraph{GeneratedAt: b.in.Now, Nodes: make([]NetworkNode, 0, len(b.nodes)), Edges: make([]NetworkEdge, 0, len(b.edges)), Warnings: b.warnings}
+	out := NetworkGraph{GeneratedAt: b.in.Now, Nodes: make([]NetworkNode, 0, len(b.nodes)), Edges: make([]NetworkEdge, 0, len(b.edges)), Flows: make([]NetworkFlow, 0, len(b.flows)), Warnings: b.warnings}
 	for _, node := range b.nodes {
 		out.Nodes = append(out.Nodes, *node)
 	}
@@ -388,6 +401,21 @@ func (b *networkGraphBuilder) graph() NetworkGraph {
 		}
 		return a.Type < c.Type
 	})
+	for key, endpoints := range b.flows {
+		flow := NetworkFlow{Source: key[0], Target: key[1], Endpoints: make([]string, 0, len(endpoints))}
+		for endpoint := range endpoints {
+			flow.Endpoints = append(flow.Endpoints, endpoint)
+		}
+		sort.Strings(flow.Endpoints)
+		out.Flows = append(out.Flows, flow)
+	}
+	sort.Slice(out.Flows, func(i, j int) bool {
+		a, c := out.Flows[i], out.Flows[j]
+		if a.Source != c.Source {
+			return a.Source < c.Source
+		}
+		return a.Target < c.Target
+	})
 	sort.Strings(out.Warnings)
 	return out
 }
@@ -403,6 +431,44 @@ func (b *networkGraphBuilder) node(id, nodeType, label, host, status string, det
 
 func (b *networkGraphBuilder) edge(source, target, edgeType, match string) {
 	b.edges[NetworkEdge{Source: source, Target: target, Type: edgeType, Match: match}] = true
+}
+
+func (b *networkGraphBuilder) flow(source, target string, endpoints []string) {
+	key := [2]string{source, target}
+	for _, endpoint := range endpoints {
+		if b.flows[key] == nil {
+			b.flows[key] = map[string]bool{}
+		}
+		b.flows[key][endpoint] = true
+	}
+}
+
+// endpoints lists the ip:port forms a socket to this target can have on the NPM host.
+func (b *networkGraphBuilder) endpoints(raw string, port int) []string {
+	host := normalizeNetworkHost(raw)
+	if port <= 0 || host == "" {
+		return nil
+	}
+	var addresses []string
+	switch {
+	case isLoopbackNetworkHost(host):
+		addresses = []string{"127.0.0.1", "::1"}
+	case b.aliases[host] != nil:
+		for _, entry := range b.aliases[host] {
+			addresses = append(addresses, entry.IP)
+		}
+	case len(b.in.ResolvedHosts[host]) > 0:
+		addresses = b.in.ResolvedHosts[host]
+	default:
+		addresses = []string{host}
+	}
+	var out []string
+	for _, address := range addresses {
+		if ip, ok := networkIP(address); ok {
+			out = append(out, net.JoinHostPort(ip, strconv.Itoa(port)))
+		}
+	}
+	return out
 }
 
 func (b *networkGraphBuilder) indexIP(raw, id string) {
@@ -476,12 +542,14 @@ func isGraphInterface(iface *infoGrpc.NetworkInterfaceStruct) bool {
 	return !strings.HasPrefix(iface.Name, "veth") && !strings.HasPrefix(iface.Name, "vnet")
 }
 
+func networkVMID(host, name string) string { return "vm:" + host + ":" + name }
+
 func (b *networkGraphBuilder) addVMs() {
 	for _, vm := range b.in.VMs {
 		if vm.Vm == nil {
 			continue
 		}
-		id := "vm:" + vm.MachineName + ":" + vm.Name
+		id := networkVMID(vm.MachineName, vm.Name)
 		status := networkStatusDown
 		if vm.State == grpcVirsh.VmState_RUNNING {
 			status = networkStatusUp
@@ -511,6 +579,8 @@ func (b *networkGraphBuilder) addVMs() {
 	}
 }
 
+func networkPeerID(id int) string { return fmt.Sprintf("wireguard:peer:%d", id) }
+
 func (b *networkGraphBuilder) addWireguard() {
 	if len(b.in.Peers) == 0 {
 		return
@@ -521,7 +591,7 @@ func (b *networkGraphBuilder) addWireguard() {
 		b.edge(b.masterID, serverID, "vpn", "")
 	}
 	for _, peer := range b.in.Peers {
-		id := fmt.Sprintf("wireguard:peer:%d", peer.Id)
+		id := networkPeerID(peer.Id)
 		details := map[string]any{"address": peer.ClientIP}
 		status := networkStatusUnknown
 		if live, ok := liveNetworkPeer(peer.ClientIP, b.in.LivePeers); ok {
@@ -668,6 +738,9 @@ func (b *networkGraphBuilder) addUpstreams() {
 		for _, member := range pool.Members {
 			target, match := b.resolve(member.IP)
 			b.edge(id, target, "forwards", match)
+			endpoints := b.endpoints(member.IP, member.Port)
+			b.flow(id, target, endpoints)
+			b.pools[id] = append(b.pools[id], endpoints...)
 		}
 	}
 }
@@ -683,7 +756,7 @@ func boundNetworkPool(raw json.RawMessage) (int64, bool) {
 
 // forward adds one proxy or stream target. GetAllProxys and ListStreams blank the
 // host on pool-bound targets, so the pool is the only route.
-func (b *networkGraphBuilder) forward(source string, pool json.RawMessage, host string) {
+func (b *networkGraphBuilder) forward(source string, pool json.RawMessage, host string, port int) {
 	if id, ok := boundNetworkPool(pool); ok {
 		target := networkUpstreamID(id)
 		if b.nodes[target] == nil {
@@ -691,6 +764,7 @@ func (b *networkGraphBuilder) forward(source string, pool json.RawMessage, host 
 			b.node(target, "upstream", fmt.Sprintf("pool %d", id), b.masterName, networkStatusUnknown, nil)
 		}
 		b.edge(source, target, "forwards", networkMatchUpstream)
+		b.flow(source, target, b.pools[target])
 		return
 	}
 	if normalizeNetworkHost(host) == "" {
@@ -698,6 +772,7 @@ func (b *networkGraphBuilder) forward(source string, pool json.RawMessage, host 
 	}
 	target, match := b.resolve(host)
 	b.edge(source, target, "forwards", match)
+	b.flow(source, target, b.endpoints(host, port))
 }
 
 func networkEnabledStatus(enabled bool) string {
@@ -716,10 +791,10 @@ func (b *networkGraphBuilder) addProxies() {
 		}
 		// Explicit fields only: advanced_config and meta can hold credentials.
 		targets := []map[string]any{{"path": "/", "scheme": proxy.ForwardScheme, "host": proxy.ForwardHost, "port": proxy.ForwardPort}}
-		b.forward(id, proxy.UpstreamID, proxy.ForwardHost)
+		b.forward(id, proxy.UpstreamID, proxy.ForwardHost, proxy.ForwardPort)
 		for _, location := range proxy.Locations {
 			targets = append(targets, map[string]any{"path": location.Path, "scheme": location.ForwardScheme, "host": location.ForwardHost, "port": location.ForwardPort})
-			b.forward(id, location.UpstreamID, location.ForwardHost)
+			b.forward(id, location.UpstreamID, location.ForwardHost, location.ForwardPort)
 		}
 		b.node(id, "proxy", label, b.masterName, networkEnabledStatus(proxy.Enabled), map[string]any{"domains": proxy.DomainNames, "targets": targets, "sslForced": proxy.SslForced})
 		for _, name := range proxy.DomainNames {
@@ -734,7 +809,7 @@ func (b *networkGraphBuilder) addStreams() {
 		b.node(id, "stream", fmt.Sprintf(":%d", stream.Incoming_port), b.masterName, networkEnabledStatus(stream.Enabled), map[string]any{
 			"description": stream.Description, "incomingPort": stream.Incoming_port, "host": stream.Forwarding_host, "port": stream.Forwarding_port, "tcp": stream.Tcp_forwarding, "udp": stream.Udp_forwarding,
 		})
-		b.forward(id, stream.UpstreamID, stream.Forwarding_host)
+		b.forward(id, stream.UpstreamID, stream.Forwarding_host, stream.Forwarding_port)
 	}
 }
 
