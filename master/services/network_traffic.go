@@ -83,6 +83,7 @@ func (s *NetworkGraphService) Traffic(ctx context.Context) NetworkTraffic {
 	current, warnings := collectNetworkTraffic(ctx)
 	state.result = networkTrafficRates(state.last, current)
 	state.result.Warnings = warnings
+	recordNetworkHistory(state.last.At, state.result)
 	state.last = current
 	return state.result
 }

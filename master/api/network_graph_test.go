@@ -52,3 +52,13 @@ func TestNetworkGraphRouteReturnsPartialGraphWithWarnings(t *testing.T) {
 		t.Fatalf("unexpected traffic %+v", traffic)
 	}
 }
+
+func TestNetworkHistoryRouteRejectsAnUnknownRange(t *testing.T) {
+	router := chi.NewRouter()
+	setupNetworkGraphAPI(router)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/network/traffic/history?range=2d&key=vm:a:web", nil))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body)
+	}
+}

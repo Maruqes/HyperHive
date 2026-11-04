@@ -535,6 +535,10 @@ func main() {
 	powerScheduleService := services.PowerScheduleService{}
 	go powerScheduleService.RunLoop(ctx)
 	go services.NewDiskHealthService().RunLoop(ctx)
+	if err := db.InitNetworkHistoryDB(ctx); err != nil {
+		logger.Errorf("network history disabled: %v", err)
+	}
+	go (&services.NetworkGraphService{}).RunHistoryLoop(ctx)
 
 	// go func() {
 	// 	addr := "127.0.0.1:6060"

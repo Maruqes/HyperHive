@@ -2,11 +2,11 @@
 
 Status document for the unified HyperHive network flow graph (idea 5). Read this first when resuming work, and update it in place at the end of each milestone.
 
-**Current status:** M1 and live traffic (M5, brought forward) implemented and verified locally, not deployed. **Next step:** deploy master and slaves and check real rates, then M2 when asked.
+**Current status:** M1, live traffic (M5, brought forward) and traffic history implemented and verified locally, not deployed. **Next step:** deploy master and slaves and check real rates, then M2 when asked.
 
 ## Goal
 
-One read-only, web-only graph that traces flow through HyperHive: domain, proxy/stream, then host, bridge, VM, Docker container, Kubernetes service or celld fleet, plus WireGuard. Nothing is persisted.
+One read-only, web-only graph that traces flow through HyperHive: domain, proxy/stream, then host, bridge, VM, Docker container, Kubernetes service or celld fleet, plus WireGuard. Only traffic history is persisted.
 
 ## Design
 
@@ -14,7 +14,7 @@ One read-only, web-only graph that traces flow through HyperHive: domain, proxy/
 - Response: `{generatedAt, nodes:[{id,type,label,host,status,details}], edges:[{source,target,type,match}], warnings:[]}`. New sources add node types and a collector, not a new shape.
 - A failed slave or source adds a warning and returns a partial graph.
 - Targets match by DNS alias, then hostname lookup, then IP/port. Unmatched targets become an external/unknown node. Each edge records its match method.
-- Traffic is live only and nothing is stored. `GET /network/traffic` returns bytes per second, computed on the master. See [Live traffic](#live-traffic).
+- `GET /network/traffic` returns bytes per second, computed on the master. See [Live traffic](#live-traffic). `GET /network/traffic/history` returns saved rates. See [Traffic history](#traffic-history).
 - The page polls traffic every 2 seconds and pauses while the tab is hidden. The graph itself loads once and on Refresh.
 - Frontend: React Flow (`@xyflow/react`) in a `.web.tsx` file, with a deterministic board layout in `utils/network-graph.ts`. The link is hidden on Android.
 - MCP: read-only `network_graph_get`.
@@ -50,6 +50,27 @@ Each measurement point reports what it can really see, so a number is never infe
 - No rate is reported for a first sample, a baseline over 15 seconds old, a lower counter (VM restart), or sockets after a failed or interrupted socket dump. Requests within a second share one sample.
 - Traffic stays out of the board state: changing the board resets the view. Lines read it in the edge memo and cards through a context.
 - Idle lines stay plain. Busy lines thicken on a log scale and draw above the boxes. A failed poll clears all rates, because old numbers would read as current.
+
+## Traffic history
+
+Clicking a card or a line opens the side panel with a chart for 1d, 7d, 30d, 3m, 6m or 1y: average and peak rate per direction, plus totals for the range.
+
+- Code: `master/db/network_history.go`, `master/services/network_history.go`. Frontend repository: `components/network/network-history.web.tsx`.
+- `RunHistoryLoop` calls `Traffic` every 10 seconds, so sampling no longer depends on an open page. `Traffic` records every sample, so an open map adds detail to the same buckets.
+- Data lives in `network_history.db`, next to `data.db` and outside its backups. If it cannot open, the master logs an error and runs without history. Deleting the file only loses charts.
+- Every sample is added to all three tiers, so no rollup job exists. An hourly cleanup deletes by age.
+
+| Bucket | Kept for | Ranges |
+| --- | --- | --- |
+| 1 minute | 25 hours | 1d |
+| 15 minutes | 31 days | 7d, 30d (merged to 1 hour for the response) |
+| 6 hours | 366 days | 3m, 6m, 1y |
+
+- Each row holds bytes and peak rate per direction, under the same keys as live traffic: `ip:port` or a node ID. A changed IP or moved VM starts a new history, and deleted resources age out.
+- Each sample also writes a row with an empty key, so a sampled idle bucket reads as zero and an unsampled one as a gap (null rates).
+- `GET /network/traffic/history?range=7d&key=...&key=...` sums up to 64 keys. Peaks are summed per bucket, so across keys they are an upper bound.
+- Proxies, streams and pools chart their outgoing endpoints; VMs, peers and interfaces their own counters. A host offers a picker of its interfaces, because adding them would count bridged traffic twice.
+- Limits: a bucket counts as fully sampled, so the newest one and those beside an outage read low. A failed slave or socket dump inside a sampled bucket reads as idle. Live traffic limits apply too: short sockets can be missed and UDP has no rate.
 
 ## Board layout
 
@@ -131,7 +152,7 @@ Work one at a time. Each milestone is shippable and is reviewed before the next 
 - Line rates cover TCP only. UDP streams show no rate, and neither do redirections, which carry no traffic to a target.
 - A connection that opens and closes between two polls is missed, and the last bytes before a close are lost. Long transfers, which dominate the numbers, are measured. Many short requests read low.
 - Line rates are bytes between NPM and the target, not the client side, and TLS or compression can make those differ. Traffic that reaches a VM without NPM appears on its card only.
-- Rates are throughput only: there are no running totals, history or MCP tool yet.
+- Live rates are throughput only. Saved history and totals are in [Traffic history](#traffic-history); there is no MCP tool for either yet.
 - `Vm.network` is a libvirt network name, so it links to a host interface only on an exact name match. Otherwise the bridge hangs off the host.
 - Targets match by address only in M1. Ports appear in node details and start to matter with M2 and M3.
 - Tall boards scroll rather than fit on one screen. Large graphs are checked in M6.
@@ -162,4 +183,4 @@ Record per milestone what was verified locally and what was verified live.
 
 ## Not included
 
-Stored traffic history, manual link overrides, saved node positions, master-to-slave WireGuard links, pods, celld request-flow tracing, packet capture and a mobile graph.
+Manual link overrides, saved node positions, master-to-slave WireGuard links, pods, celld request-flow tracing, packet capture and a mobile graph.
