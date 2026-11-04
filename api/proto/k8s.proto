@@ -30,6 +30,48 @@ message ClusterStatus {
   string error = 4;
 }
 
+message K8sNode {
+  string name = 1;
+  repeated string addresses = 2;
+  bool ready = 3;
+}
+
+message K8sServicePort {
+  string name = 1;
+  int32 port = 2;
+  int32 node_port = 3;
+  string protocol = 4;
+}
+
+message K8sServiceInfo {
+  string namespace = 1;
+  string name = 2;
+  string type = 3;
+  string cluster_ip = 4;
+  repeated string load_balancer_ips = 5;
+  repeated K8sServicePort ports = 6;
+}
+
+message K8sIngressRule {
+  string host = 1;
+  string path = 2;
+  string service = 3;
+  int32 port = 4;
+}
+
+message K8sIngress {
+  string namespace = 1;
+  string name = 2;
+  repeated K8sIngressRule rules = 3;
+}
+
+message ClusterResources {
+  bool available = 1;
+  repeated K8sNode nodes = 2;
+  repeated K8sServiceInfo services = 3;
+  repeated K8sIngress ingresses = 4;
+}
+
 // its youu that i lie with
 service K8sService {
   rpc GetToken(Empty) returns (Token);
@@ -38,4 +80,5 @@ service K8sService {
   rpc GetClusterStatus(Empty) returns (ClusterStatus);
   rpc SetConnectionToCluster(ConnectionToCluster) returns (Empty);
   rpc IsMasterSlave(Empty) returns (IsMasterSlaveRes);
+  rpc GetClusterResources(Empty) returns (ClusterResources);
 }

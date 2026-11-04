@@ -50,3 +50,11 @@ func IsMasterSlaveCtx(ctx context.Context, conn *grpc.ClientConn) (bool, error) 
 	}
 	return res.GetWeAreMasterSlave(), nil
 }
+
+const clusterResourcesTimeout = 6 * time.Second
+
+func GetClusterResources(ctx context.Context, conn *grpc.ClientConn) (*k8sGrpc.ClusterResources, error) {
+	ctx, cancel := context.WithTimeout(ctx, clusterResourcesTimeout)
+	defer cancel()
+	return k8sGrpc.NewK8SServiceClient(conn).GetClusterResources(ctx, &k8sGrpc.Empty{})
+}

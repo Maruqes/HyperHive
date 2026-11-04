@@ -64,6 +64,14 @@ message Vm {
   string MachineType = 21; // libvirt machine type (e.g., "pc-q35-8.2", "pc-i440fx-8.2")
   bool KVMHidden = 22; // libvirt <features><kvm><hidden state='on|off'/>
   bool HyperVEnabled = 23; // libvirt <features><hyperv .../>
+  repeated VmNic nics = 24;
+}
+
+message VmNic {
+  string mac = 1;
+  string network = 2;
+  string target = 3; // host device, set only while the VM runs
+  string model = 4;
 }
 
 message GetVmByNameRequest { string name = 1; }
@@ -71,6 +79,13 @@ message GetVmByNameRequest { string name = 1; }
 // Cumulative bytes over all NICs of a running VM, from the guest's point of view.
 message VMInterfaceCounters {
   string name = 1;
+  uint64 rx_bytes = 2;
+  uint64 tx_bytes = 3;
+  repeated VMNicCounters nics = 4;
+}
+
+message VMNicCounters {
+  string mac = 1;
   uint64 rx_bytes = 2;
   uint64 tx_bytes = 3;
 }

@@ -17,6 +17,7 @@ import (
 	"512SvMan/wireguard"
 
 	infoGrpc "github.com/Maruqes/512SvMan/api/proto/info"
+	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 	"github.com/vishvananda/netlink"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
@@ -122,18 +123,15 @@ func collectNetworkTraffic(ctx context.Context) (networkTrafficSample, []string)
 		})
 		run(func() {
 			// An older slave lacks this RPC and ends up here as unavailable.
-			stats, err := runNetworkSource(ctx, func(ctx context.Context) (vmStats []vmCounters, err error) {
+			stats, err := runNetworkSource(ctx, func(ctx context.Context) (map[string]networkCounters, error) {
 				res, err := virsh.GetVMInterfaceStats(ctx, conn.Connection)
-				for _, vm := range res.GetVms() {
-					vmStats = append(vmStats, vmCounters{vm.GetName(), networkCounters{vm.GetTxBytes(), vm.GetRxBytes()}})
-				}
-				return vmStats, err
+				return vmTrafficCounters(conn.MachineName, res), err
 			})
 			if err != nil {
 				warn("host " + conn.MachineName + " VM traffic unavailable")
 			}
-			for _, vm := range stats {
-				add(networkVMID(conn.MachineName, vm.name), vm.counters)
+			for id, counters := range stats {
+				add(id, counters)
 			}
 		})
 	}
@@ -157,9 +155,16 @@ func collectNetworkTraffic(ctx context.Context) (networkTrafficSample, []string)
 	return sample, warnings
 }
 
-type vmCounters struct {
-	name     string
-	counters networkCounters
+// vmTrafficCounters keeps the VM's own sum next to its NICs: an older slave sends only the sum.
+func vmTrafficCounters(host string, res *grpcVirsh.VMInterfaceStatsResponse) map[string]networkCounters {
+	out := map[string]networkCounters{}
+	for _, vm := range res.GetVms() {
+		out[networkVMID(host, vm.GetName())] = networkCounters{vm.GetTxBytes(), vm.GetRxBytes()}
+		for _, nic := range vm.GetNics() {
+			out[networkNICID(host, vm.GetName(), nic.GetMac())] = networkCounters{nic.GetTxBytes(), nic.GetRxBytes()}
+		}
+	}
+	return out
 }
 
 // collectWireguardTraffic flips the device's view, so a peer's rate reads as the peer's own.

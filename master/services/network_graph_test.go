@@ -13,7 +13,9 @@ import (
 	"512SvMan/dnsmasq"
 	"512SvMan/npm"
 
+	dockerGrpc "github.com/Maruqes/512SvMan/api/proto/docker"
 	infoGrpc "github.com/Maruqes/512SvMan/api/proto/info"
+	k8sGrpc "github.com/Maruqes/512SvMan/api/proto/k8s"
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
@@ -392,5 +394,277 @@ func TestBuildNetworkGraphCelldMemberWithoutIPHasNoPortMatch(t *testing.T) {
 	graphNode(t, graph, "celld:f1:beta")
 	if !hasEdge(graph, "proxy:1", "host:beta", "forwards", "ip") {
 		t.Errorf("expected the host route: %+v", graph.Edges)
+	}
+}
+
+func dockerFixture() NetworkGraphInputs {
+	in := graphFixture()
+	in.Hosts[0].Docker = &dockerGrpc.ContainerList{Available: true, Containers: []*dockerGrpc.Container{
+		{Name: "app", Image: "app:1", State: "running",
+			Networks: []*dockerGrpc.ContainerNetwork{{Name: "bridge", Ip: "172.17.0.2"}},
+			Ports:    []*dockerGrpc.ContainerPort{{Ip: "0.0.0.0", PrivatePort: 80, PublicPort: 8080, Protocol: "tcp"}, {Ip: "::", PrivatePort: 80, PublicPort: 8080, Protocol: "tcp"}, {PrivatePort: 9000, Protocol: "tcp"}}},
+		{Name: "old", State: "exited"},
+		{Name: "new", State: "created"},
+		{Name: "broken", State: "dead"},
+		{Name: "paused", State: "paused"},
+	}}
+	in.Hosts[1].Docker = &dockerGrpc.ContainerList{Available: true, Containers: []*dockerGrpc.Container{
+		{Name: "remote", Image: "remote:1", State: "running",
+			Networks: []*dockerGrpc.ContainerNetwork{{Name: "bridge", Ip: "172.17.0.9"}},
+			Ports:    []*dockerGrpc.ContainerPort{{Ip: "0.0.0.0", PrivatePort: 80, PublicPort: 8081, Protocol: "tcp"}}},
+	}}
+	return in
+}
+
+func TestBuildNetworkGraphContainerNodes(t *testing.T) {
+	graph := BuildNetworkGraph(dockerFixture())
+	for id, status := range map[string]string{"app": "up", "old": "disabled", "new": "disabled", "broken": "down", "paused": "unknown"} {
+		if node := graphNode(t, graph, "container:alpha:"+id); node.Type != "container" || node.Label != id || node.Host != "alpha" || node.Status != status {
+			t.Errorf("node = %+v, want status %s", node, status)
+		}
+		if !hasEdge(graph, "host:alpha", "container:alpha:"+id, "runs", "") {
+			t.Errorf("missing runs edge for %s", id)
+		}
+	}
+	details := graphNode(t, graph, "container:alpha:app").Details
+	if details["image"] != "app:1" || details["state"] != "running" {
+		t.Errorf("details = %+v", details)
+	}
+	if addresses := details["addresses"].([]string); len(addresses) != 1 || addresses[0] != "172.17.0.2" {
+		t.Errorf("addresses = %v", addresses)
+	}
+	if ports := details["ports"].([]map[string]any); len(ports) != 3 || ports[0]["publicPort"] != uint32(8080) {
+		t.Errorf("ports = %v", ports)
+	}
+}
+
+func TestBuildNetworkGraphContainerMatching(t *testing.T) {
+	in := dockerFixture()
+	in.Proxies = []npm.Proxy{
+		{ID: 1, ForwardHost: "10.0.0.1", ForwardPort: 8080},
+		{ID: 2, ForwardHost: "127.0.0.1", ForwardPort: 8080},
+		{ID: 3, ForwardHost: "10.0.0.1", ForwardPort: 22},
+		{ID: 4, ForwardHost: "172.17.0.2", ForwardPort: 80},
+		{ID: 5, ForwardHost: "172.17.0.9", ForwardPort: 80},
+		{ID: 6, ForwardHost: "10.0.0.1", ForwardPort: 9000},
+	}
+	in.Streams = []npm.Stream{{ID: 1, Forwarding_host: "10.0.0.2", Forwarding_port: 8081}}
+	graph := BuildNetworkGraph(in)
+	for source, target := range map[string]string{"proxy:1": "container:alpha:app", "proxy:2": "container:alpha:app", "proxy:4": "container:alpha:app", "stream:1": "container:beta:remote"} {
+		if !hasEdge(graph, source, target, "forwards", "docker_port") {
+			t.Errorf("%s should link to %s: %+v", source, target, graph.Edges)
+		}
+	}
+	if !hasEdge(graph, "proxy:3", "host:alpha", "forwards", "ip") || !hasEdge(graph, "proxy:6", "host:alpha", "forwards", "ip") {
+		t.Error("a non-published port should stay on the host")
+	}
+	if !hasEdge(graph, "proxy:5", "unknown:172.17.0.9", "forwards", "none") {
+		t.Error("a container IP off the master host should not match")
+	}
+	for _, flow := range graph.Flows {
+		if flow.Source == "proxy:1" && (len(flow.Endpoints) != 1 || flow.Endpoints[0] != "10.0.0.1:8080") {
+			t.Errorf("proxy flow = %+v", flow)
+		}
+	}
+}
+
+func TestBuildNetworkGraphDockerUnavailableWarns(t *testing.T) {
+	in := graphFixture()
+	in.Hosts[1].Docker = &dockerGrpc.ContainerList{}
+	graph := BuildNetworkGraph(in)
+	graphNode(t, graph, "host:beta")
+	if strings.Join(graph.Warnings, ",") != "host beta docker unavailable" {
+		t.Errorf("warnings = %v", graph.Warnings)
+	}
+}
+
+func k8sFixture() NetworkGraphInputs {
+	in := graphFixture()
+	in.K8s = &k8sGrpc.ClusterResources{Available: true,
+		Nodes: []*k8sGrpc.K8SNode{{Name: "alpha", Addresses: []string{"10.0.0.1", "alpha"}, Ready: true}, {Name: "agent", Addresses: []string{"10.0.0.9"}}},
+		Services: []*k8sGrpc.K8SServiceInfo{
+			{Namespace: "default", Name: "kubernetes", Type: "ClusterIP", ClusterIp: "10.43.0.1", Ports: []*k8sGrpc.K8SServicePort{{Port: 443}}},
+			{Namespace: "kube-system", Name: "kube-dns", Type: "ClusterIP", ClusterIp: "10.43.0.10", Ports: []*k8sGrpc.K8SServicePort{{Port: 53}}},
+			{Namespace: "kube-system", Name: "metrics", Type: "ClusterIP", ClusterIp: "10.43.0.11", Ports: []*k8sGrpc.K8SServicePort{{Port: 443}}},
+			{Namespace: "kube-system", Name: "traefik", Type: "LoadBalancer", ClusterIp: "10.43.0.5", LoadBalancerIps: []string{"10.0.0.1"}, Ports: []*k8sGrpc.K8SServicePort{{Name: "websecure", Port: 443, NodePort: 30443, Protocol: "TCP"}}},
+			{Namespace: "apps", Name: "web", Type: "ClusterIP", ClusterIp: "10.43.0.20", Ports: []*k8sGrpc.K8SServicePort{{Port: 8080}}},
+			{Namespace: "apps", Name: "game", Type: "NodePort", ClusterIp: "10.43.0.21", Ports: []*k8sGrpc.K8SServicePort{{Port: 25565, NodePort: 30565}}},
+		},
+		Ingresses: []*k8sGrpc.K8SIngress{
+			{Namespace: "apps", Name: "web", Rules: []*k8sGrpc.K8SIngressRule{{Host: "app.example.com", Path: "/", Service: "web", Port: 8080}}},
+			{Namespace: "kube-system", Name: "metrics", Rules: []*k8sGrpc.K8SIngressRule{{Host: "metrics.example.com", Path: "/", Service: "metrics", Port: 443}}},
+		},
+	}
+	return in
+}
+
+func TestBuildNetworkGraphK8sNodes(t *testing.T) {
+	graph := BuildNetworkGraph(k8sFixture())
+	cluster := graphNode(t, graph, "k8s:cluster")
+	if cluster.Host != "alpha" || cluster.Status != networkStatusUnknown || cluster.Details["ready"] != 1 || cluster.Details["total"] != 2 {
+		t.Fatalf("cluster: %+v", cluster)
+	}
+	if !hasEdge(graph, "k8s:cluster", "k8s:service:apps:web", "k8s_member", "") || !hasEdge(graph, "k8s:cluster", "k8s:ingress:apps:web", "k8s_member", "") {
+		t.Fatalf("membership missing: %+v", graph.Edges)
+	}
+	if !hasEdge(graph, "k8s:ingress:apps:web", "k8s:service:apps:web", "k8s_route", "") {
+		t.Fatalf("ingress not linked to its service: %+v", graph.Edges)
+	}
+	for _, node := range graph.Nodes {
+		if node.ID == "k8s:service:kube-system:kube-dns" || node.ID == "k8s:service:default:kubernetes" {
+			t.Fatalf("%s should be skipped", node.ID)
+		}
+	}
+	graphNode(t, graph, "k8s:service:kube-system:metrics") // targeted by an ingress
+	if service := graphNode(t, graph, "k8s:service:apps:game"); service.Status != networkStatusUnknown || service.Details["serviceType"] != "NodePort" {
+		t.Fatalf("service: %+v", service)
+	}
+}
+
+func TestBuildNetworkGraphK8sMatching(t *testing.T) {
+	in := k8sFixture()
+	in.Hosts[0].Network.Interfaces = append(in.Hosts[0].Network.Interfaces, &infoGrpc.NetworkInterfaceStruct{Name: "eth1", Flags: []string{"up"}, Addrs: []string{"172.16.0.1/24"}})
+	in.Proxies = []npm.Proxy{
+		{ID: 1, DomainNames: []string{"APP.example.com"}, ForwardHost: "10.0.0.1", ForwardPort: 443},
+		{ID: 2, DomainNames: []string{"other.example.com"}, ForwardHost: "10.0.0.1", ForwardPort: 443},
+		{ID: 3, DomainNames: []string{"game.example.com"}, ForwardHost: "10.0.0.1", ForwardPort: 30565},
+		{ID: 4, DomainNames: []string{"cluster-ip.example.com"}, ForwardHost: "10.43.0.20", ForwardPort: 8080},
+		{ID: 5, DomainNames: []string{"app.example.com"}, ForwardHost: "10.0.0.2", ForwardPort: 443},
+		{ID: 6, DomainNames: []string{"loop.example.com"}, ForwardHost: "127.0.0.1", ForwardPort: 443},
+		{ID: 7, DomainNames: []string{"alias.example.com"}, ForwardHost: "172.16.0.1", ForwardPort: 443},
+		{ID: 8, DomainNames: []string{"agent.example.com"}, ForwardHost: "10.0.0.9", ForwardPort: 30565},
+		{ID: 9, DomainNames: []string{"plain.example.com"}, ForwardHost: "10.0.0.1", ForwardPort: 8081},
+	}
+	in.Streams = []npm.Stream{{ID: 1, Forwarding_host: "10.0.0.1", Forwarding_port: 30565}}
+	graph := BuildNetworkGraph(in)
+	for _, want := range []NetworkEdge{
+		{"proxy:1", "k8s:ingress:apps:web", "forwards", "k8s_ingress"},
+		{"proxy:2", "k8s:service:kube-system:traefik", "forwards", "k8s_port"},
+		{"proxy:3", "k8s:service:apps:game", "forwards", "k8s_port"},
+		{"proxy:4", "k8s:service:apps:web", "forwards", "k8s_port"},
+		{"proxy:5", "host:beta", "forwards", "ip"},
+		{"proxy:6", "k8s:service:kube-system:traefik", "forwards", "k8s_port"},
+		{"proxy:7", "k8s:service:kube-system:traefik", "forwards", "k8s_port"},
+		{"proxy:8", "k8s:service:apps:game", "forwards", "k8s_port"},
+		{"proxy:9", "host:alpha", "forwards", "ip"},
+		{"stream:1", "k8s:service:apps:game", "forwards", "k8s_port"},
+	} {
+		if !hasEdge(graph, want.Source, want.Target, want.Type, want.Match) {
+			t.Fatalf("missing %+v in %+v", want, graph.Edges)
+		}
+	}
+	for _, node := range graph.Nodes {
+		if node.Type == "unknown" {
+			t.Fatalf("stray unknown node: %+v", node)
+		}
+	}
+	if len(graph.Warnings) != 0 {
+		t.Fatalf("unexpected warnings: %v", graph.Warnings)
+	}
+}
+
+func TestBuildNetworkGraphK8sClusterIPOtherPortStaysUnknown(t *testing.T) {
+	in := k8sFixture()
+	in.Proxies = []npm.Proxy{{ID: 1, ForwardHost: "10.43.0.20", ForwardPort: 9999}}
+	if graph := BuildNetworkGraph(in); !hasEdge(graph, "proxy:1", "unknown:10.43.0.20", "forwards", "none") {
+		t.Fatalf("edges: %+v", graph.Edges)
+	}
+}
+
+func TestBuildNetworkGraphDockerPortBeatsK8s(t *testing.T) {
+	in := k8sFixture()
+	in.Hosts[0].Docker = &dockerGrpc.ContainerList{Available: true, Containers: []*dockerGrpc.Container{{Name: "edge", State: "running", Ports: []*dockerGrpc.ContainerPort{{PublicPort: 443}}}}}
+	in.Proxies = []npm.Proxy{{ID: 1, ForwardHost: "10.0.0.1", ForwardPort: 443}}
+	if graph := BuildNetworkGraph(in); !hasEdge(graph, "proxy:1", "container:alpha:edge", "forwards", "docker_port") {
+		t.Fatalf("edges: %+v", graph.Edges)
+	}
+}
+
+func TestBuildNetworkGraphK8sHostSplitAcrossIngressesLinksService(t *testing.T) {
+	in := k8sFixture()
+	in.K8s.Ingresses = append(in.K8s.Ingresses, &k8sGrpc.K8SIngress{Namespace: "apps", Name: "api", Rules: []*k8sGrpc.K8SIngressRule{{Host: "app.example.com", Path: "/api", Service: "web", Port: 8080}}})
+	in.Proxies = []npm.Proxy{{ID: 1, DomainNames: []string{"app.example.com"}, ForwardHost: "10.0.0.1", ForwardPort: 443}}
+	if graph := BuildNetworkGraph(in); !hasEdge(graph, "proxy:1", "k8s:service:kube-system:traefik", "forwards", "k8s_port") {
+		t.Fatalf("edges: %+v", graph.Edges)
+	}
+}
+
+func TestBuildNetworkGraphK8sUnavailableWarns(t *testing.T) {
+	in := graphFixture()
+	in.K8s = &k8sGrpc.ClusterResources{}
+	in.Proxies = []npm.Proxy{{ID: 1, ForwardHost: "10.0.0.1", ForwardPort: 443}}
+	graph := BuildNetworkGraph(in)
+	if strings.Join(graph.Warnings, ",") != "kubernetes unavailable" {
+		t.Fatalf("warnings: %v", graph.Warnings)
+	}
+	if !hasEdge(graph, "proxy:1", "host:alpha", "forwards", "ip") {
+		t.Fatalf("graph should stay partial: %+v", graph.Edges)
+	}
+	for _, node := range graph.Nodes {
+		if strings.HasPrefix(node.ID, "k8s:") {
+			t.Fatalf("unexpected node %s", node.ID)
+		}
+	}
+}
+
+func TestBuildNetworkGraphK8sDetailsCarryOnlyListedKeys(t *testing.T) {
+	allowed := map[string]string{
+		"k8s_cluster": "nodes ready total",
+		"k8s_service": "namespace serviceType clusterIP loadBalancerIPs ports",
+		"k8s_ingress": "namespace rules",
+	}
+	for _, node := range BuildNetworkGraph(k8sFixture()).Nodes {
+		keys, ok := allowed[node.Type]
+		if !ok {
+			continue
+		}
+		for key := range node.Details {
+			if !strings.Contains(" "+keys+" ", " "+key+" ") {
+				t.Fatalf("%s carries %s", node.ID, key)
+			}
+		}
+	}
+}
+
+func TestBuildNetworkGraphVMNics(t *testing.T) {
+	in := graphFixture()
+	in.VMs[0].Nics = []*grpcVirsh.VmNic{
+		{Mac: "aa:01", Network: "br0", Model: "virtio"},
+		{Mac: "aa:02", Network: "br0", Model: "virtio"},
+		{Mac: "aa:03", Network: "storage", Model: "e1000"},
+	}
+	graph := BuildNetworkGraph(in)
+	vm := "vm:alpha:web"
+	for mac, want := range map[string]struct {
+		network string
+		primary bool
+	}{"aa:01": {"br0", true}, "aa:02": {"br0", false}, "aa:03": {"storage", false}} {
+		id := "nic:alpha:web:" + mac
+		node := graphNode(t, graph, id)
+		if node.Type != "vm_nic" || node.Label != "web "+mac || node.Host != "alpha" || node.Status != networkStatusUp {
+			t.Fatalf("nic node = %+v", node)
+		}
+		if node.Details["vm"] != "web" || node.Details["mac"] != mac || node.Details["network"] != want.network || node.Details["primary"] != want.primary {
+			t.Fatalf("nic details = %+v", node.Details)
+		}
+		if !hasEdge(graph, vm, id, "has_nic", "") || !hasEdge(graph, "bridge:alpha:"+want.network, id, "attached", "") {
+			t.Fatalf("nic %s edges missing: %+v", mac, graph.Edges)
+		}
+	}
+	graphNode(t, graph, "bridge:alpha:storage")
+	if !hasEdge(graph, "host:alpha", "bridge:alpha:storage", "has_bridge", "") || !hasEdge(graph, "bridge:alpha:br0", vm, "attached", "") {
+		t.Fatalf("bridge edges wrong: %+v", graph.Edges)
+	}
+}
+
+func TestBuildNetworkGraphOldSlaveHasNoNics(t *testing.T) {
+	graph := BuildNetworkGraph(graphFixture())
+	for _, node := range graph.Nodes {
+		if node.Type == "vm_nic" {
+			t.Fatalf("unexpected nic node %+v", node)
+		}
+	}
+	if !hasEdge(graph, "bridge:alpha:br0", "vm:alpha:web", "attached", "") {
+		t.Fatalf("VM edge missing: %+v", graph.Edges)
 	}
 }

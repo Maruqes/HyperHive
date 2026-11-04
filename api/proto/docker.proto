@@ -1,0 +1,35 @@
+syntax = "proto3";
+package docker;
+option go_package = "github.com/Maruqes/512SvMan/api/proto/docker;docker";
+
+message Empty {}
+
+message ContainerNetwork {
+  string name = 1;
+  string ip = 2;
+}
+
+message ContainerPort {
+  string ip = 1;
+  uint32 private_port = 2;
+  uint32 public_port = 3;
+  string protocol = 4;
+}
+
+// Container holds only network facts: env, labels and commands can carry secrets.
+message Container {
+  string name = 1;
+  string image = 2;
+  string state = 3;
+  repeated ContainerNetwork networks = 4;
+  repeated ContainerPort ports = 5;
+}
+
+message ContainerList {
+  bool available = 1;
+  repeated Container containers = 2;
+}
+
+service DockerService {
+  rpc ListContainers(Empty) returns (ContainerList);
+}

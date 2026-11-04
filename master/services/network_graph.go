@@ -15,13 +15,16 @@ import (
 
 	"512SvMan/db"
 	"512SvMan/dnsmasq"
+	"512SvMan/docker"
 	"512SvMan/info"
 	"512SvMan/k8s"
 	"512SvMan/npm"
 	"512SvMan/protocol"
 	"512SvMan/wireguard"
 
+	dockerGrpc "github.com/Maruqes/512SvMan/api/proto/docker"
 	infoGrpc "github.com/Maruqes/512SvMan/api/proto/info"
+	k8sGrpc "github.com/Maruqes/512SvMan/api/proto/k8s"
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 	"github.com/Maruqes/512SvMan/logger"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
@@ -38,14 +41,17 @@ const (
 	networkStatusDisabled = "disabled"
 	networkStatusUnknown  = "unknown"
 
-	networkMatchAlias     = "dns_alias"
-	networkMatchHostname  = "hostname"
-	networkMatchIP        = "ip"
-	networkMatchLoopback  = "loopback"
-	networkMatchDomain    = "domain"
-	networkMatchUpstream  = "upstream"
-	networkMatchCelldPort = "celld_port"
-	networkMatchNone      = "none"
+	networkMatchAlias      = "dns_alias"
+	networkMatchHostname   = "hostname"
+	networkMatchIP         = "ip"
+	networkMatchLoopback   = "loopback"
+	networkMatchDomain     = "domain"
+	networkMatchUpstream   = "upstream"
+	networkMatchCelldPort  = "celld_port"
+	networkMatchDockerPort = "docker_port"
+	networkMatchK8sPort    = "k8s_port"
+	networkMatchK8sIngress = "k8s_ingress"
+	networkMatchNone       = "none"
 )
 
 // NetworkGraph is built on demand and never stored. New sources add node types, not fields.
@@ -89,6 +95,7 @@ type NetworkGraphHost struct {
 	Online  bool
 	Master  bool
 	Network *infoGrpc.NetworkSummary
+	Docker  *dockerGrpc.ContainerList
 }
 
 // NetworkGraphInputs holds everything the pure builder reads.
@@ -101,6 +108,7 @@ type NetworkGraphInputs struct {
 	Streams       []npm.Stream
 	Upstreams     []npm.Upstream
 	Fleets        []CelldFleetInfo
+	K8s           *k8sGrpc.ClusterResources
 	Aliases       []dnsmasq.AliasEntry
 	Peers         []db.WireguardPeer
 	LivePeers     []wgtypes.Peer
@@ -138,6 +146,22 @@ func (s *NetworkGraphService) Build(ctx context.Context, npmBase, token string) 
 			})
 			hosts[i].Master = collectNetworkSource(ctx, "host "+conn.MachineName+" role", warn, func(ctx context.Context) (bool, error) {
 				return k8s.IsMasterSlaveCtx(ctx, conn.Connection)
+			})
+			if !hosts[i].Master {
+				return
+			}
+			cluster := collectNetworkSource(ctx, "kubernetes", warn, func(ctx context.Context) (*k8sGrpc.ClusterResources, error) {
+				return k8s.GetClusterResources(ctx, conn.Connection)
+			})
+			mu.Lock()
+			defer mu.Unlock()
+			in.K8s = cluster
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			hosts[i].Docker = collectNetworkSource(ctx, "host "+conn.MachineName+" docker", warn, func(ctx context.Context) (*dockerGrpc.ContainerList, error) {
+				return docker.ListContainers(ctx, conn.Connection)
 			})
 		}()
 	}
@@ -360,37 +384,53 @@ func networkAliasIndex(aliases []dnsmasq.AliasEntry) map[string][]dnsmasq.AliasE
 }
 
 type networkGraphBuilder struct {
-	in         NetworkGraphInputs
-	nodes      map[string]*NetworkNode
-	edges      map[NetworkEdge]bool
-	warnings   []string
-	ipNodes    map[string][]string
-	vmsByName  map[string][]string
-	aliases    map[string][]dnsmasq.AliasEntry
-	masterName string
-	masterID   string
-	flows      map[[2]string]map[string]bool
-	pools      map[string][]string
-	celldPorts map[string][]string
+	in          NetworkGraphInputs
+	nodes       map[string]*NetworkNode
+	edges       map[NetworkEdge]bool
+	warnings    []string
+	ipNodes     map[string][]string
+	vmsByName   map[string][]string
+	aliases     map[string][]dnsmasq.AliasEntry
+	masterName  string
+	masterID    string
+	flows       map[[2]string]map[string]bool
+	pools       map[string][]string
+	celldPorts  map[string][]string
+	dockerPorts map[string][]string
+
+	k8sClusterPorts map[string][]string
+	k8sNodePorts    map[int][]string
+	k8sNodeIPs      map[string]bool
+	k8sNodeOwners   map[string]bool
+	k8sIngressHosts map[string]map[string]bool
 }
 
 // BuildNetworkGraph is pure: all I/O happens in the collectors.
 func BuildNetworkGraph(in NetworkGraphInputs) NetworkGraph {
 	b := &networkGraphBuilder{
-		in:         in,
-		nodes:      map[string]*NetworkNode{},
-		edges:      map[NetworkEdge]bool{},
-		flows:      map[[2]string]map[string]bool{},
-		pools:      map[string][]string{},
-		celldPorts: map[string][]string{},
-		warnings:   append([]string{}, in.Warnings...),
-		ipNodes:    map[string][]string{},
-		vmsByName:  map[string][]string{},
-		aliases:    networkAliasIndex(in.Aliases),
+		in:          in,
+		nodes:       map[string]*NetworkNode{},
+		edges:       map[NetworkEdge]bool{},
+		flows:       map[[2]string]map[string]bool{},
+		pools:       map[string][]string{},
+		celldPorts:  map[string][]string{},
+		dockerPorts: map[string][]string{},
+		warnings:    append([]string{}, in.Warnings...),
+		ipNodes:     map[string][]string{},
+		vmsByName:   map[string][]string{},
+		aliases:     networkAliasIndex(in.Aliases),
+
+		k8sClusterPorts: map[string][]string{},
+		k8sNodePorts:    map[int][]string{},
+		k8sNodeIPs:      map[string]bool{},
+		k8sNodeOwners:   map[string]bool{},
+		k8sIngressHosts: map[string]map[string]bool{},
 	}
 	b.addHosts()
 	b.addVMs()
 	b.addCelld()
+	b.addContainers()
+	b.addK8s()
 	b.addWireguard()
 	b.addDomains()
 	b.addUpstreams()
@@ -563,6 +603,8 @@ func isGraphInterface(iface *infoGrpc.NetworkInterfaceStruct) bool {
 
 func networkVMID(host, name string) string { return "vm:" + host + ":" + name }
 
+func networkNICID(host, vm, mac string) string { return "nic:" + host + ":" + vm + ":" + mac }
+
 func (b *networkGraphBuilder) addVMs() {
 	for _, vm := range b.in.VMs {
 		if vm.Vm == nil {
@@ -581,21 +623,35 @@ func (b *networkGraphBuilder) addVMs() {
 		}
 		if vm.Network == "" {
 			b.edge(networkHostID(vm.MachineName), id, "runs", "")
-			continue
+		} else {
+			b.edge(b.bridge(vm.MachineName, vm.Network), id, "attached", "")
 		}
-		// shortcut: Vm.network is the first NIC only, upgrade with the M5 interface stats.
-		bridgeID := "bridge:" + vm.MachineName + ":" + vm.Network
-		if b.nodes[bridgeID] == nil {
-			b.node(bridgeID, "bridge", vm.Network, vm.MachineName, networkStatusUnknown, nil)
-			// The network name only sometimes equals a host interface name.
-			if ifaceID := networkInterfaceID(vm.MachineName, vm.Network); b.nodes[ifaceID] != nil {
-				b.edge(ifaceID, bridgeID, "bridges", "")
-			} else {
-				b.edge(networkHostID(vm.MachineName), bridgeID, "has_bridge", "")
+		hasPrimary := false
+		for _, nic := range vm.Nics {
+			primary := !hasPrimary && nic.Network != "" && nic.Network == vm.Network
+			hasPrimary = hasPrimary || primary
+			nicID := networkNICID(vm.MachineName, vm.Name, nic.Mac)
+			b.node(nicID, "vm_nic", vm.Name+" "+nic.Mac, vm.MachineName, status, map[string]any{"vm": vm.Name, "mac": nic.Mac, "network": nic.Network, "model": nic.Model, "primary": primary})
+			b.edge(id, nicID, "has_nic", "")
+			if nic.Network != "" {
+				b.edge(b.bridge(vm.MachineName, nic.Network), nicID, "attached", "")
 			}
 		}
-		b.edge(bridgeID, id, "attached", "")
 	}
+}
+
+func (b *networkGraphBuilder) bridge(host, network string) string {
+	bridgeID := "bridge:" + host + ":" + network
+	if b.nodes[bridgeID] == nil {
+		b.node(bridgeID, "bridge", network, host, networkStatusUnknown, nil)
+		// The network name only sometimes equals a host interface name.
+		if ifaceID := networkInterfaceID(host, network); b.nodes[ifaceID] != nil {
+			b.edge(ifaceID, bridgeID, "bridges", "")
+		} else {
+			b.edge(networkHostID(host), bridgeID, "has_bridge", "")
+		}
+	}
+	return bridgeID
 }
 
 // networkFleetStatus maps the states in celld_reconcile.go. Degraded counts as down at
@@ -846,7 +902,7 @@ func boundNetworkPool(raw json.RawMessage) (int64, bool) {
 
 // forward adds one proxy or stream target. GetAllProxys and ListStreams blank the
 // host on pool-bound targets, so the pool is the only route.
-func (b *networkGraphBuilder) forward(source string, pool json.RawMessage, host string, port int) {
+func (b *networkGraphBuilder) forward(source string, domains []string, pool json.RawMessage, host string, port int) {
 	if id, ok := boundNetworkPool(pool); ok {
 		target := networkUpstreamID(id)
 		if b.nodes[target] == nil {
@@ -863,7 +919,11 @@ func (b *networkGraphBuilder) forward(source string, pool json.RawMessage, host 
 	target, ok := b.celldMember(host, port)
 	match := networkMatchCelldPort
 	if !ok {
+		target, match, ok = b.k8sTarget(domains, host, port)
+	}
+	if !ok {
 		target, match = b.resolve(host)
+		target, match = b.dockerTarget(host, target, match, port)
 	}
 	b.edge(source, target, "forwards", match)
 	b.flow(source, target, b.endpoints(host, port))
@@ -885,10 +945,10 @@ func (b *networkGraphBuilder) addProxies() {
 		}
 		// Explicit fields only: advanced_config and meta can hold credentials.
 		targets := []map[string]any{{"path": "/", "scheme": proxy.ForwardScheme, "host": proxy.ForwardHost, "port": proxy.ForwardPort}}
-		b.forward(id, proxy.UpstreamID, proxy.ForwardHost, proxy.ForwardPort)
+		b.forward(id, proxy.DomainNames, proxy.UpstreamID, proxy.ForwardHost, proxy.ForwardPort)
 		for _, location := range proxy.Locations {
 			targets = append(targets, map[string]any{"path": location.Path, "scheme": location.ForwardScheme, "host": location.ForwardHost, "port": location.ForwardPort})
-			b.forward(id, location.UpstreamID, location.ForwardHost, location.ForwardPort)
+			b.forward(id, proxy.DomainNames, location.UpstreamID, location.ForwardHost, location.ForwardPort)
 		}
 		b.node(id, "proxy", label, b.masterName, networkEnabledStatus(proxy.Enabled), map[string]any{"domains": proxy.DomainNames, "targets": targets, "sslForced": proxy.SslForced})
 		for _, name := range proxy.DomainNames {
@@ -903,7 +963,7 @@ func (b *networkGraphBuilder) addStreams() {
 		b.node(id, "stream", fmt.Sprintf(":%d", stream.Incoming_port), b.masterName, networkEnabledStatus(stream.Enabled), map[string]any{
 			"description": stream.Description, "incomingPort": stream.Incoming_port, "host": stream.Forwarding_host, "port": stream.Forwarding_port, "tcp": stream.Tcp_forwarding, "udp": stream.Udp_forwarding,
 		})
-		b.forward(id, stream.UpstreamID, stream.Forwarding_host, stream.Forwarding_port)
+		b.forward(id, nil, stream.UpstreamID, stream.Forwarding_host, stream.Forwarding_port)
 	}
 }
 

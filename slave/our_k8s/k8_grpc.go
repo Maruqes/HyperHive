@@ -114,3 +114,7 @@ func (s *K8sService) SetConnectionToCluster(ctx context.Context, req *k8sGrpc.Co
 
 	return &k8sGrpc.Empty{}, nil
 }
+
+func (s *K8sService) GetClusterResources(ctx context.Context, req *k8sGrpc.Empty) (*k8sGrpc.ClusterResources, error) {
+	return ClusterResources(ctx), nil
+}

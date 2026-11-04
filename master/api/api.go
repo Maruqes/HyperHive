@@ -293,6 +293,7 @@ func StartApi(exitAfterStart bool) {
 	//create a group protected by auth middleware
 	r.Group(func(r chi.Router) {
 		r.Use(authMiddleware)
+		r.Use(broadcastNetworkChanged)
 
 		r.Get("/new-slave-count", getNewSlaveCount)
 

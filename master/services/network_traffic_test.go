@@ -10,6 +10,7 @@ import (
 	"512SvMan/dnsmasq"
 	"512SvMan/npm"
 
+	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
 	"github.com/vishvananda/netlink"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
@@ -144,5 +145,34 @@ func TestBuildNetworkGraphFlows(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("flows = %+v, want %+v", got, want)
+	}
+}
+
+func TestVMTrafficCountersPerNIC(t *testing.T) {
+	sample := func(rx, tx, nicRx, nicTx uint64) map[string]networkCounters {
+		return vmTrafficCounters("a", &grpcVirsh.VMInterfaceStatsResponse{Vms: []*grpcVirsh.VMInterfaceCounters{
+			{Name: "web", RxBytes: rx, TxBytes: tx, Nics: []*grpcVirsh.VMNicCounters{
+				{Mac: "aa:01", RxBytes: rx - nicRx, TxBytes: tx - nicTx},
+				{Mac: "aa:02", RxBytes: nicRx, TxBytes: nicTx},
+			}},
+			{Name: "old", RxBytes: rx, TxBytes: tx},
+		}})
+	}
+	start := time.Date(2026, 11, 4, 12, 0, 0, 0, time.UTC)
+	previous := networkTrafficSample{At: start, Nodes: sample(1000, 500, 800, 400)}
+	// aa:02 was reset by a hot re-plug while aa:01 kept counting and the sum still rose.
+	current := networkTrafficSample{At: start.Add(2 * time.Second), Nodes: sample(1400, 700, 10, 10)}
+	got := networkTrafficRates(previous, current)
+	want := map[string]NetworkRate{
+		"vm:a:web":        {100, 200},
+		"vm:a:old":        {100, 200},
+		"nic:a:web:aa:01": {295, 595},
+	}
+	if !reflect.DeepEqual(got.Nodes, want) {
+		t.Fatalf("nodes = %+v, want %+v", got.Nodes, want)
+	}
+	samples := networkHistorySamples(got, 2)
+	if samples["nic:a:web:aa:01"].Received != 1190 {
+		t.Fatalf("history = %+v", samples)
 	}
 }

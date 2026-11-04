@@ -7,6 +7,7 @@ import (
 	"os"
 	"slave/btrfs"
 	"slave/celld"
+	"slave/docker"
 	"slave/env512"
 	"slave/extra"
 	"slave/info"
@@ -23,6 +24,7 @@ import (
 
 	btrfsGrpc "github.com/Maruqes/512SvMan/api/proto/btrfs"
 	celldGrpc "github.com/Maruqes/512SvMan/api/proto/celld"
+	dockerGrpc "github.com/Maruqes/512SvMan/api/proto/docker"
 	extraGrpc "github.com/Maruqes/512SvMan/api/proto/extra"
 	infoGrpc "github.com/Maruqes/512SvMan/api/proto/info"
 	k8s "github.com/Maruqes/512SvMan/api/proto/k8s"
@@ -129,6 +131,7 @@ func listenGRPC() {
 		btrfsGrpc.RegisterBtrFSServiceServer(s, &btrfs.BTRFSService{})
 		k8s.RegisterK8SServiceServer(s, &ourk8s.K8sService{})
 		celldGrpc.RegisterCelldServiceServer(s, &celld.Service{})
+		dockerGrpc.RegisterDockerServiceServer(s, &docker.Service{})
 		logger.Info("client services listening", "port", 50052)
 		if err := s.Serve(lis); err != nil {
 			logger.Error("client gRPC serve failed", "error", err)

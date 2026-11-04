@@ -413,55 +413,79 @@ func spicePortFromDomainXML(xmlData string) (int, error) {
 	return 0, nil
 }
 
-func networkFromDomainXML(xmlData string) (string, error) {
-	type ifaceSource struct {
+type domainInterface struct {
+	Type string `xml:"type,attr"`
+	MAC  struct {
+		Address string `xml:"address,attr"`
+	} `xml:"mac"`
+	Source struct {
 		Network string `xml:"network,attr"`
 		Bridge  string `xml:"bridge,attr"`
 		Dev     string `xml:"dev,attr"`
-	}
-	type iface struct {
-		Type   string      `xml:"type,attr"`
-		Source ifaceSource `xml:"source"`
-	}
-	type devices struct {
-		Interfaces []iface `xml:"interface"`
-	}
-	type domain struct {
-		Devices devices `xml:"devices"`
-	}
+	} `xml:"source"`
+	Target struct {
+		Dev string `xml:"dev,attr"`
+	} `xml:"target"`
+	Model struct {
+		Type string `xml:"type,attr"`
+	} `xml:"model"`
+}
 
-	var d domain
-	if err := xml.Unmarshal([]byte(xmlData), &d); err != nil {
-		return "", fmt.Errorf("parse domain xml: %w", err)
+func domainInterfacesFromXML(xmlData string) ([]domainInterface, error) {
+	var d struct {
+		Interfaces []domainInterface `xml:"devices>interface"`
 	}
-	for _, iface := range d.Devices.Interfaces {
-		ifaceType := strings.ToLower(strings.TrimSpace(iface.Type))
-		switch ifaceType {
-		case "network":
-			if v := strings.TrimSpace(iface.Source.Network); v != "" {
-				return v, nil
-			}
-		case "bridge":
-			if v := strings.TrimSpace(iface.Source.Bridge); v != "" {
-				return v, nil
-			}
-		case "direct":
-			if v := strings.TrimSpace(iface.Source.Dev); v != "" {
-				return v, nil
-			}
-		default:
-			if v := strings.TrimSpace(iface.Source.Network); v != "" {
-				return v, nil
-			}
-			if v := strings.TrimSpace(iface.Source.Bridge); v != "" {
-				return v, nil
-			}
-			if v := strings.TrimSpace(iface.Source.Dev); v != "" {
-				return v, nil
-			}
+	if err := xml.Unmarshal([]byte(xmlData), &d); err != nil {
+		return nil, fmt.Errorf("parse domain xml: %w", err)
+	}
+	return d.Interfaces, nil
+}
+
+func (iface domainInterface) network() string {
+	switch strings.ToLower(strings.TrimSpace(iface.Type)) {
+	case "network":
+		return strings.TrimSpace(iface.Source.Network)
+	case "bridge":
+		return strings.TrimSpace(iface.Source.Bridge)
+	case "direct":
+		return strings.TrimSpace(iface.Source.Dev)
+	}
+	for _, v := range []string{iface.Source.Network, iface.Source.Bridge, iface.Source.Dev} {
+		if v = strings.TrimSpace(v); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func networkFromDomainXML(xmlData string) (string, error) {
+	ifaces, err := domainInterfacesFromXML(xmlData)
+	if err != nil {
+		return "", err
+	}
+	for _, iface := range ifaces {
+		if v := iface.network(); v != "" {
+			return v, nil
 		}
 	}
 	return "", nil
+}
+
+func nicsFromDomainXML(xmlData string) ([]*grpcVirsh.VmNic, error) {
+	ifaces, err := domainInterfacesFromXML(xmlData)
+	if err != nil {
+		return nil, err
+	}
+	nics := make([]*grpcVirsh.VmNic, 0, len(ifaces))
+	for _, iface := range ifaces {
+		nics = append(nics, &grpcVirsh.VmNic{
+			Mac:     strings.TrimSpace(iface.MAC.Address),
+			Network: iface.network(),
+			Target:  strings.TrimSpace(iface.Target.Dev),
+			Model:   strings.TrimSpace(iface.Model.Type),
+		})
+	}
+	return nics, nil
 }
 
 func RestartLibvirt() error {
@@ -984,6 +1008,7 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 	spicePort := 0
 	var (
 		networkName string
+		nics        []*grpcVirsh.VmNic
 		vncPassword string
 		machineType string
 		kvmHidden   bool
@@ -1004,6 +1029,11 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 			logger.Error(fmt.Sprintf("%s: network: %v", name, err))
 		} else {
 			networkName = netName
+		}
+		if parsed, err := nicsFromDomainXML(xmlDesc); err != nil {
+			logger.Error(fmt.Sprintf("%s: nics: %v", name, err))
+		} else {
+			nics = parsed
 		}
 		if pwd, err := vncPasswordFromDomainXML(xmlDesc); err != nil {
 			logger.Error(fmt.Sprintf("%s: vnc password: %v", name, err))
@@ -1076,6 +1106,7 @@ func GetVMByName(name string) (*grpcVirsh.Vm, error) {
 		DiskPath:             diskInfo.Path,
 		Ip:                   ips,
 		Network:              networkName,
+		Nics:                 nics,
 		VNCPassword:          vncPassword,
 		CPUXML:               cpuXML,
 		DefinedCPUS:          definedCPUs,
@@ -1198,6 +1229,11 @@ func GetAllVMs() ([]*grpcVirsh.Vm, []string, error) {
 					warns = append(warns, fmt.Sprintf("%s: parse network: %v", name, err))
 				} else {
 					networkName = netName
+				}
+				if nics, err := nicsFromDomainXML(xmlDesc); err != nil {
+					warns = append(warns, fmt.Sprintf("%s: parse nics: %v", name, err))
+				} else {
+					info.Nics = nics
 				}
 				if pwd, err := vncPasswordFromDomainXML(xmlDesc); err != nil {
 					warns = append(warns, fmt.Sprintf("%s: parse vnc password: %v", name, err))
