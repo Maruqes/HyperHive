@@ -343,6 +343,7 @@ func StartApi(exitAfterStart bool) {
 		setupStreamInfo(r)
 		setupWireguardAPI(r)
 		setupDNSMasqAPI(r)
+		setupNetworkGraphAPI(r)
 		setupBTRFS(r)
 		setupNotsAPI(r)
 		setupNotesAPI(r)

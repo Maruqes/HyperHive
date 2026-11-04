@@ -113,9 +113,9 @@ func UpdateVMXml(conn *grpc.ClientConn, vmName, vmXml string) error {
 	return nil
 }
 
-func GetAllVms(conn *grpc.ClientConn, empty *grpcVirsh.Empty) (*grpcVirsh.GetAllVmsResponse, error) {
+func GetAllVms(ctx context.Context, conn *grpc.ClientConn, empty *grpcVirsh.Empty) (*grpcVirsh.GetAllVmsResponse, error) {
 	client := grpcVirsh.NewSlaveVirshServiceClient(conn)
-	resp, err := client.GetAllVms(context.Background(), empty)
+	resp, err := client.GetAllVms(ctx, empty)
 	if err != nil {
 		return nil, err
 	}

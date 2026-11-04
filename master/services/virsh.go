@@ -735,7 +735,7 @@ func (v *VirshService) GetAllVms(ctx context.Context) ([]VmType, []string, error
 	addToAllVms := func(conn *grpc.ClientConn) {
 		defer wg.Done() //settar finishado no waitgroup meus caros
 
-		vms, err := virsh.GetAllVms(conn, &grpcVirsh.Empty{})
+		vms, err := virsh.GetAllVms(ctx, conn, &grpcVirsh.Empty{})
 		if err != nil {
 			mu.Lock()
 			erros = append(erros, fmt.Errorf("failed to get VMs from a machine: %v", err))

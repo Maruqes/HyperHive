@@ -26,6 +26,7 @@ The catalog name must match its definition or server construction fails.
 | NGINX | [RegisterNginx](../internal/tools/nginx.go) |
 | Upstreams | [RegisterUpstreams](../internal/tools/upstreams.go) |
 | Disk health | [RegisterDiskHealth](../internal/tools/disk_health.go) |
+| Network graph | [RegisterNetworkGraph](../internal/tools/network_graph.go) |
 
 ```go
 func RegisterCelld(server *Registry, api CelldAPI) {
@@ -134,6 +135,7 @@ form. VM writes/transfers retain the feature-specific recovery checks in their
 | dns | `dns_aliases_list` | low | `GET /dnsmasq/alias/all` |
 | isos | `list_isos` | low | `GET /isos/` |
 | isos | `start_iso_download` | medium | `POST /isos/download` |
+| network_graph | `network_graph_get` | low | `GET /network/graph` |
 | nginx | `create_404_host` | high | `POST /404/create` |
 | nginx | `create_access_list` | high | `POST /access-lists/create` |
 | nginx | `create_redirect` | high | `POST /redirection/create` |

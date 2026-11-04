@@ -30,8 +30,12 @@ func GetDiskSummary(conn *grpc.ClientConn, empty *infoGrpc.Empty) (*infoGrpc.Dis
 }
 
 func GetNetworkSummary(conn *grpc.ClientConn, empty *infoGrpc.Empty) (*infoGrpc.NetworkSummary, error) {
+	return GetNetworkSummaryCtx(context.Background(), conn, empty)
+}
+
+func GetNetworkSummaryCtx(ctx context.Context, conn *grpc.ClientConn, empty *infoGrpc.Empty) (*infoGrpc.NetworkSummary, error) {
 	client := infoGrpc.NewInfoClient(conn)
-	return client.GetNetworkSummary(context.Background(), empty)
+	return client.GetNetworkSummary(ctx, empty)
 }
 
 func GetProcesses(conn *grpc.ClientConn, empty *infoGrpc.Empty) (*infoGrpc.ProcessList, error) {

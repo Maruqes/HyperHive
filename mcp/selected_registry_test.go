@@ -6,6 +6,7 @@ var selectedFeatureToolNames = []string{
 	"list_notification_rules", "update_notification_rule",
 	"get_power_schedule",
 	"list_disk_health", "get_disk_health_history",
+	"network_graph_get",
 	"create_automation", "evaluate_automation_condition", "get_automation", "get_automation_run", "install_automation_packages", "list_automation_files", "list_automation_runs", "list_automations", "read_automation_file", "read_automation_package", "run_automation", "update_automation", "write_automation_file", "write_automation_package",
 	"remove_vm_isos",
 	"create_vm", "set_vm_autostart", "set_vm_live", "create_vm_automatic_backup", "update_vm_automatic_backup", "enable_vm_automatic_backup", "add_vm_ssh_key",

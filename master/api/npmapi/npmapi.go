@@ -15,6 +15,11 @@ func SetBaseURL(url string) {
 	baseURL = url
 }
 
+// BaseURL returns the local NPM API address for callers outside this package.
+func BaseURL() string {
+	return baseURL
+}
+
 // copied from login, there is no problem couse it should exist in context
 func GetTokenFromContext(r *http.Request) string {
 	if token, ok := r.Context().Value("token").(string); ok {
