@@ -86,7 +86,7 @@ Each measurement point reports what it can really see, so a number is never infe
 - Rates are computed on the master because socket totals fall whenever a connection closes. The sampler keeps the last sample per socket, so a closed socket lowers nothing and a new one counts in full.
 - No rate is reported for a first sample, a baseline over 15 seconds old, a lower counter (VM restart), or sockets after a failed or interrupted socket dump. Requests within a second share one sample.
 - Traffic stays out of the board state, so a poll never rebuilds the cards. Lines read it in the edge memo and cards through a context.
-- Idle lines stay plain. Busy lines thicken on a log scale and draw above the boxes. Rate labels sit beside the source card, because a midpoint can land on a card in the next column. A failed poll clears all rates, because old numbers would read as current.
+- Idle lines stay plain. Busy lines thicken on a log scale and draw above the boxes. Rate labels sit beside the source card, on the side the line leaves by, because a midpoint can land on a card in the next column. A failed poll clears all rates, because old numbers would read as current.
 
 ## Traffic history
 
@@ -122,6 +122,7 @@ The API graph stays complete; `networkBoard` turns it into a view where each thi
 - A proxy or redirection card shows its domains and target, so proxied domains get no card of their own. Only unrouted DNS aliases do, and an alias with no match appears once, under External.
 - Interfaces are listed on the machine header and in its side panel, not as cards.
 - Only `forwards`, `resolves`, `redirects`, `celld_member` and `k8s_route` edges are drawn. A dashed line is an unmatched target. Match methods are in the side panel.
+- A line leaves the side of its source that faces its target and enters the opposite side of the target, so dragging a piece past another keeps a short line. Fixed left and right sides would wrap it back over both boxes.
 - Hovering or selecting anything lights its routes and fades the rest. This covers the M6 flow-path highlight for direct use.
 - Search walks forward along routes only, and back along routes and containment, so reaching a host does not pull in everything on it.
 - The view fits the width and starts at the top; scrolling pans. `elkjs` was removed: hierarchical auto-layout was the source of the disorder, and a fixed layout also stays still between M5 polls.
@@ -294,6 +295,13 @@ Record per milestone what was verified locally and what was verified live.
 - Large graph, medians with `onlyRenderVisibleElements`: first render 1.7 s, hover 23 ms, traffic tick 33 ms, drag frame about 30 ms. Drag p95 is 41 to 55 ms, over the 33 ms target. Before the change: first render 2.0 s, hover 193 ms, traffic tick 238 ms, drag 443 ms.
 - Timings use synthetic events in the built-in browser. After adding `onlyRenderVisibleElements`, only collapse, reload, hover and `NetworkChanged` were rerun.
 - Not verified: a real Docker engine, k3s, libvirt NIC data, or a real master websocket with a real client.
+
+**Line sides, 2026-11-04, local only.** Nothing was deployed.
+
+- Bug: lines used fixed left and right handles, so a box dragged past another kept its line on the old sides and the curve wrapped back over both boxes. Reported with the DNS aliases box moved left of the WireGuard box.
+- Fix: `networkEdgeEnds` picks the facing side of each piece, and the edge reads node positions from React Flow, so a moved parent box re-anchors its lines. Labels move to the side the line leaves by.
+- Verified: unit tests for all four directions, and the web dev build against a mock serving the live `GET /network/graph` body (read only). The same layout drew the wrapping curve before the fix and a short line between the two boxes after it.
+- Not verified: a real drag in the browser (synthetic pointer events did not start one); drags go through the same positions state and node objects as a reload.
 
 ## Not included
 
