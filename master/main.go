@@ -350,6 +350,9 @@ func main() {
 	if err := db.CreateResourceDescriptionsTable(ctx); err != nil {
 		log.Fatalf("create resource descriptions table: %v", err)
 	}
+	if err := db.CreateNetworkLayoutTable(ctx); err != nil {
+		log.Fatalf("create network layout table: %v", err)
+	}
 	if err := db.CreateSPAPortsTable(ctx); err != nil {
 		log.Fatalf("create spa table: %v", err)
 	}

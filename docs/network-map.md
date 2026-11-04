@@ -2,16 +2,16 @@
 
 Status document for the unified HyperHive network flow graph (idea 5). Read this first when resuming work, and update it in place at the end of each milestone.
 
-**Current status:** M1, live traffic (M5, brought forward) and traffic history implemented and verified locally, not deployed. **Next step:** deploy master and slaves and check real rates, then M2 when asked.
+**Current status:** M1, M2 (celld), live traffic (M5, brought forward) traffic history and the saved layout implemented and verified locally, not deployed. **Next step:** deploy master and slaves and check real rates and fleets, then M3 when asked.
 
 ## Goal
 
-One read-only, web-only graph that traces flow through HyperHive: domain, proxy/stream, then host, bridge, VM, Docker container, Kubernetes service or celld fleet, plus WireGuard. Only traffic history is persisted.
+One read-only, web-only graph that traces flow through HyperHive: domain, proxy/stream, then host, bridge, VM, Docker container, Kubernetes service or celld fleet, plus WireGuard. Only traffic history and where pieces were moved to are persisted.
 
 ## Design
 
 - One master endpoint, `GET /network/graph`, builds the graph on demand.
-- Response: `{generatedAt, nodes:[{id,type,label,host,status,details}], edges:[{source,target,type,match}], warnings:[]}`. New sources add node types and a collector, not a new shape.
+- Response: `{generatedAt, nodes:[{id,type,label,host,status,details}], edges:[{source,target,type,match}], positions:{id:{x,y}}, warnings:[]}`. New sources add node types and a collector, not a new shape.
 - A failed slave or source adds a warning and returns a partial graph.
 - Targets match by DNS alias, then hostname lookup, then IP/port. Unmatched targets become an external/unknown node. Each edge records its match method.
 - `GET /network/traffic` returns bytes per second, computed on the master. See [Live traffic](#live-traffic). `GET /network/traffic/history` returns saved rates. See [Traffic history](#traffic-history).
@@ -22,8 +22,8 @@ One read-only, web-only graph that traces flow through HyperHive: domain, proxy/
 ## Implementation notes (M1)
 
 - Code: `master/services/network_graph.go`, `master/api/network_graph.go`, `mcp/internal/tools/network_graph.go`. Frontend repository: `app/network-map.tsx`, `components/network/`, `services/network-graph.ts`, `utils/network-graph.ts`.
-- Node types: `host`, `interface`, `bridge`, `vm`, `domain`, `proxy`, `redirection`, `stream`, `upstream`, `wireguard`, `wireguard_peer`, `unknown`.
-- Match values: `dns_alias`, `hostname`, `ip`, `loopback`, `domain`, `upstream`, `none`. Structural edges have an empty match.
+- Node types: `host`, `interface`, `bridge`, `vm`, `domain`, `proxy`, `redirection`, `stream`, `upstream`, `wireguard`, `wireguard_peer`, `celld_fleet`, `celld_member`, `unknown`.
+- Match values: `dns_alias`, `hostname`, `ip`, `loopback`, `domain`, `upstream`, `celld_port`, `none`. Structural edges have an empty match.
 - Upstream pools were added to the sources: the NPM readers blank the target of a pool-bound proxy or stream, so the pool is the only route.
 - Loopback targets mean the master host, because NPM uses host networking. The master host comes from `k8s.IsMasterSlaveCtx`. If it cannot be detected, the target stays unknown.
 - An address that matches more than one node stays unknown and adds a warning, rather than guessing. Default NAT gateways repeat across hosts.
@@ -32,6 +32,16 @@ One read-only, web-only graph that traces flow through HyperHive: domain, proxy/
 - Details are copied field by field. VNC passwords, `advanced_config`, `meta` and WireGuard keys never enter the graph.
 - `services.GetAllVms` now passes its context to the slave RPC, so a hung slave fails on time and other hosts' VMs are kept.
 - The page loads the graph once and has a Refresh button.
+
+## celld (M2)
+
+- Fleets come from `CelldFleet.List()`, which reads master state only. There is no new RPC, endpoint or proto.
+- One `celld_fleet` card (`celld:<id>`) sits in the "Celld fleets" section of the middle column. A `celld_member` card (`celld:<id>:<host>`) sits inside each machine it runs on, outside the network boxes. Drawn `celld_member` lines join them; a `runs` edge ties the member to its host for search and is not drawn.
+- A proxy or stream target links to the exact member when its resolved `ip:port` equals a member's HTTP or internal port, with match `celld_port`. Loopback counts for members on the master. The same address on another port stays on the host, and upstream pools still point at the pool.
+- Status: `running` is up, `stopped` disabled, `error` and `degraded` down, and transitional states unknown. A member is up only when running and healthy. Stopped or failed fleets stay on the map, greyed out, and routes to them still link.
+- Details are copied field by field: `Deploy`, `Storage`, `URLs` and raw `Error` text never enter the graph.
+- A member with no IP gets a card but no port match.
+- SILO nodes were dropped from M2.
 
 ## Live traffic
 
@@ -49,7 +59,7 @@ Each measurement point reports what it can really see, so a number is never infe
 - Rates are computed on the master because socket totals fall whenever a connection closes. The sampler keeps the last sample per socket, so a closed socket lowers nothing and a new one counts in full.
 - No rate is reported for a first sample, a baseline over 15 seconds old, a lower counter (VM restart), or sockets after a failed or interrupted socket dump. Requests within a second share one sample.
 - Traffic stays out of the board state: changing the board resets the view. Lines read it in the edge memo and cards through a context.
-- Idle lines stay plain. Busy lines thicken on a log scale and draw above the boxes. A failed poll clears all rates, because old numbers would read as current.
+- Idle lines stay plain. Busy lines thicken on a log scale and draw above the boxes. Rate labels sit beside the source card, because a midpoint can land on a card in the next column. A failed poll clears all rates, because old numbers would read as current.
 
 ## Traffic history
 
@@ -77,14 +87,28 @@ Clicking a card or a line opens the side panel with a chart for 1d, 7d, 30d, 3m,
 The API graph stays complete; `networkBoard` turns it into a view where each thing appears once.
 
 - Columns run left to right: entry points, then pools and external targets, then machines.
-- Entry column boxes: Proxied domains, Redirects, Streams, DNS aliases, WireGuard. Middle column boxes: Upstream pools, External / unknown. New sources add a box, for example Docker inside a machine in M3.
+- Entry column boxes: Proxied domains, Redirects, Streams, DNS aliases, WireGuard. Middle column boxes: Upstream pools, Celld fleets, External / unknown. New sources add a box, for example Docker inside a machine in M3.
 - Containment replaces lines: a VM sits in its network box, and a network box in its machine box. A machine box is the host itself, and the WireGuard box is the server.
 - A proxy or redirection card shows its domains and target, so proxied domains get no card of their own. Only unrouted DNS aliases do, and an alias with no match appears once, under External.
 - Interfaces are listed on the machine header and in its side panel, not as cards.
-- Only `forwards`, `resolves` and `redirects` edges are drawn. A dashed line is an unmatched target. Match methods are in the side panel.
+- Only `forwards`, `resolves`, `redirects` and `celld_member` edges are drawn. A dashed line is an unmatched target. Match methods are in the side panel.
 - Hovering or selecting anything lights its routes and fades the rest. This covers the M6 flow-path highlight for direct use.
 - Search walks forward along routes only, and back along routes and containment, so reaching a host does not pull in everything on it.
 - The view fits the width and starts at the top; scrolling pans. `elkjs` was removed: hierarchical auto-layout was the source of the disorder, and a fixed layout also stays still between M5 polls.
+
+## Saved layout
+
+Any card or box can be dragged, or moved with the arrow keys when selected. Positions live on the master, so every browser and user sees the same map.
+
+- Code: `master/db/network_layout.go`, `master/services/network_layout.go`. Frontend repository: `networkPlacedBoard` in `utils/network-graph.ts`.
+- Data lives in the `network_layout` table in `data.db`, so it is backed up, unlike traffic history. A failed read adds a `saved layout` warning and shows the default board.
+- Pages get positions in `positions` of `GET /network/graph`. `PUT /network/layout` takes `{id:{x,y}}` and changes only those pieces, so two open pages cannot undo each other's other moves. `DELETE /network/layout` clears them, behind the Reset layout button.
+- Only moved pieces are saved, by board node ID, so everything else keeps following the default board. A piece inside a box is stored relative to it and moves with it.
+- Box sizes are not saved. A box grows to hold its pieces, and a piece stays below its box header.
+- Saves wait 400 ms, so repeated arrow keys send one request. A failed save shows an error and is retried with the next move. Leaving the page sends any waiting save.
+- Moving a piece does not reset the view. Dragging near the canvas edge pans it, which is how a piece reaches past the board.
+- Limits: other open pages see a move on Refresh, not live. Boxes do not push each other, so a box that grows can cover the one below it, and a new card can land on a moved one. A filtered view keeps saved positions, so it can leave gaps. Rows for deleted resources stay, so a recreated resource returns to its old spot. A VM on a new host is a new ID and starts at the default.
+- The MCP client ignores `positions`: `network_graph_get` stays read-only, and no MCP tool writes the layout.
 
 ## Milestones
 
@@ -102,9 +126,9 @@ Work one at a time. Each milestone is shippable and is reviewed before the next 
 
 ### M2: celld
 
-- [ ] Collector from existing fleet data, with no new RPC
-- [ ] Fleet, per-host node and SILO nodes, with port matching
-- [ ] Layer toggle
+- [x] Collector from existing fleet data, with no new RPC
+- [x] Fleet and per-host member nodes, with port matching (SILO dropped)
+- [x] Layer toggle
 
 **Done when:** fleets appear on their hosts, and proxy or stream targets on celld ports link to them.
 
@@ -154,7 +178,7 @@ Work one at a time. Each milestone is shippable and is reviewed before the next 
 - Line rates are bytes between NPM and the target, not the client side, and TLS or compression can make those differ. Traffic that reaches a VM without NPM appears on its card only.
 - Live rates are throughput only. Saved history and totals are in [Traffic history](#traffic-history); there is no MCP tool for either yet.
 - `Vm.network` is a libvirt network name, so it links to a host interface only on an exact name match. Otherwise the bridge hangs off the host.
-- Targets match by address only in M1. Ports appear in node details and start to matter with M2 and M3.
+- Targets match by address, plus port for celld members. Other ports appear in node details and start to matter with M3.
 - Tall boards scroll rather than fit on one screen. Large graphs are checked in M6.
 - A line to a VM can pass behind middle-column boxes until it is highlighted.
 
@@ -181,6 +205,20 @@ Record per milestone what was verified locally and what was verified live.
 - Browser: a production web build against a local mock with changing rates. Verified: rates on lines and cards update while the viewport stays put, `shared` labels, line thickness, the VM side panel, no polls while hidden, and a failed poll clearing rates and recovering.
 - Not verified: real NPM sockets, libvirt counters, an older slave's warning, or the host side panel in a browser (its rates are unit-tested).
 
+**M2 celld, 2026-11-04, local only.** Nothing was deployed and nothing was checked against live infrastructure.
+
+- Master: member nodes and edges, proxy and stream matching on HTTP and internal ports through IP, alias, hostname and loopback, a non-celld port staying on the host, two fleets on one host, a stopped fleet, a member with no IP, and no `Deploy`, storage, URL or raw error data in the graph. `go test -tags libvirt_dlopen ./services/ ./api/` and the MCP tools tests pass.
+- Frontend: unit tests pass, covering placement, the fleet section, drawn lines, the toggle and search.
+- Browser: a production web build against a local mock with a two-machine fleet and a stopped fleet. Verified: member cards inside machines, greyed cards, the side panel with the `Celld port` match, and the toggle hiding cards and lines.
+- Not verified: real fleets on live hosts, or the Celld source failing in a running master (the shared warning path is tested).
+
+**Saved layout, 2026-11-04, local only.** Nothing was deployed and nothing was checked against live infrastructure.
+
+- Master: database, validation and route tests pass, also under `-race`, against in-memory SQLite. The graph route test confirms saved positions come back in `GET /network/graph`.
+- Frontend: unit tests pass. No new type errors.
+- Browser: a production web build against a local mock that stores positions like the master. Verified: dragging a card, a box, a network inside a machine and a whole machine with its contents; lines following; boxes growing; positions surviving a reload; no side panel on drag and click still opening it; three arrow presses sending one save; a failed save showing an error and being retried; Reset layout.
+- Not verified: the real master and `data.db` end to end, two browsers at once, or the browser run with M2 celld cards, which landed in the same files during this work (the unit tests do cover the merged code).
+
 ## Not included
 
-Manual link overrides, saved node positions, master-to-slave WireGuard links, pods, celld request-flow tracing, packet capture and a mobile graph.
+Manual link overrides, master-to-slave WireGuard links, pods, celld request-flow tracing, packet capture and a mobile graph.

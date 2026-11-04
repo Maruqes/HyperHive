@@ -309,3 +309,88 @@ func TestCollectNetworkSourceTimesOutWithoutWaiting(t *testing.T) {
 		t.Fatalf("warnings = %v", warnings)
 	}
 }
+
+func celldFixture() NetworkGraphInputs {
+	in := graphFixture()
+	ports := CelldPorts{HTTP: 18080, Internal: 18081}
+	in.Fleets = []CelldFleetInfo{
+		{ID: "f1", Name: "shop", Status: "running", Ports: ports, URLs: []string{"http://url-secret"}, Error: "raw-error", Deploy: CelldDeployment{Command: "deploy-secret"}, Storage: CelldLocation{Bucket: "bucket-secret"}, Servers: []CelldMachine{
+			{Name: "alpha", IP: "10.0.0.1", Running: true, Healthy: true, Ports: ports},
+			{Name: "beta", IP: "10.0.0.2", Ports: ports, Error: "raw-error"},
+		}},
+		{ID: "f2", Name: "blog", Status: "stopped", Ports: CelldPorts{HTTP: 19080, Internal: 19081}, Servers: []CelldMachine{
+			{Name: "alpha", IP: "10.0.0.1", Ports: CelldPorts{HTTP: 19080, Internal: 19081}},
+			{Name: "gone", Ports: CelldPorts{HTTP: 19080, Internal: 19081}},
+		}},
+	}
+	return in
+}
+
+func TestBuildNetworkGraphCelldNodes(t *testing.T) {
+	graph := BuildNetworkGraph(celldFixture())
+	for id, status := range map[string]string{"celld:f1": "up", "celld:f1:alpha": "up", "celld:f1:beta": "down", "celld:f2": "disabled", "celld:f2:alpha": "disabled", "celld:f2:gone": "disabled"} {
+		if got := graphNode(t, graph, id).Status; got != status {
+			t.Errorf("%s status = %s, want %s", id, got, status)
+		}
+	}
+	if graphNode(t, graph, "celld:f1:beta").Host != "beta" {
+		t.Error("member host should be its machine")
+	}
+	if !hasEdge(graph, "celld:f1", "celld:f1:beta", "celld_member", "") || !hasEdge(graph, "host:alpha", "celld:f2:alpha", "runs", "") {
+		t.Errorf("missing celld edges: %+v", graph.Edges)
+	}
+	for _, edge := range graph.Edges {
+		if edge.Target == "celld:f2:gone" && edge.Type == "runs" {
+			t.Error("a member on an unknown host must not leave a dangling edge")
+		}
+	}
+	data, err := json.Marshal(graph)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, secret := range []string{"url-secret", "raw-error", "deploy-secret", "bucket-secret"} {
+		if strings.Contains(string(data), secret) {
+			t.Errorf("%s leaked into the graph", secret)
+		}
+	}
+}
+
+func TestBuildNetworkGraphCelldPortMatching(t *testing.T) {
+	in := celldFixture()
+	in.Aliases = []dnsmasq.AliasEntry{{Alias: "shop.home", IP: "10.0.0.2"}}
+	in.ResolvedHosts = map[string][]string{"beta.lan": {"10.0.0.2"}}
+	in.Proxies = []npm.Proxy{
+		{ID: 1, ForwardHost: "10.0.0.1", ForwardPort: 18080},
+		{ID: 2, ForwardHost: "10.0.0.1", ForwardPort: 19081},
+		{ID: 3, ForwardHost: "10.0.0.1", ForwardPort: 22},
+		{ID: 4, ForwardHost: "shop.home", ForwardPort: 18080},
+		{ID: 5, ForwardHost: "beta.lan", ForwardPort: 18081},
+		{ID: 6, ForwardHost: "localhost", ForwardPort: 18080},
+	}
+	in.Streams = []npm.Stream{{ID: 1, Forwarding_host: "10.0.0.2", Forwarding_port: 18081}}
+	graph := BuildNetworkGraph(in)
+	for source, target := range map[string]string{"proxy:1": "celld:f1:alpha", "proxy:2": "celld:f2:alpha", "proxy:4": "celld:f1:beta", "proxy:5": "celld:f1:beta", "proxy:6": "celld:f1:alpha", "stream:1": "celld:f1:beta"} {
+		if !hasEdge(graph, source, target, "forwards", "celld_port") {
+			t.Errorf("%s should link to %s: %+v", source, target, graph.Edges)
+		}
+	}
+	if !hasEdge(graph, "proxy:3", "host:alpha", "forwards", "ip") {
+		t.Error("a non-celld port on the same address should stay on the host")
+	}
+	for _, flow := range graph.Flows {
+		if flow.Source == "proxy:1" && (flow.Target != "celld:f1:alpha" || len(flow.Endpoints) != 1 || flow.Endpoints[0] != "10.0.0.1:18080") {
+			t.Errorf("proxy flow = %+v", flow)
+		}
+	}
+}
+
+func TestBuildNetworkGraphCelldMemberWithoutIPHasNoPortMatch(t *testing.T) {
+	in := celldFixture()
+	in.Fleets[0].Servers[1].IP = ""
+	in.Proxies = []npm.Proxy{{ID: 1, ForwardHost: "10.0.0.2", ForwardPort: 18080}}
+	graph := BuildNetworkGraph(in)
+	graphNode(t, graph, "celld:f1:beta")
+	if !hasEdge(graph, "proxy:1", "host:beta", "forwards", "ip") {
+		t.Errorf("expected the host route: %+v", graph.Edges)
+	}
+}

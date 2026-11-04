@@ -17,7 +17,7 @@ func defineNetworkGraphGet(api NetworkGraphAPI) ToolDefinition {
 	destructive := false
 	tool := &mcp.Tool{
 		Name:        "network_graph_get",
-		Description: "Read the HyperHive network flow graph, built on demand: hosts, interfaces, bridges, VMs, domains, proxies, redirections, streams, upstream pools and WireGuard peers. Edges are configured routes, not proof of traffic; match records how a target was identified (dns_alias, hostname, ip, loopback, domain, upstream, or none for an unknown node). A failed source adds a string to warnings and leaves the graph partial, so check warnings before treating a missing node as absent. Calls GET /network/graph. Takes no arguments.",
+		Description: "Read the HyperHive network flow graph, built on demand: hosts, interfaces, bridges, VMs, domains, proxies, redirections, streams, upstream pools, celld fleets and their per-host members, and WireGuard peers. Edges are configured routes, not proof of traffic; match records how a target was identified (dns_alias, hostname, ip, loopback, domain, upstream, celld_port, or none for an unknown node). A failed source adds a string to warnings and leaves the graph partial, so check warnings before treating a missing node as absent. Calls GET /network/graph. Takes no arguments.",
 		Meta:        mcp.Meta{"hyperhive/endpoint": map[string]any{"method": "GET", "path": client.NetworkGraphPath}},
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: &destructive, IdempotentHint: true},
 	}

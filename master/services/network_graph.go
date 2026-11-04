@@ -38,22 +38,25 @@ const (
 	networkStatusDisabled = "disabled"
 	networkStatusUnknown  = "unknown"
 
-	networkMatchAlias    = "dns_alias"
-	networkMatchHostname = "hostname"
-	networkMatchIP       = "ip"
-	networkMatchLoopback = "loopback"
-	networkMatchDomain   = "domain"
-	networkMatchUpstream = "upstream"
-	networkMatchNone     = "none"
+	networkMatchAlias     = "dns_alias"
+	networkMatchHostname  = "hostname"
+	networkMatchIP        = "ip"
+	networkMatchLoopback  = "loopback"
+	networkMatchDomain    = "domain"
+	networkMatchUpstream  = "upstream"
+	networkMatchCelldPort = "celld_port"
+	networkMatchNone      = "none"
 )
 
 // NetworkGraph is built on demand and never stored. New sources add node types, not fields.
+// Positions is the only saved part: where people moved pieces of the map, by node or box ID.
 type NetworkGraph struct {
-	GeneratedAt time.Time     `json:"generatedAt"`
-	Nodes       []NetworkNode `json:"nodes"`
-	Edges       []NetworkEdge `json:"edges"`
-	Flows       []NetworkFlow `json:"flows"`
-	Warnings    []string      `json:"warnings"`
+	GeneratedAt time.Time                     `json:"generatedAt"`
+	Nodes       []NetworkNode                 `json:"nodes"`
+	Edges       []NetworkEdge                 `json:"edges"`
+	Flows       []NetworkFlow                 `json:"flows"`
+	Positions   map[string]db.NetworkPosition `json:"positions"`
+	Warnings    []string                      `json:"warnings"`
 }
 
 type NetworkNode struct {
@@ -97,6 +100,7 @@ type NetworkGraphInputs struct {
 	Redirections  []npm.Redirection
 	Streams       []npm.Stream
 	Upstreams     []npm.Upstream
+	Fleets        []CelldFleetInfo
 	Aliases       []dnsmasq.AliasEntry
 	Peers         []db.WireguardPeer
 	LivePeers     []wgtypes.Peer
@@ -165,6 +169,12 @@ func (s *NetworkGraphService) Build(ctx context.Context, npmBase, token string) 
 	})
 	run(func() { in.Upstreams = collectNetworkSource(ctx, "upstream pools", warn, npm.ListUpstreams) })
 	run(func() {
+		in.Fleets = collectNetworkSource(ctx, "celld fleets", warn, func(context.Context) ([]CelldFleetInfo, error) {
+			list, err := CelldFleet.List()
+			return list.Fleets, err
+		})
+	})
+	run(func() {
 		in.Aliases = collectNetworkSource(ctx, "DNS aliases", warn, func(context.Context) ([]dnsmasq.AliasEntry, error) { return dnsmasq.GetAllAliases() })
 	})
 	run(func() { in.Peers = collectNetworkSource(ctx, "WireGuard peers", warn, db.GetAllWireguardPeers) })
@@ -175,6 +185,8 @@ func (s *NetworkGraphService) Build(ctx context.Context, npmBase, token string) 
 	})
 	var offline []string
 	run(func() { offline = collectNetworkSource(ctx, "offline hosts", warn, db.GetAllMachineNamesWithShares) })
+	var positions map[string]db.NetworkPosition
+	run(func() { positions = collectNetworkSource(ctx, "saved layout", warn, db.GetNetworkLayout) })
 	wg.Wait()
 
 	in.VMs = vms.list
@@ -186,7 +198,11 @@ func (s *NetworkGraphService) Build(ctx context.Context, npmBase, token string) 
 	}
 	in.Hosts = append(hosts, offlineNetworkHosts(offline, hosts)...)
 	in.ResolvedHosts = lookupNetworkHostnames(ctx, networkGraphHostnames(in))
-	return BuildNetworkGraph(in)
+	graph := BuildNetworkGraph(in)
+	if positions != nil {
+		graph.Positions = positions
+	}
+	return graph
 }
 
 // shortcut: dead slaves leave the connection list and no registry exists, so only
@@ -355,23 +371,26 @@ type networkGraphBuilder struct {
 	masterID   string
 	flows      map[[2]string]map[string]bool
 	pools      map[string][]string
+	celldPorts map[string][]string
 }
 
 // BuildNetworkGraph is pure: all I/O happens in the collectors.
 func BuildNetworkGraph(in NetworkGraphInputs) NetworkGraph {
 	b := &networkGraphBuilder{
-		in:        in,
-		nodes:     map[string]*NetworkNode{},
-		edges:     map[NetworkEdge]bool{},
-		flows:     map[[2]string]map[string]bool{},
-		pools:     map[string][]string{},
-		warnings:  append([]string{}, in.Warnings...),
-		ipNodes:   map[string][]string{},
-		vmsByName: map[string][]string{},
-		aliases:   networkAliasIndex(in.Aliases),
+		in:         in,
+		nodes:      map[string]*NetworkNode{},
+		edges:      map[NetworkEdge]bool{},
+		flows:      map[[2]string]map[string]bool{},
+		pools:      map[string][]string{},
+		celldPorts: map[string][]string{},
+		warnings:   append([]string{}, in.Warnings...),
+		ipNodes:    map[string][]string{},
+		vmsByName:  map[string][]string{},
+		aliases:    networkAliasIndex(in.Aliases),
 	}
 	b.addHosts()
 	b.addVMs()
+	b.addCelld()
 	b.addWireguard()
 	b.addDomains()
 	b.addUpstreams()
@@ -382,7 +401,7 @@ func BuildNetworkGraph(in NetworkGraphInputs) NetworkGraph {
 }
 
 func (b *networkGraphBuilder) graph() NetworkGraph {
-	out := NetworkGraph{GeneratedAt: b.in.Now, Nodes: make([]NetworkNode, 0, len(b.nodes)), Edges: make([]NetworkEdge, 0, len(b.edges)), Flows: make([]NetworkFlow, 0, len(b.flows)), Warnings: b.warnings}
+	out := NetworkGraph{GeneratedAt: b.in.Now, Nodes: make([]NetworkNode, 0, len(b.nodes)), Edges: make([]NetworkEdge, 0, len(b.edges)), Flows: make([]NetworkFlow, 0, len(b.flows)), Positions: map[string]db.NetworkPosition{}, Warnings: b.warnings}
 	for _, node := range b.nodes {
 		out.Nodes = append(out.Nodes, *node)
 	}
@@ -579,6 +598,77 @@ func (b *networkGraphBuilder) addVMs() {
 	}
 }
 
+// networkFleetStatus maps the states in celld_reconcile.go. Degraded counts as down at
+// fleet level; its healthy members still show up. Transitional states stay unknown.
+func networkFleetStatus(status string) string {
+	switch status {
+	case "running":
+		return networkStatusUp
+	case "stopped":
+		return networkStatusDisabled
+	case "error", "degraded":
+		return networkStatusDown
+	}
+	return networkStatusUnknown
+}
+
+func networkMemberStatus(fleetStatus string, member CelldMachine) string {
+	if member.Running && member.Healthy {
+		return networkStatusUp
+	}
+	if fleetStatus == networkStatusUp || fleetStatus == networkStatusDown {
+		return networkStatusDown
+	}
+	return fleetStatus
+}
+
+func (b *networkGraphBuilder) addCelld() {
+	for _, fleet := range b.in.Fleets {
+		id := "celld:" + fleet.ID
+		status := networkFleetStatus(fleet.Status)
+		// Explicit fields only: Deploy, Storage, URLs and Error stay out of the graph.
+		b.node(id, "celld_fleet", fleet.Name, "", status, map[string]any{"status": fleet.Status, "httpPort": fleet.Ports.HTTP, "internalPort": fleet.Ports.Internal, "members": len(fleet.Servers)})
+		for _, member := range fleet.Servers {
+			memberID := id + ":" + member.Name
+			b.node(memberID, "celld_member", fleet.Name, member.Name, networkMemberStatus(status, member), map[string]any{"fleet": fleet.Name, "address": member.IP, "httpPort": member.Ports.HTTP, "internalPort": member.Ports.Internal, "running": member.Running, "healthy": member.Healthy})
+			b.edge(id, memberID, "celld_member", "")
+			if b.nodes[networkHostID(member.Name)] != nil {
+				b.edge(networkHostID(member.Name), memberID, "runs", "")
+			}
+			ip, ok := networkIP(member.IP)
+			if !ok {
+				continue
+			}
+			addresses := []string{ip}
+			if member.Name == b.masterName {
+				// NPM shares the master's network, so loopback reaches its members too.
+				addresses = append(addresses, "127.0.0.1", "::1")
+			}
+			for _, address := range addresses {
+				for _, port := range []uint32{member.Ports.HTTP, member.Ports.Internal} {
+					if port > 0 {
+						endpoint := net.JoinHostPort(address, strconv.Itoa(int(port)))
+						b.celldPorts[endpoint] = append(b.celldPorts[endpoint], memberID)
+					}
+				}
+			}
+		}
+	}
+}
+
+// celldMember finds the member listening on a target; a bare host match stays with resolve.
+func (b *networkGraphBuilder) celldMember(host string, port int) (string, bool) {
+	var ids []string
+	for _, endpoint := range b.endpoints(host, port) {
+		ids = append(ids, b.celldPorts[endpoint]...)
+	}
+	if len(ids) == 0 {
+		return "", false
+	}
+	target, match := b.pick(normalizeNetworkHost(host), ids, nil, networkMatchCelldPort)
+	return target, match == networkMatchCelldPort
+}
+
 func networkPeerID(id int) string { return fmt.Sprintf("wireguard:peer:%d", id) }
 
 func (b *networkGraphBuilder) addWireguard() {
@@ -770,7 +860,11 @@ func (b *networkGraphBuilder) forward(source string, pool json.RawMessage, host 
 	if normalizeNetworkHost(host) == "" {
 		return
 	}
-	target, match := b.resolve(host)
+	target, ok := b.celldMember(host, port)
+	match := networkMatchCelldPort
+	if !ok {
+		target, match = b.resolve(host)
+	}
 	b.edge(source, target, "forwards", match)
 	b.flow(source, target, b.endpoints(host, port))
 }
