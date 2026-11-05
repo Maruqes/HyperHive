@@ -6,12 +6,14 @@ inventory and usage, not a measurement from a power meter.
 
 ## What is estimated
 
-One tick runs every minute for each connected slave:
+One tick runs every 10 seconds for each connected slave:
 
 1. Read the host CPU usage and the VM list from the slave.
 2. Estimate the host idle and load watts from the cached hardware profile.
 3. Split the load watts across running VMs by `CPUUsage * CPUCount`.
-4. Store `watts / 60` watt-hours for the host and for each running VM.
+4. Store `watts * tickHours` watt-hours for the host and for each running VM.
+   `tickHours` is the real time since the last tick, capped at one minute so
+   master downtime is not billed.
 
 The hardware profile (CPU sockets/models/cores, RAM, disk kinds) is cached per
 machine for one hour and refreshed after a failed read.
@@ -25,8 +27,8 @@ loadW    = 0.85 * cpuTDP * meanCPUUsage   (meanCPUUsage is 0..1)
 hostW    = idleW + loadW
 ```
 
-Usage is sampled for 1 second at each tick, so live watts follow CPU load with
-up to one minute of delay. The web VM list refreshes energy every 10 seconds.
+Usage is sampled at each tick, so live watts follow CPU load within about 10
+seconds. The web energy card and VM list also refresh every 10 seconds.
 
 `cpuEstimate` reports `table` when every socket matched the bundled TDP table,
 or `generic` when a fallback was used.
@@ -47,7 +49,7 @@ summary.
 Usage is stored per month (`YYYY-MM`, master local time), machine and VM name:
 
 ```
-wh   = watts / 60
+wh   = watts * tickHours
 cost = wh / 1000 * pricePerKWh   (0 when no price is set)
 ```
 

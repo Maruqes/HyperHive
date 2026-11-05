@@ -18,10 +18,10 @@ import (
 )
 
 const (
-	energyLoopInterval       = time.Minute
+	energyLoopInterval       = 10 * time.Second
+	energyMaxTickGap         = time.Minute
 	energySlaveTimeout       = 45 * time.Second
 	energyHardwareTTL        = time.Hour
-	energyMinutesPerHour     = 60.0
 	energyWhPerKWh           = 1000.0
 	energyMonthFormat        = "2006-01"
 	energyRetentionMonths    = 24
@@ -57,7 +57,7 @@ type energyTickResult struct {
 	ok      bool
 }
 
-// EnergyService samples the connected hosts once a minute, stores the estimated
+// EnergyService samples the connected hosts every few seconds, stores the estimated
 // host and VM energy and keeps a live snapshot for the summary endpoint.
 type EnergyService struct {
 	Readers EnergyReaders
@@ -68,6 +68,7 @@ type EnergyService struct {
 	hardware       map[string]energyHardwareCache
 	ticking        bool
 	retentionMonth string
+	lastTick       time.Time
 }
 
 // Energy is the process-wide instance shared by main and the HTTP API.
@@ -98,7 +99,7 @@ func defaultEnergyReaders() EnergyReaders {
 	}
 }
 
-// RunLoop ticks every minute until ctx ends. A tick is synchronous, so ticks
+// RunLoop ticks every energyLoopInterval until ctx ends. A tick is synchronous, so ticks
 // never overlap and a slow host is bounded by its own timeout.
 func (s *EnergyService) RunLoop(ctx context.Context) {
 	ticker := time.NewTicker(energyLoopInterval)
@@ -124,6 +125,8 @@ func (s *EnergyService) Tick(ctx context.Context) {
 
 	now := s.now()
 	month := now.Format(energyMonthFormat)
+	hours := energyTickHours(s.lastTick, now)
+	s.lastTick = now
 
 	price, priceSet, err := db.GetEnergyPrice(ctx)
 	if err != nil {
@@ -143,7 +146,7 @@ func (s *EnergyService) Tick(ctx context.Context) {
 		wg.Add(1)
 		go func(con protocol.ConnectionsStruct) {
 			defer wg.Done()
-			results <- s.readMachine(ctx, con, now)
+			results <- s.readMachine(ctx, con, now, hours)
 		}(con)
 	}
 	wg.Wait()
@@ -167,7 +170,7 @@ func (s *EnergyService) Tick(ctx context.Context) {
 	s.setLive(live)
 }
 
-func (s *EnergyService) readMachine(ctx context.Context, con protocol.ConnectionsStruct, now time.Time) (result energyTickResult) {
+func (s *EnergyService) readMachine(ctx context.Context, con protocol.ConnectionsStruct, now time.Time, hours float64) (result energyTickResult) {
 	ctx, cancel := context.WithTimeout(ctx, energySlaveTimeout)
 	defer cancel()
 
@@ -222,7 +225,7 @@ func (s *EnergyService) readMachine(ctx context.Context, con protocol.Connection
 		watts := vmWatts[vm.Name]
 		liveVMs[vm.Name] = watts
 		if vm.Running {
-			vmRows[vm.Name] = watts / energyMinutesPerHour
+			vmRows[vm.Name] = watts * hours
 		}
 	}
 
@@ -233,7 +236,7 @@ func (s *EnergyService) readMachine(ctx context.Context, con protocol.Connection
 			cpuEstimate: estimate,
 			vms:         liveVMs,
 		},
-		hostWh: hostW / energyMinutesPerHour,
+		hostWh: hostW * hours,
 		vmRows: vmRows,
 		ok:     true,
 	}
@@ -371,6 +374,16 @@ func (s *EnergyService) now() time.Time {
 		return time.Now()
 	}
 	return s.Now()
+}
+
+// energyTickHours is the time one sample stands for. It uses the real gap
+// because a slow tick makes the ticker drop ticks; downtime is capped, not billed.
+func energyTickHours(last, now time.Time) float64 {
+	elapsed := now.Sub(last)
+	if last.IsZero() || elapsed <= 0 {
+		return energyLoopInterval.Hours()
+	}
+	return min(elapsed, energyMaxTickGap).Hours()
 }
 
 func energyCost(wh, price float64, priceSet bool) float64 {

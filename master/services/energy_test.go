@@ -138,7 +138,7 @@ func TestEnergyTickSkipsFailedSlaveAndKeepsLiveState(t *testing.T) {
 		t.Fatalf("missing host row: %+v", rows["node-a"])
 	}
 	_, idleW, loadW, _ := energyExpectedHost(0.5)
-	wantHostWh := (idleW + loadW) / 60
+	wantHostWh := (idleW + loadW) * energyLoopInterval.Hours()
 	if !energyAlmostEqual(hostRow.Wh, wantHostWh) {
 		t.Fatalf("host wh = %v, want %v", hostRow.Wh, wantHostWh)
 	}
@@ -150,8 +150,8 @@ func TestEnergyTickSkipsFailedSlaveAndKeepsLiveState(t *testing.T) {
 		t.Fatal("stopped VM wrote a row")
 	}
 	vmRow, ok := rows["node-a"]["vm1"]
-	if !ok || !energyAlmostEqual(vmRow.Wh, loadW/60) {
-		t.Fatalf("running VM row = %+v, want %v", vmRow, loadW/60)
+	if !ok || !energyAlmostEqual(vmRow.Wh, loadW*energyLoopInterval.Hours()) {
+		t.Fatalf("running VM row = %+v, want %v", vmRow, loadW*energyLoopInterval.Hours())
 	}
 
 	live := service.liveSnapshot()
@@ -187,7 +187,7 @@ func TestEnergyTickCostFollowsPrice(t *testing.T) {
 
 	service.Tick(ctx)
 	_, idleW, loadW, _ := energyExpectedHost(0.25)
-	hostWh := (idleW + loadW) / 60
+	hostWh := (idleW + loadW) * energyLoopInterval.Hours()
 	rows := energyRowsByMachineAndVM(t, "2026-11")
 	if rows["node-a"][""].Cost != 0 {
 		t.Fatalf("unset price cost = %v", rows["node-a"][""].Cost)
@@ -254,7 +254,7 @@ func TestEnergySummarySumsMovedVMByName(t *testing.T) {
 	if !energyAlmostEqual(summary.VMs[0].LiveWatts, 2*loadW) {
 		t.Fatalf("live watts = %v, want %v", summary.VMs[0].LiveWatts, 2*loadW)
 	}
-	wantKWh := (2 * (loadW / 60) / 1000) + 0.1
+	wantKWh := (2 * (loadW * energyLoopInterval.Hours()) / 1000) + 0.1
 	if !energyAlmostEqual(summary.VMs[0].MonthKWh, wantKWh) {
 		t.Fatalf("month kWh = %v, want %v", summary.VMs[0].MonthKWh, wantKWh)
 	}
@@ -295,5 +295,25 @@ func TestEnergyRunLoopStopsOnCancel(t *testing.T) {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("RunLoop did not return after cancel")
+	}
+}
+
+func TestEnergyTickHours(t *testing.T) {
+	start := time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name string
+		last time.Time
+		now  time.Time
+		want time.Duration
+	}{
+		{"first tick", time.Time{}, start, energyLoopInterval},
+		{"clock did not advance", start, start, energyLoopInterval},
+		{"slow tick counts real gap", start, start.Add(25 * time.Second), 25 * time.Second},
+		{"downtime is capped", start, start.Add(time.Hour), energyMaxTickGap},
+	}
+	for _, tc := range cases {
+		if got := energyTickHours(tc.last, tc.now); !energyAlmostEqual(got, tc.want.Hours()) {
+			t.Fatalf("%s: hours = %v, want %v", tc.name, got, tc.want.Hours())
+		}
 	}
 }
