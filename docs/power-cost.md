@@ -25,6 +25,9 @@ loadW    = 0.85 * cpuTDP * meanCPUUsage   (meanCPUUsage is 0..1)
 hostW    = idleW + loadW
 ```
 
+Usage is sampled for 1 second at each tick, so live watts follow CPU load with
+up to one minute of delay. The web VM list refreshes energy every 10 seconds.
+
 `cpuEstimate` reports `table` when every socket matched the bundled TDP table,
 or `generic` when a fallback was used.
 

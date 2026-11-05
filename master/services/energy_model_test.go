@@ -250,3 +250,25 @@ func testMedianWPerCore(t *testing.T, family string) float64 {
 func almostEqual(a, b float64) bool {
 	return math.Abs(a-b) < 1e-9
 }
+
+func TestEnergyFullLoadOnBothSocketsRaisesHostAndVMWatts(t *testing.T) {
+	socket := EnergySocket{Model: "Intel(R) Xeon(R) CPU E5-2673 v4 @ 2.30GHz", Cores: 20}
+	hw := EnergyHardware{Sockets: []EnergySocket{socket, socket}}
+	vms := []EnergyVMLoad{{Name: "busy", CPUUsage: 100, CPUCount: 40, Running: true}}
+
+	idleW, idleLoad, _ := EstimateHostWatts(hw, MeanCPUUsageFraction([]float64{0, 0}))
+	_, fullLoad, _ := EstimateHostWatts(hw, MeanCPUUsageFraction([]float64{100, 100}))
+
+	if idleLoad != 0 {
+		t.Fatalf("idle load = %v", idleLoad)
+	}
+	if !almostEqual(fullLoad, 229.5) {
+		t.Fatalf("full load = %v, want 229.5", fullLoad)
+	}
+	if !almostEqual(idleW+fullLoad, 300) {
+		t.Fatalf("full host = %v, want 300", idleW+fullLoad)
+	}
+	if got := SplitVMWatts(fullLoad, vms)["busy"]; !almostEqual(got, 229.5) {
+		t.Fatalf("vm watts = %v, want 229.5", got)
+	}
+}
