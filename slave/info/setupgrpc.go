@@ -60,6 +60,35 @@ func (s *INFOService) GetCPUInfo(ctx context.Context, req *infoGrpc.Empty) (*inf
 	return &infoGrpc.CPUCoreInfo{Cores: cores}, nil
 }
 
+func (s *INFOService) GetPowerHardware(ctx context.Context, req *infoGrpc.Empty) (*infoGrpc.PowerHardware, error) {
+	hardware, err := PowerHardware.GetPowerHardware()
+	if err != nil {
+		return nil, err
+	}
+
+	sockets := make([]*infoGrpc.CpuSocket, 0, len(hardware.Sockets))
+	for _, socket := range hardware.Sockets {
+		sockets = append(sockets, &infoGrpc.CpuSocket{
+			Model: socket.Model,
+			Cores: int32(socket.Cores),
+		})
+	}
+
+	disks := make([]*infoGrpc.PowerDisk, 0, len(hardware.Disks))
+	for _, disk := range hardware.Disks {
+		disks = append(disks, &infoGrpc.PowerDisk{
+			Name: disk.Name,
+			Kind: disk.Kind,
+		})
+	}
+
+	return &infoGrpc.PowerHardware{
+		Sockets: sockets,
+		RamMb:   hardware.RAMMB,
+		Disks:   disks,
+	}, nil
+}
+
 func (s *INFOService) GetMemSummary(ctx context.Context, req *infoGrpc.Empty) (*infoGrpc.MemSummary, error) {
 	info, err := MemInfo.GetMemSummary()
 	if err != nil {

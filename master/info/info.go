@@ -19,6 +19,21 @@ func GetCPUInfo(conn *grpc.ClientConn, empty *infoGrpc.Empty) (*infoGrpc.CPUCore
 	return client.GetCPUInfo(context.Background(), empty)
 }
 
+func GetCPUInfoCtx(ctx context.Context, conn *grpc.ClientConn, empty *infoGrpc.Empty) (*infoGrpc.CPUCoreInfo, error) {
+	client := infoGrpc.NewInfoClient(conn)
+	return client.GetCPUInfo(ctx, empty)
+}
+
+const powerHardwareTimeout = 10 * time.Second
+
+func GetPowerHardware(ctx context.Context, conn *grpc.ClientConn) (*infoGrpc.PowerHardware, error) {
+	ctx, cancel := context.WithTimeout(ctx, powerHardwareTimeout)
+	defer cancel()
+
+	client := infoGrpc.NewInfoClient(conn)
+	return client.GetPowerHardware(ctx, &infoGrpc.Empty{})
+}
+
 func GetMemSummary(conn *grpc.ClientConn, empty *infoGrpc.Empty) (*infoGrpc.MemSummary, error) {
 	client := infoGrpc.NewInfoClient(conn)
 	return client.GetMemSummary(context.Background(), empty)

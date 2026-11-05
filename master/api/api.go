@@ -352,6 +352,7 @@ func StartApi(exitAfterStart bool) {
 		setupCelldAPI(r)
 		setupSPAAPI(r)
 		setupPowerScheduleAPI(r)
+		setupEnergyAPI(r)
 		setupAutomationsAPI(r)
 	})
 

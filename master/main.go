@@ -499,6 +499,11 @@ func main() {
 		log.Fatalf("create power schedule tables: %v", err)
 	}
 
+	err = db.CreateEnergyTables(ctx)
+	if err != nil {
+		log.Fatalf("create energy tables: %v", err)
+	}
+
 	err = db.CreateAutomationTables(ctx)
 	if err != nil {
 		log.Fatalf("create automation tables: %v", err)
@@ -537,6 +542,7 @@ func main() {
 	go SpaService.Maintain(ctx, 30*time.Second)
 	powerScheduleService := services.PowerScheduleService{}
 	go powerScheduleService.RunLoop(ctx)
+	go services.Energy.RunLoop(ctx)
 	go services.NewDiskHealthService().RunLoop(ctx)
 	if err := db.InitNetworkHistoryDB(ctx); err != nil {
 		logger.Errorf("network history disabled: %v", err)

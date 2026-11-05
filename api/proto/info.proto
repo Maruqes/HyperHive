@@ -147,8 +147,25 @@ message TestRamMEMParams{
 	int32 numOfPasses = 2;
 }
 
+message CpuSocket {
+	string model = 1;
+	int32 cores = 2;
+}
+
+message PowerDisk {
+	string name = 1;
+	string kind = 2;
+}
+
+message PowerHardware {
+	repeated CpuSocket sockets = 1;
+	int64 ram_mb = 2;
+	repeated PowerDisk disks = 3;
+}
+
 service Info {
 	rpc GetCPUInfo(Empty)returns(CPUCoreInfo); 
+	rpc GetPowerHardware(Empty)returns(PowerHardware);
 	rpc GetMemSummary(Empty)returns(MemSummary);
 	rpc GetDiskSummary(Empty)returns(DiskSummary);
 	rpc GetNetworkSummary(Empty)returns(NetworkSummary);

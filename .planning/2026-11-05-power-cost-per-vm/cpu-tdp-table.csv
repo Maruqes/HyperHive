@@ -1,0 +1,1505 @@
+vendor,family,model_key,cores,tdp_w,source
+AMD,EPYC 3000,epyc 3101,4,35,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 3000,epyc 3151,4,45,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 3000,epyc 3201,8,30,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 3000,epyc 3251,8,55,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 3000,epyc 3255,8,55,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 3000,epyc 3301,12,65,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 3000,epyc 3351,12,80,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 3000,epyc 3401,16,85,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 3000,epyc 3451,16,100,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 4004,epyc 4124p,4,65,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 4004,epyc 4244p,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 4004,epyc 4344p,8,65,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 4004,epyc 4364p,8,105,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 4004,epyc 4464p,12,65,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 4004,epyc 4484px,12,120,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 4004,epyc 4564p,16,170,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 4004,epyc 4584px,16,120,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 4005,epyc 4245p,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 4005,epyc 4345p,8,65,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 4005,epyc 4465p,12,65,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 4005,epyc 4545p,16,65,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 4005,epyc 4565p,16,170,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 4005,epyc 4585px,16,170,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7001,epyc 7251,8,120,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7001,epyc 7261,8,155,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7001,epyc 7281,16,155,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7001,epyc 7301,16,155,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7001,epyc 7351,16,155,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7001,epyc 7351p,16,155,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7001,epyc 7371,16,200,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7001,epyc 7401,24,155,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7001,epyc 7401p,24,155,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7001,epyc 7451,24,180,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7001,epyc 7501,32,155,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7001,epyc 7551,32,180,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7001,epyc 7551p,32,180,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7001,epyc 7571,32,200,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7001,epyc 7601,32,180,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7232p,8,120,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7252,8,120,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7262,8,155,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7272,12,120,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7282,16,120,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7302,16,155,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7302p,16,155,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7352,24,155,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7402,24,180,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7402p,24,180,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7452,32,155,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7502,32,180,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7502p,32,180,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7532,32,200,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7542,32,225,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7552,48,200,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7642,48,225,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7662,64,225,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7702,64,200,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7702p,64,200,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7742,64,225,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7f32,8,180,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7f52,16,240,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7f72,24,240,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7002,epyc 7h12,64,280,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7203,8,120,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7203p,8,120,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 72f3,8,180,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7303,16,130,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7303p,16,130,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7313,16,155,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7313p,16,155,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7343,16,190,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7373x,16,240,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 73f3,16,240,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7413,24,180,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7443,24,200,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7443p,24,200,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7453,28,225,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7473x,24,240,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 74f3,24,240,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7513,32,200,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7543,32,225,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7543p,32,225,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7573x,32,280,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 75f3,32,280,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7643,48,225,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7643p,48,225,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7663,56,240,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7663p,56,240,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7713,64,225,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7713p,64,225,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7763,64,280,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 7003,epyc 7773x,64,280,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 8004,epyc 8024p,8,90,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 8004,epyc 8024pn,8,80,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 8004,epyc 8124p,16,125,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 8004,epyc 8124pn,16,100,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 8004,epyc 8224p,24,160,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 8004,epyc 8224pn,24,120,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 8004,epyc 8324p,32,180,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 8004,epyc 8324pn,32,130,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 8004,epyc 8434p,48,200,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 8004,epyc 8434pn,48,155,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 8004,epyc 8534p,64,200,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 8004,epyc 8534pn,64,175,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 8005,epyc 8025p,8,95,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 8005,epyc 8125p,16,125,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 8005,epyc 8225p,24,160,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 8005,epyc 8325p,32,175,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 8005,epyc 8435p,48,200,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 8005,epyc 8535p,64,210,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 8005,epyc 8635p,84,225,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9124,16,200,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9174f,16,320,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9184x,16,320,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9224,24,200,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9254,24,220,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9274f,24,320,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9334,32,210,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9354,32,280,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9354p,32,280,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9374f,32,320,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9384x,32,320,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9454,48,290,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9454p,48,290,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9474f,48,360,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9534,64,280,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9554,64,360,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9554p,64,360,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9634,84,290,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9654,96,360,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9654p,96,360,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9684x,96,400,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9734,112,340,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9754,128,360,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9004,epyc 9754s,128,360,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9015,8,125,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9115,16,125,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9135,16,200,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9175f,16,320,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9255,24,200,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9275f,24,320,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9335,32,210,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9355,32,280,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9355p,32,280,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9365,36,300,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9375f,32,320,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9455,48,300,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9455p,48,300,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9475f,48,400,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9535,64,300,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9555,64,360,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9555p,64,360,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9565,72,400,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9575f,64,400,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9645,96,320,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9655,96,400,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9655p,96,400,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9745,128,400,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9755,128,500,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9825,144,390,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9845,160,390,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,EPYC 9005,epyc 9965,192,500,https://en.wikipedia.org/wiki/List_of_AMD_Epyc_processors
+AMD,Ryzen 3000,ryzen 3 3100,4,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 3000,ryzen 3 3300x,4,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 3000,ryzen 5 3500,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 3000,ryzen 5 3500x,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 3000,ryzen 5 3600,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 3000,ryzen 5 3600x,6,95,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 3000,ryzen 5 3600xt,6,95,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 3000,ryzen 7 3700x,8,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 3000,ryzen 7 3800x,8,105,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 3000,ryzen 7 3800xt,8,105,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 3000,ryzen 9 3900,12,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 3000,ryzen 9 3900x,12,105,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 3000,ryzen 9 3900xt,12,105,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 3000,ryzen 9 3950x,16,105,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 5 5500f,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 5 5500x3d,6,105,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 5 5600,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 5 5600f,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 5 5600t,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 5 5600x,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 5 5600x3d,6,105,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 5 5600xt,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 5 pro 5645,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 7 5700x,8,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 7 5700x3d,8,105,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 7 5800,8,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 7 5800x,8,105,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 7 5800x3d,8,105,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 7 5800xt,8,105,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 7 pro 5845,8,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 9 5900,12,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 9 5900x,12,105,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 9 5900xt,16,105,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 9 5950x,16,105,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 5000,ryzen 9 pro 5945,12,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 5 7400,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 5 7400f,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 5 7500,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 5 7500f,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 5 7500x3d,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 5 7600,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 5 7600x,6,105,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 5 7600x3d,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 5 pro 7645,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 7 7700,8,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 7 7700x,8,105,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 7 7700x3d,8,120,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 7 7800x3d,8,120,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 7 pro 7745,8,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 9 7900,12,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 9 7900x,12,170,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 9 7900x3d,12,120,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 9 7950x,16,170,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 9 7950x3d,16,120,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 7000,ryzen 9 pro 7945,12,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 9000,ryzen 5 9500f,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 9000,ryzen 5 9600,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 9000,ryzen 5 9600x,6,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 9000,ryzen 5 pro 9655,6,120,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 9000,ryzen 7 9700f,8,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 9000,ryzen 7 9700x,8,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 9000,ryzen 7 9800x3d,8,120,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 9000,ryzen 7 9850x3d,8,120,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 9000,ryzen 7 pro 9745,8,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 9000,ryzen 7 pro 9755,8,120,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 9000,ryzen 9 9900x,12,120,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 9000,ryzen 9 9900x3d,12,120,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 9000,ryzen 9 9950x,16,170,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 9000,ryzen 9 9950x3d,16,170,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 9000,ryzen 9 pro 9945,12,65,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 9000,ryzen 9 pro 9955,12,120,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 9000,ryzen 9 pro 9965,16,170,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Ryzen 9000,ryzen 9 pro 9965x3d,16,170,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 3000,ryzen threadripper 3960x,24,280,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 3000,ryzen threadripper 3970x,32,280,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 3000,ryzen threadripper 3990x,64,280,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 3000,ryzen threadripper pro 3945wx,12,280,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 3000,ryzen threadripper pro 3955wx,16,280,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 3000,ryzen threadripper pro 3975wx,32,280,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 3000,ryzen threadripper pro 3995wx,64,280,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 5000,ryzen threadripper pro 5945wx,12,280,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 5000,ryzen threadripper pro 5955wx,16,280,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 5000,ryzen threadripper pro 5965wx,24,280,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 5000,ryzen threadripper pro 5975wx,32,280,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 5000,ryzen threadripper pro 5995wx,64,280,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 7000,ryzen threadripper 7960x,24,350,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 7000,ryzen threadripper 7970x,32,350,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 7000,ryzen threadripper 7980x,64,350,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 7000,ryzen threadripper pro 7945wx,12,350,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 7000,ryzen threadripper pro 7955wx,16,350,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 7000,ryzen threadripper pro 7965wx,24,350,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 7000,ryzen threadripper pro 7975wx,32,350,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 7000,ryzen threadripper pro 7985wx,64,350,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 7000,ryzen threadripper pro 7995wx,96,350,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 9000,ryzen threadripper 9960x,24,350,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 9000,ryzen threadripper 9970x,32,350,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 9000,ryzen threadripper 9980x,64,350,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 9000,ryzen threadripper pro 9945wx,12,350,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 9000,ryzen threadripper pro 9955wx,16,350,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 9000,ryzen threadripper pro 9965wx,24,350,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 9000,ryzen threadripper pro 9975wx,32,350,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 9000,ryzen threadripper pro 9985wx,64,350,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+AMD,Threadripper 9000,ryzen threadripper pro 9995wx,96,350,https://en.wikipedia.org/wiki/List_of_AMD_Ryzen_processors
+Intel,Core 10th gen,i3-10100,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i3-10100f,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i3-10100t,4,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i3-10105,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i3-10105f,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i3-10105t,4,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i3-10300,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i3-10300t,4,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i3-10305,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i3-10305t,4,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i3-10320,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i3-10325,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i5-10400,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i5-10400f,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i5-10400t,6,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i5-10500,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i5-10500t,6,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i5-10505,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i5-10600,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i5-10600k,6,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i5-10600kf,6,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i5-10600t,6,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i7-10700,8,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i7-10700f,8,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i7-10700k,8,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i7-10700kf,8,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i7-10700t,8,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i9-10850k,10,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i9-10900,10,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i9-10900f,10,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i9-10900k,10,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i9-10900kf,10,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i9-10900t,10,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i9-10900te,10,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 10th gen,i9-10910,10,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 11th gen,i5-11400,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 11th gen,i5-11400f,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 11th gen,i5-11400t,6,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 11th gen,i5-11500,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 11th gen,i5-11500t,6,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 11th gen,i5-11600,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 11th gen,i5-11600k,6,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 11th gen,i5-11600kf,6,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 11th gen,i5-11600t,6,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 11th gen,i7-11700,8,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 11th gen,i7-11700f,8,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 11th gen,i7-11700k,8,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 11th gen,i7-11700kf,8,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 11th gen,i7-11700t,8,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 11th gen,i9-11900,8,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 11th gen,i9-11900f,8,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 11th gen,i9-11900k,8,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 11th gen,i9-11900kf,8,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 11th gen,i9-11900t,8,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i3-12100,4,60,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i3-12100f,4,58,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i3-12100t,4,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i3-12300,4,60,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i3-12300t,4,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i5-12400,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i5-12400f,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i5-12400t,6,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i5-12490f,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i5-12500,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i5-12500t,6,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i5-12600,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i5-12600k,10,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i5-12600kf,10,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i5-12600t,6,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i7-12700,12,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i7-12700f,12,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i7-12700k,12,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i7-12700kf,12,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i7-12700t,12,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i9-12900,16,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i9-12900f,16,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i9-12900k,16,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i9-12900kf,16,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i9-12900ks,16,150,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 12th gen,i9-12900t,16,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i3-13100,4,60,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i3-13100f,4,60,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i3-13100t,4,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i5-13400,10,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i5-13400f,10,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i5-13400t,10,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i5-13490f,10,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i5-13500,14,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i5-13500t,14,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i5-13600,14,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i5-13600k,14,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i5-13600kf,14,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i5-13600t,14,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i7-13700,16,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i7-13700f,16,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i7-13700k,16,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i7-13700kf,16,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i7-13700t,16,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i7-13790f,16,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i9-13900,24,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i9-13900f,24,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i9-13900k,24,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i9-13900kf,24,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i9-13900ks,24,150,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 13th gen,i9-13900t,24,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i3-14100,4,60,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i3-14100f,4,60,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i3-14100t,4,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i5-14400,10,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i5-14400f,10,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i5-14400t,10,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i5-14490f,10,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i5-14500,14,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i5-14500t,14,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i5-14600,14,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i5-14600k,14,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i5-14600kf,14,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i5-14600t,14,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i7-14700,20,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i7-14700f,20,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i7-14700k,20,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i7-14700kf,20,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i7-14700t,20,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i7-14790f,16,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i9-14900,24,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i9-14900f,24,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i9-14900k,24,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i9-14900kf,24,125,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i9-14900ks,24,150,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 14th gen,i9-14900t,24,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 8th gen,i3-8100,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 8th gen,i3-8100f,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 8th gen,i3-8100t,4,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 8th gen,i3-8300,4,62,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 8th gen,i3-8300t,4,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 8th gen,i3-8350k,4,91,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 8th gen,i5-8400,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 8th gen,i5-8400t,6,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 8th gen,i5-8500,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 8th gen,i5-8500t,6,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 8th gen,i5-8600,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 8th gen,i5-8600k,6,95,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 8th gen,i5-8600t,6,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 8th gen,i7-8086k,6,95,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 8th gen,i7-8700,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 8th gen,i7-8700k,6,95,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 8th gen,i7-8700t,6,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i3-9100,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i3-9100f,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i3-9100t,4,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i3-9300,4,62,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i3-9300t,4,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i3-9320,4,62,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i3-9350k,4,91,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i3-9350kf,4,91,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i5-9400,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i5-9400f,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i5-9400t,6,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i5-9500,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i5-9500f,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i5-9500t,6,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i5-9600,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i5-9600k,6,95,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i5-9600kf,6,95,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i5-9600t,6,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i7-9700,8,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i7-9700f,8,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i7-9700k,8,95,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i7-9700kf,8,95,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i7-9700t,8,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i9-9900,8,65,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i9-9900k,8,95,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i9-9900kf,8,95,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i9-9900ks,8,127,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core 9th gen,i9-9900t,8,35,https://en.wikipedia.org/wiki/List_of_Intel_Core_desktop_processors
+Intel,Core N-series,i3-n305,8,15,https://en.wikipedia.org/wiki/List_of_Intel_processors
+Intel,Core N-series,n100,4,6,https://en.wikipedia.org/wiki/List_of_Intel_processors
+Intel,Xeon 6,634,12,150,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,636,12,170,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,638,16,180,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6503p-b,12,110,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6505p,12,150,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6507p,8,150,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6511p,16,150,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6513p-b,20,130,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6515p,16,150,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6516p-b,20,145,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6517p,16,190,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6518p-b,20,150,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6520p,24,210,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6521p,24,225,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6523p-b,24,175,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6527p,24,250,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6530p,32,225,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6532p-b,32,205,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6533p-b,32,205,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,654,18,200,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6543p-b,32,160,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6544p-b,32,170,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6546p-b,32,195,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6548p-b,32,195,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6553p-b,36,235,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6556p-b,36,215,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,656,20,210,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6563p-b,38,235,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,658x,24,250,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6706p-b,40,235,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6710e,64,205,https://en.wikipedia.org/wiki/Sierra_Forest
+Intel,Xeon 6,6714p,8,165,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6716p-b,40,235,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6718p-b,40,235,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6724p,16,210,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6726p-b,42,235,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6728p,24,210,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6730p,32,250,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6731e,96,250,https://en.wikipedia.org/wiki/Sierra_Forest
+Intel,Xeon 6,6731p,32,245,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6732p,32,350,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6736p,36,205,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6737p,32,270,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6738p,32,270,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6740e,96,250,https://en.wikipedia.org/wiki/Sierra_Forest
+Intel,Xeon 6,6740p,48,270,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6741p,48,300,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6745p,32,300,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6746e,112,250,https://en.wikipedia.org/wiki/Sierra_Forest
+Intel,Xeon 6,6747p,48,350,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6748p,48,300,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,674x,28,270,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6756e,128,225,https://en.wikipedia.org/wiki/Sierra_Forest
+Intel,Xeon 6,6756p-b,64,325,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6760p,64,330,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6761p,64,350,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6762p,64,350,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6766e,144,250,https://en.wikipedia.org/wiki/Sierra_Forest
+Intel,Xeon 6,6766p-b,64,305,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6767p,64,350,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6768p,64,330,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6768p-b,64,325,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,676x,32,275,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6774p,64,350,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6776p,64,350,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6776p-b,72,325,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6780e,144,330,https://en.wikipedia.org/wiki/Sierra_Forest
+Intel,Xeon 6,6781p,80,350,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6787p,86,350,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6788p,86,350,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,678x,48,300,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6944p,72,350,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6952p,96,400,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6960p,72,500,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6962p,72,500,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6966p-c,96,550,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,696x,64,350,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6972p,96,500,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6979p,120,500,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,6980p,128,500,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon 6,698x,86,350,https://en.wikipedia.org/wiki/Granite_Rapids
+Intel,Xeon D,d-1513n,4,35,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1518,4,35,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1520,4,45,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1521,4,45,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1523n,4,45,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1527,4,35,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1528,6,35,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1529,4,20,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1531,6,45,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1533n,6,45,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1537,8,35,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1539,8,35,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1540,8,45,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1541,8,45,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1543n,8,45,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1548,8,45,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1553n,8,65,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1557,12,45,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1559,12,45,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1567,12,65,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1571,16,45,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1577,16,45,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1581,16,65,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1587,16,65,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1602,2,27,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1612,4,22,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1622,4,40,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1623n,4,35,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1627,4,45,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1632,8,30,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1633n,6,45,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1637,6,55,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1649n,8,45,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1653n,8,65,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1702,2,25,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1712tr,4,40,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1713nt,4,45,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1713nte,4,45,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1714,4,38,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1715ter,4,50,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1718t,4,46,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1722ne,6,36,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1726,6,70,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1732te,8,52,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1733nt,8,53,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1734nt,8,50,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1735tr,8,59,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1736,8,55,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1736nt,8,67,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1739,8,83,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1746ter,10,67,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1747nte,10,80,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1748te,10,65,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-1749nt,10,90,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2123it,4,60,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2141i,8,65,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2142it,8,65,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2143it,8,65,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2145nt,8,65,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2146nt,8,80,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2161i,12,90,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2163it,12,75,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2166nt,12,85,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2173it,14,70,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2177nt,14,105,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2183it,16,100,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2187nt,16,110,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2191,18,86,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2712t,4,65,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2733nt,8,80,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2738,8,88,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2752nte,12,84,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2752ter,12,77,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2753nt,12,87,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2766nt,14,97,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2775te,16,100,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2776nt,16,117,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2779,16,126,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2786nte,18,118,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2795nt,20,110,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2796nt,20,120,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2796te,20,118,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2798nt,20,125,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon D,d-2799,20,129,https://en.wikipedia.org/wiki/Xeon_D
+Intel,Xeon E,e-2104g,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2124,4,71,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2124g,4,71,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2126g,6,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2134,4,71,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2136,6,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2144g,4,71,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2146g,6,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2174g,4,71,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2176g,6,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2176m,6,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2186g,6,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2186m,6,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2224,4,71,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2224g,4,71,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2226g,6,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2226ge,6,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2234,4,71,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2236,6,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2244g,4,71,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2246g,6,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2254me,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2254ml,4,25,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2274g,4,83,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2276g,6,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2276m,6,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2276me,6,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2276ml,6,25,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2278g,8,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2278ge,8,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2278gel,8,35,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2286g,6,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2286m,8,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2288g,8,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Coffee_Lake-based)
+Intel,Xeon E,e-2314,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Rocket_Lake-based)
+Intel,Xeon E,e-2324g,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Rocket_Lake-based)
+Intel,Xeon E,e-2334,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Rocket_Lake-based)
+Intel,Xeon E,e-2336,6,65,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Rocket_Lake-based)
+Intel,Xeon E,e-2356g,6,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Rocket_Lake-based)
+Intel,Xeon E,e-2374g,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Rocket_Lake-based)
+Intel,Xeon E,e-2378,8,65,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Rocket_Lake-based)
+Intel,Xeon E,e-2378g,8,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Rocket_Lake-based)
+Intel,Xeon E,e-2386g,6,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Rocket_Lake-based)
+Intel,Xeon E,e-2388g,8,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Rocket_Lake-based)
+Intel,Xeon E3 v1,e3-1105c,4,25,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E3 v1,e3-1125c,4,40,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E3 v1,e3-1220,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E3 v1,e3-1220l,2,20,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E3 v1,e3-1225,4,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E3 v1,e3-1230,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E3 v1,e3-1235,4,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E3 v1,e3-1240,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E3 v1,e3-1245,4,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E3 v1,e3-1260l,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E3 v1,e3-1265l,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E3 v1,e3-1270,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E3 v1,e3-1275,4,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E3 v1,e3-1280,4,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E3 v1,e3-1290,4,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E3 v2,e3-1105c v2,4,25,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E3 v2,e3-1125c v2,4,40,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E3 v2,e3-1135c v2,4,55,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E3 v2,e3-1220 v2,4,69,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E3 v2,e3-1220l v2,2,17,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E3 v2,e3-1225 v2,4,77,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E3 v2,e3-1230 v2,4,69,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E3 v2,e3-1240 v2,4,69,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E3 v2,e3-1245 v2,4,77,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E3 v2,e3-1265l v2,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E3 v2,e3-1270 v2,4,69,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E3 v2,e3-1275 v2,4,77,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E3 v2,e3-1280 v2,4,69,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E3 v2,e3-1285 v2,4,77,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E3 v2,e3-1285l v2,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E3 v2,e3-1290 v2,4,87,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E3 v3,e3-1220 v3,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1220l v3,2,13,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1225 v3,4,84,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1226 v3,4,84,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1230 v3,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1230l v3,4,25,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1231 v3,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1240 v3,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1240l v3,4,25,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1241 v3,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1245 v3,4,84,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1246 v3,4,84,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1265l v3,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1268l v3,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1270 v3,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1271 v3,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1275 v3,4,84,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1275l v3,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1276 v3,4,84,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1280 v3,4,82,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1281 v3,4,82,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1284l v3,4,47,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1285 v3,4,84,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1285l v3,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1286 v3,4,84,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v3,e3-1286l v3,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E3 v4,e3-1258l v4,4,47,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E3 v4,e3-1265l v4,4,35,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E3 v4,e3-1270l v4,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E3 v4,e3-1278l v4,4,47,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E3 v4,e3-1283l v4,4,47,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E3 v4,e3-1284l v4,4,47,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E3 v4,e3-1285 v4,4,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E3 v4,e3-1285l v4,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E3 v5,e3-1220 v5,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1225 v5,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1230 v5,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1235l v5,4,25,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1240 v5,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1240l v5,4,25,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1245 v5,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1260l v5,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1268l v5,4,35,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1270 v5,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1275 v5,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1280 v5,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1505l v5,4,25,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1505m v5,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1515m v5,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1535m v5,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1545m v5,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1558l v5,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1565l v5,4,35,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1575m v5,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1578l v5,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1585 v5,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v5,e3-1585l v5,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon E3 v6,e3-1205 v6,4,65,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Kaby_Lake-based)
+Intel,Xeon E3 v6,e3-1220 v6,4,72,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Kaby_Lake-based)
+Intel,Xeon E3 v6,e3-1225 v6,4,73,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Kaby_Lake-based)
+Intel,Xeon E3 v6,e3-1230 v6,4,72,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Kaby_Lake-based)
+Intel,Xeon E3 v6,e3-1240 v6,4,72,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Kaby_Lake-based)
+Intel,Xeon E3 v6,e3-1245 v6,4,73,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Kaby_Lake-based)
+Intel,Xeon E3 v6,e3-1270 v6,4,72,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Kaby_Lake-based)
+Intel,Xeon E3 v6,e3-1275 v6,4,73,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Kaby_Lake-based)
+Intel,Xeon E3 v6,e3-1280 v6,4,72,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Kaby_Lake-based)
+Intel,Xeon E3 v6,e3-1285 v6,4,79,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Kaby_Lake-based)
+Intel,Xeon E3 v6,e3-1501l v6,4,25,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Kaby_Lake-based)
+Intel,Xeon E3 v6,e3-1501m v6,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Kaby_Lake-based)
+Intel,Xeon E3 v6,e3-1505l v6,4,25,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Kaby_Lake-based)
+Intel,Xeon E3 v6,e3-1505m v6,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Kaby_Lake-based)
+Intel,Xeon E3 v6,e3-1535m v6,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Kaby_Lake-based)
+Intel,Xeon E5 v1,e5-1410,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-1428l,6,60,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-1603,4,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-1607,4,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-1620,4,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-1650,6,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-1660,6,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2403,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2407,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2418l,4,50,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2420,6,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2428l,6,60,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2430,6,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2430l,6,60,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2440,6,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2448l,8,70,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2449l,8,50,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2450,8,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2450l,8,70,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2470,8,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2603,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2609,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2618l,4,40,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2620,6,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2628l,6,60,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2630,6,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2630l,6,60,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2637,2,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2640,6,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2643,4,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2648l,8,70,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2650,8,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2650l,8,70,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2658,8,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2660,8,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2665,8,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2667,6,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2670,8,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2680,8,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2687w,8,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2689,8,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-2690,8,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-4603,4,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-4607,6,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-4610,6,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-4617,6,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-4620,8,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-4640,8,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-4650,8,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v1,e5-4650l,8,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Sandy_Bridge-based)
+Intel,Xeon E5 v2,e5-1410 v2,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-1428l v2,6,60,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-1607 v2,4,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-1620 v2,4,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-1650 v2,6,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-1660 v2,6,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-1680 v2,8,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2403 v2,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2407 v2,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2418l v2,6,50,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2420 v2,6,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2428l v2,8,60,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2430 v2,6,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2430l v2,6,60,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2440 v2,8,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2448l v2,10,70,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2450 v2,8,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2450l v2,10,60,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2470 v2,10,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2603 v2,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2609 v2,4,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2618l v2,6,50,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2620 v2,6,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2628l v2,8,70,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2630 v2,6,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2630l v2,6,60,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2637 v2,4,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2640 v2,8,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2643 v2,6,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2648l v2,10,70,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2650 v2,8,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2650l v2,10,70,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2651 v2,12,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2658 v2,10,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2660 v2,10,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2667 v2,8,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2670 v2,10,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2673 v2,8,110,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2680 v2,10,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2687w v2,8,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2690 v2,10,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2692 v2,12,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2695 v2,12,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2696 v2,12,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-2697 v2,12,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-4603 v2,4,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-4607 v2,6,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-4610 v2,8,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-4620 v2,8,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-4624l v2,10,70,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-4627 v2,8,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-4640 v2,10,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-4650 v2,10,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v2,e5-4657l v2,12,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E5 v3,e5-1428l v3,8,65,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-1603 v3,4,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-1607 v3,4,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-1620 v3,4,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-1630 v3,4,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-1650 v3,6,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-1660 v3,8,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-1680 v3,8,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-1681 v3,10,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-1686 v3,12,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-1691 v3,14,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2408l v3,4,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2418l v3,6,50,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2428l v3,8,55,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2438l v3,10,70,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2603 v3,6,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2608l v3,6,50,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2609 v3,6,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2618l v3,8,75,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2620 v3,6,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2622 v3,8,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2623 v3,4,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2628 v3,8,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2628l v3,10,75,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2629 v3,8,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2630 v3,8,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2630l v3,8,55,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2637 v3,4,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2640 v3,8,90,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2643 v3,6,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2648l v3,12,75,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2649 v3,10,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2650 v3,10,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2650l v3,12,65,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2652 v3,10,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2658 v3,12,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2658a v3,12,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2660 v3,10,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2663 v3,10,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2666 v3,10,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2667 v3,8,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2669 v3,12,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2670 v3,12,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2673 v3,12,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2675 v3,16,110,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2676 v3,12,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2678 v3,12,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2680 v3,12,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2683 v3,14,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2685 v3,12,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2686 v3,18,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2687w v3,10,160,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2690 v3,12,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2692 v3,12,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2695 v3,14,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2696 v3,18,145,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2697 v3,14,145,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2698 v3,16,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2698a v3,16,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2698b v3,16,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-2699 v3,18,145,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-4610 v3,10,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-4620 v3,10,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-4627 v3,10,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-4640 v3,12,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-4648 v3,12,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-4650 v3,12,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-4655 v3,6,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-4660 v3,14,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-4667 v3,16,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v3,e5-4669 v3,18,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E5 v4,aws-1100 v4,16,145,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-1603 v4,4,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-1607 v4,4,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-1620 v4,4,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-1630 v4,4,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-1650 v4,6,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-1660 v4,8,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-1680 v4,8,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2603 v4,6,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2608l v4,8,50,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2609 v4,8,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2618l v4,10,75,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2620 v4,8,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2623 v4,4,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2628l v4,12,75,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2630 v4,10,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2630l v4,10,55,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2637 v4,4,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2640 v4,10,90,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2643 v4,6,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2648l v4,14,75,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2650 v4,12,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2650l v4,14,65,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2658 v4,14,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2660 v4,14,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2666 v4,12,145,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2667 v4,8,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2673 v4,20,135,https://www.techpowerup.com/cpu-specs/xeon-e5-2673-v4.c4580
+Intel,Xeon E5 v4,e5-2676 v4,16,145,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2679 v4,20,200,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2680 v4,14,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2682 v4,16,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2683 v4,16,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2686 v4,18,145,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2687w v4,12,160,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2689 v4,10,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2689a v4,8,145,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2690 v4,14,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2695 v4,18,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2696 v4,22,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2697 v4,18,145,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2697a v4,16,145,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2698 v4,20,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2699 v4,22,145,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2699a v4,22,145,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2699c v4,22,145,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2699p v4,22,300,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-2699r v4,22,145,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-4610 v4,10,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-4620 v4,10,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-4627 v4,10,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-4628l v4,14,75,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-4640 v4,12,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-4650 v4,14,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-4655 v4,8,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-4660 v4,16,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-4667 v4,18,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E5 v4,e5-4669 v4,22,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E7 v2,e7-2850 v2,12,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-2870 v2,15,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-2880 v2,15,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-2890 v2,15,155,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-4809 v2,6,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-4820 v2,8,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-4830 v2,10,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-4850 v2,12,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-4860 v2,12,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-4870 v2,15,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-4880 v2,15,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-4890 v2,15,155,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-8850 v2,12,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-8857 v2,12,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-8870 v2,15,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-8880 v2,15,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-8880l v2,15,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-8890 v2,15,155,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-8891 v2,10,155,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-8893 v2,6,155,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v2,e7-8895 v2,15,155,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ivy_Bridge-based)
+Intel,Xeon E7 v3,e7-4809 v3,8,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E7 v3,e7-4820 v3,10,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E7 v3,e7-4830 v3,12,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E7 v3,e7-4850 v3,14,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E7 v3,e7-8860 v3,16,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E7 v3,e7-8867 v3,16,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E7 v3,e7-8870 v3,18,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E7 v3,e7-8880 v3,18,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E7 v3,e7-8880l v3,18,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E7 v3,e7-8890 v3,18,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E7 v3,e7-8891 v3,10,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E7 v3,e7-8893 v3,4,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E7 v3,e7-8895 v3,18,175,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Haswell-based)
+Intel,Xeon E7 v4,e7-4809 v4,8,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E7 v4,e7-4820 v4,10,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E7 v4,e7-4830 v4,14,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E7 v4,e7-4850 v4,16,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E7 v4,e7-8855 v4,14,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E7 v4,e7-8860 v4,18,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E7 v4,e7-8867 v4,18,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E7 v4,e7-8870 v4,20,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E7 v4,e7-8880 v4,22,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E7 v4,e7-8890 v4,24,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E7 v4,e7-8891 v4,10,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E7 v4,e7-8893 v4,4,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon E7 v4,e7-8894 v4,24,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Broadwell-based)
+Intel,Xeon Max,9460,40,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Max,9462,32,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Max,9468,48,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Max,9470,52,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Max,9480,56,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 1st gen,bronze 3104,6,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,bronze 3106,8,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 5115,10,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 5117,14,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 5117f,14,113,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 5118,12,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 5119t,14,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 5120,14,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 5120t,14,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 5122,4,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6122,20,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6126,12,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6126f,12,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6126t,12,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6127m,16,145,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6128,6,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6130,16,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6130f,16,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6130h,16,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6130t,16,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6131,8,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6132,14,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6133,20,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6134,8,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6134m,8,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6135,8,155,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6135m,8,155,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6136,12,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6137,8,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6137m,8,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6138,20,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6138f,20,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6138p,20,195,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6138t,20,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6139,18,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6139m,18,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6140,18,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6140m,18,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6142,16,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6142f,16,160,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6142m,16,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6143,16,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6144,8,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6145,20,145,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6146,12,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6147m,20,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6148,20,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6148f,20,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6149,16,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6150,18,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6151,18,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6152,22,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6154,18,200,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6155,20,200,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6159,22,145,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6161,22,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6162,24,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,gold 6164,24,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8124m,18,240,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8151,12,240,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8153,16,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8156,4,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8157m,24,145,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8158,12,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8160,24,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8160f,24,160,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8160h,24,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8160m,24,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8160t,24,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8163,24,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8164,26,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8165,24,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8167m,26,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8168,24,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8170,26,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8170m,26,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8171m,26,185,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8172m,26,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8173m,28,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8174,24,240,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8175m,24,240,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8176,28,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8176f,28,173,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8176m,28,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8179m,26,240,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8180,28,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum 8180m,28,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum p-8124,18,240,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,platinum p-8136,28,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,silver 4106h,8,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,silver 4108,8,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,silver 4109t,8,70,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,silver 4110,8,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,silver 4112,4,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,silver 4114,10,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,silver 4114t,10,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,silver 4116,12,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,silver 4116t,12,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 1st gen,silver 4123,8,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon Scalable 2nd gen,bronze 3204,6,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,bronze 3206r,8,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 5213w,10,100,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 5215,10,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 5215l,10,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 5215m,10,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 5216w,8,160,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 5217,8,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 5218,16,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 5218b,16,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 5218n,16,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 5218r,20,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 5218t,16,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 5219y,16,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 5220,18,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 5220r,24,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 5220s,18,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 5220t,18,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 5222,4,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6208u,16,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6209u,20,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6210u,20,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6212u,24,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6222,20,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6222v,20,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6226,12,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6226r,16,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6230,20,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6230n,20,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6230r,26,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6230t,20,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6231,16,185,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6231c,16,185,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6233,24,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6234,8,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6238,22,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6238l,22,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6238m,22,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6238r,28,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6238t,22,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6240,18,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6240c,18,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6240l,18,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6240m,18,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6240r,24,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6240y,18,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6241w,16,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6242,16,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6242r,20,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6244,8,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6245w,12,180,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6246,12,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6246r,16,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6248,20,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6248r,24,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6250,8,185,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6250l,8,185,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6252,24,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6252n,24,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6253cl,18,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6253w,18,200,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6254,18,200,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6256,12,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6258r,28,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6261,22,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6262,24,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6262v,24,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6263cy,24,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6266c,22,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6267,24,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6267c,24,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6268cl,24,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6269y,22,240,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6271c,24,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6273c,26,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6278c,26,185,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,gold 6290,22,240,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8222l,18,200,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8223cl,18,240,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8249c,26,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8251,12,240,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8252c,12,240,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8253,16,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8255c,24,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8256,4,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8259cl,24,210,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8259l,24,210,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8260,24,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8260l,24,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8260m,24,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8260y,24,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8263c,26,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8267w,24,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8268,24,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8269cy,26,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8270,26,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8272cl,26,195,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8272l,26,195,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8273cl,28,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8274,24,240,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8275cl,24,240,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8276,28,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8276l,28,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8276m,28,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8279w,28,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8280,28,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8280l,28,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8280m,28,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 8284,28,240,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 9221,32,250,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 9222,32,250,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 9242,48,350,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,platinum 9282,56,400,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,silver 4208,8,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,silver 4209t,8,70,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,silver 4210,10,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,silver 4210r,10,100,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,silver 4210t,10,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,silver 4211w,12,100,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,silver 4213w,8,115,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,silver 4214,12,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,silver 4214r,12,100,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,silver 4214y,12,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,silver 4215,8,85,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,silver 4215r,8,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,silver 4216,16,100,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 2nd gen,silver 4216r,16,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 5315y,8,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 5317,12,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 5318n,24,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 5318s,24,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 5318y,24,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 5320,26,185,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 5320t,20,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 6312u,24,185,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 6314u,32,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 6326,16,185,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 6330,28,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 6330n,28,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 6334,8,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 6336y,24,185,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 6338,32,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 6338n,32,185,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 6338t,24,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 6342,24,230,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 6346,16,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 6348,28,235,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,gold 6354,18,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8331c,24,185,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8333b,24,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8336c,32,230,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8338c,32,250,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8341c,24,270,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8347c,36,210,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8350c,32,240,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8351n,36,225,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8352m,32,185,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8352s,32,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8352v,36,195,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8352y,32,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8357c,32,240,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8358,32,250,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8358p,32,240,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8360y,36,250,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8361c,38,215,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8362,32,265,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8367b,32,300,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8368,38,270,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8368q,38,270,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8369b,32,270,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8370c,32,270,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8372c,28,300,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8373c,36,300,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8374b,38,280,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8374c,36,270,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8375c,32,300,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8377a,36,330,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8377c,32,330,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8378a,32,300,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8378c,38,290,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8380,40,270,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,platinum 8383c,40,330,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,silver 4309y,8,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,silver 4310,12,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,silver 4310t,10,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,silver 4314,16,135,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 3rd gen,silver 4316,20,150,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon Scalable 4th gen,bronze 3408u,8,125,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 5411n,24,165,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 5412u,24,185,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 5415+,8,150,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 5416s,16,150,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 5418n,24,165,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 5418y,24,185,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 5420+,28,205,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 6414u,32,250,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 6416h,18,165,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 6418h,24,185,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 6421n,32,185,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 6426y,16,185,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 6428n,32,185,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 6430,32,270,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 6434,8,195,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 6434h,8,195,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 6438m,32,205,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 6438n,32,205,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 6438y+,32,205,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 6442y,24,225,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 6444y,16,270,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 6448h,32,250,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 6448y,32,225,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 6454s,32,270,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 6456c,32,280,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,gold 6458q,32,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8432c,40,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8444h,16,270,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8450h,28,250,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8452y,36,300,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8454h,32,270,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8458p,44,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8460h,40,330,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8460y+,40,300,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8461v,48,300,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8462y+,32,300,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8465c,52,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8468,48,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8468h,48,330,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8468v,48,330,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8469c,48,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8470,52,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8470n,52,300,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8470q,52,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8471n,52,300,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8473c,52,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8474c,48,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8475b,48,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8478c,48,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8480+,56,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8480c,56,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8481c,56,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8487c,56,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8488c,48,385,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,platinum 8490h,60,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,silver 4410t,10,150,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,silver 4410y,12,150,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 4th gen,silver 4416+,20,165,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon Scalable 5th gen,bronze 3508u,8,125,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,gold 5512u,28,185,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,gold 5515+,8,165,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,gold 5520+,28,205,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,gold 6526y,16,195,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,gold 6530,32,270,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,gold 6534,8,195,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,gold 6538n,32,205,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,gold 6538y+,32,225,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,gold 6542y,24,250,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,gold 6544y,16,270,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,gold 6548n,32,250,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,gold 6548y+,32,250,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,gold 6554s,36,270,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,gold 6558q,32,350,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,platinum 8558,48,330,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,platinum 8558p,48,350,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,platinum 8558u,48,300,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,platinum 8562y+,32,300,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,platinum 8568y+,48,350,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,platinum 8570,56,350,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,platinum 8571n,52,350,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,platinum 8580,60,350,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,platinum 8581v,60,270,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,platinum 8592+,64,350,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,platinum 8592v,64,330,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,platinum 8593q,64,385,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,silver 4509y,8,125,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,silver 4510,12,150,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,silver 4510t,12,115,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,silver 4514y,16,150,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon Scalable 5th gen,silver 4516y+,24,185,https://en.wikipedia.org/wiki/Emerald_Rapids
+Intel,Xeon W,w-10855m,6,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Comet_Lake-based)
+Intel,Xeon W,w-10885m,8,45,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Comet_Lake-based)
+Intel,Xeon W,w-1250,6,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Comet_Lake-based)
+Intel,Xeon W,w-1250e,6,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Comet_Lake-based)
+Intel,Xeon W,w-1250p,6,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Comet_Lake-based)
+Intel,Xeon W,w-1250te,6,35,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Comet_Lake-based)
+Intel,Xeon W,w-1270,8,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Comet_Lake-based)
+Intel,Xeon W,w-1270e,8,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Comet_Lake-based)
+Intel,Xeon W,w-1270p,8,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Comet_Lake-based)
+Intel,Xeon W,w-1270te,8,35,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Comet_Lake-based)
+Intel,Xeon W,w-1290,10,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Comet_Lake-based)
+Intel,Xeon W,w-1290e,10,95,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Comet_Lake-based)
+Intel,Xeon W,w-1290p,10,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Comet_Lake-based)
+Intel,Xeon W,w-1290t,10,35,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Comet_Lake-based)
+Intel,Xeon W,w-1290te,10,35,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Comet_Lake-based)
+Intel,Xeon W,w-1350,6,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Rocket_Lake-based)
+Intel,Xeon W,w-1350p,6,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Rocket_Lake-based)
+Intel,Xeon W,w-1370,8,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Rocket_Lake-based)
+Intel,Xeon W,w-1370p,8,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Rocket_Lake-based)
+Intel,Xeon W,w-1390,8,80,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Rocket_Lake-based)
+Intel,Xeon W,w-1390p,8,125,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Rocket_Lake-based)
+Intel,Xeon W,w-1390t,8,35,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Rocket_Lake-based)
+Intel,Xeon W,w-2102,4,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon W,w-2104,4,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon W,w-2123,4,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon W,w-2125,4,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon W,w-2133,6,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon W,w-2135,6,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon W,w-2140b,8,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon W,w-2145,8,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon W,w-2150b,10,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon W,w-2155,10,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon W,w-2170b,14,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon W,w-2175,14,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon W,w-2191b,18,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon W,w-2195,18,140,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon W,w-2223,4,120,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon W,w-2225,4,105,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon W,w-2235,6,130,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon W,w-2245,8,155,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon W,w-2255,10,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon W,w-2265,12,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon W,w-2275,14,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon W,w-2295,18,165,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon W,w-3175x,28,255,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Skylake-based)
+Intel,Xeon W,w-3223,8,160,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon W,w-3225,8,160,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon W,w-3235,12,180,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon W,w-3245,16,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon W,w-3245m,16,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon W,w-3265,24,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon W,w-3265m,24,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon W,w-3275,28,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon W,w-3275m,28,205,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Cascade_Lake-based)
+Intel,Xeon W,w-3323,12,220,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon W,w-3335,16,250,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon W,w-3345,24,250,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon W,w-3365,32,270,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon W,w-3375,38,270,https://en.wikipedia.org/wiki/List_of_Intel_Xeon_processors_(Ice_Lake-based)
+Intel,Xeon W,w3-2423,6,120,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w3-2425,6,130,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w3-2435,8,165,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w3-2525,8,175,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w3-2535,10,185,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w5-2445,10,175,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w5-2455x,12,200,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w5-2465x,16,200,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w5-2545,12,210,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w5-2555x,14,210,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w5-2565x,18,240,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w5-3425,12,270,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w5-3435x,16,270,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w5-3525,16,290,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w5-3535x,20,300,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w7-2475x,20,225,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w7-2495x,24,225,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w7-2575x,22,250,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w7-2595x,26,250,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w7-3445,20,270,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w7-3455,24,270,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w7-3465x,28,300,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w7-3545,24,315,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w7-3555,28,325,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w7-3565x,32,335,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w9-3475x,36,300,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w9-3495x,56,350,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w9-3575x,44,340,https://en.wikipedia.org/wiki/Sapphire_Rapids
+Intel,Xeon W,w9-3595x,60,385,https://en.wikipedia.org/wiki/Sapphire_Rapids
