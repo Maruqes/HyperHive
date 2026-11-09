@@ -409,3 +409,23 @@ func TestObservationLogOriginsFilterBeforePagination(t *testing.T) {
 		t.Fatalf("exact source compatibility: %+v %v", page, err)
 	}
 }
+func TestObservationUnreadableSegmentDoesNotBlockAppend(t *testing.T) {
+	s := testObservationStore(t)
+	now := time.Now()
+	s.now = func() time.Time { return now }
+	old := now.Add(-observationRetention - time.Hour).UnixNano()
+	dir := filepath.Join(s.root, "b")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	bad := filepath.Join(dir, fmt.Sprint(old)+".sqlite")
+	if err := os.WriteFile(bad, []byte("not a database"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.append("a", "node-a", observationBatch(now, 1, "x")); err != nil {
+		t.Fatalf("append blocked by unreadable segment: %v", err)
+	}
+	if _, err := os.Stat(bad); !os.IsNotExist(err) {
+		t.Fatalf("expired unreadable segment not pruned: %v", err)
+	}
+}

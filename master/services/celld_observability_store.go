@@ -180,17 +180,20 @@ func (s *observationStore) cleanupLocked(fleet string, headroom int64) error {
 	deadline, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	for _, seg := range segs {
+		oldest[seg.path] = seg.created
+		// An unreadable segment (e.g. a hot journal left by a crash cannot be
+		// rolled back read-only) falls back to its file creation stamp so one bad
+		// file cannot block retention and reject every new batch.
 		db, e := openObservationDB(seg.path, s.segmentBytes, true)
 		if e != nil {
-			return fmt.Errorf("unreadable retention segment")
+			continue
 		}
 		var stamp sql.NullInt64
 		e = db.QueryRowContext(deadline, "SELECT min(time_ms) FROM observations").Scan(&stamp)
 		db.Close()
 		if e != nil {
-			return fmt.Errorf("retention timestamp unavailable")
+			continue
 		}
-		oldest[seg.path] = seg.created
 		if stamp.Valid && stamp.Int64 > 0 && stamp.Int64 < seg.created/1e6 {
 			oldest[seg.path] = stamp.Int64 * 1e6
 		}

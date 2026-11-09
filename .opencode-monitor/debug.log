@@ -1,0 +1,6 @@
+module loaded, origin-kind build
+prompt.submit origin={"kind":"composer"} command=tmux-session meta=undefined text=/tmux-session states=[] inflight=[]
+turn.start agent=main
+prompt.submit origin={"kind":"composer"} command=undefined meta=undefined text=as u can see on the browser we states=[] inflight=[]
+pending length=0
+turn.start agent=main

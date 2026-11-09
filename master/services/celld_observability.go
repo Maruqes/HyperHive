@@ -14,6 +14,7 @@ import (
 
 	limits "github.com/Maruqes/512SvMan/api/celldobserve"
 	pb "github.com/Maruqes/512SvMan/api/proto/celld"
+	"github.com/Maruqes/512SvMan/logger"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -97,6 +98,7 @@ func (s *CelldService) observationLoop(ctx context.Context) {
 			err = store.cleanupLocked("", 0)
 			if err != nil {
 				store.lastError = "retention cleanup failed"
+				logger.Errorf("celld observability retention cleanup: %v", err)
 			}
 			store.mu.Unlock()
 		}
@@ -593,6 +595,9 @@ func (s *CelldService) acceptObservation(f *celldRecord, n CelldMachine, passwor
 		o.acks[key] = next
 	} else {
 		sn.Error = "central history ingestion unavailable; bounded agent queue retains pending records"
+		if o.error != sn.Error {
+			logger.Errorf("celld observability ingest fleet %s node %s: %v", f.ID, n.Name, err)
+		}
 		o.error = sn.Error
 	}
 	o.mu.Unlock()
