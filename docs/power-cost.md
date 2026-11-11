@@ -72,6 +72,11 @@ line. Totals are computed from machine rows only; VM watts are a subset of the
 host watts and are never added again. Arrays are sorted by name and always
 present.
 
+`months` holds the last 12 months, oldest first and ending with the current
+one, as `{month, kWh, cost}` summed from host rows. Months with no stored usage
+are present with zeros. The web energy card draws them as a column chart scaled
+to the highest month.
+
 ## Limitations
 
 - Estimates only. Real power depends on PSU efficiency, temperature, workload

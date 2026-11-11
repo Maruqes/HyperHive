@@ -95,6 +95,33 @@ func GetEnergyUsageForMonth(ctx context.Context, month string) ([]EnergyUsageRow
 	return out, rows.Err()
 }
 
+// GetEnergyMonthlyTotals sums the host rows of every month from fromMonth
+// (YYYY-MM, inclusive). VM rows are a subset of the host rows and are left out.
+func GetEnergyMonthlyTotals(ctx context.Context, fromMonth string) ([]EnergyUsageRow, error) {
+	const query = `
+	SELECT month, SUM(wh), SUM(cost)
+	FROM energy_usage
+	WHERE vm = '' AND month >= ?
+	GROUP BY month
+	ORDER BY month;
+	`
+	rows, err := DB.QueryContext(ctx, query, fromMonth)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []EnergyUsageRow{}
+	for rows.Next() {
+		var row EnergyUsageRow
+		if err := rows.Scan(&row.Month, &row.Wh, &row.Cost); err != nil {
+			return nil, err
+		}
+		out = append(out, row)
+	}
+	return out, rows.Err()
+}
+
 // DeleteEnergyUsageBefore drops whole months older than month (YYYY-MM string
 // comparison). Settings are kept.
 func DeleteEnergyUsageBefore(ctx context.Context, month string) error {

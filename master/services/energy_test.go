@@ -317,3 +317,39 @@ func TestEnergyTickHours(t *testing.T) {
 		}
 	}
 }
+
+func TestEnergySummaryMonthsCoverLastTwelve(t *testing.T) {
+	openEnergyServiceDB(t)
+	now := time.Date(2026, 3, 31, 12, 0, 0, 0, time.Local)
+	ctx := context.Background()
+	service := fakeEnergyService(now, map[string]*fakeEnergySlave{})
+	for _, row := range []struct {
+		month, machine, vm string
+		wh, cost           float64
+	}{
+		{"2025-03", "node-a", "", 9000, 9}, // 13 months back: outside the window
+		{"2025-04", "node-a", "", 1000, 0.2},
+		{"2025-04", "node-b", "", 500, 0.1},
+		{"2025-04", "node-a", "vm", 400, 0.08}, // VM rows are part of the host row
+		{"2026-03", "node-a", "", 2000, 0.5},
+	} {
+		if err := db.AddEnergyUsage(ctx, row.month, row.machine, row.vm, row.wh, row.cost); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	summary, err := service.Summary(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	months := summary.Months
+	if len(months) != 12 || months[0].Month != "2025-04" || months[10].Month != "2026-02" || months[11].Month != "2026-03" {
+		t.Fatalf("months = %+v", months)
+	}
+	if !energyAlmostEqual(months[0].KWh, 1.5) || !energyAlmostEqual(months[0].Cost, 0.3) {
+		t.Fatalf("first month = %+v", months[0])
+	}
+	if months[10].KWh != 0 || !energyAlmostEqual(months[11].KWh, 2) || !energyAlmostEqual(months[11].Cost, 0.5) {
+		t.Fatalf("last months = %+v %+v", months[10], months[11])
+	}
+}

@@ -25,6 +25,7 @@ const (
 	energyWhPerKWh           = 1000.0
 	energyMonthFormat        = "2006-01"
 	energyRetentionMonths    = 24
+	energyHistoryMonths      = 12
 	energyEstimateFromTable  = "table"
 	energyEstimateFromFallbk = "generic"
 )
@@ -400,6 +401,15 @@ type EnergySummary struct {
 	Totals      EnergyTotals           `json:"totals"`
 	Machines    []EnergyMachineSummary `json:"machines"`
 	VMs         []EnergyVMSummary      `json:"vms"`
+	// Months is the last 12 months, oldest first, ending with the current one.
+	// Months with no stored usage are present with zeros.
+	Months []EnergyMonth `json:"months"`
+}
+
+type EnergyMonth struct {
+	Month string  `json:"month"`
+	KWh   float64 `json:"kWh"`
+	Cost  float64 `json:"cost"`
 }
 
 type EnergyTotals struct {
@@ -495,6 +505,26 @@ func (s *EnergyService) Summary(ctx context.Context) (EnergySummary, error) {
 	for _, vm := range vmTotals {
 		summary.VMs = append(summary.VMs, *vm)
 	}
+	// Day 1 keeps the month arithmetic away from end-of-month overflow.
+	now := s.now()
+	summary.Months = make([]EnergyMonth, energyHistoryMonths)
+	for i := range summary.Months {
+		offset := energyHistoryMonths - 1 - i
+		summary.Months[i].Month = time.Date(now.Year(), now.Month()-time.Month(offset), 1, 0, 0, 0, 0, now.Location()).Format(energyMonthFormat)
+	}
+	history, err := db.GetEnergyMonthlyTotals(ctx, summary.Months[0].Month)
+	if err != nil {
+		return EnergySummary{}, fmt.Errorf("get energy history: %w", err)
+	}
+	for _, row := range history {
+		for i := range summary.Months {
+			if summary.Months[i].Month == row.Month {
+				summary.Months[i].KWh = row.Wh / energyWhPerKWh
+				summary.Months[i].Cost = row.Cost
+			}
+		}
+	}
+
 	sort.Slice(summary.Machines, func(i, j int) bool {
 		return summary.Machines[i].Machine < summary.Machines[j].Machine
 	})
