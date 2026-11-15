@@ -450,7 +450,8 @@ func applyDriver(ctx context.Context, dev PCIAddress, wanted []string) error {
 	var lastErr error
 	for _, driver := range wanted {
 		if current != driver {
-			if err := runGPUCommand(ctx, "modprobe", driver); err != nil {
+			// Dry run: a missing driver must fail before the device is touched.
+			if err := runGPUCommand(ctx, "modprobe", "-n", driver); err != nil {
 				release, _ := os.ReadFile(filepath.Join(procRoot, "sys/kernel/osrelease"))
 				lastErr = fmt.Errorf("driver %s is not available for kernel %s; HyperHive does not install GPU drivers, install it on the host yourself: %w",
 					driver, strings.TrimSpace(string(release)), err)
@@ -460,14 +461,22 @@ func applyDriver(ctx context.Context, dev PCIAddress, wanted []string) error {
 		if err := setDriverOverride(dev, driver); err != nil {
 			return err
 		}
-		// Loading the module may already have bound the device.
-		if current, err = readCurrentPCIDriver(dev); err != nil {
-			return err
-		}
 		if current != driver {
 			if err := unbindDriver(dev, current); err != nil {
 				return err
 			}
+			// Load only now: nvidia refuses to load ("No such device") unless it finds a
+			// free GPU pinned to it. Loading binds the device; the probe covers a module
+			// that was already loaded.
+			if err := runGPUCommand(ctx, "modprobe", driver); err != nil {
+				lastErr = fmt.Errorf("driver %s failed to load: %w", driver, err)
+				continue
+			}
+			if current, err = readCurrentPCIDriver(dev); err != nil {
+				return err
+			}
+		}
+		if current != driver {
 			if err := probeDriver(dev); err != nil {
 				logger.Warnf("probe driver %s for pci %s: %v", driver, dev, err)
 			}
