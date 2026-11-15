@@ -10,7 +10,10 @@ import (
 	"google.golang.org/grpc"
 )
 
-const defaultRPCTimeout = 20 * time.Second
+const (
+	defaultRPCTimeout = 20 * time.Second
+	setGPUModeTimeout = 3 * time.Minute
+)
 
 func withDefaultTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
 	if ctx == nil {
@@ -60,71 +63,28 @@ func ListVMGPUs(ctx context.Context, conn *grpc.ClientConn, vmName string) (*pci
 	return client.ListVMGPUs(rpcCtx, &pciGrpc.VmNameRequest{VmName: vmName})
 }
 
-func AttachGPUToVM(ctx context.Context, conn *grpc.ClientConn, vmName, gpuRef string) (*pciGrpc.OkResponse, error) {
+// SetGPUMode switches a GPU between none, host and vm mode. Loading a vendor driver and
+// stopping nvidia-persistenced can take a while, hence the longer bound.
+func SetGPUMode(ctx context.Context, conn *grpc.ClientConn, gpuRef, mode, vmName string) (*pciGrpc.OkResponse, error) {
 	if conn == nil {
 		return nil, fmt.Errorf("grpc connection is nil")
-	}
-
-	vmName = strings.TrimSpace(vmName)
-	if vmName == "" {
-		return nil, fmt.Errorf("vm name is required")
 	}
 
 	gpuRef = strings.TrimSpace(gpuRef)
 	if gpuRef == "" {
 		return nil, fmt.Errorf("gpu reference is required")
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	client := pciGrpc.NewSlavePCIServiceClient(conn)
-	rpcCtx, cancel := withDefaultTimeout(ctx)
+	rpcCtx, cancel := context.WithTimeout(ctx, setGPUModeTimeout)
 	defer cancel()
 
-	return client.AttachGPUToVM(rpcCtx, &pciGrpc.VMGPURequest{
+	return client.SetGPUMode(rpcCtx, &pciGrpc.SetGPUModeRequest{
+		GpuRef: gpuRef,
+		Mode:   mode,
 		VmName: vmName,
-		GpuRef: gpuRef,
-	})
-}
-
-func DetachGPUFromVM(ctx context.Context, conn *grpc.ClientConn, vmName, gpuRef string) (*pciGrpc.OkResponse, error) {
-	if conn == nil {
-		return nil, fmt.Errorf("grpc connection is nil")
-	}
-
-	vmName = strings.TrimSpace(vmName)
-	if vmName == "" {
-		return nil, fmt.Errorf("vm name is required")
-	}
-
-	gpuRef = strings.TrimSpace(gpuRef)
-	if gpuRef == "" {
-		return nil, fmt.Errorf("gpu reference is required")
-	}
-
-	client := pciGrpc.NewSlavePCIServiceClient(conn)
-	rpcCtx, cancel := withDefaultTimeout(ctx)
-	defer cancel()
-
-	return client.DetachGPUFromVM(rpcCtx, &pciGrpc.VMGPURequest{
-		VmName: vmName,
-		GpuRef: gpuRef,
-	})
-}
-
-func ReturnGPUToHost(ctx context.Context, conn *grpc.ClientConn, gpuRef string) (*pciGrpc.OkResponse, error) {
-	if conn == nil {
-		return nil, fmt.Errorf("grpc connection is nil")
-	}
-
-	gpuRef = strings.TrimSpace(gpuRef)
-	if gpuRef == "" {
-		return nil, fmt.Errorf("gpu reference is required")
-	}
-
-	client := pciGrpc.NewSlavePCIServiceClient(conn)
-	rpcCtx, cancel := withDefaultTimeout(ctx)
-	defer cancel()
-
-	return client.ReturnGPUToHost(rpcCtx, &pciGrpc.GPUReferenceRequest{
-		GpuRef: gpuRef,
 	})
 }

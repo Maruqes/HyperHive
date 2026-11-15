@@ -42,6 +42,21 @@ message HostGPU {
   int32 numa_node = 15;
   bool managed_by_vfio = 16;
   repeated string attached_to_vms = 17;
+  // Modes are "none", "host" or "vm".
+  string actual_mode = 18;
+  bool boot_vga = 19;
+  // Vendor driver host mode would bind, empty when the vendor is unsupported.
+  string host_driver = 20;
+  // Filled by the master from its database, never by the slave.
+  string desired_mode = 21;
+  string desired_vm = 22;
+  string last_error = 23;
+}
+
+message SetGPUModeRequest {
+  string gpu_ref = 1;
+  string mode = 2;
+  string vm_name = 3;
 }
 
 message VMGPU {
@@ -69,4 +84,6 @@ service SlavePCIService {
   rpc AttachGPUToVM(VMGPURequest) returns (OkResponse);
   rpc DetachGPUFromVM(VMGPURequest) returns (OkResponse);
   rpc ReturnGPUToHost(GPUReferenceRequest) returns (OkResponse);
+  // Idempotent: applying the mode a GPU already has only re-pins it.
+  rpc SetGPUMode(SetGPUModeRequest) returns (OkResponse);
 }

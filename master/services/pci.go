@@ -1,6 +1,8 @@
 package services
 
 import (
+	"512SvMan/db"
+	"512SvMan/nots"
 	pciClient "512SvMan/pci"
 	"512SvMan/protocol"
 	virshClient "512SvMan/virsh"
@@ -10,6 +12,7 @@ import (
 
 	pciGrpc "github.com/Maruqes/512SvMan/api/proto/pci"
 	grpcVirsh "github.com/Maruqes/512SvMan/api/proto/virsh"
+	"github.com/Maruqes/512SvMan/logger"
 )
 
 type PCIService struct{}
@@ -49,16 +52,6 @@ func (s *PCIService) vmOnMachine(machine *protocol.ConnectionsStruct, vmName str
 	return vm, nil
 }
 
-func ensureVMShutoff(vm *grpcVirsh.Vm, machineName string) error {
-	if vm == nil {
-		return fmt.Errorf("vm is nil")
-	}
-	if vm.GetState() != grpcVirsh.VmState_SHUTOFF {
-		return fmt.Errorf("vm %s on machine %s must be shut down (current state: %s)", vm.GetName(), machineName, vm.GetState().String())
-	}
-	return nil
-}
-
 func findGPUByReference(gpus []*pciGrpc.HostGPU, gpuRef string) *pciGrpc.HostGPU {
 	gpuRef = strings.TrimSpace(gpuRef)
 	if gpuRef == "" {
@@ -91,42 +84,17 @@ func findGPUByReference(gpus []*pciGrpc.HostGPU, gpuRef string) *pciGrpc.HostGPU
 	return nil
 }
 
-func (s *PCIService) ensureAttachedVMsAreShutoff(ctx context.Context, machine *protocol.ConnectionsStruct, gpuRef string) error {
-	hostGPUs, err := pciClient.ListHostGPUs(ctx, machine.Connection)
-	if err != nil {
-		return err
-	}
-
-	target := findGPUByReference(hostGPUs.GetGpus(), gpuRef)
-	if target == nil {
-		return nil
-	}
-
-	for _, vmName := range target.GetAttachedToVms() {
-		vmName = strings.TrimSpace(vmName)
-		if vmName == "" {
-			continue
-		}
-
-		vm, err := s.vmOnMachine(machine, vmName)
-		if err != nil {
-			return err
-		}
-		if vm.GetState() != grpcVirsh.VmState_SHUTOFF {
-			return fmt.Errorf("gpu %s is attached to vm %s and this vm is not shut down", gpuRef, vmName)
-		}
-	}
-
-	return nil
-}
-
 func (s *PCIService) ListHostGPUs(ctx context.Context, machineName string) (*pciGrpc.HostGPUList, error) {
 	machine, err := s.machineConnection(machineName)
 	if err != nil {
 		return nil, err
 	}
 
-	return pciClient.ListHostGPUs(ctx, machine.Connection)
+	list, err := pciClient.ListHostGPUs(ctx, machine.Connection)
+	if err != nil {
+		return nil, err
+	}
+	return withDesiredModes(ctx, machine.MachineName, list), nil
 }
 
 func (s *PCIService) ListHostGPUsWithIOMMU(ctx context.Context, machineName string) (*pciGrpc.HostGPUList, error) {
@@ -135,7 +103,11 @@ func (s *PCIService) ListHostGPUsWithIOMMU(ctx context.Context, machineName stri
 		return nil, err
 	}
 
-	return pciClient.ListHostGPUsWithIOMMU(ctx, machine.Connection)
+	list, err := pciClient.ListHostGPUsWithIOMMU(ctx, machine.Connection)
+	if err != nil {
+		return nil, err
+	}
+	return withDesiredModes(ctx, machine.MachineName, list), nil
 }
 
 func (s *PCIService) ListVMGPUs(ctx context.Context, machineName, vmName string) (*pciGrpc.VMGPUList, error) {
@@ -151,49 +123,135 @@ func (s *PCIService) ListVMGPUs(ctx context.Context, machineName, vmName string)
 	return pciClient.ListVMGPUs(ctx, machine.Connection, vmName)
 }
 
-func (s *PCIService) AttachGPUToVM(ctx context.Context, machineName, vmName, gpuRef string) (*pciGrpc.OkResponse, error) {
+// SetGPUMode switches a GPU between none, host and vm mode and stores the choice. The host
+// goes first: a refused switch changes nothing. If the host switched but the row could not
+// be saved, the error is returned and the next reconcile puts the GPU back in its stored mode.
+func (s *PCIService) SetGPUMode(ctx context.Context, machineName, gpuRef, mode, vmName string) error {
 	machine, err := s.machineConnection(machineName)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	vm, err := s.vmOnMachine(machine, vmName)
+	hostGPUs, err := pciClient.ListHostGPUs(ctx, machine.Connection)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if err := ensureVMShutoff(vm, machine.MachineName); err != nil {
-		return nil, err
+	gpu := findGPUByReference(hostGPUs.GetGpus(), gpuRef)
+	if gpu == nil {
+		return fmt.Errorf("gpu %s not found on machine %s", strings.TrimSpace(gpuRef), machine.MachineName)
 	}
 
-	return pciClient.AttachGPUToVM(ctx, machine.Connection, vm.GetName(), gpuRef)
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	vmName = strings.TrimSpace(vmName)
+	if mode != gpuModeVM {
+		vmName = ""
+	}
+	if _, err := pciClient.SetGPUMode(ctx, machine.Connection, gpu.GetAddress(), mode, vmName); err != nil {
+		return err
+	}
+	if err := db.SaveGPUMode(ctx, db.GPUMode{MachineName: machine.MachineName, GPUAddress: gpu.GetAddress(), Mode: mode, VMName: vmName}); err != nil {
+		return fmt.Errorf("gpu %s switched to %s but the mode was not saved: %w", gpu.GetAddress(), mode, err)
+	}
+	return nil
 }
 
-func (s *PCIService) DetachGPUFromVM(ctx context.Context, machineName, vmName, gpuRef string) (*pciGrpc.OkResponse, error) {
+// ReconcileGPUs applies the stored mode of every GPU of a machine. It runs when the slave
+// connects, before VMs autostart: driver pins do not survive a reboot. A GPU that cannot be
+// switched is left as it is, keeps its stored mode and gets its error recorded and notified.
+func (s *PCIService) ReconcileGPUs(ctx context.Context, machineName string) error {
 	machine, err := s.machineConnection(machineName)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	vm, err := s.vmOnMachine(machine, vmName)
+	hostGPUs, err := pciClient.ListHostGPUs(ctx, machine.Connection)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("list gpus of %s: %w", machine.MachineName, err)
 	}
-	if err := ensureVMShutoff(vm, machine.MachineName); err != nil {
-		return nil, err
+	stored, err := db.GetGPUModes(ctx, machine.MachineName)
+	if err != nil {
+		return fmt.Errorf("read gpu modes of %s: %w", machine.MachineName, err)
 	}
 
-	return pciClient.DetachGPUFromVM(ctx, machine.Connection, vm.GetName(), gpuRef)
+	for _, gpu := range hostGPUs.GetGpus() {
+		address := gpu.GetAddress()
+		row, ok := stored[address]
+		if !ok {
+			var warning string
+			row = db.GPUMode{MachineName: machine.MachineName, GPUAddress: address}
+			row.Mode, row.VMName, warning = adoptGPUMode(gpu)
+			if warning != "" {
+				s.warnGPU(ctx, machine.MachineName, address, warning)
+			}
+		}
+
+		row.LastError = ""
+		if _, err := pciClient.SetGPUMode(ctx, machine.Connection, address, row.Mode, row.VMName); err != nil {
+			row.LastError = err.Error()
+			s.warnGPU(ctx, machine.MachineName, address, fmt.Sprintf("could not apply mode %s: %v", gpuModeLabel(row), err))
+		}
+		if err := db.SaveGPUMode(ctx, row); err != nil {
+			logger.Errorf("save gpu mode of %s on %s: %v", address, machine.MachineName, err)
+		}
+	}
+	return nil
 }
 
-func (s *PCIService) ReturnGPUToHost(ctx context.Context, machineName, gpuRef string) (*pciGrpc.OkResponse, error) {
-	machine, err := s.machineConnection(machineName)
+const (
+	gpuModeNone = "none"
+	gpuModeHost = "host"
+	gpuModeVM   = "vm"
+)
+
+// adoptGPUMode picks the mode of a GPU seen for the first time from its current state, so an
+// upgrade changes nothing: in one VM's definition -> that VM, bound to a host driver -> host,
+// otherwise none. A GPU defined in several VMs is ambiguous and becomes none.
+func adoptGPUMode(gpu *pciGrpc.HostGPU) (mode, vmName, warning string) {
+	switch vms := gpu.GetAttachedToVms(); {
+	case len(vms) == 1:
+		return gpuModeVM, vms[0], ""
+	case len(vms) > 1:
+		return gpuModeNone, "", fmt.Sprintf("it is defined in several VMs (%s); it was set to mode none and removed from them", strings.Join(vms, ", "))
+	}
+	if gpu.GetActualMode() == gpuModeHost {
+		return gpuModeHost, "", ""
+	}
+	return gpuModeNone, "", ""
+}
+
+func gpuModeLabel(row db.GPUMode) string {
+	if row.Mode == gpuModeVM {
+		return gpuModeVM + ":" + row.VMName
+	}
+	return row.Mode
+}
+
+func (s *PCIService) warnGPU(ctx context.Context, machineName, address, message string) {
+	logger.Warnf("gpu %s on %s: %s", address, machineName, message)
+	if err := nots.Notify(ctx, nots.Notification{
+		Event:    "system.gpu_mode",
+		Severity: nots.SeverityWarning,
+		Machine:  machineName,
+		Title:    "GPU mode not applied",
+		Body:     fmt.Sprintf("GPU %s on %s: %s", address, machineName, message),
+		URL:      "/gpus",
+		DedupKey: "gpu_mode:" + machineName + ":" + address,
+	}); err != nil {
+		logger.Errorf("notify gpu mode of %s on %s: %v", address, machineName, err)
+	}
+}
+
+// withDesiredModes adds the stored mode and last reconcile error to a GPU inventory.
+func withDesiredModes(ctx context.Context, machineName string, list *pciGrpc.HostGPUList) *pciGrpc.HostGPUList {
+	stored, err := db.GetGPUModes(ctx, machineName)
 	if err != nil {
-		return nil, err
+		// The inventory is still useful without the stored modes.
+		logger.Errorf("read gpu modes of %s: %v", machineName, err)
+		return list
 	}
-
-	if err := s.ensureAttachedVMsAreShutoff(ctx, machine, gpuRef); err != nil {
-		return nil, err
+	for _, gpu := range list.GetGpus() {
+		if row, ok := stored[gpu.GetAddress()]; ok {
+			gpu.DesiredMode, gpu.DesiredVm, gpu.LastError = row.Mode, row.VMName, row.LastError
+		}
 	}
-
-	return pciClient.ReturnGPUToHost(ctx, machine.Connection, gpuRef)
+	return list
 }
