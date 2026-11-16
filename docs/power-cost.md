@@ -57,14 +57,50 @@ The cost is stored with each row at the price in force then, so changing the
 price does not rewrite history. Rows older than 24 months are deleted on the
 first tick of a new month.
 
+### Timeline samples
+
+Every tick also adds each ok host and each running VM to `energy_samples`, in
+one transaction, at three bucket sizes:
+
+| Step | Kept for | Timeline range |
+| --- | --- | --- |
+| 5 min (300 s) | 30 days | `30d` |
+| 30 min (1800 s) | 90 days | `90d` |
+| 1 h (3600 s) | 183 days | `6m` |
+
+A row is `(step, ts, kind, machine, name, wh, running_s)`: `ts` is the bucket
+start in Unix seconds, `kind` is `host` (empty `name`) or `vm`, and `running_s`
+is the time the series was seen in that bucket (the same capped tick time as
+`wh`). There is no roll-up job; each tier is trimmed once per hour. A failed
+sample write is logged and never blocks the monthly totals.
+
+State is read from the same rows: a VM bucket with no row while a host has one
+means "stopped"; a bucket where no host has a row means "no data" (master or
+host down).
+
+### Monthly projection
+
+```
+avgW      = Wh of the last 7 days of hourly samples / hours since the series' first sample in that window
+remaining = avgW * whole hours left in the month / 1000
+projectedMonthKWh  = monthKWh + remaining
+projectedMonthCost = monthCost + remaining * pricePerKWh   (price 0 while unset)
+```
+
+The average runs over elapsed time, not only running hours, so a host on a
+power schedule or a VM that is often stopped is not projected as always on.
+Totals are the sum of the host projections. With no samples the projection
+equals the month to date.
+
 ## Endpoints
 
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/energy/summary` | Live watts, current-month kWh and cost per machine and per VM, plus totals. `pricePerKWh` is `null` when unset. |
+| `GET` | `/energy/timeline?range=30d\|90d\|6m[&kind=host\|vm&name=][&machine=]` | Stored buckets per host and VM. Invalid `range` or `kind`, or `name` without `kind`, is rejected with 400. |
 | `PUT` | `/energy/price` | Sets `{"pricePerKWh": number}`. Accepts 0 to 10; missing, non-finite, negative or larger values are rejected with 400. |
 
-Both routes sit in the authenticated API group.
+All routes sit in the authenticated API group.
 
 The summary is a union of the current month's stored host rows and the live
 snapshot. VM rows are summed by name, so a VM moved between hosts has a single
@@ -77,6 +113,20 @@ one, as `{month, kWh, cost}` summed from host rows. Months with no stored usage
 are present with zeros. The web energy card draws them as a column chart scaled
 to the highest month.
 
+The summary's `totals`, `machines` and `vms` entries also carry
+`projectedMonthKWh` and `projectedMonthCost`.
+
+The timeline answers `{start, stepSeconds, count, series:[{kind, machine, name, wh, runningS}]}`.
+`wh` and `runningS` have `count` values; index `i` is the bucket starting at
+`start + i*stepSeconds`, and the last one is the bucket still filling. `null`
+means no data; `0` on a VM means stopped. With `kind` and `name` it returns
+that one series at the range's own step (`name` is the machine name for a
+host). Without `name` it returns every series at one hour per bucket. VM series
+are merged by name across machines and have an empty `machine`.
+
+The web Power page shows the energy card, the timeline card and the power
+schedule card.
+
 ## Limitations
 
 - Estimates only. Real power depends on PSU efficiency, temperature, workload
@@ -84,7 +134,12 @@ to the highest month.
 - GPUs, HBAs, fans and other PCI devices are not counted.
 - All CPU load is attributed to VMs. Host processes, storage and network work
   are visible only as part of the host row.
-- There is no backfill: months before the first tick stay empty.
+- There is no backfill: months before the first tick stay empty, and the
+  timeline starts when the master first runs this version.
+- The projection is noisy in the first days, and master downtime inside the
+  7-day window lowers it.
+- A merged VM series shows "stopped" while its own host is down if any other
+  host is up.
 - A slave that does not implement the power hardware RPC (or reports no CPU
   sockets) records nothing and disappears from the live summary.
 - A failed read for one slave never blocks or corrupts the others; that host is

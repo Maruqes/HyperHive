@@ -30,7 +30,7 @@ func CreateEnergyTables(ctx context.Context) error {
 		id INTEGER PRIMARY KEY CHECK (id = 1),
 		price_per_kwh REAL NOT NULL DEFAULT 0
 	);
-	`
+	` + energySamplesTable
 	_, err := DB.ExecContext(ctx, query)
 	return err
 }

@@ -91,6 +91,44 @@ func TestEnergyPriceHandler(t *testing.T) {
 	}
 }
 
+func TestEnergyTimelineHandlerValidation(t *testing.T) {
+	openEnergyAPIDB(t)
+	previous := services.Energy
+	services.Energy = services.NewEnergyService()
+	t.Cleanup(func() { services.Energy = previous })
+
+	router := chi.NewRouter()
+	setupEnergyAPI(router)
+	for path, want := range map[string]int{
+		"/energy/timeline":                           http.StatusBadRequest,
+		"/energy/timeline?range=1y":                  http.StatusBadRequest,
+		"/energy/timeline?range=30d&kind=disk":       http.StatusBadRequest,
+		"/energy/timeline?range=30d&name=vm1":        http.StatusBadRequest,
+		"/energy/timeline?range=6m":                  http.StatusOK,
+		"/energy/timeline?range=30d&kind=vm&name=v1": http.StatusOK,
+	} {
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if rec.Code != want {
+			t.Fatalf("GET %s status %d, want %d: %s", path, rec.Code, want, rec.Body)
+		}
+	}
+
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/energy/timeline?range=30d&kind=vm&name=v1", nil))
+	var body struct {
+		StepSeconds int64
+		Count       int
+		Series      []any
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.StepSeconds != 300 || body.Count != 30*24*12 || body.Series == nil {
+		t.Fatalf("body = %+v from %s", body, rec.Body)
+	}
+}
+
 func TestEnergySummaryHandlerShape(t *testing.T) {
 	openEnergyAPIDB(t)
 	previous := services.Energy
@@ -185,6 +223,7 @@ func TestEnergyRoutesRequireAuth(t *testing.T) {
 		path   string
 	}{
 		{http.MethodGet, "/energy/summary"},
+		{http.MethodGet, "/energy/timeline?range=30d"},
 		{http.MethodPut, "/energy/price"},
 	} {
 		rec := httptest.NewRecorder()

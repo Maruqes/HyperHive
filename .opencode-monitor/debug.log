@@ -1,4 +1,4 @@
 module loaded, origin-kind build
-prompt.submit origin={"kind":"composer"} command=undefined meta=undefined text=we are doing some changes to H states=[] inflight=[]
+prompt.submit origin={"kind":"composer"} command=undefined meta=undefined text=/home/marques/projects/HyperHi states=[] inflight=[]
 pending length=0
 turn.start agent=main

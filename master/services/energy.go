@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"sync"
 	"time"
@@ -28,7 +29,23 @@ const (
 	energyHistoryMonths      = 12
 	energyEstimateFromTable  = "table"
 	energyEstimateFromFallbk = "generic"
+	energyKindHost           = "host"
+	energyKindVM             = "vm"
+	energyProjectionWindow   = 7 * 24 * time.Hour
+	energyHourStep           = 3600
 )
+
+// energySampleTiers maps each timeline range to its bucket size and to how
+// long that resolution is kept.
+var energySampleTiers = []struct {
+	key  string
+	step int64
+	keep time.Duration
+}{
+	{"30d", 300, 30 * 24 * time.Hour},
+	{"90d", 1800, 90 * 24 * time.Hour},
+	{"6m", energyHourStep, 183 * 24 * time.Hour},
+}
 
 // EnergyReaders is the per-host input of one energy tick. Replacing it makes a
 // tick testable without gRPC or real slaves.
@@ -69,6 +86,7 @@ type EnergyService struct {
 	hardware       map[string]energyHardwareCache
 	ticking        bool
 	retentionMonth string
+	retentionHour  string
 	lastTick       time.Time
 }
 
@@ -154,11 +172,18 @@ func (s *EnergyService) Tick(ctx context.Context) {
 	close(results)
 
 	live := make(map[string]energyLiveMachine)
+	// A bucket's running_s is the time the series was seen, so downtime leaves a gap.
+	seconds := hours * 3600
+	var samples []db.EnergySample
 	for result := range results {
 		if !result.ok {
 			continue
 		}
 		live[result.machine] = result.live
+		samples = append(samples, db.EnergySample{Ts: now.Unix(), Kind: energyKindHost, Machine: result.machine, Wh: result.hostWh, RunningS: seconds})
+		for name, wh := range result.vmRows {
+			samples = append(samples, db.EnergySample{Ts: now.Unix(), Kind: energyKindVM, Machine: result.machine, Name: name, Wh: wh, RunningS: seconds})
+		}
 		if err := db.AddEnergyUsage(ctx, month, result.machine, "", result.hostWh, energyCost(result.hostWh, price, priceSet)); err != nil {
 			logger.Errorf("energy: save host usage %s: %v", result.machine, err)
 		}
@@ -167,6 +192,10 @@ func (s *EnergyService) Tick(ctx context.Context) {
 				logger.Errorf("energy: save vm usage %s/%s: %v", result.machine, name, err)
 			}
 		}
+	}
+	// The timeline is secondary: a failed write never blocks the monthly totals above.
+	if err := db.AddEnergySamples(ctx, samples); err != nil {
+		logger.Errorf("energy: save samples: %v", err)
 	}
 	s.setLive(live)
 }
@@ -317,6 +346,7 @@ func (s *EnergyService) forgetHardware(machine string) {
 }
 
 func (s *EnergyService) applyRetention(ctx context.Context, now time.Time) {
+	s.applySampleRetention(ctx, now)
 	month := now.Format(energyMonthFormat)
 	s.mu.Lock()
 	due := s.retentionMonth != month
@@ -331,6 +361,27 @@ func (s *EnergyService) applyRetention(ctx context.Context, now time.Time) {
 	}
 	s.mu.Lock()
 	s.retentionMonth = month
+	s.mu.Unlock()
+}
+
+// applySampleRetention trims each timeline tier once per hour. A failed tier
+// is retried on the next tick.
+func (s *EnergyService) applySampleRetention(ctx context.Context, now time.Time) {
+	hour := now.Format("2006-01-02T15")
+	s.mu.Lock()
+	due := s.retentionHour != hour
+	s.mu.Unlock()
+	if !due {
+		return
+	}
+	for _, tier := range energySampleTiers {
+		if err := db.DeleteEnergySamplesBefore(ctx, tier.step, now.Add(-tier.keep).Unix()); err != nil {
+			logger.Errorf("energy: sample retention step %d: %v", tier.step, err)
+			return
+		}
+	}
+	s.mu.Lock()
+	s.retentionHour = hour
 	s.mu.Unlock()
 }
 
@@ -416,6 +467,10 @@ type EnergyTotals struct {
 	LiveWatts float64 `json:"liveWatts"`
 	MonthKWh  float64 `json:"monthKWh"`
 	MonthCost float64 `json:"monthCost"`
+	// Projected* estimate the whole current month: month to date plus the
+	// recent average power for the hours left.
+	ProjectedMonthKWh  float64 `json:"projectedMonthKWh"`
+	ProjectedMonthCost float64 `json:"projectedMonthCost"`
 }
 
 type EnergyMachineSummary struct {
@@ -424,6 +479,9 @@ type EnergyMachineSummary struct {
 	MonthKWh    float64 `json:"monthKWh"`
 	MonthCost   float64 `json:"monthCost"`
 	CPUEstimate string  `json:"cpuEstimate"`
+	// See EnergyTotals.
+	ProjectedMonthKWh  float64 `json:"projectedMonthKWh"`
+	ProjectedMonthCost float64 `json:"projectedMonthCost"`
 }
 
 type EnergyVMSummary struct {
@@ -431,6 +489,10 @@ type EnergyVMSummary struct {
 	LiveWatts float64 `json:"liveWatts"`
 	MonthKWh  float64 `json:"monthKWh"`
 	MonthCost float64 `json:"monthCost"`
+	// Projected* estimate the whole current month: month to date plus the
+	// recent average power for the hours left.
+	ProjectedMonthKWh  float64 `json:"projectedMonthKWh"`
+	ProjectedMonthCost float64 `json:"projectedMonthCost"`
 }
 
 // Summary merges the live snapshot with the current month's stored rows. VM
@@ -487,6 +549,18 @@ func (s *EnergyService) Summary(ctx context.Context) (EnergySummary, error) {
 		}
 	}
 
+	now := s.now()
+	hostW, vmW, err := energyRecentWatts(ctx, now)
+	if err != nil {
+		return EnergySummary{}, fmt.Errorf("get energy samples: %w", err)
+	}
+	// Whole hours only, so the last hour of the month projects nothing more.
+	hoursLeft := math.Floor(time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, now.Location()).Sub(now).Hours())
+	project := func(monthKWh, monthCost, watts float64) (float64, float64) {
+		remaining := watts * hoursLeft / energyWhPerKWh
+		return monthKWh + remaining, monthCost + remaining*price // price is 0 while unset
+	}
+
 	summary := EnergySummary{
 		Totals:   EnergyTotals{},
 		Machines: make([]EnergyMachineSummary, 0, len(machines)),
@@ -497,16 +571,19 @@ func (s *EnergyService) Summary(ctx context.Context) (EnergySummary, error) {
 		summary.PricePerKWh = &value
 	}
 	for _, machine := range machines {
+		machine.ProjectedMonthKWh, machine.ProjectedMonthCost = project(machine.MonthKWh, machine.MonthCost, hostW[machine.Machine])
+		summary.Totals.ProjectedMonthKWh += machine.ProjectedMonthKWh
+		summary.Totals.ProjectedMonthCost += machine.ProjectedMonthCost
 		summary.Totals.LiveWatts += machine.LiveWatts
 		summary.Totals.MonthKWh += machine.MonthKWh
 		summary.Totals.MonthCost += machine.MonthCost
 		summary.Machines = append(summary.Machines, *machine)
 	}
 	for _, vm := range vmTotals {
+		vm.ProjectedMonthKWh, vm.ProjectedMonthCost = project(vm.MonthKWh, vm.MonthCost, vmW[vm.Name])
 		summary.VMs = append(summary.VMs, *vm)
 	}
 	// Day 1 keeps the month arithmetic away from end-of-month overflow.
-	now := s.now()
 	summary.Months = make([]EnergyMonth, energyHistoryMonths)
 	for i := range summary.Months {
 		offset := energyHistoryMonths - 1 - i
@@ -532,4 +609,47 @@ func (s *EnergyService) Summary(ctx context.Context) (EnergySummary, error) {
 		return summary.VMs[i].Name < summary.VMs[j].Name
 	})
 	return summary, nil
+}
+
+// energyRecentWatts is the average power of each host (by machine) and VM (by
+// name) over the last week of hourly samples. The average runs over the time
+// since the series was first seen, not only its running hours, so a host on a
+// power schedule or a VM that is often stopped is not projected as always on.
+func energyRecentWatts(ctx context.Context, now time.Time) (hosts, vms map[string]float64, err error) {
+	rows, err := db.GetEnergySampleTotals(ctx, energyHourStep, now.Add(-energyProjectionWindow).Unix())
+	if err != nil {
+		return nil, nil, err
+	}
+	type total struct {
+		wh    float64
+		first int64
+	}
+	sums := map[string]map[string]*total{energyKindHost: {}, energyKindVM: {}}
+	for _, row := range rows {
+		byKey, ok := sums[row.Kind]
+		if !ok {
+			continue
+		}
+		key := row.Name
+		if row.Kind == energyKindHost {
+			key = row.Machine
+		}
+		t := byKey[key]
+		if t == nil {
+			t = &total{first: row.Ts}
+			byKey[key] = t
+		}
+		t.wh += row.Wh
+		t.first = min(t.first, row.Ts)
+	}
+	watts := func(byKey map[string]*total) map[string]float64 {
+		out := make(map[string]float64, len(byKey))
+		for key, t := range byKey {
+			if seconds := now.Unix() - t.first; seconds > 0 {
+				out[key] = t.wh / (float64(seconds) / 3600)
+			}
+		}
+		return out
+	}
+	return watts(sums[energyKindHost]), watts(sums[energyKindVM]), nil
 }

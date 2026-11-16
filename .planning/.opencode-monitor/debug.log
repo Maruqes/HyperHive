@@ -1,0 +1,28 @@
+module loaded, origin-kind build
+prompt.submit origin={"kind":"composer"} command=undefined meta=undefined text=do u see how we got the estima states=[] inflight=[]
+pending length=0
+turn.start agent=main
+prompt.submit origin={"kind":"composer"} command=undefined meta=undefined text=i want you to create a small p states=[] inflight=[]
+pending length=0
+turn.start agent=main
+prompt.submit origin={"kind":"composer"} command=undefined meta=undefined text=
+
+<pasted_content id="822d">
+m states=[] inflight=[]
+pending length=0
+turn.start agent=main
+prompt.submit origin={"kind":"composer"} command=undefined meta=undefined text=i think i found it in the appc states=[] inflight=[]
+pending length=0
+turn.start agent=main
+prompt.submit origin={"kind":"composer"} command=undefined meta=undefined text=okay too mutch shit we are not states=[] inflight=[]
+pending length=0
+turn.start agent=main
+prompt.submit origin={"kind":"composer"} command=undefined meta=undefined text=Delete it states=[] inflight=[]
+pending length=0
+turn.start agent=main
+prompt.submit origin={"kind":"composer"} command=undefined meta=undefined text=remake the plan as a new plan  states=[] inflight=[]
+pending length=0
+turn.start agent=main
+prompt.submit origin={"kind":"composer"} command=undefined meta=undefined text=Delete old plan states=[] inflight=[]
+pending length=0
+turn.start agent=main

@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -25,6 +26,20 @@ func getEnergySummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSONWithStatus(w, http.StatusOK, summary)
+}
+
+func getEnergyTimeline(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	timeline, err := services.Energy.Timeline(r.Context(), q.Get("range"), q.Get("kind"), q.Get("machine"), q.Get("name"))
+	if errors.Is(err, services.ErrEnergyTimelineInput) {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSONWithStatus(w, http.StatusOK, timeline)
 }
 
 func putEnergyPrice(w http.ResponseWriter, r *http.Request) {
@@ -65,6 +80,7 @@ func validateEnergyPrice(price *float64) error {
 func setupEnergyAPI(r chi.Router) chi.Router {
 	return r.Route("/energy", func(r chi.Router) {
 		r.Get("/summary", getEnergySummary)
+		r.Get("/timeline", getEnergyTimeline)
 		r.Put("/price", putEnergyPrice)
 	})
 }
