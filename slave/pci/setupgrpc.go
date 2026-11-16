@@ -32,6 +32,9 @@ func hostGPUToProto(dev HostPCIDevice) *pciGrpc.HostGPU {
 		NumaNode:      int32(dev.NUMANode),
 		ManagedByVfio: dev.ManagedByVFIO,
 		AttachedToVms: attachedVMs,
+		ActualMode:    dev.ActualMode,
+		BootVga:       dev.BootVGA,
+		HostDriver:    dev.HostDriver,
 	}
 }
 
@@ -90,21 +93,28 @@ func (s *PCIService) ListVMGPUs(ctx context.Context, req *pciGrpc.VmNameRequest)
 }
 
 func (s *PCIService) AttachGPUToVM(ctx context.Context, req *pciGrpc.VMGPURequest) (*pciGrpc.OkResponse, error) {
-	if err := AttachGPUToVM(req.GetVmName(), req.GetGpuRef()); err != nil {
+	if err := SetGPUMode(ctx, req.GetGpuRef(), GPUModeVM, req.GetVmName()); err != nil {
 		return nil, err
 	}
 	return &pciGrpc.OkResponse{Ok: true}, nil
 }
 
 func (s *PCIService) DetachGPUFromVM(ctx context.Context, req *pciGrpc.VMGPURequest) (*pciGrpc.OkResponse, error) {
-	if err := DetachGPUFromVM(req.GetVmName(), req.GetGpuRef()); err != nil {
+	if err := SetGPUMode(ctx, req.GetGpuRef(), GPUModeNone, ""); err != nil {
 		return nil, err
 	}
 	return &pciGrpc.OkResponse{Ok: true}, nil
 }
 
 func (s *PCIService) ReturnGPUToHost(ctx context.Context, req *pciGrpc.GPUReferenceRequest) (*pciGrpc.OkResponse, error) {
-	if err := ReturnGPUToHost(req.GetGpuRef()); err != nil {
+	if err := SetGPUMode(ctx, req.GetGpuRef(), GPUModeNone, ""); err != nil {
+		return nil, err
+	}
+	return &pciGrpc.OkResponse{Ok: true}, nil
+}
+
+func (s *PCIService) SetGPUMode(ctx context.Context, req *pciGrpc.SetGPUModeRequest) (*pciGrpc.OkResponse, error) {
+	if err := SetGPUMode(ctx, req.GetGpuRef(), req.GetMode(), req.GetVmName()); err != nil {
 		return nil, err
 	}
 	return &pciGrpc.OkResponse{Ok: true}, nil

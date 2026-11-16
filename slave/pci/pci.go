@@ -1,6 +1,7 @@
 package pci
 
 import (
+	"context"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -59,6 +60,10 @@ type HostPCIDevice struct {
 	IsGPU         bool
 	ManagedByVFIO bool
 	AttachedToVMs []string
+	// Set for GPUs only, by ListHostGPUs.
+	ActualMode string
+	BootVGA    bool
+	HostDriver string
 }
 
 // VMPCIDevice is a PCI hostdev configured on a VM.
@@ -178,10 +183,27 @@ func ListHostGPUs() ([]HostPCIDevice, error) {
 			if dev.IOMMUGroup >= 0 {
 				dev.AttachedToVMs = groupAttachments[dev.IOMMUGroup]
 			}
+			describeGPUMode(&dev)
 			out = append(out, dev)
 		}
 	}
 	return out, nil
+}
+
+// describeGPUMode reads the driver from sysfs: libvirt's node device cache lags behind a
+// mode switch.
+func describeGPUMode(dev *HostPCIDevice) {
+	if address, err := ParsePCIAddress(dev.Address); err == nil {
+		if current, err := readCurrentPCIDriver(address); err == nil {
+			dev.Driver = normalizeDriverDisplayName(current)
+			dev.ManagedByVFIO = isVFIODriver(current)
+		}
+		dev.BootVGA = readSysfsValue(address, "boot_vga") == "1"
+	}
+	dev.ActualMode = actualGPUMode(dev.Driver)
+	if drivers := hostDriversByVendor[strings.ToLower(dev.VendorID)]; len(drivers) > 0 {
+		dev.HostDriver = drivers[0]
+	}
 }
 
 // ListHostGPUsWithIOMMU lists only host GPUs that belong to an IOMMU group.
@@ -330,33 +352,9 @@ func AttachPCIToVM(vmName, pciRef string) error {
 	return nil
 }
 
-// AttachGPUToVM adds a host GPU PCI device to a VM using managed='yes'.
+// AttachGPUToVM puts the GPU in vm mode for the given VM.
 func AttachGPUToVM(vmName, gpuRef string) error {
-	address, err := ParsePCIAddress(gpuRef)
-	if err != nil {
-		return err
-	}
-
-	if err := ensureHostPCIIsGPU(address); err != nil {
-		return err
-	}
-
-	related, err := relatedPCIDevicesForGPU(address)
-	if err != nil {
-		return err
-	}
-
-	if err := ensurePCIAddressesAvailableForVM(vmName, related); err != nil {
-		return err
-	}
-
-	for _, dev := range related {
-		if err := AttachPCIToVM(vmName, dev.String()); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return SetGPUMode(context.Background(), gpuRef, GPUModeVM, vmName)
 }
 
 func relatedPCIDevicesForGPU(address PCIAddress) ([]PCIAddress, error) {
@@ -401,37 +399,6 @@ func relatedPCIDevicesForGPU(address PCIAddress) ([]PCIAddress, error) {
 	})
 
 	return related, nil
-}
-
-func ensurePCIAddressesAvailableForVM(vmName string, addresses []PCIAddress) error {
-	vmName = strings.TrimSpace(vmName)
-	if vmName == "" {
-		return fmt.Errorf("vm name is empty")
-	}
-
-	conn, err := libvirt.NewConnect("qemu:///system")
-	if err != nil {
-		return fmt.Errorf("connect: %w", err)
-	}
-	defer conn.Close()
-
-	dom, err := conn.LookupDomainByName(vmName)
-	if err != nil {
-		return fmt.Errorf("lookup vm %s: %w", vmName, err)
-	}
-	defer dom.Free()
-
-	attachments, err := listAllVMAttachments(conn)
-	if err != nil {
-		return err
-	}
-
-	conflicts := pciAttachmentConflicts(attachments, addresses, canonicalDomainName(dom, vmName))
-	if len(conflicts) == 0 {
-		return nil
-	}
-
-	return fmt.Errorf("pci device(s) already attached to other vm(s): %s", strings.Join(conflicts, "; "))
 }
 
 func pciAttachmentConflicts(attachments map[string][]string, addresses []PCIAddress, targetVM string) []string {
@@ -512,48 +479,9 @@ func DetachPCIFromVM(vmName, pciRef string) error {
 	return ReturnPCIToHost(address.String())
 }
 
-// DetachGPUFromVM removes a host GPU PCI device from a VM and restores driver state to none.
-func DetachGPUFromVM(vmName, gpuRef string) error {
-	address, err := ParsePCIAddress(gpuRef)
-	if err != nil {
-		return err
-	}
-
-	if err := ensureHostPCIIsGPU(address); err != nil {
-		return err
-	}
-
-	related, err := relatedPCIDevicesForGPU(address)
-	if err != nil {
-		return err
-	}
-
-	vmDevices, err := ListVMPCIDevices(vmName)
-	if err != nil {
-		return err
-	}
-	attachedToVM := makeVMPCIDeviceMap(vmDevices)
-
-	var errs []error
-	for i := len(related) - 1; i >= 0; i-- {
-		dev := related[i]
-		if _, ok := attachedToVM[dev.String()]; !ok {
-			continue
-		}
-		if err := DetachPCIFromVM(vmName, dev.String()); err != nil {
-			errs = append(errs, fmt.Errorf("detach pci %s: %w", dev.String(), err))
-			continue
-		}
-		// Keep every function in the GPU group neutral after VM detach.
-		if err := forcePCIDriverToNone(dev); err != nil {
-			errs = append(errs, fmt.Errorf("set pci %s driver to none: %w", dev.String(), err))
-		}
-	}
-
-	if len(errs) > 0 {
-		return fmt.Errorf("detach gpu %s from vm %s: %w", address.String(), vmName, errors.Join(errs...))
-	}
-	return nil
+// DetachGPUFromVM puts the GPU in none mode, which removes it from every shut-off VM.
+func DetachGPUFromVM(_, gpuRef string) error {
+	return SetGPUMode(context.Background(), gpuRef, GPUModeNone, "")
 }
 
 // ReturnPCIToHost re-attaches a PCI device to the host driver (unbinds from vfio-pci).
@@ -589,38 +517,9 @@ func ReturnPCIToHost(pciRef string) error {
 	return nil
 }
 
-// ReturnGPUToHost unbinds a GPU PCI device from vfio and restores driver state to none.
+// ReturnGPUToHost puts the GPU in none mode. Despite the name it never bound a host driver.
 func ReturnGPUToHost(gpuRef string) error {
-	address, err := ParsePCIAddress(gpuRef)
-	if err != nil {
-		return err
-	}
-
-	if err := ensureHostPCIIsGPU(address); err != nil {
-		return err
-	}
-
-	related, err := relatedPCIDevicesForGPU(address)
-	if err != nil {
-		return err
-	}
-
-	var errs []error
-	for _, dev := range related {
-		if err := ReturnPCIToHost(dev.String()); err != nil {
-			errs = append(errs, fmt.Errorf("return pci %s to host: %w", dev.String(), err))
-			continue
-		}
-		// Keep every function in the GPU group neutral when not assigned to a VM.
-		if err := forcePCIDriverToNone(dev); err != nil {
-			errs = append(errs, fmt.Errorf("set pci %s driver to none: %w", dev.String(), err))
-		}
-	}
-
-	if len(errs) > 0 {
-		return fmt.Errorf("return gpu %s to host: %w", address.String(), errors.Join(errs...))
-	}
-	return nil
+	return SetGPUMode(context.Background(), gpuRef, GPUModeNone, "")
 }
 
 // bindToVFIO detaches the PCI device from its current driver and binds it to vfio-pci.
@@ -732,28 +631,6 @@ func listAllVMAttachments(conn *libvirt.Connect) (map[string][]string, error) {
 	}
 
 	return attachments, nil
-}
-
-func attachedVMsForPCIAddresses(addresses []PCIAddress) ([]string, error) {
-	conn, err := libvirt.NewConnect("qemu:///system")
-	if err != nil {
-		return nil, fmt.Errorf("connect: %w", err)
-	}
-	defer conn.Close()
-
-	attachments, err := listAllVMAttachments(conn)
-	if err != nil {
-		return nil, err
-	}
-
-	vmNames := make([]string, 0)
-	for _, address := range addresses {
-		for _, vmName := range attachments[address.String()] {
-			vmNames = appendUnique(vmNames, vmName)
-		}
-	}
-	sort.Strings(vmNames)
-	return vmNames, nil
 }
 
 func parseHostPCIDevice(xmlDesc string) (HostPCIDevice, error) {
@@ -874,32 +751,8 @@ func isNoneDriver(driver string) bool {
 	return driver == "" || driver == driverNone
 }
 
-func forcePCIDriverToNone(address PCIAddress) error {
-	driver, err := readCurrentPCIDriver(address)
-	if err != nil {
-		return err
-	}
-	if isNoneDriver(driver) {
-		return nil
-	}
-
-	unbindPath := filepath.Join("/sys/bus/pci/devices", address.String(), "driver", "unbind")
-	if err := os.WriteFile(unbindPath, []byte(address.String()), 0); err != nil {
-		return fmt.Errorf("set pci %s driver to none: %w", address.String(), err)
-	}
-
-	driver, err = readCurrentPCIDriver(address)
-	if err != nil {
-		return err
-	}
-	if !isNoneDriver(driver) {
-		return fmt.Errorf("set pci %s driver to none: expected none, got %q", address.String(), normalizeDriverDisplayName(driver))
-	}
-	return nil
-}
-
 func readCurrentPCIDriver(address PCIAddress) (string, error) {
-	driverLink := filepath.Join("/sys/bus/pci/devices", address.String(), "driver")
+	driverLink := devicePath(address, "driver")
 	target, err := os.Readlink(driverLink)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -1148,45 +1001,4 @@ type hostDevXML struct {
 	Alias struct {
 		Name string `xml:"name,attr"`
 	} `xml:"alias"`
-}
-
-// DetachAllGPUs detaches unassigned host GPU groups from their drivers by setting driver to none.
-// It never removes PCI hostdev entries from VM definitions.
-func DetachAllGPUs() error {
-	gpus, err := ListHostGPUs()
-	if err != nil {
-		return fmt.Errorf("list host GPUs: %w", err)
-	}
-
-	var errs []error
-	for _, gpu := range gpus {
-		addr, err := ParsePCIAddress(gpu.Address)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("parse GPU address %s: %w", gpu.Address, err))
-			continue
-		}
-		related, err := relatedPCIDevicesForGPU(addr)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("list related GPU devices %s: %w", gpu.Address, err))
-			continue
-		}
-		attachedVMs, err := attachedVMsForPCIAddresses(related)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("list GPU attachments %s: %w", gpu.Address, err))
-			continue
-		}
-		if len(attachedVMs) > 0 {
-			continue
-		}
-		for _, dev := range related {
-			if err := forcePCIDriverToNone(dev); err != nil {
-				errs = append(errs, fmt.Errorf("detach GPU pci %s: %w", dev.String(), err))
-			}
-		}
-	}
-
-	if len(errs) > 0 {
-		return fmt.Errorf("detach GPUs errors: %w", errors.Join(errs...))
-	}
-	return nil
 }

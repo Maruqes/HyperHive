@@ -123,6 +123,15 @@ func newSlave(addr, machineName string, conn *grpc.ClientConn) error {
 	powerScheduleService := services.PowerScheduleService{}
 	go powerScheduleService.ApplyMachine(context.Background(), machineName)
 
+	// First, and before VMs autostart: driver pins are lost on reboot and a VM in vm mode
+	// only starts with its GPU already on vfio-pci. A failure never blocks the slave.
+	pciService := services.PCIService{}
+	gpuCtx, cancelGPU := context.WithTimeout(context.Background(), 10*time.Minute)
+	if err := pciService.ReconcileGPUs(gpuCtx, machineName); err != nil {
+		logger.Errorf("ReconcileGPUs failed for %s: %v", machineName, err)
+	}
+	cancelGPU()
+
 	btrfsService := services.BTRFSService{}
 	err := btrfsService.AutoMountRaid(machineName)
 	if err != nil {
@@ -492,6 +501,11 @@ func main() {
 	err = db.CreateNotesTable(ctx)
 	if err != nil {
 		log.Fatalf("create notes table: %v", err)
+	}
+
+	err = db.CreateGPUModesTable(ctx)
+	if err != nil {
+		log.Fatalf("create gpu modes table: %v", err)
 	}
 
 	err = db.CreatePowerScheduleTables(ctx)

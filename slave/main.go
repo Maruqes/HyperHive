@@ -857,12 +857,8 @@ func main() {
 	}
 	logger.Info("[9/16] Set VNC ports: success")
 
-	logger.Info("[10/16] Preserve GPU PCI assignments on startup: skipped auto detach")
-	// if err := pci.DetachAllGPUs(); err != nil {
-	// 	logger.Warnf("[10/16] Detach unassigned GPUs: %v (non-fatal)", err)
-	// } else {
-	// 	logger.Info("[10/16] Detach unassigned GPUs: success")
-	// }
+	// The master applies each GPU's stored mode when this slave connects.
+	logger.Info("[10/16] GPU modes: applied by the master on connect")
 
 	// Install NFS
 	if err := nfs.InstallNFS(); err != nil {
